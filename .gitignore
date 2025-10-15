@@ -1,0 +1,16 @@
+# Node
+node_modules
+dist
+build
+.eslintcache
+*.log
+
+# Env
+.env
+*.env
+api/.env
+webapp/.env
+bot/.env
+
+# Misc
+.DS_Store
