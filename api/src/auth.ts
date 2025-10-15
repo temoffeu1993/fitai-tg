@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { q } from "../db";
+import { q } from "./db";
 
 const router = Router();
 
