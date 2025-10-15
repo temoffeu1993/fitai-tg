@@ -1,0 +1,4 @@
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#111; }
+h2,h3 { margin:12px 0; }
+button { cursor:pointer; }
