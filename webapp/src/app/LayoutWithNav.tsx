@@ -30,7 +30,7 @@ export default function LayoutWithNav() {
   return (
     <div style={{ minHeight: "100%", background: "#fff", paddingBottom: 72 }}>
       <div style={{ height: 4, background: "#f3f4f6" }} />
-      <div style={{ marginTop: -4 }}>
+      <div style={{ marginTop: -8 }}>
         <Outlet />
       </div>
       <NavBar current={current} onChange={handleChange} />
