@@ -29,7 +29,7 @@ export default function LayoutWithNav() {
 
   return (
     <div style={{ minHeight: "100%", background: "#fff", paddingBottom: 72 }}>
-      <div style={{ height: 18, background: "#f3f4f6" }} />
+      <div style={{ height: 6, background: "#f3f4f6" }} />
       <div style={{ marginTop: -4 }}>
         <Outlet />
       </div>
