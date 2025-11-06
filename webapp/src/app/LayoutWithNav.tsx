@@ -19,6 +19,7 @@ export default function LayoutWithNav() {
   const navigate = useNavigate();
 
   const current = resolveNavCurrent(pathname);
+  const safeTop = typeof window !== "undefined" ? Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--tg-viewport-inset-top") || "0", 10) || 0 : 0;
 
   const handleChange = (t: TabKey) => {
     if (t === "home") navigate("/");
@@ -29,7 +30,22 @@ export default function LayoutWithNav() {
 
   return (
     <div style={{ minHeight: "100%", background: "#fff", paddingBottom: 72 }}>
-      <Outlet />
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 48 + safeTop,
+          background: "#f3f4f6",
+          boxShadow: "0 6px 18px rgba(15,23,42,0.08)",
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      />
+      <div style={{ paddingTop: 16 }}>
+        <Outlet />
+      </div>
       <NavBar current={current} onChange={handleChange} />
     </div>
   );

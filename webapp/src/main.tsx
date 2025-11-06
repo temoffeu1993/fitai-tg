@@ -16,7 +16,7 @@ const applyLightTheme = () => {
 
   tg?.setBackgroundColor?.("#ffffff");
   tg?.setSecondaryBackgroundColor?.("#f3f4f6");
-  tg?.setHeaderColor?.("#f3f4f6");
+  tg?.setHeaderColor?.("secondary_bg_color");
   tg?.setBottomBarColor?.("bg_color");
   document.body.style.backgroundColor = "#ffffff";
   document.documentElement.style.backgroundColor = "#ffffff";
