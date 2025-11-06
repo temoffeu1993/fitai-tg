@@ -1,0 +1,98 @@
+// webapp/src/api/schedule.ts
+
+export type WorkoutSchedule = {
+  dow?: {
+    [dow: string]: { enabled: boolean; time: string };
+  };
+  dates?: {
+    [iso: string]: { time: string };
+  };
+};
+
+export type ScheduleByDate = Record<string, { time: string }>;
+
+export type PlannedWorkout = {
+  id: string;
+  plan: any;
+  scheduledFor: string;
+  status: "scheduled" | "completed" | "cancelled";
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  resultSessionId?: string | null;
+};
+
+export async function getScheduleOverview(): Promise<{
+  schedule: WorkoutSchedule;
+  plannedWorkouts: PlannedWorkout[];
+}> {
+  const r = await fetch("/api/workout-schedule", { credentials: "include" });
+  if (!r.ok) throw new Error("failed_to_load_schedule");
+  const data = await r.json();
+  return {
+    schedule: (data?.schedule ?? {}) as WorkoutSchedule,
+    plannedWorkouts: Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [],
+  };
+}
+
+export async function createPlannedWorkout(input: {
+  plan: any;
+  scheduledFor: string;
+  scheduledTime?: string;
+}): Promise<PlannedWorkout> {
+  const r = await fetch("/api/planned-workouts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_create_planned_workout");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
+export async function updatePlannedWorkout(
+  id: string,
+  input: { scheduledFor?: string; scheduledTime?: string; plan?: any }
+): Promise<PlannedWorkout> {
+  const r = await fetch(`/api/planned-workouts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_update_planned_workout");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
+export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> {
+  const r = await fetch(`/api/planned-workouts/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_cancel_planned_workout");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
+export async function saveScheduleDates(dates: ScheduleByDate): Promise<void> {
+  const r = await fetch("/api/workout-schedule", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ schedule: { dates } }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_save_schedule");
+  }
+}

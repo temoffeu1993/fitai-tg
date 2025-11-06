@@ -2,17 +2,34 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 
-// рендерим лоадер до авторизации
-const root = ReactDOM.createRoot(document.getElementById("root")!);
-root.render(<div style={{ padding: 20 }}>Авторизация…</div>);
-
-// Telegram WebApp SDK (скрипт подключи в index.html)
+// инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
 tg?.expand?.();
 tg?.ready?.();
 
-console.log("initData?", !!tg?.initData, import.meta.env.VITE_API_URL);
+// корень приложения
+const root = ReactDOM.createRoot(document.getElementById("root")!);
 
+// определяем режим
+const isDev =
+  import.meta.env.DEV ||
+  new URL(location.href).searchParams.has("debug");
+
+// локальный режим — без Telegram, сразу заходим в приложение
+if (isDev && !tg?.initData) {
+  localStorage.setItem("token", "debug");
+  localStorage.setItem(
+    "profile",
+    JSON.stringify({ first_name: "Dev", username: "dev" })
+  );
+  root.render(<App />);
+} else {
+  // реальная авторизация через Telegram
+  root.render(<div style={{ padding: 20 }}>Авторизация…</div>);
+  auth();
+}
+
+// --- авторизация через Telegram API ---
 async function auth() {
   const initData =
     tg?.initData ||
@@ -26,28 +43,14 @@ async function auth() {
       body: JSON.stringify({ initData }),
     });
 
-    if (!r.ok) {
-      const t = await r.text();
-      root.render(
-        <div style={{ padding: 20 }}>
-          Ошибка авторизации: {r.status} {t}
-        </div>
-      );
-      return;
-    }
+    if (!r.ok) throw new Error(await r.text());
 
     const { token } = await r.json();
     localStorage.setItem("token", token);
-
-    // успешная авторизация — рендерим приложение
     root.render(<App />);
   } catch (e: any) {
     root.render(
-      <div style={{ padding: 20 }}>
-        Сеть/CORS: {e?.message || String(e)}
-      </div>
+      <div style={{ padding: 20 }}>Ошибка: {e?.message || String(e)}</div>
     );
   }
 }
-
-auth();

@@ -1,16 +1,80 @@
-export default function NavBar({tab,onChange}:{tab:"home"|"workouts"|"nutrition";onChange:(t:any)=>void}){
-  const Item = ({id,label}:{id:any;label:string})=>(
-    <button onClick={()=>onChange(id)}
-      style={{flex:1,padding:"12px 8px",border:"none",background:"transparent",color:tab===id?"#000":"#777"}}>
-      {label}
-    </button>
-  );
+// webapp/src/components/NavBar.tsx
+import React from "react";
+
+export type TabKey = "home" | "history" | "nutrition" | "profile";
+export type NavCurrent = TabKey | "none"; // 👈 добавили "none"
+
+export default function NavBar({
+  current,
+  onChange,
+}: {
+  current: NavCurrent;          // 👈 тип расширили
+  onChange?: (t: TabKey) => void;
+}) {
   return (
-    <div style={{position:"fixed",left:0,right:0,bottom:0,height:56,display:"flex",
-      borderTop:"1px solid #eee",background:"#fafafa",backdropFilter:"blur(6px)"}}>
-      <Item id="home" label="Главная"/>
-      <Item id="workouts" label="Мои тренировки"/>
-      <Item id="nutrition" label="Питание"/>
-    </div>
+    <nav style={st.tabbar} aria-label="Навигация">
+      <TabBtn emoji="🏠" label="Главная" active={current === "home"}      onClick={() => onChange?.("home")} />
+      <TabBtn emoji="🏋️" label="Трен"    active={current === "history"}  onClick={() => onChange?.("history")} />
+      <TabBtn emoji="🍽️" label="Питание" active={current === "nutrition"} onClick={() => onChange?.("nutrition")} />
+      <TabBtn emoji="👤" label="Профиль" active={current === "profile"}    onClick={() => onChange?.("profile")} />
+    </nav>
   );
 }
+
+function TabBtn({
+  emoji,
+  label,
+  active,
+  onClick,
+}: {
+  emoji: string;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...st.tabBtn, ...(active ? st.tabBtnActive : {}) }}
+      aria-current={active ? "page" : undefined}
+    >
+      <div style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</div>
+      <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
+    </button>
+  );
+}
+
+const st: Record<string, React.CSSProperties> = {
+  tabbar: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "#fff",
+    boxShadow: "0 -6px 18px rgba(0,0,0,.08)",
+    borderTop: "1px solid rgba(0,0,0,.06)",
+    padding: "8px 12px",
+    display: "grid",
+    gridTemplateColumns: "repeat(4,1fr)",
+    gap: 8,
+    maxWidth: 720,
+    margin: "0 auto",
+    zIndex: 10,
+  },
+  tabBtn: {
+    border: "none",
+    borderRadius: 12,
+    padding: "8px",
+    background: "#f6f7fb",
+    display: "grid",
+    placeItems: "center",
+    gap: 4,
+    cursor: "pointer",
+    fontWeight: 700,
+  } as React.CSSProperties,
+  tabBtnActive: {
+    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
+    color: "#fff",
+  },
+};

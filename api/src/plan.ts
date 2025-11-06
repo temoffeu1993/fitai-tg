@@ -1,278 +1,512 @@
+// plan-refactored.ts
+// ============================================================================
+// AI-FIRST FITNESS TRAINER
+// Полный рефакторинг: простой код, умный AI
+// ============================================================================
+
 import { Router, Response } from "express";
-import { q } from "./db.js";
-import { requireAuth } from "./auth.js";
-import { asyncHandler } from "./middleware/errorHandler.js";
-import { AuthRequest, OnboardingData, WorkoutPlan, DatabaseOnboarding, DatabaseWorkout } from "./types.js";
-import { config } from "./config.js";
-import { AppError } from "./middleware/errorHandler.js";
 import OpenAI from "openai";
+import { q } from "./db.js";
+import { asyncHandler, AppError } from "./middleware/errorHandler.js";
+import { config } from "./config.js";
 
 export const plan = Router();
 
-// Инициализация OpenAI только если есть ключ
-const openai = config.openaiApiKey ? new OpenAI({ apiKey: config.openaiApiKey }) : null;
+const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 
-// Типы для генерации
-interface WorkoutContext {
-  onboarding: OnboardingData;
-  recentWorkouts: Array<{
-    plan: WorkoutPlan;
-    result?: any;
-    created_at: Date;
-  }>;
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type ProgramRow = {
+  id: string;
+  user_id: string;
+  blueprint_json: {
+    name: string;
+    days: string[];
+    description: string;
+  };
+  microcycle_len: number;
+  week: number;
+  day_idx: number;
+};
+
+type Exercise = {
+  name: string;
+  sets: number;
+  reps: string;
+  restSec: number;
+  weight?: string;
+  targetMuscles: string[];
+  cues: string;
+};
+
+type WorkoutPlan = {
+  title: string;
+  duration: number;
+  warmup: string[];
+  exercises: Exercise[];
+  cooldown: string[];
+  notes: string;
+};
+
+const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
+
+// ============================================================================
+// DATABASE HELPERS
+// ============================================================================
+
+async function getOnboarding(userId: string): Promise<any> {
+  const rows = await q(
+    `SELECT data FROM onboardings WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+  return rows[0]?.data || {};
 }
 
-// Функция для создания промпта
-function createWorkoutPrompt(context: WorkoutContext): string {
-  const { onboarding, recentWorkouts } = context;
-  
-  return `Ты профессиональный фитнес-тренер. Создай персонализированную тренировку для клиента.
+async function getOrCreateProgram(userId: string, onboarding: any): Promise<ProgramRow> {
+  // Проверяем существующую программу
+  const existing = await q<ProgramRow>(
+    `SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
 
-ДАННЫЕ КЛИЕНТА:
-- Возраст: ${onboarding.age || 'не указан'}
-- Пол: ${onboarding.sex === 'm' ? 'мужской' : onboarding.sex === 'f' ? 'женский' : 'не указан'}
-- Рост: ${onboarding.height || 'не указан'} см
-- Вес: ${onboarding.weight || 'не указан'} кг
-- Цель: ${onboarding.goal || 'общее здоровье'}
-- Опыт: ${onboarding.experience || 'novice'}
-- Частота тренировок: ${onboarding.freq || 3} раз в неделю
-- Длительность: ${onboarding.duration || 60} минут
-- Место: ${onboarding.location || 'тренажёрный зал'}
-- Оборудование: ${onboarding.equipment?.join(', ') || 'стандартное'}
-- Ограничения: ${onboarding.limitations?.join(', ') || 'нет'}
+  if (existing && existing[0]) {
+    return existing[0];
+  }
 
-ПОСЛЕДНИЕ ТРЕНИРОВКИ:
-${recentWorkouts.length > 0 ? 
-  recentWorkouts.map((w, i) => `${i+1}. ${w.plan.title} (${new Date(w.created_at).toLocaleDateString()})`).join('\n') : 
-  'Нет предыдущих тренировок'}
+  // Создаём новую программу на основе онбординга
+  const daysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
+  const blueprint = createBlueprint(daysPerWeek);
 
-ТРЕБОВАНИЯ:
-1. Создай разнообразную тренировку, отличающуюся от последних
-2. Учти уровень подготовки и цели клиента
-3. Включи 4-8 упражнений в зависимости от опыта
-4. Для новичков - базовые упражнения, для продвинутых - более сложные
-5. Учти доступное оборудование и ограничения
+  const result = await q<ProgramRow>(
+    `INSERT INTO training_programs (user_id, blueprint_json, microcycle_len, week, day_idx)
+     VALUES ($1, $2, $3, 1, 0)
+     RETURNING *`,
+    [userId, JSON.stringify(blueprint), blueprint.days.length]
+  );
 
-Верни ТОЛЬКО JSON в следующем формате:
+  return result[0];
+}
+
+async function getRecentSessions(userId: string, limit = 10) {
+  const rows = await q<any>(
+    `SELECT finished_at, payload
+     FROM workout_sessions
+     WHERE user_id = $1
+     ORDER BY finished_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map(row => ({
+    date: row.finished_at,
+    title: row.payload?.title,
+    duration: row.payload?.duration || row.payload?.durationMin,
+    exercises: (row.payload?.exercises || []).map((ex: any) => ({
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      weight: ex.weight,
+      targetMuscles: ex.targetMuscles
+    }))
+  }));
+}
+
+// ============================================================================
+// BLUEPRINT CREATION (простая логика)
+// ============================================================================
+
+function createBlueprint(daysPerWeek: number) {
+  if (daysPerWeek >= 5) {
+    return {
+      name: "Push/Pull/Legs Split",
+      days: ["Push", "Pull", "Legs", "Push", "Pull"],
+      description: "Classic 5-day split focusing on movement patterns"
+    };
+  }
+
+  if (daysPerWeek === 4) {
+    return {
+      name: "Upper/Lower Split",
+      days: ["Upper", "Lower", "Upper", "Lower"],
+      description: "Balanced 4-day split alternating upper and lower body"
+    };
+  }
+
+  // 3 дня или меньше
+  return {
+    name: "Full Body Split",
+    days: ["Upper Focus", "Lower Focus", "Full Body"],
+    description: "3-day full body with varied emphasis"
+  };
+}
+
+// ============================================================================
+// AI TRAINER PROMPT (главное отличие от старого кода!)
+// ============================================================================
+
+const TRAINER_SYSTEM = `You are an expert personal trainer with 15+ years of experience in strength training, hypertrophy, and athletic performance.
+
+Your approach:
+- You understand periodization, progressive overload, and recovery
+- You vary exercises to prevent plateaus and boredom
+- You consider individual limitations and preferences
+- You write detailed, helpful technique cues
+- You think holistically about the client's journey
+
+You are NOT a rigid algorithm. You are a thinking, adaptive coach.`;
+
+function describeEquipment(onboarding: any) {
+  const list = Array.isArray(onboarding.equipmentItems)
+    ? onboarding.equipmentItems.filter(Boolean)
+    : [];
+
+  const bodyOnly = onboarding.environment?.bodyweightOnly === true;
+
+  if (bodyOnly || list.length === 0) {
+    return "только вес собственного тела. нет штанги, нет тренажёров, нет станка для жима ногами, нет блоковых машин";
+  }
+
+  return (
+    list.join(", ") +
+    ". другого оборудования нет: нет штанги, нет тренажёров, нет станка для жима ногами, нет блочных машин, если это явно не указано"
+  );
+}
+
+function buildTrainerPrompt(context: {
+  onboarding: any;
+  program: ProgramRow;
+  history: any[];
+}): string {
+  const { onboarding, program, history } = context;
+  const blueprint = program.blueprint_json;
+  const todayFocus = blueprint.days[program.day_idx];
+
+  // Форматируем историю для читаемости
+  const historyText = history.length > 0
+    ? history.map((session, idx) => {
+        const daysAgo = idx === 0 ? "последняя тренировка" : `${idx} тренировок назад`;
+        const exercises = session.exercises
+          .slice(0, 5)
+          .map((ex: any) => `  - ${ex.name}: ${ex.sets} подходов х ${ex.reps} повторов${ex.weight ? ', вес: ' + ex.weight : ''}`)
+          .join('\n');
+        return `${daysAgo}:\n${exercises}`;
+      }).join('\n\n')
+    : "Это первая тренировка клиента";
+
+  return `
+# КЛИЕНТ
+
+**Профиль:**
+- Имя: ${onboarding.profile?.name || 'Клиент'}
+- Пол: ${onboarding.ageSex?.sex || 'не указан'}, Возраст: ${onboarding.ageSex?.age || 'не указан'}
+- Рост: ${onboarding.body?.height || '?'} см, Вес: ${onboarding.body?.weight || '?'} кг
+- Опыт: ${onboarding.experience || 'не указан'}
+
+**Цели:**
+${JSON.stringify(onboarding.goals || ['поддержание формы'], null, 2)}
+
+**График:**
+- Дней в неделю: ${onboarding.schedule?.daysPerWeek || 3}
+- Длительность тренировки: ${onboarding.schedule?.minutesPerSession || 60} минут
+
+**Локация и оборудование:**
+- Место: ${onboarding.environment?.location || 'unknown'}
+- Доступное оборудование: ${describeEquipment(onboarding)}
+
+**Здоровье и ограничения:**
+${onboarding.health?.limitsText || 'Без ограничений'}
+
+**Образ жизни:**
+- Работа: ${onboarding.lifestyle?.workStyle || 'не указано'}
+- Сон: ${onboarding.lifestyle?.sleep || 'не указано'} часов
+- Стресс: ${onboarding.lifestyle?.stress || 'средний'}
+
+---
+
+# ТЕКУЩАЯ ПРОГРАММА
+
+**Программа:** ${blueprint.name}
+**Неделя:** ${program.week}
+**День цикла:** ${program.day_idx + 1} из ${program.microcycle_len}
+**Сегодняшний фокус:** ${todayFocus}
+
+**Описание программы:** ${blueprint.description}
+
+---
+
+# ИСТОРИЯ ТРЕНИРОВОК
+
+${historyText}
+
+---
+
+# ТВОЯ ЗАДАЧА
+
+Создай **следующую тренировку** для этого клиента.
+
+**Думай как настоящий тренер:**
+1. Что он делал на последней тренировке? Как прогрессировать?
+2. Какой сегодня день программы (${todayFocus})? Что нужно проработать?
+3. Как его цели (${(onboarding.goals || []).join(', ')}) влияют на выбор упражнений?
+4. Достаточно ли он восстановился? (смотри на дату последней тренировки)
+5. Как добавить вариативности, чтобы не было скучно?
+6. Есть ли ограничения по здоровью?
+
+**Важные принципы:**
+- Прогрессия: оцени предыдущие выполнения упражнения. Повышай нагрузку только если предыдущие сессия показали стабильное выполнение целевых повторов без снижения веса. При недовыполнении — сохрани или слегка снизь вес, чтобы поддержать качество движений.
+- Не ставь одно и то же тяжёлое базовое упражнение (типа жим ногами, присед, становая, жим) два тренировочных дня подряд без перерыва. Замени вариантом полегче или другой плоскостью нагрузки.
+- Вариативность упражнений: меняй углы, хваты, оборудование
+- Вариативность подходов: НЕ делай везде одинаково! Базовые: 3-5 подходов. Вспомогательные: 2-4. Изоляция: 2-3.
+
+- Баланс: не перегружай одни группы мышц, забывая другие
+- Реализм: учитывай время тренировки (${onboarding.schedule?.minutesPerSession || 60} мин)
+
+**Разминка и заминка:**
+- Делай warmup и cooldown конкретными под тренировку.
+- Не используй общий шаблон.
+- Warmup — 3–5 простых пунктов, готовящих мышцы и суставы дня (без научных терминов).
+- Cooldown — 2–4 коротких пункта про расслабление и растяжку именно проработанных групп.
+- Пиши простым языком, чтобы понял новичок.
+
+**Формат ответа:**
+Верни JSON объект (без markdown, только JSON):
+
 {
-  "title": "Название тренировки (например: Тренировка А - Верх тела)",
-  "items": [
+  "title": "Краткое название тренировки (например: Грудь и Трицепс)",
+  "duration": ${onboarding.schedule?.minutesPerSession || 60},
+"warmup": [
+  "3–5 простых упражнений для разогрева мышц и суставов сегодняшней тренировки",
+  "Без сложных терминов — просто, понятно, с акцентом на нужные зоны"
+],
+  "exercises": [
     {
-      "name": "Название упражнения",
-      "sets": число_подходов,
-      "reps": "диапазон_повторений (например: 8-12)"
+      "name": "Название упражнения на русском",
+      "sets": 3,
+      "reps": "8-12",
+      "restSec": 90,
+      "weight": "40 кг" или null если без веса,
+      "targetMuscles": ["грудь", "трицепс"],
+      "cues": "Подробная техника: как выполнять, на что обратить внимание, частые ошибки, дыхание"
     }
   ],
-  "cues": "Краткие рекомендации по тренировке (разминка, техника, отдых между подходами)"
-}`;
+"cooldown": [
+  "2–4 коротких действия для расслабления и растяжки после тренировки",
+  "Фокус на проработанные группы, простыми словами"
+],
+ "notes": "ОБЯЗАТЕЛЬНО объясни логику простым языком от лица тренера к клиенту (3-4 предложения): Почему я выбрал именно эти упражнения? Почему такой порядок (от тяжёлых к лёгким)? Почему такое время отдыха? Как это поможет достичь твоей цели? БЕЗ терминов (база, изоляция, гипертрофия) — объясняй понятными словами. Пример: 'Я начал с жима штанги — это главное упражнение для роста груди. Жим на наклоне добавляю чтобы проработать верхнюю часть груди. Разводка в конце максимально растягивает мышцы, это запускает их рост. Отдыхай 2 минуты после жимов — мышцам нужно время восстановить энергию для следующего подхода.'"
 }
 
-// Резервная функция генерации без AI
-function generateFallbackWorkout(onboarding: OnboardingData, workoutCount: number): WorkoutPlan {
-  const experience = onboarding.experience || 'novice';
-  const goal = onboarding.goal || 'general';
-  
-  // Различные шаблоны тренировок
-  const templates: WorkoutPlan[] = [
-    // Тренировка A - Ноги и плечи
-    {
-      title: "Тренировка A - Ноги и плечи",
-      items: [
-        { name: "Приседания со штангой", sets: experience === 'novice' ? 3 : 4, reps: "8-12" },
-        { name: "Румынская тяга", sets: 3, reps: "10-12" },
-        { name: "Выпады с гантелями", sets: 3, reps: "10-12 на каждую ногу" },
-        { name: "Жим гантелей стоя", sets: 3, reps: "8-12" },
-        { name: "Разведение гантелей в стороны", sets: 3, reps: "12-15" },
-        { name: "Подъём ног в висе", sets: 3, reps: "10-15" }
-      ],
-      cues: "Разминка: 5-10 минут кардио + динамическая растяжка. Отдых между подходами: 1.5-2 минуты для базовых, 1 минута для изолирующих упражнений."
-    },
-    // Тренировка B - Грудь и спина
-    {
-      title: "Тренировка B - Грудь и спина",
-      items: [
-        { name: "Жим штанги лёжа", sets: experience === 'novice' ? 3 : 4, reps: "6-10" },
-        { name: "Подтягивания или тяга верхнего блока", sets: 4, reps: "8-12" },
-        { name: "Жим гантелей на наклонной скамье", sets: 3, reps: "8-12" },
-        { name: "Тяга штанги в наклоне", sets: 3, reps: "8-12" },
-        { name: "Сведение рук в кроссовере", sets: 3, reps: "12-15" },
-        { name: "Тяга к лицу", sets: 3, reps: "15-20" }
-      ],
-      cues: "Разминка: лёгкое кардио + разминочные подходы. Чередуйте упражнения на грудь и спину для лучшего восстановления. Отдых 1.5-2 минуты."
-    },
-    // Тренировка C - Руки и корпус
-    {
-      title: "Тренировка C - Руки и корпус",
-      items: [
-        { name: "Подъём штанги на бицепс", sets: 3, reps: "8-12" },
-        { name: "Французский жим лёжа", sets: 3, reps: "8-12" },
-        { name: "Молотковые сгибания", sets: 3, reps: "10-12" },
-        { name: "Отжимания на брусьях", sets: 3, reps: "8-12" },
-        { name: "Подъём гантелей на бицепс сидя", sets: 3, reps: "10-12" },
-        { name: "Планка", sets: 3, reps: "30-60 сек" }
-      ],
-      cues: "Фокус на технике выполнения. Контролируйте негативную фазу движения. Отдых 1-1.5 минуты между подходами."
-    },
-    // Full Body для новичков
-    {
-      title: "Full Body тренировка",
-      items: [
-        { name: "Приседания со штангой или гоблет-приседания", sets: 3, reps: "10-12" },
-        { name: "Жим гантелей лёжа", sets: 3, reps: "10-12" },
-        { name: "Тяга горизонтального блока", sets: 3, reps: "10-12" },
-        { name: "Жим гантелей стоя", sets: 3, reps: "10-12" },
-        { name: "Румынская тяга с гантелями", sets: 3, reps: "10-12" },
-        { name: "Скручивания", sets: 3, reps: "15-20" }
-      ],
-      cues: "Идеально для новичков. Разминка обязательна. Следите за техникой, вес увеличивайте постепенно."
+**Количество упражнений:**
+- 30-45 мин: 5-6 основных упражнений
+- 45-70 мин: 6-8 упражнений
+- 70-90 мин: 8-10 упражнений
+
+Будь креативным тренером, а не роботом!
+`.trim();
+}
+
+// ============================================================================
+// ROUTE: ГЕНЕРАЦИЯ ТРЕНИРОВКИ
+// ============================================================================
+
+plan.post(
+  "/generate",
+  asyncHandler(async (req: any, res: Response) => {
+    // 1. Получаем пользователя
+const bodyUserId = req.body?.userId;
+const userId = bodyUserId || req.user?.uid || (await (async () => {
+  const r = await q(
+    `INSERT INTO users (tg_id, first_name, username)
+     VALUES (0, 'Dev', 'local')
+     ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
+     RETURNING id`
+  );
+  return r[0].id;
+})());
+
+    console.log("\n=== GENERATING WORKOUT ===");
+    console.log("User ID:", userId);
+
+    // 2. Загружаем контекст
+    const onboarding = await getOnboarding(userId);
+    const program = await getOrCreateProgram(userId, onboarding);
+    const history = await getRecentSessions(userId, 10);
+
+    console.log("Program:", program.blueprint_json.name);
+    console.log("Week:", program.week, "Day:", program.day_idx + 1);
+    console.log("Today's focus:", program.blueprint_json.days[program.day_idx]);
+    console.log("History:", history.length, "sessions");
+
+    // 3. Строим промпт
+    const prompt = buildTrainerPrompt({ onboarding, program, history });
+
+    if (process.env.DEBUG_AI === "1") {
+      console.log("\n=== PROMPT PREVIEW ===");
+      console.log(prompt.slice(0, 500) + "...\n");
     }
-  ];
-  
-  // Выбираем тренировку на основе номера последней
-  const index = workoutCount % templates.length;
-  const template = templates[index];
-  
-  // Адаптируем под уровень
-  if (experience === 'advanced') {
-    template.items = template.items.map(item => ({
-      ...item,
-      sets: item.sets + 1
-    }));
-    template.cues += " Используйте прогрессию нагрузки и продвинутые техники (дроп-сеты, суперсеты).";
-  }
-  
-  // Адаптируем под цель
-  if (goal?.toLowerCase().includes('похудение') || goal?.toLowerCase().includes('жиросжигание')) {
-    template.items.push({ 
-      name: "Интервальное кардио (HIIT)", 
-      sets: 1, 
-      reps: "10-15 минут" 
+
+    // 4. ОДИН запрос к AI (вся магия здесь!)
+    console.log("Calling OpenAI...");
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.8, // даём креативность!
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: TRAINER_SYSTEM },
+        { role: "user", content: prompt }
+      ]
     });
-    template.cues += " Сократите отдых до 30-45 секунд для повышения интенсивности.";
-  }
-  
-  if (goal?.toLowerCase().includes('масса') || goal?.toLowerCase().includes('сила')) {
-    template.items = template.items.map(item => ({
-      ...item,
-      reps: item.reps.includes('-') ? 
-        `${parseInt(item.reps.split('-')[0]) - 2}-${parseInt(item.reps.split('-')[1]) - 2}` : 
-        item.reps
-    }));
-    template.cues += " Отдых между подходами увеличен до 2-3 минут. Фокус на прогрессии весов.";
-  }
-  
-  return template;
-}
 
-plan.post("/plan/generate", requireAuth, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const uid = req.user!.uid;
-  
-  // Получаем данные онбординга
-  const onboardingRows = await q<DatabaseOnboarding>(
-    `SELECT data FROM onboardings 
-     WHERE user_id = $1 
-     ORDER BY created_at DESC 
-     LIMIT 1`,
-    [uid]
-  );
-  
-  if (onboardingRows.length === 0) {
-    throw new AppError("Please complete onboarding first", 400);
-  }
-  
-  const onboarding = onboardingRows[0].data;
-  
-  // Получаем историю тренировок
-  const workoutHistory = await q<DatabaseWorkout>(
-    `SELECT plan, result, created_at 
-     FROM workouts 
-     WHERE user_id = $1 
-     ORDER BY created_at DESC 
-     LIMIT 5`,
-    [uid]
-  );
-  
-  let workoutPlan: WorkoutPlan;
-  
-  try {
-    if (openai && config.openaiApiKey) {
-      // Генерация через OpenAI
-      const prompt = createWorkoutPrompt({
-        onboarding,
-        recentWorkouts: workoutHistory
-      });
-      
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Ты опытный фитнес-тренер. Отвечай только валидным JSON без дополнительного текста."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 800,
-        response_format: { type: "json_object" }
-      });
-      
-      const response = completion.choices[0].message.content;
-      if (!response) {
-        throw new Error("Empty response from AI");
-      }
-      
-      workoutPlan = JSON.parse(response) as WorkoutPlan;
-      
-      // Валидация структуры
-      if (!workoutPlan.title || !Array.isArray(workoutPlan.items) || workoutPlan.items.length === 0) {
-        throw new Error("Invalid workout structure");
-      }
-    } else {
-      // Fallback генерация без AI
-      console.log("OpenAI not configured, using fallback generation");
-      workoutPlan = generateFallbackWorkout(onboarding, workoutHistory.length);
+    // 5. Парсим ответ
+    let plan: WorkoutPlan;
+    try {
+      plan = JSON.parse(completion.choices[0].message.content || "{}");
+    } catch (err) {
+      console.error("Failed to parse AI response:", err);
+      throw new AppError("AI returned invalid JSON", 500);
     }
-  } catch (error) {
-    console.error("AI generation failed, using fallback:", error);
-    // При ошибке AI используем fallback
-    workoutPlan = generateFallbackWorkout(onboarding, workoutHistory.length);
-  }
-  
-  // Сохраняем тренировку в БД
-  const rows = await q<{ id: string }>(
-    `INSERT INTO workouts(user_id, plan) 
-     VALUES($1, $2) 
-     RETURNING id`,
-    [uid, JSON.stringify(workoutPlan)]
-  );
-  
-  if (rows.length === 0) {
-    throw new AppError("Failed to save workout", 500);
-  }
-  
-  res.json({ 
-    workoutId: rows[0].id, 
-    plan: workoutPlan,
-    aiGenerated: !!openai && !!config.openaiApiKey
-  });
-}));
 
-// Получение истории тренировок
-plan.get("/plan/history", requireAuth, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const uid = req.user!.uid;
-  const limit = parseInt(req.query.limit as string) || 10;
-  
-  const workouts = await q<DatabaseWorkout>(
-    `SELECT id, plan, result, created_at 
-     FROM workouts 
-     WHERE user_id = $1 
-     ORDER BY created_at DESC 
-     LIMIT $2`,
-    [uid, limit]
-  );
-  
-  res.json({ workouts });
-}));
+    // 6. Минимальная валидация (только структура!)
+    if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+      console.error("Invalid plan structure:", plan);
+      throw new AppError("AI generated invalid workout plan", 500);
+    }
+
+    // Проверяем обязательные поля в упражнениях
+    for (const ex of plan.exercises) {
+      if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
+        console.error("Invalid exercise:", ex);
+        throw new AppError("AI generated exercise with missing fields", 500);
+      }
+    }
+
+    console.log("✓ Generated:", plan.exercises.length, "exercises");
+    console.log("✓ Title:", plan.title);
+    console.log("✓ Duration:", plan.duration, "min");
+
+console.log("=== AI RAW PLAN ===");
+console.dir(plan, { depth: null });
+
+    // 7. Возвращаем КАК ЕСТЬ (без обработки!)
+    res.json({
+      plan,
+      meta: {
+        program: program.blueprint_json.name,
+        week: program.week,
+        day: program.day_idx + 1,
+        focus: program.blueprint_json.days[program.day_idx]
+      }
+    });
+  })
+);
+
+// ============================================================================
+// ROUTE: СОХРАНЕНИЕ ЗАВЕРШЁННОЙ ТРЕНИРОВКИ
+// ============================================================================
+
+plan.post(
+  "/save-session",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = req.user?.uid || (await (async () => {
+      const r = await q(
+        `INSERT INTO users (tg_id, first_name, username)
+         VALUES (0, 'Dev', 'local')
+         ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
+         RETURNING id`
+      );
+      return r[0].id;
+    })());
+
+    const payload = req.body?.payload;
+
+    if (!payload || !Array.isArray(payload.exercises)) {
+      throw new AppError("Invalid payload: exercises array required", 400);
+    }
+
+    if (payload.exercises.length === 0) {
+      throw new AppError("Cannot save empty workout", 400);
+    }
+
+    const plannedRaw = req.body?.plannedWorkoutId;
+    const plannedWorkoutId = isUUID(plannedRaw) ? plannedRaw : null;
+
+    console.log("\n=== SAVING WORKOUT ===");
+    console.log("User ID:", userId);
+    console.log("Exercises:", payload.exercises.length);
+    console.log("Title:", payload.title);
+
+    // Сохраняем в транзакции
+    await q('BEGIN');
+
+    try {
+      // 1. Сохраняем тренировку КАК ЕСТЬ (не модифицируем!)
+      const result = await q(
+        `INSERT INTO workout_sessions (user_id, payload, finished_at)
+         VALUES ($1, $2::jsonb, NOW())
+         RETURNING id, finished_at`,
+        [userId, payload]
+      );
+
+      console.log("✓ Saved session:", result[0].id);
+
+      if (plannedWorkoutId) {
+        await q(
+          `UPDATE planned_workouts
+              SET status = 'completed',
+                  result_session_id = $3,
+                  updated_at = NOW()
+            WHERE id = $1 AND user_id = $2`,
+          [plannedWorkoutId, userId, result[0].id]
+        );
+        console.log("✓ Planned workout completed:", plannedWorkoutId);
+      } else {
+        const finishedAt: string = result[0].finished_at;
+        await q(
+          `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id)
+           VALUES ($1, $2::jsonb, $3, 'completed', $4)`,
+          [userId, payload, finishedAt, result[0].id]
+        );
+        console.log("✓ Created completed planned workout entry");
+      }
+
+      // 2. Двигаем программу на следующий день
+      await q(
+        `UPDATE training_programs
+         SET day_idx = (day_idx + 1) % microcycle_len,
+             week = CASE 
+               WHEN (day_idx + 1) % microcycle_len = 0 THEN week + 1 
+               ELSE week 
+             END,
+             updated_at = NOW()
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      console.log("✓ Program advanced");
+
+      await q('COMMIT');
+
+      res.json({
+        ok: true,
+        sessionId: result[0].id,
+        finishedAt: result[0].finished_at
+      });
+    } catch (err) {
+      await q('ROLLBACK');
+      console.error("Save failed:", err);
+      throw err;
+    }
+  })
+);
+
+// ============================================================================
+// HEALTH CHECK
+// ============================================================================
+
+plan.get("/ping", (_req, res) => {
+  res.json({ ok: true, version: "2.0-ai-first" });
+});
+
+export default plan;
