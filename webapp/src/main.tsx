@@ -15,13 +15,9 @@ const applyLightTheme = () => {
   root.style.setProperty("--tg-theme-bottom-bar-bg-color", "#ffffff");
 
   tg?.setBackgroundColor?.("#ffffff");
-  tg?.setBackgroundColor?.("bg_color");
   tg?.setSecondaryBackgroundColor?.("#ffffff");
-  tg?.setSecondaryBackgroundColor?.("bg_color");
   tg?.setHeaderColor?.("#ffffff");
-  tg?.setHeaderColor?.("bg_color");
   tg?.setBottomBarColor?.("#ffffff");
-  tg?.setBottomBarColor?.("bg_color");
   document.body.style.backgroundColor = "#ffffff";
   document.documentElement.style.backgroundColor = "#ffffff";
 };
