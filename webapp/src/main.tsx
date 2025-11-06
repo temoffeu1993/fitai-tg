@@ -10,13 +10,13 @@ tg?.ready?.();
 const applyLightTheme = () => {
   const root = document.documentElement;
   root.style.setProperty("--tg-theme-bg-color", "#ffffff");
-  root.style.setProperty("--tg-theme-secondary-bg-color", "#ffffff");
-  root.style.setProperty("--tg-theme-header-bg-color", "#ffffff");
+  root.style.setProperty("--tg-theme-secondary-bg-color", "#f3f4f6");
+  root.style.setProperty("--tg-theme-header-bg-color", "#f3f4f6");
   root.style.setProperty("--tg-theme-bottom-bar-bg-color", "#ffffff");
 
   tg?.setBackgroundColor?.("#ffffff");
-  tg?.setSecondaryBackgroundColor?.("#ffffff");
-  tg?.setHeaderColor?.("bg_color");
+  tg?.setSecondaryBackgroundColor?.("#f3f4f6");
+  tg?.setHeaderColor?.("#f3f4f6");
   tg?.setBottomBarColor?.("bg_color");
   document.body.style.backgroundColor = "#ffffff";
   document.documentElement.style.backgroundColor = "#ffffff";
