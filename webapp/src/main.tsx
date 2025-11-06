@@ -8,6 +8,12 @@ const tg = (window as any)?.Telegram?.WebApp;
 tg?.expand?.();
 tg?.ready?.();
 const applyLightTheme = () => {
+  const root = document.documentElement;
+  root.style.setProperty("--tg-theme-bg-color", "#ffffff");
+  root.style.setProperty("--tg-theme-secondary-bg-color", "#ffffff");
+  root.style.setProperty("--tg-theme-header-bg-color", "#ffffff");
+  root.style.setProperty("--tg-theme-bottom-bar-bg-color", "#ffffff");
+
   tg?.setBackgroundColor?.("#ffffff");
   tg?.setBackgroundColor?.("bg_color");
   tg?.setSecondaryBackgroundColor?.("#ffffff");
@@ -21,6 +27,9 @@ const applyLightTheme = () => {
 };
 applyLightTheme();
 tg?.onEvent?.("themeChanged", applyLightTheme);
+tg?.onEvent?.("viewportChanged", applyLightTheme);
+setTimeout(applyLightTheme, 50);
+setTimeout(applyLightTheme, 200);
 
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);

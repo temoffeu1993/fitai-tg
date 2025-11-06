@@ -2,6 +2,10 @@
 :root {
   color-scheme: only light;
   background-color: #ffffff;
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-secondary-bg-color: #ffffff;
+  --tg-theme-header-bg-color: #ffffff;
+  --tg-theme-bottom-bar-bg-color: #ffffff;
 }
 html, body, #root {
   height: 100%;
