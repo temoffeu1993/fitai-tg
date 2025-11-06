@@ -9,17 +9,17 @@ tg?.expand?.();
 tg?.ready?.();
 const applyLightTheme = () => {
   const root = document.documentElement;
-  root.style.setProperty("--tg-theme-bg-color", "#ffffff");
+  root.style.setProperty("--tg-theme-bg-color", "#f5f6f8");
   root.style.setProperty("--tg-theme-secondary-bg-color", "#f3f4f6");
-  root.style.setProperty("--tg-theme-header-bg-color", "#f3f4f6");
+  root.style.setProperty("--tg-theme-header-bg-color", "#e5e7eb");
   root.style.setProperty("--tg-theme-bottom-bar-bg-color", "#ffffff");
 
-  tg?.setBackgroundColor?.("#ffffff");
+  tg?.setBackgroundColor?.("#f5f6f8");
   tg?.setSecondaryBackgroundColor?.("#f3f4f6");
-  tg?.setHeaderColor?.("secondary_bg_color");
+  tg?.setHeaderColor?.("#e5e7eb");
   tg?.setBottomBarColor?.("bg_color");
-  document.body.style.backgroundColor = "#ffffff";
-  document.documentElement.style.backgroundColor = "#ffffff";
+  document.body.style.backgroundColor = "#f5f6f8";
+  document.documentElement.style.backgroundColor = "#f5f6f8";
 };
 applyLightTheme();
 tg?.onEvent?.("themeChanged", applyLightTheme);
