@@ -1,11 +1,26 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import "./styles.css";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
 tg?.expand?.();
 tg?.ready?.();
+const applyLightTheme = () => {
+  tg?.setBackgroundColor?.("#ffffff");
+  tg?.setBackgroundColor?.("bg_color");
+  tg?.setSecondaryBackgroundColor?.("#ffffff");
+  tg?.setSecondaryBackgroundColor?.("bg_color");
+  tg?.setHeaderColor?.("#ffffff");
+  tg?.setHeaderColor?.("bg_color");
+  tg?.setBottomBarColor?.("#ffffff");
+  tg?.setBottomBarColor?.("bg_color");
+  document.body.style.backgroundColor = "#ffffff";
+  document.documentElement.style.backgroundColor = "#ffffff";
+};
+applyLightTheme();
+tg?.onEvent?.("themeChanged", applyLightTheme);
 
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);

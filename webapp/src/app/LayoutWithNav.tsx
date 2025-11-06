@@ -28,7 +28,7 @@ export default function LayoutWithNav() {
   };
 
   return (
-    <div style={{ paddingBottom: 72 }}>
+    <div style={{ minHeight: "100%", background: "#fff", paddingBottom: 72 }}>
       <Outlet />
       <NavBar current={current} onChange={handleChange} />
     </div>
