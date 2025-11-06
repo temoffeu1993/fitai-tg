@@ -1,9 +1,11 @@
+import { apiFetch } from "@/lib/apiClient";
+
 // webapp/src/api/plan.ts
 
 export async function generatePlan(onboarding: any) {
   console.log("== GENERATE PLAN REQUEST PAYLOAD ==", onboarding);
 
-  const r = await fetch("/plan/generate", {
+  const r = await apiFetch("/plan/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -41,7 +43,7 @@ export async function saveSession(payload: any, opts: { plannedWorkoutId?: strin
   const body: any = { payload };
   if (opts.plannedWorkoutId) body.plannedWorkoutId = opts.plannedWorkoutId;
 
-  const r = await fetch("/plan/save-session", {
+  const r = await apiFetch("/plan/save-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

@@ -21,6 +21,7 @@ import OnbLifestyle from "./screens/onb/OnbLifestyle";
 import OnbMotivation from "./screens/onb/OnbMotivation";
 
 import { saveOnboarding } from "./api/onboarding";
+import { apiFetch } from "@/lib/apiClient";
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
 function StepAgeSex() {
@@ -126,7 +127,7 @@ function StepMotivation() {
           }
 
           try {
-            const resp = await fetch("/onboarding/feedback", {
+            const resp = await apiFetch("/onboarding/feedback", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",

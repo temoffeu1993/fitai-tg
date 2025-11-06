@@ -39,13 +39,13 @@ export type ProgressSummary = {
 };
 
 export async function getProgressSummary(): Promise<ProgressSummary> {
-  const r = await fetch("/api/progress/summary", { credentials: "include" });
+  const r = await apiFetch("/api/progress/summary", { credentials: "include" });
   if (!r.ok) throw new Error("failed_to_load_progress");
   return r.json();
 }
 
 export async function saveBodyMetric(input: { recordedAt?: string; weight?: number; bodyFat?: number; muscleMass?: number; notes?: string }) {
-  const r = await fetch("/api/progress/body-metrics", {
+  const r = await apiFetch("/api/progress/body-metrics", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -54,3 +54,4 @@ export async function saveBodyMetric(input: { recordedAt?: string; weight?: numb
   if (!r.ok) throw new Error("failed_to_save_body_metric");
   return r.json();
 }
+import { apiFetch } from "@/lib/apiClient";

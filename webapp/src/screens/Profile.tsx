@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "@/lib/apiClient";
 
 type Summary = any;
 
@@ -47,7 +48,7 @@ export default function Profile() {
       (async () => {
         try {
           setLoadingFeedback(true);
-          const resp = await fetch("/onboarding/feedback", {
+          const resp = await apiFetch("/onboarding/feedback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

@@ -1,6 +1,7 @@
 // webapp/src/screens/Nutrition.tsx
 // Экран недельного плана питания. UX/стиль выровнен с PlanOne.
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type FoodItem = {
   food: string; qty: number; unit: string;
@@ -59,7 +60,7 @@ export default function Nutrition() {
 let p: any = null;
 
 // 1) пробуем получить текущую неделю
-const r0 = await fetch("/api/nutrition/current-week");
+const r0 = await apiFetch("/api/nutrition/current-week");
 if (r0.ok) {
   const j0 = await readJsonSafe(r0);
   p = j0?.plan || null;
@@ -73,7 +74,7 @@ if (r0.ok) {
 
 // 2) если нет — генерим
 if (!p) {
-  const r1 = await fetch("/api/nutrition/generate-week", {
+  const r1 = await apiFetch("/api/nutrition/generate-week", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -170,7 +171,7 @@ if (!p) throw new Error("План не получен");
     setLoading(true);
     setStage(0);
 
-    const res = await fetch("/api/nutrition/generate-week", {
+    const res = await apiFetch("/api/nutrition/generate-week", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({}),

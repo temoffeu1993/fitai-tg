@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 import OnbAgeSex, { OnbAgeSexData } from "./onb/OnbAgeSex";
 import OnbExperience, { OnbExperienceData } from "./onb/OnbExperience";
 import OnbEquipment, { OnbEquipmentData } from "./onb/OnbEquipment";
@@ -35,7 +36,7 @@ export default function OnboardingScreens() {
   async function saveToServer(data: OnbData) {
     setLoading(true);
     try {
-      await fetch("/api/user/onboarding", {
+      await apiFetch("/api/user/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

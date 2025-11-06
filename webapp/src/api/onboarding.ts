@@ -1,7 +1,9 @@
+import { apiFetch } from "@/lib/apiClient";
+
 // webapp/src/api/onboarding.ts
 export async function saveOnboarding(payload: unknown) {
   const token = localStorage.getItem("token") || "";
-  const res = await fetch("/onboarding/save", {
+  const res = await apiFetch("/onboarding/save", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

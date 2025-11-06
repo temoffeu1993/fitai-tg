@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/apiClient";
+
 // webapp/src/api/schedule.ts
 
 export type WorkoutSchedule = {
@@ -25,7 +27,7 @@ export async function getScheduleOverview(): Promise<{
   schedule: WorkoutSchedule;
   plannedWorkouts: PlannedWorkout[];
 }> {
-  const r = await fetch("/api/workout-schedule", { credentials: "include" });
+  const r = await apiFetch("/api/workout-schedule", { credentials: "include" });
   if (!r.ok) throw new Error("failed_to_load_schedule");
   const data = await r.json();
   return {
@@ -39,7 +41,7 @@ export async function createPlannedWorkout(input: {
   scheduledFor: string;
   scheduledTime?: string;
 }): Promise<PlannedWorkout> {
-  const r = await fetch("/api/planned-workouts", {
+  const r = await apiFetch("/api/planned-workouts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -57,7 +59,7 @@ export async function updatePlannedWorkout(
   id: string,
   input: { scheduledFor?: string; scheduledTime?: string; plan?: any }
 ): Promise<PlannedWorkout> {
-  const r = await fetch(`/api/planned-workouts/${id}`, {
+  const r = await apiFetch(`/api/planned-workouts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -72,7 +74,7 @@ export async function updatePlannedWorkout(
 }
 
 export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> {
-  const r = await fetch(`/api/planned-workouts/${id}`, {
+  const r = await apiFetch(`/api/planned-workouts/${id}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -85,7 +87,7 @@ export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> 
 }
 
 export async function saveScheduleDates(dates: ScheduleByDate): Promise<void> {
-  const r = await fetch("/api/workout-schedule", {
+  const r = await apiFetch("/api/workout-schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
