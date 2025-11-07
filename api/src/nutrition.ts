@@ -703,11 +703,10 @@ nutrition.post(
           const m = meals[j];
           const mealRow = await q(
             `INSERT INTO nutrition_meals
-             (plan_id, day_id, title, time_hint, target_kcal, target_protein_g, target_fat_g, target_carbs_g, position)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             (day_id, title, time_hint, target_kcal, target_protein_g, target_fat_g, target_carbs_g, position)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id`,
             [
-              planId,
               day_id,
               m.title || `Приём ${j + 1}`,
               m.time || null,
