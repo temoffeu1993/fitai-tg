@@ -42,7 +42,7 @@ function TabBtn({
       aria-current={active ? "page" : undefined}
     >
       <div style={{ ...st.emojiWrap, ...(active ? st.emojiWrapActive : {}) }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
+       <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
       </div>
       <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
     </button>
@@ -63,43 +63,42 @@ const st: Record<string, React.CSSProperties> = {
     pointerEvents: "auto",
     margin: "0 auto",
     maxWidth: 640,
-    background: "rgba(255,255,255,0.92)",
-    backdropFilter: "blur(18px)",
+    background: "rgba(255,255,255,0.1)",
+    backdropFilter: "blur(18px) saturate(180%)",
+    WebkitBackdropFilter: "blur(18px) saturate(180%)",
     boxShadow: "0 12px 30px rgba(0,0,0,.18)",
     borderRadius: 28,
     padding: "10px 12px",
     display: "grid",
     gridTemplateColumns: "repeat(4,1fr)",
     gap: 8,
+    border: "1px solid rgba(255,255,255,0.15)",
   },
   tabBtn: {
-    border: "none",
-    borderRadius: 16,
-    padding: "10px 6px 6px",
-    background: "transparent",
-    display: "grid",
-    placeItems: "center",
-    gap: 4,
-    cursor: "pointer",
-    fontWeight: 700,
-    color: "#1b1b1b",
-  } as React.CSSProperties,
-  tabBtnActive: {
-    color: "#1b1b1b",
-  },
-  emojiWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    background: "rgba(0,0,0,0.06)",
-    display: "grid",
-    placeItems: "center",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    transition: "background .2s",
-  },
-  emojiWrapActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
-    boxShadow: "0 6px 18px rgba(104,112,255,.35)",
+  border: "none",
+  borderRadius: 16,
+  padding: "10px 6px 6px",
+  background: "transparent",
+  display: "grid",
+  placeItems: "center",
+  gap: 4,
+  cursor: "pointer",
+  fontWeight: 700,
+  color: "#1b1b1b",
+  transition: "background .2s, color .2s",
+},
+tabBtnActive: {
+  background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
+  color: "#fff",
+  boxShadow: "0 6px 18px rgba(104,112,255,.35)",
+},
+emojiWrap: {
+  width: 40,
+  height: 40,
+  borderRadius: 999,
+  background: "transparent",
+  display: "grid",
+  placeItems: "center",
+  transition: "background .2s",
   },
 };
