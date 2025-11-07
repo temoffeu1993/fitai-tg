@@ -312,16 +312,10 @@ const plan: Plan | null = useMemo(() => {
 
               <div style={{ display: "grid", gap: 8, marginTop: 8 }} aria-disabled={it.done}>
                 {it.sets.map((s, si) => (
-                  <div key={si} style={setrow.wrap}>
-                    <div style={setrow.label}>Сет {si + 1}</div>
+                  <div key={si} style={setrow.wrap} className="set-row">
+                    <div style={setrow.label} className="set-label">Сет {si + 1}</div>
 
-                    <div
-                      style={{
-                        ...setrow.inputs,
-                        gridTemplateColumns: showWeightInput ? "172px 172px" : "172px",
-                      }}
-                      className="sets-grid"
-                    >
+                    <div style={setrow.inputs} className="sets-grid">
                       <NumInput
                         value={s.reps}
                         placeholder={String(it.targetReps ?? "повт./сек")}
@@ -594,8 +588,13 @@ const confettiCSS = `
 
 // адаптив
 const responsiveCSS = `
-@media (max-width: 380px){
-  .sets-grid{ grid-template-columns: 1fr !important; gap: 10px !important; }
+@media (max-width: 620px){
+  .set-row{ grid-template-columns: 1fr; }
+  .set-row .set-label{ margin-bottom: 4px; }
+}
+
+@media (max-width: 420px){
+  .sets-grid{ grid-template-columns: 1fr !important; }
 }
 `;
 
@@ -621,20 +620,20 @@ const card = {
 const setrow = {
   wrap: {
     display: "grid",
-    gridTemplateColumns: "auto 1fr",
-    alignItems: "center",
-    gap: 10,
+    gridTemplateColumns: "auto minmax(0,1fr)",
+    alignItems: "flex-start",
+    gap: 12,
     padding: "8px 10px",
     borderRadius: 12,
     background: "#f7f9fc",
     boxShadow: "inset 0 0 0 1px rgba(0,0,0,.05)",
   } as React.CSSProperties,
-  label: { fontSize: 12, color: "#666" } as React.CSSProperties,
+  label: { fontSize: 13, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
   inputs: {
     display: "grid",
-    gridTemplateColumns: "172px 172px",
-    columnGap: 32,
-    justifyContent: "start",
+    width: "100%",
+    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+    gap: 14,
     alignItems: "center",
   } as React.CSSProperties,
 };
@@ -658,12 +657,48 @@ const btn = {
 };
 
 const num = {
-  wrap: { display: "inline-grid", gridTemplateColumns: "36px 100px 36px", alignItems: "center", gap: 8, width: 172 } as React.CSSProperties,
-  btn: { height: 32, width: 36, borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 16, lineHeight: 1 } as React.CSSProperties,
-  input: { height: 32, width: 100, padding: "0 8px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, boxSizing: "border-box", textAlign: "center" } as React.CSSProperties,
+  wrap: {
+    display: "grid",
+    gridTemplateColumns: "40px minmax(0,1fr) 40px",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+  } as React.CSSProperties,
+  btn: {
+    height: 36,
+    width: "100%",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    cursor: "pointer",
+    fontSize: 18,
+    lineHeight: 1,
+  } as React.CSSProperties,
+  input: {
+    height: 40,
+    width: "100%",
+    padding: "0 10px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    fontSize: 14,
+    boxSizing: "border-box",
+    textAlign: "center",
+    minWidth: 0,
+  } as React.CSSProperties,
 };
 
-const metaRow: React.CSSProperties = { display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, color: "#333", marginBottom: 6 };
+const metaRow: React.CSSProperties = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  rowGap: 4,
+  alignItems: "center",
+  fontSize: 12.5,
+  color: "#333",
+  marginBottom: 6,
+};
 const chkPos: React.CSSProperties = { top: 10, right: 10 };
 
 function ruPlural(n: number, forms: [string, string, string]) {

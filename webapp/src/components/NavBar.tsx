@@ -7,12 +7,20 @@ export type NavCurrent = TabKey | "none"; // 👈 добавили "none"
 export default function NavBar({
   current,
   onChange,
+  pushDown = 0,
 }: {
   current: NavCurrent;          // 👈 тип расширили
   onChange?: (t: TabKey) => void;
+  pushDown?: number;
 }) {
   return (
-    <nav style={st.tabbar} aria-label="Навигация">
+    <nav
+      style={{
+        ...st.tabbar,
+        transform: pushDown ? `translateY(${pushDown}px)` : undefined,
+      }}
+      aria-label="Навигация"
+    >
       <div style={st.tabbarInner}>
         <TabBtn emoji="🏠" label="Главная" active={current === "home"}      onClick={() => onChange?.("home")} />
         <TabBtn emoji="🏋️" label="Трен"    active={current === "history"}  onClick={() => onChange?.("history")} />
@@ -58,6 +66,7 @@ const st: Record<string, React.CSSProperties> = {
     padding: "0 16px 20px",
     pointerEvents: "none",
     zIndex: 20,
+    transition: "transform .2s ease",
   },
   tabbarInner: {
     pointerEvents: "auto",

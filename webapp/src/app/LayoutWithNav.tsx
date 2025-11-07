@@ -1,4 +1,5 @@
 // webapp/src/app/LayoutWithNav.tsx
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import NavBar, { type NavCurrent, type TabKey } from "@/components/NavBar";
 
@@ -17,6 +18,7 @@ function resolveNavCurrent(pathname: string): NavCurrent {
 export default function LayoutWithNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const keyboardOffset = useKeyboardOffset();
 
   const current = resolveNavCurrent(pathname);
   const safeTop =
@@ -40,7 +42,31 @@ export default function LayoutWithNav() {
       <div style={{ marginTop: -safeTop }}>
         <Outlet />
       </div>
-      <NavBar current={current} onChange={handleChange} />
+      <NavBar current={current} onChange={handleChange} pushDown={keyboardOffset} />
     </div>
   );
+}
+
+function useKeyboardOffset() {
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const vv = window.visualViewport;
+    const update = () => {
+      const delta = window.innerHeight - (vv.height + (vv.offsetTop || 0));
+      setOffset(delta > 80 ? delta : 0);
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  return offset;
 }
