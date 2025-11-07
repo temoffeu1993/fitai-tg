@@ -417,7 +417,7 @@ const userId = bodyUserId || req.user?.uid || (await (async () => {
     // 4. ОДИН запрос к AI (вся магия здесь!)
     console.log("Calling OpenAI...");
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       temperature: 0.8, // даём креативность!
       response_format: { type: "json_object" },
       messages: [
