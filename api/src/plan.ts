@@ -248,7 +248,7 @@ ${JSON.stringify(onboarding.goals || ['поддержание формы'], null
 
 **График:**
 - Дней в неделю: ${onboarding.schedule?.daysPerWeek || 3}
-- Длительность тренировки: ${sessionMinutes} минут
+- Длительность тренировки: ${sessionMinutes} минут (ОБЯЗАТЕЛЬНО выдерживай именно это время!)
 
 **Локация и оборудование:**
 - Место: ${onboarding.environment?.location || 'unknown'}
@@ -342,6 +342,8 @@ ${historyText}
 - 45-70 мин: 6-8 упражнений
 - 70-90 мин: 8-10 упражнений
 
+⚠️ Длительность тренировки должна строго равняться ${sessionMinutes} минут. Не сокращай и не увеличивай это время.
+
 Будь креативным тренером, а не роботом!
 `.trim();
 }
@@ -370,6 +372,7 @@ const userId = bodyUserId || req.user?.uid || (await (async () => {
 
     // 2. Загружаем контекст
     const onboarding = await getOnboarding(userId);
+    const sessionMinutes = resolveSessionLength(onboarding);
     const program = await getOrCreateProgram(userId, onboarding);
     const history = await getRecentSessions(userId, 10);
 
@@ -423,6 +426,8 @@ const userId = bodyUserId || req.user?.uid || (await (async () => {
 
     console.log("✓ Generated:", plan.exercises.length, "exercises");
     console.log("✓ Title:", plan.title);
+    plan.duration = sessionMinutes;
+
     console.log("✓ Duration:", plan.duration, "min");
 
 console.log("=== AI RAW PLAN ===");
