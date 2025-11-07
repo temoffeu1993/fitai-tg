@@ -168,19 +168,31 @@ export default function Nutrition() {
 
             {openDay === d.day_index && (
               <div style={{ padding: 10 }}>
-                {(d.meals || []).map((m, idx) => (
-                  <div key={idx} style={row.wrap}>
-                    <div style={row.left}>
-                      <div style={row.name}>{m.title}{m.time ? ` • ${m.time}` : ""}</div>
-                      <div style={row.cues}>
-                        {fmtTargets(m)}
+                {(d.meals || []).map((m, idx) => {
+                  const totals = (m.items || []).reduce(
+                    (acc, it) => ({
+                      kcal: acc.kcal + Number(it.kcal ?? 0),
+                      protein: acc.protein + Number(it.protein_g ?? 0),
+                      fat: acc.fat + Number(it.fat_g ?? 0),
+                      carbs: acc.carbs + Number(it.carbs_g ?? 0),
+                    }),
+                    { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+                  );
+                  const mk = Math.round(totals.kcal);
+                  const mp = Math.round(totals.protein);
+                  const mf = Math.round(totals.fat);
+                  const mc = Math.round(totals.carbs);
+                  const targetKcal = m.target_kcal ?? mk;
+                  return (
+                    <div key={idx} style={mealCard.wrap}>
+                      <div style={mealCard.header}>
+                        <div style={row.name}>{m.title}{m.time ? ` • ${m.time}` : ""}</div>
+                        <div style={row.cues}>{fmtTargets({ mk, mp, mf, mc, targetKcal })}</div>
                       </div>
-                      {/* Items */}
-                      <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
+                      <div style={{ display: "grid", gap: 6 }}>
                         {(m.items || []).map((it, k) => (
                           <div key={k} style={food.line}>
                             <div style={food.left}>
-                              <div style={food.bullet}>•</div>
                               <div style={food.foodName}>{it.food}</div>
                               <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
                             </div>
@@ -190,10 +202,10 @@ export default function Nutrition() {
                           </div>
                         ))}
                       </div>
-                      {m.notes ? <div style={{ fontSize: 11, color: "#666", marginTop: 6 }}>{m.notes}</div> : null}
+                      {m.notes ? <div style={mealCard.notes}>{m.notes}</div> : null}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -282,13 +294,16 @@ function weekdayTitle(d: Day) {
   return `${label}`;
 }
 
-function fmtTargets(m: Meal) {
+function fmtTargets(agg: { mk: number; mp: number; mf: number; mc: number; targetKcal?: number }) {
   const t = [
-    typeof m.target_kcal === "number" ? `${m.target_kcal} ккал` : null,
-    typeof m.target_protein_g === "number" ? `${m.target_protein_g} г белка` : null,
-    typeof m.target_carbs_g === "number" && typeof m.target_fat_g === "number" ? `${m.target_carbs_g}/${m.target_fat_g} г У/Ж` : null,
-  ].filter(Boolean).join(" • ");
-  return t || "Сбалансировано";
+    typeof agg.targetKcal === "number" ? `цель ${agg.targetKcal} ккал` : null,
+    `${agg.mk} ккал`,
+    `${agg.mp} г белка`,
+    `${agg.mc}/${agg.mf} г У/Ж`,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+  return t;
 }
 function guessMeals(p: WeekPlan | null): number {
   if (!p) return 4;
@@ -392,19 +407,46 @@ const ux: Record<string, any> = {
     display:"grid",placeItems:"center",transition:"transform .18s"},
   caretInner:{width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderTop:"6px solid #4a3a7a"},
 };
+const mealCard: Record<string, React.CSSProperties> = {
+  wrap:{
+    background: uxColors.headerBg,
+    borderRadius: 14,
+    padding: 10,
+    display: "grid",
+    gap: 8,
+    marginBottom: 10,
+    boxShadow: "0 6px 14px rgba(0,0,0,.06)",
+  },
+  header:{
+    display:"grid",
+    gap:4,
+    color:"#1b1b1b",
+  },
+  notes:{
+    fontSize:11,
+    color:"#4a4a4a",
+    marginTop:6,
+  }
+};
 const row: Record<string, React.CSSProperties> = {
-  wrap:{display:"grid",gridTemplateColumns:"1fr",gap:8,padding:"8px 10px",background:"#fff",borderRadius:10,boxShadow:"inset 0 0 0 1px rgba(0,0,0,.04)"},
-  left:{display:"grid",gap:4,minWidth:0},
-  name:{fontSize:13.5,fontWeight:650,color:"#111",lineHeight:1.15,whiteSpace:"normal"},
-  cues:{fontSize:11,color:"#555"},
+  name:{fontSize:13.5,fontWeight:750,color:"#111",lineHeight:1.15,whiteSpace:"normal"},
+  cues:{fontSize:11,color:"#333"},
 };
 const food: Record<string, React.CSSProperties> = {
-  line:{display:"grid",gridTemplateColumns:"1fr auto",alignItems:"center",gap:6,padding:"6px 8px",borderRadius:8,background:"rgba(139,92,246,.06)"},
-  left:{display:"flex",alignItems:"center",gap:6},
-  bullet:{fontSize:14,color:"#4a3a7a"},
-  foodName:{fontSize:12.5,fontWeight:650,color:"#1b1b1b"},
-  qty:{fontSize:12,color:"#555"},
-  right:{fontSize:12,fontWeight:650,color:"#1b1b1b"},
+  line:{
+    display:"grid",
+    gridTemplateColumns:"1fr auto",
+    alignItems:"center",
+    gap:8,
+    padding:"10px 12px",
+    borderRadius:12,
+    background:"#fff",
+    boxShadow:"0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+  },
+  left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
+  foodName:{fontSize:13.5,fontWeight:400,color:"#1b1b1b",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+  qty:{fontSize:12,color:"#666",flexShrink:0},
+  right:{fontSize:12,fontWeight:400,color:"#1b1b1b"},
 };
 
 const notesStyles: Record<string, React.CSSProperties> = {
