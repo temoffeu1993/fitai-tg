@@ -229,7 +229,14 @@ async function getUserId(req: any) {
 }
 
 async function getOnboarding(userId: string): Promise<Onb> {
-  const rows = await q(`SELECT data FROM onboardings WHERE user_id = $1 LIMIT 1`, [userId]);
+  const rows = await q(
+    `SELECT data
+       FROM onboardings
+      WHERE user_id = $1
+      ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
+      LIMIT 1`,
+    [userId]
+  );
   return rows[0]?.data || {};
 }
 

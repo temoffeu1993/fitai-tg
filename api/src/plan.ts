@@ -58,32 +58,70 @@ const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.
 
 async function getOnboarding(userId: string): Promise<any> {
   const rows = await q(
-    `SELECT data FROM onboardings WHERE user_id = $1 LIMIT 1`,
+    `SELECT data
+       FROM onboardings
+      WHERE user_id = $1
+      ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
+      LIMIT 1`,
     [userId]
   );
   return rows[0]?.data || {};
 }
 
+function resolveSessionLength(onboarding: any): number {
+  const raw = onboarding?.schedule || {};
+  const candidate =
+    raw.minutesPerSession ??
+    raw.sessionLength ??
+    raw.duration ??
+    raw.length ??
+    raw.minutes ??
+    raw.timePerSession;
+  const num = Number(candidate);
+  return Number.isFinite(num) && num > 0 ? num : 60;
+}
+
 async function getOrCreateProgram(userId: string, onboarding: any): Promise<ProgramRow> {
-  // Проверяем существующую программу
+  const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
+  const desiredBlueprint = createBlueprint(desiredDaysPerWeek);
+
   const existing = await q<ProgramRow>(
     `SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1`,
     [userId]
   );
 
   if (existing && existing[0]) {
-    return existing[0];
-  }
+    const stored = existing[0];
+    const storedDays = stored.blueprint_json?.days || [];
+    const desiredDays = desiredBlueprint.days;
+    const sameBlueprint =
+      Array.isArray(storedDays) &&
+      storedDays.length === desiredDays.length &&
+      storedDays.every((day: string, idx: number) => day === desiredDays[idx]);
 
-  // Создаём новую программу на основе онбординга
-  const daysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
-  const blueprint = createBlueprint(daysPerWeek);
+    if (!sameBlueprint) {
+      const updated = await q<ProgramRow>(
+        `UPDATE training_programs
+            SET blueprint_json = $2,
+                microcycle_len = $3,
+                day_idx = 0,
+                week = 1,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [stored.id, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
+      );
+      return updated[0];
+    }
+
+    return stored;
+  }
 
   const result = await q<ProgramRow>(
     `INSERT INTO training_programs (user_id, blueprint_json, microcycle_len, week, day_idx)
      VALUES ($1, $2, $3, 1, 0)
      RETURNING *`,
-    [userId, JSON.stringify(blueprint), blueprint.days.length]
+    [userId, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
   );
 
   return result[0];
@@ -180,6 +218,7 @@ function buildTrainerPrompt(context: {
   history: any[];
 }): string {
   const { onboarding, program, history } = context;
+  const sessionMinutes = resolveSessionLength(onboarding);
   const blueprint = program.blueprint_json;
   const todayFocus = blueprint.days[program.day_idx];
 
@@ -209,7 +248,7 @@ ${JSON.stringify(onboarding.goals || ['поддержание формы'], null
 
 **График:**
 - Дней в неделю: ${onboarding.schedule?.daysPerWeek || 3}
-- Длительность тренировки: ${onboarding.schedule?.minutesPerSession || 60} минут
+- Длительность тренировки: ${sessionMinutes} минут
 
 **Локация и оборудование:**
 - Место: ${onboarding.environment?.location || 'unknown'}
@@ -261,7 +300,7 @@ ${historyText}
 - Вариативность подходов: НЕ делай везде одинаково! Базовые: 3-5 подходов. Вспомогательные: 2-4. Изоляция: 2-3.
 
 - Баланс: не перегружай одни группы мышц, забывая другие
-- Реализм: учитывай время тренировки (${onboarding.schedule?.minutesPerSession || 60} мин)
+- Реализм: учитывай время тренировки (${sessionMinutes} мин)
 
 **Разминка и заминка:**
 - Делай warmup и cooldown конкретными под тренировку.
@@ -275,7 +314,7 @@ ${historyText}
 
 {
   "title": "Краткое название тренировки (например: Грудь и Трицепс)",
-  "duration": ${onboarding.schedule?.minutesPerSession || 60},
+  "duration": ${sessionMinutes},
 "warmup": [
   "3–5 простых упражнений для разогрева мышц и суставов сегодняшней тренировки",
   "Без сложных терминов — просто, понятно, с акцентом на нужные зоны"
