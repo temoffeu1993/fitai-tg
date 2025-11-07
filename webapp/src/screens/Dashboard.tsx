@@ -24,6 +24,70 @@ function resolveName() {
   return "Гость";
 }
 
+// --- helpers for welcome logic ---
+function hasOnb() {
+  try {
+    return !!JSON.parse(localStorage.getItem("onb_summary") || "null");
+  } catch {
+    return false;
+  }
+}
+function isFirstWelcome() {
+  return !localStorage.getItem("welcome_seen_v1");
+}
+
+// --- typewriter component ---
+function TypeWriter({
+  text,
+  speed = 25, // медленнее, ближе к реальному набору
+  onDone,
+}: {
+  text: string;
+  speed?: number;
+  onDone?: () => void;
+}) {
+  const [i, setI] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setI(text.length);
+      setDone(true);
+      onDone?.();
+      return;
+    }
+
+    const id = setInterval(() => {
+      setI((v) => {
+        if (v >= text.length) {
+          clearInterval(id);
+          setDone(true);
+          onDone?.();
+          return v;
+        }
+        return v + 1;
+      });
+    }, speed + Math.random() * 60); // случайная задержка для "живости"
+
+    return () => clearInterval(id);
+  }, [text, speed, onDone]);
+
+  return (
+    <p
+      style={s.blockText}
+      onClick={() => {
+        setI(text.length);
+        setDone(true);
+        onDone?.();
+      }}
+    >
+      {text.slice(0, i)}
+      {!done && <span className="caret">|</span>}
+    </p>
+  );
+}
+
 export default function Dashboard() {
   const [name, setName] = useState("Гость");
   const { chips } = useStore();
@@ -56,6 +120,8 @@ export default function Dashboard() {
     []
   );
 
+  const onbDone = hasOnb();
+
   return (
     <div style={s.page}>
       {/* плавное живое свечение фона кнопки */}
@@ -78,6 +144,10 @@ export default function Dashboard() {
         @media (prefers-reduced-motion: reduce) {
           .soft-glow { animation: none; }
         }
+
+        /* caret for typewriter */
+        .caret { margin-left: 2px; opacity: 1; animation: caretBlink 1s step-end infinite; }
+        @keyframes caretBlink { 50% { opacity: 0; } }
       `}</style>
 
       {/* hero card */}
@@ -110,34 +180,63 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* welcome block */}
-      <section style={s.block}>
-        <h3 style={s.blockTitle}>Добро пожаловать 👋</h3>
+      {/* AI trainer block */}
+<section style={s.block}>
+  {hasOnb() ? (
+    <>
+      <h3 style={s.blockTitle}>Твой ИИ-тренер 🤖</h3>
+      <p style={s.blockText}>
+        Делает каждую тренировку эффективной и составляет план питания с учётом
+        твоей цели, опыта и условий.
+      </p>
+      <button style={s.ctaBig} onClick={() => navigate("/onb/age-sex")}>
+        Редактировать данные
+      </button>
+    </>
+  ) : (
+    <>
+      <h3 style={s.blockTitle}>Добро пожаловать 👋</h3>
+      {isFirstWelcome() ? (
+        <TypeWriter
+          text="Я персональный ИИ-тренер. Помогу тебе изменить тело и самочувствие с продуманными тренировками и питанием. Подберу план, который сделает тебя сильнее, стройнее и увереннее. Укажи цель, уровень и условия — и начнём путь к твоему лучшему результату."
+          speed={55}
+          onDone={() => localStorage.setItem("welcome_seen_v1", "1")}
+        />
+      ) : (
         <p style={s.blockText}>
-          Персональный ИИ-тренер сделает каждую тренировоку эффетивной и составит план питания с учётом твоей цели, опыта и условий.
+          Я персональный ИИ-тренер. Помогу тебе изменить тело и самочувствие с продуманными тренировками и питанием. Подберу план, который сделает тебя сильнее, стройнее и увереннее. Укажи цель, уровень и условия — и начнём путь к твоему лучшему результату.
         </p>
-        <button style={s.ctaBig} onClick={() => navigate("/onb/age-sex")}>
-          Заполнить данные
-        </button>
-      </section>
+      )}
+
+      <button style={s.ctaBig} onClick={() => navigate("/onb/age-sex")}>
+        Заполнить данные
+      </button>
+    </>
+  )}
+</section>
 
       {/* quick actions */}
       <section style={{ ...s.block, paddingTop: 10 }}>
         <h3 style={s.blockTitle}>Быстрые действия</h3>
         <div style={s.quickGrid}>
           <QuickAction
-  emoji="📅"
-  title="Расписание"
-  hint="Выбрать дни"
-  onClick={() => navigate("/schedule")}
-/>
-          <QuickAction
-          emoji="🍽️"
-          title="Питание"
-          hint="Текущий день"
-          onClick={() => navigate("/nutrition/today")}
+            emoji="📅"
+            title="Расписание"
+            hint="Выбрать дни"
+            onClick={() => navigate("/schedule")}
           />
-          <QuickAction emoji="📈" title="Прогресс" hint="Замеры и графики" onClick={() => navigate("/progress")} />
+          <QuickAction
+            emoji="🍽️"
+            title="Питание"
+            hint="Текущий день"
+            onClick={() => navigate("/nutrition/today")}
+          />
+          <QuickAction
+            emoji="📈"
+            title="Прогресс"
+            hint="Замеры и графики"
+            onClick={() => navigate("/progress")}
+          />
         </div>
       </section>
 
@@ -165,15 +264,15 @@ function Stat({
 }
 
 function QuickAction({
-emoji,
-title,
-hint,
-onClick,
+  emoji,
+  title,
+  hint,
+  onClick,
 }: {
-emoji: string;
-title: string;
-hint: string;
-onClick?: () => void;
+  emoji: string;
+  title: string;
+  hint: string;
+  onClick?: () => void;
 }) {
   return (
     <button style={s.quickItem} type="button" onClick={onClick}>
