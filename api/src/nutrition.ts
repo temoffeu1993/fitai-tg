@@ -947,18 +947,6 @@ nutrition.post(
     const force = Boolean(req.body?.force);
     let existing = await loadWeekPlan(userId, weekStart);
 
-    if (existing?.status === "processing") {
-      return res.status(202).json({
-        plan: existing.plan,
-        meta: {
-          status: existing.status,
-          planId: existing.planId,
-          error: existing.error,
-          cached: true,
-        },
-      });
-    }
-
     if (existing?.status === "ready" && !force) {
       return res.json({
         plan: existing.plan,
@@ -979,22 +967,37 @@ nutrition.post(
     const skeleton = buildSkeletonWeek(weekStart, targets);
     const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
 
-    queueDetailedPlanGeneration({
-      planId,
-      userId,
-      weekStart,
-      onboarding,
-      targets,
-    });
+    try {
+      await generateDetailedPlan({
+        planId,
+        userId,
+        weekStart,
+        onboarding,
+        targets,
+      });
+    } catch (err) {
+      await q(
+        `UPDATE nutrition_plans
+           SET status = 'failed',
+               error_info = COALESCE($2, error_info),
+               updated_at = now()
+         WHERE id = $1`,
+        [planId, (err as any)?.message?.slice(0, 500) ?? null]
+      );
+      throw err;
+    }
 
     const fresh = await loadWeekPlan(userId, weekStart);
+    if (!fresh) {
+      throw new AppError("Не удалось загрузить план после генерации", 500);
+    }
 
-    return res.status(202).json({
-      plan: fresh?.plan,
+    return res.json({
+      plan: fresh.plan,
       meta: {
-        status: fresh?.status || "processing",
-        planId: fresh?.planId || planId,
-        queued: true,
+        status: fresh.status || "ready",
+        planId: fresh.planId,
+        created: true,
       },
     });
   })

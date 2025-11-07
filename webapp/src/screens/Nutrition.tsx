@@ -1,7 +1,6 @@
 // webapp/src/screens/Nutrition.tsx
 // Экран недельного плана питания. UX/стиль выровнен с PlanOne.
 import { useEffect, useMemo, useState } from "react";
-import StreamingText from "@/components/StreamingText";
 import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 
 type FoodItem = {
@@ -32,7 +31,6 @@ export default function Nutrition() {
     metaError,
     error,
     loading,
-    polling,
     regenerate,
     refresh,
   } = useNutritionPlan<WeekPlan>({ normalize });
@@ -78,17 +76,26 @@ export default function Nutrition() {
   return `${fmt(start)} – ${fmt(end)}`;
 }, [plan]);
 
-  const heroStatus =
-    planStatus === "processing"
-      ? "ИИ печатает меню"
-      : planStatus === "failed"
-      ? "Ошибка генерации"
-      : "План готов";
+  const isProcessing = planStatus === "processing";
 
-  if (loading) return <Loader stage={stage} steps={steps} label="Генерирую недельный план питания" />;
-  if (error) return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
+  if (loading || isProcessing || !plan) {
+    return <Loader stage={stage} steps={steps} label="Генерирую недельный план питания" />;
+  }
 
-  if (!plan) return <div style={s.page}><section style={s.blockWhite}><h3>План отсутствует</h3></section></div>;
+  if (error) {
+    return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
+  }
+
+  if (planStatus === "failed") {
+    return (
+      <ErrorView
+        msg={metaError || "Не удалось сгенерировать план питания"}
+        onRetry={() => regenerate().catch(() => {})}
+      />
+    );
+  }
+
+  const heroStatus = "План готов";
 
   return (
     <div style={s.page}>
@@ -106,32 +113,6 @@ export default function Nutrition() {
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
-        {planStatus === "processing" && (
-          <div style={s.streamRow}>
-            <div style={s.streamIcon}>🤖</div>
-            <div>
-              <StreamingText text="AI дополняет меню и проверяет КБЖУ…" />
-              <div className="typing-dots" style={{ marginTop: 4 }}>
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </div>
-            </div>
-          </div>
-        )}
-        {planStatus === "processing" && polling && (
-          <div style={s.pollingNote}>Обновляю автоматически…</div>
-        )}
-        {planStatus === "failed" && (
-          <div style={s.errorBanner}>
-            <div style={{ fontWeight: 700 }}>Не удалось завершить генерацию</div>
-            {metaError ? <div style={s.errorText}>{metaError}</div> : null}
-            <button style={s.errorBtn} onClick={() => regenerate().catch(() => {})}>
-              Попробовать ещё раз
-            </button>
-          </div>
-        )}
-
         {totals && (
           <div style={s.heroFooter}>
             <Stat icon="🔥" label="Ккал/день" value={String(totals.kcal)} />
@@ -142,18 +123,18 @@ export default function Nutrition() {
 
         <button
           className="soft-glow"
-          disabled={planStatus === "processing"}
+          disabled={loading}
           style={{
             ...s.primaryBtn,
-            opacity: planStatus === "processing" ? 0.6 : 1,
-            cursor: planStatus === "processing" ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
           }}
           onClick={() => {
             setStage(0);
             regenerate().catch(() => {});
           }}
         >
-          {planStatus === "processing" ? "AI дополняет план" : "Сгенерировать заново"}
+          Сгенерировать заново
         </button>
       </section>
 
@@ -389,12 +370,6 @@ const s: Record<string, React.CSSProperties> = {
   pill:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   credits:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   heroTitle:{fontSize:22,fontWeight:800,marginTop:6}, heroSubtitle:{opacity:.92,marginTop:2},
-  streamRow:{marginTop:12,display:"flex",gap:10,alignItems:"center",background:"rgba(255,255,255,.18)",padding:"8px 12px",borderRadius:14,backdropFilter:"blur(6px)"},
-  streamIcon:{fontSize:22},
-  pollingNote:{marginTop:6,fontSize:12,color:"rgba(255,255,255,.9)"},
-  errorBanner:{marginTop:10,background:"rgba(255,255,255,.85)",color:"#1b1b1b",padding:"10px 12px",borderRadius:14,boxShadow:"0 6px 20px rgba(0,0,0,.1)"},
-  errorText:{fontSize:12,color:"#333",marginTop:4},
-  errorBtn:{marginTop:8,border:"none",borderRadius:10,padding:"8px 12px",fontWeight:700,background:"#1b1b1b",color:"#fff",cursor:"pointer"},
   primaryBtn:{marginTop:14,width:"100%",border:"none",borderRadius:14,padding:"14px 16px",fontSize:16,fontWeight:700,
     color:"#1b1b1b",background:"linear-gradient(135deg,#ffe680,#ffb36b)",boxShadow:"0 6px 18px rgba(0,0,0,.15)",cursor:"pointer"},
   heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},

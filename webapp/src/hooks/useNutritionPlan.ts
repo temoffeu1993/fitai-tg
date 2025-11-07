@@ -32,16 +32,17 @@ export function useNutritionPlan<TPlan>(options: {
   const [polling, setPolling] = useState(false);
 
   const applyPlanResponse = useCallback(
-    (resp?: NutritionPlanResponse<TPlan>) => {
+    (resp?: NutritionPlanResponse<TPlan>, opts?: { keepPlan?: boolean }) => {
       if (!resp?.plan) throw new Error("plan_missing");
       const copy = deepClone(resp.plan);
       const normalized = (normalizePlan(copy) as TPlan | void) ?? copy;
-      setPlan(normalized);
       const nextStatus: PlanStatus = resp.meta?.status ?? "ready";
       setStatus(nextStatus);
       const err = resp.meta?.error ?? null;
       setMetaError(err);
+
       if (nextStatus === "ready") {
+        setPlan(normalized);
         try {
           localStorage.setItem(
             cacheKey,
@@ -50,7 +51,10 @@ export function useNutritionPlan<TPlan>(options: {
         } catch {
           // ignore quota errors
         }
-      } else if (nextStatus === "failed") {
+      } else {
+        if (!opts?.keepPlan) {
+          setPlan(null);
+        }
         try {
           localStorage.removeItem(cacheKey);
         } catch {
@@ -62,13 +66,21 @@ export function useNutritionPlan<TPlan>(options: {
   );
 
   const refresh = useCallback(
-    async (opts?: { force?: boolean; silent?: boolean }) => {
+    async (opts?: { force?: boolean; silent?: boolean; clearPlan?: boolean }) => {
       const silent = Boolean(opts?.silent);
       if (!silent) {
         setLoading(true);
         setError(null);
       }
       try {
+        if (opts?.clearPlan) {
+          setPlan(null);
+          try {
+            localStorage.removeItem(cacheKey);
+          } catch {
+            // ignore
+          }
+        }
         let resp: NutritionPlanResponse<TPlan>;
         if (opts?.force) {
           resp = await generateWeek<TPlan>({ force: true });
@@ -107,10 +119,12 @@ export function useNutritionPlan<TPlan>(options: {
         const cached = JSON.parse(raw);
         if (cached?.plan) {
           const normalized = (normalizePlan(cached.plan) as TPlan | void) ?? cached.plan;
-          setPlan(normalized);
-          setStatus(cached.status ?? "ready");
-          setLoading(false);
-          hasCache = true;
+          if (cached.status === "ready") {
+            setPlan(normalized);
+            setStatus("ready");
+            setLoading(false);
+            hasCache = true;
+          }
         }
       }
     } catch {
@@ -134,7 +148,7 @@ export function useNutritionPlan<TPlan>(options: {
     const tick = async () => {
       try {
         const resp = await getCurrentWeek<TPlan>();
-        applyPlanResponse(resp);
+        applyPlanResponse(resp, { keepPlan: true });
         const nextStatus: PlanStatus = resp.meta?.status ?? "ready";
         if (nextStatus !== "processing" && !cancelled) {
           setPolling(false);
@@ -161,7 +175,7 @@ export function useNutritionPlan<TPlan>(options: {
     };
   }, [status, applyPlanResponse]);
 
-  const regenerate = useCallback(() => refresh({ force: true }), [refresh]);
+  const regenerate = useCallback(() => refresh({ force: true, clearPlan: true }), [refresh]);
 
   return {
     plan,
