@@ -1,7 +1,8 @@
 // webapp/src/screens/Nutrition.tsx
 // Экран недельного плана питания. UX/стиль выровнен с PlanOne.
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/apiClient";
+import StreamingText from "@/components/StreamingText";
+import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 
 type FoodItem = {
   food: string; qty: number; unit: string;
@@ -23,13 +24,18 @@ type WeekPlan = {
   days: Day[];
 };
 
-const NUTRITION_CACHE_KEY = "nutrition_week_cache_v1";
-
 export default function Nutrition() {
-  const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState(0);
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    plan,
+    status: planStatus,
+    metaError,
+    error,
+    loading,
+    polling,
+    regenerate,
+    refresh,
+  } = useNutritionPlan<WeekPlan>({ normalize });
   const [openDay, setOpenDay] = useState<number | null>(1);
   const [showNotes, setShowNotes] = useState(false);
 
@@ -39,69 +45,8 @@ export default function Nutrition() {
   );
 
   useEffect(() => {
-    let mounted = true;
     const t = setInterval(() => setStage((s) => (s < steps.length - 1 ? s + 1 : s)), 1200);
-
-    (async () => {
-      try {
-        // cache try
-        const raw = localStorage.getItem(NUTRITION_CACHE_KEY);
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (cached?.plan) {
-            setPlan(cached.plan);
-            setLoading(false);
-            clearInterval(t);
-            return;
-          }
-        }
-
- // БЕЗОПАСНЫЙ fetch и генерация
-let p: any = null;
-
-// 1) пробуем получить текущую неделю
-const r0 = await apiFetch("/api/nutrition/current-week");
-if (r0.ok) {
-  const j0 = await readJsonSafe(r0);
-  p = j0?.plan || null;
-} else if (r0.status === 404) {
-  // плана нет — это нормально, просто генерим ниже
-  p = null;
-} else {
-  const t = await r0.text().catch(() => "");
-  throw new Error(`current-week ${r0.status}: ${t}`);
-}
-
-// 2) если нет — генерим
-if (!p) {
-  const r1 = await apiFetch("/api/nutrition/generate-week", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
-  if (!r1.ok) {
-    const t = await r1.text().catch(() => "");
-    throw new Error(`generate-week ${r1.status}: ${t}`);
-  }
-  const j1 = await readJsonSafe(r1);
-  p = j1?.plan;
-}
-
-if (!p) throw new Error("План не получен");
-        normalize(p);
-        setPlan(p);
-        try { localStorage.setItem(NUTRITION_CACHE_KEY, JSON.stringify({ plan: p, ts: Date.now() })); } catch {}
-
-      } catch (e: any) {
-        console.error(e);
-        setError("Не удалось получить план питания");
-      } finally {
-        if (mounted) setLoading(false);
-        clearInterval(t);
-      }
-    })();
-
-    return () => { mounted = false; clearInterval(t); };
+    return () => clearInterval(t);
   }, [steps.length]);
 
   const totals = useMemo(() => {
@@ -133,8 +78,15 @@ if (!p) throw new Error("План не получен");
   return `${fmt(start)} – ${fmt(end)}`;
 }, [plan]);
 
+  const heroStatus =
+    planStatus === "processing"
+      ? "ИИ печатает меню"
+      : planStatus === "failed"
+      ? "Ошибка генерации"
+      : "План готов";
+
   if (loading) return <Loader stage={stage} steps={steps} label="Генерирую недельный план питания" />;
-  if (error) return <ErrorView msg={error} />;
+  if (error) return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
 
   if (!plan) return <div style={s.page}><section style={s.blockWhite}><h3>План отсутствует</h3></section></div>;
 
@@ -147,12 +99,38 @@ if (!p) throw new Error("План не получен");
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Неделя</span>
-          <span style={s.credits}>План готов</span>
+          <span style={s.credits}>{heroStatus}</span>
         </div>
 
         <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{weekLabel}</div>
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
+
+        {planStatus === "processing" && (
+          <div style={s.streamRow}>
+            <div style={s.streamIcon}>🤖</div>
+            <div>
+              <StreamingText text="AI дополняет меню и проверяет КБЖУ…" />
+              <div className="typing-dots" style={{ marginTop: 4 }}>
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+            </div>
+          </div>
+        )}
+        {planStatus === "processing" && polling && (
+          <div style={s.pollingNote}>Обновляю автоматически…</div>
+        )}
+        {planStatus === "failed" && (
+          <div style={s.errorBanner}>
+            <div style={{ fontWeight: 700 }}>Не удалось завершить генерацию</div>
+            {metaError ? <div style={s.errorText}>{metaError}</div> : null}
+            <button style={s.errorBtn} onClick={() => regenerate().catch(() => {})}>
+              Попробовать ещё раз
+            </button>
+          </div>
+        )}
 
         {totals && (
           <div style={s.heroFooter}>
@@ -164,37 +142,18 @@ if (!p) throw new Error("План не получен");
 
         <button
           className="soft-glow"
-          style={s.primaryBtn}
-          onClick={async () => {
-  try {
-    localStorage.removeItem(NUTRITION_CACHE_KEY);
-    setLoading(true);
-    setStage(0);
-
-    const res = await apiFetch("/api/nutrition/generate-week", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({}),
-});
-if (!res.ok) {
-  const t = await res.text();
-  throw new Error(`generate-week ${res.status}: ${t}`);
-}
-const j = await readJsonSafe(res);
-    const np = j?.plan;
-    if (!np) throw new Error("no plan");
-
-    normalize(np);
-    setPlan(np);
-    localStorage.setItem(NUTRITION_CACHE_KEY, JSON.stringify({ plan: np, ts: Date.now() }));
-  } catch {
-    setError("Не удалось регенерировать план");
-  } finally {
-    setLoading(false);
-  }
-}}
+          disabled={planStatus === "processing"}
+          style={{
+            ...s.primaryBtn,
+            opacity: planStatus === "processing" ? 0.6 : 1,
+            cursor: planStatus === "processing" ? "not-allowed" : "pointer",
+          }}
+          onClick={() => {
+            setStage(0);
+            regenerate().catch(() => {});
+          }}
         >
-          Сгенерировать заново
+          {planStatus === "processing" ? "AI дополняет план" : "Сгенерировать заново"}
         </button>
       </section>
 
@@ -293,10 +252,6 @@ const j = await readJsonSafe(res);
   );
 }
 
-async function readJsonSafe(res: Response): Promise<any|null> {
-  try { return await res.json(); } catch { return null; }
-}
-
 /* ---------------- utils ---------------- */
 function normalize(p: any) {
   // ничего не ломаем: ожидаем структуру как из API
@@ -324,6 +279,8 @@ function normalize(p: any) {
       notes: m.notes || undefined,
     })),
   }));
+
+  return p;
 }
 
 function parseISODate(s?: string): Date | null {
@@ -385,7 +342,7 @@ function Loader({ stage, steps, label }: { stage: number; steps: string[]; label
     </div>
   );
 }
-function ErrorView({ msg }: { msg: string }) {
+function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   return (
     <div style={s.page}>
       <SoftGlowStyles />
@@ -393,7 +350,9 @@ function ErrorView({ msg }: { msg: string }) {
       <section style={s.blockWhite}>
         <h3 style={{ marginTop: 0 }}>{msg}</h3>
         <p style={{ marginTop: 6, color: "#555" }}>Повтори попытку позже.</p>
-        <button style={s.rowBtn} onClick={() => window.location.reload()}>Обновить</button>
+        <button style={s.rowBtn} onClick={onRetry ?? (() => window.location.reload())}>
+          Повторить
+        </button>
       </section>
     </div>
   );
@@ -430,6 +389,12 @@ const s: Record<string, React.CSSProperties> = {
   pill:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   credits:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   heroTitle:{fontSize:22,fontWeight:800,marginTop:6}, heroSubtitle:{opacity:.92,marginTop:2},
+  streamRow:{marginTop:12,display:"flex",gap:10,alignItems:"center",background:"rgba(255,255,255,.18)",padding:"8px 12px",borderRadius:14,backdropFilter:"blur(6px)"},
+  streamIcon:{fontSize:22},
+  pollingNote:{marginTop:6,fontSize:12,color:"rgba(255,255,255,.9)"},
+  errorBanner:{marginTop:10,background:"rgba(255,255,255,.85)",color:"#1b1b1b",padding:"10px 12px",borderRadius:14,boxShadow:"0 6px 20px rgba(0,0,0,.1)"},
+  errorText:{fontSize:12,color:"#333",marginTop:4},
+  errorBtn:{marginTop:8,border:"none",borderRadius:10,padding:"8px 12px",fontWeight:700,background:"#1b1b1b",color:"#fff",cursor:"pointer"},
   primaryBtn:{marginTop:14,width:"100%",border:"none",borderRadius:14,padding:"14px 16px",fontSize:16,fontWeight:700,
     color:"#1b1b1b",background:"linear-gradient(135deg,#ffe680,#ffb36b)",boxShadow:"0 6px 18px rgba(0,0,0,.15)",cursor:"pointer"},
   heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},

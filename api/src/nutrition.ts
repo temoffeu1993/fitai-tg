@@ -57,6 +57,55 @@ type WeekPlanAI = {
   };
 };
 
+type PlanStatus = "processing" | "ready" | "failed";
+
+const DEFAULT_MEALS = [
+  { title: "Завтрак", time: "08:00" },
+  { title: "Перекус", time: "11:00" },
+  { title: "Обед", time: "14:00" },
+  { title: "Полдник", time: "17:00" },
+  { title: "Ужин", time: "20:00" },
+];
+
+function buildSkeletonWeek(weekStart: string, targets: NutritionTarget): WeekPlanAI {
+  const mealsPerDay = Math.min(5, Math.max(3, targets.mealsPerDay));
+  const baseMeals = DEFAULT_MEALS.slice(0, mealsPerDay).map((meal, idx) => ({
+    title: meal.title,
+    time: meal.time,
+    target_kcal: Math.round(targets.dailyKcal / mealsPerDay),
+    target_protein_g: Math.round(targets.proteinG / mealsPerDay),
+    target_fat_g: Math.round(targets.fatG / mealsPerDay),
+    target_carbs_g: Math.round(targets.carbsG / mealsPerDay),
+    items: [],
+    notes: idx === mealsPerDay - 1 ? "AI дополняет меню..." : undefined,
+  }));
+
+  const days = Array.from({ length: 3 }).map((_, idx) => {
+    const date = new Date(weekStart);
+    date.setDate(date.getDate() + idx);
+    return {
+      date: date.toISOString().slice(0, 10),
+      title: `День ${idx + 1}`,
+      meals: baseMeals.map((meal) => ({ ...meal, items: [] })),
+    };
+  });
+
+  return {
+    week: {
+      name: "План питания (черновик)",
+      notes: "Готовим рекомендации — подожди пару секунд, пока AI добавляет блюда и граммовки.",
+      goal: {
+        kcal: targets.dailyKcal,
+        protein_g: targets.proteinG,
+        fat_g: targets.fatG,
+        carbs_g: targets.carbsG,
+        meals_per_day: mealsPerDay,
+      },
+      days,
+    },
+  };
+}
+
 // ----------------------------------------------------------------------------
 // Расчёт калорий и макронутриентов
 // ----------------------------------------------------------------------------
@@ -200,6 +249,7 @@ async function getLastNutritionPlans(userId: string, n = 3) {
     `SELECT id, week_start_date, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes
      FROM nutrition_plans
      WHERE user_id = $1
+       AND status = 'ready'
      ORDER BY week_start_date DESC
      LIMIT $2`,
     [userId, n]
@@ -207,10 +257,322 @@ async function getLastNutritionPlans(userId: string, n = 3) {
   return rows;
 }
 
+type AsyncPlanArgs = {
+  planId: string;
+  userId: string;
+  weekStart: string;
+  onboarding: Onb;
+  targets: NutritionTarget;
+};
+
+async function deletePlanById(planId: string): Promise<void> {
+  await q(`DELETE FROM nutrition_plans WHERE id = $1`, [planId]);
+}
+
+async function insertSkeletonPlan(
+  userId: string,
+  weekStart: string,
+  aiPlan: WeekPlanAI,
+  targets: NutritionTarget,
+  onboarding: Onb
+): Promise<string> {
+  const data = extractOnboardingData(onboarding);
+  const g = aiPlan.week.goal || {};
+
+  await q("BEGIN");
+  try {
+    const planRows = await q(
+      `INSERT INTO nutrition_plans
+         (user_id, week_start_date, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes, status)
+       VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12)
+       RETURNING id`,
+      [
+        userId,
+        weekStart,
+        aiPlan.week.name || "План питания в обработке",
+        Number(g.kcal) || targets.dailyKcal,
+        Number(g.protein_g) || targets.proteinG,
+        Number(g.fat_g) || targets.fatG,
+        Number(g.carbs_g) || targets.carbsG,
+        Number(g.meals_per_day) || targets.mealsPerDay,
+        g.diet_style || data.dietStyle,
+        Array.isArray(data.restrictions) && data.restrictions.length > 0 ? data.restrictions : null,
+        aiPlan.week.notes || "AI формирует подробный рацион...",
+        "processing",
+      ]
+    );
+    const planId = planRows[0].id;
+
+    for (let i = 0; i < aiPlan.week.days.length; i++) {
+      const d = aiPlan.week.days[i];
+      const dayDate =
+        d?.date ||
+        new Date(new Date(weekStart).getTime() + i * 86400000).toISOString().slice(0, 10);
+      const [dayRow] = await q(
+        `INSERT INTO nutrition_days (plan_id, day_index, day_date)
+         VALUES ($1, $2, $3::date)
+         RETURNING id`,
+        [planId, i + 1, dayDate]
+      );
+      const dayId = dayRow.id;
+      const meals = Array.isArray(d.meals) ? d.meals : [];
+      for (let j = 0; j < meals.length; j++) {
+        const m = meals[j];
+        await q(
+          `INSERT INTO nutrition_meals
+             (day_id, title, time_hint, target_kcal, target_protein_g, target_fat_g, target_carbs_g, position)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            dayId,
+            m.title || `Приём ${j + 1}`,
+            m.time || null,
+            m.target_kcal ?? null,
+            m.target_protein_g ?? null,
+            m.target_fat_g ?? null,
+            m.target_carbs_g ?? null,
+            j + 1,
+          ]
+        );
+      }
+    }
+
+    await q("COMMIT");
+    return planId;
+  } catch (err) {
+    await q("ROLLBACK");
+    throw err;
+  }
+}
+
+async function overwritePlanWithAI(
+  planId: string,
+  aiPlan: WeekPlanAI,
+  targets: NutritionTarget,
+  onboarding: Onb,
+  weekStart: string
+) {
+  const data = extractOnboardingData(onboarding);
+  const g = aiPlan.week.goal || {};
+  await q("BEGIN");
+  try {
+    await q(`DELETE FROM nutrition_days WHERE plan_id = $1`, [planId]);
+
+    const baseDate = new Date(weekStart);
+    for (let i = 0; i < aiPlan.week.days.length; i++) {
+      const d = aiPlan.week.days[i];
+      const fallbackDate = new Date(baseDate);
+      fallbackDate.setDate(baseDate.getDate() + i);
+      let dayDate = d?.date;
+      if (!dayDate) {
+        dayDate = fallbackDate.toISOString().slice(0, 10);
+      }
+      try {
+        if (dayDate) {
+          const parsed = new Date(dayDate);
+          if (!Number.isNaN(parsed.getTime())) {
+            dayDate = parsed.toISOString().slice(0, 10);
+          } else {
+            dayDate = fallbackDate.toISOString().slice(0, 10);
+          }
+        }
+      } catch {
+        dayDate = fallbackDate.toISOString().slice(0, 10);
+      }
+      const [dayRow] = await q(
+        `INSERT INTO nutrition_days (plan_id, day_index, day_date)
+         VALUES ($1, $2, $3::date)
+         RETURNING id`,
+        [planId, i + 1, dayDate]
+      );
+      const dayId = dayRow.id;
+
+      const meals = Array.isArray(d.meals) ? d.meals : [];
+      for (let j = 0; j < meals.length; j++) {
+        const m = meals[j];
+        const [mealRow] = await q(
+          `INSERT INTO nutrition_meals
+             (day_id, title, time_hint, target_kcal, target_protein_g, target_fat_g, target_carbs_g, position)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id`,
+          [
+            dayId,
+            m.title || `Приём ${j + 1}`,
+            m.time || null,
+            m.target_kcal ?? null,
+            m.target_protein_g ?? null,
+            m.target_fat_g ?? null,
+            m.target_carbs_g ?? null,
+            j + 1,
+          ]
+        );
+        const mealId = mealRow.id;
+
+        const items = Array.isArray(m.items) ? m.items : [];
+        for (let k = 0; k < items.length; k++) {
+          const it = items[k];
+          await q(
+            `INSERT INTO nutrition_items
+               (meal_id, food_name, qty, unit, kcal, protein_g, fat_g, carbs_g, prep, notes, position)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              mealId,
+              it.food || "Продукт",
+              Number(it.qty ?? 0),
+              it.unit || "г",
+              it.kcal ?? null,
+              it.protein_g ?? null,
+              it.fat_g ?? null,
+              it.carbs_g ?? null,
+              it.prep ?? null,
+              it.notes ?? null,
+              k + 1,
+            ]
+          );
+        }
+      }
+    }
+
+    await q(
+      `UPDATE nutrition_plans
+         SET name = $2,
+             goal_kcal = $3,
+             protein_g = $4,
+             fat_g = $5,
+             carbs_g = $6,
+             meals_per_day = $7,
+             diet_style = $8,
+             restrictions = $9::text[],
+             notes = $10,
+             status = 'ready',
+             error_info = NULL,
+             updated_at = now()
+       WHERE id = $1`,
+      [
+        planId,
+        aiPlan.week.name || "Персонализированный план питания (3 дня)",
+        Number(g.kcal) || targets.dailyKcal,
+        Number(g.protein_g) || targets.proteinG,
+        Number(g.fat_g) || targets.fatG,
+        Number(g.carbs_g) || targets.carbsG,
+        Number(g.meals_per_day) || targets.mealsPerDay,
+        g.diet_style || data.dietStyle,
+        Array.isArray(data.restrictions) && data.restrictions.length > 0 ? data.restrictions : null,
+        aiPlan.week.notes || null,
+      ]
+    );
+
+    await q("COMMIT");
+  } catch (err) {
+    await q("ROLLBACK");
+    throw err;
+  }
+}
+
+function queueDetailedPlanGeneration(args: AsyncPlanArgs) {
+  setTimeout(() => {
+    generateDetailedPlan(args).catch(async (err) => {
+      console.error("Async nutrition generation failed:", err);
+      await q(
+        `UPDATE nutrition_plans
+           SET status = 'failed',
+               error_info = COALESCE($2, 'AI error'),
+               updated_at = now()
+         WHERE id = $1`,
+        [args.planId, (err as any)?.message?.slice(0, 500) ?? null]
+      );
+    });
+  }, 0);
+}
+
+async function generateDetailedPlan({
+  planId,
+  userId,
+  weekStart,
+  onboarding,
+  targets,
+}: AsyncPlanArgs) {
+  const historyWeeks = await getLastNutritionPlans(userId, 3);
+  const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart);
+
+  if (process.env.DEBUG_AI === "1") {
+    console.log("\n=== NUTRITION PROMPT ===");
+    console.log(prompt);
+    console.log("\n=== CALCULATED TARGETS ===");
+    console.log(JSON.stringify(targets, null, 2));
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    temperature: 0.85,
+    max_tokens: 9000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a professional nutritionist with 15+ years of experience and access to comprehensive nutrition databases (USDA, FatSecret). You create realistic, practical meal plans people actually use. You adapt meals to Russian everyday eating culture. CRITICAL VERIFICATION: Always use calorie data for COOKED/PREPARED foods (not raw). Cross-check calorie values with your nutrition database knowledge before finalizing. If a value seems unusually high or low, recalculate using cooked weight. Verify total daily calories match target ±100 kcal. Vary meals across days. No templates. Trust your database knowledge.",
+      },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  let ai: WeekPlanAI | null = null;
+  try {
+    const content = completion.choices[0].message.content || "{}";
+    const cleanContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    ai = JSON.parse(cleanContent);
+  } catch (e) {
+    console.error("AI JSON parse error:", e);
+    throw new AppError("AI вернул некорректный JSON", 500);
+  }
+
+  if (!ai?.week?.days || !Array.isArray(ai.week.days)) {
+    throw new AppError("AI сформировал некорректную структуру", 500);
+  }
+
+  if (ai.week.days.length !== 3) {
+    throw new AppError(`AI создал ${ai.week.days.length} дней вместо 3. Попробуйте ещё раз.`, 500);
+  }
+
+  const meal0Kcals = ai.week.days.map((d) => d.meals?.[0]?.target_kcal || 0);
+  if (
+    meal0Kcals.length === 3 &&
+    meal0Kcals[0] === meal0Kcals[1] &&
+    meal0Kcals[1] === meal0Kcals[2]
+  ) {
+    console.warn("⚠️  AI создал шаблонные приёмы! Завтраки одинаковые по калориям.");
+  }
+
+  const totalKcal = ai.week.days.reduce((sum, day) => {
+    return (
+      sum +
+      (day.meals || []).reduce((mSum, meal) => {
+        return (
+          mSum +
+          (meal.items || []).reduce((iSum, item) => iSum + (item.kcal || 0), 0)
+        );
+      }, 0)
+    );
+  }, 0);
+  const avgDailyKcal = Math.round(totalKcal / 3);
+
+  if (Math.abs(avgDailyKcal - targets.dailyKcal) > targets.dailyKcal * 0.15) {
+    console.warn(
+      `⚠️  AI generated plan with ${avgDailyKcal} kcal vs target ${targets.dailyKcal} (${Math.round(
+        ((avgDailyKcal / targets.dailyKcal - 1) * 100)
+      )}% diff)`
+    );
+  } else {
+    console.log(`✓ Plan validated: ${avgDailyKcal} kcal (target ${targets.dailyKcal})`);
+  }
+
+  await overwritePlanWithAI(planId, ai, targets, onboarding, weekStart);
+}
+
 async function loadWeekPlan(userId: string, weekStart: string) {
   const head = await q(
     `SELECT id, user_id, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes,
-            week_start_date
+            week_start_date, status, error_info
      FROM nutrition_plans
      WHERE user_id=$1 AND week_start_date = $2::date
      LIMIT 1`,
@@ -288,7 +650,10 @@ async function loadWeekPlan(userId: string, weekStart: string) {
           items: m.items
         }))
       }))
-    }
+    },
+    status: (head[0].status as PlanStatus) || "ready",
+    error: head[0].error_info || null,
+    planId
   };
 }
 
@@ -579,196 +944,59 @@ nutrition.post(
     const userId = await getUserId(req as any);
     const onboarding = await getOnboarding(userId);
     const weekStart = startOfWeekISO(new Date());
-    
-    const existing = await loadWeekPlan(userId, weekStart);
-    if (existing) {
-      return res.json({ plan: existing.plan, meta: { cached: true } });
+    const force = Boolean(req.body?.force);
+    let existing = await loadWeekPlan(userId, weekStart);
+
+    if (existing?.status === "processing") {
+      return res.status(202).json({
+        plan: existing.plan,
+        meta: {
+          status: existing.status,
+          planId: existing.planId,
+          error: existing.error,
+          cached: true,
+        },
+      });
+    }
+
+    if (existing?.status === "ready" && !force) {
+      return res.json({
+        plan: existing.plan,
+        meta: {
+          status: existing.status,
+          planId: existing.planId,
+          cached: true,
+        },
+      });
+    }
+
+    if (existing?.planId) {
+      await deletePlanById(existing.planId);
+      existing = null;
     }
 
     const targets = calculateNutritionTargets(onboarding);
-    const historyWeeks = await getLastNutritionPlans(userId, 3);
-    const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart);
+    const skeleton = buildSkeletonWeek(weekStart, targets);
+    const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
 
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== NUTRITION PROMPT ===");
-      console.log(prompt);
-      console.log("\n=== CALCULATED TARGETS ===");
-      console.log(JSON.stringify(targets, null, 2));
-    }
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.85,
-      max_tokens: 9000,
-      response_format: { type: "json_object" },
-      messages: [
-        { 
-          role: "system", 
-          content:
-            "You are a professional nutritionist with 15+ years of experience and access to comprehensive nutrition databases (USDA, FatSecret). You create realistic, practical meal plans people actually use. You adapt meals to Russian everyday eating culture. CRITICAL VERIFICATION: Always use calorie data for COOKED/PREPARED foods (not raw). Cross-check calorie values with your nutrition database knowledge before finalizing. If a value seems unusually high or low, recalculate using cooked weight. Verify total daily calories match target ±100 kcal. Vary meals across days. No templates. Trust your database knowledge."
-        },
-        { role: "user", content: prompt },
-      ],
+    queueDetailedPlanGeneration({
+      planId,
+      userId,
+      weekStart,
+      onboarding,
+      targets,
     });
 
-    let ai: WeekPlanAI | null = null;
-    try {
-      const content = completion.choices[0].message.content || "{}";
-      const cleanContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      ai = JSON.parse(cleanContent);
-    } catch (e) {
-      console.error("AI JSON parse error:", e);
-      console.error("Raw content:", completion.choices[0].message.content?.slice(0, 500));
-      throw new AppError("AI вернул некорректный JSON", 500);
-    }
+    const fresh = await loadWeekPlan(userId, weekStart);
 
-    if (!ai?.week?.days || !Array.isArray(ai.week.days)) {
-      console.error("AI returned invalid structure:", ai);
-      throw new AppError("AI сформировал некорректную структуру", 500);
-    }
-
-    if (ai.week.days.length !== 3) {
-      console.error(`AI returned ${ai.week.days.length} days instead of 3`);
-      throw new AppError(`AI создал ${ai.week.days.length} дней вместо 3. Попробуйте ещё раз.`, 500);
-    }
-
-    // Валидация: проверяем что приёмы не шаблонные
-    const meal0Kcals = ai.week.days.map(d => d.meals?.[0]?.target_kcal || 0);
-    if (meal0Kcals.length === 3 && meal0Kcals[0] === meal0Kcals[1] && meal0Kcals[1] === meal0Kcals[2]) {
-      console.warn("⚠️  AI создал шаблонные приёмы! Завтраки одинаковые по калориям.");
-    }
-
-    const totalKcal = ai.week.days.reduce((sum, day) => {
-      return sum + (day.meals || []).reduce((mSum, meal) => {
-        return mSum + ((meal.items || []).reduce((iSum, item) => iSum + (item.kcal || 0), 0) || 0);
-      }, 0);
-    }, 0);
-    const avgDailyKcal = Math.round(totalKcal / 3);
-    
-    if (Math.abs(avgDailyKcal - targets.dailyKcal) > targets.dailyKcal * 0.15) {
-      console.warn(`⚠️  AI generated plan with ${avgDailyKcal} kcal vs target ${targets.dailyKcal} (${Math.round((avgDailyKcal/targets.dailyKcal - 1) * 100)}% diff)`);
-    } else {
-      console.log(`✓ Plan validated: ${avgDailyKcal} kcal (target ${targets.dailyKcal})`);
-    }
-
-    // Сохраняем в БД
-    await q("BEGIN");
-    try {
-      const g = ai.week.goal || {};
-      const data = extractOnboardingData(onboarding);
-      
-      const planRow = await q(
-        `INSERT INTO nutrition_plans
-         (user_id, week_start_date, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes)
-         VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11)
-         RETURNING id, week_start_date`,
-        [
-          userId,
-          weekStart,
-          ai.week.name || "Персонализированный план питания (3 дня)",
-          Number(g.kcal) || targets.dailyKcal,
-          Number(g.protein_g) || targets.proteinG,
-          Number(g.fat_g) || targets.fatG,
-          Number(g.carbs_g) || targets.carbsG,
-          Number(g.meals_per_day) || targets.mealsPerDay,
-          g.diet_style || data.dietStyle,
-          Array.isArray(data.restrictions) && data.restrictions.length > 0 ? data.restrictions : null,
-          ai.week.notes || null,
-        ]
-      );
-      const planId = planRow[0].id;
-
-      const dayIds: string[] = [];
-      for (let i = 0; i < 3; i++) {
-        const d = ai.week.days[i];
-        const dayIndex = i + 1;
-        const dayDate = d?.date || new Date(new Date(weekStart).getTime() + i * 86400000)
-          .toISOString()
-          .slice(0, 10);
-        const row = await q(
-          `INSERT INTO nutrition_days (plan_id, day_index, day_date)
-           VALUES ($1, $2, $3::date)
-           RETURNING id`,
-          [planId, dayIndex, dayDate]
-        );
-        dayIds.push(row[0].id);
-      }
-
-      for (let i = 0; i < 3; i++) {
-        const d = ai.week.days[i];
-        const day_id = dayIds[i];
-        const meals = Array.isArray(d.meals) ? d.meals : [];
-        
-        for (let j = 0; j < meals.length; j++) {
-          const m = meals[j];
-          const mealRow = await q(
-            `INSERT INTO nutrition_meals
-             (day_id, title, time_hint, target_kcal, target_protein_g, target_fat_g, target_carbs_g, position)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING id`,
-            [
-              day_id,
-              m.title || `Приём ${j + 1}`,
-              m.time || null,
-              m.target_kcal ?? null,
-              m.target_protein_g ?? null,
-              m.target_fat_g ?? null,
-              m.target_carbs_g ?? null,
-              j + 1,
-            ]
-          );
-          const mealId = mealRow[0].id;
-
-          const items = Array.isArray(m.items) ? m.items : [];
-          for (let k = 0; k < items.length; k++) {
-            const it = items[k];
-            await q(
-              `INSERT INTO nutrition_items
-               (meal_id, food_name, qty, unit, kcal, protein_g, fat_g, carbs_g, prep, notes, position)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-              [
-                mealId,
-                it.food || "Продукт",
-                Number(it.qty ?? 0),
-                it.unit || "г",
-                it.kcal ?? null,
-                it.protein_g ?? null,
-                it.fat_g ?? null,
-                it.carbs_g ?? null,
-                it.prep ?? null,
-                it.notes ?? null,
-                k + 1,
-              ]
-            );
-          }
-        }
-      }
-
-      await q("COMMIT");
-
-      const full = await loadWeekPlan(userId, weekStart);
-      return res.json({ 
-        plan: full?.plan, 
-        meta: { 
-          created: true,
-          targets: targets,
-          avgDailyKcal: avgDailyKcal,
-          daysGenerated: ai.week.days.length,
-          qualityChecks: {
-            templated: meal0Kcals[0] === meal0Kcals[1] && meal0Kcals[1] === meal0Kcals[2],
-            calorieAccuracy: Math.round((avgDailyKcal/targets.dailyKcal - 1) * 100)
-          }
-        } 
-      });
-    } catch (err) {
-      await q("ROLLBACK");
-      console.error("Save nutrition week failed:", err);
-      if ((err as any)?.constraint === "uniq_plan_per_week") {
-        const full = await loadWeekPlan(userId, weekStart);
-        return res.json({ plan: full?.plan, meta: { existed: true } });
-      }
-      throw err;
-    }
+    return res.status(202).json({
+      plan: fresh?.plan,
+      meta: {
+        status: fresh?.status || "processing",
+        planId: fresh?.planId || planId,
+        queued: true,
+      },
+    });
   })
 );
 
@@ -782,7 +1010,14 @@ nutrition.get(
     const weekStart = startOfWeekISO(new Date());
     const data = await loadWeekPlan(userId, weekStart);
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
-    res.json({ plan: data.plan });
+    res.json({
+      plan: data.plan,
+      meta: {
+        status: data.status,
+        planId: data.planId,
+        error: data.error,
+      },
+    });
   })
 );
 

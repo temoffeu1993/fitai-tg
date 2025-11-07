@@ -1,7 +1,8 @@
 // webapp/src/screens/NutritionToday.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentWeek, generateWeek } from "@/api/nutrition";
+import StreamingText from "@/components/StreamingText";
+import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 import { getScheduleOverview, PlannedWorkout, ScheduleByDate } from "@/api/schedule";
 import NavBar from "@/components/NavBar";
 
@@ -19,8 +20,6 @@ type Meal = { title: string; time?: string; target_kcal?: number; target_protein
 type Day = { day_index?: number; date: string; meals: Meal[] };
 type WeekPlan = { id: string; week_start_date: string; name: string; notes?: string; goal: { kcal: number; protein_g: number; fat_g: number; carbs_g: number; meals_per_day: number; diet_style?: string }; days: Day[]; };
 type TrainingInfo = { isTraining: boolean; status?: "slot" | "planned" | "completed"; time?: string | null };
-
-const NUTRITION_CACHE_KEY = "nutrition_week_cache_v1";
 
 const PRE_WORKOUT_SNACKS: SnackPreset[] = [
   {
@@ -119,10 +118,17 @@ const toNum = (v: any) => {
 };
 
 export default function NutritionToday() {
-  const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState(0);
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    plan,
+    status: planStatus,
+    metaError,
+    error,
+    loading,
+    polling,
+    regenerate,
+    refresh,
+  } = useNutritionPlan<WeekPlan>({ normalize });
   const [trainingInfo, setTrainingInfo] = useState<TrainingInfo | null>(null);
   const navigate = useNavigate();
 
@@ -155,43 +161,6 @@ export default function NutritionToday() {
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        // быстрый показ из кэша
-        const raw = localStorage.getItem(NUTRITION_CACHE_KEY);
-        if (raw) {
-          const cached = JSON.parse(raw);
-          if (cached?.plan) {
-            normalize(cached.plan);
-            setPlan(cached.plan);
-          }
-        }
-
-        // получить текущую неделю; если нет — сгенерим
-        let j0: any;
-        try {
-          j0 = await getCurrentWeek();
-        } catch {
-          j0 = await generateWeek();
-        }
-        const p = j0?.plan as WeekPlan | undefined;
-        if (!p) throw new Error("План не получен");
-
-        normalize(p);
-        if (!mounted) return;
-        setPlan(p);
-        try { localStorage.setItem(NUTRITION_CACHE_KEY, JSON.stringify({ plan: p, ts: Date.now() })); } catch {}
-      } catch (e: any) {
-        if (!mounted) return;
-        setError("Не удалось получить план питания");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   const todayISO = isoToday();
 
@@ -208,7 +177,7 @@ export default function NutritionToday() {
   }, [day, trainingInfo]);
 
   if (loading) return <Loader stage={stage} label="Готовлю питание на сегодня" />;
-  if (error) return <ErrorView msg={error} />;
+  if (error) return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
   if (!plan || !day || !displayDay) return <div style={s.page}><section style={s.blockWhite}><h3>План отсутствует</h3></section></div>;
 
   const isTrainingDay = trainingInfo?.isTraining ?? false;
@@ -237,6 +206,14 @@ export default function NutritionToday() {
 
   const dt = parseISODate(displayDay.date || day.date);
   const dateLabel = dt ? dt.toLocaleDateString("ru-RU", { weekday: "long", day: "2-digit", month: "long" }) : todayISO;
+  const heroStatus =
+    planStatus === "processing"
+      ? "ИИ печатает меню"
+      : planStatus === "failed"
+      ? "Ошибка генерации"
+      : isTrainingDay
+      ? "⚡ Усиленный план питания"
+      : "План готов";
 
   return (
     <div style={s.page}>
@@ -245,17 +222,41 @@ export default function NutritionToday() {
 
       {/* HERO */}
       <section style={s.heroCard}>
-  <div style={s.heroHeader}>
-    <span style={s.pill}>Сегодня</span>
-    <span style={s.credits}>
-      {isTrainingDay ? "⚡ Усиленный план питания" : "План готов"}
-    </span>
-  </div>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Сегодня</span>
+          <span style={s.credits}>{heroStatus}</span>
+        </div>
 
-  <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{dateLabel}</div>
-  <div style={s.heroTitle}>План питания на сегодня</div>
-  <div style={s.heroSubtitle}>Детальный состав приёмов пищи на текущий день</div>
-  
+        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>{dateLabel}</div>
+        <div style={s.heroTitle}>План питания на сегодня</div>
+        <div style={s.heroSubtitle}>Детальный состав приёмов пищи на текущий день</div>
+
+        {planStatus === "processing" && (
+          <div style={s.streamRow}>
+            <div style={s.streamIcon}>🤖</div>
+            <div>
+              <StreamingText text="AI дополняет рецепты и граммовки…" />
+              <div className="typing-dots" style={{ marginTop: 4 }}>
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+            </div>
+          </div>
+        )}
+        {planStatus === "processing" && polling && (
+          <div style={s.pollingNote}>Обновляю автоматически…</div>
+        )}
+        {planStatus === "failed" && (
+          <div style={s.errorBanner}>
+            <div style={{ fontWeight: 700 }}>Не удалось завершить генерацию</div>
+            {metaError ? <div style={s.errorText}>{metaError}</div> : null}
+            <button style={s.errorBtn} onClick={() => regenerate().catch(() => {})}>
+              Попробовать ещё раз
+            </button>
+          </div>
+        )}
+
         <div style={s.heroFooter}>
           <Stat icon="🔥" label={isTrainingDay ? "Ккал (усилено)" : "Ккал (итого)"} value={String(displayKcal)} />
           <Stat icon="🥚" label="Белки" value={`${displayProtein} г`} />
@@ -264,25 +265,18 @@ export default function NutritionToday() {
 
         <button
           className="soft-glow"
-          style={s.primaryBtn}
-          onClick={async () => {
-            try {
-              setLoading(true);
-              localStorage.removeItem(NUTRITION_CACHE_KEY);
-              const j = await generateWeek();
-              const np = j?.plan as WeekPlan | undefined;
-              if (!np) throw new Error("no plan");
-              normalize(np);
-              setPlan(np);
-              localStorage.setItem(NUTRITION_CACHE_KEY, JSON.stringify({ plan: np, ts: Date.now() }));
-            } catch {
-              setError("Не удалось регенерировать план");
-            } finally {
-              setLoading(false);
-            }
+          disabled={planStatus === "processing"}
+          style={{
+            ...s.primaryBtn,
+            opacity: planStatus === "processing" ? 0.6 : 1,
+            cursor: planStatus === "processing" ? "not-allowed" : "pointer",
+          }}
+          onClick={() => {
+            setStage(0);
+            regenerate().catch(() => {});
           }}
         >
-          Сгенерировать заново
+          {planStatus === "processing" ? "AI дополняет план" : "Сгенерировать заново"}
         </button>
       </section>
 
@@ -392,6 +386,8 @@ function normalize(p: any) {
       notes: m.notes || undefined,
     })),
   }));
+
+  return p;
 }
 
 function parseISODate(s?: string): Date | null {
@@ -600,7 +596,7 @@ function Loader({ stage, label }: { stage: number; label: string }) {
     </div>
   );
 }
-function ErrorView({ msg }: { msg: string }) {
+function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   return (
     <div style={s.page}>
       <SoftGlowStyles />
@@ -608,7 +604,9 @@ function ErrorView({ msg }: { msg: string }) {
       <section style={s.blockWhite}>
         <h3 style={{ marginTop: 0 }}>{msg}</h3>
         <p style={{ marginTop: 6, color: "#555" }}>Повтори попытку позже.</p>
-        <button style={s.rowBtn} onClick={() => window.location.reload()}>Обновить</button>
+        <button style={s.rowBtn} onClick={onRetry ?? (() => window.location.reload())}>
+          Повторить
+        </button>
       </section>
     </div>
   );
@@ -632,6 +630,12 @@ const s: Record<string, React.CSSProperties> = {
   pill:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   credits:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
   heroTitle:{fontSize:22,fontWeight:800,marginTop:6}, heroSubtitle:{opacity:.92,marginTop:2},
+  streamRow:{marginTop:12,display:"flex",gap:10,alignItems:"center",background:"rgba(255,255,255,.18)",padding:"8px 12px",borderRadius:14,backdropFilter:"blur(6px)"},
+  streamIcon:{fontSize:22},
+  pollingNote:{marginTop:6,fontSize:12,color:"rgba(255,255,255,.9)"},
+  errorBanner:{marginTop:10,background:"rgba(255,255,255,.85)",color:"#1b1b1b",padding:"10px 12px",borderRadius:14,boxShadow:"0 6px 20px rgba(0,0,0,.1)"},
+  errorText:{fontSize:12,color:"#333",marginTop:4},
+  errorBtn:{marginTop:8,border:"none",borderRadius:10,padding:"8px 12px",fontWeight:700,background:"#1b1b1b",color:"#fff",cursor:"pointer"},
   // новый компактный бейдж "Усиленный план питания"
   boostBadge:{marginTop:8,fontSize:12,fontWeight:800,color:"#1b1b1b",background:"linear-gradient(135deg, rgba(143,227,143,.6), rgba(102,191,102,.5))",padding:"8px 12px",borderRadius:12,display:"inline-flex",gap:6,alignItems:"center",boxShadow:"0 6px 16px rgba(0,0,0,.12), inset 0 0 0 1px rgba(72,160,72,.25)"},
   primaryBtn:{marginTop:14,width:"100%",border:"none",borderRadius:14,padding:"14px 16px",fontSize:16,fontWeight:700,

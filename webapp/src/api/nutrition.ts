@@ -1,17 +1,41 @@
 import { apiFetch } from "@/lib/apiClient";
 
-// webapp/src/api/nutrition.ts
-export async function getCurrentWeek() {
-  const r = await apiFetch("/api/nutrition/current-week");
-  if (!r.ok) throw new Error("current-week failed");
-  return r.json();
+export type PlanStatus = "processing" | "ready" | "failed";
+
+export type NutritionPlanResponse<TPlan = any> = {
+  plan: TPlan;
+  meta?: {
+    status?: PlanStatus;
+    planId?: string;
+    error?: string | null;
+    cached?: boolean;
+    queued?: boolean;
+  };
+};
+
+async function parseJson<T>(res: Response, label: string): Promise<T> {
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    const error: any = new Error(`${label}_failed`);
+    error.status = res.status;
+    if (body) error.body = body;
+    throw error;
+  }
+  return res.json();
 }
-export async function generateWeek() {
-  const r = await apiFetch("/api/nutrition/generate-week", {
+
+export async function getCurrentWeek<T = any>(): Promise<NutritionPlanResponse<T>> {
+  const res = await apiFetch("/api/nutrition/current-week");
+  return parseJson(res, "current-week");
+}
+
+export async function generateWeek<T = any>(
+  opts: { force?: boolean } = {}
+): Promise<NutritionPlanResponse<T>> {
+  const res = await apiFetch("/api/nutrition/generate-week", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ force: Boolean(opts.force) }),
   });
-  if (!r.ok) throw new Error("generate-week failed");
-  return r.json();
+  return parseJson(res, "generate-week");
 }
