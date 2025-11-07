@@ -81,7 +81,7 @@ const st: Record<string, React.CSSProperties> = {
   background: "transparent",
   display: "grid",
   placeItems: "center",
-  gap: 4,
+  gap: 1,
   cursor: "pointer",
   fontWeight: 700,
   color: "#1b1b1b",
