@@ -43,7 +43,10 @@ onboarding.post(
       [];
 
     const equipment =
-      equipmentList.length ? equipmentList : (d?.environment?.bodyweightOnly ? ["bodyweight"] : []);
+      equipmentList.length ? equipmentList :
+      d?.environment?.bodyweightOnly ? ["bodyweight"] :
+      d?.environment?.location ? [d.environment.location] :
+      [];
 
     const experience = d?.experience?.level ?? d?.experience ?? null;
 

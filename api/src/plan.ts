@@ -221,20 +221,25 @@ Your approach:
 You are NOT a rigid algorithm. You are a thinking, adaptive coach.`;
 
 function describeEquipment(onboarding: any) {
-  const list = Array.isArray(onboarding.equipmentItems)
-    ? onboarding.equipmentItems.filter(Boolean)
-    : [];
-
-  const bodyOnly = onboarding.environment?.bodyweightOnly === true;
-
-  if (bodyOnly || list.length === 0) {
-    return "только вес собственного тела. нет штанги, нет тренажёров, нет станка для жима ногами, нет блоковых машин";
+  const env = onboarding.environment || {};
+  if (env.bodyweightOnly === true) {
+    return "только вес собственного тела. нет штанги, нет тренажёров, нет станка для жима ногами, нет блочных машин";
   }
 
-  return (
-    list.join(", ") +
-    ". другого оборудования нет: нет штанги, нет тренажёров, нет станка для жима ногами, нет блочных машин, если это явно не указано"
-  );
+  const location = (env.location || "").toLowerCase();
+  if (location === "gym" || location.includes("зал")) {
+    return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
+  }
+
+  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
+    return "уличная площадка: турник, брусья, петли TRX/эспандеры, скакалка, набивные мячи, лёгкие гантели. нет полноценных штанг и станков, упражнения адаптируй под площадку";
+  }
+
+  if (location === "home" || location.includes("дом")) {
+    return "домашние условия: коврик, свободное пространство, стул/лавка, лёгкие гантели или резинки. нет больших тренажёров, но можно использовать мебель и подручный инвентарь";
+  }
+
+  return "простой инвентарь: коврик, резинки, лёгкие гантели, турник/брусья при наличии. если требуются тренажёры — замени на вариации с собственным весом.";
 }
 
 function buildTrainerPrompt(context: {

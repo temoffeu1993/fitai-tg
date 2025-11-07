@@ -1113,7 +1113,7 @@ const notesStyles: Record<string, React.CSSProperties> = {
   fabWrap: {
     position: "fixed",
     right: 16,
-    bottom: 88, // подняли выше нижнего меню
+    bottom: 160,
     display: "flex",
     alignItems: "flex-end",
     gap: 8,
@@ -1125,7 +1125,7 @@ const notesStyles: Record<string, React.CSSProperties> = {
   fabWrapLoading: {
     position: "fixed",
     right: 16,
-    bottom: 88,
+    bottom: 160,
     display: "flex",
     alignItems: "flex-end",
     gap: 8,
@@ -1175,7 +1175,7 @@ const notesStyles: Record<string, React.CSSProperties> = {
   chatPanelWrap: {
     position: "fixed",
     right: 16,
-    bottom: 88 + 56 + 12, // fab bottom + fab size + отступ
+    bottom: 160 + 56 + 12, // подняли выше, чтобы не перекрывать иконку
     zIndex: 10000,
     maxWidth: 300,
     width: "calc(100% - 32px)",

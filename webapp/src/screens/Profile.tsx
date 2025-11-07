@@ -139,18 +139,7 @@ export default function Profile() {
     onb?.schedule?.minutes ??
     onb?.schedule?.duration;
 
-  const equipmentList: string[] =
-    Array.isArray(onb.equipmentItems)
-      ? onb.equipmentItems
-      : Array.isArray(onb.equipment)
-      ? onb.equipment
-      : [];
-  const equipmentText =
-    equipmentList.length
-      ? null
-      : onb.environment?.bodyweightOnly
-      ? "только вес тела"
-      : "—";
+  const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
 
   const motives: string[] = onb?.motivation?.motives || [];
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
@@ -245,10 +234,7 @@ export default function Profile() {
                 k="Локация"
                 v={onb?.environment?.location ? locRus(onb.environment.location) : "—"}
               />
-              <RowSmall
-                k="Оборудование"
-                v={equipmentText ?? <ChipList items={equipmentList.map(eqRus)} empty="—" />}
-              />
+              <RowSmall k="Оборудование" v={equipmentText} />
             </Grid>
           </Accordion>
 
@@ -284,13 +270,12 @@ export default function Profile() {
           >
             <Grid>
               <RowSmall k="Мотивация" v={<ChipList items={motives.map(motiveRus)} empty="—" />} />
-              <RowSmall
-                k="Цель"
-                v={onb?.motivation?.goalCustom || goalRus(onb?.motivation?.goal) || "—"}
-              />
-              <RowSmall k="Маленькая победа" v={onb?.motivation?.victory3m || "—"} />
-            </Grid>
-          </Accordion>
+          <RowSmall
+            k="Цель"
+            v={onb?.motivation?.goalCustom || goalRus(onb?.motivation?.goal) || "—"}
+          />
+        </Grid>
+      </Accordion>
 
           <div style={{ height: 16 }} />
         </>
@@ -494,6 +479,20 @@ function activityRus(lifestyle: any) {
   };
   if (!Number.isNaN(Number(s))) return `${s} шагов/день`;
   return map[s] || v;
+}
+
+function equipmentSummary(env?: { location?: string; bodyweightOnly?: boolean }, legacy?: any): string {
+  const legacyList = Array.isArray(legacy) ? legacy.filter(Boolean) : [];
+  if (legacyList.length) {
+    return legacyList.map(eqRus).join(", ");
+  }
+  if (!env) return "—";
+  if (env.bodyweightOnly) return "Только вес собственного тела";
+  const loc = env.location || "";
+  if (loc === "gym") return "Полностью оборудованный зал";
+  if (loc === "home") return "Домашние условия с базовым инвентарём";
+  if (loc === "outdoor") return "Уличная площадка";
+  return "—";
 }
 
 // Русификация оборудования

@@ -288,14 +288,18 @@ const st: Record<string, React.CSSProperties> = {
     boxShadow: cardShadow,
     width: "100%",
     boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    height: "100%",
   },
   blockTitle: { fontSize: 16, fontWeight: 800, color: "#0B1220", marginBottom: 12 },
 
   grid2Cols: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-    alignItems: "start",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 12,
+    alignItems: "stretch",
     marginTop: 12,
   },
 
@@ -309,7 +313,7 @@ const st: Record<string, React.CSSProperties> = {
   },
   row3Equal: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
     gap: 8,
     alignItems: "stretch",
     justifyItems: "stretch",

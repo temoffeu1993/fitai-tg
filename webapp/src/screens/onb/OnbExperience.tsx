@@ -221,9 +221,9 @@ const st: Record<string, React.CSSProperties> = {
 
   grid2Equal: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-    marginTop: 10,
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 12,
+    marginTop: 12,
     alignItems: "stretch",
   },
 
@@ -233,12 +233,19 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     boxShadow: cardShadow,
     padding: 12,
-    display: "grid",
-    gap: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    height: "100%",
   },
   cardMiniTitle: { fontSize: 14, fontWeight: 800, color: "#0B1220", textAlign: "center" },
 
-  rowCenter: { display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" },
+  rowCenter: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))",
+    gap: 8,
+    width: "100%",
+  },
 
   // Три равных широких варианта опыта
   row3Equal: {
@@ -256,6 +263,7 @@ const st: Record<string, React.CSSProperties> = {
     boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)",
     cursor: "pointer",
     fontWeight: 700,
+    width: "100%",
   },
   chipActive: {
     background: "linear-gradient(135deg,#6a8dff,#8a64ff)",

@@ -15,7 +15,6 @@ export type OnbMotivationData = {
     motiveOther?: string;
     goal: Goal;
     goalCustom?: string;
-    victory3m?: string;
   };
   goals: Array<Goal | string>;
 };
@@ -40,9 +39,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   // 2) Цель
   const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "fat_loss");
   const [goalCustom, setGoalCustom] = useState<string>(initial?.motivation?.goalCustom ?? "");
-
-  // 3) «Победа»
-  const [victory3m, setVictory3m] = useState<string>(initial?.motivation?.victory3m ?? "");
 
   const canNext = useMemo(() => {
     if (motiveOtherEnabled && !motiveOther.trim()) return false;
@@ -71,7 +67,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         motiveOther: motiveOtherEnabled ? motiveOther.trim() : "",
         goal,
         goalCustom: goal === "custom" ? goalCustom.trim() : "",
-        victory3m: victory3m.trim(),
       },
       goals: [goalOut],
     });
@@ -93,7 +88,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
       {/* Зачем тренировки */}
       <section style={st.card}>
-        <div style={st.blockTitle}>1. Зачем тебе тренировки?</div>
+        <div style={st.blockTitle}>Зачем тебе тренировки?</div>
         <div style={st.wrapGridEven}>
           {MOTIVES.map((m) => (
             <Chip
@@ -122,7 +117,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
       {/* Цель */}
       <section style={st.card}>
-        <div style={st.blockTitle}>2. Какая у тебя цель?</div>
+        <div style={st.blockTitle}>Какая у тебя цель?</div>
         <div style={st.wrapGridEven}>
           <Chip label="🏃 Сбросить вес" active={goal === "fat_loss"} onClick={() => setGoal("fat_loss")} />
           <Chip label="💪 Набрать мышцы" active={goal === "muscle_gain"} onClick={() => setGoal("muscle_gain")} />
@@ -139,18 +134,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
             style={{ ...st.input, marginTop: 12 }}
           />
         )}
-      </section>
-
-      {/* Победа через 3 месяца */}
-      <section style={st.card}>
-        <div style={st.blockTitle}>3. Что будет «победой» через 3 месяца?</div>
-        <textarea
-          value={victory3m}
-          onChange={(e) => setVictory3m(e.target.value)}
-          placeholder="Например: −4–6 кг и 3 тренировки/неделю стабильно"
-          style={{ ...st.input, minHeight: 88, resize: "vertical" as const }}
-        />
-        <div style={st.hintSmall}>Сделай цель измеримой и реалистичной.</div>
       </section>
 
       {/* CTA и Назад снизу */}

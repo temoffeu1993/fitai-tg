@@ -450,15 +450,34 @@ const food: Record<string, React.CSSProperties> = {
 };
 
 const notesStyles: Record<string, React.CSSProperties> = {
-  fabWrap:{position:"fixed",right:16,bottom:88,display:"flex",alignItems:"flex-end",gap:8,cursor:"pointer",zIndex:9999},
-  fabCircle:{width:56,height:56,borderRadius:"50%",background:"linear-gradient(135deg,#ffe680,#ffb36b)",boxShadow:"0 10px 24px rgba(0,0,0,.2)",
-    display:"grid",placeItems:"center",fontWeight:700,color:"#1b1b1b"},
+  fabWrap:{
+    position:"fixed",
+    right:16,
+    bottom:140,
+    display:"flex",
+    alignItems:"flex-end",
+    gap:8,
+    cursor:"pointer",
+    zIndex:9999
+  },
+  fabCircle:{
+  width:56,
+  height:56,
+  borderRadius:"50%",
+  background:"linear-gradient(135deg,#ffe680,#ffb36b)",
+  border:"none",
+  boxShadow:"0 6px 18px rgba(0,0,0,.25)",
+  display:"grid",
+  placeItems:"center",
+  fontWeight:700,
+  color:"#1b1b1b"
+},
   speechBubble:{maxWidth:180,background:"#fff",boxShadow:"0 10px 24px rgba(0,0,0,.15)",borderRadius:14,padding:"10px 12px",
     position:"relative",border:"1px solid rgba(0,0,0,.06)"},
   speechText:{fontSize:12,fontWeight:600,color:"#1b1b1b",lineHeight:1.3},
   speechArrow:{position:"absolute",right:-6,bottom:10,width:0,height:0,borderTop:"6px solid transparent",borderBottom:"6px solid transparent",borderLeft:"6px solid #fff",
     filter:"drop-shadow(0 2px 2px rgba(0,0,0,.1))"},
-  chatPanelWrap:{position:"fixed",right:16,bottom:156,zIndex:10000,maxWidth:300,width:"calc(100% - 32px)"},
+  chatPanelWrap:{position:"fixed",right:16,bottom:210,zIndex:10000,maxWidth:300,width:"calc(100% - 32px)"},
   chatPanel:{background:"#fff",borderRadius:20,boxShadow:"0 24px 64px rgba(0,0,0,.4)",border:"1px solid rgba(0,0,0,.06)",maxHeight:"40vh",display:"flex",flexDirection:"column",overflow:"hidden"},
   chatHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"12px 12px 10px",borderBottom:"1px solid rgba(0,0,0,.06)",
     background:"linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))"},
