@@ -70,15 +70,40 @@ async function getOnboarding(userId: string): Promise<any> {
 
 function resolveSessionLength(onboarding: any): number {
   const raw = onboarding?.schedule || {};
-  const candidate =
-    raw.minutesPerSession ??
-    raw.sessionLength ??
-    raw.duration ??
-    raw.length ??
-    raw.minutes ??
-    raw.timePerSession;
-  const num = Number(candidate);
-  return Number.isFinite(num) && num > 0 ? num : 60;
+  const candidates = [
+    raw.minutesPerSession,
+    raw.sessionLength,
+    raw.duration,
+    raw.length,
+    raw.minutes,
+    raw.timePerSession,
+    onboarding?.preferences?.workoutDuration,
+    onboarding?.profile?.sessionMinutes,
+    onboarding?.profile?.workoutDuration,
+  ];
+
+  for (const value of candidates) {
+    const parsed = parseDuration(value);
+    if (parsed) return parsed;
+  }
+
+  return 60;
+}
+
+function parseDuration(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.round(value);
+  }
+  if (typeof value === "string") {
+    const match = value.replace(",", ".").match(/(\d+(\.\d+)?)/);
+    if (match) {
+      const num = Number(match[1]);
+      if (Number.isFinite(num) && num > 0) {
+        return Math.round(num);
+      }
+    }
+  }
+  return null;
 }
 
 async function getOrCreateProgram(userId: string, onboarding: any): Promise<ProgramRow> {
