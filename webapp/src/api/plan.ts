@@ -34,7 +34,7 @@ export async function generatePlan(onboarding: any) {
   }
 
   console.log("== GENERATE PLAN SUCCESS ==", data.plan);
-  return data.plan;
+  return data;
 }
 
 export async function saveSession(payload: any, opts: { plannedWorkoutId?: string } = {}) {

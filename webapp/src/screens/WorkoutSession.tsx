@@ -24,6 +24,8 @@ type Plan = {
 
 type SetEntry = { reps?: number; weight?: number };
 
+type EffortTag = "easy" | "hard" | null;
+
 type Item = {
   name: string;
   pattern?: string;
@@ -33,6 +35,7 @@ type Item = {
   restSec?: number;
   sets: SetEntry[];
   done?: boolean;
+  effort?: EffortTag;
 };
 
 export default function WorkoutSession() {
@@ -58,6 +61,8 @@ const plan: Plan | null = useMemo(() => {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [sessionRpe, setSessionRpe] = useState(7);
+  const [sessionNotes, setSessionNotes] = useState("");
 
   useEffect(() => {
     if (plannedWorkoutId) {
@@ -78,6 +83,8 @@ const plan: Plan | null = useMemo(() => {
       setItems(draft.items || []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
+      if (typeof draft.sessionRpe === "number") setSessionRpe(draft.sessionRpe);
+      if (typeof draft.sessionNotes === "string") setSessionNotes(draft.sessionNotes);
     } else {
       setItems(
         plan.exercises.map((ex) => ({
@@ -91,6 +98,7 @@ const plan: Plan | null = useMemo(() => {
               : (ex as any).targetWeight ?? null,
           restSec: ex.restSec,
           done: false,
+          effort: null,
           sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
             reps: undefined,
             weight: undefined,
@@ -99,6 +107,8 @@ const plan: Plan | null = useMemo(() => {
       );
       setElapsed(0);
       setRunning(true);
+      setSessionRpe(7);
+      setSessionNotes("");
     }
   }, [plan, plannedWorkoutId]);
 
@@ -118,9 +128,11 @@ const plan: Plan | null = useMemo(() => {
       elapsed,
       running,
       plannedWorkoutId: plannedWorkoutId || null,
+      sessionRpe,
+      sessionNotes,
     };
-    localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, elapsed, running, plan, plannedWorkoutId]);
+      localStorage.setItem("session_draft", JSON.stringify(draftPayload));
+  }, [items, elapsed, running, plan, plannedWorkoutId, sessionRpe, sessionNotes]);
 
   if (!plan) {
     return (
@@ -171,6 +183,14 @@ const plan: Plan | null = useMemo(() => {
     });
   };
 
+  const setEffort = (ei: number, effort: EffortTag) => {
+    setItems((prev) => {
+      const next = structuredClone(prev);
+      next[ei].effort = next[ei].effort === effort ? null : effort;
+      return next;
+    });
+  };
+
   // классификатор "это чисто вес тела и нет смысла спрашивать кг"
   function isBodyweightLike(nameOrPattern: string) {
     const s = (nameOrPattern || "").toLowerCase().replace(/ё/g, "е");
@@ -191,10 +211,15 @@ const plan: Plan | null = useMemo(() => {
         restSec: it.restSec,
         reps: it.targetReps,
         done: !!it.done,
+        effort: it.effort ?? undefined,
         sets: it.sets
           .filter((s) => s.reps != null || s.weight != null)
           .map((s) => ({ reps: s.reps, weight: s.weight })),
       })),
+      feedback: {
+        sessionRpe,
+        sessionNotes: sessionNotes.trim() || undefined,
+      },
     };
 
     // локальная история
@@ -367,10 +392,62 @@ const plan: Plan | null = useMemo(() => {
                   ➖ Удалить сет
                 </button>
               </div>
+
+              <div style={effortRow.wrap}>
+                <span style={effortRow.label}>Как зашло упражнение?</span>
+                <div style={effortRow.buttons}>
+                  <button
+                    type="button"
+                    style={{
+                      ...btn.badge,
+                      ...(it.effort === "easy" ? btn.badgeActive : {}),
+                    }}
+                    onClick={() => setEffort(ei, "easy")}
+                  >
+                    Легко
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...btn.badge,
+                      ...(it.effort === "hard" ? btn.badgeActive : {}),
+                    }}
+                    onClick={() => setEffort(ei, "hard")}
+                  >
+                    Тяжело
+                  </button>
+                </div>
+              </div>
             </section>
           );
         })}
       </main>
+
+      <section style={s.feedbackCard}>
+        <div style={s.feedbackHeader}>Как прошло занятие?</div>
+        <div style={s.feedbackInner}>
+          <label htmlFor="session-rpe" style={s.feedbackLabel}>
+            Субъективная нагрузка: {sessionRpe}/10
+          </label>
+          <input
+            id="session-rpe"
+            type="range"
+            min={4}
+            max={10}
+            step={1}
+            value={sessionRpe}
+            onChange={(e) => setSessionRpe(Number(e.target.value))}
+            style={s.feedbackSlider}
+          />
+          <textarea
+            style={s.feedbackNotes}
+            rows={3}
+            value={sessionNotes}
+            onChange={(e) => setSessionNotes(e.target.value)}
+            placeholder="Заметки о самочувствии, сне, болях..."
+          />
+        </div>
+      </section>
 
       {/* конфетти */}
       {showConfetti && <Confetti />}
@@ -452,6 +529,27 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 18px rgba(0,0,0,.15)",
     cursor: "pointer",
   },
+  feedbackCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    background: "#fff",
+    boxShadow: "0 8px 24px rgba(0,0,0,.08)",
+    border: "1px solid rgba(0,0,0,.04)",
+  },
+  feedbackHeader: { fontWeight: 800, fontSize: 15, marginBottom: 8 },
+  feedbackInner: { display: "grid", gap: 10 },
+  feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
+  feedbackSlider: { width: "100%" },
+  feedbackNotes: {
+    width: "100%",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,.12)",
+    padding: 10,
+    fontFamily: "inherit",
+    fontSize: 16,
+    resize: "none",
+  } as React.CSSProperties,
 };
 
 const progressBar = {
@@ -654,6 +752,20 @@ const btn = {
     boxShadow: "0 6px 18px rgba(0,0,0,.15)",
     cursor: "pointer",
   } as React.CSSProperties,
+  badge: {
+    borderRadius: 999,
+    border: "1px solid #e5e7eb",
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 600,
+    background: "#fff",
+    cursor: "pointer",
+  } as React.CSSProperties,
+  badgeActive: {
+    background: "linear-gradient(135deg,#dbeafe,#bfdbfe)",
+    borderColor: "#93c5fd",
+    color: "#1d4ed8",
+  } as React.CSSProperties,
 };
 
 const num = {
@@ -682,7 +794,7 @@ const num = {
     padding: "0 10px",
     borderRadius: 10,
     border: "1px solid #e5e7eb",
-    fontSize: 14,
+    fontSize: 16,
     boxSizing: "border-box",
     textAlign: "center",
     minWidth: 0,
@@ -700,6 +812,21 @@ const metaRow: React.CSSProperties = {
   marginBottom: 6,
 };
 const chkPos: React.CSSProperties = { top: 10, right: 10 };
+
+const effortRow = {
+  wrap: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: "1px solid rgba(0,0,0,.05)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  } as React.CSSProperties,
+  label: { fontSize: 12.5, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
+  buttons: { display: "flex", gap: 8 } as React.CSSProperties,
+};
 
 function ruPlural(n: number, forms: [string, string, string]) {
   const mod10 = n % 10;

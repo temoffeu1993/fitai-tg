@@ -15,12 +15,17 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   return "none";
 }
 
+function shouldHideNav(pathname: string) {
+  return pathname.startsWith("/workout/session");
+}
+
 export default function LayoutWithNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const keyboardOffset = useKeyboardOffset();
 
   const current = resolveNavCurrent(pathname);
+  const hideNav = shouldHideNav(pathname);
   const safeTop =
     typeof window !== "undefined"
       ? Number.parseInt(
@@ -42,7 +47,7 @@ export default function LayoutWithNav() {
       <div style={{ marginTop: -safeTop }}>
         <Outlet />
       </div>
-      <NavBar current={current} onChange={handleChange} pushDown={keyboardOffset} />
+      {!hideNav && <NavBar current={current} onChange={handleChange} pushDown={keyboardOffset} />}
     </div>
   );
 }
