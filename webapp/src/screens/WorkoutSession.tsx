@@ -1,6 +1,6 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { saveSession } from "@/api/plan";
 
 const PLAN_CACHE_KEY = "plan_cache_v1";
@@ -61,8 +61,11 @@ const plan: Plan | null = useMemo(() => {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [pendingNavHome, setPendingNavHome] = useState(false);
   const [sessionRpe, setSessionRpe] = useState(7);
   const [sessionNotes, setSessionNotes] = useState("");
+  const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
+  const blockTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (plannedWorkoutId) {
@@ -119,6 +122,12 @@ const plan: Plan | null = useMemo(() => {
     return () => clearInterval(id);
   }, [running]);
 
+  useEffect(() => {
+    return () => {
+      if (blockTimer.current) window.clearTimeout(blockTimer.current);
+    };
+  }, []);
+
   // autosave
   useEffect(() => {
     if (!plan) return;
@@ -147,15 +156,6 @@ const plan: Plan | null = useMemo(() => {
   const exercisesTotal = items.length;
   const progress = exercisesTotal ? Math.round((exercisesDone / exercisesTotal) * 100) : 0;
 
-  // конфетти при завершении всех упражнений
-  useEffect(() => {
-    if (exercisesTotal > 0 && exercisesDone === exercisesTotal) {
-      setShowConfetti(true);
-      const t = setTimeout(() => setShowConfetti(false), 2600);
-      return () => clearTimeout(t);
-    }
-  }, [exercisesDone, exercisesTotal]);
-
   const bump = (ei: number, si: number, field: "reps" | "weight", delta: number) => {
     setItems((prev) => {
       const next = structuredClone(prev);
@@ -175,7 +175,21 @@ const plan: Plan | null = useMemo(() => {
     });
   };
 
-  const toggleExerciseDone = (ei: number) => {
+  const toggleExerciseDone = (ei: number, requiresWeight: boolean) => {
+    const item = items[ei];
+    const allFilled = item.sets.every((s) => {
+      const hasReps = s.reps != null && s.reps !== undefined;
+      const hasWeight = !requiresWeight || (s.weight != null && s.weight !== undefined);
+      return hasReps && hasWeight;
+    });
+
+    if (!allFilled) {
+      if (blockTimer.current) window.clearTimeout(blockTimer.current);
+      setBlockedCheck(ei);
+      blockTimer.current = window.setTimeout(() => setBlockedCheck(null), 2500);
+      return;
+    }
+
     setItems((prev) => {
       const next = structuredClone(prev);
       next[ei].done = !next[ei].done;
@@ -200,6 +214,7 @@ const plan: Plan | null = useMemo(() => {
   }
 
   const handleComplete = async () => {
+    let saveOk = false;
     const payload = {
       title: plan.title,
       location: plan.location,
@@ -238,6 +253,7 @@ const plan: Plan | null = useMemo(() => {
     try {
       console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
       await saveSession(payload, plannedWorkoutId ? { plannedWorkoutId } : undefined);
+      saveOk = true;
     } catch {
       // не блокируем UX если сеть/сервер упали
     } finally {
@@ -251,7 +267,12 @@ const plan: Plan | null = useMemo(() => {
       try {
         window.dispatchEvent(new CustomEvent("schedule_updated"));
       } catch {}
-      nav("/");
+      if (saveOk) {
+        setPendingNavHome(true);
+        setShowConfetti(true);
+      } else {
+        nav("/");
+      }
     }
   };
 
@@ -289,9 +310,21 @@ const plan: Plan | null = useMemo(() => {
             </div>
           </div>
 
-          <button className="soft-glow" style={s.primaryBtn} onClick={handleComplete}>
-            Выполнил
+          <button
+            className="soft-glow"
+            style={{
+              ...s.primaryBtn,
+              opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
+              pointerEvents: exercisesDone === exercisesTotal ? "auto" : "none",
+            }}
+            onClick={handleComplete}
+            disabled={exercisesDone !== exercisesTotal}
+          >
+            Сохранить тренировку
           </button>
+          {exercisesDone !== exercisesTotal && (
+            <div style={s.completeHint}>Отметь все упражнения выполненными, чтобы сохранить тренировку</div>
+          )}
         </div>
       </section>
 
@@ -303,13 +336,16 @@ const plan: Plan | null = useMemo(() => {
             <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
               <button
                 type="button"
-                onClick={() => toggleExerciseDone(ei)}
+                onClick={() => toggleExerciseDone(ei, showWeightInput)}
                 className="check-toggle"
                 style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
                 aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
               >
-                {it.done ? "✓" : ""}
+                ✓
               </button>
+              {blockedCheck === ei && (
+                <div style={checkBtn.hint}>Сначала заполни повторы и вес</div>
+              )}
               <div style={card.head}>
                 <div>
                   <div style={card.title}>{it.name}</div>
@@ -431,7 +467,14 @@ const plan: Plan | null = useMemo(() => {
       </section>
 
       {/* конфетти */}
-      {showConfetti && <Confetti />}
+      {showConfetti && (
+        <Confetti
+          onClose={() => {
+            setShowConfetti(false);
+            if (pendingNavHome) nav("/");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -467,14 +510,22 @@ function NumInput({
   );
 }
 
-function Confetti() {
+function Confetti({ onClose }: { onClose: () => void }) {
   const pieces = Array.from({ length: 80 });
   return (
     <div className="confetti-wrap">
+      <div className="confetti-overlay" />
       {pieces.map((_, i) => (
         <div key={i} className="confetti" style={{ ["--i" as any]: i }} />
       ))}
-      <div className="confetti-text">Готово!</div>
+      <div className="confetti-text">
+        <div className="confetti-card">
+          <div className="confetti-icon">🎉</div>
+          <div className="confetti-title">Тренировка сохранена!</div>
+          <div className="confetti-subtitle">Данные о повторениях и весах записаны</div>
+          <button className="confetti-btn" onClick={onClose}>Продолжить</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -514,6 +565,11 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 18px rgba(0,0,0,.15)",
     cursor: "pointer",
   },
+  completeHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(255,255,255,.9)",
+  },
   feedbackCard: {
     marginTop: 16,
     padding: 16,
@@ -540,8 +596,8 @@ const s: Record<string, React.CSSProperties> = {
 const progressBar = {
   wrap: { display: "grid", gap: 6 } as React.CSSProperties,
   track: { position: "relative", width: "100%", height: 18, borderRadius: 999, background: "rgba(255,255,255,.25)", overflow: "hidden" } as React.CSSProperties,
-  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999, transition: "width .25s ease" } as React.CSSProperties,
-  flame: { position: "absolute", top: -6, fontSize: 22, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" } as React.CSSProperties,
+  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999, transition: "width .25s ease", zIndex: 1 } as React.CSSProperties,
+  flame: { position: "absolute", top: -6, fontSize: 22, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))", zIndex: 2, pointerEvents: "none" } as React.CSSProperties,
   meta: { display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.9 } as React.CSSProperties,
 };
 
@@ -626,16 +682,32 @@ const lockCSS = `
 // конфетти
 const confettiCSS = `
 .confetti-wrap{
-  position: fixed; inset: 0; pointer-events: none;
-  overflow: hidden; z-index: 1000;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: auto;
+  overflow: hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.confetti-overlay{
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.2), rgba(0,0,0,.7)), rgba(9,10,34,.85);
+  backdrop-filter: blur(8px);
 }
 .confetti{
-  position: absolute; top: -10vh;
+  position: absolute;
+  top: -10vh;
   left: calc((var(--i) * 7%) % 100%);
-  width: 10px; height: 14px; opacity:.9;
+  width: 10px;
+  height: 14px;
+  opacity:.9;
   background: hsl(calc(var(--i)*9), 90%, 60%);
   animation: confFall 2.4s ease-in forwards, confSpin 1.2s linear infinite;
   border-radius: 2px;
+  pointer-events: none;
 }
 .confetti::after{
   content:"";
@@ -644,10 +716,38 @@ const confettiCSS = `
   mix-blend-mode: screen;
 }
 .confetti-text{
-  position: fixed; inset: 0; display:grid; place-items:center;
-  font-weight: 900; font-size: 28px; color: #fff;
+  position: absolute;
+  inset: 0;
+  display:grid;
+  place-items:center;
+  font-weight: 900;
+  font-size: 28px;
+  color: #fff;
   text-shadow: 0 6px 24px rgba(0,0,0,.35);
-  animation: textPop .6s ease-out;
+}
+.confetti-card{
+  pointer-events:auto;
+  width: min(92vw, 360px);
+  border-radius: 28px;
+  background: rgba(255,255,255,0.93);
+  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  padding: 28px 24px;
+  display: grid;
+  gap: 12px;
+  text-align: center;
+}
+.confetti-icon{ font-size: 40px; }
+.confetti-title{ font-size: 20px; font-weight: 800; color: #111; }
+.confetti-subtitle{ font-size: 14px; color: #374151; }
+.confetti-btn{
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(135deg,#6a8dff,#8a64ff);
+  color: #fff;
+  cursor: pointer;
 }
 @keyframes confFall{ to { top: 110vh; } }
 @keyframes confSpin{ to { transform: rotate(720deg) } }
@@ -799,23 +899,36 @@ const checkBtn = {
     position: "absolute" as const,
     top: 10,
     right: 10,
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,.2)",
-    background: "#fff",
-    color: "#9ca3af",
+    border: "2px solid rgba(148,163,184,.7)",
+    background: "rgba(255,255,255,.9)",
+    color: "#94a3b8",
     display: "grid",
     placeItems: "center",
     fontSize: 16,
     cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0,0,0,.05)",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
   active: {
     borderColor: "transparent",
     background: "linear-gradient(135deg,#7287ff,#a45eff)",
     color: "#fff",
     boxShadow: "0 4px 12px rgba(0,0,0,.2)",
+  },
+  hint: {
+    position: "absolute" as const,
+    top: 44,
+    right: 0,
+    background: "#fff",
+    borderRadius: 8,
+    padding: "6px 10px",
+    fontSize: 11,
+    color: "#b45309",
+    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    border: "1px solid rgba(248,171,101,.6)",
+    maxWidth: 180,
   },
 };
 
