@@ -32,7 +32,6 @@ export default function PlanOne() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<any | null>(null);
-  const [insights, setInsights] = useState<any | null>(null);
   const [chips, setChips] = useState<{ sets: number; minutes: number; kcal: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState(0);
@@ -80,7 +79,6 @@ export default function PlanOne() {
           if (cached?.onbHash === onbHash && cached?.plan) {
             if (!mounted) return;
             setPlan(cached.plan);
-            setInsights(cached.analysis || null);
 
             const sets = (cached.plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
             const minutes = Number(cached.plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
@@ -137,7 +135,6 @@ export default function PlanOne() {
 
         if (!mounted) return;
         setPlan(normalized);
-        setInsights(result?.analysis || null);
 
         const sets = (normalized.exercises || []).reduce((a: number, x: Exercise) => a + Number(x.sets || 0), 0);
         const minutes = Number(normalized.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
@@ -148,13 +145,12 @@ export default function PlanOne() {
         try {
           localStorage.setItem(
             PLAN_CACHE_KEY,
-            JSON.stringify({ onbHash, plan: normalized, analysis: result?.analysis ?? null, ts: Date.now() })
+            JSON.stringify({ onbHash, plan: normalized, ts: Date.now() })
           );
         } catch {}
       } catch (e: any) {
         console.error("generatePlan error:", e?.message || e);
         setError("Не удалось создать план");
-        setInsights(null);
       } finally {
         if (mounted) setLoading(false);
         clearInterval(stepTimer);
@@ -194,7 +190,6 @@ export default function PlanOne() {
       localStorage.removeItem("session_draft");
     } catch {}
     setPlan(null);
-    setInsights(null);
     setChips(null);
     setError(null);
     setStage(0);
@@ -378,62 +373,6 @@ export default function PlanOne() {
         </button>
       </section>
 
-      {insights && (
-        <section style={s.block}>
-          <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-            <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
-              <div style={ux.iconInline}>🧠</div>
-              <div>
-                <div style={ux.cardTitle}>Анализ тренера</div>
-                <div style={ux.cardHint}>AI учёл твою историю и состояние</div>
-              </div>
-            </div>
-
-            <div style={s.analysisGrid}>
-              <Insight title="Фаза" value={insights.phase || "—"} hint={insights.phaseNotes} />
-              <Insight
-                title="Восстановление"
-                value={insights.recovery || "—"}
-                hint={
-                  [
-                    typeof insights.hoursSinceLast === "number"
-                      ? `Прошло ${insights.hoursSinceLast} ч. с прошлой тренировки`
-                      : null,
-                    typeof insights.lastRpe === "number" ? `RPE прошлой тренировки: ${insights.lastRpe}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" • ") || undefined
-                }
-              />
-              <Insight title="Объём дня" value={insights.volumeHint || "—"} />
-              <Insight
-                title="Плато"
-                value={insights.plateau ? "⚠️ Признаки застоя" : "Нет застоя"}
-                hint={insights.deloadSuggested ? "Рекомендуем сделать разгрузочную неделю" : undefined}
-              />
-            </div>
-
-            {Array.isArray(insights.weightNotes) && insights.weightNotes.length > 0 && (
-              <div style={s.analysisList}>
-                <div style={s.analysisListTitle}>Подсказки по весам:</div>
-                <ul>
-                  {insights.weightNotes.map((item: string, idx: number) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {Array.isArray(insights.warnings) && insights.warnings.length > 0 && (
-              <div style={s.analysisWarnings}>
-                {insights.warnings.map((w: string, idx: number) => (
-                  <div key={idx}>⚠️ {w}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* Разминка */}
       {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (

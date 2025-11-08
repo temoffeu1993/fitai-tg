@@ -112,6 +112,20 @@ const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
 const MIN_EXERCISES = 5;
 
+function minExercisesForDuration(duration: number) {
+  if (duration >= 85) return 6;
+  if (duration >= 70) return 6;
+  if (duration >= 50) return 5;
+  return 5;
+}
+
+function dynamicMinExercises(duration: number) {
+  if (duration >= 85) return 6;
+  if (duration >= 70) return 6;
+  if (duration >= 50) return 5;
+  return 5;
+}
+
 const PHASES = [
   { label: "Гипертрофия", repScheme: "8-12 повторов", notes: "умеренный вес, контролируемый темп" },
   { label: "Сила", repScheme: "4-6 повторов", notes: "более тяжёлые веса, отдых до 3 мин" },
@@ -588,6 +602,8 @@ function buildTrainerPrompt(params: {
     ? constraints.weightNotes.map((x) => `- ${x}`).join("\n")
     : "- Новые упражнения: выбирай вес на уровне 6/10 по ощущению и оставляй запас 2 повтора";
 
+  const minExercises = minExercisesForDuration(sessionMinutes);
+
   return `# РОЛЬ
 Ты персональный тренер с опытом 15+ лет. Безопасность важнее эго. Говори тоном живого тренера.
 
@@ -617,7 +633,7 @@ ${weightGuidance}
 
 # ЖЁСТКИЕ ПРАВИЛА
 1. Продолжительность строго ${sessionMinutes} минут.
-2. Кол-во упражнений ${MIN_EXERCISES}-${MAX_EXERCISES}. У тяжёлых базовых 3-4 подхода, у изоляции 2-3.
+2. Кол-во упражнений ${minExercises}-${MAX_EXERCISES} (для ${sessionMinutes} мин). У тяжёлых базовых 3-4 подхода, у изоляции 2-3.
 3. Меняй углы/оборудование, не повторяй точь-в-точь прошлую тренировку.
 4. Не превышай диапазоны весов. Если данных нет — выбирай умеренно и оставляй запас 1-2 повтора.
 5. Учитывай цели и фазу программы. Если рекомендован deload — снизь вес/подходы.
@@ -786,8 +802,9 @@ function validatePlanStructure(plan: WorkoutPlan, constraints: Constraints, sess
 
   const warnings: string[] = [];
 
-  if (normalized.exercises.length < MIN_EXERCISES) {
-    warnings.push(`Мало упражнений (${normalized.exercises.length}) — добавь вспомогательные движения`);
+  const minRequired = minExercisesForDuration(sessionMinutes);
+  if (normalized.exercises.length < minRequired) {
+    warnings.push(`Мало упражнений (${normalized.exercises.length}) — нужно минимум ${minRequired}`);
   }
 
   normalized.exercises = normalized.exercises.map((ex) => {

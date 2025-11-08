@@ -258,7 +258,7 @@ const plan: Plan | null = useMemo(() => {
   return (
     <div style={page.wrap}>
       <SoftGlowStyles />
-      <style>{noSpinnersCSS + checkboxCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
+      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
 
       {/* HERO */}
       <section style={s.heroCard}>
@@ -301,41 +301,28 @@ const plan: Plan | null = useMemo(() => {
           const showWeightInput = it.targetWeight != null || !isBodyweightLike(it.name + " " + (it.pattern || ""));
           return (
             <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
-              {/* чекбокс */}
-              <input
-                type="checkbox"
-                checked={!!it.done}
-                onChange={() => toggleExerciseDone(ei)}
-                className="chk"
-                title={it.done ? "Сделано" : "Отметить как сделано"}
-                style={chkPos}
-              />
-
+              <button
+                type="button"
+                onClick={() => toggleExerciseDone(ei)}
+                className="check-toggle"
+                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
+                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
+              >
+                {it.done ? "✓" : ""}
+              </button>
               <div style={card.head}>
-                <div style={card.title}>{it.name}</div>
+                <div>
+                  <div style={card.title}>{it.name}</div>
+                  <div style={card.metaChips}>
+                    <Chip label={`${it.sets.length}×`} />
+                    <Chip label={`повт. ${it.targetReps ?? "—"}`} />
+                    {it.targetWeight ? <Chip label={String(it.targetWeight)} /> : null}
+                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+                  </div>
+                </div>
               </div>
 
-              <div style={metaRow}>
-                <span>{`${it.sets.length} сет${ruPlural(it.sets.length, ["", "а", "ов"])}`}</span>
-                <span>·</span>
-                <span>{`по ${it.targetReps ?? "—"} повторений`}</span>
-
-                {it.targetWeight ? (
-                  <>
-                    <span>·</span>
-                    <span>{`${it.targetWeight}`}</span>
-                  </>
-                ) : null}
-
-                {it.restSec ? (
-                  <>
-                    <span>·</span>
-                    <span>{`${it.restSec} сек отдых`}</span>
-                  </>
-                ) : null}
-              </div>
-
-              <div style={{ display: "grid", gap: 8, marginTop: 8 }} aria-disabled={it.done}>
+              <div style={{ display: "grid", gap: 8 }} aria-disabled={it.done}>
                 {it.sets.map((s, si) => (
                   <div key={si} style={setrow.wrap} className="set-row">
                     <div style={setrow.label} className="set-label">Сет {si + 1}</div>
@@ -394,24 +381,18 @@ const plan: Plan | null = useMemo(() => {
               </div>
 
               <div style={effortRow.wrap}>
-                <span style={effortRow.label}>Как зашло упражнение?</span>
+                <span style={effortRow.label}>Ощущение от упражнения</span>
                 <div style={effortRow.buttons}>
                   <button
                     type="button"
-                    style={{
-                      ...btn.badge,
-                      ...(it.effort === "easy" ? btn.badgeActive : {}),
-                    }}
+                    style={{ ...btn.badge, ...(it.effort === "easy" ? btn.badgeActive : {}) }}
                     onClick={() => setEffort(ei, "easy")}
                   >
                     Легко
                   </button>
                   <button
                     type="button"
-                    style={{
-                      ...btn.badge,
-                      ...(it.effort === "hard" ? btn.badgeActive : {}),
-                    }}
+                    style={{ ...btn.badge, ...(it.effort === "hard" ? btn.badgeActive : {}) }}
                     onClick={() => setEffort(ei, "hard")}
                   >
                     Тяжело
@@ -496,6 +477,10 @@ function Confetti() {
       <div className="confetti-text">Готово!</div>
     </div>
   );
+}
+
+function Chip({ label }: { label: string }) {
+  return <span style={chipStyle}>{label}</span>;
 }
 
 /* ---------- Стиль ---------- */
@@ -583,23 +568,6 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 `;
 
-// круглый чекбокс
-const checkboxCSS = `
-.chk {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 28px; height: 28px;
-  border-radius: 9999px;
-  border: 2px solid rgba(0,0,0,.2);
-  background: #fff;
-  display: grid; place-items: center;
-  cursor: pointer; position: absolute;
-}
-.chk::after { content: "✓"; font-size: 16px; color: #9ca3af; opacity:.9; }
-.chk:checked { border-color: transparent; background: linear-gradient(135deg, rgba(114,135,255,1), rgba(164,94,255,1)); box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-.chk:checked::after { color: #fff; }
-`;
-
 // «лава» прогресс
 const lavaCSS = `
 .lava-track { position: relative; overflow: hidden; }
@@ -651,7 +619,8 @@ const lockCSS = `
 .locked [aria-disabled="true"],
 .locked button,
 .locked input{ pointer-events:none; }
-.locked .chk { pointer-events:auto; z-index:1; }
+.locked .chk,
+.locked .check-toggle { pointer-events:auto; z-index:1; }
 `;
 
 // конфетти
@@ -711,8 +680,9 @@ const card = {
     boxShadow: "0 8px 24px rgba(0,0,0,.06)",
     border: "1px solid rgba(0,0,0,.04)",
   } as React.CSSProperties,
-  head: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } as React.CSSProperties,
-  title: { fontSize: 15, fontWeight: 750, color: "#111" } as React.CSSProperties,
+  head: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 } as React.CSSProperties,
+  title: { fontSize: 15, fontWeight: 750, color: "#111", paddingRight: 36 } as React.CSSProperties,
+  metaChips: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 } as React.CSSProperties,
 };
 
 const setrow = {
@@ -754,7 +724,9 @@ const btn = {
   } as React.CSSProperties,
   badge: {
     borderRadius: 999,
-    border: "1px solid #e5e7eb",
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#e5e7eb",
     padding: "6px 12px",
     fontSize: 12,
     fontWeight: 600,
@@ -811,7 +783,41 @@ const metaRow: React.CSSProperties = {
   color: "#333",
   marginBottom: 6,
 };
-const chkPos: React.CSSProperties = { top: 10, right: 10 };
+const chipStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: 999,
+  padding: "2px 8px",
+  fontSize: 11,
+  fontWeight: 600,
+  background: "#f3f4f6",
+  color: "#374151",
+};
+
+const checkBtn = {
+  base: {
+    position: "absolute" as const,
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,.2)",
+    background: "#fff",
+    color: "#9ca3af",
+    display: "grid",
+    placeItems: "center",
+    fontSize: 16,
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0,0,0,.05)",
+  },
+  active: {
+    borderColor: "transparent",
+    background: "linear-gradient(135deg,#7287ff,#a45eff)",
+    color: "#fff",
+    boxShadow: "0 4px 12px rgba(0,0,0,.2)",
+  },
+};
 
 const effortRow = {
   wrap: {
