@@ -40,6 +40,77 @@ setTimeout(applyLightTheme, 200);
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
+function LoadingScreen({ text = "Загружаем твой фитнес-помощник…" }: { text?: string }) {
+  return (
+    <div style={loader.wrap}>
+      <style>{loader.css}</style>
+      <div className="loader-glow" />
+      <div style={loader.card}>
+        <div style={loader.emoji}>💪</div>
+        <div style={loader.title}>FitAI</div>
+        <div style={loader.text}>{text}</div>
+        <div className="loader-dots">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const loader = {
+  wrap: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    background: "linear-gradient(145deg,#f2f4ff,#ffe8f2)",
+    position: "relative",
+    overflow: "hidden",
+    fontFamily: "system-ui, -apple-system, Inter, Roboto",
+  } as React.CSSProperties,
+  card: {
+    position: "relative",
+    padding: "32px 36px",
+    borderRadius: 28,
+    background: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 20px 45px rgba(103,119,255,0.25)",
+    textAlign: "center",
+    zIndex: 2,
+  } as React.CSSProperties,
+  emoji: { fontSize: 44, marginBottom: 8 } as React.CSSProperties,
+  title: { fontSize: 24, fontWeight: 800, color: "#1b1b1b" } as React.CSSProperties,
+  text: { marginTop: 6, fontSize: 15, color: "#4b5563" } as React.CSSProperties,
+  css: `
+    .loader-glow{
+      position:absolute;
+      inset:-50%;
+      background: conic-gradient(from 180deg, rgba(106,141,255,.35), rgba(255,138,107,.35), rgba(106,141,255,.35));
+      filter: blur(90px);
+      animation: spinGlow 12s linear infinite;
+    }
+    .loader-dots{
+      margin-top: 18px;
+      display:flex;
+      gap:8px;
+      justify-content:center;
+    }
+    .loader-dots span{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:linear-gradient(135deg,#6a8dff,#8a64ff);
+      animation: pulseDot 1.1s ease-in-out infinite;
+    }
+    .loader-dots span:nth-child(2){ animation-delay: .15s; }
+    .loader-dots span:nth-child(3){ animation-delay: .3s; }
+    @keyframes spinGlow{ to { transform: rotate(360deg); } }
+    @keyframes pulseDot{ 0%,100%{ transform: scale(.7); opacity:.5; } 50%{ transform: scale(1); opacity:1; } }
+  `,
+};
+
 // определяем режим
 const isDev =
   import.meta.env.DEV ||
@@ -55,7 +126,7 @@ if (isDev && !tg?.initData) {
   root.render(<App />);
 } else {
   // реальная авторизация через Telegram
-  root.render(<div style={{ padding: 20 }}>Авторизация…</div>);
+  root.render(<LoadingScreen />);
   auth();
 }
 
@@ -79,8 +150,6 @@ async function auth() {
     localStorage.setItem("token", token);
     root.render(<App />);
   } catch (e: any) {
-    root.render(
-      <div style={{ padding: 20 }}>Ошибка: {e?.message || String(e)}</div>
-    );
+    root.render(<LoadingScreen text={`Ошибка: ${e?.message || String(e)}`} />);
   }
 }
