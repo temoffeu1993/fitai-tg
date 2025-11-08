@@ -29,6 +29,7 @@ export default function Profile() {
   });
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [tgProfile, setTgProfile] = useState<any>(null);
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -78,6 +79,13 @@ export default function Profile() {
       setSummary(raw ? JSON.parse(raw) : null);
     } catch { setSummary(null); }
 
+    try {
+      const rawProfile = localStorage.getItem("profile");
+      setTgProfile(rawProfile ? JSON.parse(rawProfile) : null);
+    } catch {
+      setTgProfile(null);
+    }
+
     const pending = localStorage.getItem("onb_feedback_pending") === "1";
     const fb = localStorage.getItem("onb_feedback");
     if (pending) {
@@ -122,7 +130,8 @@ export default function Profile() {
   // <<<
 
   const onb = summary || {};
-  const name = onb?.profile?.name || "—";
+  const avatarUrl = tgProfile?.photo_url;
+  const name = onb?.profile?.name || tgProfile?.first_name || "—";
   const sex =
     onb?.ageSex?.sex === "male" ? "Муж" :
     onb?.ageSex?.sex === "female" ? "Жен" : "—";
@@ -171,9 +180,19 @@ export default function Profile() {
         <div style={st.userTopRow}>
           <div style={st.userLeft}>
             <div style={st.avatarWrap}>
-              <div style={st.avatarCircle}>
-                <span style={st.avatarText}>{initials}</span>
-              </div>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  style={st.avatarImg}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div style={st.avatarCircle}>
+                  <span style={st.avatarText}>{initials}</span>
+                </div>
+              )}
             </div>
             <div style={st.userMain}>
               <div style={st.userName}>{name}</div>
@@ -546,6 +565,15 @@ const st: Record<string, React.CSSProperties> = {
     placeItems: "center",
     boxShadow: "inset 0 0 0 2px rgba(255,255,255,.25)",
     backdropFilter: "blur(6px)",
+  },
+  avatarImg: {
+    width: 56,
+    height: 56,
+    borderRadius: "50%",
+    objectFit: "cover",
+    border: "2px solid rgba(255,255,255,.35)",
+    boxShadow: "0 6px 18px rgba(0,0,0,.25)",
+    display: "block",
   },
   avatarText: { fontSize: 18, fontWeight: 800, color: "#fff" },
   userMain: { display: "flex", flexDirection: "column" },

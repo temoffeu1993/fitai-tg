@@ -5,6 +5,16 @@ import "./styles.css";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
+
+// сохраняем профиль пользователя (включая photo_url) из initData сразу при старте
+try {
+  const tgUser = tg?.initDataUnsafe?.user;
+  if (tgUser) {
+    localStorage.setItem("profile", JSON.stringify(tgUser));
+  }
+} catch (err) {
+  console.warn("initData profile parse error", err);
+}
 tg?.expand?.();
 tg?.ready?.();
 const applyLightTheme = () => {
