@@ -183,7 +183,7 @@ const plan: Plan | null = useMemo(() => {
       return hasReps && hasWeight;
     });
 
-    if (!allFilled) {
+    if (!allFilled || !item.effort) {
       if (blockTimer.current) window.clearTimeout(blockTimer.current);
       setBlockedCheck(ei);
       blockTimer.current = window.setTimeout(() => setBlockedCheck(null), 2500);
@@ -344,7 +344,7 @@ const plan: Plan | null = useMemo(() => {
                 ✓
               </button>
               {blockedCheck === ei && (
-                <div style={checkBtn.hint}>Сначала заполни повторы и вес</div>
+                <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>
               )}
               <div style={card.head}>
                 <div>
@@ -511,18 +511,14 @@ function NumInput({
 }
 
 function Confetti({ onClose }: { onClose: () => void }) {
-  const pieces = Array.from({ length: 80 });
   return (
     <div className="confetti-wrap">
       <div className="confetti-overlay" />
-      {pieces.map((_, i) => (
-        <div key={i} className="confetti" style={{ ["--i" as any]: i }} />
-      ))}
       <div className="confetti-text">
         <div className="confetti-card">
-          <div className="confetti-icon">🎉</div>
-          <div className="confetti-title">Тренировка сохранена!</div>
-          <div className="confetti-subtitle">Данные о повторениях и весах записаны</div>
+          <div className="confetti-icon">✅</div>
+          <div className="confetti-title">Тренировка сохранена</div>
+          <div className="confetti-subtitle">Повторы и веса записаны в прогресс</div>
           <button className="confetti-btn" onClick={onClose}>Продолжить</button>
         </div>
       </div>
@@ -686,71 +682,39 @@ const confettiCSS = `
   inset: 0;
   z-index: 2000;
   pointer-events: auto;
-  overflow: hidden;
+  background: rgba(6,11,25,.75);
+  backdrop-filter: blur(14px);
   display:flex;
   align-items:center;
   justify-content:center;
+  padding: 20px;
 }
-.confetti-overlay{
-  position:absolute;
-  inset:0;
-  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,.2), rgba(0,0,0,.7)), rgba(9,10,34,.85);
-  backdrop-filter: blur(8px);
-}
-.confetti{
-  position: absolute;
-  top: -10vh;
-  left: calc((var(--i) * 7%) % 100%);
-  width: 10px;
-  height: 14px;
-  opacity:.9;
-  background: hsl(calc(var(--i)*9), 90%, 60%);
-  animation: confFall 2.4s ease-in forwards, confSpin 1.2s linear infinite;
-  border-radius: 2px;
-  pointer-events: none;
-}
-.confetti::after{
-  content:"";
-  position:absolute; inset:0;
-  background: linear-gradient(transparent,rgba(255,255,255,.5));
-  mix-blend-mode: screen;
-}
-.confetti-text{
-  position: absolute;
-  inset: 0;
-  display:grid;
-  place-items:center;
-  font-weight: 900;
-  font-size: 28px;
-  color: #fff;
-  text-shadow: 0 6px 24px rgba(0,0,0,.35);
-}
+.confetti-overlay{ display:none; }
+.confetti-text{ width: 100%; max-width: 320px; }
 .confetti-card{
   pointer-events:auto;
-  width: min(92vw, 360px);
-  border-radius: 28px;
-  background: rgba(255,255,255,0.93);
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
-  padding: 28px 24px;
+  width: 100%;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255,255,255,.98), rgba(240,244,255,.95));
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  padding: 20px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   text-align: center;
 }
-.confetti-icon{ font-size: 40px; }
-.confetti-title{ font-size: 20px; font-weight: 800; color: #111; }
-.confetti-subtitle{ font-size: 14px; color: #374151; }
+.confetti-icon{ font-size: 30px; }
+.confetti-title{ font-size: 18px; font-weight: 700; color: #111; }
+.confetti-subtitle{ font-size: 13px; color: #4b5563; }
 .confetti-btn{
   border: none;
-  border-radius: 14px;
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: 700;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
   background: linear-gradient(135deg,#6a8dff,#8a64ff);
   color: #fff;
   cursor: pointer;
 }
-@keyframes confFall{ to { top: 110vh; } }
-@keyframes confSpin{ to { transform: rotate(720deg) } }
 `;
 
 // адаптив
