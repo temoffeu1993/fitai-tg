@@ -49,7 +49,7 @@ function TabBtn({
       style={{ ...st.tabBtn, ...(active ? st.tabBtnActive : {}) }}
       aria-current={active ? "page" : undefined}
     >
-      <div style={{ ...st.emojiWrap, ...(active ? st.emojiWrapActive : {}) }}>
+      <div style={{ ...st.emojiWrap }}>
        <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
       </div>
       <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
@@ -84,30 +84,36 @@ const st: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.15)",
   },
   tabBtn: {
-  border: "none",
-  borderRadius: 16,
-  padding: "10px 6px 6px",
-  background: "transparent",
-  display: "grid",
-  placeItems: "center",
-  gap: 1,
-  cursor: "pointer",
-  fontWeight: 700,
-  color: "#1b1b1b",
-  transition: "background .2s, color .2s",
-},
-tabBtnActive: {
-  background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-  color: "#fff",
-  boxShadow: "0 6px 18px rgba(104,112,255,.35)",
-},
-emojiWrap: {
-  width: 40,
-  height: 40,
-  borderRadius: 999,
-  background: "transparent",
-  display: "grid",
-  placeItems: "center",
-  transition: "background .2s",
+    border: "none",
+    borderRadius: 16,
+    padding: "10px 6px 6px",
+    background: "transparent",
+    display: "grid",
+    placeItems: "center",
+    gap: 1,
+    cursor: "pointer",
+    fontWeight: 700,
+    color: "#1b1b1b",
+    transition: "background .2s, color .2s",
+    position: "relative",
+    overflow: "hidden",
+  },
+  // ⇩ Стиль активной кнопки = как у «Расписание/Питание/Прогресс»
+  tabBtnActive: {
+    background: "rgba(255,255,255,0.6)",
+    color: "#000",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+  },
+  emojiWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    background: "transparent",
+    display: "grid",
+    placeItems: "center",
+    transition: "background .2s",
   },
 };
