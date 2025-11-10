@@ -6,6 +6,32 @@ import { useStore } from "../store";
 import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
 
+let robotPreloaded = false;
+function ensureRobotPreloaded(src: string) {
+  if (robotPreloaded) return;
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (!src) return;
+  robotPreloaded = true;
+
+  try {
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = src;
+    link.setAttribute("data-preload-img", "robot");
+    link.setAttribute("fetchpriority", "high");
+    document.head.appendChild(link);
+  } catch {
+    // ignore preload failures so we still warm up via Image()
+  }
+
+  const img = new Image();
+  img.decoding = "async";
+  img.src = src;
+}
+
+ensureRobotPreloaded(ROBOT_SRC);
+
 function resolveName() {
   try {
     const onbRaw = localStorage.getItem("onb_summary");
@@ -244,6 +270,9 @@ export default function Dashboard() {
               alt="ИИ-тренер"
               className="robot"
               style={s.robot}
+              loading="eager"
+              fetchPriority="high"
+              decoding="sync"
               draggable={false}
             />
           </div>
