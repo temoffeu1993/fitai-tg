@@ -6,6 +6,14 @@ import "./styles.css";
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
 
+const docEl = document.documentElement;
+const syncViewportHeight = () => {
+  const height = tg?.viewportHeight || window.innerHeight;
+  const stableHeight = tg?.viewportStableHeight || height;
+  docEl.style.setProperty("--app-height", `${height}px`);
+  docEl.style.setProperty("--app-height-stable", `${stableHeight}px`);
+};
+
 // сохраняем профиль пользователя (включая photo_url) из initData сразу при старте
 try {
   const tgUser = tg?.initDataUnsafe?.user;
@@ -16,7 +24,17 @@ try {
   console.warn("initData profile parse error", err);
 }
 tg?.expand?.();
+tg?.disableVerticalSwipes?.();
 tg?.ready?.();
+syncViewportHeight();
+tg?.onEvent?.("viewportChanged", syncViewportHeight);
+window.addEventListener("resize", syncViewportHeight);
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    tg?.offEvent?.("viewportChanged", syncViewportHeight);
+    window.removeEventListener("resize", syncViewportHeight);
+  });
+}
 const applyLightTheme = () => {
   const root = document.documentElement;
   root.style.setProperty("--tg-theme-bg-color", "#f5f6f8");

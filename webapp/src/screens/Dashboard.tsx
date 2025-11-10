@@ -1,11 +1,89 @@
 // webapp/src/screens/Dashboard.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../store";
 
 import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
 
+const HISTORY_KEY = "history_sessions_v1";
+const RANK_TIERS = [
+  { min: 0, name: "Новичок" },
+  { min: 5, name: "Импульс" },
+  { min: 12, name: "Темпо" },
+  { min: 25, name: "Сталь" },
+  { min: 45, name: "Легенда" },
+];
+
+type HistorySnapshot = { total: number; lastCompletedAt: number | null; xp: number };
+
+function readHistorySnapshot(): HistorySnapshot {
+  if (typeof window === "undefined") return { total: 0, lastCompletedAt: null, xp: 0 };
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    if (!Array.isArray(raw)) return { total: 0, lastCompletedAt: null, xp: 0 };
+
+    const sorted = raw
+      .map((rec) => {
+        const dateValue = rec?.finishedAt || rec?.completedAt || rec?.date;
+        const ts = dateValue ? new Date(dateValue).getTime() : NaN;
+        return { ...rec, __ts: Number.isNaN(ts) ? null : ts };
+      })
+      .sort((a, b) => ((a.__ts || 0) - (b.__ts || 0)));
+
+    let last: number | null = null;
+    let xp = 0;
+    let streak = 0;
+    let prevDayNumber: number | null = null;
+
+    for (const rec of sorted) {
+      const ts = rec.__ts;
+      const duration = Number(rec?.durationMin) || 0;
+      const exercisesCount = Array.isArray(rec?.exercises)
+        ? rec.exercises.length
+        : Array.isArray(rec?.items)
+        ? rec.items.length
+        : 0;
+
+      const base = 120;
+      const durationBonus = Math.min(90, Math.max(20, duration || 30)) * 1.5;
+      const varietyBonus = Math.min(10, Math.max(3, exercisesCount || 4)) * 12;
+      xp += Math.round(base + durationBonus + varietyBonus);
+
+      if (typeof ts === "number") {
+        const dayNumber = Math.floor(ts / 86400000);
+        if (prevDayNumber != null && dayNumber - prevDayNumber <= 2) {
+          streak += 1;
+        } else {
+          streak = 1;
+        }
+        xp += Math.max(0, streak - 1) * 25;
+        prevDayNumber = dayNumber;
+        if (last == null || ts > last) last = ts;
+      }
+    }
+
+    return { total: raw.length, lastCompletedAt: last, xp };
+  } catch {
+    return { total: 0, lastCompletedAt: null, xp: 0 };
+  }
+}
+
+function rankTitle(total: number, lastCompletedAt: number | null) {
+  let tierIndex = 0;
+  for (let i = 0; i < RANK_TIERS.length; i++) {
+    if (total >= RANK_TIERS[i].min) {
+      tierIndex = i;
+    } else {
+      break;
+    }
+  }
+  if (lastCompletedAt) {
+    const daysSince = (Date.now() - lastCompletedAt) / 86400000;
+    const penalty = daysSince > 45 ? 2 : daysSince > 21 ? 1 : 0;
+    tierIndex = Math.max(0, tierIndex - penalty);
+  }
+  return RANK_TIERS[tierIndex].name;
+}
 let robotPreloaded = false;
 function ensureRobotPreloaded(src: string) {
   if (robotPreloaded) return;
@@ -56,73 +134,40 @@ function hasOnb() {
     return false;
   }
 }
-function isFirstWelcome() {
-  return !localStorage.getItem("welcome_seen_v1");
-}
-
-function TypeWriter({
-  text,
-  speed = 25,
-  onDone,
-}: {
-  text: string;
-  speed?: number;
-  onDone?: () => void;
-}) {
-  const [i, setI] = useState(0);
-  const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setI(text.length);
-      setDone(true);
-      onDone?.();
-      return;
-    }
-    const id = setInterval(() => {
-      setI((v) => {
-        if (v >= text.length) {
-          clearInterval(id);
-          setDone(true);
-          onDone?.();
-          return v;
-        }
-        return v + 1;
-      });
-    }, speed + Math.random() * 60);
-    return () => clearInterval(id);
-  }, [text, speed, onDone]);
-
-  return (
-    <p
-      style={s.blockText}
-      onClick={() => {
-        setI(text.length);
-        setDone(true);
-        onDone?.();
-      }}
-    >
-      {text.slice(0, i)}
-      {!done && <span className="caret">|</span>}
-    </p>
-  );
-}
-
 export default function Dashboard() {
   const [name, setName] = useState("Гость");
-  const { chips } = useStore();
+  const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
   const navigate = useNavigate();
 
   useEffect(() => {
-    const update = () => setName(resolveName());
-    update();
-    window.addEventListener("focus", update);
-    const onOnbUpdated = () => update();
+    if (typeof window === "undefined") return;
+    const updateIdentity = () => {
+      setName(resolveName());
+    };
+    updateIdentity();
+    window.addEventListener("focus", updateIdentity);
+    const onOnbUpdated = () => updateIdentity();
     window.addEventListener("onb_updated" as any, onOnbUpdated);
     return () => {
-      window.removeEventListener("focus", update);
+      window.removeEventListener("focus", updateIdentity);
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refreshHistory = () => setHistoryStats(readHistorySnapshot());
+    refreshHistory();
+    window.addEventListener("focus", refreshHistory);
+    window.addEventListener("history_updated" as any, refreshHistory);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === HISTORY_KEY) refreshHistory();
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("focus", refreshHistory);
+      window.removeEventListener("history_updated" as any, refreshHistory);
+      window.removeEventListener("storage", handleStorage);
     };
   }, []);
 
@@ -137,14 +182,25 @@ export default function Dashboard() {
   );
 
   const onbDone = hasOnb();
+  const heroCtaLabel = onbDone ? "Редактировать анкету" : "Заполнить анкету";
+  const totalWorkouts = historyStats.total || 0;
+  const experiencePoints = historyStats.xp || 0;
+  const rankName = useMemo(
+    () => rankTitle(totalWorkouts, historyStats.lastCompletedAt),
+    [totalWorkouts, historyStats.lastCompletedAt]
+  );
+  const statsChips = useMemo(
+    () => [
+      { emoji: "🏁", label: "Тренировок", value: String(totalWorkouts) },
+      { emoji: "⭐", label: "Опыт", value: experiencePoints ? String(experiencePoints) : "0" },
+      { emoji: "⚡", label: "Ранг", value: rankName },
+    ],
+    [totalWorkouts, experiencePoints, rankName]
+  );
 
   return (
     <div style={s.page}>
       <style>{`
-        .caret { margin-left: 2px; opacity: 1; animation: caretBlink 1s step-end infinite; }
-        @keyframes caretBlink { 50% { opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { .caret { animation: none } }
-
         /* ===== iPhone 14/15 Pro и узкие экраны ===== */
         @media (max-width: 420px) {
           .heroCard {
@@ -250,13 +306,21 @@ export default function Dashboard() {
             <div className="heroContent" style={s.heroContent}>
               <div className="heroTitle" style={s.heroTitle}>Привет, {name}</div>
               <div className="heroSubtitle" style={s.heroSubtitle}>Я твой персональный ИИ фитнес тренер</div>
-              <button
-                className="heroCTA"
-                style={s.ctaGenerate}
-                onClick={() => navigate("/plan/one")}
-              >
-                Новая тренировка
-              </button>
+              <div style={s.heroCtaWrap}>
+                <button
+                  className="heroCTA"
+                  style={s.ctaGenerate}
+                  onClick={() => navigate("/onb/age-sex")}
+                >
+                  <span style={s.heroCtaWords}>
+                    {heroCtaLabel.split(" ").map((word, idx) => (
+                      <span key={`${word}-${idx}`} style={s.heroCtaWord}>
+                        {word}
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="heroRightSpacer" style={s.heroRightSpacer}>
@@ -281,53 +345,20 @@ export default function Dashboard() {
 
       {/* Чипы: одинаковый размер */}
       <section style={s.statsRow}>
-        <ChipStatSquare emoji="🔥" label="Ккал/трен." value={chips.kcal ? String(chips.kcal) : "—"} />
-        <ChipStatSquare emoji="🕒" label="Время" value={chips.minutes ? `${chips.minutes} мин` : "—"} />
-        <ChipStatSquare emoji="🏋️" label="Сеты" value={chips.sets ? String(chips.sets) : "—"} />
+        {statsChips.map((chip) => (
+          <ChipStatSquare key={chip.label} emoji={chip.emoji} label={chip.label} value={chip.value} />
+        ))}
       </section>
 
       {/* Твой ИИ-тренер */}
       <section style={{ ...s.block, ...s.chipSurface }}>
-        {onbDone ? (
-          <>
-            <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
-            <p style={s.blockText}>
-              Я делаею каждую тренировку эффективной и составляю план питания с учётом твоей цели, опыта и данных
-            </p>
-            <button
-              style={{
-                ...s.primaryBtn,
-                background: "rgba(255,255,255,0.5)",
-                color: "#000",
-                border: "1px solid rgba(0,0,0,0.08)",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
-              }}
-              onClick={() => navigate("/onb/age-sex")}
-            >
-              Редактировать данные
-            </button>
-          </>
-        ) : (
-          <>
-            <h3 style={s.blockTitle}>Добро пожаловать 👋</h3>
-            {isFirstWelcome() ? (
-              <TypeWriter
-                text="Я персональный ИИ-тренер. Помогу настроить тренировки и питание под твою цель."
-                speed={55}
-                onDone={() => localStorage.setItem("welcome_seen_v1", "1")}
-              />
-            ) : (
-              <p style={s.blockText}>
-                Я персональный ИИ-тренер. Помогу настроить тренировки и питание под твою цель.
-              </p>
-            )}
-            <button style={s.ctaBig} onClick={() => navigate("/onb/age-sex")}>
-              Заполнить данные
-            </button>
-          </>
-        )}
+        <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
+        <p style={s.blockText}>
+          Я делаю каждую тренировку эффективной с учётом твоей цели, опыта и истории.
+        </p>
+        <button style={s.ctaBig} onClick={() => navigate("/plan/one")}>
+          Сгенерировать тренировку
+        </button>
       </section>
 
       {/* Быстрые действия: одинаковый размер карточек */}
@@ -371,8 +402,28 @@ function ChipStatSquare({
   return (
     <div className="chipSquare" style={s.chipSquare}>
       <div style={{ fontSize: 22 }}>{emoji}</div>
-      <div style={{ fontSize: 12, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap" }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 800, textAlign: "center" }}>{value}</div>
+      <div
+        style={{
+          fontSize: 12,
+          opacity: 0.7,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 800,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -425,9 +476,12 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: cardShadow,
     background: "#000",
     color: "#fff",
-    minHeight: 220, // ниже на широких экранах
+    minHeight: 240,
     overflow: "visible",
     zIndex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
   },
 
   heroHeader: {
@@ -445,6 +499,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     position: "relative",
     zIndex: 3,
+    flex: 1,
   },
 
   pillDark: {
@@ -474,23 +529,41 @@ const s: Record<string, React.CSSProperties> = {
   heroTitle: { fontSize: 24, fontWeight: 900, marginTop: 10, color: "#fff" },
   heroSubtitle: { marginTop: 6, color: "rgba(255,255,255,.9)" },
 
+  heroCtaWrap: {
+    marginTop: 12,
+  },
   ctaGenerate: {
-    marginTop: 18,
-    width: "100%",
     border: "none",
     borderRadius: 14,
-    padding: "14px 16px",
-    fontSize: 16,
-    fontWeight: 800,
+    padding: "10px 14px",
+    fontSize: 15,
+    fontWeight: 700,
     color: "#000",
     background:
       "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     boxShadow: "0 10px 28px rgba(0,0,0,.25)",
     cursor: "pointer",
-    position: "relative",
-    zIndex: 3,
+    whiteSpace: "normal",
+    display: "inline-flex",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    minWidth: 0,
+    textAlign: "left",
+    gap: 6,
+    flexWrap: "wrap",
+    width: "fit-content",
+    maxWidth: 200,
+    lineHeight: 1.15,
   },
-
+  heroCtaWords: {
+    display: "flex",
+    flexDirection: "column",
+    lineHeight: 1.1,
+    gap: 2,
+  },
+  heroCtaWord: {
+    display: "block",
+  },
   heroClip: {
     position: "absolute",
     left: "-12%",
@@ -527,16 +600,16 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     borderRadius: 12,
-    padding: 10,
-    aspectRatio: "1 / 1",      // гарантирует равные размеры
+    padding: "10px 8px",
+    minHeight: 96,
     display: "grid",
     placeItems: "center",
     textAlign: "center",
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
     gap: 4,
-    wordBreak: "keep-all",
-    whiteSpace: "nowrap",
+    wordBreak: "break-word",
+    whiteSpace: "normal",
     hyphens: "none",
   },
 
@@ -544,7 +617,7 @@ const s: Record<string, React.CSSProperties> = {
     background:
       "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     color: "#000",
-    border: "1px solid rgba(0,0,0,0.08)",
+    border: "0px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
@@ -575,15 +648,18 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   ctaBig: {
-    width: "100%",
-    border: "none",
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 18,
-    fontWeight: 800,
-    color: "#fff",
-    background: "linear-gradient(135deg,#34a1fe,#04b5c9,#00ede0)",
+    borderRadius: 14,
+    padding: "12px 18px",
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#000",
+    background: "rgba(255,255,255,0.5)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
+    alignSelf: "flex-start",
   },
 
   /* Быстрые действия: одинаковые карточки */
@@ -597,12 +673,14 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     gap: 12,
+    alignItems: "stretch",
   },
   quickItem: {
     flex: 1,
     borderRadius: 16,
     padding: "16px 10px",
-    minHeight: 96,             // одинаковая высота
+    minHeight: 110,
+    height: "100%",
     background: "rgba(255,255,255,0.6)",
     color: "#000",
     border: "1px solid rgba(0,0,0,0.08)",
