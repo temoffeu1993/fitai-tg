@@ -1,3 +1,5 @@
+// Progress — визуал как на экране «Расписание». Логику не трогаю.
+
 import { useEffect, useMemo, useState, useId, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { getProgressSummary, saveBodyMetric, ProgressSummary } from "@/api/progress";
@@ -111,28 +113,17 @@ export default function Progress() {
     <div style={s.page}>
       <SoftGlowStyles />
 
-      {/* HERO */}
+      {/* ЧЁРНЫЙ HERO как на «Расписание» */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Прогресс</span>
           <span style={s.credits}>Статистика</span>
         </div>
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
+        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" }}>
           {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
         </div>
         <div style={s.heroTitle}>Ты на пути к цели!</div>
         <div style={s.heroSubtitle}>Отслеживай свои достижения и результаты</div>
-
-        <div style={s.heroFooter}>
-          <Stat icon="⏳" label="Дней с приложением" value={`${stats.daysWithApp}`} />
-          <Stat icon="🔥" label="Серия по плану" value={formatWeekSeries(stats.planSeriesCurrent)} />
-          <Stat icon="🥇" label="Рекорд серии" value={formatWeekSeries(stats.planSeriesBest)} />
-        </div>
-        {stats.planWeeklyGoal != null && (
-          <div style={s.heroPlanHint}>
-            Цель на неделю: {stats.planWeeklyGoal} трен.
-          </div>
-        )}
 
         <button
           className="soft-glow"
@@ -143,10 +134,24 @@ export default function Progress() {
         </button>
       </section>
 
-      {/* Статистика */}
+      {/* ЧИПЫ под героем, фирменный стеклянный стиль */}
+      <section style={{ ...s.block, ...s.statsSection }}>
+        <div style={s.statsRow}>
+          <Stat icon="⏳" label="Дней с приложением" value={`${stats.daysWithApp}`} />
+          <Stat icon="🔥" label="Серия по плану" value={formatWeekSeries(stats.planSeriesCurrent)} />
+          <Stat icon="🥇" label="Рекорд серии" value={formatWeekSeries(stats.planSeriesBest)} />
+        </div>
+        {stats.planWeeklyGoal != null && (
+          <div style={{ marginTop: 6, fontSize: 11, color: "#333", textAlign: "left" }}>
+            Цель на неделю: {stats.planWeeklyGoal} трен.
+          </div>
+        )}
+      </section>
+
+      {/* Стеклянные карточки в фирменном стиле */}
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>📊</div>
             <div>
               <div style={ux.cardTitleRow}>
@@ -156,7 +161,7 @@ export default function Progress() {
             </div>
           </div>
 
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 12 }}>
             <StatsGrid
               currentWeight={currentWeight}
               weightDeltaText={weightDeltaText}
@@ -170,10 +175,9 @@ export default function Progress() {
         </div>
       </section>
 
-      {/* Динамика веса */}
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>📈</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={ux.cardTitleRow}>
@@ -194,7 +198,7 @@ export default function Progress() {
             </div>
           </div>
 
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 12 }}>
             {chartData.length < 2 ? (
               <EmptyState text="Добавь несколько замеров, чтобы увидеть график." />
             ) : (
@@ -205,10 +209,9 @@ export default function Progress() {
         </div>
       </section>
 
-      {/* Активность */}
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>🔥</div>
             <div>
               <div style={ux.cardTitleRow}>
@@ -220,7 +223,7 @@ export default function Progress() {
             </div>
           </div>
 
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 12 }}>
             <ActivityLegend />
             <ActivityWeeks weeks={activity.weeks} />
             <div style={activityStats.wrap}>
@@ -238,10 +241,9 @@ export default function Progress() {
         </div>
       </section>
 
-      {/* Личные рекорды */}
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>🏆</div>
             <div>
               <div style={ux.cardTitleRow}>
@@ -251,7 +253,7 @@ export default function Progress() {
             </div>
           </div>
 
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 12 }}>
             {summary.achievements.length === 0 ? (
               <EmptyState text="Продолжай тренироваться — награды появятся автоматически." />
             ) : (
@@ -406,7 +408,7 @@ function WeightList({ entries }: { entries: Array<{ date: string; weight: number
 function ActivityLegend() {
   return (
     <div style={legend.wrap}>
-      <LegendItem color="linear-gradient(135deg,#6366f1,#a855f7)" label="Тренировка выполнена" />
+      <LegendItem color="linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)" label="Тренировка выполнена" />
       <LegendItem color="#e2e8f0" label="День отдыха" />
     </div>
   );
@@ -437,8 +439,9 @@ function ActivityWeeks({ weeks }: { weeks: ProgressSummary["activity"]["weeks"] 
                 key={day.date}
                 style={{
                   ...activityDayCell,
-                  background: day.completed ? "linear-gradient(135deg,#6366f1,#a855f7)" : "#e2e8f0",
-                }}
+background: day.completed
+  ? "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)"
+  : "#e2e8f0",                }}
                 title={`${formatDate(day.date)} — ${day.completed ? "тренировка" : "отдых"}`}
               />
             ))}
@@ -772,7 +775,7 @@ function WeightModal({ onClose, onSave }: { onClose: () => void; onSave: (payloa
             placeholder="Как чувствуешь себя сегодня?"
           />
         </label>
-        <button style={modal.saveBtn} onClick={handleSubmit} disabled={saving}>
+        <button className="soft-glow" style={modal.saveBtn} onClick={handleSubmit} disabled={saving}>
           {saving ? "Сохраняем..." : "Сохранить"}
         </button>
       </div>
@@ -837,9 +840,9 @@ function WeightChart({ data }: { data: Array<{ date: string; weight: number }> }
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={s.stat}>
-      <div style={{ fontSize: 20 }}>{icon}</div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,.85)" }}>{label}</div>
-      <div style={{ fontWeight: 700 }}>{value}</div>
+      <div style={s.statEmoji}>{icon}</div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={s.statValue}>{value}</div>
     </div>
   );
 }
@@ -847,215 +850,189 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
 function SoftGlowStyles() {
   return (
     <style>{`
-      .soft-glow {
-        background: linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);
-        background-size: 300% 300%;
-        animation: glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
-        transition: background 0.3s ease;
+      .soft-glow{
+        background:linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%);
+        background-size:300% 300%;
+        animation:glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
+        transition:background .3s
       }
-      @keyframes glowShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
-      @keyframes pulseSoft { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1) } 50% { filter: brightness(1.15) saturate(1.1); transform: scale(1.01) } }
+      @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+      @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.05) saturate(1.05);transform:scale(1.01)}}
       @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
     `}</style>
   );
 }
 
-/* ===================== Стили ===================== */
+/* ===================== Визуальные стили под «Расписание» ===================== */
 
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
 
 const s: Record<string, React.CSSProperties> = {
+  // 4) Фон экрана — фирменный градиент как на «Расписание»
   page: {
     maxWidth: 720,
     margin: "0 auto",
     padding: "16px",
-    fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
+    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background: "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight: "100vh",
+    backgroundAttachment: "fixed",
   },
+
+  // 1) Верхний блок — чёрный
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   pill: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
     backdropFilter: "blur(6px)",
+    textTransform: "capitalize",
   },
   credits: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
     backdropFilter: "blur(6px)",
   },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
-  heroFooter: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 8,
-  },
-  stat: {
-    background: "rgba(255,255,255,.15)",
-    borderRadius: 12,
-    padding: 10,
-    textAlign: "center",
-    backdropFilter: "blur(6px)",
-    fontWeight: 600,
-  },
-  heroPlanHint: {
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.85)",
-  },
+  heroTitle: { fontSize: 26, fontWeight: 800, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.9, marginTop: 4, color: "rgba(255,255,255,.85)" },
+
+  // 2) Кнопка «Записать вес» — фирменный градиент
   primaryBtn: {
-    marginTop: 14,
-    width: "100%",
     border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
+    borderRadius: 16,
+    padding: "14px 18px",
     fontSize: 16,
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    fontWeight: 800,
+    color: "#000",
+    background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
+    width: "100%",
+    marginTop: 14,
   },
-  block: {
-    marginTop: 16,
-    padding: 0,
-    borderRadius: 16,
-    background: "transparent",
-    boxShadow: "none",
+
+  // Чипы под героем
+  statsSection: { marginTop: 12, padding: 0, background: "transparent", boxShadow: "none" },
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12 },
+  stat: {
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    gap: 4,
   },
-  blockWhite: {
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 16,
-    background: "#fff",
-    boxShadow: cardShadow,
-  },
+  statEmoji: { fontSize: 20, color: "#111" },
+  statLabel: { fontSize: 11, color: "rgba(0,0,0,.75)", letterSpacing: 0.2 },
+  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
+
+  block: { marginTop: 16, padding: 0, borderRadius: 16, background: "transparent", boxShadow: "none" },
+  blockWhite: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
+
   rowBtn: {
     border: "none",
     padding: "12px 14px",
     borderRadius: 12,
     fontWeight: 700,
-    color: "#fff",
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
+    color: "#000",
+    background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     cursor: "pointer",
     marginTop: 8,
+    boxShadow: "0 8px 22px rgba(0,0,0,.18)",
   },
 };
 
-const uxColors = {
-  headerBg: "linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))",
-};
-
 const ux: Record<string, any> = {
+  // 3) Все карточки — стеклянные, как на «Расписание»
   card: {
-    borderRadius: 18,
-    border: "none",
-    boxShadow: "0 8px 24px rgba(0,0,0,.06)",
-    overflow: "hidden",
-    background: "#fff",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,.35)",
+    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
+    background: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(14px)",
     position: "relative",
+    overflow: "hidden",
   },
   cardHeader: {
     display: "grid",
     gridTemplateColumns: "24px 1fr",
     alignItems: "center",
     gap: 10,
-    padding: 10,
-    borderBottom: "1px solid rgba(0,0,0,.06)",
+    padding: 14,
+    borderBottom: "1px solid rgba(255,255,255,.4)",
+    background: "rgba(255,255,255,0.6)",
   },
-  iconInline: {
-    width: 24,
-    height: 24,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 18,
-  },
-  cardTitleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    justifyContent: "space-between",
-  },
+  iconInline: { width: 24, height: 24, display: "grid", placeItems: "center", fontSize: 18 },
+  cardTitleRow: { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" },
   cardTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b", lineHeight: 1.2 },
   cardHint: { fontSize: 11, color: "#2b2b2b", opacity: 0.85 },
 };
 
 const statsGrid = {
-  wrap: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
-    gap: 10,
-  },
+  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 } as React.CSSProperties,
   card: {
-    borderRadius: 14,
-    padding: 12,
-    background: "linear-gradient(135deg, rgba(114,135,255,.08), rgba(164,94,255,.06))",
-    border: "1px solid rgba(114,135,255,.15)",
-    minHeight: 110,
-  },
-  icon: {
-    fontSize: 20,
-  },
-  label: {
-    marginTop: 6,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    textTransform: "uppercase" as const,
-    color: "#555",
-    fontWeight: 600,
-  },
-  value: {
-    marginTop: 6,
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#1b1b1b",
-  },
-  hint: {
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: 600,
-  },
+    borderRadius: 16,
+    padding: 14,
+    background: "rgba(255,255,255,.75)",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255,255,255,.35)",
+    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
+    display: "grid",
+    gap: 6,
+    minHeight: 120,
+  } as React.CSSProperties,
+  icon: { fontSize: 20 },
+  label: { marginTop: 2, fontSize: 11, letterSpacing: 0.4, textTransform: "uppercase" as const, color: "#555", fontWeight: 700 },
+  value: { marginTop: 2, fontSize: 20, fontWeight: 800, color: "#0f172a" },
+  hint: { marginTop: 2, fontSize: 12, fontWeight: 700 },
 };
 
 const tabs = {
   wrap: {
     display: "flex",
     gap: 6,
-    background: "rgba(114,135,255,.12)",
+    background: "rgba(255,255,255,.6)",
     padding: 4,
     borderRadius: 999,
+    border: "1px solid rgba(0,0,0,.06)",
+    backdropFilter: "blur(6px)",
   },
   btn: {
     border: "none",
     background: "transparent",
-    padding: "5px 10px",
+    padding: "6px 10px",
     borderRadius: 999,
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 11,
     color: "#475569",
     cursor: "pointer",
   },
   active: {
     border: "none",
-    background: "#6366f1",
-    padding: "5px 10px",
+    background: "#000",
+    padding: "6px 10px",
     borderRadius: 999,
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: 11,
     color: "#fff",
     cursor: "pointer",
@@ -1066,55 +1043,24 @@ const tabs = {
 const weightsList = {
   wrap: {
     marginTop: 14,
-    background: "linear-gradient(135deg, rgba(114,135,255,.06), rgba(164,94,255,.04))",
+    background: "rgba(255,255,255,.75)",
     borderRadius: 14,
     padding: 12,
-    border: "1px solid rgba(114,135,255,.12)",
+    border: "1px solid rgba(255,255,255,.35)",
+    boxShadow: "0 8px 20px rgba(0,0,0,.10)",
+    backdropFilter: "blur(10px)",
   },
-  title: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#475569",
-    marginBottom: 10,
-  },
-  items: {
-    display: "grid",
-    gap: 8,
-  },
-  item: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 13,
-    color: "#1f2937",
-  },
-  date: {
-    opacity: 0.75,
-  },
-  value: {
-    fontWeight: 700,
-  },
+  title: { fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 10 },
+  items: { display: "grid", gap: 8 },
+  item: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#111827" },
+  date: { opacity: 0.75 },
+  value: { fontWeight: 800 },
 };
 
 const legend = {
-  wrap: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 12,
-  },
-  item: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    fontSize: 12,
-    color: "#475569",
-  },
-  swatch: {
-    width: 14,
-    height: 14,
-    borderRadius: 4,
-    display: "inline-block",
-  },
+  wrap: { display: "flex", alignItems: "center", gap: 14, marginBottom: 12 },
+  item: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" },
+  swatch: { width: 14, height: 14, borderRadius: 4, display: "inline-block" },
 };
 
 const activityWrap: React.CSSProperties = {
@@ -1124,81 +1070,54 @@ const activityWrap: React.CSSProperties = {
   marginBottom: 18,
 };
 
-const activityColumn: React.CSSProperties = {
-  display: "grid",
-  gap: 12,
-};
+const activityColumn: React.CSSProperties = { display: "grid", gap: 12 };
 
-const activityLabel: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
-  color: "#0f172a",
-};
+const activityLabel: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: "#0f172a" };
 
 const activityDaysGrid: React.CSSProperties = {
-  background: "linear-gradient(135deg, rgba(114,135,255,.06), rgba(164,94,255,.04))",
+  background: "rgba(255,255,255,.75)",
   borderRadius: 14,
   padding: 12,
   display: "grid",
   gridTemplateColumns: "repeat(7, 1fr)",
   gap: 6,
-  border: "1px solid rgba(114,135,255,.12)",
+  border: "1px solid rgba(255,255,255,.35)",
+  boxShadow: "0 8px 20px rgba(0,0,0,.10)",
+  backdropFilter: "blur(10px)",
 };
 
-const activityDayCell: React.CSSProperties = {
-  width: "100%",
-  paddingBottom: "100%",
-  borderRadius: 6,
-};
+const activityDayCell: React.CSSProperties = { width: "100%", paddingBottom: "100%", borderRadius: 6 };
 
 const activityStats = {
-  wrap: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-    gap: 12,
-  },
-  note: {
-    marginTop: 12,
-    fontSize: 12,
-    color: "#64748b",
-  },
+  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 },
+  note: { marginTop: 12, fontSize: 12, color: "#64748b" },
 };
 
 const activityStatCard: React.CSSProperties = {
-  background: "linear-gradient(135deg, rgba(114,135,255,.06), rgba(164,94,255,.04))",
+  background: "rgba(255,255,255,.75)",
   borderRadius: 14,
   padding: 12,
-  border: "1px solid rgba(114,135,255,.12)",
+  border: "1px solid rgba(255,255,255,.35)",
+  boxShadow: "0 8px 20px rgba(0,0,0,.10)",
+  backdropFilter: "blur(10px)",
 };
 
-const activityStatLabel: React.CSSProperties = {
-  fontSize: 11,
-  color: "#64748b",
-  fontWeight: 600,
-};
+const activityStatLabel: React.CSSProperties = { fontSize: 11, color: "#64748b", fontWeight: 700 };
 
-const activityStatValue: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 800,
-  marginTop: 4,
-  color: "#1b1b1b",
-};
+const activityStatValue: React.CSSProperties = { fontSize: 16, fontWeight: 800, marginTop: 4, color: "#0f172a" };
 
 const achievementsGrid = {
-  wrap: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))",
-    gap: 12,
-  },
+  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12 },
   card: {
-    borderRadius: 14,
-    background: "linear-gradient(135deg, rgba(114,135,255,.08), rgba(164,94,255,.06))",
+    borderRadius: 16,
+    background: "rgba(255,255,255,.75)",
     padding: 14,
     display: "grid",
     gridTemplateColumns: "64px 1fr",
     gap: 14,
-    boxShadow: "0 4px 12px rgba(114,135,255,0.15)",
-    border: "1px solid rgba(114,135,255,.15)",
+    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
+    border: "1px solid rgba(255,255,255,.35)",
+    backdropFilter: "blur(10px)",
   },
   badge: {
     width: 64,
@@ -1209,36 +1128,12 @@ const achievementsGrid = {
     display: "grid",
     placeItems: "center",
   } as React.CSSProperties,
-  body: {
-    display: "grid",
-    gap: 4,
-    alignContent: "start",
-  } as React.CSSProperties,
-  title: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#111827",
-  },
-  desc: {
-    fontSize: 12,
-    color: "#475569",
-    lineHeight: 1.4,
-  } as React.CSSProperties,
-  value: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#6366f1",
-  },
-  meta: {
-    marginTop: 6,
-    fontSize: 11,
-    color: "#94a3b8",
-  },
-  fallback: {
-    fontSize: 28,
-    filter: "drop-shadow(0 2px 4px rgba(99,102,241,0.2))",
-  },
+  body: { display: "grid", gap: 4, alignContent: "start" } as React.CSSProperties,
+  title: { fontSize: 14, fontWeight: 800, color: "#111827" },
+  desc: { fontSize: 12, color: "#475569", lineHeight: 1.4 } as React.CSSProperties,
+  value: { marginTop: 2, fontSize: 13, fontWeight: 800, color: "#1f2937" },
+  meta: { marginTop: 6, fontSize: 11, color: "#94a3b8" },
+  fallback: { fontSize: 28, filter: "drop-shadow(0 2px 4px rgba(99,102,241,0.2))" },
 };
 
 const modal = {
@@ -1260,37 +1155,16 @@ const modal = {
     display: "grid",
     gap: 16,
   },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 800,
-    color: "#0f172a",
-  },
-  close: {
-    border: "none",
-    background: "none",
-    fontSize: 22,
-    cursor: "pointer",
-    color: "#94a3b8",
-  },
-  label: {
-    display: "grid",
-    gap: 6,
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#1f2937",
-  } as React.CSSProperties,
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  title: { margin: 0, fontSize: 18, fontWeight: 900, color: "#0f172a" },
+  close: { border: "none", background: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" },
+  label: { display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#1f2937" } as React.CSSProperties,
   input: {
     borderRadius: 14,
     border: "1px solid rgba(114,135,255,.2)",
     padding: "12px 14px",
     fontSize: 14,
-    fontWeight: 600,
+    fontWeight: 700,
     color: "#0f172a",
     background: "#f8fafc",
   } as React.CSSProperties,
@@ -1298,16 +1172,17 @@ const modal = {
     border: "none",
     borderRadius: 14,
     padding: "12px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
     background: "linear-gradient(135deg,#6366f1,#a855f7)",
     color: "#fff",
+    boxShadow: "0 10px 24px rgba(99,102,241,.35)",
   },
 };
 
 const emptyStyle: React.CSSProperties = {
   padding: "24px 0",
-  color: "#94a3b8",
+  color: "#64748b",
   fontSize: 13,
   textAlign: "center",
 };

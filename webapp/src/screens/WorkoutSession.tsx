@@ -1,10 +1,12 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveSession } from "@/api/plan";
 
 const PLAN_CACHE_KEY = "plan_cache_v1";
 const HISTORY_KEY = "history_sessions_v1";
+const SESSION_BG =
+  "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";
 
 type PlanExercise = {
   name: string;
@@ -66,6 +68,16 @@ const plan: Plan | null = useMemo(() => {
   const [sessionNotes, setSessionNotes] = useState("");
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const blockTimer = useRef<number | null>(null);
+  useEffect(() => {
+    const prevBodyBg = document.body.style.background;
+    const prevHtmlBg = document.documentElement.style.background;
+    document.body.style.background = SESSION_BG;
+    document.documentElement.style.background = SESSION_BG;
+    return () => {
+      document.body.style.background = prevBodyBg;
+      document.documentElement.style.background = prevHtmlBg;
+    };
+  }, []);
 
   useEffect(() => {
     if (plannedWorkoutId) {
@@ -277,54 +289,57 @@ const plan: Plan | null = useMemo(() => {
   };
 
   return (
-    <div style={page.wrap}>
+    <div style={page.outer}>
+      <div style={page.inner}>
       <SoftGlowStyles />
       <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
 
       {/* HERO */}
       <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <button style={btn.back} onClick={() => nav("/plan/one")} aria-label="Назад к генерации">←</button>
-          <span style={s.pill}>Тренировка</span>
-          <span style={{ width: 34 }} />
-        </div>
-
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
-          {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
-        </div>
-        <div style={s.heroTitle}>{plan.title}</div>
-        <div style={s.heroSubtitle}>Держи темп. Заполняй подходы по мере выполнения.</div>
-
-        {/* прогресс «лава» */}
-        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-          <div style={progressBar.wrap}>
-            <div style={progressBar.track} className="lava-track">
-              <div style={{ ...progressBar.fill, width: `${progress}%` }} className="lava-fill" />
-              <div style={{ ...progressBar.flame, left: `calc(${progress}% - 14px)` }} className="flame-dot">
-                <span className="flame-emoji">🔥</span>
-              </div>
-            </div>
-            <div style={progressBar.meta}>
-              <span />
-              <span>{progress}%</span>
-            </div>
+        <div style={s.heroContent}>
+          <div style={s.heroHeader}>
+            <button style={btn.back} onClick={() => nav("/plan/one")} aria-label="Назад к генерации">←</button>
+            <span style={s.pill}>Тренировка</span>
+            <span style={{ width: 34 }} />
           </div>
 
-          <button
-            className="soft-glow"
-            style={{
-              ...s.primaryBtn,
-              opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
-              pointerEvents: exercisesDone === exercisesTotal ? "auto" : "none",
-            }}
-            onClick={handleComplete}
-            disabled={exercisesDone !== exercisesTotal}
-          >
-            Сохранить тренировку
-          </button>
+          <div style={s.heroDate}>
+            {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
+          </div>
+          <div style={s.heroTitle}>{plan.title}</div>
+          <div style={s.heroSubtitle}>Держи темп. Заполняй подходы по мере выполнения.</div>
+
+          {/* прогресс «лава» */}
+          <div style={s.heroCtas}>
+            <div style={progressBar.wrap}>
+              <div style={progressBar.track} className="lava-track">
+                <div style={{ ...progressBar.fill, width: `${progress}%` }} className="lava-fill" />
+                <div style={{ ...progressBar.flame, left: `calc(${progress}% - 14px)` }} className="flame-dot">
+                  <span className="flame-emoji">🔥</span>
+                </div>
+              </div>
+              <div style={progressBar.meta}>
+                <span />
+                <span>{progress}%</span>
+              </div>
+            </div>
+
+            <button
+              className="soft-glow"
+              style={{
+                ...s.primaryBtn,
+                opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
+                pointerEvents: exercisesDone === exercisesTotal ? "auto" : "none",
+              }}
+              onClick={handleComplete}
+              disabled={exercisesDone !== exercisesTotal}
+            >
+              Сохранить тренировку
+            </button>
           {exercisesDone !== exercisesTotal && (
             <div style={s.completeHint}>Отметь все упражнения выполненными, чтобы сохранить тренировку</div>
           )}
+        </div>
         </div>
       </section>
 
@@ -475,6 +490,7 @@ const plan: Plan | null = useMemo(() => {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
@@ -532,47 +548,86 @@ function Chip({ label }: { label: string }) {
 
 /* ---------- Стиль ---------- */
 const page = {
-  wrap: { maxWidth: 720, margin: "0 auto", padding: "16px", fontFamily: "system-ui, -apple-system, Inter, Roboto" } as React.CSSProperties,
+  outer: {
+    minHeight: "100vh",
+    width: "100%",
+    padding: "16px",
+    background: SESSION_BG,
+    backgroundAttachment: "fixed",
+  } as React.CSSProperties,
+  inner: {
+    maxWidth: 760,
+    margin: "0 auto",
+    fontFamily: "system-ui, -apple-system, Inter, Roboto",
+  } as React.CSSProperties,
 };
 
 const s: Record<string, React.CSSProperties> = {
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: "0 8px 24px rgba(0,0,0,.08)",
-    background: "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
     overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: 18,
+    minHeight: 280,
+  },
+  heroContent: {
+    position: "relative",
+    zIndex: 2,
+    width: "100%",
+    display: "grid",
+    gap: 10,
   },
   heroHeader: { display: "grid", gridTemplateColumns: "34px 1fr 34px", alignItems: "center" },
-  pill: { justifySelf: "center", background: "rgba(255,255,255,.2)", padding: "6px 10px", borderRadius: 999, fontSize: 12, backdropFilter: "blur(6px)" },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
+  pill: {
+    justifySelf: "center",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
+    borderRadius: 999,
+    fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
+    textTransform: "capitalize",
+  },
+  heroDate: { opacity: 0.85, fontSize: 13 },
+  heroTitle: { fontSize: 26, fontWeight: 800, lineHeight: 1.2 },
+  heroSubtitle: { opacity: 0.9, marginTop: -2 },
+  heroCtas: {
+    marginTop: 16,
+    display: "grid",
+    gap: 12,
+    width: "100%",
+  },
   primaryBtn: {
     border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
+    borderRadius: 16,
+    padding: "16px 20px",
     fontSize: 16,
     fontWeight: 800,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    color: "#000",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
   },
   completeHint: {
     marginTop: 6,
     fontSize: 12,
     color: "rgba(255,255,255,.9)",
+    textAlign: "center",
   },
   feedbackCard: {
     marginTop: 16,
-    padding: 16,
-    borderRadius: 16,
-    background: "#fff",
-    boxShadow: "0 8px 24px rgba(0,0,0,.08)",
-    border: "1px solid rgba(0,0,0,.04)",
+    padding: 18,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.65)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.08)",
+    border: "1px solid rgba(255,255,255,.4)",
+    backdropFilter: "blur(12px)",
   },
   feedbackHeader: { fontWeight: 800, fontSize: 15, marginBottom: 8 },
   feedbackInner: { display: "grid", gap: 10 },
@@ -591,7 +646,15 @@ const s: Record<string, React.CSSProperties> = {
 
 const progressBar = {
   wrap: { display: "grid", gap: 6 } as React.CSSProperties,
-  track: { position: "relative", width: "100%", height: 18, borderRadius: 999, background: "rgba(255,255,255,.25)", overflow: "hidden" } as React.CSSProperties,
+  track: {
+    position: "relative",
+    width: "100%",
+    height: 20,
+    borderRadius: 999,
+    background: "rgba(255,255,255,.15)",
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,.2)",
+  } as React.CSSProperties,
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999, transition: "width .25s ease", zIndex: 1 } as React.CSSProperties,
   flame: { position: "absolute", top: -6, fontSize: 22, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))", zIndex: 2, pointerEvents: "none" } as React.CSSProperties,
   meta: { display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.9 } as React.CSSProperties,
@@ -729,8 +792,12 @@ const responsiveCSS = `
 }
 `;
 
-function Box(p: any) {
-  return <div style={{ maxWidth: 720, margin: "0 auto", padding: 16 }} {...p} />;
+function Box({ children }: { children: ReactNode }) {
+  return (
+    <div style={page.outer}>
+      <div style={page.inner}>{children}</div>
+    </div>
+  );
 }
 
 const card = {
@@ -738,14 +805,15 @@ const card = {
     position: "relative",
     width: "100%",
     boxSizing: "border-box",
-    padding: 12,
-    borderRadius: 16,
-    background: "#fff",
-    boxShadow: "0 8px 24px rgba(0,0,0,.06)",
-    border: "1px solid rgba(0,0,0,.04)",
+    padding: 14,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.65)",
+    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
+    border: "1px solid rgba(255,255,255,.4)",
+    backdropFilter: "blur(12px)",
   } as React.CSSProperties,
   head: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 } as React.CSSProperties,
-  title: { fontSize: 15, fontWeight: 750, color: "#111", paddingRight: 36 } as React.CSSProperties,
+  title: { fontSize: 15.5, fontWeight: 750, color: "#111", paddingRight: 36 } as React.CSSProperties,
   metaChips: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 } as React.CSSProperties,
 };
 
@@ -755,10 +823,12 @@ const setrow = {
     gridTemplateColumns: "auto minmax(0,1fr)",
     alignItems: "flex-start",
     gap: 12,
-    padding: "8px 10px",
-    borderRadius: 12,
-    background: "#f7f9fc",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.05)",
+    padding: "12px 14px",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,.08)",
+    boxShadow: "0 8px 20px rgba(0,0,0,.08)",
+    backdropFilter: "blur(12px)",
   } as React.CSSProperties,
   label: { fontSize: 13, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
   inputs: {
@@ -771,36 +841,63 @@ const setrow = {
 };
 
 const btn = {
-  back: { width: 34, height: 34, borderRadius: 10, border: "none", background: "rgba(255,255,255,.22)", color: "#fff", fontSize: 18, cursor: "pointer" } as React.CSSProperties,
-  ghost: { border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 10px", background: "#fff", cursor: "pointer" } as React.CSSProperties,
-  secondary: { border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 12px", background: "#fff", cursor: "pointer", fontWeight: 700 } as React.CSSProperties,
+  back: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,.25)",
+    background: "rgba(255,255,255,.12)",
+    color: "#fff",
+    fontSize: 18,
+    cursor: "pointer",
+  } as React.CSSProperties,
+  ghost: {
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.7)",
+    backdropFilter: "blur(8px)",
+    cursor: "pointer",
+    fontWeight: 600,
+  } as React.CSSProperties,
+  secondary: {
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.7)",
+    cursor: "pointer",
+    fontWeight: 700,
+  } as React.CSSProperties,
   primary: {
     width: "100%",
     border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
+    borderRadius: 16,
+    padding: "16px 20px",
     fontSize: 16,
     fontWeight: 800,
     color: "#1b1b1b",
     background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    boxShadow: "0 10px 26px rgba(0,0,0,.25)",
     cursor: "pointer",
   } as React.CSSProperties,
   badge: {
     borderRadius: 999,
     borderWidth: 1,
     borderStyle: "solid",
-    borderColor: "#e5e7eb",
+    borderColor: "rgba(0,0,0,.08)",
     padding: "6px 12px",
     fontSize: 12,
     fontWeight: 600,
-    background: "#fff",
+    background: "rgba(255,255,255,0.75)",
     cursor: "pointer",
+    backdropFilter: "blur(6px)",
   } as React.CSSProperties,
   badgeActive: {
-    background: "linear-gradient(135deg,#dbeafe,#bfdbfe)",
-    borderColor: "#93c5fd",
-    color: "#1d4ed8",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    borderColor: "transparent",
+    color: "#1b1b1b",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   } as React.CSSProperties,
 };
 
@@ -815,25 +912,27 @@ const num = {
     minWidth: 0,
   } as React.CSSProperties,
   btn: {
-    height: 36,
+    height: 38,
     width: "100%",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,.08)",
+    background: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(6px)",
     cursor: "pointer",
     fontSize: 18,
     lineHeight: 1,
   } as React.CSSProperties,
   input: {
-    height: 40,
+    height: 44,
     width: "100%",
     padding: "0 10px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,.08)",
     fontSize: 16,
     boxSizing: "border-box",
     textAlign: "center",
     minWidth: 0,
+    background: "rgba(255,255,255,0.85)",
   } as React.CSSProperties,
 };
 
@@ -844,7 +943,7 @@ const metaRow: React.CSSProperties = {
   rowGap: 4,
   alignItems: "center",
   fontSize: 12.5,
-  color: "#333",
+  color: "#1f2933",
   marginBottom: 6,
 };
 const chipStyle: React.CSSProperties = {
@@ -854,8 +953,10 @@ const chipStyle: React.CSSProperties = {
   padding: "2px 8px",
   fontSize: 11,
   fontWeight: 600,
-  background: "#f3f4f6",
-  color: "#374151",
+  background: "rgba(255,255,255,0.8)",
+  color: "#1f2933",
+  border: "1px solid rgba(0,0,0,.06)",
+  backdropFilter: "blur(6px)",
 };
 
 const checkBtn = {
@@ -866,33 +967,35 @@ const checkBtn = {
     width: 30,
     height: 30,
     borderRadius: "50%",
-    border: "2px solid rgba(148,163,184,.7)",
-    background: "rgba(255,255,255,.9)",
-    color: "#94a3b8",
+    border: "2px solid rgba(148,163,184,.5)",
+    background: "rgba(255,255,255,.85)",
+    color: "#6b7280",
     display: "grid",
     placeItems: "center",
     fontSize: 16,
     cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    boxShadow: "0 6px 14px rgba(0,0,0,.12)",
   },
   active: {
     borderColor: "transparent",
-    background: "linear-gradient(135deg,#7287ff,#a45eff)",
-    color: "#fff",
-    boxShadow: "0 4px 12px rgba(0,0,0,.2)",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    color: "#1b1b1b",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
   hint: {
     position: "absolute" as const,
     top: 44,
     right: 0,
-    background: "#fff",
-    borderRadius: 8,
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 10,
     padding: "6px 10px",
     fontSize: 11,
     color: "#b45309",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
-    border: "1px solid rgba(248,171,101,.6)",
+    boxShadow: "0 12px 24px rgba(0,0,0,.15)",
+    border: "1px solid rgba(248,171,101,.4)",
     maxWidth: 180,
+    zIndex: 5,
   },
 };
 
@@ -900,14 +1003,14 @@ const effortRow = {
   wrap: {
     marginTop: 8,
     paddingTop: 8,
-    borderTop: "1px solid rgba(0,0,0,.05)",
+    borderTop: "1px solid rgba(0,0,0,.08)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
   } as React.CSSProperties,
-  label: { fontSize: 12.5, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
+  label: { fontSize: 12.5, color: "#374151", fontWeight: 600 } as React.CSSProperties,
   buttons: { display: "flex", gap: 8 } as React.CSSProperties,
 };
 

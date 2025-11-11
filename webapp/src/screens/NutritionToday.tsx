@@ -219,30 +219,30 @@ export default function NutritionToday() {
   const displayCarbs = displayTotals.carbs;
 
   const dt = parseISODate(displayDay.date || day.date);
-  const dateLabel = dt ? dt.toLocaleDateString("ru-RU", { weekday: "long", day: "2-digit", month: "long" }) : todayISO;
+  const dateLabel = dt
+  ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" })
+  : todayISO;
   const heroStatus = isTrainingDay ? "⚡ Усиленный план питания" : "План готов";
+const pillDateLabel = new Date().toLocaleDateString("ru-RU", {
+  day: "2-digit",
+  month: "long",
+  timeZone: "Europe/Moscow",
+});
 
   return (
     <div style={s.page}>
       <SoftGlowStyles />
       <TypingDotsStyles />
 
-      {/* HERO */}
+      {/* HERO в стиле экрана «Расписание» */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Сегодня</span>
+         <span style={s.pill}>{pillDateLabel}</span>
           <span style={s.credits}>{heroStatus}</span>
         </div>
 
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>{dateLabel}</div>
         <div style={s.heroTitle}>План питания на сегодня</div>
         <div style={s.heroSubtitle}>Детальный состав приёмов пищи на текущий день</div>
-
-        <div style={s.heroFooter}>
-          <Stat icon="🔥" label={isTrainingDay ? "Ккал (усилено)" : "Ккал (итого)"} value={String(displayKcal)} />
-          <Stat icon="🥚" label="Белки" value={`${displayProtein} г`} />
-          <Stat icon="🍚" label="У/Ж" value={`${displayCarbs}/${displayFat} г`} />
-        </div>
 
         <button
           className="soft-glow"
@@ -251,6 +251,7 @@ export default function NutritionToday() {
             ...s.primaryBtn,
             opacity: loading ? 0.6 : 1,
             cursor: loading ? "not-allowed" : "pointer",
+            marginTop: 12,
           }}
           onClick={() => {
             setStage(0);
@@ -261,23 +262,35 @@ export default function NutritionToday() {
         </button>
       </section>
 
-      {/* Приёмы пищи */}
+      {/* Чипы под героем как на «Расписании» */}
+      <section style={{ ...s.block, ...s.statsSection }}>
+        <div style={s.statsRow}>
+          <Stat icon="🔥" label={isTrainingDay ? "Ккал (усилено)" : "Ккал (итого)"} value={String(displayKcal)} />
+          <Stat icon="🥚" label="Белки" value={`${displayProtein} г`} />
+          <Stat icon="🍚" label="Ж/У" value={`${displayFat}/${displayCarbs} г`} />
+        </div>
+        <div style={{ marginTop: 6, fontSize: 11, color: "#333", textAlign: "left" }}>
+          Цель на день: {formatValue(goalKcal)} ккал • Б/Ж/У: {formatValue(goalProtein)}/{formatValue(goalFat)}/{formatValue(goalCarbs)} г
+          {isTrainingDay ? ` (с учётом тренировки, +${boostPercent}%)` : ""}
+        </div>
+      </section>
+
+      {/* Приёмы пищи в стеклянном стиле как «Ближайшие» на «Расписании» */}
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card, overflow: "hidden" }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>🍽️</div>
             <div>
               <div style={ux.cardTitleRow}>
                 <div style={ux.cardTitle}>Приёмы пищи</div>
               </div>
               <div style={ux.cardHint}>
-                Цель на день: {formatValue(goalKcal)} ккал • Б/Ж/У: {formatValue(goalProtein)}/{formatValue(goalFat)}/{formatValue(goalCarbs)} г
-                {isTrainingDay ? ` (с учётом тренировки, +${boostPercent}%)` : ""}
+                Состав блюд и целевые значения по каждому приёму
               </div>
             </div>
           </div>
 
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 10, display: "grid", gap: 10 }}>
             {(displayDay.meals || []).map((m, idx) => {
               const mk = sum(m.items.map(i => i.kcal));
               const mp = sum(m.items.map(i => i.protein_g));
@@ -291,14 +304,13 @@ export default function NutritionToday() {
                     <div style={row.cues}>{fmtTargets({ mk, mp, mf, mc, targetKcal })}</div>
                   </div>
 
-                  {/* Состав приёма: белые карточки с iOS-тенями, без буллетов */}
+                  {/* Состав приёма: стеклянные строки */}
                   <div style={{ display: "grid", gap: 6 }}>
                     {(m.items || []).map((it, k) => {
                       const itemKcal = toNum(it.kcal);
                       return (
                         <div key={k} style={food.line}>
                           <div style={food.left}>
-                            {/* убрали точку-буллет */}
                             <div style={food.foodName}>{it.food}</div>
                             <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
                           </div>
@@ -318,7 +330,7 @@ export default function NutritionToday() {
         </div>
       </section>
 
-      {/* Плавающая кнопка с заметками (если есть) */}
+      {/* Плавающая кнопка с заметками (оставил весь функционал) */}
       {plan.notes && (
         <>
           {showNotes && (
@@ -383,7 +395,7 @@ function normalize(p: any) {
         protein_g: toNum(it.protein_g),
         fat_g: toNum(it.fat_g),
         carbs_g: toNum(it.carbs_g),
-        prep: it.prep ?? undefined,   // оставляем в данных, но не показываем в UI
+        prep: it.prep ?? undefined,
         notes: it.notes ?? undefined,
       })),
       notes: m.notes || undefined,
@@ -548,7 +560,7 @@ function fmtTargets(agg: { mk: number; mp: number; mf: number; mc: number; targe
   const t = [
     `${agg.mk} ккал`,
     `${agg.mp} г белка`,
-    `${agg.mc}/${agg.mf} г У/Ж`,
+    `${agg.mf}/${agg.mc} г Ж/У`,
     typeof agg.targetKcal === "number" ? `цель ${agg.targetKcal} ккал` : null,
   ].filter(Boolean).join(" • ");
   return t;
@@ -589,6 +601,7 @@ function Loader({ stage, label }: { stage: number; label: string }) {
         <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>Шаг {Math.min(stage + 1, 5)} из 5</div>
         <div style={s.heroTitle}>{label}</div>
         <div style={s.loadWrap}><Spinner /><div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div></div>
+        {/* оставляем статусы лоадера как было */}
         <div style={s.heroFooter}>
           <Stat icon="🧠" label="Аналитика" value="в процессе" />
           <Stat icon="🧩" label="Подбор" value="готовится" />
@@ -615,40 +628,91 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   );
 }
 
+/** Чип как на «Расписании» */
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (<div style={s.stat}><div style={{ fontSize: 20 }}>{icon}</div><div style={{ fontSize: 12, color: "rgba(255,255,255,.85)" }}>{label}</div><div style={{ fontWeight: 700 }}>{value}</div></div>);
+  return (
+    <div style={s.stat}>
+      <div style={s.statEmoji}>{icon}</div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={s.statValue}>{value}</div>
+    </div>
+  );
 }
+
 function SkeletonLine({ w = 100 }: { w?: number }) {
   return (<div style={{height:10,width:`${w}%`,borderRadius:6,background:"linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%)",backgroundSize:"400% 100%",animation:"shimmer 1.4s ease-in-out infinite",marginTop:8}} />);
 }
 
 /* ---------------- стили ---------------- */
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const SCHEDULE_BTN_GRADIENT = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+
 const s: Record<string, React.CSSProperties> = {
-  page:{maxWidth:720,margin:"0 auto",padding:"16px",fontFamily:"system-ui,-apple-system,'Inter','Roboto',Segoe UI"},
-  heroCard:{position:"relative",padding:16,borderRadius:20,boxShadow:cardShadow,
-    background:"linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
-    color:"#fff",overflow:"hidden"},
+  page:{
+    maxWidth:720,margin:"0 auto",padding:"16px",
+    fontFamily:"system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background:"linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight:"100vh",backgroundAttachment:"fixed"
+  },
+
+  // чёрный hero как на «Расписании»
+  heroCard:{
+    position:"relative",padding:22,borderRadius:28,boxShadow:"0 2px 6px rgba(0,0,0,.08)",
+    background:"#050505",color:"#fff",overflow:"hidden"
+  },
   heroHeader:{display:"flex",justifyContent:"space-between",alignItems:"center"},
-  pill:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
-  credits:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
-  heroTitle:{fontSize:22,fontWeight:800,marginTop:6}, heroSubtitle:{opacity:.92,marginTop:2},
-  // новый компактный бейдж "Усиленный план питания"
-  boostBadge:{marginTop:8,fontSize:12,fontWeight:800,color:"#1b1b1b",background:"linear-gradient(135deg, rgba(143,227,143,.6), rgba(102,191,102,.5))",padding:"8px 12px",borderRadius:12,display:"inline-flex",gap:6,alignItems:"center",boxShadow:"0 6px 16px rgba(0,0,0,.12), inset 0 0 0 1px rgba(72,160,72,.25)"},
-  primaryBtn:{marginTop:14,width:"100%",border:"none",borderRadius:14,padding:"14px 16px",fontSize:16,fontWeight:700,
-    color:"#1b1b1b",background:"linear-gradient(135deg,#ffe680,#ffb36b)",boxShadow:"0 6px 18px rgba(0,0,0,.15)",cursor:"pointer"},
-  heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},
-  stat:{background:"rgba(255,255,255,.15)",borderRadius:12,padding:10,textAlign:"center",backdropFilter:"blur(6px)",fontWeight:600},
+  pill:{
+    background:"rgba(255,255,255,.08)",padding:"6px 12px",borderRadius:999,fontSize:12,color:"#fff",
+    border:"1px solid rgba(255,255,255,.18)",backdropFilter:"blur(6px)",textTransform:"capitalize"
+  },
+  credits:{
+    background:"rgba(255,255,255,.08)",padding:"6px 12px",borderRadius:999,fontSize:12,color:"#fff",
+    border:"1px solid rgba(255,255,255,.18)",backdropFilter:"blur(6px)"
+  },
+  heroTitle:{fontSize:26,fontWeight:800,marginTop:6,color:"#fff"},
+  heroSubtitle:{opacity:.9,marginTop:4,color:"rgba(255,255,255,.85)"},
+
+  // кнопка как на «Расписании»
+  primaryBtn:{
+    border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
+    background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%"
+  },
+
+  // секция чипов как на «Расписании»
+  statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
+  statsRow:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12},
+  stat:{
+    background:"rgba(255,255,255,0.6)",borderRadius:12,border:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
+    padding:"10px 8px",minHeight:96,display:"grid",placeItems:"center",textAlign:"center",gap:4
+  },
+  statEmoji:{fontSize:20,color:"#111"},
+  statLabel:{fontSize:11,color:"rgba(0,0,0,.75)",letterSpacing:0.2,textTransform:"none"},
+  statValue:{fontWeight:800,fontSize:18,color:"#111"},
+
   block:{marginTop:16,padding:0,borderRadius:16,background:"transparent",boxShadow:"none"},
   blockWhite:{marginTop:16,padding:14,borderRadius:16,background:"#fff",boxShadow:cardShadow},
-  rowBtn:{border:"none",padding:"12px 14px",borderRadius:12,fontWeight:700,color:"#fff",
-    background:"linear-gradient(135deg,#6a8dff,#8a64ff)",cursor:"pointer",marginTop:8},
+  rowBtn:{
+    border:"none",padding:"12px 14px",borderRadius:12,fontWeight:700,color:"#fff",
+    background:"linear-gradient(135deg,#6a8dff,#8a64ff)",cursor:"pointer",marginTop:8
+  },
+  heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}, // используется в Loader
   loadWrap:{marginTop:10,display:"grid",justifyItems:"center"},
 };
-const uxColors = { headerBg:"linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))" };
+
 const ux: Record<string, any> = {
-  card:{borderRadius:18,border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.06)",overflow:"hidden",background:"#fff",position:"relative"},
-  cardHeader:{display:"grid",gridTemplateColumns:"24px 1fr",alignItems:"center",gap:10,padding:10,borderBottom:"1px solid rgba(0,0,0,.06)"},
+  // стеклянная карточка как на «Расписании»
+  card:{
+    borderRadius:20,
+    border:"1px solid rgba(255,255,255,.35)",
+    boxShadow:"0 16px 30px rgba(0,0,0,.12)",
+    background:"rgba(255,255,255,0.75)",
+    backdropFilter:"blur(14px)",
+    position:"relative"
+  },
+  cardHeader:{
+    display:"grid",gridTemplateColumns:"24px 1fr",alignItems:"center",gap:10,padding:14,
+    borderBottom:"1px solid rgba(255,255,255,.4)",background:"rgba(255,255,255,0.6)"
+  },
   iconInline:{width:24,height:24,display:"grid",placeItems:"center",fontSize:18},
   cardTitleRow:{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"},
   cardTitle:{fontSize:15,fontWeight:750,color:"#1b1b1b",lineHeight:1.2},
@@ -656,26 +720,19 @@ const ux: Record<string, any> = {
 };
 
 const mealCard: Record<string, React.CSSProperties> = {
-  // фон блока приёма питания = как у шапки
+  // стеклянный блок приёма
   wrap:{
-    background: uxColors.headerBg,
-    borderRadius: 14,
-    padding: 10,
-    display: "grid",
-    gap: 8,
-    marginBottom: 10,
-    boxShadow: "0 6px 14px rgba(0,0,0,.06)",
-  },
-  header:{
+    borderRadius:14,
+    padding:10,
     display:"grid",
-    gap:4,
-    color:"#1b1b1b",
+    gap:8,
+    background:"rgba(255,255,255,0.75)",
+    border:"1px solid rgba(255,255,255,.35)",
+    boxShadow:"0 10px 24px rgba(0,0,0,.12)",
+    backdropFilter:"blur(10px)",
   },
-  notes:{
-    fontSize:11,
-    color:"#4a4a4a",
-    marginTop:6,
-  }
+  header:{display:"grid",gap:4,color:"#1b1b1b"},
+  notes:{fontSize:11,color:"#4a4a4a",marginTop:6},
 };
 
 const row: Record<string, React.CSSProperties> = {
@@ -684,7 +741,7 @@ const row: Record<string, React.CSSProperties> = {
 };
 
 const food: Record<string, React.CSSProperties> = {
-  // белые карточки со «стеклянной» iOS-тенью
+  // строки внутри — тоже стеклянные, но чуть плотнее
   line:{
     display:"grid",
     gridTemplateColumns:"1fr auto",
@@ -692,8 +749,10 @@ const food: Record<string, React.CSSProperties> = {
     gap:8,
     padding:"10px 12px",
     borderRadius:12,
-    background:"#fff",
+    background:"rgba(255,255,255,0.9)",
+    border:"1px solid rgba(0,0,0,.06)",
     boxShadow:"0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter:"blur(6px)",
   },
   left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
   foodName:{fontSize:13.5,fontWeight:400,color:"#1b1b1b",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
@@ -712,30 +771,42 @@ const notesStyles: Record<string, React.CSSProperties> = {
     cursor:"pointer",
     zIndex:9999
   },
+  // кружок — тем же градиентом, что и кнопка «Сгенерировать заново»
   fabCircle:{
-  width:56,
-  height:56,
-  borderRadius:"50%",
-  background:"linear-gradient(135deg,#ffe680,#ffb36b)",
-  border:"none",
-  boxShadow:"0 6px 18px rgba(0,0,0,.25)",
-  display:"grid",
-  placeItems:"center",
-  fontWeight:700,
-  color:"#1b1b1b"
-},
-  speechBubble:{maxWidth:180,background:"#fff",boxShadow:"0 10px 24px rgba(0,0,0,.15)",borderRadius:14,padding:"10px 12px",position:"relative",border:"1px solid rgba(0,0,0,.06)"},
+    width:56,height:56,borderRadius:"50%",
+    background:SCHEDULE_BTN_GRADIENT,
+    border:"none",
+    boxShadow:"0 6px 18px rgba(0,0,0,.25)",
+    display:"grid",placeItems:"center",
+    fontWeight:700,color:"#1b1b1b"
+  },
+  speechBubble:{
+    maxWidth:180,background:"#fff",boxShadow:"0 10px 24px rgba(0,0,0,.15)",
+    borderRadius:14,padding:"10px 12px",position:"relative",
+    border:"1px solid rgba(0,0,0,.06)"
+  },
   speechText:{fontSize:12,fontWeight:600,color:"#1b1b1b",lineHeight:1.3},
-  speechArrow:{position:"absolute",right:-6,bottom:10,width:0,height:0,borderTop:"6px solid transparent",borderBottom:"6px solid transparent",borderLeft:"6px solid #fff",
-    filter:"drop-shadow(0 2px 2px rgba(0,0,0,.1))"},
+  speechArrow:{
+    position:"absolute",right:-6,bottom:10,width:0,height:0,
+    borderTop:"6px solid transparent",borderBottom:"6px solid transparent",borderLeft:"6px solid #fff",
+    filter:"drop-shadow(0 2px 2px rgba(0,0,0,.1))"
+  },
   chatPanelWrap:{position:"fixed",right:16,bottom:210,zIndex:10000,maxWidth:300,width:"calc(100% - 32px)"},
-  chatPanel:{background:"#fff",borderRadius:20,boxShadow:"0 24px 64px rgba(0,0,0,.4)",border:"1px solid rgba(0,0,0,.06)",maxHeight:"40vh",display:"flex",flexDirection:"column",overflow:"hidden"},
-  chatHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"12px 12px 10px",borderBottom:"1px solid rgba(0,0,0,.06)",
-    background:"linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))"},
+  chatPanel:{
+    background:"#fff",borderRadius:20,boxShadow:"0 24px 64px rgba(0,0,0,.4)",
+    border:"1px solid rgba(0,0,0,.06)",maxHeight:"40vh",display:"flex",flexDirection:"column",overflow:"hidden"
+  },
+  chatHeader:{
+    display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"12px 12px 10px",
+    borderBottom:"1px solid rgba(0,0,0,.06)",
+    background:"linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))"
+  },
   chatHeaderLeft:{display:"flex",alignItems:"center",gap:8},
   robotIconLarge:{fontSize:20,lineHeight:1},
   chatTitle:{fontSize:14,fontWeight:700,color:"#1b1b1b"},
-  closeBtn:{background:"rgba(0,0,0,0.08)",border:"none",borderRadius:8,width:28,height:28,fontSize:16,fontWeight:600,lineHeight:1,color:"#1b1b1b",
-    display:"grid",placeItems:"center",cursor:"pointer"},
+  closeBtn:{
+    background:"rgba(0,0,0,0.08)",border:"none",borderRadius:8,width:28,height:28,fontSize:16,fontWeight:600,lineHeight:1,color:"#1b1b1b",
+    display:"grid",placeItems:"center",cursor:"pointer"
+  },
   chatBody:{padding:12,fontSize:13.5,lineHeight:1.4,color:"#1b1b1b",whiteSpace:"pre-wrap",overflowY:"auto"},
 };

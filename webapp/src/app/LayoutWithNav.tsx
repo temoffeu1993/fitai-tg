@@ -15,8 +15,8 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   return "none";
 }
 
-function shouldHideNav(pathname: string) {
-  return pathname.startsWith("/workout/session");
+function shouldHideNav(_pathname: string) {
+  return false;
 }
 
 export default function LayoutWithNav() {

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import robotImg from "../assets/robot.jpg";
+import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
 
 const HISTORY_KEY = "history_sessions_v1";

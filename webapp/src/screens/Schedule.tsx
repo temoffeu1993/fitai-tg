@@ -305,18 +305,11 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Расписание</span>
-          <span style={s.credits}>Твоя программа</span>
+          <span style={s.pill}>{monthLabel}</span>
+          <span style={s.credits}>Расписание</span>
         </div>
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>{monthLabel}</div>
         <div style={s.heroTitle}>Календарь тренировок</div>
         <div style={s.heroSubtitle}>Запланируй и держи под контролем</div>
-
-        <div style={s.heroFooter}>
-          <Stat icon="📅" label="Запланированно" value={String(totalTrainingsInViewMonth)} />
-          <Stat icon="✔️" label="Выполнено" value={String(completedInViewMonth)} />
-          <Stat icon="📈" label="Прогресс" value={`${progressPct}%`} />
-        </div>
 
         <div
   style={{
@@ -336,9 +329,17 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
       </section>
 
+      <section style={{ ...s.block, ...s.statsSection }}>
+        <div style={s.statsRow}>
+          <Stat icon="📅" label="План" value={String(totalTrainingsInViewMonth)} />
+          <Stat icon="✔️" label="Выполнено" value={String(completedInViewMonth)} />
+          <Stat icon="📈" label="Прогресс" value={`${progressPct}%`} />
+        </div>
+      </section>
+
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow, overflow: "hidden" }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card, overflow: "hidden" }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>🗓️</div>
             <div>
               <div style={ux.cardTitleRow}>
@@ -366,10 +367,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
               const hasCompleted = items.some((w) => w.status === "completed");
               const scheduledItem = items.find((w) => w.status === "scheduled");
               const primaryPlanned = scheduledItem ?? items[0] ?? null;
-              const displayTime = primaryPlanned
+              let displayTime = primaryPlanned
                 ? formatTime(primaryPlanned.scheduledFor)
                 : slotEntry?.time ?? null;
-              const extraCount = primaryPlanned ? Math.max(items.length - 1, 0) : 0;
+              let extraCount = primaryPlanned ? Math.max(items.length - 1, 0) : 0;
               const cellState = hasCompleted
                 ? "completed"
                 : primaryPlanned
@@ -377,14 +378,20 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                 : slotEntry
                 ? "slot"
                 : "empty";
-              const badgeStyle =
-                cellState === "completed"
-                  ? { ...cal.timeBadge, ...cal.timeBadgeDone }
-                  : cellState === "planned"
-                  ? { ...cal.timeBadge, ...cal.timeBadgePlanned }
+              if (cellState === "completed") {
+                displayTime = null;
+                extraCount = 0;
+              }
+              const showTime = displayTime && (cellState === "planned" || cellState === "slot");
+              const timeStyle =
+                cellState === "planned"
+                  ? { ...cal.timeText, ...cal.timeTextPlanned }
                   : cellState === "slot"
-                  ? { ...cal.timeBadge, ...cal.timeBadgeSlot }
+                  ? { ...cal.timeText, ...cal.timeTextSlot }
                   : null;
+              const [timeHours, timeMinutes] = displayTime ? displayTime.split(":") : ["", ""];
+              const timeTop = timeHours ? `${timeHours}:` : "";
+              const timeBottom = timeMinutes ?? "";
               return (
                 <button
                   key={key}
@@ -399,11 +406,14 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                   onClick={() => openDate(day)}
                 >
                   <div style={cal.dateNum}>{day.getDate()}</div>
-                  {badgeStyle && displayTime && (
-                    <div style={badgeStyle}>{displayTime}</div>
+                  {showTime && timeStyle && (
+                    <div style={timeStyle}>
+                      <span style={cal.timeLineTop}>{timeTop}</span>
+                      <span style={cal.timeLineBottom}>{timeBottom}</span>
+                    </div>
                   )}
-                  {cellState === "completed" && !displayTime && (
-                    <div style={{ ...cal.timeBadge, ...cal.timeBadgeDone }}>✓</div>
+                  {cellState === "completed" && (
+                    <div style={cal.checkMark}>✓</div>
                   )}
                   {extraCount > 0 ? (
                     <div style={cal.countBadge}>+{extraCount}</div>
@@ -416,8 +426,8 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       </section>
 
       <section style={s.block}>
-        <div style={{ ...ux.card, boxShadow: ux.card.boxShadow, borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ ...ux.cardHeader, background: uxColors.headerBg }}>
+        <div style={{ ...ux.card, overflow: "hidden" }}>
+          <div style={{ ...ux.cardHeader }}>
             <div style={ux.iconInline}>📌</div>
             <div>
               <div style={ux.cardTitleRow}>
@@ -438,9 +448,18 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                     <div style={list.title}>{fmtFullDate(item.scheduledFor)}</div>
                     <div style={list.hint}>В {formatTime(item.scheduledFor)}</div>
                   </div>
-                  <button style={s.rowBtn} onClick={() => openWorkout(item)}>
-                    Открыть
-                  </button>
+                 <button
+  style={{
+    ...s.rowBtn,
+    background: "#000",
+    color: "#fff",
+    boxShadow: "none",
+    border: "1px solid rgba(255,255,255,0.2)",
+  }}
+  onClick={() => openWorkout(item)}
+>
+  Открыть
+</button>
                 </div>
               ))
             )}
@@ -483,12 +502,6 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           onStart={() => handleStart(modal.workout)}
         />
       )}
-
-      <div style={footer.ctaBar}>
-        <button style={footer.btn} onClick={() => nav("/")}>
-          На дашборд
-        </button>
-      </div>
     </div>
   );
 }
@@ -518,52 +531,45 @@ function SlotModal({
 }) {
   const [hh, mm] = time.split(":").map(v => Number(v) || 0);
 
-  const setHour = (v: number) => {
-    const newTime = `${String(v).padStart(2,"0")}:${String(mm).padStart(2,"0")}`;
-    onChange(newTime);
-  };
-  
-  const setMin = (v: number) => {
-    const newTime = `${String(hh).padStart(2,"0")}:${String(v).padStart(2,"0")}`;
-    onChange(newTime);
-  };
+  const setHour = (v: number) => onChange(`${String(v).padStart(2,"0")}:${String(mm).padStart(2,"0")}`);
+  const setMin  = (v: number) => onChange(`${String(hh).padStart(2,"0")}:${String(v).padStart(2,"0")}`);
 
   // Блокировка скролла body
   useEffect(() => {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     const originalPosition = window.getComputedStyle(document.body).position;
     const scrollY = window.scrollY;
-    
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    
+    document.body.style.left = "0";
+    document.body.style.right = "0";
     return () => {
       document.body.style.overflow = originalStyle;
       document.body.style.position = originalPosition;
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
       window.scrollTo(0, scrollY);
     };
   }, []);
+
+  // Только дата, всегда в одну строку
+  const modalDateLabel = parseIsoDate(iso).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <div
       style={slotModalStyles.wrap}
       role="dialog"
       aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onTouchMove={(e) => {
         const target = e.target as HTMLElement;
-        const scrollContainer = target.closest('[data-wheel-scroll]');
-        if (!scrollContainer) {
-          e.preventDefault();
-        }
+        const scrollContainer = target.closest("[data-wheel-scroll]");
+        if (!scrollContainer) e.preventDefault();
       }}
     >
       <div style={slotModalStyles.card}>
@@ -571,41 +577,26 @@ function SlotModal({
           <button type="button" style={slotModalStyles.topBtnGhost} onClick={onClose} disabled={saving}>
             Отмена
           </button>
-          <div style={slotModalStyles.title}>{fmtFullDate(iso)}</div>
+          <div style={slotModalStyles.title} title={modalDateLabel}>{modalDateLabel}</div>
           <button type="button" style={slotModalStyles.topBtnPrimary} onClick={onSave} disabled={saving}>
             Сохранить
           </button>
         </div>
 
-
+        {/* зона колес — фон как у экрана schedule.tsx */}
         <div style={wheel.container}>
-  <div style={wheel.fadeTop} />
-  <Wheel
-    value={hh}
-    maxValue={23}
-    onChange={setHour}
-    ariaLabel="Часы"
-  />
-  <div style={wheel.sep}>:</div>
-  <Wheel
-    value={mm}
-    maxValue={59}
-    onChange={setMin}
-    ariaLabel="Минуты"
-  />
-  <div style={wheel.fadeBottom} />
-  <div style={wheel.selector} />
-</div>
+          <div style={wheel.fadeTop} />
+          <Wheel value={hh} maxValue={23} onChange={setHour} ariaLabel="Часы" />
+          <div style={wheel.sep}>:</div>
+          <Wheel value={mm} maxValue={59} onChange={setMin} ariaLabel="Минуты" />
+          <div style={wheel.fadeBottom} />
+          <div style={wheel.selector} />
+        </div>
 
         {error && <div style={slotModalStyles.error}>{error}</div>}
 
         {hasExisting && (
-          <button
-            type="button"
-            style={slotModalStyles.delete}
-            onClick={onDelete}
-            disabled={saving}
-          >
+          <button type="button" style={slotModalStyles.delete} onClick={onDelete} disabled={saving}>
             Удалить запись
           </button>
         )}
@@ -872,18 +863,18 @@ function PlanPreviewModal({
         <div style={modalStyles.statsGrid}>
           <div style={modalStyles.statBox}>
             <div style={modalStyles.statIcon}>⚡</div>
-            <div style={modalStyles.statValue}>{totalExercises}</div>
             <div style={modalStyles.statLabel}>Упражнений</div>
+            <div style={modalStyles.statValue}>{totalExercises}</div>
           </div>
           <div style={modalStyles.statBox}>
             <div style={modalStyles.statIcon}>🕒</div>
-            <div style={modalStyles.statValue}>{estimatedMinutes}</div>
             <div style={modalStyles.statLabel}>Минут</div>
+            <div style={modalStyles.statValue}>{estimatedMinutes}</div>
           </div>
           <div style={modalStyles.statBox}>
             <div style={modalStyles.statIcon}>📍</div>
-            <div style={modalStyles.statValue}>{location}</div>
             <div style={modalStyles.statLabel}>Локация</div>
+            <div style={modalStyles.statValue}>{location}</div>
           </div>
         </div>
 
@@ -892,10 +883,9 @@ function PlanPreviewModal({
         {/* Кнопки */}
         <div style={modalStyles.actions}>
           <button
-            className="soft-glow"
-            type="button"
-            style={modalStyles.startBtn}
-            onClick={onStart}
+  type="button"
+  style={modalStyles.startBtn}
+  onClick={onStart}
             disabled={saving || workout.status === "completed"}
           >
             {workout.status === "completed" ? "✓ Завершена" : "Начать тренировку"}
@@ -943,9 +933,9 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry: () => void }) {
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={s.stat}>
-      <div style={{ fontSize: 20 }}>{icon}</div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,.85)" }}>{label}</div>
-      <div style={{ fontWeight: 700 }}>{value}</div>
+      <div style={s.statEmoji}>{icon}</div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={s.statValue}>{value}</div>
     </div>
   );
 }
@@ -1097,76 +1087,103 @@ function formatTime(iso: string) {
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
 const s: Record<string, CSSProperties> = {
   page: {
-    maxWidth: 720,
+    maxWidth: 760,
     margin: "0 auto",
     padding: "16px",
     fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight: "100vh",
+    backgroundAttachment: "fixed",
   },
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   pill: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
     backdropFilter: "blur(6px)",
+    textTransform: "capitalize",
   },
   credits: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
     backdropFilter: "blur(6px)",
   },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
-  heroFooter: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 8,
-  },
-  stat: {
-    background: "rgba(255,255,255,.15)",
-    borderRadius: 12,
-    padding: 10,
-    textAlign: "center",
-    backdropFilter: "blur(6px)",
-    fontWeight: 600,
-  },
+  heroTitle: { fontSize: 26, fontWeight: 800, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.9, marginTop: 4, color: "rgba(255,255,255,.85)" },
   primaryBtn: {
     border: "none",
-    borderRadius: 14,
-    padding: "12px 14px",
-    fontSize: 14,
+    borderRadius: 16,
+    padding: "14px 18px",
+    fontSize: 16,
     fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    color: "#000",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
   },
   block: {
-    marginTop: 16,
+    marginTop: 20,
     padding: 0,
-    borderRadius: 16,
-    background: "#fff",
-    boxShadow: cardShadow,
+    borderRadius: 20,
+    background: "transparent",
+    boxShadow: "none",
   },
+  statsSection: {
+    marginTop: 12,
+    padding: 0,
+    background: "transparent",
+    boxShadow: "none",
+  },
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+    gap: 12,
+  },
+  stat: {
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    gap: 4,
+  },
+  statEmoji: { fontSize: 20, color: "#111" },
+  statLabel: {
+    fontSize: 11,
+    color: "rgba(0,0,0,.75)",
+    letterSpacing: 0.2,
+    textTransform: "none",
+  },
+  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
   blockWhite: {
     marginTop: 16,
-    padding: 14,
-    borderRadius: 16,
-    background: "#fff",
-    boxShadow: cardShadow,
+    padding: 16,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.8)",
+    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
+    backdropFilter: "blur(12px)",
   },
   rowBtn: {
     border: "none",
@@ -1179,16 +1196,13 @@ const s: Record<string, CSSProperties> = {
   },
 };
 
-const uxColors = {
-  headerBg: "linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))",
-};
-
 const ux: Record<string, any> = {
   card: {
-    borderRadius: 18,
-    border: "none",
-    boxShadow: "0 8px 24px rgba(0,0,0,.06)",
-    background: "#fff",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,.35)",
+    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
+    background: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(14px)",
     position: "relative",
   },
   cardHeader: {
@@ -1196,8 +1210,9 @@ const ux: Record<string, any> = {
     gridTemplateColumns: "24px 1fr",
     alignItems: "center",
     gap: 10,
-    padding: 10,
-    borderBottom: "1px solid rgba(0,0,0,.06)",
+    padding: 14,
+    borderBottom: "1px solid rgba(255,255,255,.4)",
+    background: "rgba(255,255,255,0.6)",
   },
   iconInline: {
     width: 24,
@@ -1220,71 +1235,101 @@ const cal: Record<string, CSSProperties> = {
   headerRow: {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
-    gap: 6,
-    padding: "10px 10px 0",
+    gap: 8,
+    padding: "14px 14px 0",
   },
-  headerCell: { textAlign: "center", fontSize: 12, fontWeight: 700, color: "#555" },
+  headerCell: {
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#4b5563",
+    opacity: 0.85,
+  },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
-    gap: 6,
-    padding: 10,
+    gap: 8,
+    padding: 14,
   },
   cell: {
-    border: "1px solid rgba(0,0,0,.06)",
-    borderRadius: 12,
-    background: "#fff",
-    padding: 8,
+    border: "1px solid rgba(255,255,255,.45)",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.75)",
+    padding: "8px 8px 30px",
     textAlign: "left",
-    display: "grid",
-    alignContent: "start",
-    gap: 6,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 4,
     cursor: "pointer",
-    minHeight: 64,
+    minHeight: 76,
+    height: 76,
+    boxShadow: "0 12px 28px rgba(0,0,0,.12)",
+    backdropFilter: "blur(12px)",
+    overflow: "hidden",
+    position: "relative",
   },
-  today: { boxShadow: "inset 0 0 0 2px rgba(114,135,255,.9)" },
+  today: { boxShadow: "0 0 0 2px rgba(114,135,255,.4)" },
   slot: {
-    background: "linear-gradient(135deg, rgba(114,135,255,.12), rgba(164,94,255,.12))",
-    border: "1px solid rgba(114,135,255,.2)",
+    background: "rgba(114,135,255,.2)",
+    borderColor: "rgba(114,135,255,.4)",
   },
   planned: {
-    background: "linear-gradient(135deg, rgba(255,230,128,.3), rgba(255,179,107,.28))",
-    border: "1px solid rgba(0,0,0,.08)",
+    background: "rgba(255,230,128,.25)",
+    borderColor: "rgba(255,179,107,.4)",
   },
   completed: {
-    background: "linear-gradient(135deg, rgba(143, 227, 143, .35), rgba(102, 191, 102, .3))",
-    border: "1px solid rgba(72, 160, 72, .35)",
+    background: "rgba(143,227,143,.25)",
+    borderColor: "rgba(72,160,72,.45)",
   },
   dateNum: { fontSize: 13, fontWeight: 800, color: "#111" },
-  timeBadge: {
-    justifySelf: "start",
-    fontSize: 11,
-    fontWeight: 700,
-    background: "rgba(0,0,0,.06)",
-    borderRadius: 999,
-    padding: "4px 8px",
-    color: "#111",
+  timeText: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    bottom: 6,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    color: "#1f2933",
+    gap: 0,
+    textAlign: "left",
+    pointerEvents: "none",
   },
-  timeBadgeDone: {
-    background: "rgba(60, 140, 60, .15)",
-    color: "#1f6b1f",
-  },
-  timeBadgePlanned: {
-    background: "rgba(255,179,107,.22)",
+  timeTextPlanned: {
     color: "#8a4d0f",
   },
-  timeBadgeSlot: {
-    background: "rgba(114,135,255,.18)",
+  timeTextSlot: {
     color: "#2f3a8f",
+  },
+  timeLineTop: {
+    fontSize: 11,
+    fontWeight: 700,
+    lineHeight: 1,
+  },
+  timeLineBottom: {
+    fontSize: 11,
+    fontWeight: 700,
+    lineHeight: 1,
+    marginTop: 2,
+  },
+  checkMark: {
+    position: "absolute",
+    right: 8,
+    bottom: 6,
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#1f6b1f",
   },
   countBadge: {
     justifySelf: "start",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 600,
-    background: "rgba(0,0,0,.08)",
+    background: "rgba(255,255,255,.9)",
     borderRadius: 999,
-    padding: "2px 8px",
-    color: "#555",
+    padding: "2px 6px",
+    color: "#374151",
   },
 };
 
@@ -1294,9 +1339,11 @@ const list: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "center",
     padding: "8px 10px",
-    borderRadius: 10,
-    background: "#fff",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.75)",
+    boxShadow: "0 10px 24px rgba(0,0,0,.08)",
+    border: "1px solid rgba(255,255,255,.35)",
+    backdropFilter: "blur(10px)",
   },
   left: { display: "grid", gap: 2 },
   title: { fontWeight: 700, fontSize: 14 },
@@ -1307,18 +1354,20 @@ const slotModalStyles: Record<string, CSSProperties> = {
   wrap: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,.35)",
+    background: "rgba(0,0,0,.55)",
     display: "grid",
     placeItems: "center",
     zIndex: 1900,
     padding: 16,
     overflow: "hidden",
   },
+  // сам модал — чёрный фон
   card: {
     width: "min(92vw, 420px)",
-    background: "#fff",
+    background: "#000",
+    color: "#fff",
     borderRadius: 20,
-    boxShadow: "0 24px 64px rgba(0,0,0,.35)",
+    boxShadow: "0 24px 64px rgba(0,0,0,.65)",
     padding: "12px 12px 14px",
     display: "grid",
     gap: 10,
@@ -1329,44 +1378,45 @@ const slotModalStyles: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 8,
   },
+  // «Отмена» — белый текст без фона
   topBtnGhost: {
     justifySelf: "start",
     border: "none",
     background: "transparent",
-    fontWeight: 400,
-    color: "#6a8dff",
+    color: "#fff",
     padding: "10px 12px",
     borderRadius: 10,
     cursor: "pointer",
     fontSize: 17,
+    fontWeight: 600,
   },
-  topBtnPrimary: {
+  // «Сохранить» — фон как у кнопки редактирования анкеты, чёрный текст
+      topBtnPrimary: {
     justifySelf: "end",
     border: "none",
-    background: "transparent",
-    fontWeight: 800,
-    color: "#6a8dff",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    color: "#000",
     padding: "10px 14px",
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: "pointer",
     fontSize: 17,
+    fontWeight: 800,
+    boxShadow: "0 6px 16px rgba(0,0,0,.3)",
   },
+
+  // дата — в одну строку
   title: {
     textAlign: "center",
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: 17,
-    color: "#1b1b1b",
-  },
-  subhint: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#666",
-    marginTop: 2,
-    marginBottom: 4,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   error: {
     background: "rgba(255,102,102,.12)",
-    color: "#d24",
+    color: "#ff8a8a",
     fontSize: 12,
     fontWeight: 600,
     padding: "8px 10px",
@@ -1378,39 +1428,31 @@ const slotModalStyles: Record<string, CSSProperties> = {
     padding: "12px",
     fontWeight: 400,
     background: "transparent",
-    color: "#d32f2f",
+    color: "#ff6b6b",
     cursor: "pointer",
-    fontSize: 17,
+    fontSize: 14,
+    justifySelf: "center",
   },
 };
 
 const wheel: Record<string, CSSProperties> = {
-  container: {
+  // фон под часами/минутами — как фон страницы schedule.tsx
+    container: {
     display: "grid",
     gridTemplateColumns: "1fr auto 1fr",
     gap: 8,
     alignItems: "center",
-    padding: "6px 8px",
+    padding: "8px 10px",
     borderRadius: 14,
-    background: "linear-gradient(135deg, rgba(114,135,255,.10), rgba(164,94,255,.08))",
+    // точный фон экрана Schedule — светлый и без прозрачности
+    background:
+      "linear-gradient(135deg, #ECE3FF 0%, #D9C2F0 45%, #FFD8C2 100%)",
     position: "relative",
     overflow: "hidden",
   },
-  sep: {
-    fontSize: 24,
-    fontWeight: 900,
-    opacity: 0.6,
-    alignSelf: "center",
-    margin: "0 2px",
-  },
-  colWrap: {
-    position: "relative",
-    height: 180,
-    overflow: "hidden",
-    borderRadius: 12,
-    background: "transparent",
-    boxShadow: "none",
-  },
+
+  sep: { fontSize: 24, fontWeight: 900, opacity: 0.85, alignSelf: "center", margin: "0 2px", color: "#111" },
+  colWrap: { position: "relative", height: 180, overflow: "hidden", borderRadius: 12, background: "transparent" },
   col: {
     height: "100%",
     overflowY: "auto",
@@ -1424,37 +1466,35 @@ const wheel: Record<string, CSSProperties> = {
     placeItems: "center",
     scrollSnapAlign: "center",
     fontSize: 20,
-    fontWeight: 700,
-    color: "#444",
+    fontWeight: 800,
+    color: "#111",
     userSelect: "none",
   },
-  itemActive: {
-    color: "#111",
-    transform: "scale(1.06)",
-  },
-  
+  itemActive: { transform: "scale(1.06)" },
+
+  // лёгкие «шторки» сверху/снизу
   fadeTop: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
     height: 60,
-    background: "linear-gradient(to bottom, rgb(240,238,255) 0%, rgb(240,238,255) 20%, rgba(240,238,255,0) 100%)",
+    // светлый градиент в цвет фона schedule
+    background: "linear-gradient(to bottom, #ECE3FF 0%, #ECE3FF 35%, rgba(236,227,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 10,
   },
-  
   fadeBottom: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     height: 60,
-    background: "linear-gradient(to top, rgb(240,238,255) 0%, rgb(240,238,255) 20%, rgba(240,238,255,0) 100%)",
+    // такой же плавный градиент снизу вверх
+    background: "linear-gradient(to top, #FFD8C2 0%, #FFD8C2 35%, rgba(255,216,194,0) 100%)",
     pointerEvents: "none",
     zIndex: 10,
   },
-
   selector: {
     position: "absolute",
     left: 8,
@@ -1462,7 +1502,7 @@ const wheel: Record<string, CSSProperties> = {
     top: "calc(50% - 18px)",
     height: 36,
     borderRadius: 10,
-    boxShadow: "inset 0 0 0 2px rgba(114,135,255,.75)",
+    boxShadow: "inset 0 0 0 2px rgba(0,0,0,.6)",
     pointerEvents: "none",
   },
 };
@@ -1477,52 +1517,45 @@ const modalStyles: Record<string, CSSProperties> = {
     zIndex: 2000,
     padding: 16,
   },
+
+  // 1) Сам блок модала — стекло как чипы «План/Выполнено/Прогресс»
   card: {
   width: "min(92vw, 460px)",
   maxHeight: "90vh",
   overflowY: "auto",
-  background: "#fff",
+  background: "linear-gradient(135deg, #ECE3FF 0%, #D9C2F0 45%, #FFD8C2 100%)",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   borderRadius: 20,
-  boxShadow: "0 24px 64px rgba(0,0,0,.35)",
   display: "grid",
   gap: 14,
-  overflow: "hidden", // добавь эту строку
-},
+  overflow: "hidden",
+  },
 
-    dateTimeDisplay: {
+  // ===== Дата/время блок (как было) =====
+  dateTimeDisplay: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  dateTimeInfo: {
-    flex: 1,
-    display: "grid",
-    gap: 10,
-  },
-  dateTimeText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1b1b1b",
-  },
+  dateTimeInfo: { flex: 1, display: "grid", gap: 10 },
+  dateTimeText: { flex: 1, fontSize: 15, fontWeight: 600, color: "#1b1b1b" },
   editBtn: {
-    background: "rgba(114,135,255,.12)",
-    border: "none",
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    fontSize: 18,
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-    transition: "all 0.2s ease",
+  background: "rgba(255,255,255,0.6)",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+  backdropFilter: "blur(8px)",
+  width: 40,
+  height: 40,
+  borderRadius: 12,
+  fontSize: 18,
+  cursor: "pointer",
+  display: "grid",
+  placeItems: "center",
+  flexShrink: 0,
   },
-  dateTimeEdit: {
-    display: "grid",
-    gap: 10,
-  },
+  dateTimeEdit: { display: "grid", gap: 10 },
   saveEditBtn: {
     border: "none",
     borderRadius: 12,
@@ -1534,13 +1567,12 @@ const modalStyles: Record<string, CSSProperties> = {
     cursor: "pointer",
     marginTop: 4,
   },
-  
-  // Hero-шапка в стиле экрана генерации
+
+  // 2) Верхняя часть — чёрная
   heroHeader: {
     position: "relative",
     padding: 16,
-    borderRadius: "20px 20px 0 0",
-    background: "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    background: "#000",
     color: "#fff",
   },
   heroTop: {
@@ -1550,16 +1582,18 @@ const modalStyles: Record<string, CSSProperties> = {
     marginBottom: 8,
   },
   heroPill: {
-    background: "rgba(255,255,255,.2)",
+    background: "rgba(255,255,255,.18)",
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 12,
+    fontWeight: 700,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.24)",
     backdropFilter: "blur(6px)",
-    fontWeight: 600,
   },
   heroClose: {
-    background: "rgba(255,255,255,.2)",
-    border: "none",
+    background: "rgba(255,255,255,.18)",
+    border: "1px solid rgba(255,255,255,.24)",
     width: 28,
     height: 28,
     borderRadius: "50%",
@@ -1570,36 +1604,23 @@ const modalStyles: Record<string, CSSProperties> = {
     placeItems: "center",
     backdropFilter: "blur(6px)",
   },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: 800,
-    marginTop: 4,
-    lineHeight: 1.2,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    opacity: 0.92,
-    marginTop: 4,
-  },
+  heroTitle: { fontSize: 20, fontWeight: 800, marginTop: 4, lineHeight: 1.2, color: "#fff" },
+  heroSubtitle: { fontSize: 13, opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.9)" },
 
   // Дата/время карточка
   dateTimeCard: {
-    margin: "0 16px",
-    background: "linear-gradient(135deg, rgba(114,135,255,.08), rgba(164,94,255,.06))",
-    borderRadius: 14,
-    padding: 12,
-    display: "grid",
-    gap: 10,
+  margin: "0 16px",
+  background: "rgba(255, 255, 255, 0.60)",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+  backdropFilter: "blur(8px)",
+  borderRadius: 14,
+  padding: 12,
+  display: "grid",
+  gap: 10,
   },
-  dateTimeRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  },
-  dateTimeIcon: {
-    fontSize: 18,
-    flexShrink: 0,
-  },
+  dateTimeRow: { display: "flex", alignItems: "center", gap: 10 },
+  dateTimeIcon: { fontSize: 18, flexShrink: 0 },
   dateTimeInput: {
     flex: 1,
     border: "none",
@@ -1613,66 +1634,42 @@ const modalStyles: Record<string, CSSProperties> = {
     boxShadow: "0 2px 8px rgba(0,0,0,.06)",
   },
 
-  // Статистика
+  // 3) Чипы «Упражнений/Минут/Локация» — как «План/Выполнено/Прогресс»
   statsGrid: {
     margin: "0 16px",
     display: "grid",
     gridTemplateColumns: "repeat(3,1fr)",
-    gap: 8,
+    gap: 12,
   },
   statBox: {
-    background: "rgba(139,92,246,.08)",
+    background: "rgba(255, 255, 255, 0.60)",
     borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     padding: "10px 8px",
-    textAlign: "center",
+    minHeight: 96,
     display: "grid",
+    placeItems: "center",
+    textAlign: "center",
     gap: 4,
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   },
-  statIcon: {
-    fontSize: 20,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 800,
-    color: "#1b1b1b",
-    lineHeight: 1.2,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
+  statIcon: { fontSize: 20, color: "#111" },
+  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
   statLabel: {
-    fontSize: 10,
-    color: "#666",
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 11,
+    color: "rgba(0,0,0,.75)",
+    letterSpacing: 0.2,
+    textTransform: "none",
   },
 
   // Секция упражнений
-  section: {
-    margin: "0 16px",
-    display: "grid",
-    gap: 10,
-  },
-  sectionHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectionIcon: {
-    fontSize: 18,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: 750,
-    color: "#1b1b1b",
-  },
-  exercisesList: {
-    display: "grid",
-    gap: 6,
-    maxHeight: 200,
-    overflowY: "auto",
-  },
+  section: { margin: "0 16px", display: "grid", gap: 10 },
+  sectionHeader: { display: "flex", alignItems: "center", gap: 8 },
+  sectionIcon: { fontSize: 18 },
+  sectionTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b" },
+  exercisesList: { display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" },
   exRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -1682,38 +1679,14 @@ const modalStyles: Record<string, CSSProperties> = {
     background: "#fff",
     boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
   },
-  exLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  exName: {
-    fontSize: 13.5,
-    fontWeight: 650,
-    color: "#111",
-    lineHeight: 1.15,
-  },
-  exRight: {
-    marginLeft: 8,
-  },
-  exMeta: {
-    fontSize: 12.5,
-    fontWeight: 700,
-    color: "#666",
-    whiteSpace: "nowrap",
-  },
-  emptyState: {
-    padding: "16px 12px",
-    textAlign: "center",
-    fontSize: 13,
-    color: "#999",
-  },
-  moreText: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-    fontWeight: 600,
-  },
+  exLeft: { flex: 1, minWidth: 0 },
+  exName: { fontSize: 13.5, fontWeight: 650, color: "#111", lineHeight: 1.15 },
+  exRight: { marginLeft: 8 },
+  exMeta: { fontSize: 12.5, fontWeight: 700, color: "#666", whiteSpace: "nowrap" },
+  emptyState: { padding: "16px 12px", textAlign: "center", fontSize: 13, color: "#999" },
+  moreText: { fontSize: 12, color: "#666", textAlign: "center", fontWeight: 600 },
 
+  // Ошибка
   error: {
     margin: "0 16px",
     background: "rgba(255,102,102,.12)",
@@ -1724,54 +1697,30 @@ const modalStyles: Record<string, CSSProperties> = {
     borderRadius: 10,
   },
 
-  // Кнопки
-  actions: {
-    margin: "0 16px 16px",
-    display: "grid",
-    gap: 8,
-  },
+  // 4) Низ модала — кнопки
+  actions: { margin: "0 16px 16px", display: "grid", gap: 8 },
+
+  // «Начать тренировку» — стекло + фон как кнопки пролистывания месяца
   startBtn: {
-    border: "none",
-    borderRadius: 14,
-    padding: "14px",
-    fontWeight: 800,
-    fontSize: 15,
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    color: "#1b1b1b",
-    cursor: "pointer",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+  background: "#ffffffff",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+  backdropFilter: "blur(8px)",
+  borderRadius: 14,
+  padding: "14px",
+  fontWeight: 800,
+  fontSize: 15,
+  color: "#000000ff",
+  cursor: "pointer",
   },
   deleteBtn: {
     border: "none",
     borderRadius: 14,
     padding: "12px",
-    fontWeight: 600,
+    fontWeight: 400,
     fontSize: 14,
     background: "transparent",
-    color: "#d32f2f",
-    cursor: "pointer",
-  },
-};
-
-const footer: Record<string, CSSProperties> = {
-  ctaBar: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 12,
-    display: "grid",
-    placeItems: "center",
-    pointerEvents: "none",
-  },
-  btn: {
-    pointerEvents: "auto",
-    border: "none",
-    borderRadius: 14,
-    padding: "12px 18px",
-    fontWeight: 800,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.18)",
+    color: "#ff6b6b",
     cursor: "pointer",
   },
 };

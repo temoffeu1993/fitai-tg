@@ -53,6 +53,9 @@ export default function PlanOne() {
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
     []
   );
+  const today = useMemo(() => new Date(), []);
+  const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+  const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
 
   useEffect(() => {
     let mounted = true;
@@ -324,54 +327,54 @@ export default function PlanOne() {
       {/* HERO */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Сегодня</span>
-          <span style={s.credits}>План готов</span>
-        </div>
-
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
-          {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
+          <span style={s.pill}>{heroDateChip}</span>
         </div>
         <div style={s.heroTitle}>{plan.title || "Тренировка дня"}</div>
         <div style={s.heroSubtitle}>Краткое превью перед стартом</div>
 
-        {chips && (
-          <div style={s.heroFooter}>
-            <Stat icon="🎯" label="Тренировка" value={`#${workoutNumber}`} />
-            <Stat icon="🕒" label="Время" value={`${chips.minutes} мин`} />
-            <Stat icon="💪" label="Упражнения" value={`${totalExercises}`} />
-          </div>
-        )}
+        <div style={s.heroCtas}>
+          <button
+            style={s.primaryBtn}
+            onClick={() => {
+              try {
+                localStorage.setItem("current_plan", JSON.stringify(plan));
+                nav("/workout/session", { state: { plan } });
+              } catch (err) {
+                console.error("open session error", err);
+                alert("Не удалось открыть тренировку");
+              }
+            }}
+          >
+            Начать тренировку
+          </button>
+
+          <button
+            type="button"
+            style={s.secondaryBtn}
+            onClick={handleScheduleOpen}
+          >
+            Запланировать
+          </button>
+        </div>
 
         <button
-          className="soft-glow"
-          style={s.primaryBtn}
-          onClick={() => {
-            try {
-              localStorage.setItem("current_plan", JSON.stringify(plan));
-              nav("/workout/session", { state: { plan } });
-            } catch (err) {
-              console.error("open session error", err);
-              alert("Не удалось открыть тренировку");
-            }
-          }}
-        >
-          Начать тренировку
-        </button>
-
-        <button
-          style={s.secondaryBtn}
-          onClick={handleScheduleOpen}
-        >
-          Запланировать в календарь
-        </button>
-
-        <button
+          type="button"
           style={s.ghostBtn}
           onClick={handleRegenerate}
         >
           Сгенерировать заново
         </button>
       </section>
+
+      {chips && (
+        <section style={{ ...s.block, ...s.statsSection }}>
+          <div style={s.statsRow}>
+            <Stat icon="🎯" label="Тренировка" value={`#${workoutNumber}`} />
+            <Stat icon="🕒" label="Время" value={`${chips.minutes} мин`} />
+            <Stat icon="💪" label="Упражнения" value={`${totalExercises}`} />
+          </div>
+        </section>
+      )}
 
 
       {/* Разминка */}
@@ -599,7 +602,6 @@ function SectionCard({
         <button
           style={{
             ...ux.cardHeader,
-            background: uxColors.headerBg,
             width: "100%",
             border: "none",
             textAlign: "left",
@@ -625,7 +627,7 @@ function SectionCard({
           </div>
         </button>
 
-        {isOpen && <div style={{ padding: 10 }}>{children}</div>}
+        {isOpen && <div style={ux.cardBody}>{children}</div>}
       </div>
     </section>
   );
@@ -679,9 +681,9 @@ function ExercisesList({
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div style={s.stat}>
-      <div style={{ fontSize: 20 }}>{icon}</div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,.85)" }}>{label}</div>
-      <div style={{ fontWeight: 700 }}>{value}</div>
+      <div style={s.statEmoji}>{icon}</div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={s.statValue}>{value}</div>
     </div>
   );
 }
@@ -769,84 +771,82 @@ function TypingDotsStyles() {
 /* ----------------- Стиль под Dashboard ----------------- */
 
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const BLOCK_GRADIENT =
+  "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
 const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
     padding: "16px",
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight: "100vh",
+    backgroundAttachment: "fixed",
   },
 
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 20,
+    borderRadius: 24,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   pill: {
-    background: "rgba(255,255,255,.2)",
+    background: "rgba(255,255,255,.08)",
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 12,
-    backdropFilter: "blur(6px)",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.12)",
+    backdropFilter: "blur(4px)",
+    textTransform: "capitalize",
   },
   credits: {
-    background: "rgba(255,255,255,.2)",
+    background: "rgba(255,255,255,.6)",
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 12,
-    backdropFilter: "blur(6px)",
+    backdropFilter: "blur(8px)",
+    color: "#000",
   },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
-
-  primaryBtn: {
-    marginTop: 14,
+  heroTitle: { fontSize: 24, fontWeight: 800, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.85, marginTop: 4, color: "rgba(255,255,255,.85)" },
+  heroCtas: {
+    marginTop: 18,
+    display: "grid",
+    gap: 12,
     width: "100%",
-    border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
+  },
+  primaryBtn: {
+    width: "100%",
+    borderRadius: 16,
+    padding: "14px 18px",
     fontSize: 16,
     fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    color: "#000",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    border: "none",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
-    transition: "filter 0.3s ease, transform 0.3s ease",
   },
 
   secondaryBtn: {
-    marginTop: 10,
     width: "100%",
-    border: "none",
-    borderRadius: 14,
-    padding: "12px 14px",
-    fontSize: 15,
+    borderRadius: 16,
+    padding: "14px 18px",
+    fontSize: 16,
     fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#d7f3ff,#a0d9ff)",
-    boxShadow: "0 5px 16px rgba(0,0,0,.13)",
+    color: "#000",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    border: "none",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
-  },
-
-  heroFooter: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 8,
-  },
-  stat: {
-    background: "rgba(255,255,255,.15)",
-    borderRadius: 12,
-    padding: 10,
-    textAlign: "center",
-    backdropFilter: "blur(6px)",
-    fontWeight: 600,
   },
 
   block: {
@@ -856,6 +856,39 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     boxShadow: "none",
   },
+  statsSection: {
+    marginTop: 12,
+    padding: 0,
+    background: "transparent",
+    boxShadow: "none",
+  },
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(96px, 1fr))",
+    gap: 12,
+  },
+
+  stat: {
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    gap: 4,
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+  },
+  statEmoji: { fontSize: 22 },
+  statLabel: {
+    fontSize: 12,
+    opacity: 0.7,
+    lineHeight: 1.2,
+  },
+  statValue: { fontSize: 16, fontWeight: 800 },
 
   blockWhite: {
     marginTop: 16,
@@ -883,13 +916,13 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 10,
     padding: "8px 0",
     border: "none",
+    borderRadius: 14,
     background: "transparent",
     color: "#fff",
-    fontSize: 13,
-    fontWeight: 500,
+    fontSize: 14,
+    fontWeight: 400,
     cursor: "pointer",
     textAlign: "center",
-    opacity: 0.9,
   },
 
   analysisGrid: {
@@ -1039,7 +1072,7 @@ const modal: Record<string, React.CSSProperties> = {
 
 /* ----------------- Единые цвета секций ----------------- */
 const uxColors = {
-  headerBg: "linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))",
+  headerBg: "rgba(255,255,255,0.6)",
   subPill: "rgba(139,92,246,.14)",
   border: "rgba(139,92,246,.22)",
   iconBg: "transparent",
@@ -1049,10 +1082,11 @@ const uxColors = {
 const ux: Record<string, any> = {
   card: {
     borderRadius: 18,
-    border: "none",
-    boxShadow: "0 8px 24px rgba(0,0,0,.06)",
+    border: "1px solid rgba(0,0,0,.08)",
+    boxShadow: "0 6px 20px rgba(0,0,0,.08)",
     overflow: "hidden",
-    background: "#fff",
+    background: "rgba(255,255,255,0.6)",
+    backdropFilter: "blur(12px)",
     position: "relative",
   },
   cardHeader: {
@@ -1060,8 +1094,10 @@ const ux: Record<string, any> = {
     gridTemplateColumns: "24px 1fr",
     alignItems: "center",
     gap: 10,
-    padding: 10,
+    padding: 12,
     borderBottom: "1px solid rgba(0,0,0,.06)",
+    background: "rgba(255,255,255,0.6)",
+    backdropFilter: "blur(12px)",
   },
   iconInline: {
     width: 24,
@@ -1084,7 +1120,7 @@ const ux: Record<string, any> = {
     width: 24,
     height: 24,
     borderRadius: 8,
-    background: "rgba(139,92,246,.12)",
+    background: "rgba(255,255,255,0.4)",
     boxShadow: "inset 0 0 0 1px rgba(0,0,0,.05)",
     display: "grid",
     placeItems: "center",
@@ -1097,49 +1133,71 @@ const ux: Record<string, any> = {
     borderRight: "5px solid transparent",
     borderTop: "6px solid #4a3a7a",
   },
+  cardBody: {
+    padding: 12,
+    background: "rgba(255,255,255,0.6)",
+    backdropFilter: "blur(12px)",
+  },
 };
 
 /* ----------------- Строки упражнений ----------------- */
 const row: Record<string, React.CSSProperties> = {
   wrap: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    gap: 8,
-    padding: "8px 10px",
-    background: "#fff",
-    borderRadius: 10,
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
+    display: "flex",
+    alignItems: "stretch",
+    gap: 12,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.7)",
+    borderRadius: 14,
+    boxShadow: "0 8px 18px rgba(0,0,0,.06)",
+    border: "1px solid rgba(0,0,0,.04)",
+    backdropFilter: "blur(12px)",
+    flexWrap: "nowrap",
   },
-  left: { display: "grid", gap: 3, minWidth: 0 },
+  left: {
+    display: "grid",
+    gap: 4,
+    minWidth: 0,
+    flex: "1 1 auto",
+    marginRight: 8,
+  },
   name: { fontSize: 13.5, fontWeight: 650, color: "#111", lineHeight: 1.15, whiteSpace: "normal" },
   cues: { fontSize: 11, color: "#666" },
-  metrics: { display: "grid", alignItems: "center", justifyContent: "end" },
+  metrics: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    flex: "0 0 auto",
+    minWidth: 120,
+  },
 };
 
 /* ----------------- Капсулы метрик ----------------- */
 const caps: Record<string, React.CSSProperties> = {
   wrap: {
-    display: "grid",
+    display: "flex",
+    flexDirection: "column",
     gap: 6,
-    justifyItems: "end",
+    alignItems: "flex-end",
   },
   box: {
     display: "inline-flex",
+    flexWrap: "wrap",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
     gap: 6,
-    width: 90,
-    height: 28,
-    padding: "0 8px",
-    borderRadius: 12,
-    background: "rgba(139,92,246,.08)",
-    border: "none",
+    minWidth: 110,
+    padding: "6px 10px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(0,0,0,.08)",
     fontSize: 12.5,
     lineHeight: 1,
     fontFeatureSettings: "'tnum' 1, 'lnum' 1",
     color: "#222",
-    textAlign: "right",
+    textAlign: "center",
   },
   label: {
     fontSize: 10.5,
@@ -1201,7 +1259,8 @@ const notesStyles: Record<string, React.CSSProperties> = {
     width: 56, // увеличили
     height: 56,
     borderRadius: "50%",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     boxShadow: "0 10px 24px rgba(0,0,0,.2)",
     display: "grid",
     placeItems: "center",

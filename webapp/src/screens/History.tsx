@@ -78,7 +78,28 @@ export default function History() {
   if (!list.length) {
     return (
       <div style={styles.page}>
-        <section style={styles.emptyCard}>
+        <section style={styles.heroCard}>
+          <div style={styles.heroTopRow}>
+            <span style={styles.pillDark}>История</span>
+            {/* счётчик справа удалён */}
+          </div>
+          <div style={styles.heroTitle}>Твоя нагрузка</div>
+          <div style={styles.heroSubtitle}>
+            Учитываем длительность, объём и группы мышц на каждой тренировке
+          </div>
+        </section>
+
+        {/* чипы под героем */}
+        <section style={{ ...styles.block, ...styles.statsSection }}>
+          <div style={styles.statsRow}>
+            <ChipStat icon="🔥" label="Всего минут" value="—" />
+            <ChipStat icon="🕒" label="Средняя тренировка" value="—" />
+            <ChipStat icon="🏋️" label="Всего тренировок" value="0" />
+          </div>
+        </section>
+
+        {/* пустой экран */}
+        <section style={styles.emptyCardGlass}>
           <div style={styles.emptyHeadRow}>
             <span style={styles.pillLight}>История</span>
             <span style={styles.pillLight}>0 тренировок</span>
@@ -87,12 +108,6 @@ export default function History() {
           <div style={styles.emptyTitle}>Тут будет твой прогресс</div>
           <div style={styles.emptyText}>
             После каждой завершённой сессии мы фиксируем дату, объём и ключевые упражнения. Это поможет отслеживать динамику и не терять прогресс.
-          </div>
-
-          <div style={styles.emptyHintRow}>
-            <SmallStat icon="🕒" label="Продолжительность" value="—" />
-            <SmallStat icon="🏋️" label="Сеты" value="—" />
-            <SmallStat icon="🔥" label="Минут всего" value="—" />
           </div>
 
           <div style={styles.emptyFooterText}>
@@ -105,22 +120,25 @@ export default function History() {
 
   return (
     <div style={styles.page}>
-      {/* шапка-резюме истории */}
-      <section style={styles.headerCard}>
-        <div style={styles.headerTopRow}>
-          <span style={styles.pillLight}>История</span>
-          <span style={styles.pillLight}>{summary.total} тренировок</span>
+      {/* чёрный hero */}
+      <section style={styles.heroCard}>
+        <div style={styles.heroTopRow}>
+          <span style={styles.pillDark}>История</span>
+          {/* счётчик справа удалён */}
         </div>
 
-        <div style={styles.headerTitle}>Твоя нагрузка</div>
-        <div style={styles.headerSubtitle}>
-          Мы учитываем длительность, объем и группы мышц на каждой тренировке
+        <div style={styles.heroTitle}>Твоя нагрузка</div>
+        <div style={styles.heroSubtitle}>
+          Учитываем длительность, объём и группы мышц на каждой тренировке
         </div>
+      </section>
 
-        <div style={styles.headerStatsRow}>
-          <BigStat icon="🔥" label="Всего минут" value={`${summary.totalMin || "—"}`} />
-          <BigStat icon="🕒" label="Средняя тренировка" value={summary.avgMin ? `${summary.avgMin} мин` : "—"} />
-          <BigStat icon="🏋️" label="Всего тренировок" value={`${summary.total}`} />
+      {/* чипы под героем */}
+      <section style={{ ...styles.block, ...styles.statsSection }}>
+        <div style={styles.statsRow}>
+          <ChipStat icon="🔥" label="Всего минут" value={`${summary.totalMin || "—"}`} />
+          <ChipStat icon="🕒" label="Средняя тренировка" value={summary.avgMin ? `${summary.avgMin} мин` : "—"} />
+          <ChipStat icon="🏋️" label="Всего тренировок" value={`${summary.total}`} />
         </div>
       </section>
 
@@ -220,17 +238,16 @@ export default function History() {
                 </div>
               </button>
 
-              {/* раскрывашка (2 колонки упражнений) */}
+              {/* раскрывашка: ОДНА КОЛОНКА упражнений */}
               {isOpen && (
                 <div style={styles.detailWrap}>
-                  <div style={styles.detailGrid2col}>
+                  <div style={styles.detailGrid1col}>
                     {exList.map((it, idx) => {
                       const setCount = Array.isArray(it.sets)
                         ? it.sets.length
                         : 0;
 
-                      // reps summary. если есть reps прямо на упражнении, берём его
-                      // иначе берём reps из первого сета
+                      // reps summary
                       let repsStr: string | number | undefined = it.reps;
                       if (
                         (repsStr === undefined || repsStr === null) &&
@@ -297,7 +314,7 @@ export default function History() {
   );
 }
 
-/* ============== мини-компоненты для хедера ============== */
+/* ============== мини-компоненты ============== */
 
 function BigStat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
@@ -321,6 +338,16 @@ function SmallStat({ icon, label, value }: { icon: string; label: string; value:
   );
 }
 
+function ChipStat({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div style={styles.stat}>
+      <div style={styles.statEmoji}>{icon}</div>
+      <div style={styles.statLabel}>{label}</div>
+      <div style={styles.statValue}>{value}</div>
+    </div>
+  );
+}
+
 /* ============== стили ============== */
 
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
@@ -332,17 +359,74 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     padding: 16,
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
-    background: "transparent",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight: "100vh",
+    backgroundAttachment: "fixed",
   },
 
-  /* пустой экран */
-  emptyCard: {
-    borderRadius: 20,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+  block: { marginTop: 16 },
+
+  /* --- HERO как на «Расписание» --- */
+  heroCard: {
+    position: "relative",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
+    overflow: "hidden",
+  },
+  heroTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  pillDark: {
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
+    borderRadius: 999,
+    fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
+  },
+  heroTitle: { fontSize: 26, fontWeight: 800, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.9, marginTop: 4, color: "rgba(255,255,255,.85)" },
+
+  /* --- «чипы» под героем --- */
+  statsSection: { marginTop: 12, padding: 0, background: "transparent", boxShadow: "none" },
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+    gap: 12,
+  },
+  stat: {
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    gap: 4,
+  },
+  statEmoji: { fontSize: 20, color: "#111" },
+  statLabel: { fontSize: 11, color: "rgba(0,0,0,.75)", letterSpacing: 0.2 },
+  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
+
+  /* --- пустой экран стеклянный --- */
+  emptyCardGlass: {
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.75)",
+    border: "1px solid rgba(255,255,255,.35)",
+    backdropFilter: "blur(14px)",
+    color: "#111",
     boxShadow: cardShadow,
     padding: 16,
+    marginTop: 16,
   },
   emptyHeadRow: {
     display: "flex",
@@ -357,7 +441,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 500,
     backdropFilter: "blur(6px)",
-    color: "#fff",
+    color: "#111",
+    border: "1px solid rgba(0,0,0,.06)",
   },
   emptyTitle: {
     fontSize: 20,
@@ -370,19 +455,13 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0.9,
     marginTop: 6,
   },
-  emptyHintRow: {
-    marginTop: 12,
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 8,
-  },
   emptyFooterText: {
     marginTop: 12,
     fontSize: 13,
     opacity: 0.9,
   },
 
-  /* верхний summary блок */
+  /* --- верхний summary-блок (оставлен для совместимости компонентов) --- */
   headerCard: {
     borderRadius: 20,
     background:
@@ -435,24 +514,29 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
   },
 
-  /* карточка тренировки */
+  /* --- карточка тренировки: стекло как «Питание сегодня» --- */
   sessionCard: {
     borderRadius: 18,
-    background: "#fff",
-    boxShadow: cardShadow,
+    background: "rgba(255,255,255,0.75)",
+    border: "1px solid rgba(255,255,255,.35)",
+    backdropFilter: "blur(14px)",
+    boxShadow: "0 4px 10px rgba(0,0,0,.12)",
     overflow: "hidden",
   },
 
   sessionHeadBtn: {
-    width: "100%",
-    textAlign: "left",
-    border: "none",
-    background: "linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))",
-    display: "block",
-    padding: 12,
-    cursor: "pointer",
-    borderBottom: "1px solid rgba(0,0,0,.06)",
-  } as React.CSSProperties,
+  width: "100%",
+  textAlign: "left",
+  border: "none",
+  background: "rgba(255,255,255,0.75)",        // было: градиент
+  backdropFilter: "blur(14px)",                 // добавлено
+  borderBottom: "1px solid rgba(0,0,0,.06)",
+  borderTopLeftRadius: 18,                      // чтобы визуально совпадало с карточкой
+  borderTopRightRadius: 18,                     // чтобы визуально совпадало с карточкой
+  display: "block",
+  padding: 12,
+  cursor: "pointer",
+},
 
   sessionHeadGrid: {
     display: "grid",
@@ -511,38 +595,43 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 6,
   },
   muscleChip: {
-    fontSize: 11,
-    lineHeight: 1.2,
-    color: "#222",
-    background: "rgba(139,92,246,.14)",
-    borderRadius: 10,
-    padding: "4px 8px",
-    fontWeight: 600,
-    boxShadow: innerShadow,
-    textTransform: "capitalize",
-  },
+  fontSize: 11,
+  lineHeight: 1.2,
+  color: "#111",                                // было: #222
+  background: "rgba(255,255,255,0.6)",          // было: rgba(139,92,246,.14)
+  border: "1px solid rgba(0,0,0,0.08)",         // добавлено
+  backdropFilter: "blur(8px)",                  // добавлено
+  borderRadius: 10,
+  padding: "4px 8px",
+  fontWeight: 400,
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",      // было: innerShadow
+  textTransform: "capitalize",
+},
 
   // раскрытый блок
   detailWrap: {
     padding: "10px 12px 12px 12px",
-    background: "#fff",
+    background: "rgba(255,255,255,0.85)",
     display: "grid",
   },
 
-  // новая сетка 2 колонки для упражнений
-  detailGrid2col: {
+  // ОДНА колонка упражнений
+  detailGrid1col: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0,1fr))",
+    gridTemplateColumns: "1fr",
     gap: 12,
+    minWidth: 0,
   },
 
   detailExerciseBlock: {
-    background: "#f6f7fb",
+    background: "rgba(255,255,255,0.9)",
     borderRadius: 12,
-    boxShadow: innerShadow,
+    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
+    border: "1px solid rgba(0,0,0,.06)",
     padding: 10,
     display: "grid",
     gap: 8,
+    minWidth: 0,
   },
 
   // компактная шапка упражнения: название + "3×10-12"
@@ -550,12 +639,17 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "baseline",
+    gap: 8,
+    minWidth: 0,
   },
   detailExerciseName: {
     fontWeight: 700,
     fontSize: 13.5,
     color: "#111",
     lineHeight: 1.2,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   detailExerciseVolCompact: {
     fontSize: 12.5,
@@ -571,18 +665,20 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 6,
     fontSize: 12.5,
     color: "#222",
+    minWidth: 0,
   },
 
   setRowCompact: {
-    background: "#fff",
+    background: "rgba(255,255,255,.9)",
     borderRadius: 10,
-    boxShadow: innerShadow,
+    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
     padding: "6px 8px",
     display: "flex",
     flexWrap: "nowrap",
     alignItems: "center",
     lineHeight: 1.3,
     columnGap: 10,
+    minWidth: 0,
   },
 
   setCellLeftCompact: {

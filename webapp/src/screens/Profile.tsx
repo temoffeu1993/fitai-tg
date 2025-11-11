@@ -1,3 +1,4 @@
+// webapp/src/screens/Profile.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "@/lib/apiClient";
@@ -41,9 +42,7 @@ export default function Profile() {
     setLoaded(true);
   }, []);
 
-  // УДАЛЕНО: ранний useEffect, который отдельно читал onb_feedback
-
-  // Ленивый фетч комментария ИИ, если его нет, но есть summary
+  // Ленивый фетч комментария ИИ
   useEffect(() => {
     if (!feedback && summary) {
       (async () => {
@@ -72,7 +71,7 @@ export default function Profile() {
     }
   }, [feedback, summary]);
 
-  // >>> Новые утилита и эффект для автообновления без перезагрузки
+  // автообновление без перезагрузки
   function readAll() {
     try {
       const raw = localStorage.getItem("onb_summary");
@@ -103,7 +102,6 @@ export default function Profile() {
     readAll();
     setLoaded(true);
 
-    // короткий опрос локального фидбека, чтобы поймать фоновую запись
     let tries = 0;
     const t = setInterval(() => {
       const fb = localStorage.getItem("onb_feedback");
@@ -112,13 +110,12 @@ export default function Profile() {
         setLoadingFeedback(false);
         localStorage.removeItem("onb_feedback_pending");
         clearInterval(t);
-      } else if (++tries > 30) { // ~15 сек
+      } else if (++tries > 30) {
         setLoadingFeedback(false);
         clearInterval(t);
       }
     }, 500);
 
-    // обновлять при возврате на вкладку
     const onFocus = () => readAll();
     window.addEventListener("focus", onFocus);
 
@@ -127,7 +124,6 @@ export default function Profile() {
       window.removeEventListener("focus", onFocus);
     };
   }, []);
-  // <<<
 
   const onb = summary || {};
   const avatarUrl = tgProfile?.photo_url;
@@ -140,8 +136,6 @@ export default function Profile() {
   const weight = safeNum(onb?.body?.weight, "кг");
 
   const expText = expRus(onb.experience);
-
-  // Частота и длительность: поддерживаем оба варианта ключей
   const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek;
   const minutes =
     onb?.schedule?.minutesPerSession ??
@@ -149,7 +143,6 @@ export default function Profile() {
     onb?.schedule?.duration;
 
   const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
-
   const motives: string[] = onb?.motivation?.motives || [];
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
   const dietStyles: string[] = onb?.dietPrefs?.styles || [];
@@ -168,14 +161,21 @@ export default function Profile() {
     return letters.toUpperCase();
   }, [name]);
 
+  const today = useMemo(() =>
+    new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }),
+  []);
+
   return (
     <div style={st.page}>
-      {/* USER CARD */}
+      {/* HERO в чёрном стиле приложения */}
       <section style={st.userCard}>
-        <IconButton
-          label="Редактировать личные данные"
-          onClick={() => gotoEdit("age-sex")}
-        />
+        <div style={st.heroHeader}>
+          <span style={st.pillDark}>{today}</span>
+          <IconButton
+            label="Редактировать личные данные"
+            onClick={() => gotoEdit("age-sex")}
+          />
+        </div>
 
         <div style={st.userTopRow}>
           <div style={st.userLeft}>
@@ -204,11 +204,19 @@ export default function Profile() {
             </div>
           </div>
         </div>
+      </section>
 
-        <div style={st.userStats}>
-          <Stat label="Рост" value={height} />
-          <Divider />
-          <Stat label="Вес" value={weight} />
+      {/* ЧИПЫ РОСТ/ВЕС ПОД ВЕРХНИМ БЛОКОМ + СМАЙЛИКИ */}
+      <section style={st.statsRow}>
+        <div style={st.chipSquare}>
+          <div style={st.chipEmoji}>📏</div>
+          <div style={st.chipLabel}>Рост</div>
+          <div style={st.chipValue}>{height}</div>
+        </div>
+        <div style={st.chipSquare}>
+          <div style={st.chipEmoji}>⚖️</div>
+          <div style={st.chipLabel}>Вес</div>
+          <div style={st.chipValue}>{weight}</div>
         </div>
       </section>
 
@@ -216,10 +224,10 @@ export default function Profile() {
         <Skeleton />
       ) : (
         <>
-          {/* Комментарий тренера — мелкий шрифт + спиннер при загрузке */}
+          {/* Комментарий тренера — белый стеклянный блок как фирменные чипы */}
           {(feedback || loadingFeedback) && (
-            <section style={st.feedbackBox}>
-              <div style={st.feedbackTitle}>Комментарий тренера🤖💬</div>
+            <section style={st.glassBlock}>
+              <div style={st.blockTitle}>Комментарий тренера 🤖💬</div>
               {loadingFeedback ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, ...st.feedbackText, fontSize: 12 }}>
                   <MiniSpinner />
@@ -231,6 +239,7 @@ export default function Profile() {
             </section>
           )}
 
+          {/* Все нижние блоки — стеклянные. Внутри строки тоже стеклянные. */}
           <Accordion
             title="⏱️ Опыт и время"
             open={open.expTime}
@@ -289,12 +298,12 @@ export default function Profile() {
           >
             <Grid>
               <RowSmall k="Мотивация" v={<ChipList items={motives.map(motiveRus)} empty="—" />} />
-          <RowSmall
-            k="Цель"
-            v={onb?.motivation?.goalCustom || goalRus(onb?.motivation?.goal) || "—"}
-          />
-        </Grid>
-      </Accordion>
+              <RowSmall
+                k="Цель"
+                v={onb?.motivation?.goalCustom || goalRus(onb?.motivation?.goal) || "—"}
+              />
+            </Grid>
+          </Accordion>
 
           <div style={{ height: 16 }} />
         </>
@@ -339,12 +348,12 @@ function Accordion({
   title, open, onToggle, children,
 }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode; }) {
   return (
-    <section style={st.block}>
+    <section style={st.glassBlock}>
       <button style={st.accordionHeader} onClick={onToggle}>
         <span style={st.blockTitleSmall}>{title}</span>
         <span style={st.accordionChevron} aria-hidden>{open ? "▴" : "▾"}</span>
       </button>
-      {open && <div style={{ marginTop: 6 }}>{children}</div>}
+      {open && <div style={{ marginTop: 8 }}>{children}</div>}
     </section>
   );
 }
@@ -355,7 +364,7 @@ function Grid({ children }: { children: React.ReactNode }) {
 }
 function RowSmall({ k, v }: { k: string; v: any }) {
   return (
-    <div style={st.row}>
+    <div style={st.rowGlass}>
       <div style={st.keySmall}>{k}</div>
       <div style={st.valSmall}>{isEmpty(v) ? "—" : v}</div>
     </div>
@@ -375,11 +384,11 @@ function Skeleton() {
   return (
     <>
       {[1, 2, 3].map((i) => (
-        <div key={i} style={{ ...st.block, paddingBottom: 18 }}>
+        <div key={i} style={{ ...st.glassBlock, paddingBottom: 18 }}>
           <div style={{ ...shimmer, width: 160, height: 18, borderRadius: 6 }} />
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
             {Array.from({ length: 4 }).map((_, j) => (
-              <div key={j} style={st.row}>
+              <div key={j} style={st.rowGlass}>
                 <div style={{ ...shimmer, width: 140, height: 14, borderRadius: 6 }} />
                 <div style={{ ...shimmer, width: 220, height: 14, borderRadius: 6 }} />
               </div>
@@ -531,28 +540,51 @@ function eqRus(x: string) {
 
 /* ---------- styles ---------- */
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const SCHEDULE_BTN_GRADIENT = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+
 const st: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
     padding: "16px",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
-    background: "#fff",
+    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight: "100vh",
+    backgroundAttachment: "fixed",
   },
 
+  // HERO в чёрном стиле
   userCard: {
     position: "relative",
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    borderRadius: 22,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
-    padding: 16,
+    padding: 18,
+    overflow: "hidden",
   },
+  heroHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  pillDark: {
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(4px)",
+    textTransform: "capitalize",
+  },
+
   userTopRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between", // FIX
+    justifyContent: "space-between",
   },
   userLeft: { display: "flex", alignItems: "center", gap: 12 },
   avatarWrap: { flex: "0 0 auto" },
@@ -560,10 +592,10 @@ const st: Record<string, React.CSSProperties> = {
     width: 56,
     height: 56,
     borderRadius: "50%",
-    background: "rgba(255,255,255,.22)",
+    background: "rgba(255,255,255,.10)",
     display: "grid",
     placeItems: "center",
-    boxShadow: "inset 0 0 0 2px rgba(255,255,255,.25)",
+    boxShadow: "inset 0 0 0 2px rgba(255,255,255,.15)",
     backdropFilter: "blur(6px)",
   },
   avatarImg: {
@@ -571,22 +603,19 @@ const st: Record<string, React.CSSProperties> = {
     height: 56,
     borderRadius: "50%",
     objectFit: "cover",
-    border: "2px solid rgba(255,255,255,.35)",
+    border: "2px solid rgba(255,255,255,.22)",
     boxShadow: "0 6px 18px rgba(0,0,0,.25)",
     display: "block",
   },
   avatarText: { fontSize: 18, fontWeight: 800, color: "#fff" },
   userMain: { display: "flex", flexDirection: "column" },
-  userName: { fontSize: 20, fontWeight: 800, lineHeight: 1.1 },
-  userMeta: { marginTop: 4, opacity: 0.95, display: "flex", alignItems: "center" },
+  userName: { fontSize: 22, fontWeight: 900, lineHeight: 1.1, color: "#fff" },
+  userMeta: { marginTop: 4, opacity: 0.95, display: "flex", alignItems: "center", color: "rgba(255,255,255,.9)" },
   metaItem: { display: "inline-flex", gap: 6, alignItems: "baseline" },
   metaTitle: { fontSize: 12, opacity: 0.9 },
   metaValue: { fontSize: 13, fontWeight: 700 },
 
   iconBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
     border: "none",
     background: "transparent",
     color: "#fff",
@@ -595,34 +624,55 @@ const st: Record<string, React.CSSProperties> = {
     lineHeight: 0,
   },
 
-  userStats: {
-    marginTop: 12,
-    display: "flex",
-    alignItems: "stretch",
-    justifyContent: "space-between",
+  /* Чипы под героем */
+  statsRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(96px, 1fr))",
     gap: 12,
+    margin: "12px 0 10px",
   },
-  stat: {
-    flex: 1,
-    background: "rgba(255,255,255,.15)",
-    border: "1px solid rgba(255,255,255,.25)",
-    borderRadius: 14,
-    padding: "10px 12px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backdropFilter: "blur(6px)",
+  chipSquare: {
+    background: "rgba(255,255,255,0.6)",
+    color: "#000",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius: 12,
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    gap: 4,
+    wordBreak: "break-word",
+    whiteSpace: "normal",
+    hyphens: "none",
   },
-  statDivider: { width: 0, borderLeft: "1px solid rgba(255,255,255,.35)" },
-  statLabel: { fontSize: 12, opacity: 0.9 },
-  statValue: { fontSize: 16, fontWeight: 800 },
+  chipEmoji: { fontSize: 20, lineHeight: 1 },
+  chipLabel: { fontSize: 11, color: "rgba(0,0,0,.75)" },
+  chipValue: { fontSize: 18, fontWeight: 800, color: "#111" },
 
+  // Базовый блок
   block: {
     marginTop: 16,
-    padding: 12,
+    padding: 14,
     borderRadius: 16,
     background: "#fff",
     boxShadow: cardShadow,
+  },
+
+  // Белая стеклянная поверхность как фирменные чипы
+  glassBlock: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    color: "#000",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   },
 
   accordionHeader: {
@@ -640,13 +690,19 @@ const st: Record<string, React.CSSProperties> = {
 
   grid: { marginTop: 6, display: "grid", gap: 8 },
 
-  row: {
+  // Стеклянные строки внутри аккордеонов
+  rowGlass: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "8px 0",
-    borderBottom: "1px solid #F3F4F6",
     gap: 12,
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(0,0,0,.06)",
+    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
   },
   keySmall: { color: "#6B7280", minWidth: 140, fontSize: 12 },
   valSmall: { fontWeight: 600, wordBreak: "break-word", textAlign: "right", flex: 1, fontSize: 13 },
@@ -661,16 +717,22 @@ const st: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
 
-  feedbackBox: {
-    marginTop: 16,
-    padding: 14,
-    background: "#f6f7fb",
+  stat: {
+    flex: 1,
+    background: "rgba(255,255,255,.15)",
+    border: "1px solid rgba(255,255,255,.25)",
     borderRadius: 14,
-    fontSize: 15,
-    lineHeight: 1.5,
-    color: "#111",
+    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backdropFilter: "blur(6px)",
   },
-  feedbackTitle: { fontWeight: 800, marginBottom: 6 },
+  statDivider: { width: 0, borderLeft: "1px solid rgba(255,255,255,.35)" },
+  statLabel: { fontSize: 12, opacity: 0.9 },
+  statValue: { fontSize: 16, fontWeight: 800 },
+
+  blockTitle: { fontWeight: 800, marginBottom: 6 },
   feedbackText: { whiteSpace: "pre-wrap" },
 };
 

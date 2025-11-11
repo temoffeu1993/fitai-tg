@@ -1,5 +1,5 @@
 // webapp/src/screens/Nutrition.tsx
-// Экран недельного плана питания. UX/стиль выровнен с PlanOne.
+// Экран недельного плана питания. Визуал выровнен под «Питание сегодня».
 import { useEffect, useMemo, useState } from "react";
 import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 
@@ -66,15 +66,15 @@ export default function Nutrition() {
     };
   }, [plan]);
 
- const weekLabel = useMemo(() => {
-  if (!plan) return "";
-  const start = parseISODate(plan.week_start_date);
-  if (!start) return "";
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
-  return `${fmt(start)} – ${fmt(end)}`;
-}, [plan]);
+  const weekLabel = useMemo(() => {
+    if (!plan) return "";
+    const start = parseISODate(plan.week_start_date);
+    if (!start) return "";
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+    return `${fmt(start)} – ${fmt(end)}`;
+  }, [plan]);
 
   const isProcessing = planStatus === "processing";
 
@@ -102,7 +102,7 @@ export default function Nutrition() {
       <SoftGlowStyles />
       <TypingDotsStyles />
 
-      {/* HERO */}
+      {/* HERO — чёрный как на «Питание сегодня» */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Неделя</span>
@@ -113,14 +113,7 @@ export default function Nutrition() {
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
-        {totals && (
-          <div style={s.heroFooter}>
-            <Stat icon="🔥" label="Ккал/день" value={String(totals.kcal)} />
-            <Stat icon="🥚" label="Белки" value={`${totals.protein} г`} />
-            <Stat icon="🍚" label="У/Ж" value={`${totals.carbs}/${totals.fat} г`} />
-          </div>
-        )}
-
+        {/* чипы убраны из hero */}
         <button
           className="soft-glow"
           disabled={loading}
@@ -138,36 +131,51 @@ export default function Nutrition() {
         </button>
       </section>
 
-      {/* Дни недели */}
+      {/* ЧИПЫ ПОД ГЕРОЕМ — фирменный стиль как «Питание сегодня» */}
+      {totals && (
+        <section style={{ ...s.block, ...s.statsSection }}>
+          <div style={s.statsRow}>
+            <Stat icon="🔥" label="Ккал/день" value={String(totals.kcal)} />
+            <Stat icon="🥚" label="Белки" value={`${totals.protein} г`} />
+            <Stat icon="🍚" label="Ж/У" value={`${totals.fat}/${totals.carbs} г`} />
+          </div>
+        </section>
+      )}
+
+      {/* Список дней — стеклянные карточки как в «сегодня» */}
       {(plan.days || []).map((d) => (
         <section key={d.day_index} style={s.block}>
-          <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
+          <div style={ux.card}>
             <button
-              style={{ ...ux.cardHeader, background: uxColors.headerBg, width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
+              style={{ ...ux.cardHeader, width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
               onClick={() => setOpenDay(openDay === d.day_index ? null : d.day_index)}
             >
               <div style={{ ...ux.iconInline }}>🍽️</div>
               <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
                 <div style={ux.cardTitleRow}>
                   <div style={ux.cardTitle}>{weekdayTitle(d)}</div>
-                  <div style={{
-                    ...ux.caretWrap,
-                    transform: openDay === d.day_index ? "rotate(180deg)" : "rotate(0deg)",
-                  }}>
+                  <div
+                    style={{
+                      ...ux.caretWrap,
+                      transform: openDay === d.day_index ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  >
                     <div style={ux.caretInner} />
                   </div>
                 </div>
                 {(() => {
                   const dt = parseISODate(d.date);
-                  return <div style={ux.cardHint}>
-                    {dt ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }) : `День ${d.day_index}`}
-                  </div>;
+                  return (
+                    <div style={ux.cardHint}>
+                      {dt ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }) : `День ${d.day_index}`}
+                    </div>
+                  );
                 })()}
               </div>
             </button>
 
             {openDay === d.day_index && (
-              <div style={{ padding: 10 }}>
+              <div style={{ padding: 12 }}>
                 {(d.meals || []).map((m, idx) => {
                   const totals = (m.items || []).reduce(
                     (acc, it) => ({
@@ -189,7 +197,8 @@ export default function Nutrition() {
                         <div style={row.name}>{m.title}{m.time ? ` • ${m.time}` : ""}</div>
                         <div style={row.cues}>{fmtTargets({ mk, mp, mf, mc, targetKcal })}</div>
                       </div>
-                      <div style={{ display: "grid", gap: 6 }}>
+
+                      <div style={{ display: "grid", gap: 8 }}>
                         {(m.items || []).map((it, k) => (
                           <div key={k} style={food.line}>
                             <div style={food.left}>
@@ -202,6 +211,7 @@ export default function Nutrition() {
                           </div>
                         ))}
                       </div>
+
                       {m.notes ? <div style={mealCard.notes}>{m.notes}</div> : null}
                     </div>
                   );
@@ -299,7 +309,7 @@ function fmtTargets(agg: { mk: number; mp: number; mf: number; mc: number; targe
     typeof agg.targetKcal === "number" ? `цель ${agg.targetKcal} ккал` : null,
     `${agg.mk} ккал`,
     `${agg.mp} г белка`,
-    `${agg.mc}/${agg.mf} г У/Ж`,
+    `${agg.mf}/${agg.mc} г Ж/У`,
   ]
     .filter(Boolean)
     .join(" • ");
@@ -314,6 +324,27 @@ function guessMeals(p: WeekPlan | null): number {
   return Math.min(8, Math.max(1, avg));
 }
 const num = (x: any) => (Number.isFinite(x) ? String(x) : "");
+
+/* ---------------- shared UI from Plan «Сегодня» ---------------- */
+function SoftGlowStyles() { return (<style>{`
+  .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
+  animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
+  @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.15) saturate(1.1);transform:scale(1.01)}}
+`}</style>); }
+function TypingDotsStyles(){return(<style>{`
+  .typing-dots{display:inline-flex;align-items:center;gap:4px}
+  .typing-dots .dot{width:6px;height:6px;border-radius:50%;background:#1b1b1b;opacity:.3;animation:blink 1.2s infinite}
+  .typing-dots .dot:nth-child(2){animation-delay:.2s}
+  .typing-dots .dot:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}100%{opacity:.3;transform:translateY(0)}}
+`}</style>); }
+function Spinner(){return(<svg width="56" height="56" viewBox="0 0 50 50" style={{display:"block"}}>
+  <circle cx="25" cy="25" r="20" stroke="rgba(0,0,0,.35)" strokeWidth="6" fill="none"/>
+  <circle cx="25" cy="25" r="20" stroke="#fff" strokeWidth="6" strokeLinecap="round" fill="none"
+    strokeDasharray="110" strokeDashoffset="80" style={{transformOrigin:"25px 25px",animation:"spin 1.2s linear infinite"}}/>
+  <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
+</svg>);}
 
 function Loader({ stage, steps, label }: { stage: number; steps: string[]; label: string }) {
   return (
@@ -354,129 +385,168 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   );
 }
 
-/* ---------------- shared UI from PlanOne style ---------------- */
-function SoftGlowStyles() { return (<style>{`
-  .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
-  animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
-  @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-  @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.15) saturate(1.1);transform:scale(1.01)}}
-`}</style>); }
-function TypingDotsStyles(){return(<style>{`
-  .typing-dots{display:inline-flex;align-items:center;gap:4px}
-  .typing-dots .dot{width:6px;height:6px;border-radius:50%;background:#1b1b1b;opacity:.3;animation:blink 1.2s infinite}
-  .typing-dots .dot:nth-child(2){animation-delay:.2s}
-  .typing-dots .dot:nth-child(3){animation-delay:.4s}
-  @keyframes blink{0%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}100%{opacity:.3;transform:translateY(0)}}
-`}</style>); }
-function Spinner(){return(<svg width="56" height="56" viewBox="0 0 50 50" style={{display:"block"}}>
-  <circle cx="25" cy="25" r="20" stroke="rgba(0,0,0,.35)" strokeWidth="6" fill="none"/>
-  <circle cx="25" cy="25" r="20" stroke="#fff" strokeWidth="6" strokeLinecap="round" fill="none"
-    strokeDasharray="110" strokeDashoffset="80" style={{transformOrigin:"25px 25px",animation:"spin 1.2s linear infinite"}}/>
-  <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
-</svg>);}
-
+/* ---------------- стили как на «Питание сегодня» ---------------- */
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const SCHEDULE_BTN_GRADIENT = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+
 const s: Record<string, React.CSSProperties> = {
-  page:{maxWidth:720,margin:"0 auto",padding:"16px",fontFamily:"system-ui,-apple-system,'Inter','Roboto',Segoe UI"},
-  heroCard:{position:"relative",padding:16,borderRadius:20,boxShadow:cardShadow,
-    background:"linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
-    color:"#fff",overflow:"hidden"},
+  page:{
+    maxWidth:720,margin:"0 auto",padding:"16px",
+    fontFamily:"system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background:"linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+    minHeight:"100vh",backgroundAttachment:"fixed"
+  },
+  // чёрный hero
+  heroCard:{
+    position:"relative",padding:22,borderRadius:28,boxShadow:"0 2px 6px rgba(0,0,0,.08)",
+    background:"#050505",color:"#fff",overflow:"hidden"
+  },
   heroHeader:{display:"flex",justifyContent:"space-between",alignItems:"center"},
-  pill:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
-  credits:{background:"rgba(255,255,255,.2)",padding:"6px 10px",borderRadius:999,fontSize:12,backdropFilter:"blur(6px)"},
-  heroTitle:{fontSize:22,fontWeight:800,marginTop:6}, heroSubtitle:{opacity:.92,marginTop:2},
-  primaryBtn:{marginTop:14,width:"100%",border:"none",borderRadius:14,padding:"14px 16px",fontSize:16,fontWeight:700,
-    color:"#1b1b1b",background:"linear-gradient(135deg,#ffe680,#ffb36b)",boxShadow:"0 6px 18px rgba(0,0,0,.15)",cursor:"pointer"},
+  pill:{
+    background:"rgba(255,255,255,.08)",padding:"6px 12px",borderRadius:999,fontSize:12,color:"#fff",
+    border:"1px solid rgba(255,255,255,.18)",backdropFilter:"blur(6px)"
+  },
+  credits:{
+    background:"rgba(255,255,255,.08)",padding:"6px 12px",borderRadius:999,fontSize:12,color:"#fff",
+    border:"1px solid rgba(255,255,255,.18)",backdropFilter:"blur(6px)"
+  },
+  heroTitle:{fontSize:26,fontWeight:800,marginTop:6,color:"#fff"},
+  heroSubtitle:{opacity:.9,marginTop:4,color:"rgba(255,255,255,.85)"},
+  primaryBtn:{
+    border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
+    background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%",marginTop:12
+  },
   heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},
-  stat:{background:"rgba(255,255,255,.15)",borderRadius:12,padding:10,textAlign:"center",backdropFilter:"blur(6px)",fontWeight:600},
+
+  // фирменные чипы под героем
+  statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
+  statsRow:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12},
+  stat:{
+    background:"rgba(255,255,255,.6)",
+    borderRadius:12,
+    border:"1px solid rgba(0,0,0,0.08)",
+    boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
+    padding:"10px 8px",
+    minHeight:96,
+    display:"grid",
+    placeItems:"center",
+    textAlign:"center",
+    gap:4
+  },
+  statEmoji:{fontSize:20,color:"#111"},
+  statLabel:{fontSize:11,color:"rgba(0,0,0,.75)",letterSpacing:0.2},
+  statValue:{fontWeight:800,fontSize:18,color:"#111"},
+
   block:{marginTop:16,padding:0,borderRadius:16,background:"transparent",boxShadow:"none"},
   blockWhite:{marginTop:16,padding:14,borderRadius:16,background:"#fff",boxShadow:cardShadow},
-  rowBtn:{border:"none",padding:"12px 14px",borderRadius:12,fontWeight:700,color:"#fff",
-    background:"linear-gradient(135deg,#6a8dff,#8a64ff)",cursor:"pointer",marginTop:8},
+  rowBtn:{
+    border:"none",padding:"12px 14px",borderRadius:12,fontWeight:700,color:"#fff",
+    background:"linear-gradient(135deg,#6a8dff,#8a64ff)",cursor:"pointer",marginTop:8
+  },
   loadWrap:{marginTop:10,display:"grid",justifyItems:"center"},
 };
-const uxColors = { headerBg:"linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))" };
+
 const ux: Record<string, any> = {
-  card:{borderRadius:18,border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.06)",overflow:"hidden",background:"#fff",position:"relative"},
-  cardHeader:{display:"grid",gridTemplateColumns:"24px 1fr",alignItems:"center",gap:10,padding:10,borderBottom:"1px solid rgba(0,0,0,.06)"},
+  // стеклянная карточка дня
+  card:{
+    borderRadius:20,
+    border:"1px solid rgba(255,255,255,.35)",
+    boxShadow:"0 16px 30px rgba(0,0,0,.12)",
+    background:"rgba(255,255,255,0.75)",
+    backdropFilter:"blur(14px)",
+    position:"relative",
+    overflow:"hidden",
+  },
+  // шапка дня — стекло
+  cardHeader:{
+    display:"grid",
+    gridTemplateColumns:"24px 1fr",
+    alignItems:"center",
+    gap:10,
+    padding:14,
+    borderBottom:"1px solid rgba(255,255,255,.4)",
+    background:"rgba(255,255,255,0.6)",
+    backdropFilter:"blur(8px)",
+  },
   iconInline:{width:24,height:24,display:"grid",placeItems:"center",fontSize:18},
   cardTitleRow:{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"},
   cardTitle:{fontSize:15,fontWeight:750,color:"#1b1b1b",lineHeight:1.2},
   cardHint:{fontSize:11,color:"#2b2b2b",opacity:.85},
-  caretWrap:{width:24,height:24,borderRadius:8,background:"rgba(139,92,246,.12)",boxShadow:"inset 0 0 0 1px rgba(0,0,0,.05)",
-    display:"grid",placeItems:"center",transition:"transform .18s"},
+  caretWrap:{
+    width:24,height:24,borderRadius:8,background:"rgba(139,92,246,.12)",
+    boxShadow:"inset 0 0 0 1px rgba(0,0,0,.05)",
+    display:"grid",placeItems:"center",transition:"transform .18s"
+  },
   caretInner:{width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderTop:"6px solid #4a3a7a"},
 };
+
 const mealCard: Record<string, React.CSSProperties> = {
+  // стеклянная карточка приёма пищи
   wrap:{
-    background: uxColors.headerBg,
-    borderRadius: 14,
-    padding: 10,
-    display: "grid",
-    gap: 8,
-    marginBottom: 10,
-    boxShadow: "0 6px 14px rgba(0,0,0,.06)",
-  },
-  header:{
+    borderRadius:14,
+    padding:12,
     display:"grid",
-    gap:4,
-    color:"#1b1b1b",
+    gap:10,
+    background:"rgba(255,255,255,0.75)",
+    border:"1px solid rgba(255,255,255,.35)",
+    boxShadow:"0 10px 24px rgba(0,0,0,.12)",
+    backdropFilter:"blur(10px)",
+    marginBottom:12,
   },
-  notes:{
-    fontSize:11,
-    color:"#4a4a4a",
-    marginTop:6,
-  }
+  header:{display:"grid",gap:4,color:"#1b1b1b"},
+  notes:{fontSize:11,color:"#4a4a4a",marginTop:6},
 };
+
 const row: Record<string, React.CSSProperties> = {
   name:{fontSize:13.5,fontWeight:750,color:"#111",lineHeight:1.15,whiteSpace:"normal"},
   cues:{fontSize:11,color:"#333"},
 };
+
 const food: Record<string, React.CSSProperties> = {
+  // строки продукты — белое стекло
   line:{
     display:"grid",
     gridTemplateColumns:"1fr auto",
     alignItems:"center",
-    gap:8,
+    gap:10,
     padding:"10px 12px",
     borderRadius:12,
-    background:"#fff",
+    background:"rgba(255,255,255,0.9)",
+    border:"1px solid rgba(0,0,0,.06)",
     boxShadow:"0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter:"blur(6px)",
   },
   left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
-  foodName:{fontSize:13.5,fontWeight:400,color:"#1b1b1b",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+  foodName:{
+    fontSize:13.5,fontWeight:600,color:"#1b1b1b",lineHeight:1.2,
+    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"
+  },
   qty:{fontSize:12,color:"#666",flexShrink:0},
-  right:{fontSize:12,fontWeight:400,color:"#1b1b1b"},
+  right:{fontSize:12,fontWeight:600,color:"#1b1b1b"},
 };
 
 const notesStyles: Record<string, React.CSSProperties> = {
-  fabWrap:{
-    position:"fixed",
-    right:16,
-    bottom:140,
-    display:"flex",
-    alignItems:"flex-end",
-    gap:8,
-    cursor:"pointer",
-    zIndex:9999
-  },
+  fabWrap:{position:"fixed",right:16,bottom:140,display:"flex",alignItems:"flex-end",gap:8,cursor:"pointer",zIndex:9999},
   fabCircle:{
-  width:56,
-  height:56,
-  borderRadius:"50%",
-  background:"linear-gradient(135deg,#ffe680,#ffb36b)",
-  border:"none",
-  boxShadow:"0 6px 18px rgba(0,0,0,.25)",
-  display:"grid",
-  placeItems:"center",
-  fontWeight:700,
-  color:"#1b1b1b"
-},
+    width:56,height:56,borderRadius:"50%",
+    background:SCHEDULE_BTN_GRADIENT,
+    border:"none",boxShadow:"0 6px 18px rgba(0,0,0,.25)",
+    display:"grid",placeItems:"center",fontWeight:700,color:"#1b1b1b"
+  },
   speechBubble:{maxWidth:180,background:"#fff",boxShadow:"0 10px 24px rgba(0,0,0,.15)",borderRadius:14,padding:"10px 12px",
     position:"relative",border:"1px solid rgba(0,0,0,.06)"},
   speechText:{fontSize:12,fontWeight:600,color:"#1b1b1b",lineHeight:1.3},
-  speechArrow:{position:"absolute",right:-6,bottom:10,width:0,height:0,borderTop:"6px solid transparent",borderBottom:"6px solid transparent",borderLeft:"6px solid #fff",
-    filter:"drop-shadow(0 2px 2px rgba(0,0,0,.1))"},
+  speechArrow:{
+    position:"absolute",
+    right:-6,
+    bottom:10,
+    width:0,
+    height:0,
+    borderTop:"6px solid transparent",
+    borderBottom:"6px solid transparent",
+    borderLeft:"6px solid #fff",
+    filter:"drop-shadow(0 2px 2px rgba(0,0,0,.1))"
+  },
   chatPanelWrap:{position:"fixed",right:16,bottom:210,zIndex:10000,maxWidth:300,width:"calc(100% - 32px)"},
   chatPanel:{background:"#fff",borderRadius:20,boxShadow:"0 24px 64px rgba(0,0,0,.4)",border:"1px solid rgba(0,0,0,.06)",maxHeight:"40vh",display:"flex",flexDirection:"column",overflow:"hidden"},
   chatHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"12px 12px 10px",borderBottom:"1px solid rgba(0,0,0,.06)",
@@ -490,8 +560,20 @@ const notesStyles: Record<string, React.CSSProperties> = {
 };
 
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (<div style={s.stat}><div style={{ fontSize: 20 }}>{icon}</div><div style={{ fontSize: 12, color: "rgba(255,255,255,.85)" }}>{label}</div><div style={{ fontWeight: 700 }}>{value}</div></div>);
+  return (
+    <div style={s.stat}>
+      <div style={s.statEmoji}>{icon}</div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={s.statValue}>{value}</div>
+    </div>
+  );
 }
 function SkeletonLine({ w = 100 }: { w?: number }) {
-  return (<div style={{height:10,width:`${w}%`,borderRadius:6,background:"linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%)",backgroundSize:"400% 100%",animation:"shimmer 1.4s ease-in-out infinite",marginTop:8}} />);
+  return (
+    <div style={{
+      height:10,width:`${w}%`,borderRadius:6,
+      background:"linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%)",
+      backgroundSize:"400% 100%",animation:"shimmer 1.4s ease-in-out infinite",marginTop:8
+    }} />
+  );
 }
