@@ -588,6 +588,7 @@ function Spinner(){return(<svg width="56" height="56" viewBox="0 0 50 50" style=
   <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
 </svg>);}
 
+/* >>> UPDATED LOADER: убраны чипы внутри hero, добавлены квадратные чипы ПОД героем как в Nutrition.tsx <<< */
 function Loader({ stage, label }: { stage: number; label: string }) {
   return (
     <div style={s.page}>
@@ -600,18 +601,25 @@ function Loader({ stage, label }: { stage: number; label: string }) {
         </div>
         <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>Шаг {Math.min(stage + 1, 5)} из 5</div>
         <div style={s.heroTitle}>{label}</div>
-        <div style={s.loadWrap}><Spinner /><div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div></div>
-        {/* оставляем статусы лоадера как было */}
-        <div style={s.heroFooter}>
-          <Stat icon="🧠" label="Аналитика" value="в процессе" />
-          <Stat icon="🧩" label="Подбор" value="готовится" />
-          <Stat icon="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
+        <div style={s.loadWrap}>
+          <Spinner />
+          <div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div>
         </div>
+        {/* УДАЛЕНО: чипы/статы внутри hero */}
       </section>
+
+      {/* НОВОЕ: квадратные чипы под героем — как на экране генерации плана на 3 дня */}
+      <section style={s.statsRow}>
+        <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
+        <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
+        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
+      </section>
+
       <section style={s.blockWhite}><SkeletonLine /><SkeletonLine w={80} /><SkeletonLine w={60} /></section>
     </div>
   );
 }
+
 function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   return (
     <div style={s.page}>
@@ -635,6 +643,29 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
       <div style={s.statEmoji}>{icon}</div>
       <div style={s.statLabel}>{label}</div>
       <div style={s.statValue}>{value}</div>
+    </div>
+  );
+}
+
+/* НОВОЕ: квадратный чип загрузки как в Nutrition.tsx */
+function ChipStatSquare({
+  emoji,
+  label,
+  value,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div style={s.chipSquare}>
+      <div style={{ fontSize: 22 }}>{emoji}</div>
+      <div style={{ fontSize: 12, opacity: 0.7, textAlign: "center", whiteSpace: "normal", lineHeight: 1.2 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", whiteSpace: "normal", lineHeight: 1.2 }}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -680,7 +711,34 @@ const s: Record<string, React.CSSProperties> = {
 
   // секция чипов как на «Расписании»
   statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
-  statsRow:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12},
+  statsRow:{
+    display:"grid",
+    gridTemplateColumns:"repeat(3,minmax(96px,1fr))",
+    gap:12,
+    marginTop:12,
+    marginBottom:10
+  },
+
+  // новый квадратный чип как на Nutrition.tsx
+  chipSquare:{
+    background:"rgba(255,255,255,0.6)",
+    color:"#000",
+    border:"1px solid rgba(0,0,0,0.08)",
+    boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius:12,
+    padding:"10px 8px",
+    minHeight:96,
+    display:"grid",
+    placeItems:"center",
+    textAlign:"center",
+    backdropFilter:"blur(8px)",
+    WebkitBackdropFilter:"blur(8px)",
+    gap:4,
+    wordBreak:"break-word",
+    whiteSpace:"normal",
+    hyphens:"none",
+  },
+
   stat:{
     background:"rgba(255,255,255,0.6)",borderRadius:12,border:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
     padding:"10px 8px",minHeight:96,display:"grid",placeItems:"center",textAlign:"center",gap:4
@@ -695,7 +753,7 @@ const s: Record<string, React.CSSProperties> = {
     border:"none",padding:"12px 14px",borderRadius:12,fontWeight:700,color:"#fff",
     background:"linear-gradient(135deg,#6a8dff,#8a64ff)",cursor:"pointer",marginTop:8
   },
-  heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}, // используется в Loader
+  heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}, // больше не используется в Loader
   loadWrap:{marginTop:10,display:"grid",justifyItems:"center"},
 };
 

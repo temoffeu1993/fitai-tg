@@ -253,12 +253,13 @@ export default function PlanOne() {
             <Spinner />
             <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>Подстраиваю под твои цели и инвентарь</div>
           </div>
+        </section>
 
-          <div style={s.heroFooter}>
-            <Stat icon="🧠" label="Аналитика" value="в процессе" />
-            <Stat icon="🧩" label="Подбор" value="готовится" />
-            <Stat icon="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
-          </div>
+        {/* Чипы вынесены под верхний блок в фирменном стиле */}
+        <section style={s.statsRow}>
+          <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
+          <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
+          <ChipStatSquare emoji="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
         </section>
 
         <section style={s.blockWhite}>
@@ -366,16 +367,14 @@ export default function PlanOne() {
         </button>
       </section>
 
+      {/* Чипы в фирменном стиле под верхним блоком */}
       {chips && (
-        <section style={{ ...s.block, ...s.statsSection }}>
-          <div style={s.statsRow}>
-            <Stat icon="🎯" label="Тренировка" value={`#${workoutNumber}`} />
-            <Stat icon="🕒" label="Время" value={`${chips.minutes} мин`} />
-            <Stat icon="💪" label="Упражнения" value={`${totalExercises}`} />
-          </div>
+        <section style={s.statsRow}>
+          <ChipStatSquare emoji="🎯" label="Тренировка" value={`#${workoutNumber}`} />
+          <ChipStatSquare emoji="🕒" label="Время" value={`${chips.minutes} мин`} />
+          <ChipStatSquare emoji="💪" label="Упражнения" value={`${totalExercises}`} />
         </section>
       )}
-
 
       {/* Разминка */}
       {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
@@ -688,6 +687,44 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
   );
 }
 
+function ChipStatSquare({
+  emoji,
+  label,
+  value,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div style={s.chipSquare}>
+      <div style={{ fontSize: 22 }}>{emoji}</div>
+      <div
+        style={{
+          fontSize: 12,
+          opacity: 0.7,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function SkeletonLine({ w = 100 }: { w?: number }) {
   return (
     <div
@@ -861,12 +898,35 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     boxShadow: "none",
   },
+
+  /* фирменные чипы как на Dashboard */
   statsRow: {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(96px, 1fr))",
     gap: 12,
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  chipSquare: {
+    background: "rgba(255,255,255,0.6)",
+    color: "#000",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius: 12,
+    padding: "10px 8px",
+    minHeight: 96,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    gap: 4,
+    wordBreak: "break-word",
+    whiteSpace: "normal",
+    hyphens: "none",
   },
 
+  /* старые стат-блоки оставлены, но не используются для чипов */
   stat: {
     background: "rgba(255,255,255,0.6)",
     borderRadius: 12,

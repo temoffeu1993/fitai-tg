@@ -543,8 +543,8 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     borderRadius: 14,
     padding: "10px 14px",
-    fontSize: 16,
-    fontWeight: 600,
+    fontSize: 15,
+    fontWeight: 400,
     color: "#000",
     background:
       "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",

@@ -508,6 +508,7 @@ async function generateDetailedPlan({
     console.log(JSON.stringify(targets, null, 2));
   }
 
+    const tLLM = Date.now();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.85,
@@ -522,6 +523,7 @@ async function generateDetailedPlan({
       { role: "user", content: prompt },
     ],
   });
+  console.log(`[NUTRITION] openai.chat ${Date.now() - tLLM}ms`);
 
   let ai: WeekPlanAI | null = null;
   try {
@@ -948,6 +950,10 @@ ${cultural}
 nutrition.post(
   "/generate-week",
   asyncHandler(async (req: Request, res: Response) => {
+    
+    const start = Date.now();
+    console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
+
     const userId = await getUserId(req as any);
     const onboarding = await getOnboarding(userId);
     const weekStart = startOfWeekISO(new Date());
@@ -955,6 +961,7 @@ nutrition.post(
     let existing = await loadWeekPlan(userId, weekStart);
 
     if (existing?.status === "ready" && !force) {
+      console.log(`[NUTRITION] ⚡ cached plan returned in ${Date.now() - start}ms`);
       return res.json({
         plan: existing.plan,
         meta: {
@@ -974,6 +981,8 @@ nutrition.post(
     const skeleton = buildSkeletonWeek(weekStart, targets);
     const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
 
+        console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}`);
+
     try {
       await generateDetailedPlan({
         planId,
@@ -983,6 +992,7 @@ nutrition.post(
         targets,
       });
     } catch (err) {
+        console.error(`[NUTRITION] ❌ failed after ${Date.now() - start}ms: ${(err as any)?.message || err}`);
       await q(
         `UPDATE nutrition_plans
            SET status = 'failed',
@@ -998,6 +1008,8 @@ nutrition.post(
     if (!fresh) {
       throw new AppError("Не удалось загрузить план после генерации", 500);
     }
+
+    console.log(`[NUTRITION] ✅ plan ready in ${Date.now() - start}ms (${((Date.now() - start) / 1000).toFixed(1)}s)`);
 
     return res.json({
       plan: fresh.plan,

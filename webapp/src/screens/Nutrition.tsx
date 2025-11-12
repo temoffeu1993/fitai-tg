@@ -346,6 +346,7 @@ function Spinner(){return(<svg width="56" height="56" viewBox="0 0 50 50" style=
   <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
 </svg>);}
 
+/* >>> UPDATED LOADER: чипы вынесены ПОД верхний блок и в формате ChipStatSquare <<< */
 function Loader({ stage, steps, label }: { stage: number; steps: string[]; label: string }) {
   return (
     <div style={s.page}>
@@ -358,13 +359,20 @@ function Loader({ stage, steps, label }: { stage: number; steps: string[]; label
         </div>
         <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{steps[stage]}</div>
         <div style={s.heroTitle}>{label}</div>
-        <div style={s.loadWrap}><Spinner /><div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div></div>
-        <div style={s.heroFooter}>
-          <Stat icon="🧠" label="Аналитика" value="в процессе" />
-          <Stat icon="🧩" label="Подбор" value="готовится" />
-          <Stat icon="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
+        <div style={s.loadWrap}>
+          <Spinner />
+          <div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div>
         </div>
+        {/* УБРАНО: нижний блок со Stat внутри hero */}
       </section>
+
+      {/* НОВОЕ: квадратные чипы под героем, как в экране генерации тренировки */}
+      <section style={s.statsRow}>
+        <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
+        <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
+        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
+      </section>
+
       <section style={s.blockWhite}><SkeletonLine /><SkeletonLine w={80} /><SkeletonLine w={60} /></section>
     </div>
   );
@@ -416,11 +424,39 @@ const s: Record<string, React.CSSProperties> = {
     border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
     background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%",marginTop:12
   },
-  heroFooter:{marginTop:10,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},
+  // heroFooter удалён
 
   // фирменные чипы под героем
   statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
-  statsRow:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12},
+  // сетка и для квадратных чипов загрузки, и для статов
+  statsRow:{
+    display:"grid",
+    gridTemplateColumns:"repeat(3,minmax(96px,1fr))",
+    gap:12,
+    marginTop:12,
+    marginBottom:10
+  },
+
+  // стиль квадратных чипов как в экране генерации тренировки
+  chipSquare:{
+    background:"rgba(255,255,255,0.6)",
+    color:"#000",
+    border:"1px solid rgba(0,0,0,0.08)",
+    boxShadow:"0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius:12,
+    padding:"10px 8px",
+    minHeight:96,
+    display:"grid",
+    placeItems:"center",
+    textAlign:"center",
+    backdropFilter:"blur(8px)",
+    WebkitBackdropFilter:"blur(8px)",
+    gap:4,
+    wordBreak:"break-word",
+    whiteSpace:"normal",
+    hyphens:"none",
+  },
+
   stat:{
     background:"rgba(255,255,255,.6)",
     borderRadius:12,
@@ -568,6 +604,30 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
     </div>
   );
 }
+
+/* НОВОЕ: квадратный чип как в генерации тренировки */
+function ChipStatSquare({
+  emoji,
+  label,
+  value,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div style={s.chipSquare}>
+      <div style={{ fontSize: 22 }}>{emoji}</div>
+      <div style={{ fontSize: 12, opacity: 0.7, textAlign: "center", whiteSpace: "normal", lineHeight: 1.2 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", whiteSpace: "normal", lineHeight: 1.2 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function SkeletonLine({ w = 100 }: { w?: number }) {
   return (
     <div style={{
