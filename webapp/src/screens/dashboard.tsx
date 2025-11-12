@@ -457,9 +457,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: 16,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
     background:
-      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+      "transparent",
     minHeight: "100vh",
-    backgroundAttachment: "fixed",
   },
 
   heroWrap: {

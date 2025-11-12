@@ -19,6 +19,23 @@ function shouldHideNav(_pathname: string) {
   return false;
 }
 
+/** Фиксированный градиентный фон под всем UI */
+function BgGradient() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 0,
+        pointerEvents: "none",
+        background:
+          "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+      }}
+    />
+  );
+}
+
 export default function LayoutWithNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -42,11 +59,18 @@ export default function LayoutWithNav() {
   };
 
   return (
-    <div style={{ minHeight: "100%", background: "#fff", paddingBottom: 72 }}>
-      <div style={{ height: safeTop, background: "#f3f4f6" }} />
-      <div style={{ marginTop: -safeTop }}>
+    <div style={{ minHeight: "100%", background: "transparent", paddingBottom: 72, position: "relative" }}>
+      {/* общий фиксированный фон */}
+      <BgGradient />
+
+      {/* safe-area сверху */}
+      <div style={{ height: safeTop, background: "transparent" }} />
+
+      {/* контент поверх фона */}
+      <main style={{ marginTop: -safeTop, position: "relative", zIndex: 1 }}>
         <Outlet />
-      </div>
+      </main>
+
       {!hideNav && <NavBar current={current} onChange={handleChange} pushDown={keyboardOffset} />}
     </div>
   );

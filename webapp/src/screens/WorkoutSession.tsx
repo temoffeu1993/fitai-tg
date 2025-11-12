@@ -552,8 +552,7 @@ const page = {
     minHeight: "100vh",
     width: "100%",
     padding: "16px",
-    background: SESSION_BG,
-    backgroundAttachment: "fixed",
+    background: "transparent",
   } as React.CSSProperties,
   inner: {
     maxWidth: 760,

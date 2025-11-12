@@ -780,9 +780,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: "16px",
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
     background:
-      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
+"transparent",
     minHeight: "100vh",
-    backgroundAttachment: "fixed",
   },
 
   heroCard: {
