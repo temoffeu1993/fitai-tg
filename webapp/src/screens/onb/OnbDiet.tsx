@@ -23,10 +23,10 @@ type Props = {
   loading?: boolean;
   onSubmit: (patch: OnbDietData) => void;
   onBack?: () => void;
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void; // добавили для таббара
+  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
-export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChange }: Props) {
+export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [hasLimits, setHasLimits] = useState<boolean>(!!initial?.health?.hasLimits);
   const [limitsText, setLimitsText] = useState<string>(initial?.health?.limitsText ?? "");
 
@@ -85,22 +85,21 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
 
   return (
     <div style={st.page}>
-      {/* HERO */}
+      {/* HERO — чёрный, как на других онбординг-экранах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
           <span style={st.pill}>Шаг 4 из 6</span>
-          <span style={st.credits}>Анкета</span>
+          <span style={st.pill}>Анкета</span>
         </div>
 
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>Питание</div>
+        <div style={st.heroKicker}>Питание</div>
         <div style={st.heroTitle}>Здоровье и питание 🥗</div>
         <div style={st.heroSubtitle}>Учту ограничения и предпочтения. План будет комфортным.</div>
       </section>
 
       {/* Ряд 1: Ограничения + Бюджет */}
       <section style={st.grid2Cols}>
-        {/* Медицинские ограничения */}
-        <div style={st.card}>
+        <div style={st.cardGlass}>
           <div style={st.blockTitle}>🩺 Есть ли травмы или мед. ограничения?</div>
           <div style={st.row2Equal}>
             <Chip label="Нет"  active={!hasLimits} onClick={() => setHasLimits(false)} />
@@ -112,13 +111,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
               value={limitsText}
               onChange={(e) => setLimitsText(e.target.value)}
               placeholder="Уточни: колени, спина, давление…"
-              style={{ ...st.input, marginTop: 12, minHeight: 88, resize: "vertical" as const }}
+              style={{ ...st.inputGlass, marginTop: 12, minHeight: 88, resize: "vertical" as const }}
             />
           )}
         </div>
 
-        {/* Бюджет */}
-        <div style={st.card}>
+        <div style={st.cardGlass}>
           <div style={st.blockTitle}>💸 Ваш бюджет на продукты</div>
           <div style={st.row3Equal}>
             <Chip label="Низкий"  active={budget === "low"}    onClick={() => setBudget("low")} />
@@ -130,8 +128,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
 
       {/* Ряд 2: Непереносимости + Стиль питания */}
       <section style={st.grid2Cols}>
-        {/* Непереносимости */}
-        <div style={st.card}>
+        <div style={st.cardGlass}>
           <div style={st.blockTitle}>🚫 Что нельзя или не любишь?</div>
           <div style={st.wrapGridEven}>
             {RESTRICTIONS.map((r) => (
@@ -150,13 +147,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
               value={restrictionOther}
               onChange={(e) => setRestrictionOther(e.target.value)}
               placeholder="Например: морепродукты"
-              style={{ ...st.input, marginTop: 12 }}
+              style={{ ...st.inputGlass, marginTop: 12 }}
             />
           )}
         </div>
 
-        {/* Стиль питания */}
-        <div style={st.card}>
+        <div style={st.cardGlass}>
           <div style={st.blockTitle}>🍽️ Выбери свой стиль питания</div>
           <div style={st.wrapGridEven}>
             {STYLES.map((s) => (
@@ -174,13 +170,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
               value={styleOther}
               onChange={(e) => setStyleOther(e.target.value)}
               placeholder="Уточни свой вариант"
-              style={{ ...st.input, marginTop: 12 }}
+              style={{ ...st.inputGlass, marginTop: 12 }}
             />
           )}
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — стили «как пункты меню»: без тени */}
       <button
         onClick={handleNext}
         disabled={!canNext || !!loading}
@@ -204,7 +200,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack, onTabChang
   );
 }
 
-/* ---- UI ---- */
+/* ---- UI primitives ---- */
 function Chip({
   label,
   active,
@@ -229,71 +225,57 @@ function ChipSm({
   );
 }
 
-function TabBtn({
-  emoji,
-  label,
-  active,
-  onClick,
-}: { emoji: string; label: string; active?: boolean; onClick?: () => void }) {
-  return (
-    <button type="button" onClick={onClick} style={{ ...st.tabBtn, ...(active ? st.tabBtnActive : {}) }}>
-      <div style={{ fontSize: 18 }}>{emoji}</div>
-      <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
-    </button>
-  );
-}
-
 /* ---- Styles ---- */
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+
 const st: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
     padding: 16,
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
-    background: "#fff",
+    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background: "transparent",
+    minHeight: "100vh",
   },
 
+  /* HERO чёрный */
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
+    overflow: "hidden",
     marginBottom: 14,
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   pill: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
   },
-  credits: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-  },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
+  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
+  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)" },
 
-  card: {
-    background: "#fff",
-    borderRadius: 16,
+  /* Карточки — белое стекло */
+  cardGlass: {
+    marginTop: 14,
     padding: 14,
-    marginTop: 12,
-    boxShadow: cardShadow,
-    width: "100%",
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    height: "100%",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.06)",
+    boxShadow: "0 2px 6px rgba(0,0,0,.1)",
+    backdropFilter: "blur(10px)",
   },
-  blockTitle: { fontSize: 16, fontWeight: 800, color: "#0B1220", marginBottom: 12 },
+
+  blockTitle: { fontSize: 15, fontWeight: 800, color: "#0B1220", marginBottom: 10 },
 
   grid2Cols: {
     display: "grid",
@@ -302,95 +284,93 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "stretch",
     marginTop: 12,
   },
-
-  row2Equal: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-    alignItems: "stretch",
-    justifyItems: "stretch",
-    marginTop: 12,
-  },
+  row2Equal: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 },
   row3Equal: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
     gap: 8,
-    alignItems: "stretch",
-    justifyItems: "stretch",
     marginTop: 12,
   },
-
   wrapGridEven: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
     gap: 8,
     marginTop: 12,
-    alignItems: "stretch",
-    justifyItems: "stretch",
   },
 
+  /* Чипы */
   chip: {
     padding: "10px 12px",
-    background: "#f6f7fb",
+    background: "rgba(255,255,255,0.6)",
     borderRadius: 12,
-    border: "none",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)",
+    border: "1px solid rgba(0,0,0,.08)",
+    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter: "blur(6px)",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
     width: "100%",
     textAlign: "center",
+    transition: "transform .06s ease",
   },
+  /* Активные пункты: без бордюра и без тени */
   chipActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    background: GRAD,
+    color: "#000",
+    border: "none",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
-  chipText: { color: "#111827", fontWeight: 700 },
-  chipTextActive: { color: "#fff", fontWeight: 800 },
+  chipText: { color: "#111827", letterSpacing: 0.3 },
+  chipTextActive: { color: "#000" },
 
   chipSm: {
     padding: "10px 12px",
-    background: "#f6f7fb",
+    background: "rgba(255,255,255,0.6)",
     borderRadius: 10,
-    border: "none",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)",
+    border: "1px solid rgba(0,0,0,.08)",
+    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter: "blur(6px)",
     cursor: "pointer",
     textAlign: "center",
     width: "100%",
     boxSizing: "border-box",
+    fontWeight: 800,
   },
+  /* Активные Sm: без бордюра и без тени */
   chipSmActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
+    background: GRAD,
+    color: "#000",
+    border: "none",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
-  chipSmText: { fontSize: 12, color: "#111827", fontWeight: 700 },
-  chipSmTextActive: { color: "#fff", fontWeight: 800 },
+  chipSmText: { fontSize: 12, color: "#111827", fontWeight: 800 },
+  chipSmTextActive: { color: "#000" },
 
-  input: {
+  /* Поля ввода — стекло */
+  inputGlass: {
     width: "100%",
     maxWidth: "100%",
-    boxSizing: "border-box",
-    border: "1px solid #E5E7EB",
+    border: "1px solid rgba(0,0,0,.08)",
     borderRadius: 12,
-    padding: "12px 12px",
-    background: "#fff",
+    padding: "12px",
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
+    backdropFilter: "blur(6px)",
     fontSize: 16,
-    color: "#111827",
-    display: "block",
+    color: "#111",
   },
 
+  /* CTA как пункты меню: без тени и бордюра */
   primaryBtn: {
-    marginTop: 14,
+    marginTop: 16,
     width: "100%",
     border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
+    borderRadius: 16,
+    padding: "14px 18px",
     fontSize: 16,
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
-    cursor: "pointer",
+    fontWeight: 850,
+    color: "#000",
+    background: GRAD,
+    boxShadow: "0 2px 6px rgba(0,0,0,.1)",
   },
 
   backTextBtn: {
@@ -400,41 +380,9 @@ const st: Record<string, React.CSSProperties> = {
     background: "transparent",
     color: "#111827",
     fontSize: 15,
-    fontWeight: 500,
+    fontWeight: 600,
     padding: "12px 16px",
     cursor: "pointer",
-    textAlign: "center" as const,
-  },
-
-  // таббар как в OnbAgeSex
-  tabbar: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: "#fff",
-    boxShadow: "0 -6px 18px rgba(0,0,0,.08)",
-    borderTop: "1px solid rgba(0,0,0,.06)",
-    padding: "8px 12px",
-    display: "grid",
-    gridTemplateColumns: "repeat(4,1fr)",
-    gap: 8,
-    maxWidth: 720,
-    margin: "0 auto",
-  },
-  tabBtn: {
-    border: "none",
-    borderRadius: 12,
-    padding: "8px",
-    background: "#f6f7fb",
-    display: "grid",
-    placeItems: "center",
-    gap: 4,
-    cursor: "pointer",
-    fontWeight: 700,
-  } as React.CSSProperties,
-  tabBtnActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
+    textAlign: "center",
   },
 };

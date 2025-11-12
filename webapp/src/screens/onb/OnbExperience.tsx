@@ -33,36 +33,36 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
   }
 
   return (
-    <div style={st.page}>
-      {/* HERO (как в AgeSex) */}
-      <section style={st.heroCard}>
-        <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 2 из 6</span>
-          <span style={st.credits}>Анкета</span>
+    <div style={s.page}>
+      {/* HERO — чёрный, как в OnbAgeSex/Dashboard */}
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Шаг 2 из 6</span>
+          <span style={s.pill}>Анкета</span>
         </div>
 
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>Режим</div>
-        <div style={st.heroTitle}>Опыт и время ⏱️</div>
-        <div style={st.heroSubtitle}>Выбери уровень, частоту и длительность.</div>
+        <div style={s.heroKicker}>Режим</div>
+        <div style={s.heroTitle}>Опыт и время ⏱️</div>
+        <div style={s.heroSubtitle}>Выбери уровень, частоту и длительность.</div>
       </section>
 
-      {/* Опыт — по горизонтали, широкие элементы с подписями */}
-      <section style={st.card}>
-        <div style={st.blockTitle}>🎓 Опыт тренировок</div>
-        <div style={st.row3Equal}>
-          <ChipWithSub
+      {/* Опыт — широкие стеклянные чипы с подзаголовком */}
+      <section style={s.block}>
+        <div style={s.blockTitle}>🎓 Опыт тренировок</div>
+        <div style={ux.row3Equal}>
+          <ChipWide
             label="Новичок"
             sub="< 6 мес"
             active={experience === "beginner"}
             onClick={() => setExperience("beginner")}
           />
-          <ChipWithSub
+          <ChipWide
             label="Средний"
             sub="6–24 мес"
             active={experience === "intermediate"}
             onClick={() => setExperience("intermediate")}
           />
-          <ChipWithSub
+          <ChipWide
             label="Профи"
             sub="2+ года"
             active={experience === "advanced"}
@@ -71,12 +71,11 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         </div>
       </section>
 
-      {/* Два равных блока в один ряд: Кол-во раз и Время на тренировку */}
-      <section style={st.grid2Equal}>
-        {/* Кол-во раз в неделю */}
-        <div style={st.cardMini}>
-          <div style={st.cardMiniTitle}>📅 Сколько раз в неделю?</div>
-          <div style={st.rowCenter}>
+      {/* Два стеклянных мини-блока: частота и длительность */}
+      <section style={ux.grid2Equal}>
+        <div style={ux.cardMini}>
+          <div style={ux.cardMiniTitle}>📅 Сколько раз в неделю?</div>
+          <div style={ux.rowChips}>
             {[2, 3, 4, 5].map((d) => (
               <Chip key={d} label={`${d}`} active={daysPerWeek === d} onClick={() => setDaysPerWeek(d)} />
             ))}
@@ -84,10 +83,9 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
           </div>
         </div>
 
-        {/* Время на тренировку */}
-        <div style={st.cardMini}>
-          <div style={st.cardMiniTitle}>⌛ Сколько минут на тренировку?</div>
-          <div style={st.rowCenter}>
+        <div style={ux.cardMini}>
+          <div style={ux.cardMiniTitle}>⌛ Сколько минут на тренировку?</div>
+          <div style={ux.rowChips}>
             <Chip label="30 мин" active={minutesPerSession === 30} onClick={() => setMinutesPerSession(30)} />
             <Chip label="60 мин" active={minutesPerSession === 60} onClick={() => setMinutesPerSession(60)} />
             <Chip label="90+ мин" active={minutesPerSession >= 90} onClick={() => setMinutesPerSession(90)} />
@@ -95,12 +93,12 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — градиент как в приложении, тень как у чипов пола */}
       <button
         onClick={handleNext}
         disabled={!canNext || !!loading}
         style={{
-          ...st.primaryBtn,
+          ...s.primaryBtn,
           opacity: !canNext || loading ? 0.6 : 1,
           cursor: !canNext || loading ? "default" : "pointer",
         }}
@@ -109,17 +107,20 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
       </button>
 
       {onBack && (
-        <button type="button" onClick={onBack} style={st.backTextBtn}>
+        <button type="button" onClick={onBack} style={s.backTextBtn}>
           Назад
         </button>
       )}
+
+      {/* Нижнее меню при необходимости: onTabChange?.("home" | ...) */}
+      {/* Можно оставить здесь-хук, визуально меню управляется общим NavBar. */}
 
       <div style={{ height: 76 }} />
     </div>
   );
 }
 
-/* --- UI primitives --- */
+/* ---------- primitives, в стиле OnbAgeSex ---------- */
 function Chip({
   label,
   active,
@@ -130,13 +131,17 @@ function Chip({
   onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} style={{ ...st.chip, ...(active ? st.chipActive : {}) }}>
-      <span style={{ ...st.chipText, ...(active ? st.chipTextActive : {}) }}>{label}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...ux.chip, ...(active ? ux.chipActive : {}) }}
+    >
+      <span style={{ ...(active ? ux.chipTextActive : ux.chipText) }}>{label}</span>
     </button>
   );
 }
 
-function ChipWithSub({
+function ChipWide({
   label,
   sub,
   active,
@@ -151,73 +156,98 @@ function ChipWithSub({
     <button
       type="button"
       onClick={onClick}
-      style={{ ...st.chipWide, ...(active ? st.chipWideActive : {}) }}
+      style={{ ...ux.chipWide, ...(active ? ux.chipWideActive : {}) }}
     >
-      <div style={{ ...st.chipWideLabel, ...(active ? st.chipWideLabelActive : {}) }}>{label}</div>
-      <div style={{ ...st.chipWideSub, ...(active ? st.chipWideSubActive : {}) }}>{sub}</div>
+      <div style={{ ...(active ? ux.chipWideLabelActive : ux.chipWideLabel) }}>{label}</div>
+      <div style={{ ...(active ? ux.chipWideSubActive : ux.chipWideSub) }}>{sub}</div>
     </button>
   );
 }
 
-function TabBtn({
-  emoji,
-  label,
-  onClick,
-}: { emoji: string; label: string; onClick?: () => void }) {
-  return (
-    <button type="button" onClick={onClick} style={st.tabBtn}>
-      <div style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</div>
-      <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
-    </button>
-  );
-}
-
-/* --- Styles (совпадает по визу с OnbAgeSex) --- */
+/* ---------- styles ---------- */
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-const st: Record<string, React.CSSProperties> = {
+const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+
+const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
     padding: 16,
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
-    background: "#fff",
+    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background: "transparent",
+    minHeight: "100vh",
   },
 
   heroCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background:
-      "linear-gradient(135deg, rgba(114,135,255,1) 0%, rgba(164,94,255,1) 45%, rgba(255,120,150,1) 100%)",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#050505",
     color: "#fff",
+    overflow: "hidden",
     marginBottom: 14,
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
   pill: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
   },
-  credits: {
-    background: "rgba(255,255,255,.2)",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-  },
-  heroTitle: { fontSize: 22, fontWeight: 800, marginTop: 6 },
-  heroSubtitle: { opacity: 0.92, marginTop: 2 },
+  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
+  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)" },
 
-  // Карточки без внешней обводки
-  card: {
-    background: "#fff",
-    borderRadius: 16,
+  block: {
+    marginTop: 14,
     padding: 14,
-    marginTop: 12,
-    boxShadow: cardShadow,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.06)",
+    boxShadow: "0 2px 6px rgba(0,0,0,.1)",
+    backdropFilter: "blur(10px)",
   },
-  blockTitle: { fontSize: 16, fontWeight: 800, color: "#0B1220", marginBottom: 8 },
+  blockTitle: { fontSize: 15, fontWeight: 800, color: "#0B1220", marginBottom: 10 },
+
+  primaryBtn: {
+    marginTop: 16,
+    width: "100%",
+    border: "none",
+    borderRadius: 16,
+    padding: "14px 18px",
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#000",
+    background: GRAD,
+    // тень как у чипов пола
+    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+  },
+
+  backTextBtn: {
+    marginTop: 10,
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: 600,
+    padding: "12px 16px",
+    cursor: "pointer",
+    textAlign: "center",
+  },
+};
+
+const ux: Record<string, React.CSSProperties> = {
+  row3Equal: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: 10,
+    alignItems: "stretch",
+  },
 
   grid2Equal: {
     display: "grid",
@@ -227,129 +257,65 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "stretch",
   },
 
-  // Мини-карточки без обводки
   cardMini: {
-    background: "#fff",
+    background: "rgba(255,255,255,0.6)",
     borderRadius: 16,
     boxShadow: cardShadow,
+    border: "1px solid rgba(0,0,0,.06)",
+    backdropFilter: "blur(10px)",
     padding: 12,
     display: "flex",
     flexDirection: "column",
     gap: 12,
     height: "100%",
   },
-  cardMiniTitle: { fontSize: 14, fontWeight: 800, color: "#0B1220", textAlign: "center" },
+  cardMiniTitle: { fontSize: 13.5, fontWeight: 800, color: "#0B1220", textAlign: "center" },
 
-  rowCenter: {
+  rowChips: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))",
     gap: 8,
     width: "100%",
   },
 
-  // Три равных широких варианта опыта
-  row3Equal: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: 8,
-    alignItems: "stretch",
-  },
-
   chip: {
     padding: "10px 12px",
     background: "#f6f7fb",
     borderRadius: 12,
-    border: "none",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)",
+    border: "0px solid rgba(0,0,0,.06)",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
     width: "100%",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    transition: "transform .06s ease",
   },
   chipActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    background: GRAD,
+    color: "#000",
   },
-  chipText: { color: "#111827", fontWeight: 700 },
-  chipTextActive: { color: "#fff", fontWeight: 800 },
+  chipText: { color: "#111827", letterSpacing: 0.4 },
+  chipTextActive: { color: "#000", letterSpacing: 0.4 },
 
-  // Широкая версия чипа с подписью
   chipWide: {
     display: "grid",
     justifyItems: "center",
-    padding: "10px 12px",
-    background: "#f6f7fb",
-    borderRadius: 12,
-    border: "none",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)",
+    padding: "12px",
+    minHeight: 72,
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,.06)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(6px)",
     cursor: "pointer",
-    minHeight: 64,
+    gap: 2,
   },
   chipWideActive: {
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
+    background: GRAD,
+    color: "#000",
+    border: "0px solid rgba(0,0,0,0.1)"
   },
-  chipWideLabel: { fontSize: 13, fontWeight: 800, color: "#111827" },
-  chipWideLabelActive: { color: "#fff" },
-  chipWideSub: { fontSize: 11, color: "#6B7280", marginTop: 2 },
-  chipWideSubActive: { color: "#E5E7EB" },
-
-  // Кнопки одинакового размера
-  primaryBtn: {
-    marginTop: 14,
-    width: "100%",
-    border: "none",
-    borderRadius: 14,
-    padding: "14px 16px",
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
-    cursor: "pointer",
-  },
-
-  // Текстовая кнопка "Назад" без фона
-  backTextBtn: {
-    marginTop: 10,
-    width: "100%",
-    border: "none",
-    background: "transparent",
-    color: "#111827",
-    fontSize: 15,
-    fontWeight: 500,
-    padding: "12px 16px",
-    cursor: "pointer",
-    textAlign: "center" as const,
-  },
-
-  tabbar: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
-    background: "#fff",
-    boxShadow: "0 -6px 18px rgba(0,0,0,.08)",
-    borderTop: "1px solid rgba(0,0,0,.06)",
-    padding: "8px 12px",
-    display: "grid",
-    gridTemplateColumns: "repeat(4,1fr)",
-    gap: 8,
-    maxWidth: 720,
-    margin: "0 auto",
-  },
-  
-  tabBtn: {
-    border: "none",
-    borderRadius: 12,
-    padding: "8px 6px",
-    background: "#f6f7fb",
-    display: "grid",
-    placeItems: "center",
-    gap: 4,
-    cursor: "pointer",
-    fontWeight: 700,
-  } as React.CSSProperties,
+  chipWideLabel: { fontSize: 14, fontWeight: 850, color: "#111827" },
+  chipWideLabelActive: { fontSize: 14, fontWeight: 900, color: "#000" },
+  chipWideSub: { fontSize: 11.5, color: "#6B7280" },
+  chipWideSubActive: { fontSize: 11.5, color: "#1b1b1b" },
 };

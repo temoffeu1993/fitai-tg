@@ -4,7 +4,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import NavBar, { type NavCurrent, type TabKey } from "@/components/NavBar";
 
 function resolveNavCurrent(pathname: string): NavCurrent {
-  // 👇 спец-кейс: отдельный экран — без подсветки табов
   if (pathname === "/nutrition/today" || pathname.startsWith("/nutrition/today")) {
     return "none";
   }
@@ -36,10 +35,34 @@ function BgGradient() {
   );
 }
 
+function hasOnbLocal(): boolean {
+  try {
+    return !!JSON.parse(localStorage.getItem("onb_summary") || "null");
+  } catch {
+    return false;
+  }
+}
+
 export default function LayoutWithNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const keyboardOffset = useKeyboardOffset();
+
+  const [onbDone, setOnbDone] = useState<boolean>(hasOnbLocal());
+
+  useEffect(() => {
+    const update = () => setOnbDone(hasOnbLocal());
+    update();
+    window.addEventListener("focus", update);
+    window.addEventListener("storage", (e: StorageEvent) => {
+      if (e.key === "onb_summary") update();
+    });
+    window.addEventListener("onb_updated" as any, update);
+    return () => {
+      window.removeEventListener("focus", update);
+      window.removeEventListener("onb_updated" as any, update);
+    };
+  }, []);
 
   const current = resolveNavCurrent(pathname);
   const hideNav = shouldHideNav(pathname);
@@ -71,7 +94,14 @@ export default function LayoutWithNav() {
         <Outlet />
       </main>
 
-      {!hideNav && <NavBar current={current} onChange={handleChange} pushDown={keyboardOffset} />}
+      {!hideNav && (
+        <NavBar
+          current={current}
+          onChange={handleChange}
+          pushDown={keyboardOffset}
+          disabledAll={!onbDone}
+        />
+      )}
     </div>
   );
 }
