@@ -59,6 +59,7 @@ type WeekPlanAI = {
 
 type PlanStatus = "processing" | "ready" | "failed";
 
+const MOSCOW_TZ = "Europe/Moscow";
 const DEFAULT_MEALS = [
   { title: "Завтрак", time: "08:00" },
   { title: "Перекус", time: "11:00" },
@@ -67,7 +68,36 @@ const DEFAULT_MEALS = [
   { title: "Ужин", time: "20:00" },
 ];
 
-function buildSkeletonWeek(weekStart: string, targets: NutritionTarget): WeekPlanAI {
+function currentMoscowDateISO() {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MOSCOW_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+}
+
+function addDaysToIso(iso: string, offset: number): string {
+  const base = new Date(`${iso}T00:00:00Z`);
+  const shifted = new Date(base.getTime() + offset * 86400000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+function buildWeekWindow(startIso: string) {
+  return Array.from({ length: 3 }).map((_, idx) => {
+    const iso = addDaysToIso(startIso, idx);
+    const label = new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: MOSCOW_TZ,
+    });
+    return { iso, label };
+  });
+}
+
+function buildSkeletonWeek(startDateISO: string, targets: NutritionTarget): WeekPlanAI {
   const mealsPerDay = Math.min(5, Math.max(3, targets.mealsPerDay));
   const baseMeals = DEFAULT_MEALS.slice(0, mealsPerDay).map((meal, idx) => ({
     title: meal.title,
@@ -81,10 +111,9 @@ function buildSkeletonWeek(weekStart: string, targets: NutritionTarget): WeekPla
   }));
 
   const days = Array.from({ length: 3 }).map((_, idx) => {
-    const date = new Date(weekStart);
-    date.setDate(date.getDate() + idx);
+    const dayIso = addDaysToIso(startDateISO, idx);
     return {
-      date: date.toISOString().slice(0, 10),
+      date: dayIso,
       title: `День ${idx + 1}`,
       meals: baseMeals.map((meal) => ({ ...meal, items: [] })),
     };
@@ -232,17 +261,6 @@ async function getOnboarding(userId: string): Promise<Onb> {
   return rows[0]?.data || {};
 }
 
-function startOfWeekISO(d = new Date()) {
-  const dt = new Date(d);
-  const day = (dt.getDay() + 6) % 7;
-  dt.setHours(0, 0, 0, 0);
-  dt.setDate(dt.getDate() - day);
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-
 async function getLastNutritionPlans(userId: string, n = 3) {
   const rows = await q(
     `SELECT id, week_start_date, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes
@@ -304,9 +322,7 @@ async function insertSkeletonPlan(
 
     for (let i = 0; i < aiPlan.week.days.length; i++) {
       const d = aiPlan.week.days[i];
-      const dayDate =
-        d?.date ||
-        new Date(new Date(weekStart).getTime() + i * 86400000).toISOString().slice(0, 10);
+      const dayDate = d?.date || addDaysToIso(weekStart, i);
       const [dayRow] = await q(
         `INSERT INTO nutrition_days (plan_id, day_index, day_date)
          VALUES ($1, $2, $3::date)
@@ -356,26 +372,15 @@ async function overwritePlanWithAI(
   try {
     await q(`DELETE FROM nutrition_days WHERE plan_id = $1`, [planId]);
 
-    const baseDate = new Date(weekStart);
     for (let i = 0; i < aiPlan.week.days.length; i++) {
       const d = aiPlan.week.days[i];
-      const fallbackDate = new Date(baseDate);
-      fallbackDate.setDate(baseDate.getDate() + i);
+      const fallbackDate = addDaysToIso(weekStart, i);
       let dayDate = d?.date;
-      if (!dayDate) {
-        dayDate = fallbackDate.toISOString().slice(0, 10);
-      }
-      try {
-        if (dayDate) {
-          const parsed = new Date(dayDate);
-          if (!Number.isNaN(parsed.getTime())) {
-            dayDate = parsed.toISOString().slice(0, 10);
-          } else {
-            dayDate = fallbackDate.toISOString().slice(0, 10);
-          }
-        }
-      } catch {
-        dayDate = fallbackDate.toISOString().slice(0, 10);
+      if (dayDate) {
+        const parsed = new Date(dayDate);
+        dayDate = Number.isNaN(parsed.getTime()) ? fallbackDate : parsed.toISOString().slice(0, 10);
+      } else {
+        dayDate = fallbackDate;
       }
       const [dayRow] = await q(
         `INSERT INTO nutrition_days (plan_id, day_index, day_date)
@@ -717,10 +722,20 @@ function buildAIPrompt(onb: Onb, targets: NutritionTarget, lastWeeks: any[], wee
     : "";
 
   const cultural = ruCulturalGuidelines();
+  const weekDays = buildWeekWindow(weekStartISO);
+  const daysText = weekDays
+    .map(
+      (day, idx) =>
+        `${idx + 1}) ${day.label} (${day.iso}, московское время)`
+    )
+    .join("\n");
 
   return `Ты — профессиональный спортивный нутрициолог с 15+ годами практики и доступом к полным базам данных USDA и FatSecret.
 
 Составь персональный план питания на 3 дня для этого клиента.
+
+Работаем в часовом поясе Europe/Moscow. Неделя начинается ${weekDays[0].label}. План должен охватывать строго следующие три последовательных дня (используй эти ISO-даты в поле day_date):
+${daysText}
 
 ═══════════════════════════════════════════════════════════
 ДАННЫЕ КЛИЕНТА
@@ -981,7 +996,7 @@ nutrition.post(
 
     const userId = await getUserId(req as any);
     const onboarding = await getOnboarding(userId);
-    const weekStart = startOfWeekISO(new Date());
+    const weekStart = currentMoscowDateISO();
     const force = Boolean(req.body?.force);
     let existing = await loadWeekPlan(userId, weekStart);
 
@@ -1049,7 +1064,7 @@ nutrition.get(
   "/current-week",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
-    const weekStart = startOfWeekISO(new Date());
+    const weekStart = currentMoscowDateISO();
     const data = await loadWeekPlan(userId, weekStart);
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
     res.json({

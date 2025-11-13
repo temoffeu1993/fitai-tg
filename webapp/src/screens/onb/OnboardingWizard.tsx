@@ -37,6 +37,8 @@ export default function OnboardingWizard() {
       const summary = await saveOnboarding(acc);
       localStorage.setItem("onb_summary", JSON.stringify(summary ?? acc));
       localStorage.setItem("onboarding_done", "1");
+      try { new BroadcastChannel("onb").postMessage("onb_updated"); } catch {}
+      try { window.dispatchEvent(new Event("onb_updated")); } catch {}
       window.location.pathname = "/";
     } catch (e) {
       alert(`Ошибка сохранения: ${e instanceof Error ? e.message : String(e)}`);
