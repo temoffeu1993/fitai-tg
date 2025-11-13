@@ -44,6 +44,7 @@ export default function OnboardingWizard() {
         bc.postMessage("onb_updated");
         bc.close();
       } catch {}
+      try { window.dispatchEvent(new Event("onb_complete")); } catch {}
       try { window.dispatchEvent(new Event("onb_updated")); } catch {}
       window.location.pathname = "/";
     } catch (e) {

@@ -53,14 +53,33 @@ export default function LayoutWithNav() {
   useEffect(() => {
     const update = () => setOnbDone(hasOnbLocal());
     update();
-    window.addEventListener("focus", update);
-    window.addEventListener("storage", (e: StorageEvent) => {
-      if (e.key === "onb_summary") update();
-    });
-    window.addEventListener("onb_updated" as any, update);
+
+    const onFocus = () => update();
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === "onb_summary" || e.key === "onb_complete") update();
+    };
+    const onOnb = () => update();
+    const onComplete = () => update();
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("onb_updated" as any, onOnb);
+    window.addEventListener("onb_complete" as any, onComplete);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("onb");
+      bc.onmessage = (event) => {
+        if (event?.data === "onb_updated" || event?.data === "onb_complete") update();
+      };
+    } catch {}
+
     return () => {
-      window.removeEventListener("focus", update);
-      window.removeEventListener("onb_updated" as any, update);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("onb_updated" as any, onOnb);
+      window.removeEventListener("onb_complete" as any, onComplete);
+      try { bc?.close(); } catch {}
     };
   }, []);
 
