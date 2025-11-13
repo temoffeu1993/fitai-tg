@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { q } from "./db.js";
-import { asyncHandler } from "./middleware/errorHandler.js";
+import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { loadScheduleData } from "./utils/scheduleStore.js";
 
 export const progress = Router();
@@ -93,23 +93,15 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function resolveUserId(req: any): Promise<string> {
+function resolveUserId(req: any): string {
   if (req.user?.uid) return req.user.uid;
-  const bodyUserId = req.body?.userId || req.query?.userId;
-  if (bodyUserId) return bodyUserId;
-  const r = await q(
-    `INSERT INTO users (tg_id, first_name, username)
-       VALUES (0, 'Dev', 'local')
-       ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
-       RETURNING id`
-  );
-  return r[0].id;
+  throw new AppError("Unauthorized", 401);
 }
 
 progress.get(
   "/summary",
   asyncHandler(async (req: any, res: Response) => {
-    const userId = await resolveUserId(req);
+    const userId = resolveUserId(req);
 
     const scheduleData = await loadScheduleData(userId);
 
@@ -569,7 +561,7 @@ progress.get(
 progress.post(
   "/body-metrics",
   asyncHandler(async (req: any, res: Response) => {
-    const userId = await resolveUserId(req);
+    const userId = resolveUserId(req);
     const payload = req.body || {};
     const recordedAtRaw = payload.recordedAt || payload.date;
     const weight = payload.weight != null ? Number(payload.weight) : null;

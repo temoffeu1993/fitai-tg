@@ -6,8 +6,18 @@ export function apiUrl(path: string) {
   return `${BASE}${path}`;
 }
 
-export function apiFetch(path: string, init?: RequestInit) {
-  return fetch(apiUrl(path), init);
+export function apiFetch(path: string, init: RequestInit = {}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers = new Headers(init.headers || {});
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const finalInit: RequestInit = {
+    ...init,
+    headers,
+    credentials: init.credentials ?? "include",
+  };
+
+  return fetch(apiUrl(path), finalInit);
 }
 
 export const API_BASE = BASE;

@@ -2,7 +2,6 @@
 import { Router, Response } from "express";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
-// import { requireAuth } from "./auth.js"; // в dev не используем
 import OpenAI from "openai";
 import { config } from "./config.js";
 
@@ -10,29 +9,19 @@ export const onboarding = Router();
 
 const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 
-// helper: вернуть uid аутентифицированного или dev-гостя
-async function getUidOrDev(req: any): Promise<string> {
+function getUid(req: any): string {
   if (req.user?.uid) return req.user.uid;
-  const rows = await q<{ id: string }>(
-    `insert into users (tg_id, first_name, username)
-     values (0, 'Dev', 'local')
-     on conflict (tg_id) do update
-       set username = excluded.username
-     returning id`
-  );
-  if (!rows[0]?.id) throw new AppError("Cannot create dev user", 500);
-  return rows[0].id;
+  throw new AppError("Unauthorized", 401);
 }
 
 /** Сохранить онбординг */
 onboarding.post(
   "/onboarding/save",
-  // requireAuth,
   asyncHandler(async (req: any, res: Response) => {
     const { data } = req.body || {};
     if (!data || typeof data !== "object") throw new AppError("Missing onboarding data", 400);
 
-    const uid = await getUidOrDev(req);
+    const uid = getUid(req);
 
     const d: any = data;
 
@@ -122,9 +111,8 @@ ${JSON.stringify(data, null, 2)}
 /** Сырые данные (для предзаполнения мастера) */
 onboarding.get(
   "/onboarding/raw",
-  // requireAuth,
   asyncHandler(async (req: any, res: Response) => {
-    const uid = await getUidOrDev(req);
+    const uid = getUid(req);
     const rows = await q<{ data: any }>(`select data from onboardings where user_id = $1`, [uid]);
     res.json({ data: rows[0]?.data ?? null });
   })
@@ -133,9 +121,8 @@ onboarding.get(
 /** Краткое summary */
 onboarding.get(
   "/onboarding/summary",
-  // requireAuth,
   asyncHandler(async (req: any, res: Response) => {
-    const uid = await getUidOrDev(req);
+    const uid = getUid(req);
     const rows = await q<{ summary: any }>(`select summary from onboardings where user_id = $1`, [uid]);
     res.json({ summary: rows[0]?.summary ?? null });
   })

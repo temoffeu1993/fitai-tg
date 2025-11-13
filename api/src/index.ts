@@ -5,7 +5,7 @@ console.log("DEBUG_AI =", process.env.DEBUG_AI);
 import express from "express";
 import cors from "cors";
 
-import authRouter from "./auth.js";
+import authRouter, { requireAuth } from "./auth.js";
 import { onboarding } from "./onboarding.js";
 import planRouter from "./plan.js";
 import { workout } from "./workout.js";
@@ -21,15 +21,20 @@ app.use(cors({ origin: true, credentials: true }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
-app.use(onboarding);
-app.use("/plan", (req, res, next) => {
-  console.log("HIT /plan", req.method, req.url);
-  next();
-}, planRouter);
-app.use("/workout", workout);
-app.use("/api/nutrition", nutrition);
-app.use("/api", schedule);
-app.use("/api/progress", progress);
+app.use(requireAuth, onboarding);
+app.use(
+  "/plan",
+  requireAuth,
+  (req, res, next) => {
+    console.log("HIT /plan", req.method, req.url);
+    next();
+  },
+  planRouter
+);
+app.use("/workout", requireAuth, workout);
+app.use("/api/nutrition", requireAuth, nutrition);
+app.use("/api", requireAuth, schedule);
+app.use("/api/progress", requireAuth, progress);
 
 // error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

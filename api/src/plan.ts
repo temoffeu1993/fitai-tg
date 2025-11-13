@@ -112,6 +112,11 @@ const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
 const MIN_EXERCISES = 5;
 
+const ensureUser = (req: any): string => {
+  if (req.user?.uid) return req.user.uid;
+  throw new AppError("Unauthorized", 401);
+};
+
 function minExercisesForDuration(duration: number) {
   if (duration >= 85) return 6;
   if (duration >= 70) return 6;
@@ -667,16 +672,7 @@ plan.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
     // 1. Получаем пользователя
-const bodyUserId = req.body?.userId;
-const userId = bodyUserId || req.user?.uid || (await (async () => {
-  const r = await q(
-    `INSERT INTO users (tg_id, first_name, username)
-     VALUES (0, 'Dev', 'local')
-     ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
-     RETURNING id`
-  );
-  return r[0].id;
-})());
+    const userId = ensureUser(req);
 
     console.log("\n=== GENERATING WORKOUT ===");
     console.log("User ID:", userId);
@@ -860,15 +856,7 @@ function validatePlanStructure(plan: WorkoutPlan, constraints: Constraints, sess
 plan.post(
   "/save-session",
   asyncHandler(async (req: any, res: Response) => {
-    const userId = req.user?.uid || (await (async () => {
-      const r = await q(
-        `INSERT INTO users (tg_id, first_name, username)
-         VALUES (0, 'Dev', 'local')
-         ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
-         RETURNING id`
-      );
-      return r[0].id;
-    })());
+    const userId = ensureUser(req);
 
     const payload = req.body?.payload;
 

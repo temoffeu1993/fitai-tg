@@ -1,21 +1,13 @@
 // api/src/schedule.ts
 import { Router, Request, Response } from "express";
 import { q } from "./db.js";
-import { asyncHandler } from "./middleware/errorHandler.js";
+import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import type { WorkoutSchedulePayload } from "./types.js";
 import { loadScheduleData, saveScheduleData, upsertScheduleDate } from "./utils/scheduleStore.js";
 
-async function getUserId(req: any) {
-  const bodyUserId = req.body?.userId;
-  if (bodyUserId) return bodyUserId;
+function getUserId(req: any) {
   if (req.user?.uid) return req.user.uid;
-  const r = await q(
-    `INSERT INTO users (tg_id, first_name, username)
-     VALUES (0, 'Dev', 'local')
-     ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
-     RETURNING id`
-  );
-  return r[0].id;
+  throw new AppError("Unauthorized", 401);
 }
 
 const isHHMM = (s: unknown) => typeof s === "string" && /^\d{2}:\d{2}$/.test(s);

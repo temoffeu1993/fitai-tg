@@ -215,17 +215,9 @@ function calculateNutritionTargets(onb: Onb): NutritionTarget {
 // ----------------------------------------------------------------------------
 // helpers
 // ----------------------------------------------------------------------------
-async function getUserId(req: any) {
-  const bodyUserId = req.body?.userId;
-  if (bodyUserId) return bodyUserId;
+function getUserId(req: any) {
   if (req.user?.uid) return req.user.uid;
-  const r = await q(
-    `INSERT INTO users (tg_id, first_name, username)
-     VALUES (0, 'Dev', 'local')
-     ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
-     RETURNING id`
-  );
-  return r[0].id;
+  throw new AppError("Unauthorized", 401);
 }
 
 async function getOnboarding(userId: string): Promise<Onb> {
