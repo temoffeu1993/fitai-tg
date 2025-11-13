@@ -37,6 +37,7 @@ function BgGradient() {
 
 function hasOnbLocal(): boolean {
   try {
+    if (localStorage.getItem("onb_complete") === "1") return true;
     return !!JSON.parse(localStorage.getItem("onb_summary") || "null");
   } catch {
     return false;
