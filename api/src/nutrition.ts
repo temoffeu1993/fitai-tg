@@ -98,6 +98,109 @@ function makePlanSeed(userId: string, planId: string, iso: string) {
   return crypto.createHash("sha256").update(`${userId}:${planId}:${iso}`).digest("hex").slice(0, 16);
 }
 
+const GOAL_DIRECTIVES: Record<string, (weight: number) => string> = {
+  muscle_gain: (weight) =>
+    `Цель: набор чистой мышечной массы. Суточные калории = TDEE × 1.12. Белок ≈ ${Math.round(
+      weight * 2.2
+    )} г/день. В каждом приёме минимум 25-35 г белка и умеренные сложные углеводы.`,
+  weight_loss: (weight) =>
+    `Цель: снижение веса с сохранением мышц. Суточные калории = TDEE × 0.82. Белок ≈ ${Math.round(
+      weight * 2.0
+    )} г/день. Следи за насыщением, добавляй овощи и избегай быстрых углеводов.`,
+  fat_loss: (weight) =>
+    `Цель: снижение жировой массы. Придерживайся умеренного дефицита, белок ≈ ${Math.round(
+      weight * 2.0
+    )} г/день. Больше овощей и клетчатки.`,
+  maintain: (weight) =>
+    `Цель: поддержание формы. Баланс калорий около TDEE, белок ≈ ${Math.round(weight * 1.8)} г/день.`,
+  default: (weight) =>
+    `Цель: здоровье и жизненный тонус. Держи белок около ${Math.round(weight * 1.8)} г/день и следи за разнообразием.`,
+};
+
+type MacroTotals = { kcal: number; protein: number; fat: number; carbs: number };
+
+function sumItems(items: any[]): MacroTotals {
+  return (items || []).reduce(
+    (acc, it) => ({
+      kcal: acc.kcal + Number(it?.kcal ?? 0),
+      protein: acc.protein + Number(it?.protein_g ?? 0),
+      fat: acc.fat + Number(it?.fat_g ?? 0),
+      carbs: acc.carbs + Number(it?.carbs_g ?? 0),
+    }),
+    { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+const GRAM_UNITS = ["г", "гр", "g", "ml", "мл"];
+function isAdjustable(item: any) {
+  if (!item) return false;
+  const unit = String(item.unit || "").toLowerCase();
+  return typeof item.qty === "number" && GRAM_UNITS.some((u) => unit.includes(u));
+}
+
+function scaleItem(item: any, factor: number) {
+  if (typeof item.qty === "number") {
+    const unit = String(item.unit || "").toLowerCase();
+    let newQty = item.qty * factor;
+    if (unit.includes("ml") || unit.includes("мл")) {
+      newQty = Math.round(newQty / 10) * 10;
+    } else {
+      newQty = Math.round(newQty / 5) * 5;
+    }
+    item.qty = Math.max(5, newQty);
+  }
+  ["kcal", "protein_g", "fat_g", "carbs_g"].forEach((key) => {
+    if (typeof item[key] === "number") {
+      item[key] = Math.round(item[key] * factor * 10) / 10;
+    }
+  });
+}
+
+function enforceMealTargets(days: WeekPlanAI["week"]["days"], targets: NutritionTarget) {
+  if (!Array.isArray(days)) return;
+  for (const day of days) {
+    if (!Array.isArray(day?.meals)) continue;
+    for (const meal of day.meals) {
+      const targetKcal = Number(meal?.target_kcal ?? 0);
+      if (!targetKcal) continue;
+      const totals = sumItems(meal.items);
+      if (totals.kcal <= 0) continue;
+      const diff = targetKcal - totals.kcal;
+      if (Math.abs(diff) <= 80) continue;
+      const adjustable = (meal.items || []).find((it) => isAdjustable(it));
+      if (!adjustable) continue;
+      const factor = clamp(targetKcal / Math.max(1, totals.kcal), 0.7, 1.6);
+      scaleItem(adjustable, factor);
+    }
+    const dayTotals = day.meals.reduce(
+      (acc, m) => {
+        const totals = sumItems(m.items);
+        return {
+          kcal: acc.kcal + totals.kcal,
+          protein: acc.protein + totals.protein,
+          fat: acc.fat + totals.fat,
+          carbs: acc.carbs + totals.carbs,
+        };
+      },
+      { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+    );
+    const dayTarget = targets.dailyKcal;
+    if (!dayTarget) continue;
+    const dayDiff = dayTarget - dayTotals.kcal;
+    if (Math.abs(dayDiff) <= 120) continue;
+    const adjustableMeal = [...day.meals].reverse().find((m) => (m.items || []).some((it) => isAdjustable(it)));
+    if (!adjustableMeal) continue;
+    const adjustableItem = adjustableMeal.items.find((it) => isAdjustable(it));
+    if (!adjustableItem) continue;
+    const factor = clamp(dayTarget / Math.max(1, dayTotals.kcal), 0.8, 1.3);
+    scaleItem(adjustableItem, factor);
+  }
+}
+
 const DEFAULT_MEALS = [
   { title: "Завтрак", time: "08:00" },
   { title: "Перекус", time: "11:00" },
@@ -583,6 +686,8 @@ async function generateDetailedPlan({
     throw new AppError(`AI создал ${ai.week.days.length} дней вместо 3. Попробуйте ещё раз.`, 500);
   }
 
+  enforceMealTargets(ai.week.days, targets);
+
   const meal0Kcals = ai.week.days.map((d) => d.meals?.[0]?.target_kcal || 0);
   if (
     meal0Kcals.length === 3 &&
@@ -763,10 +868,12 @@ function buildAIPrompt(
   const activityLevel = data.activityLevel === "sedentary" ? "сидячий образ жизни" : 
                         data.activityLevel === "moderate" ? "умеренная активность" : 
                         data.activityLevel === "active" ? "активный образ жизни" : data.activityLevel;
-  const goal = data.goal === "muscle_gain" ? "набор мышечной массы" : 
-               data.goal === "weight_loss" ? "снижение веса" :
-               data.goal === "fat_loss" ? "снижение веса" :
-               data.goal === "maintain" ? "поддержание формы" : data.goal;
+  const goalBase = typeof data.goal === "string" ? data.goal : "";
+  const goalRaw = goalBase.toLowerCase();
+  const goal = goalRaw === "muscle_gain" ? "набор мышечной массы" : 
+               goalRaw === "weight_loss" ? "снижение веса" :
+               goalRaw === "fat_loss" ? "снижение веса" :
+               goalRaw === "maintain" ? "поддержание формы" : goalBase;
   
   const health = data.hasLimits ? data.health : "нет ограничений";
   const dislikes = data.dislikes.length > 0 ? data.dislikes.join(", ") : "нет";
@@ -792,14 +899,15 @@ function buildAIPrompt(
   const weekDays = buildWeekWindow(weekStartISO);
   const recentMealsBlock =
     recentMeals.length > 0
-      ? `\nНедавно уже использовались блюда/ингредиенты: ${recentMeals.slice(0, 15).join(", ")}.\nНе повторяй их дословно — вариируй рецепты.`
+      ? `\nНедавно уже использовались блюда/ингредиенты: ${recentMeals.slice(0, 20).join(", ")}.\nНе повторяй их дословно — вариируй рецепты (меняй гарниры, добавки, способы приготовления).`
       : "";
+  const goalDirective = (GOAL_DIRECTIVES[goalRaw] || GOAL_DIRECTIVES.default)(weight);
 
   const cultural = ruCulturalGuidelines();
 
   return `Ты — профессиональный спортивный нутрициолог с 15+ годами практики и доступом к полным базам данных USDA и FatSecret.
 
-Составь персональный план питания на 3 дня для этого клиента. Используй seed ${seed} как внутренний источник случайности, чтобы делать разные комбинации блюд.
+Составь персональный план питания на 3 дня для этого клиента. Используй seed ${seed} как внутренний источник случайности, чтобы каждый запуск давал уникальную комбинацию блюд. ${goalDirective}
 
 Дни плана:
 ${weekDays.map((d, idx) => `- День ${idx + 1}: ${d.label} (${d.iso})`).join("\n")}
@@ -878,7 +986,7 @@ ${lastPlansInfo}
    - Это калорийность для COOKED/PREPARED версии?
    - Если сомневаешься — сверься с базой USDA для cooked версии
    
-   В каждом основном приёме (завтрак, обед, ужин) должно быть 25-45г белка.
+   В каждом основном приёме (завтрак, обед, ужин) должно быть 25-45г белка. После заполнения каждого приёма пересчитай калории — если они ниже таргета, увеличь порцию и проверь снова перед отправкой.
 
 6. РАЗНООБРАЗИЕ
    - Не повторяй точные блюда из предыдущих планов
