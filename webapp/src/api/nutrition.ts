@@ -39,3 +39,8 @@ export async function generateWeek<T = any>(
   });
   return parseJson(res, "generate-week");
 }
+
+export async function checkPlanStatus<T = any>(planId: string): Promise<NutritionPlanResponse<T>> {
+  const res = await apiFetch(`/api/nutrition/status/${planId}`);
+  return parseJson(res, "check-status");
+}

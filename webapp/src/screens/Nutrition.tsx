@@ -12,6 +12,7 @@ type Meal = {
   title: string; time?: string;
   target_kcal?: number; target_protein_g?: number; target_fat_g?: number; target_carbs_g?: number;
   items: FoodItem[];
+  notes?: string;
 };
 type Day = { day_index: number; date: string; meals: Meal[] };
 type WeekPlan = {
@@ -113,7 +114,6 @@ export default function Nutrition() {
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
-        {/* чипы убраны из hero */}
         <button
           className="soft-glow"
           disabled={loading}
@@ -202,7 +202,16 @@ export default function Nutrition() {
                         {(m.items || []).map((it, k) => (
                           <div key={k} style={food.line}>
                             <div style={food.left}>
-                              <div style={food.foodName}>{it.food}</div>
+                              <div style={food.textCol}>
+                                <div style={food.foodName}>{it.food}</div>
+                                {(it.prep || it.notes) && (
+                                  <div style={food.metaText}>
+                                    {it.prep ? `Способ: ${it.prep}` : null}
+                                    {it.prep && it.notes ? " • " : ""}
+                                    {it.notes ? it.notes : null}
+                                  </div>
+                                )}
+                              </div>
                               <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
                             </div>
                             <div style={food.right}>
@@ -257,7 +266,6 @@ export default function Nutrition() {
 
 /* ---------------- utils ---------------- */
 function normalize(p: any) {
-  // ничего не ломаем: ожидаем структуру как из API
   p.days = (p.days || []).map((d: any, i: number) => ({
     day_index: Number(d.day_index ?? i + 1),
     date: d.date,
@@ -288,7 +296,6 @@ function normalize(p: any) {
 
 function parseISODate(s?: string): Date | null {
   if (!s) return null;
-  // поддержка "YYYY-MM-DD", "YYYY/MM/DD", "YYYY-MM-DDTHH:MM:SSZ"
   const m = s.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
   if (!m) return null;
   const y = Number(m[1]), mo = Number(m[2]) - 1, d = Number(m[3]);
@@ -363,10 +370,8 @@ function Loader({ stage, steps, label }: { stage: number; steps: string[]; label
           <Spinner />
           <div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div>
         </div>
-        {/* УБРАНО: нижний блок со Stat внутри hero */}
       </section>
 
-      {/* НОВОЕ: квадратные чипы под героем, как в экране генерации тренировки */}
       <section style={s.statsRow}>
         <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
         <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
@@ -404,7 +409,6 @@ const s: Record<string, React.CSSProperties> = {
     background:"transparent",
     minHeight:"100vh",
   },
-  // чёрный hero
   heroCard:{
     position:"relative",padding:22,borderRadius:28,boxShadow:"0 2px 6px rgba(0,0,0,.08)",
     background:"#050505",color:"#fff",overflow:"hidden"
@@ -424,11 +428,7 @@ const s: Record<string, React.CSSProperties> = {
     border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
     background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%",marginTop:12
   },
-  // heroFooter удалён
-
-  // фирменные чипы под героем
   statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
-  // сетка и для квадратных чипов загрузки, и для статов
   statsRow:{
     display:"grid",
     gridTemplateColumns:"repeat(3,minmax(96px,1fr))",
@@ -436,8 +436,6 @@ const s: Record<string, React.CSSProperties> = {
     marginTop:12,
     marginBottom:10
   },
-
-  // стиль квадратных чипов как в экране генерации тренировки
   chipSquare:{
     background:"rgba(255,255,255,0.6)",
     color:"#000",
@@ -483,7 +481,6 @@ const s: Record<string, React.CSSProperties> = {
 };
 
 const ux: Record<string, any> = {
-  // стеклянная карточка дня
   card:{
     borderRadius:20,
     border:"1px solid rgba(255,255,255,.35)",
@@ -493,7 +490,6 @@ const ux: Record<string, any> = {
     position:"relative",
     overflow:"hidden",
   },
-  // шапка дня — стекло
   cardHeader:{
     display:"grid",
     gridTemplateColumns:"24px 1fr",
@@ -517,7 +513,6 @@ const ux: Record<string, any> = {
 };
 
 const mealCard: Record<string, React.CSSProperties> = {
-  // стеклянная карточка приёма пищи
   wrap:{
     borderRadius:14,
     padding:12,
@@ -530,7 +525,7 @@ const mealCard: Record<string, React.CSSProperties> = {
     marginBottom:12,
   },
   header:{display:"grid",gap:4,color:"#1b1b1b"},
-  notes:{fontSize:11,color:"#4a4a4a",marginTop:6},
+  notes:{fontSize:11,color:"#4a4a4a",marginTop:6, whiteSpace:"pre-wrap"},
 };
 
 const row: Record<string, React.CSSProperties> = {
@@ -539,7 +534,6 @@ const row: Record<string, React.CSSProperties> = {
 };
 
 const food: Record<string, React.CSSProperties> = {
-  // строки продукты — белое стекло
   line:{
     display:"grid",
     gridTemplateColumns:"1fr auto",
@@ -552,12 +546,22 @@ const food: Record<string, React.CSSProperties> = {
     boxShadow:"0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
     backdropFilter:"blur(6px)",
   },
-  left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
+  left:{display:"flex",alignItems:"flex-start",gap:8,minWidth:0},
+  textCol:{display:"grid",gap:4,minWidth:0},
+  // >>> Обновлено: переносы текста, без обрезания, поддержка длинных названий
   foodName:{
-    fontSize:13.5,fontWeight:600,color:"#1b1b1b",lineHeight:1.2,
-    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"
+    fontSize:13.5,fontWeight:600,color:"#1b1b1b",lineHeight:1.25,
+    whiteSpace:"pre-wrap",            // переносы строк по \n
+    wordBreak:"break-word",           // перенос длинных слов/брендов
+    overflow:"visible",
   },
-  qty:{fontSize:12,color:"#666",flexShrink:0},
+  // мета-инфа: способ приготовления и заметки QA
+  metaText:{
+    fontSize:11.5,color:"#666",
+    whiteSpace:"pre-wrap",
+    wordBreak:"break-word",
+  },
+  qty:{fontSize:12,color:"#666",flexShrink:0, marginTop:2},
   right:{fontSize:12,fontWeight:600,color:"#1b1b1b"},
 };
 
@@ -605,16 +609,7 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
   );
 }
 
-/* НОВОЕ: квадратный чип как в генерации тренировки */
-function ChipStatSquare({
-  emoji,
-  label,
-  value,
-}: {
-  emoji: string;
-  label: string;
-  value: string;
-}) {
+function ChipStatSquare({ emoji, label, value }: { emoji: string; label: string; value: string }) {
   return (
     <div style={s.chipSquare}>
       <div style={{ fontSize: 22 }}>{emoji}</div>
