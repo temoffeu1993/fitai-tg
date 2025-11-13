@@ -37,7 +37,13 @@ export default function OnboardingWizard() {
       const summary = await saveOnboarding(acc);
       localStorage.setItem("onb_summary", JSON.stringify(summary ?? acc));
       localStorage.setItem("onboarding_done", "1");
-      try { new BroadcastChannel("onb").postMessage("onb_updated"); } catch {}
+      try { localStorage.setItem("onb_complete", "1"); } catch {}
+      try {
+        const bc = new BroadcastChannel("onb");
+        bc.postMessage("onb_complete");
+        bc.postMessage("onb_updated");
+        bc.close();
+      } catch {}
       try { window.dispatchEvent(new Event("onb_updated")); } catch {}
       window.location.pathname = "/";
     } catch (e) {

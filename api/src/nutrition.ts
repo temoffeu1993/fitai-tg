@@ -60,6 +60,7 @@ type WeekPlanAI = {
 type PlanStatus = "processing" | "ready" | "failed";
 
 const MOSCOW_TZ = "Europe/Moscow";
+const MOSCOW_OFFSET_MIN = 3 * 60;
 const DEFAULT_MEALS = [
   { title: "Завтрак", time: "08:00" },
   { title: "Перекус", time: "11:00" },
@@ -69,13 +70,12 @@ const DEFAULT_MEALS = [
 ];
 
 function currentMoscowDateISO() {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: MOSCOW_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return formatter.format(new Date());
+  const now = new Date();
+  const utcTs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const moscowTs = utcTs + MOSCOW_OFFSET_MIN * 60000;
+  const moscow = new Date(moscowTs);
+  moscow.setHours(0, 0, 0, 0);
+  return moscow.toISOString().slice(0, 10);
 }
 
 function addDaysToIso(iso: string, offset: number): string {
@@ -87,7 +87,7 @@ function addDaysToIso(iso: string, offset: number): string {
 function buildWeekWindow(startIso: string) {
   return Array.from({ length: 3 }).map((_, idx) => {
     const iso = addDaysToIso(startIso, idx);
-    const label = new Date(`${iso}T00:00:00Z`).toLocaleDateString("ru-RU", {
+    const label = new Date(`${iso}T00:00:00+03:00`).toLocaleDateString("ru-RU", {
       weekday: "long",
       day: "numeric",
       month: "long",
