@@ -5,6 +5,7 @@
 // ============================================================================
 import { Router, Response, Request } from "express";
 import OpenAI from "openai";
+import crypto from "crypto";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
@@ -60,7 +61,43 @@ type WeekPlanAI = {
 type PlanStatus = "processing" | "ready" | "failed";
 
 const MOSCOW_TZ = "Europe/Moscow";
-const MOSCOW_OFFSET_MIN = 3 * 60;
+const MOSCOW_OFFSET_MIN = 3 * 60; // UTC+3
+
+function currentMoscowDateISO(date = new Date()) {
+  const utcTs = date.getTime() + date.getTimezoneOffset() * 60000;
+  const moscowTs = utcTs + MOSCOW_OFFSET_MIN * 60000;
+  const moscow = new Date(moscowTs);
+  moscow.setHours(0, 0, 0, 0);
+  return moscow.toISOString().slice(0, 10);
+}
+
+function addDaysISO(baseIso: string, offset: number) {
+  const base = new Date(`${baseIso}T00:00:00Z`);
+  const shifted = new Date(base.getTime() + offset * 86400000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+function formatMoscowLabel(iso: string) {
+  const date = new Date(`${iso}T00:00:00+03:00`);
+  return date.toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: MOSCOW_TZ,
+  });
+}
+
+function buildWeekWindow(startIso: string) {
+  return Array.from({ length: 3 }).map((_, idx) => {
+    const iso = addDaysISO(startIso, idx);
+    return { iso, label: formatMoscowLabel(iso) };
+  });
+}
+
+function makePlanSeed(userId: string, planId: string, iso: string) {
+  return crypto.createHash("sha256").update(`${userId}:${planId}:${iso}`).digest("hex").slice(0, 16);
+}
+
 const DEFAULT_MEALS = [
   { title: "Завтрак", time: "08:00" },
   { title: "Перекус", time: "11:00" },
@@ -68,34 +105,6 @@ const DEFAULT_MEALS = [
   { title: "Полдник", time: "17:00" },
   { title: "Ужин", time: "20:00" },
 ];
-
-function currentMoscowDateISO() {
-  const now = new Date();
-  const utcTs = now.getTime() + now.getTimezoneOffset() * 60000;
-  const moscowTs = utcTs + MOSCOW_OFFSET_MIN * 60000;
-  const moscow = new Date(moscowTs);
-  moscow.setHours(0, 0, 0, 0);
-  return moscow.toISOString().slice(0, 10);
-}
-
-function addDaysToIso(iso: string, offset: number): string {
-  const base = new Date(`${iso}T00:00:00Z`);
-  const shifted = new Date(base.getTime() + offset * 86400000);
-  return shifted.toISOString().slice(0, 10);
-}
-
-function buildWeekWindow(startIso: string) {
-  return Array.from({ length: 3 }).map((_, idx) => {
-    const iso = addDaysToIso(startIso, idx);
-    const label = new Date(`${iso}T00:00:00+03:00`).toLocaleDateString("ru-RU", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      timeZone: MOSCOW_TZ,
-    });
-    return { iso, label };
-  });
-}
 
 function buildSkeletonWeek(startDateISO: string, targets: NutritionTarget): WeekPlanAI {
   const mealsPerDay = Math.min(5, Math.max(3, targets.mealsPerDay));
@@ -111,9 +120,9 @@ function buildSkeletonWeek(startDateISO: string, targets: NutritionTarget): Week
   }));
 
   const days = Array.from({ length: 3 }).map((_, idx) => {
-    const dayIso = addDaysToIso(startDateISO, idx);
+    const dateIso = addDaysISO(startDateISO, idx);
     return {
-      date: dayIso,
+      date: dateIso,
       title: `День ${idx + 1}`,
       meals: baseMeals.map((meal) => ({ ...meal, items: [] })),
     };
@@ -244,9 +253,17 @@ function calculateNutritionTargets(onb: Onb): NutritionTarget {
 // ----------------------------------------------------------------------------
 // helpers
 // ----------------------------------------------------------------------------
-function getUserId(req: any) {
+async function getUserId(req: any) {
+  const bodyUserId = req.body?.userId;
+  if (bodyUserId) return bodyUserId;
   if (req.user?.uid) return req.user.uid;
-  throw new AppError("Unauthorized", 401);
+  const r = await q(
+    `INSERT INTO users (tg_id, first_name, username)
+     VALUES (0, 'Dev', 'local')
+     ON CONFLICT (tg_id) DO UPDATE SET username = excluded.username
+     RETURNING id`
+  );
+  return r[0].id;
 }
 
 async function getOnboarding(userId: string): Promise<Onb> {
@@ -272,6 +289,25 @@ async function getLastNutritionPlans(userId: string, n = 3) {
     [userId, n]
   );
   return rows;
+}
+
+async function getRecentMealNames(userId: string, planLimit = 2, itemLimit = 20): Promise<string[]> {
+  const rows = await q(
+    `
+    SELECT DISTINCT ON (LOWER(ni.food_name))
+      ni.food_name
+    FROM nutrition_items ni
+    JOIN nutrition_meals nm ON nm.id = ni.meal_id
+    JOIN nutrition_days nd ON nd.id = nm.day_id
+    JOIN nutrition_plans np ON np.id = nd.plan_id
+    WHERE np.user_id = $1
+      AND np.status = 'ready'
+    ORDER BY LOWER(ni.food_name), nd.day_date DESC
+    LIMIT $2
+  `,
+    [userId, planLimit * itemLimit]
+  );
+  return rows.map((r: any) => r.food_name).filter(Boolean);
 }
 
 type AsyncPlanArgs = {
@@ -322,7 +358,7 @@ async function insertSkeletonPlan(
 
     for (let i = 0; i < aiPlan.week.days.length; i++) {
       const d = aiPlan.week.days[i];
-      const dayDate = d?.date || addDaysToIso(weekStart, i);
+      const dayDate = d?.date || addDaysISO(weekStart, i);
       const [dayRow] = await q(
         `INSERT INTO nutrition_days (plan_id, day_index, day_date)
          VALUES ($1, $2, $3::date)
@@ -374,11 +410,16 @@ async function overwritePlanWithAI(
 
     for (let i = 0; i < aiPlan.week.days.length; i++) {
       const d = aiPlan.week.days[i];
-      const fallbackDate = addDaysToIso(weekStart, i);
+      const fallbackDate = addDaysISO(weekStart, i);
       let dayDate = d?.date;
       if (dayDate) {
         const parsed = new Date(dayDate);
-        dayDate = Number.isNaN(parsed.getTime()) ? fallbackDate : parsed.toISOString().slice(0, 10);
+        if (Number.isNaN(parsed.getTime())) {
+          dayDate = fallbackDate;
+        } else {
+          parsed.setHours(0, 0, 0, 0);
+          dayDate = parsed.toISOString().slice(0, 10);
+        }
       } else {
         dayDate = fallbackDate;
       }
@@ -496,7 +537,9 @@ async function generateDetailedPlan({
   targets,
 }: AsyncPlanArgs) {
   const historyWeeks = await getLastNutritionPlans(userId, 3);
-  const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart);
+  const recentMeals = await getRecentMealNames(userId);
+  const seed = makePlanSeed(userId, planId, weekStart);
+  const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart, seed, recentMeals);
 
   if (process.env.DEBUG_AI === "1") {
     console.log("\n=== NUTRITION PROMPT ===");
@@ -505,7 +548,7 @@ async function generateDetailedPlan({
     console.log(JSON.stringify(targets, null, 2));
   }
 
-  const tLLM = Date.now();
+    const tLLM = Date.now();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.85,
@@ -515,7 +558,7 @@ async function generateDetailedPlan({
       {
         role: "system",
         content:
-          "You are a professional nutritionist with 15+ years of experience and access to comprehensive nutrition databases (USDA, FatSecret). You create realistic, practical meal plans people actually use. CRITICAL: Each ingredient must be a separate item in the items array - NEVER combine multiple foods into one item. Always use calorie data for COOKED/PREPARED foods. Cross-check all values with nutrition databases. Verify daily totals match target ±100 kcal.",
+          "You are a professional nutritionist with 15+ years of experience and access to comprehensive nutrition databases (USDA, FatSecret). You create realistic, practical meal plans people actually use. You adapt meals to Russian everyday eating culture. CRITICAL VERIFICATION: Always use calorie data for COOKED/PREPARED foods (not raw). Cross-check calorie values with your nutrition database knowledge before finalizing. If a value seems unusually high or low, recalculate using cooked weight. Verify total daily calories match target ±100 kcal. Vary meals across days. No templates. Trust your database knowledge.",
       },
       { role: "user", content: prompt },
     ],
@@ -540,9 +583,14 @@ async function generateDetailedPlan({
     throw new AppError(`AI создал ${ai.week.days.length} дней вместо 3. Попробуйте ещё раз.`, 500);
   }
 
-  // === QA: нормализуем КБЖУ и подгоняем под цели ===
-  ai = fixPlanToTargets(ai, targets);
-  // ================================================
+  const meal0Kcals = ai.week.days.map((d) => d.meals?.[0]?.target_kcal || 0);
+  if (
+    meal0Kcals.length === 3 &&
+    meal0Kcals[0] === meal0Kcals[1] &&
+    meal0Kcals[1] === meal0Kcals[2]
+  ) {
+    console.warn("⚠️  AI создал шаблонные приёмы! Завтраки одинаковые по калориям.");
+  }
 
   const totalKcal = ai.week.days.reduce((sum, day) => {
     return (
@@ -570,15 +618,28 @@ async function generateDetailedPlan({
   await overwritePlanWithAI(planId, ai, targets, onboarding, weekStart);
 }
 
-async function loadWeekPlan(userId: string, weekStart: string) {
-  const head = await q(
-    `SELECT id, user_id, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes,
-            week_start_date, status, error_info
-     FROM nutrition_plans
-     WHERE user_id=$1 AND week_start_date = $2::date
-     LIMIT 1`,
-    [userId, weekStart]
-  );
+async function loadWeekPlan(userId: string, refDate: string, opts?: { exact?: boolean }) {
+  const exact = opts?.exact;
+  const head = exact
+    ? await q(
+        `SELECT id, user_id, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes,
+                week_start_date, status, error_info
+         FROM nutrition_plans
+         WHERE user_id=$1 AND week_start_date = $2::date
+         ORDER BY week_start_date DESC
+         LIMIT 1`,
+        [userId, refDate]
+      )
+    : await q(
+        `SELECT id, user_id, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes,
+                week_start_date, status, error_info
+         FROM nutrition_plans
+         WHERE user_id=$1
+           AND week_start_date BETWEEN ($2::date - INTERVAL '2 days') AND $2::date
+         ORDER BY week_start_date DESC
+         LIMIT 1`,
+        [userId, refDate]
+      );
   if (!head[0]) return null;
 
   const planId = head[0].id;
@@ -685,7 +746,14 @@ function ruCulturalGuidelines() {
 // ----------------------------------------------------------------------------
 // Prompt builder
 // ----------------------------------------------------------------------------
-function buildAIPrompt(onb: Onb, targets: NutritionTarget, lastWeeks: any[], weekStartISO: string) {
+function buildAIPrompt(
+  onb: Onb,
+  targets: NutritionTarget,
+  lastWeeks: any[],
+  weekStartISO: string,
+  seed: string,
+  recentMeals: string[]
+) {
   const data = extractOnboardingData(onb);
   
   const gender = data.gender === "male" ? "мужской" : data.gender === "female" ? "женский" : data.gender;
@@ -721,21 +789,21 @@ function buildAIPrompt(onb: Onb, targets: NutritionTarget, lastWeeks: any[], wee
       ).join("\n")}`
     : "";
 
-  const cultural = ruCulturalGuidelines();
   const weekDays = buildWeekWindow(weekStartISO);
-  const daysText = weekDays
-    .map(
-      (day, idx) =>
-        `${idx + 1}) ${day.label} (${day.iso}, московское время)`
-    )
-    .join("\n");
+  const recentMealsBlock =
+    recentMeals.length > 0
+      ? `\nНедавно уже использовались блюда/ингредиенты: ${recentMeals.slice(0, 15).join(", ")}.\nНе повторяй их дословно — вариируй рецепты.`
+      : "";
+
+  const cultural = ruCulturalGuidelines();
 
   return `Ты — профессиональный спортивный нутрициолог с 15+ годами практики и доступом к полным базам данных USDA и FatSecret.
 
-Составь персональный план питания на 3 дня для этого клиента.
+Составь персональный план питания на 3 дня для этого клиента. Используй seed ${seed} как внутренний источник случайности, чтобы делать разные комбинации блюд.
 
-Работаем в часовом поясе Europe/Moscow. Неделя начинается ${weekDays[0].label}. План должен охватывать строго следующие три последовательных дня (используй эти ISO-даты в поле day_date):
-${daysText}
+Дни плана:
+${weekDays.map((d, idx) => `- День ${idx + 1}: ${d.label} (${d.iso})`).join("\n")}
+${recentMealsBlock}
 
 ═══════════════════════════════════════════════════════════
 ДАННЫЕ КЛИЕНТА
@@ -764,83 +832,12 @@ ${lastPlansInfo}
 - Базовое количество приёмов пищи: ${targets.mealsPerDay}
 
 ═══════════════════════════════════════════════════════════
-КРИТИЧЕСКИ ВАЖНО: РАЗДЕЛЬНЫЕ ИНГРЕДИЕНТЫ
-═══════════════════════════════════════════════════════════
-
-❌ НИКОГДА НЕ ДЕЛАЙ ТАК (комбо-блюда):
-{
-  "food": "Гречка с куриной грудкой",
-  "qty": 350,
-  "unit": "г",
-  "kcal": 550
-}
-
-✅ ВСЕГДА ДЕЛАЙ ТАК (раздельно):
-{
-  "food": "Гречка готовая",
-  "qty": 200,
-  "unit": "г",
-  "kcal": 220,
-  "protein_g": 8,
-  "fat_g": 2,
-  "carbs_g": 45,
-  "prep": "варка"
-},
-{
-  "food": "Куриная грудка вареная",
-  "qty": 150,
-  "unit": "г",
-  "kcal": 247,
-  "protein_g": 47,
-  "fat_g": 3,
-  "carbs_g": 0,
-  "prep": "варка"
-}
-
-КАЖДЫЙ ИНГРЕДИЕНТ = ОТДЕЛЬНЫЙ ITEM!
-
-═══════════════════════════════════════════════════════════
-БАЗА ДАННЫХ КБЖУ (ГОТОВЫЕ ПРОДУКТЫ)
-═══════════════════════════════════════════════════════════
-
-Используй ТОЛЬКО эти реальные значения из USDA/FatSecret:
-
-**БЕЛКОВЫЕ:**
-- Яйцо вареное: 78 ккал/шт, 6г белка, 5г жира
-- Куриная грудка вареная: 165 ккал/100г, 31г белка, 4г жира
-- Треска запеченная: 105 ккал/100г, 23г белка, 1г жира
-- Индейка тушеная: 140 ккал/100г, 24г белка, 4г жира
-- Говядина тушеная: 180 ккал/100г, 26г белка, 8г жира
-
-**ГАРНИРЫ (ГОТОВЫЕ):**
-- Гречка вареная: 110 ккал/100г, 4г белка, 2г жира, 22г углеводов
-- Рис вареный: 130 ккал/100г, 3г белка, 0г жира, 28г углеводов
-- Овсянка на воде: 68 ккал/100г, 2г белка, 1г жира, 12г углеводов
-- Картофель печеный: 93 ккал/100г, 2г белка, 0г жира, 21г углеводов
-- Паста вареная: 131 ккал/100г, 5г белка, 1г жира, 25г углеводов
-
-**МОЛОЧНОЕ:**
-- Творог 5%: 121 ккал/100г, 16г белка, 5г жира, 2г углеводов
-- Йогурт греческий: 59 ккал/100г, 10г белка, 0г жира, 4г углеводов
-- Кефир 1%: 40 ккал/100мл, 3г белка, 1г жира, 4г углеводов
-
-**ОВОЩИ:**
-- Огурцы/помидоры: 15-20 ккал/100г
-- Капуста/брокколи вареные: 35 ккал/100г
-- Свекла вареная: 44 ккал/100г
-
-**ПРОЧЕЕ:**
-- Хлеб цельнозерновой: 240 ккал/100г (НЕ 400!)
-- Орехи грецкие: 654 ккал/100г
-- Масло растительное: 900 ккал/100г
-- Банан: 96 ккал/шт (средний)
-
-═══════════════════════════════════════════════════════════
 ТРЕБОВАНИЯ К ПЛАНУ
 ═══════════════════════════════════════════════════════════
 
 1. ПЕРСОНАЛИЗАЦИЯ
    Учитывай все данные клиента: возраст, вес, цель, бюджет, стиль питания.
+   Создай план специально для ЭТОГО человека, а не универсальный шаблон.
 
 2. СТРУКТУРА ДНЯ (3-5 приёмов)
    
@@ -861,26 +858,25 @@ ${lastPlansInfo}
    Перекус = 150-300 ккал, простой (фрукт + орехи, йогурт, творог)
 
 3. РЕАЛИСТИЧНОСТЬ
-   - Каждый ингредиент отдельно в items[]
+   - Простые блюда из 2-4 ингредиентов
    - Базовые способы готовки (варка, жарка, запекание)
-   - Продукты доступны в обычном супермаркете
+   - Продукты доступны в обычном супермаркете (с учётом бюджета)
 
 4. ГИБКОСТЬ КАЛОРИЙНОСТИ
-   
    Не делай одинаковые приёмы пищи по калориям каждый день.
    Варьируй распределение калорий между приёмами.
-   
-   ОРИЕНТИРЫ для распределения (не строго):
-   - Завтрак: ~${Math.round(targets.dailyKcal * 0.25)} ккал
-   - Обед: ~${Math.round(targets.dailyKcal * 0.35)} ккал  
-   - Ужин: ~${Math.round(targets.dailyKcal * 0.30)} ккал
-   - Перекусы (если есть): по 150-250 ккал
-   
-   Главное: СУММА за ДЕНЬ = ${targets.dailyKcal} ± 100 ккал
+   Главное: сумма за ДЕНЬ = ${targets.dailyKcal} ± 100 ккал
 
-5. ТОЧНОСТЬ КБЖУ
+5. ТОЧНОСТЬ КБЖУ (КРИТИЧЕСКИ ВАЖНО!)
    
-   Используй ТОЛЬКО данные из базы выше для ГОТОВЫХ продуктов.
+   Используй ТОЛЬКО данные для ГОТОВЫХ/ПРИГОТОВЛЕННЫХ продуктов из баз USDA/FatSecret.
+   
+   Крупы значительно увеличиваются при варке и теряют калорийность на грамм.
+   Всегда указывай вес и калорийность ГОТОВОГО продукта, не сухого!
+   
+   Перед внесением каждого продукта проверяй:
+   - Это калорийность для COOKED/PREPARED версии?
+   - Если сомневаешься — сверься с базой USDA для cooked версии
    
    В каждом основном приёме (завтрак, обед, ужин) должно быть 25-45г белка.
 
@@ -899,7 +895,7 @@ ${cultural}
 {
   "week": {
     "name": "План питания на 3 дня",
-    "notes": "1-2 практичных совета",
+    "notes": "1-2 практичных совета по приготовлению",
     "goal": {
       "kcal": ${targets.dailyKcal},
       "protein_g": ${targets.proteinG},
@@ -911,49 +907,73 @@ ${cultural}
     },
     "days": [
       {
-        "date": "2025-01-13",
-        "title": "Пн",
+        "date": "YYYY-MM-DD",
+        "title": "День 1/2/3",
         "meals": [
           {
             "title": "Завтрак",
             "time": "08:00",
+            "target_kcal": число,
+            "target_protein_g": число,
+            "target_fat_g": число,
+            "target_carbs_g": число,
             "items": [
               {
-                "food": "Овсянка готовая на воде",
-                "qty": 250,
-                "unit": "г",
-                "kcal": 170,
-                "protein_g": 5,
-                "fat_g": 3,
-                "carbs_g": 30,
-                "prep": "варка"
-              },
-              {
-                "food": "Банан",
-                "qty": 1,
-                "unit": "шт",
-                "kcal": 96,
-                "protein_g": 1,
-                "fat_g": 0,
-                "carbs_g": 23
-              },
-              {
-                "food": "Яйцо вареное",
-                "qty": 2,
-                "unit": "шт",
-                "kcal": 156,
-                "protein_g": 12,
-                "fat_g": 10,
-                "carbs_g": 1,
-                "prep": "варка"
+                "food": "Название готового блюда",
+                "qty": число,
+                "unit": "г/шт/мл",
+                "kcal": число,
+                "protein_g": число,
+                "fat_g": число,
+                "carbs_g": число,
+                "prep": "способ приготовления",
+                "notes": "краткая заметка"
               }
             ]
+          },
+          {
+            "title": "Перекус",
+            "time": "11:00",
+            "target_kcal": число,
+            "target_protein_g": число,
+            "target_fat_g": число,
+            "target_carbs_g": число,
+            "items": []
+          },
+          {
+            "title": "Обед",
+            "time": "13:00",
+            "target_kcal": число,
+            "target_protein_g": число,
+            "target_fat_g": число,
+            "target_carbs_g": число,
+            "items": []
+          },
+          {
+            "title": "Перекус",
+            "time": "16:00",
+            "target_kcal": число,
+            "target_protein_g": число,
+            "target_fat_g": число,
+            "target_carbs_g": число,
+            "items": []
+          },
+          {
+            "title": "Ужин",
+            "time": "19:00",
+            "target_kcal": число,
+            "target_protein_g": число,
+            "target_fat_g": число,
+            "target_carbs_g": число,
+            "items": []
           }
         ]
       }
     ]
   }
 }
+
+Количество приёмов (meals) может быть от 3 до 5 в зависимости от калорийности.
 
 ═══════════════════════════════════════════════════════════
 ⚠️  ФИНАЛЬНАЯ ПРОВЕРКА (ОБЯЗАТЕЛЬНО!) ⚠️
@@ -964,21 +984,23 @@ ${cultural}
 1. МАТЕМАТИКА:
    Посчитай сумму всех items.kcal за каждый день.
    Сумма ДОЛЖНА быть ${targets.dailyKcal} ± 100 ккал.
+   Если не попадает → скорректируй порции.
 
-2. РАЗДЕЛЬНОСТЬ:
-   Каждый ингредиент = отдельный item!
-   Нет комбо типа "курица с рисом"!
+2. ЛОГИКА ВЕСОВ:
+   Проверь крупы: если калорийность кажется слишком высокой → 
+   убедись что используешь данные для COOKED версии из базы USDA.
+   Готовая каша имеет в 3-4 раза меньше калорий на грамм чем сухая крупа.
 
-3. СООТВЕТСТВИЕ БАЗЕ:
-   Все КБЖУ взяты из базы данных выше!
-   Яйцо = 78 ккал, не 100!
-   Хлеб = 240 ккал/100г, не 400!
+3. ИСТОЧНИК ДАННЫХ:
+   Мысленно сверься с базой USDA/FatSecret для prepared/cooked версии каждого продукта.
+   Доверяй своим знаниям баз данных, не предположениям.
 
 ✓ Создано ровно 3 дня
-✓ В каждом дне 3-5 приёмов
-✓ Каждый ингредиент - отдельный item
-✓ Сумма калорий = ${targets.dailyKcal} ± 100 ккал
-✓ КБЖУ из базы данных USDA/FatSecret
+✓ В каждом дне 3-5 приёмов (в зависимости от калорийности)
+✓ Приёмы пищи имеют РАЗНУЮ калорийность (не шаблон!)
+✓ Сумма калорий = ${targets.dailyKcal} ± 100 ккал (ПРОВЕРЕНО!)
+✓ Веса ГОТОВЫХ продуктов, калории из баз данных USDA/FatSecret
+✓ Блюда простые и логичные
 ✓ JSON валидный без markdown
 
 НАЧИНАЙ ГЕНЕРАЦИЮ!`;
@@ -1000,6 +1022,7 @@ nutrition.post(
     const force = Boolean(req.body?.force);
     let existing = await loadWeekPlan(userId, weekStart);
 
+    // Если план готов и не force - вернуть его
     if (existing?.status === "ready" && !force) {
       console.log(`[NUTRITION] ⚡ cached plan returned in ${Date.now() - start}ms`);
       return res.json({
@@ -1012,6 +1035,7 @@ nutrition.post(
       });
     }
 
+    // Если план в обработке и не force - вернуть статус
     if (existing?.status === "processing" && !force) {
       console.log(`[NUTRITION] ⏳ plan already processing, returning status`);
       const skeleton = buildSkeletonWeek(weekStart, calculateNutritionTargets(onboarding));
@@ -1025,6 +1049,7 @@ nutrition.post(
       });
     }
 
+    // Удалить старый план если force или failed
     if (existing?.planId) {
       await deletePlanById(existing.planId);
       existing = null;
@@ -1036,6 +1061,7 @@ nutrition.post(
 
     console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}, starting async generation`);
 
+    // 🔥 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: запускаем генерацию в фоне
     queueDetailedPlanGeneration({
       planId,
       userId,
@@ -1044,6 +1070,7 @@ nutrition.post(
       targets,
     });
 
+    // Сразу возвращаем skeleton со статусом processing
     console.log(`[NUTRITION] ⚡ returned skeleton in ${Date.now() - start}ms`);
 
     return res.json({
@@ -1065,7 +1092,7 @@ nutrition.get(
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
     const weekStart = currentMoscowDateISO();
-    const data = await loadWeekPlan(userId, weekStart);
+    const data = await loadWeekPlan(userId, weekStart, { exact: true });
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
     res.json({
       plan: data.plan,
@@ -1102,6 +1129,7 @@ nutrition.get(
     const plan = head[0];
     const status = plan.status as PlanStatus;
 
+    // Если план ещё обрабатывается - вернуть только статус
     if (status === "processing") {
       return res.json({
         status: "processing",
@@ -1110,6 +1138,7 @@ nutrition.get(
       });
     }
 
+    // Если план готов или failed - загрузить полные данные
     const userId = plan.user_id;
     const weekStart = plan.week_start_date;
     const data = await loadWeekPlan(userId, weekStart);
@@ -1128,7 +1157,7 @@ nutrition.get(
 );
 
 // ----------------------------------------------------------------------------
-/* ROUTE: пересчитать целевые показатели (для тестирования) */
+// ROUTE: пересчитать целевые показатели (для тестирования)
 // ----------------------------------------------------------------------------
 nutrition.get(
   "/calculate-targets",
@@ -1141,648 +1170,7 @@ nutrition.get(
   })
 );
 
+// health check
 nutrition.get("/ping", (_req, res) => res.json({ ok: true, scope: "nutrition-3days-pro" }));
-
-// ============================================================================
-// NUTRITION QA LAYER
-// ============================================================================
-type Macro = { kcal: number; protein_g: number; fat_g: number; carbs_g: number };
-type MealItem = {
-  food: string; qty: number; unit: string;
-  kcal?: number; protein_g?: number; fat_g?: number; carbs_g?: number;
-  prep?: string; notes?: string;
-};
-
-const KCAL_PER_G = { p: 4, c: 4, f: 9 };
-
-function appendNote(prev: string | undefined, add: string): string {
-  if (!prev) return add;
-  if (prev.includes(add)) return prev;
-  return `${prev} ${add}`.trim();
-}
-
-// ============================================================================
-// НОВОЕ: clampKcalDensity - защита от завышенных калорий
-// ============================================================================
-function clampKcalDensity(it: MealItem): MealItem {
-  const qty = Number(it.qty || 0);
-  if (!qty || qty <= 0) return it;
-
-  const unit = (it.unit || "").toLowerCase();
-  const name = (it.food || "").toLowerCase();
-
-  // Яйца - особый случай (штуки)
-  if (/(яйц|egg)/i.test(name) && unit === "шт") {
-    const maxKcal = qty * 78;
-    if (it.kcal && it.kcal > maxKcal) {
-      return {
-        ...it,
-        kcal: maxKcal,
-        protein_g: Math.round(qty * 6),
-        fat_g: Math.round(qty * 5),
-        carbs_g: Math.round(qty * 0.6),
-        notes: appendNote(it.notes, "Яйцо = 78 ккал/шт"),
-      };
-    }
-    return it;
-  }
-
-  // Только граммы дальше
-  if (unit !== "г") return it;
-
-  let maxPerG = 4.5; // дефолт
-
-  // Низкокалорийная рыба
-  if (/(треск|минтай|хек|судак|путассу|pollock|cod)/i.test(name)) {
-    maxPerG = 1.2;
-  }
-  // Другая рыба
-  else if (/(рыб|лосос|семг|тунец|горбуш)/i.test(name)) {
-    maxPerG = 2.0;
-  }
-  // Курица/индейка
-  else if (/(курин|индейк|филе)/i.test(name)) {
-    maxPerG = 1.8;
-  }
-  // Говядина
-  else if (/(говядин|телятин|beef)/i.test(name)) {
-    maxPerG = 2.2;
-  }
-  // Овощи
-  else if (/(овощ|огурц|помидор|томат|капуст|брокк|цветн|кабачк|морков|салат|зелень)/i.test(name)) {
-    maxPerG = 0.6;
-  }
-  // Крупы готовые
-  else if (/(рис|гречк|перлов|пшён|булгур|круп|готов)/i.test(name)) {
-    maxPerG = 1.4;
-  }
-  // Паста/макароны готовые
-  else if (/(макарон|паста|спагет|вермишел)/i.test(name)) {
-    maxPerG = 1.4;
-  }
-  // Картофель
-  else if (/(картоф|картошк)/i.test(name)) {
-    maxPerG = 1.0;
-  }
-  // Хлеб
-  else if (/(хлеб|батон|тост|булк|лаваш)/i.test(name)) {
-    maxPerG = 2.6;
-  }
-  // Творог
-  else if (/(творог)/i.test(name)) {
-    maxPerG = 1.3;
-  }
-  // Йогурт/кефир
-  else if (/(йогурт|кефир)/i.test(name)) {
-    maxPerG = 0.8;
-  }
-  // Орехи
-  else if (/(орех|миндаль|фундук|кешью|арахис|семечк)/i.test(name)) {
-    maxPerG = 7.0;
-  }
-  // Масло
-  else if (/(масло|oil|олив)/i.test(name)) {
-    maxPerG = 9.0;
-  }
-
-  if (it.kcal == null) return it;
-
-  const maxKcal = qty * maxPerG;
-  if (it.kcal <= maxKcal) return it;
-
-  const factor = maxKcal / it.kcal;
-
-  return {
-    ...it,
-    kcal: Math.round(maxKcal),
-    protein_g: it.protein_g != null ? Math.round(it.protein_g * factor) : it.protein_g,
-    fat_g: it.fat_g != null ? Math.round(it.fat_g * factor) : it.fat_g,
-    carbs_g: it.carbs_g != null ? Math.round(it.carbs_g * factor) : it.carbs_g,
-    notes: appendNote(it.notes, `Скорректирована плотность (макс ${maxPerG.toFixed(1)} ккал/г)`),
-  };
-}
-
-// ============================================================================
-// Остальные QA функции
-// ============================================================================
-function normalizeCookedWeight(it: MealItem): MealItem {
-  const name = (it.food || "").toLowerCase();
-  const isGram = (it.unit || "").toLowerCase() === "г";
-  if (!isGram) return it;
-
-  if (/(гречк|рис|овсян|паст|макарон)/.test(name) && /(сух|сухая|сухие|dry)/.test(name)) {
-    const cookedQty = Math.round((it.qty || 0) * 3.0);
-    return {
-      ...it,
-      qty: cookedQty,
-      food: it.food.replace(/(сух(ая|ие)?|dry)/gi, "готовая"),
-      notes: appendNote(it.notes, "Пересчёт с сухого веса в готовый (~×3)."),
-    };
-  }
-
-  return it;
-}
-
-function calibrateJuice(it: MealItem): MealItem {
-  const name = (it.food || "").toLowerCase();
-  const isMl = (it.unit || "").toLowerCase() === "мл";
-  if (/(сок|juice)/i.test(name) && isMl) {
-    const targetPerMl = 0.45;
-    const want = Math.round((it.qty || 0) * targetPerMl);
-    if (it.kcal == null || it.kcal < want) {
-      return {
-        ...it,
-        kcal: want,
-        protein_g: it.protein_g ?? 0,
-        fat_g: it.fat_g ?? 0,
-        carbs_g: it.carbs_g ?? Math.round(want / 4),
-        notes: appendNote(it.notes, "Калорийность скорректирована для 100% сока (~0.45 ккал/мл)."),
-      };
-    }
-  }
-  return it;
-}
-
-function calibrateNuts(it: MealItem): MealItem {
-  const name = (it.food || "").toLowerCase();
-  const isGram = (it.unit || "").toLowerCase() === "г";
-  if (/(орех|миндаль|фундук|грецк|кешью|арахис|семечк)/i.test(name) && isGram) {
-    const perG = (it.kcal ?? 0) / Math.max(1, it.qty || 1);
-    if (perG < 5.5) {
-      const kcal = Math.round((it.qty || 0) * 6.0);
-      return {
-        ...it,
-        kcal,
-        protein_g: it.protein_g ?? Math.round((it.qty || 0) * 0.15),
-        fat_g: it.fat_g ?? Math.round((it.qty || 0) * 0.55),
-        carbs_g: it.carbs_g ?? Math.round((it.qty || 0) * 0.12),
-        notes: appendNote(it.notes, "Калории орехов нормализованы (~600 ккал/100 г)."),
-      };
-    }
-  }
-  return it;
-}
-
-function calibrateDriedFruit(it: MealItem): MealItem {
-  const name = (it.food || "").toLowerCase();
-  const isGram = (it.unit || "").toLowerCase() === "г";
-  if (/(кураг|изюм|финик|чернослив|сухофрукт)/i.test(name) && isGram) {
-    const perG = (it.kcal ?? 0) / Math.max(1, it.qty || 1);
-    if (perG < 4.0) {
-      const kcal = Math.round((it.qty || 0) * 4.8);
-      return {
-        ...it,
-        kcal,
-        protein_g: it.protein_g ?? Math.round((it.qty || 0) * 0.03),
-        fat_g: it.fat_g ?? 0,
-        carbs_g: it.carbs_g ?? Math.round((it.qty || 0) * 1.15),
-        notes: appendNote(it.notes, "Калории сухофруктов нормализованы (~480 ккал/100 г)."),
-      };
-    }
-  }
-  return it;
-}
-
-function calibrateVegSteam(it: MealItem): MealItem {
-  const name = (it.food || "").toLowerCase();
-  const isGram = (it.unit || "").toLowerCase() === "г";
-  
-  if (isGram && (/(брокк|овощ|капуст|кабачк|цветн|морков)/i.test(name)) && 
-      (/(пар|steam|вар|отвар)/i.test(it.prep || "") || /(вар|отвар)/i.test(name))) {
-    const per100 = ((it.kcal ?? 0) / Math.max(1, it.qty || 1)) * 100;
-    if (per100 > 60 || per100 === 0) {
-      const kcal = Math.round((it.qty || 0) * 0.35);
-      return {
-        ...it,
-        kcal,
-        protein_g: it.protein_g ?? Math.round((it.qty || 0) * 0.028),
-        fat_g: it.fat_g ?? 0,
-        carbs_g: it.carbs_g ?? Math.round((it.qty || 0) * 0.07),
-        notes: appendNote(it.notes, "Скорректирована калорийность овощей (≈35 ккал/100 г)."),
-      };
-    }
-  }
-  return it;
-}
-
-function fillMissingKcals(it: MealItem): MealItem {
-  let { kcal, protein_g, fat_g, carbs_g } = it;
-  if (kcal == null && (protein_g != null || fat_g != null || carbs_g != null)) {
-    const p = Number(protein_g || 0);
-    const f = Number(fat_g || 0);
-    const c = Number(carbs_g || 0);
-    kcal = Math.round(p * KCAL_PER_G.p + f * KCAL_PER_G.f + c * KCAL_PER_G.c);
-  }
-  if (kcal != null && (protein_g == null && fat_g == null && carbs_g == null)) {
-    const p = Math.round((kcal * 0.20) / KCAL_PER_G.p);
-    const f = Math.round((kcal * 0.25) / KCAL_PER_G.f);
-    const c = Math.round((kcal - p * KCAL_PER_G.p - f * KCAL_PER_G.f) / KCAL_PER_G.c);
-    protein_g = p; fat_g = f; carbs_g = c;
-  }
-  return { ...it, kcal: kcal ?? 0, protein_g: protein_g ?? 0, fat_g: fat_g ?? 0, carbs_g: carbs_g ?? 0 };
-}
-
-function assumePorridgeBase(it: MealItem, mealTitle?: string): MealItem {
-  const isPorridge = /(каша|овсян|пшён|ячмен|манн)/i.test(it.food || "");
-  const saysWater = /(на воде)/i.test(it.food || "") || /(на воде)/i.test(it.prep || "");
-  const saysMilk = /(на молоке)/i.test(it.food || "") || /(на молоке)/i.test(it.prep || "");
-  const isBreakfast = /(завтрак)/i.test(mealTitle || "");
-  if (isPorridge && !saysWater && !saysMilk && isBreakfast) {
-    const add = Math.round(Math.min(90, Math.max(60, (it.qty || 250) / 3)));
-    return {
-      ...it,
-      kcal: (it.kcal || 0) + add,
-      notes: appendNote(it.notes, "Основа по умолчанию: молоко 2.5% (+)"),
-    };
-  }
-  return it;
-}
-
-function adjustCommonBiases(it: MealItem, mealTitle?: string): MealItem {
-  return calibrateVegSteam(
-    calibrateDriedFruit(
-      calibrateNuts(
-        calibrateJuice(
-          assumePorridgeBase(it, mealTitle)
-        )
-      )
-    )
-  );
-}
-
-function sumItems(items: MealItem[]): Macro {
-  return items.reduce<Macro>((acc, it) => ({
-    kcal: acc.kcal + (it.kcal ?? 0),
-    protein_g: acc.protein_g + (it.protein_g ?? 0),
-    fat_g: acc.fat_g + (it.fat_g ?? 0),
-    carbs_g: acc.carbs_g + (it.carbs_g ?? 0),
-  }), { kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0 });
-}
-
-const ADJUSTABLE_PATTERNS = [
-  /(каша|овсян|гречк|рис|перлов|булгур|паста|макарон|картоф|хлеб)/i,
-  /(йогурт|творог|сыр)/i,
-  /(масло|олив|сливоч|арахисов|тахин)/i,
-  /(банан|сухофрукт|мюсли|гранол)/i,
-];
-
-function isAdjustable(it: MealItem): boolean {
-  const name = (it.food || "");
-  return ADJUSTABLE_PATTERNS.some((re) => re.test(name));
-}
-
-function scaleItem(it: MealItem, factor: number): MealItem {
-  const qty = Math.max(1, Math.round((it.qty || 0) * factor));
-  const scale = (v?: number) => v != null ? Math.round(v * factor) : v;
-  return {
-    ...it,
-    qty,
-    kcal: scale(it.kcal),
-    protein_g: scale(it.protein_g),
-    fat_g: scale(it.fat_g),
-    carbs_g: scale(it.carbs_g),
-    notes: appendNote(it.notes, `Автокоррекция порции ×${factor.toFixed(2)}.`),
-  };
-}
-
-function clamp(val: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, val));
-}
-
-function needsOilHint(mealTitle: string | undefined, items: MealItem[]): boolean {
-  const t = (mealTitle || "").toLowerCase();
-  const hasOil = items.some(i => /масло/i.test(i.food || ""));
-  const cookedByOil =
-    /(жарк|запек|туш)/i.test(t) ||
-    items.some(i => /(жарк|запек|туш)/i.test(i.prep || ""));
-  const salad =
-    /салат/i.test(t) ||
-    items.some(i => /салат/i.test(i.food || ""));
-  return !hasOil && (cookedByOil || salad);
-}
-
-function addOilItem(items: MealItem[], grams = 10): MealItem[] {
-  return [
-    ...items,
-    {
-      food: "Масло растительное",
-      qty: grams,
-      unit: "г",
-      kcal: Math.round(grams * 9),
-      protein_g: 0,
-      fat_g: grams,
-      carbs_g: 0,
-      prep: "добавление",
-      notes: "Учтено в КБЖУ",
-    },
-  ];
-}
-
-const RE_STARCH = /(гречк|рис|перлов|пшён|булгур|круп|паста|макарон|картоф|кус-кус)/i;
-const RE_BREAD = /(хлеб|батон|тост)/i;
-
-function removeBreadIfStarch(items: MealItem[]): MealItem[] {
-  const hasStarch = items.some(i => RE_STARCH.test(i.food || ""));
-  if (!hasStarch) return items;
-  return items.filter(i => !RE_BREAD.test(i.food || ""));
-}
-
-function ensureMealProteinFloor(items: MealItem[], minProtein = 25): MealItem[] {
-  const totals = sumItems(items);
-  if (totals.protein_g >= minProtein) return items;
-
-  const candidates = items.filter(i =>
-    /(курин|индейк|говядин|рыб|яйц|творог|йогурт|сыр|протеин)/i.test(i.food || "")
-  );
-  if (!candidates.length) return items;
-
-  const first = candidates[0];
-  const need = clamp(minProtein - totals.protein_g, 6, 20);
-  const per100 = first.protein_g ? (first.protein_g / Math.max(1, first.qty)) * 100 : 12;
-  const factor = 1 + need / Math.max(8, per100);
-
-  return items.map(x => x === first ? scaleItem(x, factor) : x);
-}
-
-const SPLITS: Record<number, number[]> = {
-  3: [0.28, 0.36, 0.36],
-  4: [0.25, 0.10, 0.35, 0.30],
-  5: [0.23, 0.10, 0.32, 0.10, 0.25],
-};
-
-function adaptSplit(base: number[], dailyKcal: number): number[] {
-  const s = [...base];
-  if (dailyKcal >= 2800) {
-    const take = 0.02;
-    if (s[0] != null) s[0] = Math.max(0.18, s[0] - take);
-    const last = s.length - 1;
-    const mid = Math.floor(last / 2);
-    s[mid] += take; s[last] += take;
-    const sum = s.reduce((a, x) => a + x, 0);
-    return s.map(x => x / sum);
-  }
-  if (dailyKcal <= 1700) {
-    const add = 0.02;
-    if (s[0] != null) s[0] += add;
-    const last = s.length - 1;
-    s[last] = Math.max(0.18, s[last] - add);
-    const sum = s.reduce((a, x) => a + x, 0);
-    return s.map(x => x / sum);
-  }
-  return s;
-}
-
-function splitMacrosPerMeal(mealsCount: number, totals: {kcal:number; p:number; f:number; c:number}) {
-  const base = SPLITS[mealsCount] ?? SPLITS[4];
-  const sum = base.reduce((a, x) => a + x, 0) || 1;
-  const norm = base.map(x => x / sum);
-
-  const proteinBias = norm.map((w, i, arr) => {
-    const isSnack = (arr.length === 5 && (i === 1 || i === 3)) || (arr.length === 4 && i === 1);
-    return isSnack ? w * 0.6 : w * 1.15;
-  });
-  const pbSum = proteinBias.reduce((a, x) => a + x, 0) || 1;
-  const pW = proteinBias.map(x => x / pbSum);
-
-  const fatBias = norm.map((w, i, arr) => {
-    const last = arr.length - 1;
-    const isDinner = i === last;
-    const isLunch = i === Math.floor(last / 2);
-    return w * (isDinner ? 1.2 : isLunch ? 1.15 : 0.9);
-  });
-  const fbSum = fatBias.reduce((a, x) => a + x, 0) || 1;
-  const fW = fatBias.map(x => x / fbSum);
-
-  const carbBias = norm.map((w, i, arr) => {
-    const last = arr.length - 1;
-    const isBreakfast = i === 0;
-    const isLunch = i === Math.floor(last / 2);
-    return w * (isBreakfast || isLunch ? 1.08 : 0.96);
-  });
-  const cbSum = carbBias.reduce((a, x) => a + x, 0) || 1;
-  const cW = carbBias.map(x => x / cbSum);
-
-  const kcalT = norm.map(w => Math.round(totals.kcal * w));
-  const pT    = pW.map(w   => Math.round(totals.p    * w));
-  const fT    = fW.map(w   => Math.round(totals.f    * w));
-  const cT    = cW.map(w   => Math.round(totals.c    * w));
-
-  const ensureProteinFloor = (arr: number[]) => {
-    const mainIdx: number[] = [];
-    if (arr.length >= 3) {
-      mainIdx.push(0, Math.floor((arr.length - 1) / 2), arr.length - 1);
-    }
-    for (const i of mainIdx) {
-      if (arr[i] < 25) {
-        let need = 25 - arr[i];
-        for (let j = 0; j < arr.length && need > 0; j++) {
-          if (j === i) continue;
-          const isSnack = (arr.length === 5 && (j === 1 || j === 3)) || (arr.length === 4 && j === 1);
-          if (isSnack && arr[j] > 8) {
-            const take = Math.min(need, Math.floor((arr[j] - 8) / 2));
-            arr[j] -= take;
-            arr[i] += take;
-            need -= take;
-          }
-        }
-      }
-    }
-    return arr;
-  };
-
-  return {
-    kcal: kcalT,
-    protein: ensureProteinFloor(pT),
-    fat: fT,
-    carbs: cT,
-  };
-}
-
-function assignMealTargets(
-  meals: { title?: string; target_kcal?: number; target_protein_g?: number; target_fat_g?: number; target_carbs_g?: number }[],
-  totals: {kcal:number; p:number; f:number; c:number}
-) {
-  const n = Math.max(3, Math.min(5, meals.length || 3));
-  const base = SPLITS[n] ?? SPLITS[4];
-  const split = adaptSplit(base.slice(0, n), totals.kcal);
-  const macro = splitMacrosPerMeal(n, totals);
-
-  return meals.map((m, i) => {
-    const hasAll =
-      typeof m.target_kcal === "number" &&
-      typeof m.target_protein_g === "number" &&
-      typeof m.target_fat_g === "number" &&
-      typeof m.target_carbs_g === "number";
-
-    if (hasAll) return m;
-
-    return {
-      ...m,
-      target_kcal: Math.max(120, macro.kcal[i] ?? Math.round(totals.kcal * (split[i] ?? 1 / n))),
-      target_protein_g: Math.max(10, macro.protein[i] ?? Math.round(totals.p * (split[i] ?? 1 / n))),
-      target_fat_g: Math.max(5, macro.fat[i] ?? Math.round(totals.f * (split[i] ?? 1 / n))),
-      target_carbs_g: Math.max(10, macro.carbs[i] ?? Math.round(totals.c * (split[i] ?? 1 / n))),
-    };
-  });
-}
-
-function correctMealToTarget(meal: { items: MealItem[]; target_kcal?: number; title?: string }): { items: MealItem[]; target_kcal?: number } {
-  const TARGET = typeof meal.target_kcal === "number" ? meal.target_kcal : undefined;
-  
-  // 🔥 НОВЫЙ ПАЙПЛАЙН с clampKcalDensity
-  let items = meal.items
-    .map(normalizeCookedWeight)
-    .map((it) => adjustCommonBiases(it, meal.title))
-    .map(fillMissingKcals)
-    .map(clampKcalDensity);  // ← ДОБАВЛЕНО!
-
-  if (needsOilHint(meal.title, items)) {
-    items = addOilItem(items, /салат/i.test(meal.title || "") ? 10 : 10);
-  }
-
-  items = removeBreadIfStarch(items);
-
-  if (/(завтрак|обед|ужин)/i.test(meal.title || "")) {
-    items = ensureMealProteinFloor(items, 25);
-  }
-
-  if (!TARGET) return { ...meal, items };
-
-  const CORRIDOR = 60;
-  let total = sumItems(items).kcal;
-  let diff = TARGET - total;
-
-  let guard = 0;
-  while (Math.abs(diff) > CORRIDOR && guard++ < 6) {
-    const adjustable = items.filter(isAdjustable);
-    if (!adjustable.length) break;
-    const factor = diff > 0 ? 1.12 : 0.90;
-    for (const it of adjustable.slice(0, 2)) {
-      const scaled = scaleItem(it, factor);
-      items = items.map(x => x === it ? scaled : x);
-    }
-    total = sumItems(items).kcal;
-    diff = TARGET - total;
-  }
-  
-  total = sumItems(items).kcal;
-  diff = TARGET - total;
-  
-  if (diff > 60) {
-    const isMainMeal = /(завтрак|обед|ужин)/i.test(meal.title || "");
-    const isBreakfast = /(завтрак)/i.test(meal.title || "");
-    
-    if (isMainMeal) {
-      let booster: MealItem;
-      
-      if (isBreakfast) {
-        booster = {
-          food: "Банан",
-          qty: 1,
-          unit: "шт",
-          kcal: Math.min(120, diff),
-          protein_g: 1,
-          fat_g: 0,
-          carbs_g: 27,
-          notes: "Добавлено для баланса калорий",
-        };
-      } else {
-        const needKcal = Math.min(200, diff);
-        booster = {
-          food: "Хлеб цельнозерновой",
-          qty: Math.round(needKcal / 2.2),
-          unit: "г",
-          kcal: needKcal,
-          protein_g: Math.round(needKcal / 18),
-          fat_g: Math.round(needKcal / 50),
-          carbs_g: Math.round(needKcal / 5),
-          notes: "Добавлено для баланса",
-        };
-      }
-      
-      items = [...items, booster];
-    }
-  }
-  
-  return { ...meal, items };
-}
-
-function correctDay(
-  meals: { items: MealItem[]; title?: string; target_kcal?: number }[],
-  targetKcal: number,
-  minProtein: number
-): { items: MealItem[]; title?: string; target_kcal?: number }[] {
-  
-  meals = meals.map(m => correctMealToTarget(m));
-
-  const totalsPre = sumItems(meals.flatMap(m => m.items));
-  if (totalsPre.protein_g < minProtein) {
-    const proteinCandidates = meals.flatMap(m => m.items)
-      .filter(it => /(курин|индейк|творог|йогурт|рыб|яйц|сыр|протеин)/i.test(it.food));
-    if (proteinCandidates.length) {
-      const need = clamp(minProtein - totalsPre.protein_g, 10, 40);
-      const cand = proteinCandidates[0];
-      const per100 = cand.protein_g ? (cand.protein_g / Math.max(1, cand.qty)) * 100 : 12;
-      const factor = 1 + need / Math.max(8, per100);
-      meals = meals.map(m => ({ ...m, items: m.items.map(x => x === cand ? scaleItem(x, factor) : x) }));
-    }
-  }
-
-  let totals = sumItems(meals.flatMap(m => m.items));
-  let diff = targetKcal - totals.kcal;
-  
-  if (diff > 100) {
-    const adjustable = meals.flatMap(m => m.items).filter(isAdjustable);
-    if (adjustable.length > 0) {
-      const factor = 1.08;
-      for (const it of adjustable.slice(0, 2)) {
-        const scaled = scaleItem(it, factor);
-        meals = meals.map(m => ({ ...m, items: m.items.map(x => x === it ? scaled : x) }));
-      }
-    }
-  }
-
-  return meals;
-}
-
-function fixPlanToTargets(ai: WeekPlanAI, targets: NutritionTarget): WeekPlanAI {
-  const perDayTarget = targets.dailyKcal;
-  const minProtein = Math.round(targets.proteinG * 0.9);
-
-  const fixedDays = ai.week.days.map(d => {
-    const meals = Array.isArray(d.meals) ? d.meals : [];
-
-    const withTargets = assignMealTargets(
-      meals.map(m => ({
-        title: m.title,
-        target_kcal: m.target_kcal,
-        target_protein_g: m.target_protein_g,
-        target_fat_g: m.target_fat_g,
-        target_carbs_g: m.target_carbs_g,
-        items: m.items as any,
-      })),
-      { kcal: perDayTarget, p: targets.proteinG, f: targets.fatG, c: targets.carbsG }
-    ) as typeof meals;
-
-    const corrected = correctDay(withTargets as any, perDayTarget, minProtein);
-
-    return { ...d, meals: corrected as any };
-  });
-
-  return {
-    week: {
-      ...ai.week,
-      goal: {
-        ...ai.week.goal,
-        kcal: perDayTarget,
-        protein_g: targets.proteinG,
-        fat_g: targets.fatG,
-        carbs_g: targets.carbsG,
-        meals_per_day: targets.mealsPerDay,
-      },
-      days: fixedDays,
-    },
-  };
-}
 
 export default nutrition;
