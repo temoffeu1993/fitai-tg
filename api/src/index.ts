@@ -12,6 +12,7 @@ import { workout } from "./workout.js";
 import { nutrition } from "./nutrition.js";
 import { schedule } from "./schedule.js";
 import { progress } from "./progress.js";
+import { profile as profileRouter } from "./profile.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
 app.use(requireAuth, onboarding);
+app.use(requireAuth, profileRouter);
 app.use(
   "/plan",
   requireAuth,

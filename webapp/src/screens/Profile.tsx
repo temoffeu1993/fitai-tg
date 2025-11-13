@@ -2,8 +2,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "@/lib/apiClient";
+import { resetProfileRemote } from "@/api/profile";
+import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 
 type Summary = any;
+
+const PLAN_CACHE_KEY = "plan_cache_v1";
+const HISTORY_KEY = "history_sessions_v1";
+const LOCAL_RESET_KEYS = [
+  "onb_summary",
+  "onb_feedback",
+  "onb_feedback_pending",
+  "onb",
+  "onboarding_done",
+  "onb_complete",
+  "onb_history",
+  PLAN_CACHE_KEY,
+  HISTORY_KEY,
+  "current_plan",
+  "session_draft",
+  "planned_workout_id",
+];
 
 // мини-спиннер для загрузки комментария
 function MiniSpinner() {
@@ -31,6 +50,8 @@ export default function Profile() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [tgProfile, setTgProfile] = useState<any>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -153,6 +174,39 @@ export default function Profile() {
   function toggle(id: keyof typeof open) {
     setOpen((s) => ({ ...s, [id]: !s[id] }));
   }
+
+  function clearLocalProfileState() {
+    const keys = [...LOCAL_RESET_KEYS, NUTRITION_CACHE_KEY];
+    keys.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  const handleResetProfile = async () => {
+    if (resetting) return;
+    const confirmed = window.confirm(
+      "Сбросить профиль? Мы удалим анкету, расписание, планы тренировок и питания, а также историю."
+    );
+    if (!confirmed) return;
+    try {
+      setResetting(true);
+      setResetError(null);
+      await resetProfileRemote();
+      clearLocalProfileState();
+      setSummary(null);
+      setFeedback(null);
+      window.location.replace("/");
+    } catch (err) {
+      console.error("reset profile error", err);
+      setResetError("Не удалось сбросить профиль. Попробуй ещё раз.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const initials = useMemo(() => {
     const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -304,6 +358,22 @@ export default function Profile() {
               />
             </Grid>
           </Accordion>
+
+          <section style={st.resetCard}>
+            <div style={st.resetTitle}>Сбросить профиль</div>
+            <p style={st.resetText}>
+              Удалим анкету, планы питания и тренировок, расписание и историю. Вернёшься на стартовый экран.
+            </p>
+            {resetError && <div style={st.resetError}>{resetError}</div>}
+            <button
+              type="button"
+              style={{ ...st.resetBtn, opacity: resetting ? 0.6 : 1 }}
+              onClick={handleResetProfile}
+              disabled={resetting}
+            >
+              {resetting ? "Сбрасываю…" : "Сбросить профиль"}
+            </button>
+          </section>
 
           <div style={{ height: 16 }} />
         </>
@@ -713,6 +783,38 @@ background:"transparent",
     borderRadius: 0,
     fontSize: 13,
     fontWeight: 500,
+  },
+  resetCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 18,
+    background: "linear-gradient(135deg, rgba(255,255,255,.8), rgba(255,221,214,.85))",
+    border: "1px solid rgba(0,0,0,.06)",
+    boxShadow: "0 12px 28px rgba(0,0,0,.12)",
+    display: "grid",
+    gap: 10,
+  },
+  resetTitle: { fontWeight: 800, fontSize: 16, color: "#1b1b1b" },
+  resetText: { margin: 0, fontSize: 13, color: "#4b5563", lineHeight: 1.4 },
+  resetError: {
+    padding: "8px 10px",
+    borderRadius: 10,
+    background: "rgba(255,102,102,.12)",
+    color: "#b91c1c",
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  resetBtn: {
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 16px",
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#1b1b1b",
+    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
+    cursor: "pointer",
+    transition: "opacity 0.2s ease",
   },
 
   stat: {
