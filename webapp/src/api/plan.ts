@@ -51,3 +51,15 @@ export async function checkPlanStatus<T = any>(planId: string): Promise<WorkoutP
   const res = await apiFetch(`/plan/status/${planId}`);
   return parseJson(res, "plan_status");
 }
+
+export async function saveSession(payload: any, opts: { plannedWorkoutId?: string } = {}) {
+  const body: Record<string, any> = { payload };
+  if (opts.plannedWorkoutId) body.plannedWorkoutId = opts.plannedWorkoutId;
+
+  const res = await apiFetch("/plan/save-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(res, "save_session");
+}
