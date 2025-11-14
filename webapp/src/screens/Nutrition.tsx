@@ -24,6 +24,19 @@ type WeekPlan = {
   days: Day[];
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  queued: "Готовлю данные",
+  context: "Анализирую анкету",
+  prompt: "Формирую запрос к AI",
+  waiting_ai: "Жду ответ AI",
+  ai_response: "Получил меню от AI",
+  qa_adjust: "Проверяю КБЖУ и порции",
+  saving: "Сохраняю план",
+  completed: "План готов",
+  failed: "Ошибка генерации",
+  idle: "Готовлю данные",
+};
+
 export default function Nutrition() {
   const [stage, setStage] = useState(0);
   const {
@@ -32,6 +45,8 @@ export default function Nutrition() {
     metaError,
     error,
     loading,
+    progress: serverProgress,
+    progressStage,
     generate,
     regenerate,
     refresh,
@@ -78,69 +93,53 @@ export default function Nutrition() {
     return `${fmt(start)} – ${fmt(end)}`;
   }, [plan]);
 
-  const [generationActive, setGenerationActive] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const progressTimerRef = useRef<number | null>(null);
-  const completionTimerRef = useRef<number | null>(null);
+  const [fallbackProgress, setFallbackProgress] = useState(0);
+  const fallbackTimerRef = useRef<number | null>(null);
 
   const isProcessing = planStatus === "processing";
 
   useEffect(() => {
-    if (isProcessing) {
-      if (!generationActive) setGenerationActive(true);
-      if (!progressTimerRef.current) {
-        progressTimerRef.current = window.setInterval(() => {
-          setProgress((prev) => {
-            if (prev >= 90) return prev;
-            const next = prev + 5 + Math.random() * 5;
-            return Math.min(90, next);
-          });
-        }, 1200);
-      }
+    if (isProcessing && (serverProgress == null || serverProgress <= 5)) {
+      if (fallbackTimerRef.current) return;
+      const start = Date.now();
+      fallbackTimerRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - start;
+        const pct = Math.min(40, Math.round((elapsed / 20000) * 40));
+        setFallbackProgress(pct);
+      }, 1000);
     } else {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
+      if (fallbackTimerRef.current) {
+        clearInterval(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
       }
-      if (generationActive) {
-        setProgress(100);
-        if (completionTimerRef.current) {
-          clearTimeout(completionTimerRef.current);
-        }
-        completionTimerRef.current = window.setTimeout(() => {
-          setGenerationActive(false);
-          setProgress(0);
-          completionTimerRef.current = null;
-        }, 1200);
-      }
+      setFallbackProgress(0);
     }
     return () => {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
-      if (completionTimerRef.current) {
-        clearTimeout(completionTimerRef.current);
-        completionTimerRef.current = null;
+      if (fallbackTimerRef.current) {
+        clearInterval(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
       }
     };
-  }, [isProcessing, generationActive]);
+  }, [isProcessing, serverProgress]);
 
   const handleGenerate = useCallback(
     (force?: boolean) => {
-      setGenerationActive(true);
-      setProgress(5);
+      setFallbackProgress(5);
       const action = force ? regenerate() : generate();
       action.catch(() => {
-        setGenerationActive(false);
-        setProgress(0);
+        setFallbackProgress(0);
       });
     },
     [generate, regenerate]
   );
 
-  const showInitialLoader = loading && !plan && !generationActive && !isProcessing;
-  const showGeneration = generationActive || isProcessing;
+  const showInitialLoader = loading && !plan && !isProcessing;
+  const showGeneration = isProcessing;
+  const effectiveProgress = Math.min(
+    100,
+    Math.max(serverProgress ?? fallbackProgress, 0)
+  );
+  const stageMessage = STAGE_LABELS[progressStage ?? "idle"] || STAGE_LABELS.idle;
 
   if (showInitialLoader) {
     return <Loader stage={stage} steps={steps} label="Проверяю актуальный план" />;
@@ -160,7 +159,7 @@ export default function Nutrition() {
   }
 
   if (showGeneration) {
-    return <GenerationView progress={progress} />;
+    return <GenerationView progress={effectiveProgress} stage={stageMessage} />;
   }
 
   if (!plan) {
@@ -728,7 +727,7 @@ function EmptyState({ onGenerate }: { onGenerate: () => void }) {
   );
 }
 
-function GenerationView({ progress }: { progress: number }) {
+function GenerationView({ progress, stage }: { progress: number; stage: string }) {
   return (
     <div style={s.page}>
       <SoftGlowStyles />
@@ -745,7 +744,8 @@ function GenerationView({ progress }: { progress: number }) {
           </div>
           <div style={s.progressLabel}>{Math.min(100, Math.round(progress))}%</div>
         </div>
-        <div style={s.heroSubtitle}>Это займёт около полминуты. Можно закрыть экран — генерация продолжится.</div>
+        <div style={s.heroSubtitle}>{stage}</div>
+        <div style={{ ...s.heroSubtitle, marginTop: 6 }}>Можно закрыть экран — генерация продолжится.</div>
       </section>
     </div>
   );

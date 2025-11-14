@@ -10,6 +10,9 @@ export type NutritionPlanResponse<TPlan = any> = {
     error?: string | null;
     cached?: boolean;
     queued?: boolean;
+    progress?: number;
+    progressStage?: string | null;
+    created?: boolean;
   };
 };
 

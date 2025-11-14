@@ -208,12 +208,71 @@ function toDbInt(value: any) {
   return Math.round(num);
 }
 
-function toDbQty(value: any) {
+function toDbQty(value: any, unit?: string) {
   if (value == null) return null;
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
+  const unitSafe = (unit || "").toLowerCase();
+  const isGram = GRAM_UNITS.some((u) => unitSafe.includes(u));
+  if (!isGram) {
+    return Math.max(1, Math.round(num));
+  }
   const rounded = Math.round(num / 5) * 5;
   return Math.max(5, rounded);
+}
+
+type ProgressStage =
+  | "queued"
+  | "context"
+  | "prompt"
+  | "waiting_ai"
+  | "ai_response"
+  | "qa_adjust"
+  | "saving"
+  | "completed"
+  | "failed"
+  | "idle";
+
+type ProgressInfo = {
+  progress: number;
+  stage: ProgressStage;
+  startedAt: number;
+  updatedAt: number;
+};
+
+const generationProgress = new Map<string, ProgressInfo>();
+
+function setGenerationProgress(planId: string, progress: number, stage: ProgressStage) {
+  const existing = generationProgress.get(planId);
+  const startedAt = existing?.startedAt ?? Date.now();
+  generationProgress.set(planId, {
+    progress: Math.max(0, Math.min(100, Math.round(progress))),
+    stage,
+    startedAt,
+    updatedAt: Date.now(),
+  });
+}
+
+function getGenerationProgress(planId: string): ProgressInfo | null {
+  return generationProgress.get(planId) ?? null;
+}
+
+function clearGenerationProgress(planId: string) {
+  generationProgress.delete(planId);
+}
+
+function buildMeta(planId: string, status: PlanStatus, extra: Record<string, any> = {}) {
+  const info = getGenerationProgress(planId);
+  const progress = status === "ready" ? 100 : info?.progress ?? 0;
+  const stage: ProgressStage =
+    status === "ready" ? "completed" : info?.stage ?? (status === "failed" ? "failed" : "idle");
+  return {
+    status,
+    planId,
+    progress,
+    progressStage: stage,
+    ...extra,
+  };
 }
 
 const DEFAULT_MEALS = [
@@ -580,7 +639,7 @@ async function overwritePlanWithAI(
             [
               mealId,
               it.food || "Продукт",
-              toDbQty(it.qty ?? null),
+              toDbQty(it.qty ?? null, it.unit),
               it.unit || "г",
               toDbInt(it.kcal),
               toDbInt(it.protein_g),
@@ -633,8 +692,10 @@ async function overwritePlanWithAI(
 
 function queueDetailedPlanGeneration(args: AsyncPlanArgs) {
   setTimeout(() => {
+    setGenerationProgress(args.planId, 15, "context");
     generateDetailedPlan(args).catch(async (err) => {
       console.error("Async nutrition generation failed:", err);
+      setGenerationProgress(args.planId, 0, "failed");
       await q(
         `UPDATE nutrition_plans
            SET status = 'failed',
@@ -655,9 +716,11 @@ async function generateDetailedPlan({
   targets,
 }: AsyncPlanArgs) {
   const historyWeeks = await getLastNutritionPlans(userId, 3);
+  setGenerationProgress(planId, 25, "context");
   const recentMeals = await getRecentMealNames(userId);
   const seed = makePlanSeed(userId, planId, weekStart);
   const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart, seed, recentMeals);
+  setGenerationProgress(planId, 35, "prompt");
 
   if (process.env.DEBUG_AI === "1") {
     console.log("\n=== NUTRITION PROMPT ===");
@@ -666,7 +729,7 @@ async function generateDetailedPlan({
     console.log(JSON.stringify(targets, null, 2));
   }
 
-    const tLLM = Date.now();
+  const tLLM = Date.now();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.85,
@@ -682,6 +745,7 @@ async function generateDetailedPlan({
     ],
   });
   console.log(`[NUTRITION] openai.chat ${Date.now() - tLLM}ms`);
+  setGenerationProgress(planId, 70, "ai_response");
 
   let ai: WeekPlanAI | null = null;
   try {
@@ -702,6 +766,7 @@ async function generateDetailedPlan({
   }
 
   enforceMealTargets(ai.week.days, targets);
+  setGenerationProgress(planId, 85, "qa_adjust");
 
   const meal0Kcals = ai.week.days.map((d) => d.meals?.[0]?.target_kcal || 0);
   if (
@@ -736,6 +801,9 @@ async function generateDetailedPlan({
   }
 
   await overwritePlanWithAI(planId, ai, targets, onboarding, weekStart);
+  setGenerationProgress(planId, 100, "completed");
+  clearGenerationProgress(planId);
+  setGenerationProgress(planId, 95, "saving");
 }
 
 async function loadWeekPlan(userId: string, refDate: string, opts?: { exact?: boolean }) {
@@ -1181,6 +1249,7 @@ nutrition.post(
     const targets = calculateNutritionTargets(onboarding);
     const skeleton = buildSkeletonWeek(weekStart, targets);
     const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
+    setGenerationProgress(planId, 5, "queued");
 
     console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}, starting async generation`);
 
@@ -1199,9 +1268,7 @@ nutrition.post(
     return res.json({
       plan: skeleton.week,
       meta: {
-        status: "processing",
-        planId: planId,
-        created: true,
+        ...buildMeta(planId, "processing", { created: true }),
       },
     });
   })
@@ -1219,11 +1286,7 @@ nutrition.get(
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
     res.json({
       plan: data.plan,
-      meta: {
-        status: data.status,
-        planId: data.planId,
-        error: data.error,
-      },
+      meta: buildMeta(data.planId, data.status, { error: data.error }),
     });
   })
 );
@@ -1252,29 +1315,15 @@ nutrition.get(
     const plan = head[0];
     const status = plan.status as PlanStatus;
 
-    // Если план ещё обрабатывается - вернуть только статус
-    if (status === "processing") {
-      return res.json({
-        status: "processing",
-        planId: plan.id,
-        error: null,
-      });
-    }
-
-    // Если план готов или failed - загрузить полные данные
     const userId = plan.user_id;
     const weekStart = plan.week_start_date;
     const data = await loadWeekPlan(userId, weekStart);
-
     if (!data) {
       return res.status(404).json({ error: "План не найден" });
     }
-
     return res.json({
       plan: data.plan,
-      status: data.status,
-      planId: data.planId,
-      error: data.error,
+      meta: buildMeta(data.planId, data.status, { error: data.error }),
     });
   })
 );

@@ -12,6 +12,9 @@ export type UseNutritionPlanResult<TPlan> = {
   error: string | null;
   loading: boolean;
   polling: boolean;
+  planId: string | null;
+  progress: number | null;
+  progressStage: string | null;
   refresh: (opts?: { force?: boolean; silent?: boolean }) => Promise<void>;
   generate: () => Promise<void>;
   regenerate: () => Promise<void>;
@@ -31,6 +34,9 @@ export function useNutritionPlan<TPlan>(options: {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [progressStage, setProgressStage] = useState<string | null>(null);
 
   const applyPlanResponse = useCallback(
     (resp?: NutritionPlanResponse<TPlan>, opts?: { keepPlan?: boolean }) => {
@@ -41,6 +47,16 @@ export function useNutritionPlan<TPlan>(options: {
       setStatus(nextStatus);
       const err = resp.meta?.error ?? null;
       setMetaError(err);
+      const nextPlanId = resp.meta?.planId ?? null;
+      setPlanId(nextPlanId);
+      if (typeof resp.meta?.progress === "number") {
+        setProgress(resp.meta.progress);
+      } else if (nextStatus === "ready") {
+        setProgress(100);
+      } else {
+        setProgress(null);
+      }
+      setProgressStage(resp.meta?.progressStage ?? null);
 
       if (nextStatus === "ready") {
         setPlan(normalized);
@@ -93,6 +109,9 @@ export function useNutritionPlan<TPlan>(options: {
               setPlan(null);
               setStatus(null);
               setMetaError(null);
+              setPlanId(null);
+              setProgress(null);
+              setProgressStage(null);
               try {
                 localStorage.removeItem(cacheKey);
               } catch {}
@@ -171,7 +190,7 @@ export function useNutritionPlan<TPlan>(options: {
 
     const interval = setInterval(() => {
       tick();
-    }, 5000);
+    }, 2000);
     tick();
 
     return () => {
@@ -195,6 +214,9 @@ export function useNutritionPlan<TPlan>(options: {
     error,
     loading,
     polling,
+    planId,
+    progress,
+    progressStage,
     refresh,
     generate,
     regenerate,
