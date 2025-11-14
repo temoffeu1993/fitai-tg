@@ -62,7 +62,6 @@ function LoadingScreen({ text = "Загружаем твоего фитнес-т
   return (
     <div style={loader.wrap}>
       <style>{loader.css}</style>
-      <div className="loader-glow" />
       <div style={loader.card}>
         <div style={loader.emoji}>💪</div>
         <div style={loader.title}>FitAI</div>
@@ -82,7 +81,7 @@ const loader = {
     minHeight: "100vh",
     display: "grid",
     placeItems: "center",
-    background: "var(--app-gradient)",
+    background: "var(--app-gradient, #f5f6fb)",
     position: "relative",
     overflow: "hidden",
     fontFamily: "system-ui, -apple-system, Inter, Roboto",
@@ -103,13 +102,6 @@ const loader = {
   title: { fontSize: 24, fontWeight: 800, color: "#1b1b1b" } as React.CSSProperties,
   text: { marginTop: 6, fontSize: 15, color: "#4b5563" } as React.CSSProperties,
   css: `
-    .loader-glow{
-      position:absolute;
-      inset:-50%;
-      background: conic-gradient(from 180deg, rgba(106,141,255,.35), rgba(255,138,107,.35), rgba(106,141,255,.35));
-      filter: blur(90px);
-      animation: spinGlow 12s linear infinite;
-    }
     .loader-dots{
       margin-top: 18px;
       display:flex;
@@ -125,7 +117,6 @@ const loader = {
     }
     .loader-dots span:nth-child(2){ animation-delay: .15s; }
     .loader-dots span:nth-child(3){ animation-delay: .3s; }
-    @keyframes spinGlow{ to { transform: rotate(360deg); } }
     @keyframes pulseDot{ 0%,100%{ transform: scale(.7); opacity:.5; } 50%{ transform: scale(1); opacity:1; } }
   `,
 };
