@@ -13,6 +13,7 @@ export type UseNutritionPlanResult<TPlan> = {
   loading: boolean;
   polling: boolean;
   refresh: (opts?: { force?: boolean; silent?: boolean }) => Promise<void>;
+  generate: () => Promise<void>;
   regenerate: () => Promise<void>;
 };
 
@@ -66,7 +67,7 @@ export function useNutritionPlan<TPlan>(options: {
   );
 
   const refresh = useCallback(
-    async (opts?: { force?: boolean; silent?: boolean; clearPlan?: boolean }) => {
+    async (opts?: { force?: boolean; silent?: boolean; clearPlan?: boolean; generate?: boolean }) => {
       const silent = Boolean(opts?.silent);
       if (!silent) {
         setLoading(true);
@@ -82,17 +83,22 @@ export function useNutritionPlan<TPlan>(options: {
           }
         }
         let resp: NutritionPlanResponse<TPlan>;
-        if (opts?.force) {
-          resp = await generateWeek<TPlan>({ force: true });
+        if (opts?.generate) {
+          resp = await generateWeek<TPlan>({ force: Boolean(opts.force) });
         } else {
           try {
             resp = await getCurrentWeek<TPlan>();
           } catch (err: any) {
             if (err?.status === 404) {
-              resp = await generateWeek<TPlan>();
-            } else {
-              throw err;
+              setPlan(null);
+              setStatus(null);
+              setMetaError(null);
+              try {
+                localStorage.removeItem(cacheKey);
+              } catch {}
+              return;
             }
+            throw err;
           }
         }
         applyPlanResponse(resp);
@@ -175,7 +181,12 @@ export function useNutritionPlan<TPlan>(options: {
     };
   }, [status, applyPlanResponse]);
 
-  const regenerate = useCallback(() => refresh({ force: true, clearPlan: true }), [refresh]);
+  const generatePlan = useCallback(
+    (force?: boolean) => refresh({ generate: true, force, clearPlan: true }),
+    [refresh]
+  );
+  const generate = useCallback(() => generatePlan(false), [generatePlan]);
+  const regenerate = useCallback(() => generatePlan(true), [generatePlan]);
 
   return {
     plan,
@@ -185,6 +196,7 @@ export function useNutritionPlan<TPlan>(options: {
     loading,
     polling,
     refresh,
+    generate,
     regenerate,
   };
 }

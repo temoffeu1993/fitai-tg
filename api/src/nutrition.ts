@@ -201,6 +201,21 @@ function enforceMealTargets(days: WeekPlanAI["week"]["days"], targets: Nutrition
   }
 }
 
+function toDbInt(value: any) {
+  if (value == null) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.round(num);
+}
+
+function toDbQty(value: any) {
+  if (value == null) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  const rounded = Math.round(num / 5) * 5;
+  return Math.max(5, rounded);
+}
+
 const DEFAULT_MEALS = [
   { title: "Завтрак", time: "08:00" },
   { title: "Перекус", time: "11:00" },
@@ -565,12 +580,12 @@ async function overwritePlanWithAI(
             [
               mealId,
               it.food || "Продукт",
-              Number(it.qty ?? 0),
+              toDbQty(it.qty ?? null),
               it.unit || "г",
-              it.kcal ?? null,
-              it.protein_g ?? null,
-              it.fat_g ?? null,
-              it.carbs_g ?? null,
+              toDbInt(it.kcal),
+              toDbInt(it.protein_g),
+              toDbInt(it.fat_g),
+              toDbInt(it.carbs_g),
               it.prep ?? null,
               it.notes ?? null,
               k + 1,

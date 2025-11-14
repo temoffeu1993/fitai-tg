@@ -1,6 +1,6 @@
 // webapp/src/screens/Nutrition.tsx
 // Экран недельного плана питания. Визуал выровнен под «Питание сегодня».
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 
 type FoodItem = {
@@ -32,6 +32,7 @@ export default function Nutrition() {
     metaError,
     error,
     loading,
+    generate,
     regenerate,
     refresh,
   } = useNutritionPlan<WeekPlan>({ normalize });
@@ -77,10 +78,72 @@ export default function Nutrition() {
     return `${fmt(start)} – ${fmt(end)}`;
   }, [plan]);
 
+  const [generationActive, setGenerationActive] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const progressTimerRef = useRef<number | null>(null);
+  const completionTimerRef = useRef<number | null>(null);
+
   const isProcessing = planStatus === "processing";
 
-  if (loading || isProcessing || !plan) {
-    return <Loader stage={stage} steps={steps} label="Генерирую недельный план питания" />;
+  useEffect(() => {
+    if (isProcessing) {
+      if (!generationActive) setGenerationActive(true);
+      if (!progressTimerRef.current) {
+        progressTimerRef.current = window.setInterval(() => {
+          setProgress((prev) => {
+            if (prev >= 90) return prev;
+            const next = prev + 5 + Math.random() * 5;
+            return Math.min(90, next);
+          });
+        }, 1200);
+      }
+    } else {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      if (generationActive) {
+        setProgress(100);
+        if (completionTimerRef.current) {
+          clearTimeout(completionTimerRef.current);
+        }
+        completionTimerRef.current = window.setTimeout(() => {
+          setGenerationActive(false);
+          setProgress(0);
+          completionTimerRef.current = null;
+        }, 1200);
+      }
+    }
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+    };
+  }, [isProcessing, generationActive]);
+
+  const handleGenerate = useCallback(
+    (force?: boolean) => {
+      setGenerationActive(true);
+      setProgress(5);
+      const action = force ? regenerate() : generate();
+      action.catch(() => {
+        setGenerationActive(false);
+        setProgress(0);
+      });
+    },
+    [generate, regenerate]
+  );
+
+  const showInitialLoader = loading && !plan && !generationActive && !isProcessing;
+  const showGeneration = generationActive || isProcessing;
+
+  if (showInitialLoader) {
+    return <Loader stage={stage} steps={steps} label="Проверяю актуальный план" />;
   }
 
   if (error) {
@@ -94,6 +157,14 @@ export default function Nutrition() {
         onRetry={() => regenerate().catch(() => {})}
       />
     );
+  }
+
+  if (showGeneration) {
+    return <GenerationView progress={progress} />;
+  }
+
+  if (!plan) {
+    return <EmptyState onGenerate={() => handleGenerate()} />;
   }
 
   const heroStatus = "План готов";
@@ -114,21 +185,21 @@ export default function Nutrition() {
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
-        <button
-          className="soft-glow"
-          disabled={loading}
-          style={{
-            ...s.primaryBtn,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-          onClick={() => {
-            setStage(0);
-            regenerate().catch(() => {});
-          }}
-        >
-          Сгенерировать заново
-        </button>
+          <button
+            className="soft-glow"
+            disabled={loading}
+            style={{
+              ...s.primaryBtn,
+              opacity: loading ? 0.6 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+            onClick={() => {
+              setStage(0);
+              handleGenerate(true);
+            }}
+          >
+            Сгенерировать заново
+          </button>
       </section>
 
       {/* ЧИПЫ ПОД ГЕРОЕМ — фирменный стиль как «Питание сегодня» */}
@@ -428,6 +499,20 @@ const s: Record<string, React.CSSProperties> = {
     border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
     background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%",marginTop:12
   },
+  progressWrap:{
+    width:"100%",
+    height:10,
+    borderRadius:999,
+    background:"rgba(255,255,255,0.15)",
+    border:"1px solid rgba(255,255,255,0.25)",
+    overflow:"hidden",
+  },
+  progressBar:{
+    height:"100%",
+    background:"linear-gradient(90deg,#ffe680,#ff9f6b)",
+    transition:"width .6s ease",
+  },
+  progressLabel:{marginTop:8,fontSize:14,fontWeight:700,color:"#fff"},
   statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
   statsRow:{
     display:"grid",
@@ -619,6 +704,49 @@ function ChipStatSquare({ emoji, label, value }: { emoji: string; label: string;
       <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", whiteSpace: "normal", lineHeight: 1.2 }}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ onGenerate }: { onGenerate: () => void }) {
+  return (
+    <div style={s.page}>
+      <SoftGlowStyles />
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Питание</span>
+          <span style={s.credits}>План отсутствует</span>
+        </div>
+        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>Собери рацион на 3 дня</div>
+        <div style={s.heroTitle}>Персональный план питания</div>
+        <div style={s.heroSubtitle}>Нажми кнопку ниже, чтобы мы рассчитали меню под твои цели</div>
+        <button className="soft-glow" style={s.primaryBtn} onClick={onGenerate}>
+          Сгенерировать план питания
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function GenerationView({ progress }: { progress: number }) {
+  return (
+    <div style={s.page}>
+      <SoftGlowStyles />
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Питание</span>
+          <span style={s.credits}>AI работает</span>
+        </div>
+        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>Подбираю блюда и проверяю КБЖУ</div>
+        <div style={s.heroTitle}>Готовлю план питания…</div>
+        <div style={{ marginTop: 18 }}>
+          <div style={s.progressWrap}>
+            <div style={{ ...s.progressBar, width: `${Math.min(100, Math.round(progress))}%` }} />
+          </div>
+          <div style={s.progressLabel}>{Math.min(100, Math.round(progress))}%</div>
+        </div>
+        <div style={s.heroSubtitle}>Это займёт около полминуты. Можно закрыть экран — генерация продолжится.</div>
+      </section>
     </div>
   );
 }

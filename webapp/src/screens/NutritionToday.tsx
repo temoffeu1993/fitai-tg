@@ -177,8 +177,20 @@ export default function NutritionToday() {
 
   const isProcessing = planStatus === "processing";
 
-  if (loading || isProcessing || !plan || !day || !displayDay) {
+  if (loading || isProcessing) {
     return <Loader stage={stage} label="Готовлю питание на сегодня" />;
+  }
+
+  if (!plan) {
+    return (
+      <EmptyTodayView
+        onGoToPlan={() => navigate("/nutrition")}
+      />
+    );
+  }
+
+  if (!day || !displayDay) {
+    return <Loader stage={stage} label="Обновляю питание на сегодня" />;
   }
 
   if (error) {
@@ -631,6 +643,20 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
         <button style={s.rowBtn} onClick={onRetry ?? (() => window.location.reload())}>
           Повторить
         </button>
+      </section>
+    </div>
+  );
+}
+
+function EmptyTodayView({ onGoToPlan }: { onGoToPlan: () => void }) {
+  return (
+    <div style={s.page}>
+      <section style={s.blockWhite}>
+        <h3 style={{ marginTop: 0 }}>План питания не создан</h3>
+        <p style={{ marginTop: 6, color: "#555" }}>
+          Сначала собери недельный план на экране «Питание», затем здесь появится меню на сегодня.
+        </p>
+        <button style={s.rowBtn} onClick={onGoToPlan}>Перейти к плану</button>
       </section>
     </div>
   );
