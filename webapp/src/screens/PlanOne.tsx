@@ -68,13 +68,18 @@ export default function PlanOne() {
   }, [plan]);
   const {
     progress: loaderProgress,
-    stepIndex: loaderStepIndex,
-    stepNumber: loaderStepNumber,
     startManual: kickProgress,
   } = useNutritionGenerationProgress(planStatus, {
     steps: steps.length,
     storageKey: "workout_generation_started_at",
+    durationMs: 40_000,
   });
+
+  const { loaderStepIndex, loaderStepNumber } = useMemo(() => {
+    const fraction = Math.min(1, loaderProgress / 75); // 75% ≈ 30 секунд
+    const number = Math.min(steps.length, Math.max(1, Math.ceil(fraction * steps.length)));
+    return { loaderStepIndex: number - 1, loaderStepNumber: number };
+  }, [loaderProgress, steps.length]);
 
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
@@ -393,7 +398,7 @@ function WorkoutLoader({
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Загрузка</span>
-          <span style={s.credits}>ИИ подбор</span>
+          <span style={s.credits}>ИИ работает</span>
         </div>
 
         <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
@@ -792,7 +797,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#fff",
     border: "1px solid rgba(255,255,255,.12)",
     backdropFilter: "blur(4px)",
-    textTransform: "uppercase",
+    textTransform: "none",
     letterSpacing: 0.3,
   },
   heroTitle: { fontSize: 24, fontWeight: 800, marginTop: 6, color: "#fff" },
