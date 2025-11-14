@@ -37,8 +37,6 @@ export default function PlanOne() {
     loading,
     regenerate,
     refresh,
-    serverProgress,
-    progressStage,
   } = useWorkoutPlan<any>();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(() => toDateInput(new Date()));
@@ -68,30 +66,18 @@ export default function PlanOne() {
     const kcal = Math.round(minutes * 6);
     return { sets, minutes, kcal };
   }, [plan]);
-  const error = planError || metaError || null;
-  const isProcessing = planStatus === "processing";
-  const progressTimer = useNutritionGenerationProgress(planStatus, {
+  const {
+    progress: loaderProgress,
+    stepIndex: loaderStepIndex,
+    stepNumber: loaderStepNumber,
+    startManual: kickProgress,
+  } = useNutritionGenerationProgress(planStatus, {
     steps: steps.length,
     storageKey: "workout_generation_started_at",
   });
-  const stageMap: Record<string, number> = {
-    queued: 0,
-    context: 1,
-    prompt: 2,
-    ai: 3,
-    validation: 4,
-    ready: steps.length - 1,
-    failed: steps.length - 1,
-  };
-  const backendStepIndex =
-    progressStage && Object.prototype.hasOwnProperty.call(stageMap, progressStage)
-      ? stageMap[progressStage]
-      : null;
-  const loaderStepIndex = backendStepIndex ?? progressTimer.stepIndex;
-  const loaderStepNumber =
-    backendStepIndex != null ? Math.min(steps.length, backendStepIndex + 1) : progressTimer.stepNumber;
-  const displayProgress =
-    typeof serverProgress === "number" ? Math.min(99, Math.max(0, serverProgress)) : progressTimer.progress;
+
+  const error = planError || metaError || null;
+  const isProcessing = planStatus === "processing";
   const showLoader = loading || isProcessing || (!plan && !error);
 
   useEffect(() => {
@@ -117,6 +103,7 @@ export default function PlanOne() {
       localStorage.removeItem("session_draft");
     } catch {}
     setShowNotes(false);
+    kickProgress();
     regenerate().catch(() => {});
   };
 
@@ -160,7 +147,7 @@ export default function PlanOne() {
     return (
       <WorkoutLoader
         steps={steps}
-        progress={displayProgress}
+        progress={loaderProgress}
         stepIndex={loaderStepIndex}
         stepNumber={loaderStepNumber}
       />
@@ -397,7 +384,7 @@ function WorkoutLoader({
   const hint = spinnerHints[Math.min(safeIndex, spinnerHints.length - 1)];
   const displayProgress = Math.max(5, Math.min(99, Math.round(progress || 0)));
   const analyticsState = safeIndex >= 1 ? "анализ готов" : "в процессе";
-  const selectionState = safeIndex >= 3 ? "оптимизация" : "подбор идёт";
+  const selectionState = safeIndex >= 3 ? "готовится" : "подбор идёт";
 
   return (
     <div style={s.page}>
@@ -406,7 +393,7 @@ function WorkoutLoader({
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Загрузка</span>
-          <span style={s.credits}>ИИ работает</span>
+          <span style={s.credits}>ИИ подбор</span>
         </div>
 
         <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
@@ -798,12 +785,15 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: "capitalize",
   },
   credits: {
-    background: "rgba(255,255,255,.6)",
+    background: "rgba(255,255,255,.08)",
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 12,
-    backdropFilter: "blur(8px)",
-    color: "#000",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.12)",
+    backdropFilter: "blur(4px)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
   heroTitle: { fontSize: 24, fontWeight: 800, marginTop: 6, color: "#fff" },
   heroSubtitle: { opacity: 0.85, marginTop: 4, color: "rgba(255,255,255,.85)" },
