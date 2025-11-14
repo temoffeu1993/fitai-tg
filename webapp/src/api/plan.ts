@@ -1,69 +1,53 @@
 import { apiFetch } from "@/lib/apiClient";
 
-// webapp/src/api/plan.ts
+export type PlanStatus = "processing" | "ready" | "failed";
 
-export async function generatePlan(onboarding: any) {
-  console.log("== GENERATE PLAN REQUEST PAYLOAD ==", onboarding);
+export type WorkoutPlanResponse<TPlan = any> = {
+  plan: TPlan | null;
+  analysis?: any | null;
+  meta?: {
+    status?: PlanStatus | null;
+    planId?: string | null;
+    error?: string | null;
+    progress?: number | null;
+    progressStage?: string | null;
+  };
+};
 
-  const r = await apiFetch("/plan/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ payload: onboarding }),
-  });
-
-  const text = await r.text();
-  let data: any = null;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    console.warn("== GENERATE PLAN: invalid JSON response ==", text);
+async function parseJson<T>(res: Response, label: string): Promise<T> {
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    const error: any = new Error(`${label}_failed`);
+    error.status = res.status;
+    if (body) {
+      try {
+        error.body = JSON.parse(body);
+      } catch {
+        error.body = body;
+      }
+    }
+    throw error;
   }
-
-  console.log("== GENERATE PLAN RAW RESPONSE ==", text);
-
-  if (!r.ok) {
-    const msg = data?.detail || data?.message || text || `HTTP ${r.status}`;
-    console.error("== GENERATE PLAN SERVER ERROR ==", msg);
-    throw new Error(msg);
-  }
-
-  if (!data?.plan) {
-    console.error("== GENERATE PLAN: no plan in response ==", data);
-    throw new Error("no_plan_in_response");
-  }
-
-  console.log("== GENERATE PLAN SUCCESS ==", data.plan);
-  return data;
+  return res.json();
 }
 
-export async function saveSession(payload: any, opts: { plannedWorkoutId?: string } = {}) {
-  console.log("== SAVE SESSION PAYLOAD ==", payload, opts);
+export async function getCurrentPlan<T = any>(): Promise<WorkoutPlanResponse<T>> {
+  const res = await apiFetch("/plan/current");
+  return parseJson(res, "current_plan");
+}
 
-  const body: any = { payload };
-  if (opts.plannedWorkoutId) body.plannedWorkoutId = opts.plannedWorkoutId;
-
-  const r = await apiFetch("/plan/save-session", {
+export async function generatePlan<T = any>(
+  opts: { force?: boolean } = {}
+): Promise<WorkoutPlanResponse<T>> {
+  const res = await apiFetch("/plan/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
+    body: JSON.stringify({ force: Boolean(opts.force) }),
   });
+  return parseJson(res, "generate_plan");
+}
 
-  const text = await r.text();
-  let data: any = null;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    console.warn("== SAVE SESSION: invalid JSON response ==", text);
-  }
-
-  if (!r.ok) {
-    const msg = data?.detail || data?.message || text || `HTTP ${r.status}`;
-    console.error("== SAVE SESSION SERVER ERROR ==", msg);
-    throw new Error(msg);
-  }
-
-  console.log("== SAVE SESSION SUCCESS ==", data);
-  return data;
+export async function checkPlanStatus<T = any>(planId: string): Promise<WorkoutPlanResponse<T>> {
+  const res = await apiFetch(`/plan/status/${planId}`);
+  return parseJson(res, "plan_status");
 }

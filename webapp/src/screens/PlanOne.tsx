@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { generatePlan } from "@/api/plan";
-import { useNavigate, useLocation } from "react-router-dom";
-import { loadHistory, buildHistoryFeatures } from "@/lib/history";
+import { useNavigate } from "react-router-dom";
+import { loadHistory } from "@/lib/history";
 import { createPlannedWorkout } from "@/api/schedule";
+import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
+import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 
-const PLAN_CACHE_KEY = "plan_cache_v1";
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
   const hour = new Date().getHours();
@@ -29,12 +29,17 @@ export type Exercise = {
 
 export default function PlanOne() {
   const nav = useNavigate();
-  const location = useLocation();
-  const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<any | null>(null);
-  const [chips, setChips] = useState<{ sets: number; minutes: number; kcal: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [stage, setStage] = useState(0);
+  const {
+    plan,
+    status: planStatus,
+    error: planError,
+    metaError,
+    loading,
+    regenerate,
+    refresh,
+    serverProgress,
+    progressStage,
+  } = useWorkoutPlan<any>();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(() => toDateInput(new Date()));
   const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
@@ -56,148 +61,63 @@ export default function PlanOne() {
   const today = useMemo(() => new Date(), []);
   const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
-
-  useEffect(() => {
-    let mounted = true;
-    const stepTimer: any = setInterval(() => setStage((s) => (s < steps.length - 1 ? s + 1 : s)), 1200);
-
-    (async () => {
-      setError(null);
-
-      // 1) читаем онбординг и считаем его хэш
-      let onb: any = {};
-      try {
-        onb = JSON.parse(localStorage.getItem("onb_summary") || "null") || {};
-      } catch {}
-      const onbHash = djb2(JSON.stringify(onb));
-
-      // 2) флаг принудительной регенерации ?force=1
-      const force = new URLSearchParams(location.search).get("force") === "1";
-
-      // 3) пробуем кэш
-      try {
-        const cachedRaw = localStorage.getItem(PLAN_CACHE_KEY);
-        if (!force && cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (cached?.onbHash === onbHash && cached?.plan) {
-            if (!mounted) return;
-            setPlan(cached.plan);
-
-            const sets = (cached.plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
-            const minutes = Number(cached.plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
-            const kcal = Math.round(minutes * 6);
-            setChips({ sets, minutes, kcal });
-
-            setLoading(false);
-            clearInterval(stepTimer);
-            return; // ранний выход: используем кэш
-          }
-        }
-      } catch {}
-
-      // 4) если кэша нет/не подходит — генерируем
-      try {
-        // подмешиваем историю из localStorage
-        const history = loadHistory();
-        const histFeatures = buildHistoryFeatures(history);
-
-        const result = await generatePlan({
-          ...onb,
-          history: {
-            summary: histFeatures,
-            recent: history.slice(0, 30),
-            policy: {
-              avoidRecentlyDone: true,
-              progression: "small-steps",
-            },
-          },
-        });
-
-        const raw = result?.plan || result;
-
-        const norm = (arr: any[]): Exercise[] =>
-          (arr || []).map((x: any) =>
-            typeof x === "string"
-              ? { name: x, sets: 1 }
-              : {
-                  name: String(x.name ?? ""),
-                  sets: Number(x.sets ?? 1),
-                  reps: x.reps, restSec: x.restSec, cues: x.cues,
-                  pattern: x.pattern, targetMuscles: x.targetMuscles,
-                  tempo: x.tempo, guideUrl: x.guideUrl, weight: x.weight,
-                }
-          );
-
-        const normalized = {
-          ...raw,
-          warmup: norm(raw.warmup),
-          exercises: norm(raw.exercises),
-          cooldown: norm(raw.cooldown),
-          notes: raw.notes || raw.note || raw.trainerNotes || "",
-        };
-
-        if (!mounted) return;
-        setPlan(normalized);
-
-        const sets = (normalized.exercises || []).reduce((a: number, x: Exercise) => a + Number(x.sets || 0), 0);
-        const minutes = Number(normalized.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
-        const kcal = Math.round(minutes * 6);
-        setChips({ sets, minutes, kcal });
-
-        // 5) кладём в кэш
-        try {
-          localStorage.setItem(
-            PLAN_CACHE_KEY,
-            JSON.stringify({ onbHash, plan: normalized, ts: Date.now() })
-          );
-        } catch {}
-      } catch (e: any) {
-        console.error("generatePlan error:", e?.message || e);
-        setError("Не удалось создать план");
-      } finally {
-        if (mounted) setLoading(false);
-        clearInterval(stepTimer);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      clearInterval(stepTimer);
-    };
-  }, [steps.length, location.search]);
+  const chips = useMemo(() => {
+    if (!plan) return null;
+    const sets = (plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
+    const minutes = Number(plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
+    const kcal = Math.round(minutes * 6);
+    return { sets, minutes, kcal };
+  }, [plan]);
+  const error = planError || metaError || null;
+  const isProcessing = planStatus === "processing";
+  const progressTimer = useNutritionGenerationProgress(planStatus, {
+    steps: steps.length,
+    storageKey: "workout_generation_started_at",
+  });
+  const stageMap: Record<string, number> = {
+    queued: 0,
+    context: 1,
+    prompt: 2,
+    ai: 3,
+    validation: 4,
+    ready: steps.length - 1,
+    failed: steps.length - 1,
+  };
+  const backendStepIndex =
+    progressStage && Object.prototype.hasOwnProperty.call(stageMap, progressStage)
+      ? stageMap[progressStage]
+      : null;
+  const loaderStepIndex = backendStepIndex ?? progressTimer.stepIndex;
+  const loaderStepNumber =
+    backendStepIndex != null ? Math.min(steps.length, backendStepIndex + 1) : progressTimer.stepNumber;
+  const displayProgress =
+    typeof serverProgress === "number" ? Math.min(99, Math.max(0, serverProgress)) : progressTimer.progress;
+  const showLoader = loading || isProcessing || (!plan && !error);
 
   useEffect(() => {
     const onPlanCompleted = () => {
-      try {
-        localStorage.removeItem(PLAN_CACHE_KEY);
-        nav("/plan/one?force=1", { replace: true });
-      } catch {}
+      regenerate().catch(() => {});
     };
     window.addEventListener("plan_completed", onPlanCompleted as any);
     return () => window.removeEventListener("plan_completed", onPlanCompleted as any);
-  }, [nav]);
+  }, [regenerate]);
 
   useEffect(() => {
     const onOnbUpdated = () => {
-      try { localStorage.removeItem(PLAN_CACHE_KEY); } catch {}
+      refresh({ force: true }).catch(() => {});
     };
     window.addEventListener("onb_updated" as any, onOnbUpdated);
     return () => window.removeEventListener("onb_updated" as any, onOnbUpdated);
-  }, []);
+  }, [refresh]);
 
-  // --- новый обработчик регенерации: сброс экрана и запуск анимации генерации ---
+  // --- новый обработчик регенерации: сброс экрана и запуск генерации ---
   const handleRegenerate = () => {
     try {
-      localStorage.removeItem(PLAN_CACHE_KEY);
       localStorage.removeItem("current_plan");
       localStorage.removeItem("session_draft");
     } catch {}
-    setPlan(null);
-    setChips(null);
-    setError(null);
-    setStage(0);
-    setLoading(true);
-    nav("/plan/one?force=1", { replace: true });
+    setShowNotes(false);
+    regenerate().catch(() => {});
   };
 
   const handleScheduleOpen = () => {
@@ -236,55 +156,14 @@ export default function PlanOne() {
     }
   };
 
-  if (loading) {
+  if (showLoader) {
     return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <TypingDotsStyles />
-        <section style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span style={s.pill}>Генерация</span>
-            <span style={s.credits}>ИИ работает</span>
-          </div>
-
-          <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>{steps[stage]}</div>
-          <div style={s.heroTitle}>Создаю персональную тренировку</div>
-          <div style={s.loadWrap}>
-            <Spinner />
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>Подстраиваю под твои цели и инвентарь</div>
-          </div>
-        </section>
-
-        {/* Чипы вынесены под верхний блок в фирменном стиле */}
-        <section style={s.statsRow}>
-          <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
-          <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
-          <ChipStatSquare emoji="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
-        </section>
-
-        <section style={s.blockWhite}>
-          <SkeletonLine />
-          <SkeletonLine w={80} />
-          <SkeletonLine w={60} />
-        </section>
-
-        {/* Плавающий тренер во время генерации: вместо текста комментария — точки */}
-        <div style={notesStyles.fabWrapLoading}>
-          <div style={notesStyles.speechBubble}>
-            <div style={notesStyles.speechText}>
-              <span className="typing-dots">
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </span>
-            </div>
-            <div style={notesStyles.speechArrow} />
-          </div>
-          <div style={notesStyles.fabCircle}>
-            <span style={{ fontSize: 35, lineHeight: 1 }}>🤖</span>
-          </div>
-        </div>
-      </div>
+      <WorkoutLoader
+        steps={steps}
+        progress={displayProgress}
+        stepIndex={loaderStepIndex}
+        stepNumber={loaderStepNumber}
+      />
     );
   }
 
@@ -494,6 +373,83 @@ function formatSec(s?: number) {
 }
 
 /* ----------------- Компоненты UI ----------------- */
+
+function WorkoutLoader({
+  steps,
+  progress,
+  stepIndex,
+  stepNumber,
+}: {
+  steps: string[];
+  progress: number;
+  stepIndex: number;
+  stepNumber: number;
+}) {
+  const safeIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
+  const safeStep = steps[safeIndex] || steps[0] || "";
+  const spinnerHints = [
+    "Собираю анкету и ограничения",
+    "Проверяю цели и инвентарь",
+    "Подбираю упражнения и вариации",
+    "Балансирую нагрузку и отдых",
+    "Формирую финальный план",
+  ];
+  const hint = spinnerHints[Math.min(safeIndex, spinnerHints.length - 1)];
+  const displayProgress = Math.max(5, Math.min(99, Math.round(progress || 0)));
+  const analyticsState = safeIndex >= 1 ? "анализ готов" : "в процессе";
+  const selectionState = safeIndex >= 3 ? "оптимизация" : "подбор идёт";
+
+  return (
+    <div style={s.page}>
+      <SoftGlowStyles />
+      <TypingDotsStyles />
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Загрузка</span>
+          <span style={s.credits}>ИИ работает</span>
+        </div>
+
+        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
+          Шаг {Math.min(stepNumber, steps.length)} из {steps.length}
+        </div>
+        <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>{safeStep}</div>
+        <div style={s.heroTitle}>Создаю персональную тренировку</div>
+        <div style={s.loadWrap}>
+          <Spinner />
+          <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>{hint}</div>
+        </div>
+      </section>
+
+      <section style={s.statsRow}>
+        <ChipStatSquare emoji="🧠" label="Аналитика" value={analyticsState} />
+        <ChipStatSquare emoji="🧩" label="Подбор" value={selectionState} />
+        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${displayProgress}%`} />
+      </section>
+
+      <section style={s.blockWhite}>
+        <SkeletonLine />
+        <SkeletonLine w={80} />
+        <SkeletonLine w={60} />
+      </section>
+
+      <div style={notesStyles.fabWrapLoading}>
+        <div style={notesStyles.speechBubble}>
+          <div style={notesStyles.speechText}>
+            <span className="typing-dots">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </span>
+          </div>
+          <div style={notesStyles.speechArrow} />
+        </div>
+        <div style={notesStyles.fabCircle}>
+          <span style={{ fontSize: 35, lineHeight: 1 }}>🤖</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ScheduleModal({
   title,

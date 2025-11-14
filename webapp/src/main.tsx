@@ -94,7 +94,7 @@ const loader = {
       "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 20px 45px rgba(103,119,255,0.25)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     textAlign: "center",
     zIndex: 2,
   } as React.CSSProperties,

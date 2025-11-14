@@ -55,6 +55,7 @@ profile.post(
     try {
       await q(`DELETE FROM planned_workouts WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM workout_sessions WHERE user_id = $1`, [userId]);
+      await q(`DELETE FROM workout_plans WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM workout_schedules WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM training_programs WHERE user_id = $1`, [userId]);

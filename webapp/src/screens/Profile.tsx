@@ -7,7 +7,7 @@ import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 
 type Summary = any;
 
-const PLAN_CACHE_KEY = "plan_cache_v1";
+const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const LOCAL_RESET_KEYS = [
   "onb_summary",

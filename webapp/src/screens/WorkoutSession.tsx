@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveSession } from "@/api/plan";
 
-const PLAN_CACHE_KEY = "plan_cache_v1";
+const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const SESSION_BG =
   "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";

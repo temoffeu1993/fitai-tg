@@ -106,6 +106,21 @@ type Constraints = {
   historySummary: string;
 };
 
+type PlanStatus = "processing" | "ready" | "failed";
+
+type WorkoutPlanRow = {
+  id: string;
+  user_id: string;
+  status: PlanStatus;
+  plan: WorkoutPlan | null;
+  analysis: any | null;
+  error_info: string | null;
+  progress_stage: string | null;
+  progress_percent: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
 const TEMPERATURE = 0.35;
 const HISTORY_LIMIT = 5;
@@ -129,6 +144,106 @@ function dynamicMinExercises(duration: number) {
   if (duration >= 70) return 6;
   if (duration >= 50) return 5;
   return 5;
+}
+
+async function getLatestWorkoutPlan(userId: string): Promise<WorkoutPlanRow | null> {
+  const rows = await q<WorkoutPlanRow>(
+    `SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
+       FROM workout_plans
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function getWorkoutPlanById(planId: string): Promise<WorkoutPlanRow | null> {
+  const rows = await q<WorkoutPlanRow>(
+    `SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
+       FROM workout_plans
+      WHERE id = $1
+      LIMIT 1`,
+    [planId]
+  );
+  return rows[0] || null;
+}
+
+async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
+  const rows = await q<WorkoutPlanRow>(
+    `INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
+     VALUES ($1, 'processing', 'queued', 5)
+     RETURNING id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at`,
+    [userId]
+  );
+  return rows[0];
+}
+
+async function setWorkoutPlanProgress(planId: string, stage: string, percent: number | null) {
+  await q(
+    `UPDATE workout_plans
+        SET progress_stage = $2,
+            progress_percent = $3,
+            updated_at = now()
+      WHERE id = $1`,
+    [planId, stage, percent]
+  );
+}
+
+async function markWorkoutPlanReady(planId: string, plan: WorkoutPlan, analysis: any) {
+  await q(
+    `UPDATE workout_plans
+        SET status = 'ready',
+            plan = $2::jsonb,
+            analysis = $3::jsonb,
+            error_info = NULL,
+            progress_stage = 'ready',
+            progress_percent = 100,
+            updated_at = now()
+      WHERE id = $1`,
+    [planId, plan, analysis]
+  );
+}
+
+async function markWorkoutPlanFailed(planId: string, message: string | null) {
+  await q(
+    `UPDATE workout_plans
+        SET status = 'failed',
+            error_info = $2,
+            progress_stage = 'failed',
+            progress_percent = NULL,
+            updated_at = now()
+      WHERE id = $1`,
+    [planId, message]
+  );
+}
+
+function buildWorkoutPlanResponse(row: WorkoutPlanRow | null) {
+  if (!row) {
+    return {
+      plan: null,
+      analysis: null,
+      meta: {
+        status: null,
+        planId: null,
+        error: null,
+        progress: null,
+        progressStage: null,
+      },
+    };
+  }
+
+  return {
+    plan: row.plan ?? null,
+    analysis: row.analysis ?? null,
+    meta: {
+      status: row.status,
+      planId: row.id,
+      error: row.error_info ?? null,
+      progress: typeof row.progress_percent === "number" ? row.progress_percent : null,
+      progressStage: row.progress_stage ?? null,
+    },
+  };
 }
 
 const PHASES = [
@@ -671,120 +786,155 @@ ${FEW_SHOT_EXAMPLES}
 plan.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
-    // 1. Получаем пользователя
     const userId = ensureUser(req);
+    const force = Boolean(req.body?.force);
 
-    console.log("\n=== GENERATING WORKOUT ===");
-    console.log("User ID:", userId);
+    console.log("\n=== GENERATING WORKOUT (async) ===");
+    console.log("User ID:", userId, "force:", force);
 
-    // 2. Загружаем контекст
-    const onboarding = await getOnboarding(userId);
-    const sessionMinutes = resolveSessionLength(onboarding);
-    const profile = buildProfile(onboarding, sessionMinutes);
-    const program = await getOrCreateProgram(userId, onboarding);
-    const history = summarizeHistory(await getRecentSessions(userId, 10));
-    const constraints = buildConstraints(profile, history, program, sessionMinutes);
-
-    console.log("Program:", program.blueprint_json.name);
-    console.log("Week:", program.week, "Day:", program.day_idx + 1);
-    console.log("Today's focus:", program.blueprint_json.days[program.day_idx]);
-    console.log("History:", history.length, "sessions");
-    console.log("Recovery:", constraints.recovery.label);
-    if (constraints.weightNotes.length) {
-      console.log("Weight guard:", constraints.weightNotes.join(" | "));
+    const existing = await getLatestWorkoutPlan(userId);
+    if (existing && !force) {
+      console.log("Existing plan status:", existing.status);
+      return res.json(buildWorkoutPlanResponse(existing));
     }
 
-    // 3. Строим промпт
-    const prompt = buildTrainerPrompt({
-      profile,
-      onboarding,
-      program,
-      constraints,
-      sessionMinutes,
-    });
+    const shell = await createWorkoutPlanShell(userId);
+    console.log("Queued workout plan:", shell.id);
 
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== PROMPT PREVIEW ===");
-      console.log(prompt.slice(0, 500) + "...\n");
-    }
+    queueWorkoutPlanGeneration({ planId: shell.id, userId });
 
-    // 4. ОДИН запрос к AI (вся магия здесь!)
-    console.log("Calling OpenAI...");
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: TEMPERATURE,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: TRAINER_SYSTEM },
-        { role: "user", content: prompt }
-      ]
-    });
-
-    // 5. Парсим ответ
-    let plan: WorkoutPlan;
-    try {
-      plan = JSON.parse(completion.choices[0].message.content || "{}");
-    } catch (err) {
-      console.error("Failed to parse AI response:", err);
-      throw new AppError("AI returned invalid JSON", 500);
-    }
-
-    // 6. Минимальная валидация (только структура!)
-    if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
-      console.error("Invalid plan structure:", plan);
-      throw new AppError("AI generated invalid workout plan", 500);
-    }
-
-    // Проверяем обязательные поля в упражнениях
-    for (const ex of plan.exercises) {
-      if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
-        console.error("Invalid exercise:", ex);
-        throw new AppError("AI generated exercise with missing fields", 500);
-      }
-    }
-
-    console.log("✓ Generated:", plan.exercises.length, "exercises");
-    console.log("✓ Title:", plan.title);
-    plan.duration = sessionMinutes;
-
-    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
-    plan = validation.plan;
-
-    console.log("✓ Duration:", plan.duration, "min");
-    if (validation.warnings.length) {
-      console.warn("Plan warnings:", validation.warnings);
-    }
-
-    console.log("=== AI RAW PLAN ===");
-    console.dir(plan, { depth: null });
-
-    const analysis = {
-      historySummary: constraints.historySummary,
-      recovery: constraints.recovery.label,
-      hoursSinceLast: constraints.recovery.hoursSinceLast,
-      lastRpe: constraints.lastRpe,
-      phase: constraints.phase.label,
-      phaseNotes: constraints.phase.notes,
-      plateau: constraints.plateau,
-      deloadSuggested: constraints.deloadSuggested,
-      volumeHint: constraints.volumeHint,
-      weightNotes: constraints.weightNotes,
-      warnings: validation.warnings,
-    };
-
-    // 7. Возвращаем КАК ЕСТЬ (без обработки!)
-    res.json({
-      plan,
-      analysis,
-      meta: {
-        program: program.blueprint_json.name,
-        week: program.week,
-        day: program.day_idx + 1,
-        focus: program.blueprint_json.days[program.day_idx]
-      }
-    });
+    res.json(buildWorkoutPlanResponse(shell));
   })
 );
+
+plan.get(
+  "/current",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = ensureUser(req);
+    const current = await getLatestWorkoutPlan(userId);
+    if (!current) {
+      return res.status(404).json({ error: "workout_plan_not_found" });
+    }
+    res.json(buildWorkoutPlanResponse(current));
+  })
+);
+
+plan.get(
+  "/status/:planId",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = ensureUser(req);
+    const { planId } = req.params;
+    if (!isUUID(planId)) {
+      throw new AppError("Invalid plan id", 400);
+    }
+    const row = await getWorkoutPlanById(planId);
+    if (!row || row.user_id !== userId) {
+      return res.status(404).json({ error: "workout_plan_not_found" });
+    }
+    res.json(buildWorkoutPlanResponse(row));
+  })
+);
+
+type WorkoutGenerationJob = { planId: string; userId: string };
+
+function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {
+  setTimeout(() => {
+    generateWorkoutPlan(job).catch(async (err) => {
+      console.error("Async workout generation failed:", err);
+      await markWorkoutPlanFailed(job.planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
+    });
+  }, 0);
+}
+
+async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
+  console.log(`[WORKOUT] ▶️ start async generation planId=${planId}`);
+  await setWorkoutPlanProgress(planId, "context", 15);
+
+  const onboarding = await getOnboarding(userId);
+  const sessionMinutes = resolveSessionLength(onboarding);
+  const profile = buildProfile(onboarding, sessionMinutes);
+  const program = await getOrCreateProgram(userId, onboarding);
+  const history = summarizeHistory(await getRecentSessions(userId, 10));
+  const constraints = buildConstraints(profile, history, program, sessionMinutes);
+
+  console.log(
+    `[WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
+      program.day_idx + 1
+    }`
+  );
+
+  await setWorkoutPlanProgress(planId, "prompt", 30);
+  const prompt = buildTrainerPrompt({
+    profile,
+    onboarding,
+    program,
+    constraints,
+    sessionMinutes,
+  });
+
+  if (process.env.DEBUG_AI === "1") {
+    console.log("\n=== WORKOUT PROMPT ===");
+    console.log(prompt.slice(0, 500) + "...\n");
+  }
+
+  await setWorkoutPlanProgress(planId, "ai", 55);
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    temperature: TEMPERATURE,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: TRAINER_SYSTEM },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  let plan: WorkoutPlan;
+  try {
+    plan = JSON.parse(completion.choices[0].message.content || "{}");
+  } catch (err) {
+    console.error("Failed to parse AI response:", err);
+    throw new AppError("AI returned invalid JSON", 500);
+  }
+
+  if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+    console.error("Invalid plan structure:", plan);
+    throw new AppError("AI generated invalid workout plan", 500);
+  }
+
+  for (const ex of plan.exercises) {
+    if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
+      console.error("Invalid exercise:", ex);
+      throw new AppError("AI generated exercise with missing fields", 500);
+    }
+  }
+
+  plan.duration = sessionMinutes;
+  await setWorkoutPlanProgress(planId, "validation", 80);
+
+  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+  plan = validation.plan;
+
+  if (validation.warnings.length) {
+    console.warn("Plan warnings:", validation.warnings);
+  }
+
+  const analysis = {
+    historySummary: constraints.historySummary,
+    recovery: constraints.recovery.label,
+    hoursSinceLast: constraints.recovery.hoursSinceLast,
+    lastRpe: constraints.lastRpe,
+    phase: constraints.phase.label,
+    phaseNotes: constraints.phase.notes,
+    plateau: constraints.plateau,
+    deloadSuggested: constraints.deloadSuggested,
+    volumeHint: constraints.volumeHint,
+    weightNotes: constraints.weightNotes,
+    warnings: validation.warnings,
+  };
+
+  await markWorkoutPlanReady(planId, plan, analysis);
+  console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+}
 
 function validatePlanStructure(plan: WorkoutPlan, constraints: Constraints, sessionMinutes: number) {
   const normalized: WorkoutPlan = {
