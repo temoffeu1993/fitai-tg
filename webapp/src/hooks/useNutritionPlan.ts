@@ -12,11 +12,7 @@ export type UseNutritionPlanResult<TPlan> = {
   error: string | null;
   loading: boolean;
   polling: boolean;
-  planId: string | null;
-  progress: number | null;
-  progressStage: string | null;
   refresh: (opts?: { force?: boolean; silent?: boolean }) => Promise<void>;
-  generate: () => Promise<void>;
   regenerate: () => Promise<void>;
 };
 
@@ -34,9 +30,6 @@ export function useNutritionPlan<TPlan>(options: {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
-  const [planId, setPlanId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [progressStage, setProgressStage] = useState<string | null>(null);
 
   const applyPlanResponse = useCallback(
     (resp?: NutritionPlanResponse<TPlan>, opts?: { keepPlan?: boolean }) => {
@@ -47,16 +40,6 @@ export function useNutritionPlan<TPlan>(options: {
       setStatus(nextStatus);
       const err = resp.meta?.error ?? null;
       setMetaError(err);
-      const nextPlanId = resp.meta?.planId ?? null;
-      setPlanId(nextPlanId);
-      if (typeof resp.meta?.progress === "number") {
-        setProgress(resp.meta.progress);
-      } else if (nextStatus === "ready") {
-        setProgress(100);
-      } else {
-        setProgress(null);
-      }
-      setProgressStage(resp.meta?.progressStage ?? null);
 
       if (nextStatus === "ready") {
         setPlan(normalized);
@@ -83,7 +66,7 @@ export function useNutritionPlan<TPlan>(options: {
   );
 
   const refresh = useCallback(
-    async (opts?: { force?: boolean; silent?: boolean; clearPlan?: boolean; generate?: boolean }) => {
+    async (opts?: { force?: boolean; silent?: boolean; clearPlan?: boolean }) => {
       const silent = Boolean(opts?.silent);
       if (!silent) {
         setLoading(true);
@@ -99,25 +82,17 @@ export function useNutritionPlan<TPlan>(options: {
           }
         }
         let resp: NutritionPlanResponse<TPlan>;
-        if (opts?.generate) {
-          resp = await generateWeek<TPlan>({ force: Boolean(opts.force) });
+        if (opts?.force) {
+          resp = await generateWeek<TPlan>({ force: true });
         } else {
           try {
             resp = await getCurrentWeek<TPlan>();
           } catch (err: any) {
             if (err?.status === 404) {
-              setPlan(null);
-              setStatus(null);
-              setMetaError(null);
-              setPlanId(null);
-              setProgress(null);
-              setProgressStage(null);
-              try {
-                localStorage.removeItem(cacheKey);
-              } catch {}
-              return;
+              resp = await generateWeek<TPlan>();
+            } else {
+              throw err;
             }
-            throw err;
           }
         }
         applyPlanResponse(resp);
@@ -190,7 +165,7 @@ export function useNutritionPlan<TPlan>(options: {
 
     const interval = setInterval(() => {
       tick();
-    }, 2000);
+    }, 5000);
     tick();
 
     return () => {
@@ -200,12 +175,7 @@ export function useNutritionPlan<TPlan>(options: {
     };
   }, [status, applyPlanResponse]);
 
-  const generatePlan = useCallback(
-    (force?: boolean) => refresh({ generate: true, force, clearPlan: true }),
-    [refresh]
-  );
-  const generate = useCallback(() => generatePlan(false), [generatePlan]);
-  const regenerate = useCallback(() => generatePlan(true), [generatePlan]);
+  const regenerate = useCallback(() => refresh({ force: true, clearPlan: true }), [refresh]);
 
   return {
     plan,
@@ -214,11 +184,7 @@ export function useNutritionPlan<TPlan>(options: {
     error,
     loading,
     polling,
-    planId,
-    progress,
-    progressStage,
     refresh,
-    generate,
     regenerate,
   };
 }
