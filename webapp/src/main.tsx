@@ -58,7 +58,7 @@ setTimeout(applyLightTheme, 200);
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-function LoadingScreen({ text = "Загружаем твой фитнес-помощник…" }: { text?: string }) {
+function LoadingScreen({ text = "Загружаем твоего фитнес-тренера" }: { text?: string }) {
   return (
     <div style={loader.wrap}>
       <style>{loader.css}</style>
@@ -82,7 +82,7 @@ const loader = {
     minHeight: "100vh",
     display: "grid",
     placeItems: "center",
-    background: "linear-gradient(145deg,#f2f4ff,#ffe8f2)",
+    background: "var(--app-gradient)",
     position: "relative",
     overflow: "hidden",
     fontFamily: "system-ui, -apple-system, Inter, Roboto",
@@ -91,7 +91,8 @@ const loader = {
     position: "relative",
     padding: "32px 36px",
     borderRadius: 28,
-    background: "rgba(255,255,255,0.85)",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     boxShadow: "0 20px 45px rgba(103,119,255,0.25)",
