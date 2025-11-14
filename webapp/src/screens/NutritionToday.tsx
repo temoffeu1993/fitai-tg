@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNutritionPlan } from "@/hooks/useNutritionPlan";
+import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { getScheduleOverview, PlannedWorkout, ScheduleByDate } from "@/api/schedule";
 import NavBar from "@/components/NavBar";
 
@@ -117,7 +118,6 @@ const toNum = (v: any) => {
 };
 
 export default function NutritionToday() {
-  const [stage, setStage] = useState(0);
   const {
     plan,
     status: planStatus,
@@ -131,10 +131,16 @@ export default function NutritionToday() {
   const [showNotes, setShowNotes] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const t = setInterval(() => setStage((s) => (s < 4 ? s + 1 : s)), 1000);
-    return () => clearInterval(t);
-  }, []);
+  const steps = useMemo(
+    () => ["Анализ онбординга", "Расчёт КБЖУ", "Подбор рецептов", "Баланс дней", "Готовим неделю"],
+    []
+  );
+  const {
+    progress: loaderProgress,
+    stepIndex: loaderStepIndex,
+    stepNumber: loaderStepNumber,
+    startManual: kickProgress,
+  } = useNutritionGenerationProgress(planStatus, { steps: steps.length });
 
   useEffect(() => {
     let active = true;
@@ -178,7 +184,15 @@ export default function NutritionToday() {
   const isProcessing = planStatus === "processing";
 
   if (loading || isProcessing || !plan || !day || !displayDay) {
-    return <Loader stage={stage} label="Готовлю питание на сегодня" />;
+    return (
+      <Loader
+        steps={steps}
+        label="Готовлю питание на сегодня"
+        progress={loaderProgress}
+        activeStep={loaderStepIndex}
+        stepNumber={loaderStepNumber}
+      />
+    );
   }
 
   if (error) {
@@ -189,7 +203,10 @@ export default function NutritionToday() {
     return (
       <ErrorView
         msg={metaError || "Не удалось сгенерировать план питания"}
-        onRetry={() => regenerate().catch(() => {})}
+        onRetry={() => {
+          kickProgress();
+          regenerate().catch(() => {});
+        }}
       />
     );
   }
@@ -254,7 +271,7 @@ const pillDateLabel = new Date().toLocaleDateString("ru-RU", {
             marginTop: 12,
           }}
           onClick={() => {
-            setStage(0);
+            kickProgress();
             regenerate().catch(() => {});
           }}
         >
@@ -587,35 +604,68 @@ function Spinner(){return(<svg width="56" height="56" viewBox="0 0 50 50" style=
     strokeDasharray="110" strokeDashoffset="80" style={{transformOrigin:"25px 25px",animation:"spin 1.2s linear infinite"}}/>
   <style>{`@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}`}</style>
 </svg>);}
+function ShimmerStyles(){return(<style>{`
+  @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+`}</style>);}
 
-/* >>> UPDATED LOADER: убраны чипы внутри hero, добавлены квадратные чипы ПОД героем как в Nutrition.tsx <<< */
-function Loader({ stage, label }: { stage: number; label: string }) {
+function Loader({
+  steps,
+  label,
+  progress,
+  activeStep,
+  stepNumber,
+}: {
+  steps: string[];
+  label: string;
+  progress: number;
+  activeStep: number;
+  stepNumber: number;
+}) {
+  const safeStep = steps[activeStep] ?? steps[0] ?? "";
+  const spinnerHints = [
+    "Учитываю цели и ограничения",
+    "Распределяю КБЖУ по приёмам",
+    "Подбираю блюда и перекусы",
+    "Проверяю баланс по дням",
+    "Формирую результаты",
+  ];
+  const hint = spinnerHints[Math.min(activeStep, spinnerHints.length - 1)];
+  const displayProgress = Math.max(5, Math.min(99, Math.round(progress || 0)));
+  const analyticsState = activeStep >= 1 ? "анализ завершён" : "в процессе";
+  const selectionState = activeStep >= 3 ? "почти готово" : "готовится";
+
   return (
     <div style={s.page}>
       <SoftGlowStyles />
       <TypingDotsStyles />
+      <ShimmerStyles />
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Загрузка</span>
           <span style={s.credits}>ИИ работает</span>
         </div>
-        <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>Шаг {Math.min(stage + 1, 5)} из 5</div>
+        <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>
+          Шаг {Math.min(stepNumber, steps.length)} из {steps.length}
+        </div>
+        <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>{safeStep}</div>
         <div style={s.heroTitle}>{label}</div>
         <div style={s.loadWrap}>
           <Spinner />
-          <div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>Учитываю цели и ограничения</div>
+          <div style={{ marginTop: 8, fontSize: 13, opacity: .9 }}>{hint}</div>
         </div>
-        {/* УДАЛЕНО: чипы/статы внутри hero */}
       </section>
 
-      {/* НОВОЕ: квадратные чипы под героем — как на экране генерации плана на 3 дня */}
       <section style={s.statsRow}>
-        <ChipStatSquare emoji="🧠" label="Аналитика" value="в процессе" />
-        <ChipStatSquare emoji="🧩" label="Подбор" value="готовится" />
-        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${Math.min(20 + stage * 20, 95)}%`} />
+        <ChipStatSquare emoji="🧠" label="Аналитика" value={analyticsState} />
+        <ChipStatSquare emoji="🧩" label="Подбор" value={selectionState} />
+        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${displayProgress}%`} />
       </section>
 
-      <section style={s.blockWhite}><SkeletonLine /><SkeletonLine w={80} /><SkeletonLine w={60} /></section>
+      <section style={s.blockWhite}>
+        <SkeletonLine />
+        <SkeletonLine w={80} />
+        <SkeletonLine w={60} />
+      </section>
     </div>
   );
 }
