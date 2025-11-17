@@ -68,12 +68,12 @@ export default function Nutrition() {
     };
   }, [plan]);
 
-  const weekLabel = useMemo(() => {
+  const periodLabel = useMemo(() => {
     if (!plan) return "";
     const start = parseISODate(plan.week_start_date);
     if (!start) return "";
     const end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    end.setDate(start.getDate() + 2);
     const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
     return `${fmt(start)} – ${fmt(end)}`;
   }, [plan]);
@@ -118,11 +118,11 @@ export default function Nutrition() {
       {/* HERO — чёрный как на «Питание сегодня» */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Неделя</span>
+          <span style={s.pill}>{periodLabel || "3 дня"}</span>
           <span style={s.credits}>{heroStatus}</span>
         </div>
 
-        <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{weekLabel}</div>
+        <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{periodLabel}</div>
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
