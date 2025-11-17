@@ -1199,6 +1199,7 @@ nutrition.post(
     const onboarding = await getOnboarding(userId);
     const weekStart = currentDateISO(tz);
     const force = Boolean(req.body?.force);
+    console.log(`[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`);
 
     // Лимит: не более одного нового плана в день
     const todayCount = await q<{ cnt: number }>(
@@ -1245,12 +1246,16 @@ nutrition.post(
           429
         );
       }
+      console.log(
+        `[NUTRITION] latest plan start=${startIso} end=${endIso} today=${todayIso} force=${force}`
+      );
     }
 
     let existing = await loadWeekPlan(userId, weekStart);
 
     // Если план готов и не force - вернуть его
     if (existing?.status === "ready" && !force) {
+      console.log(`[NUTRITION] returning cached plan ${existing.planId}`);
       console.log(`[NUTRITION] ⚡ cached plan returned in ${Date.now() - start}ms`);
       return res.json({
         plan: existing.plan,
@@ -1278,6 +1283,7 @@ nutrition.post(
 
     // Удалить старый план если force или failed
     if (existing?.planId) {
+      console.log(`[NUTRITION] archiving existing plan ${existing.planId} (force=${force})`);
       await archivePlanById(existing.planId);
       existing = null;
     }

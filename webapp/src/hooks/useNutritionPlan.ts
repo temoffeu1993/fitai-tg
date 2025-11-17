@@ -175,7 +175,10 @@ export function useNutritionPlan<TPlan>(options: {
     };
   }, [status, applyPlanResponse]);
 
-  const regenerate = useCallback(() => refresh({ force: true, clearPlan: true }), [refresh]);
+  const regenerate = useCallback(
+    () => refresh({ force: true, clearPlan: true }),
+    [refresh]
+  );
 
   return {
     plan,
