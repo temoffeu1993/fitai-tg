@@ -62,15 +62,35 @@ type WeekPlanAI = {
 type PlanStatus = "processing" | "ready" | "failed" | "archived";
 
 const MOSCOW_TZ = "Europe/Moscow";
-const MOSCOW_OFFSET_MIN = 3 * 60; // UTC+3
 const WEEKLY_NUTRITION_LIMIT = 3;
 
-function currentMoscowDateISO(date = new Date()) {
-  const utcTs = date.getTime() + date.getTimezoneOffset() * 60000;
-  const moscowTs = utcTs + MOSCOW_OFFSET_MIN * 60000;
-  const moscow = new Date(moscowTs);
-  moscow.setHours(0, 0, 0, 0);
-  return moscow.toISOString().slice(0, 10);
+function resolveTimezone(req: any): string {
+  const candidate =
+    (req?.headers?.["x-user-tz"] as string) ||
+    (req?.body?.timezone as string) ||
+    (req?.query?.tz as string) ||
+    MOSCOW_TZ;
+  if (typeof candidate === "string" && candidate.trim()) {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: candidate });
+      return candidate;
+    } catch {
+      /* ignore invalid */
+    }
+  }
+  return MOSCOW_TZ;
+}
+
+function currentDateISO(timeZone = MOSCOW_TZ, date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function addDaysISO(baseIso: string, offset: number) {
@@ -79,20 +99,20 @@ function addDaysISO(baseIso: string, offset: number) {
   return shifted.toISOString().slice(0, 10);
 }
 
-function formatMoscowLabel(iso: string) {
-  const date = new Date(`${iso}T00:00:00+03:00`);
+function formatLabel(iso: string, timeZone = MOSCOW_TZ) {
+  const date = new Date(`${iso}T00:00:00Z`);
   return date.toLocaleDateString("ru-RU", {
     weekday: "long",
     day: "numeric",
     month: "long",
-    timeZone: MOSCOW_TZ,
+    timeZone,
   });
 }
 
-function buildWeekWindow(startIso: string) {
+function buildWeekWindow(startIso: string, timeZone = MOSCOW_TZ) {
   return Array.from({ length: 3 }).map((_, idx) => {
     const iso = addDaysISO(startIso, idx);
-    return { iso, label: formatMoscowLabel(iso) };
+    return { iso, label: formatLabel(iso, timeZone) };
   });
 }
 
@@ -450,6 +470,7 @@ type AsyncPlanArgs = {
   weekStart: string;
   onboarding: Onb;
   targets: NutritionTarget;
+  timeZone: string;
 };
 
 async function deletePlanById(planId: string): Promise<void> {
@@ -679,11 +700,12 @@ async function generateDetailedPlan({
   weekStart,
   onboarding,
   targets,
+  timeZone,
 }: AsyncPlanArgs) {
   const historyWeeks = await getLastNutritionPlans(userId, 3);
   const recentMeals = await getRecentMealNames(userId);
   const seed = makePlanSeed(userId, planId, weekStart);
-  const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart, seed, recentMeals);
+  const prompt = buildAIPrompt(onboarding, targets, historyWeeks, weekStart, seed, recentMeals, timeZone);
 
   if (process.env.DEBUG_AI === "1") {
     console.log("\n=== NUTRITION PROMPT ===");
@@ -899,7 +921,8 @@ function buildAIPrompt(
   lastWeeks: any[],
   weekStartISO: string,
   seed: string,
-  recentMeals: string[]
+  recentMeals: string[],
+  timeZone: string = MOSCOW_TZ
 ) {
   const data = extractOnboardingData(onb);
   
@@ -938,7 +961,7 @@ function buildAIPrompt(
       ).join("\n")}`
     : "";
 
-  const weekDays = buildWeekWindow(weekStartISO);
+  const weekDays = buildWeekWindow(weekStartISO, timeZone);
   const recentMealsBlock =
     recentMeals.length > 0
       ? `\nНедавно уже использовались блюда/ингредиенты: ${recentMeals.slice(0, 20).join(", ")}.\nНе повторяй их дословно — вариируй рецепты (меняй гарниры, добавки, способы приготовления).`
@@ -1171,9 +1194,10 @@ nutrition.post(
     console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
 
     const userId = await getUserId(req as any);
+    const tz = resolveTimezone(req);
     await ensureSubscription(userId, "nutrition");
     const onboarding = await getOnboarding(userId);
-    const weekStart = currentMoscowDateISO();
+    const weekStart = currentDateISO(tz);
     const force = Boolean(req.body?.force);
 
     // Лимит: не более одного нового плана в день
@@ -1181,8 +1205,8 @@ nutrition.post(
       `SELECT COUNT(*)::int AS cnt
          FROM nutrition_plans
         WHERE user_id = $1
-          AND created_at::date = CURRENT_DATE`,
-      [userId]
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+      [userId, tz]
     );
     if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
       throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
@@ -1193,8 +1217,8 @@ nutrition.post(
       `SELECT COUNT(*)::int AS cnt
          FROM nutrition_plans
         WHERE user_id = $1
-          AND created_at >= date_trunc('week', now())`,
-      [userId]
+          AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
+      [userId, tz]
     );
     if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
       throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
@@ -1211,14 +1235,13 @@ nutrition.post(
       [userId]
     );
     if (latest[0]?.week_start_date) {
-      const startDate = new Date(latest[0].week_start_date);
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 2); // 3 дня покрытия
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (today <= endDate && !force) {
+      const startIso: string = latest[0].week_start_date;
+      const endIso = addDaysISO(startIso, 2); // покрывает 3 дня
+      const todayIso = currentDateISO(tz);
+      // Разрешаем новую генерацию в 3-й день (todayIso >= endIso)
+      if (todayIso < endIso && !force) {
         throw new AppError(
-          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать, когда закончится текущий блок.",
+          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
           429
         );
       }
@@ -1272,6 +1295,7 @@ nutrition.post(
       weekStart,
       onboarding,
       targets,
+      timeZone: tz,
     });
 
     // Сразу возвращаем skeleton со статусом processing
@@ -1295,7 +1319,8 @@ nutrition.get(
   "/current-week",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
-    const weekStart = currentMoscowDateISO();
+    const tz = resolveTimezone(req);
+    const weekStart = currentDateISO(tz);
     const data = await loadWeekPlan(userId, weekStart, { exact: true });
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
     res.json({

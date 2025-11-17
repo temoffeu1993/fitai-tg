@@ -131,6 +131,24 @@ const DAILY_WORKOUT_LIMIT = 1;
 const MIN_WORKOUT_INTERVAL_HOURS = 8;
 const MIN_REAL_DURATION_MIN = 20;
 const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // включено: сверяем с онбордингом (+1 запас)
+const MOSCOW_TZ = "Europe/Moscow";
+
+function resolveTimezone(req: any): string {
+  const candidate =
+    (req?.headers?.["x-user-tz"] as string) ||
+    (req?.body?.timezone as string) ||
+    (req?.query?.tz as string) ||
+    MOSCOW_TZ;
+  if (typeof candidate === "string" && candidate.trim()) {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: candidate });
+      return candidate;
+    } catch {
+      /* ignore invalid TZ and fall back */
+    }
+  }
+  return MOSCOW_TZ;
+}
 
 const ensureUser = (req: any): string => {
   if (req.user?.uid) return req.user.uid;
@@ -804,6 +822,7 @@ plan.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
     const userId = ensureUser(req);
+    const tz = resolveTimezone(req);
     const force = Boolean(req.body?.force);
     const onboarding = await getOnboarding(userId);
 
@@ -816,16 +835,16 @@ plan.post(
       `SELECT COUNT(*)::int AS cnt
          FROM workouts
         WHERE user_id = $1
-          AND created_at::date = CURRENT_DATE`,
-      [userId]
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+      [userId, tz]
     );
     // 2) по сгенерированным планам (чтобы не кликали много до сохранения)
     const todayPlans = await q<{ cnt: number }>(
       `SELECT COUNT(*)::int AS cnt
          FROM workout_plans
         WHERE user_id = $1
-          AND created_at::date = CURRENT_DATE`,
-      [userId]
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+      [userId, tz]
     );
 
     if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
@@ -874,8 +893,8 @@ plan.post(
         `SELECT COUNT(*)::int AS cnt
            FROM workouts
           WHERE user_id = $1
-            AND created_at >= date_trunc('week', now())`,
-        [userId]
+            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
+        [userId, tz]
       );
       if ((weeklySessions[0]?.cnt || 0) >= softCap && !force) {
         throw new AppError(
