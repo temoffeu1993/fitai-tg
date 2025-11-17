@@ -14,6 +14,7 @@ import { schedule } from "./schedule.js";
 import { progress } from "./progress.js";
 import { profile as profileRouter } from "./profile.js";
 import { getSubscriptionStatus } from "./subscription.js";
+import { asyncHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
