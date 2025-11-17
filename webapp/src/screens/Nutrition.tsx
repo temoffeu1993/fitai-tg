@@ -122,7 +122,6 @@ export default function Nutrition() {
           <span style={s.credits}>{heroStatus}</span>
         </div>
 
-        <div style={{ marginTop: 8, opacity: .9, fontSize: 13 }}>{periodLabel}</div>
         <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
         <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
 
