@@ -58,7 +58,7 @@ type WeekPlanAI = {
   };
 };
 
-type PlanStatus = "processing" | "ready" | "failed";
+type PlanStatus = "processing" | "ready" | "failed" | "archived";
 
 const MOSCOW_TZ = "Europe/Moscow";
 const MOSCOW_OFFSET_MIN = 3 * 60; // UTC+3
@@ -208,12 +208,26 @@ function toDbInt(value: any) {
   return Math.round(num);
 }
 
-function toDbQty(value: any) {
+function toDbQty(value: any, unitHint?: string) {
   if (value == null) return null;
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
-  const rounded = Math.round(num / 5) * 5;
-  return Math.max(5, rounded);
+  const unit = (unitHint || "").toLowerCase();
+  const isGramLike =
+    unit.includes("г") ||
+    unit.includes("гр") ||
+    unit.includes("g") ||
+    unit.includes("ml") ||
+    unit.includes("мл");
+
+  if (isGramLike) {
+    const rounded = Math.round(num / 5) * 5;
+    return Math.max(5, rounded);
+  }
+
+  // Для шт./ломтиков оставляем адекватные дроби (0.5) или целые
+  const roundedPieces = Math.round(num * 2) / 2;
+  return Math.max(0.5, roundedPieces);
 }
 
 const DEFAULT_MEALS = [
@@ -401,7 +415,7 @@ async function getLastNutritionPlans(userId: string, n = 3) {
     `SELECT id, week_start_date, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes
      FROM nutrition_plans
      WHERE user_id = $1
-       AND status = 'ready'
+       AND status IN ('ready', 'archived')
      ORDER BY week_start_date DESC
      LIMIT $2`,
     [userId, n]
@@ -419,7 +433,7 @@ async function getRecentMealNames(userId: string, planLimit = 2, itemLimit = 20)
     JOIN nutrition_days nd ON nd.id = nm.day_id
     JOIN nutrition_plans np ON np.id = nd.plan_id
     WHERE np.user_id = $1
-      AND np.status = 'ready'
+      AND np.status IN ('ready', 'archived')
     ORDER BY LOWER(ni.food_name), nd.day_date DESC
     LIMIT $2
   `,
@@ -438,6 +452,16 @@ type AsyncPlanArgs = {
 
 async function deletePlanById(planId: string): Promise<void> {
   await q(`DELETE FROM nutrition_plans WHERE id = $1`, [planId]);
+}
+
+async function archivePlanById(planId: string): Promise<void> {
+  await q(
+    `UPDATE nutrition_plans
+        SET status = 'archived',
+            updated_at = now()
+      WHERE id = $1`,
+    [planId]
+  );
 }
 
 async function insertSkeletonPlan(
@@ -580,7 +604,7 @@ async function overwritePlanWithAI(
             [
               mealId,
               it.food || "Продукт",
-              toDbQty(it.qty ?? null),
+              toDbQty(it.qty ?? null, it.unit || ""),
               it.unit || "г",
               toDbInt(it.kcal),
               toDbInt(it.protein_g),
@@ -745,7 +769,7 @@ async function loadWeekPlan(userId: string, refDate: string, opts?: { exact?: bo
         `SELECT id, user_id, name, goal_kcal, protein_g, fat_g, carbs_g, meals_per_day, diet_style, restrictions, notes,
                 week_start_date, status, error_info
          FROM nutrition_plans
-         WHERE user_id=$1 AND week_start_date = $2::date
+         WHERE user_id=$1 AND week_start_date = $2::date AND status != 'archived'
          ORDER BY week_start_date DESC
          LIMIT 1`,
         [userId, refDate]
@@ -756,6 +780,7 @@ async function loadWeekPlan(userId: string, refDate: string, opts?: { exact?: bo
          FROM nutrition_plans
          WHERE user_id=$1
            AND week_start_date BETWEEN ($2::date - INTERVAL '2 days') AND $2::date
+           AND status != 'archived'
          ORDER BY week_start_date DESC
          LIMIT 1`,
         [userId, refDate]
@@ -927,6 +952,10 @@ function buildAIPrompt(
 Дни плана:
 ${weekDays.map((d, idx) => `- День ${idx + 1}: ${d.label} (${d.iso})`).join("\n")}
 ${recentMealsBlock}
+
+Уникальность:
+- Завтраки в каждый из 3 дней НЕ должны повторять друг друга и не должны быть комбинацией "овсянка/яйца/банан". Используй разные каши/шакшука/сырники/омлет/творог/гречка/булгур и т.д.
+- Обеды/ужины тоже должны отличаться по типу белка и гарниров между днями.
 
 ═══════════════════════════════════════════════════════════
 ДАННЫЕ КЛИЕНТА
@@ -1174,7 +1203,7 @@ nutrition.post(
 
     // Удалить старый план если force или failed
     if (existing?.planId) {
-      await deletePlanById(existing.planId);
+      await archivePlanById(existing.planId);
       existing = null;
     }
 

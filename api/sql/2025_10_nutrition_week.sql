@@ -16,12 +16,12 @@ ALTER TABLE nutrition_plans
 -- уникальность «одна неделя на пользователя»
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname='uniq_plan_per_week'
   ) THEN
     ALTER TABLE nutrition_plans
-      ADD CONSTRAINT uniq_plan_per_week UNIQUE (user_id, week_start_date);
+      DROP CONSTRAINT uniq_plan_per_week;
   END IF;
 END$$;
 
