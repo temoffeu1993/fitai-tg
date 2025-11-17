@@ -805,6 +805,7 @@ plan.post(
   asyncHandler(async (req: any, res: Response) => {
     const userId = ensureUser(req);
     const force = Boolean(req.body?.force);
+    const onboarding = await getOnboarding(userId);
 
     // Подписка / пробник
     await ensureSubscription(userId, "workout");
