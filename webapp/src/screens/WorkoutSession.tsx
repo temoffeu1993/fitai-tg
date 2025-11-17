@@ -67,6 +67,10 @@ const plan: Plan | null = useMemo(() => {
   const [sessionRpe, setSessionRpe] = useState(7);
   const [sessionNotes, setSessionNotes] = useState("");
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
+  const [finishModal, setFinishModal] = useState(false);
+  const [finishStart, setFinishStart] = useState<string>("");
+  const [finishDuration, setFinishDuration] = useState<string>("");
+  const [saving, setSaving] = useState(false);
   const blockTimer = useRef<number | null>(null);
   useEffect(() => {
     const prevBodyBg = document.body.style.background;
@@ -225,12 +229,28 @@ const plan: Plan | null = useMemo(() => {
     );
   }
 
+  const openFinishModal = () => {
+    const defaultDuration = Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
+    const startGuess = new Date(Date.now() - defaultDuration * 60000);
+    setFinishDuration(String(defaultDuration));
+    setFinishStart(startGuess.toISOString().slice(0, 16));
+    setFinishModal(true);
+  };
+
   const handleComplete = async () => {
+    if (!finishModal) {
+      openFinishModal();
+      return;
+    }
+
     let saveOk = false;
+    const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
+    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
+
     const payload = {
       title: plan.title,
       location: plan.location,
-      durationMin: Math.round(elapsed / 60) || plan.duration,
+      durationMin,
       exercises: items.map((it) => ({
         name: it.name,
         pattern: it.pattern,
@@ -263,12 +283,20 @@ const plan: Plan | null = useMemo(() => {
 
     // сервер
     try {
+      setSaving(true);
       console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
-      await saveSession(payload, plannedWorkoutId ? { plannedWorkoutId } : undefined);
+      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
+      await saveSession(payload, {
+        ...extra,
+        startedAt: startedAtIso,
+        durationMin,
+      });
       saveOk = true;
     } catch {
       // не блокируем UX если сеть/сервер упали
     } finally {
+      setSaving(false);
+      setFinishModal(false);
       localStorage.removeItem("current_plan");
       localStorage.removeItem("session_draft");
       localStorage.removeItem("planned_workout_id");
@@ -334,7 +362,7 @@ const plan: Plan | null = useMemo(() => {
               onClick={handleComplete}
               disabled={exercisesDone !== exercisesTotal}
             >
-              Сохранить тренировку
+              {finishModal ? "Подтвердить" : "Сохранить тренировку"}
             </button>
           {exercisesDone !== exercisesTotal && (
             <div style={s.completeHint}>Отметь все упражнения выполненными, чтобы сохранить тренировку</div>
@@ -454,6 +482,45 @@ const plan: Plan | null = useMemo(() => {
           );
         })}
       </main>
+
+      {finishModal && (
+        <div style={modal.wrap}>
+          <div style={modal.card}>
+            <div style={modal.header}>
+              <div style={modal.title}>Фиксация тренировки</div>
+              <button style={modal.close} onClick={() => setFinishModal(false)}>✕</button>
+            </div>
+            <div style={modal.body}>
+              <label style={modal.label}>
+                <span style={modal.labelText}>Время начала</span>
+                <input
+                  type="datetime-local"
+                  style={modal.input}
+                  value={finishStart}
+                  onChange={(e) => setFinishStart(e.target.value)}
+                />
+              </label>
+              <label style={modal.label}>
+                <span style={modal.labelText}>Длительность (мин)</span>
+                <input
+                  type="number"
+                  min={10}
+                  step={5}
+                  style={modal.input}
+                  value={finishDuration}
+                  onChange={(e) => setFinishDuration(e.target.value)}
+                />
+              </label>
+            </div>
+            <div style={modal.footer}>
+              <button style={modal.secondary} onClick={() => setFinishModal(false)} disabled={saving}>Отмена</button>
+              <button style={modal.primary} onClick={handleComplete} disabled={saving}>
+                {saving ? "Сохраняю..." : "Подтвердить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section style={s.feedbackCard}>
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
@@ -641,6 +708,69 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     resize: "none",
   } as React.CSSProperties,
+};
+
+const modal: Record<string, React.CSSProperties> = {
+  wrap: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.35)",
+    display: "grid",
+    placeItems: "center",
+    zIndex: 999,
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 440,
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 12px 28px rgba(0,0,0,0.2)",
+    padding: 16,
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  title: { fontSize: 18, fontWeight: 700 },
+  close: {
+    border: "none",
+    background: "transparent",
+    fontSize: 18,
+    cursor: "pointer",
+  },
+  body: { display: "grid", gap: 12 },
+  label: { display: "grid", gap: 4 },
+  labelText: { fontSize: 13, color: "#555" },
+  input: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #ddd",
+    fontSize: 15,
+  },
+  footer: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 14,
+  },
+  secondary: {
+    border: "1px solid #ddd",
+    background: "#f5f5f5",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+  },
+  primary: {
+    border: "none",
+    background: "#000",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+  },
 };
 
 const progressBar = {

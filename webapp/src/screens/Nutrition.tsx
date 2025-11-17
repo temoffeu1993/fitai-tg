@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useNutritionPlan } from "@/hooks/useNutritionPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 type FoodItem = {
   food: string; qty: number; unit: string;
@@ -35,6 +36,7 @@ export default function Nutrition() {
     regenerate,
     refresh,
   } = useNutritionPlan<WeekPlan>({ normalize });
+  const sub = useSubscriptionStatus();
   const [openDay, setOpenDay] = useState<number | null>(1);
   const [showNotes, setShowNotes] = useState(false);
 
@@ -79,6 +81,7 @@ export default function Nutrition() {
   }, [plan]);
 
   const isProcessing = planStatus === "processing";
+  const [showPaywall, setShowPaywall] = useState(false);
 
   if (loading || isProcessing || !plan) {
     return (
@@ -89,6 +92,31 @@ export default function Nutrition() {
         activeStep={loaderStepIndex}
         stepNumber={loaderStepNumber}
       />
+    );
+  }
+
+  if (showPaywall || sub.locked) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>Доступ</span>
+            <span style={s.credits}>Premium</span>
+          </div>
+          <div style={s.heroTitle}>Оформите подписку</div>
+          <div style={s.heroSubtitle}>
+            Генерация питания доступна по подписке. Первый план — бесплатно.
+          </div>
+          <div style={{ marginTop: 16, fontSize: 13, opacity: 0.9 }}>
+            {sub.reason || "Оформи премиум, чтобы продолжить."}
+          </div>
+          <button className="soft-glow" style={{ ...s.primaryBtn, marginTop: 18 }} onClick={() => setShowPaywall(false)}>
+            Ок
+          </button>
+        </section>
+      </div>
     );
   }
 
@@ -127,15 +155,21 @@ export default function Nutrition() {
 
         <button
           className="soft-glow"
-          disabled={loading}
+          disabled={loading || sub.locked}
           style={{
             ...s.primaryBtn,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading || sub.locked ? 0.6 : 1,
+            cursor: loading || sub.locked ? "not-allowed" : "pointer",
           }}
           onClick={() => {
+            if (sub.locked) {
+              setShowPaywall(true);
+              return;
+            }
             kickProgress();
-            regenerate().catch(() => {});
+            regenerate().catch((err) => {
+              if ((err as any)?.status === 403) setShowPaywall(true);
+            });
           }}
         >
           Сгенерировать заново

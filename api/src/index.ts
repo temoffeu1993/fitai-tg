@@ -13,6 +13,7 @@ import { nutrition } from "./nutrition.js";
 import { schedule } from "./schedule.js";
 import { progress } from "./progress.js";
 import { profile as profileRouter } from "./profile.js";
+import { getSubscriptionStatus } from "./subscription.js";
 
 const app = express();
 
@@ -37,6 +38,17 @@ app.use("/workout", requireAuth, workout);
 app.use("/api/nutrition", requireAuth, nutrition);
 app.use("/api", requireAuth, schedule);
 app.use("/api/progress", requireAuth, progress);
+
+// подписка — публичный статус
+app.get(
+  "/subscription/status",
+  requireAuth,
+  asyncHandler(async (req: any, res: express.Response) => {
+    const userId = req.user?.uid;
+    const status = await getSubscriptionStatus(userId);
+    res.json(status);
+  })
+);
 
 // error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

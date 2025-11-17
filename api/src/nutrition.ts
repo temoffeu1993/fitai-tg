@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
+import { ensureSubscription } from "./subscription.js";
 
 export const nutrition = Router();
 const openai = new OpenAI({ apiKey: config.openaiApiKey! });
@@ -62,6 +63,7 @@ type PlanStatus = "processing" | "ready" | "failed" | "archived";
 
 const MOSCOW_TZ = "Europe/Moscow";
 const MOSCOW_OFFSET_MIN = 3 * 60; // UTC+3
+const WEEKLY_NUTRITION_LIMIT = 3;
 
 function currentMoscowDateISO(date = new Date()) {
   const utcTs = date.getTime() + date.getTimezoneOffset() * 60000;
@@ -1169,9 +1171,59 @@ nutrition.post(
     console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
 
     const userId = await getUserId(req as any);
+    await ensureSubscription(userId, "nutrition");
     const onboarding = await getOnboarding(userId);
     const weekStart = currentMoscowDateISO();
     const force = Boolean(req.body?.force);
+
+    // Лимит: не более одного нового плана в день
+    const todayCount = await q<{ cnt: number }>(
+      `SELECT COUNT(*)::int AS cnt
+         FROM nutrition_plans
+        WHERE user_id = $1
+          AND created_at::date = CURRENT_DATE`,
+      [userId]
+    );
+    if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
+      throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
+    }
+
+    // Недельный лимит (опционально)
+    const weeklyCount = await q<{ cnt: number }>(
+      `SELECT COUNT(*)::int AS cnt
+         FROM nutrition_plans
+        WHERE user_id = $1
+          AND created_at >= date_trunc('week', now())`,
+      [userId]
+    );
+    if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
+      throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
+    }
+
+    // Проверка, что текущий 3-дневный блок уже закончился
+    const latest = await q(
+      `SELECT week_start_date
+         FROM nutrition_plans
+        WHERE user_id = $1
+          AND status IN ('ready','archived')
+        ORDER BY week_start_date DESC, created_at DESC
+        LIMIT 1`,
+      [userId]
+    );
+    if (latest[0]?.week_start_date) {
+      const startDate = new Date(latest[0].week_start_date);
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 2); // 3 дня покрытия
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (today <= endDate && !force) {
+        throw new AppError(
+          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать, когда закончится текущий блок.",
+          429
+        );
+      }
+    }
+
     let existing = await loadWeekPlan(userId, weekStart);
 
     // Если план готов и не force - вернуть его

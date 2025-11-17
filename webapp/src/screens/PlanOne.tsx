@@ -4,6 +4,7 @@ import { loadHistory } from "@/lib/history";
 import { createPlannedWorkout } from "@/api/schedule";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -38,6 +39,7 @@ export default function PlanOne() {
     regenerate,
     refresh,
   } = useWorkoutPlan<any>();
+  const sub = useSubscriptionStatus();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(() => toDateInput(new Date()));
   const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
@@ -84,6 +86,7 @@ export default function PlanOne() {
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
   const showLoader = loading || isProcessing || (!plan && !error);
+  const [paywall, setPaywall] = useState(false);
 
   useEffect(() => {
     const onPlanCompleted = () => {
@@ -108,8 +111,14 @@ export default function PlanOne() {
       localStorage.removeItem("session_draft");
     } catch {}
     setShowNotes(false);
+    if (sub.locked) {
+      setPaywall(true);
+      return;
+    }
     kickProgress();
-    regenerate().catch(() => {});
+    regenerate().catch((err) => {
+      if ((err as any)?.status === 403) setPaywall(true);
+    });
   };
 
   const handleScheduleOpen = () => {
@@ -156,6 +165,35 @@ export default function PlanOne() {
         stepIndex={loaderStepIndex}
         stepNumber={loaderStepNumber}
       />
+    );
+  }
+
+  if (paywall || sub.locked) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>Доступ</span>
+            <span style={s.credits}>Premium</span>
+          </div>
+          <div style={s.heroTitle}>Оформите подписку</div>
+          <div style={s.heroSubtitle}>
+            Генерация тренировок и питания доступна по подписке. Первый план/тренировка — бесплатно.
+          </div>
+          <div style={{ marginTop: 16, fontSize: 13, opacity: 0.9 }}>
+            {sub.reason || "Оформите подписку, чтобы продолжить."}
+          </div>
+          <button
+            className="soft-glow"
+            style={{ ...s.primaryBtn, marginTop: 18 }}
+            onClick={() => setPaywall(false)}
+          >
+            Ок
+          </button>
+        </section>
+      </div>
     );
   }
 
@@ -224,18 +262,23 @@ export default function PlanOne() {
             type="button"
             style={s.secondaryBtn}
             onClick={handleScheduleOpen}
-          >
-            Запланировать
-          </button>
-        </div>
-
-        <button
-          type="button"
-          style={s.ghostBtn}
-          onClick={handleRegenerate}
         >
-          Сгенерировать заново
+          Запланировать
         </button>
+      </div>
+
+      <button
+        type="button"
+        style={{
+          ...s.ghostBtn,
+          opacity: sub.locked ? 0.6 : 1,
+          cursor: sub.locked ? "not-allowed" : "pointer",
+        }}
+        disabled={sub.locked}
+        onClick={handleRegenerate}
+      >
+        Сгенерировать заново
+      </button>
       </section>
 
       {/* Чипы в фирменном стиле под верхним блоком */}

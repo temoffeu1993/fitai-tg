@@ -9,6 +9,7 @@ import OpenAI from "openai";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
+import { ensureSubscription } from "./subscription.js";
 
 export const plan = Router();
 
@@ -126,6 +127,10 @@ const TEMPERATURE = 0.35;
 const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
 const MIN_EXERCISES = 5;
+const DAILY_WORKOUT_LIMIT = 1;
+const MIN_WORKOUT_INTERVAL_HOURS = 8;
+const MIN_REAL_DURATION_MIN = 20;
+const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // включено: сверяем с онбордингом (+1 запас)
 
 const ensureUser = (req: any): string => {
   if (req.user?.uid) return req.user.uid;
@@ -174,6 +179,18 @@ async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
     `INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
      VALUES ($1, 'processing', 'queued', 5)
      RETURNING id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at`,
+    [userId]
+  );
+  return rows[0];
+}
+
+async function getLastWorkoutSession(userId: string) {
+  const rows = await q(
+    `SELECT id, started_at, completed_at, unlock_used, created_at
+       FROM workouts
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
     [userId]
   );
   return rows[0];
@@ -789,6 +806,84 @@ plan.post(
     const userId = ensureUser(req);
     const force = Boolean(req.body?.force);
 
+    // Подписка / пробник
+    await ensureSubscription(userId, "workout");
+
+    // Лимиты по частоте
+    // 1) по фактическим сохранённым сессиям
+    const todaySessions = await q<{ cnt: number }>(
+      `SELECT COUNT(*)::int AS cnt
+         FROM workouts
+        WHERE user_id = $1
+          AND created_at::date = CURRENT_DATE`,
+      [userId]
+    );
+    // 2) по сгенерированным планам (чтобы не кликали много до сохранения)
+    const todayPlans = await q<{ cnt: number }>(
+      `SELECT COUNT(*)::int AS cnt
+         FROM workout_plans
+        WHERE user_id = $1
+          AND created_at::date = CURRENT_DATE`,
+      [userId]
+    );
+
+    if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
+      throw new AppError("Сегодня тренировка уже сгенерирована. Новая будет доступна завтра.", 429);
+    }
+
+    const lastSession = await getLastWorkoutSession(userId);
+    if (lastSession?.created_at) {
+      const last = new Date(lastSession.created_at);
+      const diffHrs = (Date.now() - last.getTime()) / 1000 / 60 / 60;
+      if (diffHrs < MIN_WORKOUT_INTERVAL_HOURS) {
+        throw new AppError("Следующая тренировка будет доступна чуть позже — дай организму отдохнуть.", 429);
+      }
+    }
+
+    // Проверка валидности последней тренировки
+    if (lastSession) {
+      // если ещё не завершена — запрет
+      if (!lastSession.completed_at) {
+        throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
+      }
+      // если слишком короткая — не даём открыть следующую
+      if (lastSession.started_at && lastSession.completed_at) {
+        const durMin =
+          (new Date(lastSession.completed_at).getTime() -
+            new Date(lastSession.started_at).getTime()) /
+          60000;
+        if (durMin < MIN_REAL_DURATION_MIN) {
+          throw new AppError(
+            "Предыдущая тренировка слишком короткая. Сгенерируй следующую после полноценной сессии.",
+            403
+          );
+        }
+      }
+      // если уже использована как ключ для следующей — запрет
+      if (lastSession.unlock_used) {
+        throw new AppError("Следующая тренировка появится после выполнения текущей.", 403);
+      }
+    }
+
+    // Недельный лимит по онбордингу (мягкий +1 запас)
+    if (WEEKLY_WORKOUT_SOFT_LIMIT > 0) {
+      const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
+      const softCap = desiredDaysPerWeek + 1;
+      const weeklySessions = await q<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt
+           FROM workouts
+          WHERE user_id = $1
+            AND created_at >= date_trunc('week', now())`,
+        [userId]
+      );
+      if ((weeklySessions[0]?.cnt || 0) >= softCap && !force) {
+        throw new AppError(
+          "Ты уже сделал тренировки на эту неделю. Дай телу восстановиться и возвращайся завтра.",
+          429
+        );
+      }
+    }
+
     console.log("\n=== GENERATING WORKOUT (async) ===");
     console.log("User ID:", userId, "force:", force);
 
@@ -934,6 +1029,12 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
 
   await markWorkoutPlanReady(planId, plan, analysis);
   console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+
+  // Помечаем предыдущую валидную сессию как использованную для разблокировки
+  const lastSession = await getLastWorkoutSession(userId);
+  if (lastSession?.completed_at && !lastSession.unlock_used) {
+    await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
+  }
 }
 
 function validatePlanStructure(plan: WorkoutPlan, constraints: Constraints, sessionMinutes: number) {
@@ -1009,6 +1110,8 @@ plan.post(
     const userId = ensureUser(req);
 
     const payload = req.body?.payload;
+    const startedAtInput = req.body?.startedAt; // ISO date string
+    const durationMinInput = req.body?.durationMin; // number
 
     if (!payload || !Array.isArray(payload.exercises)) {
       throw new AppError("Invalid payload: exercises array required", 400);
@@ -1031,11 +1134,32 @@ plan.post(
 
     try {
       // 1. Сохраняем тренировку КАК ЕСТЬ (не модифицируем!)
+      const nowIso = new Date();
+      let startedAt: Date | null = null;
+      let completedAt: Date | null = null;
+
+      if (startedAtInput && Number.isFinite(Number(durationMinInput))) {
+        startedAt = new Date(startedAtInput);
+        const durMin = Math.max(1, Number(durationMinInput));
+        completedAt = new Date(startedAt.getTime() + durMin * 60000);
+      } else {
+        startedAt = nowIso;
+        // если не дали длительность — ставим минимально реалистичную
+        completedAt = new Date(nowIso.getTime() + MIN_REAL_DURATION_MIN * 60000);
+      }
+
       const result = await q(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
-         VALUES ($1, $2::jsonb, NOW())
+         VALUES ($1, $2::jsonb, $3)
          RETURNING id, finished_at`,
-        [userId, payload]
+        [userId, payload, completedAt]
+      );
+
+      // дублируем в workouts таблицу ключевые поля
+      await q(
+        `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false)`,
+        [userId, payload, payload, completedAt, startedAt, completedAt]
       );
 
       console.log("✓ Saved session:", result[0].id);
