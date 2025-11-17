@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS nutrition_plans (
 
 CREATE TABLE IF NOT EXISTS nutrition_meals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  plan_id UUID NOT NULL REFERENCES nutrition_plans(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   time_hint TIME,
   target_kcal INT,
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS nutrition_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nutrition_plans_user ON nutrition_plans(user_id, start_date DESC);
-CREATE INDEX IF NOT EXISTS idx_nutrition_meals_plan ON nutrition_meals(plan_id, position);
 CREATE INDEX IF NOT EXISTS idx_nutrition_items_meal ON nutrition_items(meal_id, position);
 
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -67,14 +65,5 @@ DROP TRIGGER IF EXISTS trg_set_updated_at_nutrition_items ON nutrition_items;
 CREATE TRIGGER trg_set_updated_at_nutrition_items
 BEFORE UPDATE ON nutrition_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-CREATE OR REPLACE VIEW v_nutrition_plan_totals AS
-SELECT
-  p.id AS plan_id,
-  COALESCE(SUM(i.kcal),0)      AS kcal_total,
-  COALESCE(SUM(i.protein_g),0) AS protein_total_g,
-  COALESCE(SUM(i.fat_g),0)     AS fat_total_g,
-  COALESCE(SUM(i.carbs_g),0)   AS carbs_total_g
-FROM nutrition_plans p
-LEFT JOIN nutrition_meals m ON m.plan_id = p.id
-LEFT JOIN nutrition_items i ON i.meal_id = m.id
-GROUP BY p.id;
+-- view будет переопределена в 2025_10_nutrition_week с учётом day_id
+DROP VIEW IF EXISTS v_nutrition_plan_totals;
