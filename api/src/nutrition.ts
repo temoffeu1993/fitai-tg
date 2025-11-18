@@ -690,6 +690,15 @@ function queueDetailedPlanGeneration(args: AsyncPlanArgs) {
          WHERE id = $1`,
         [args.planId, (err as any)?.message?.slice(0, 500) ?? null]
       );
+      try {
+        const info = await q(
+          `SELECT status, error_info FROM nutrition_plans WHERE id = $1`,
+          [args.planId]
+        );
+        console.error("Async nutrition plan final status:", info[0]);
+      } catch (e) {
+        console.error("Failed to log nutrition plan status:", e);
+      }
     });
   }, 0);
 }
@@ -1210,6 +1219,7 @@ nutrition.post(
       [userId, tz]
     );
     if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
+      console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
       throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
     }
 
@@ -1222,6 +1232,7 @@ nutrition.post(
       [userId, tz]
     );
     if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
+      console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
       throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
     }
 
