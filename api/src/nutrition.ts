@@ -1338,7 +1338,8 @@ nutrition.get(
     const userId = await getUserId(req as any);
     const tz = resolveTimezone(req);
     const weekStart = currentDateISO(tz);
-    const data = await loadWeekPlan(userId, weekStart, { exact: true });
+    // exact=false — ищем актуальный план, который покрывает текущий день (старт мог быть 2 дня назад)
+    const data = await loadWeekPlan(userId, weekStart, { exact: false });
     if (!data) return res.status(404).json({ error: "План на этот период не найден" });
     res.json({
       plan: data.plan,
