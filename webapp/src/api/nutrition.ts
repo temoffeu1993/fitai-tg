@@ -15,10 +15,23 @@ export type NutritionPlanResponse<TPlan = any> = {
 
 async function parseJson<T>(res: Response, label: string): Promise<T> {
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    const error: any = new Error(`${label}_failed`);
+    let text = "";
+    let parsed: any = null;
+    try {
+      text = await res.text();
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      /* ignore */
+    }
+    const message =
+      parsed?.message ||
+      parsed?.error ||
+      text ||
+      `${label}_failed`;
+    const error: any = new Error(message);
     error.status = res.status;
-    if (body) error.body = body;
+    error.body = text;
+    error.userMessage = message;
     throw error;
   }
   return res.json();

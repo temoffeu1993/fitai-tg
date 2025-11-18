@@ -1217,18 +1217,18 @@ nutrition.post(
       const force = Boolean(req.body?.force);
       console.log(`[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`);
   
-      // Лимит: не более одного нового плана в день
-      const todayCount = await q<{ cnt: number }>(
-        `SELECT COUNT(*)::int AS cnt
-           FROM nutrition_plans
-          WHERE user_id = $1
-            AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-        [userId, tz]
-      );
-      if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
-        console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
-        throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
-      }
+    // Лимит: не более одного нового плана в день
+    const todayCount = await q<{ cnt: number }>(
+      `SELECT COUNT(*)::int AS cnt
+         FROM nutrition_plans
+        WHERE user_id = $1
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+      [userId, tz]
+    );
+    if ((todayCount[0]?.cnt || 0) >= 1) {
+      console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
+      throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
+    }
   
       // Недельный лимит (опционально)
       const weeklyCount = await q<{ cnt: number }>(
@@ -1238,10 +1238,10 @@ nutrition.post(
             AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
         [userId, tz]
       );
-      if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
-        console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
-        throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
-      }
+    if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT) {
+      console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
+      throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
+    }
   
       // Проверка, что текущий 3-дневный блок уже закончился
       const latest = await q(
@@ -1258,12 +1258,12 @@ nutrition.post(
         const endIso = addDaysISO(startIso, 2); // покрывает 3 дня
         const todayIso = currentDateISO(tz);
         // Разрешаем новую генерацию в 3-й день (todayIso >= endIso)
-        if (todayIso < endIso && !force) {
-          console.log(
-            `[NUTRITION] blocked: active plan covers today (start=${startIso} end=${endIso} today=${todayIso})`
-          );
-          throw new AppError(
-            "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
+      if (todayIso < endIso) {
+        console.log(
+          `[NUTRITION] blocked: active plan covers today (start=${startIso} end=${endIso} today=${todayIso})`
+        );
+        throw new AppError(
+          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
             429
           );
         }

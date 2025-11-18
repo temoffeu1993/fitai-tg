@@ -96,10 +96,11 @@ export function useNutritionPlan<TPlan>(options: {
           }
         }
         applyPlanResponse(resp);
-      } catch (err) {
+      } catch (err: any) {
         if (!silent) {
           console.error(err);
-          setError(errorMessage);
+          const msg = err?.userMessage || err?.message || errorMessage;
+          setError(msg);
         }
         throw err;
       } finally {
@@ -176,7 +177,7 @@ export function useNutritionPlan<TPlan>(options: {
   }, [status, applyPlanResponse]);
 
   const regenerate = useCallback(
-    () => refresh({ force: true, clearPlan: true }),
+    () => refresh({ force: true, clearPlan: false }),
     [refresh]
   );
 
