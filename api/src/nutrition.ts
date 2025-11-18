@@ -94,7 +94,14 @@ function currentDateISO(timeZone = MOSCOW_TZ, date = new Date()) {
 }
 
 function addDaysISO(baseIso: string, offset: number) {
-  const base = new Date(`${baseIso}T00:00:00Z`);
+  const safeIso = typeof baseIso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(baseIso)
+    ? baseIso
+    : currentDateISO();
+  const base = new Date(`${safeIso}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) {
+    console.error("[NUTRITION] addDaysISO invalid baseIso", baseIso);
+    return currentDateISO();
+  }
   const shifted = new Date(base.getTime() + offset * 86400000);
   return shifted.toISOString().slice(0, 10);
 }
