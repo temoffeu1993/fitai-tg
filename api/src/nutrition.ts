@@ -1198,134 +1198,141 @@ ${cultural}
 nutrition.post(
   "/generate-week",
   asyncHandler(async (req: Request, res: Response) => {
-    
-    const start = Date.now();
-    console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
-
-    const userId = await getUserId(req as any);
-    const tz = resolveTimezone(req);
-    await ensureSubscription(userId, "nutrition");
-    const onboarding = await getOnboarding(userId);
-    const weekStart = currentDateISO(tz);
-    const force = Boolean(req.body?.force);
-    console.log(`[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`);
-
-    // Лимит: не более одного нового плана в день
-    const todayCount = await q<{ cnt: number }>(
-      `SELECT COUNT(*)::int AS cnt
-         FROM nutrition_plans
-        WHERE user_id = $1
-          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-      [userId, tz]
-    );
-    if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
-      console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
-      throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
-    }
-
-    // Недельный лимит (опционально)
-    const weeklyCount = await q<{ cnt: number }>(
-      `SELECT COUNT(*)::int AS cnt
-         FROM nutrition_plans
-        WHERE user_id = $1
-          AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
-      [userId, tz]
-    );
-    if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
-      console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
-      throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
-    }
-
-    // Проверка, что текущий 3-дневный блок уже закончился
-    const latest = await q(
-      `SELECT week_start_date
-         FROM nutrition_plans
-        WHERE user_id = $1
-          AND status IN ('ready','archived')
-        ORDER BY week_start_date DESC, created_at DESC
-        LIMIT 1`,
-      [userId]
-    );
-    if (latest[0]?.week_start_date) {
-      const startIso: string = latest[0].week_start_date;
-      const endIso = addDaysISO(startIso, 2); // покрывает 3 дня
-      const todayIso = currentDateISO(tz);
-      // Разрешаем новую генерацию в 3-й день (todayIso >= endIso)
-      if (todayIso < endIso && !force) {
-        throw new AppError(
-          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
-          429
+    try {
+      const start = Date.now();
+      console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
+  
+      const userId = await getUserId(req as any);
+      const tz = resolveTimezone(req);
+      await ensureSubscription(userId, "nutrition");
+      const onboarding = await getOnboarding(userId);
+      const weekStart = currentDateISO(tz);
+      const force = Boolean(req.body?.force);
+      console.log(`[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`);
+  
+      // Лимит: не более одного нового плана в день
+      const todayCount = await q<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt
+           FROM nutrition_plans
+          WHERE user_id = $1
+            AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+        [userId, tz]
+      );
+      if ((todayCount[0]?.cnt || 0) >= 1 && !force) {
+        console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
+        throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
+      }
+  
+      // Недельный лимит (опционально)
+      const weeklyCount = await q<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt
+           FROM nutrition_plans
+          WHERE user_id = $1
+            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
+        [userId, tz]
+      );
+      if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT && !force) {
+        console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
+        throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
+      }
+  
+      // Проверка, что текущий 3-дневный блок уже закончился
+      const latest = await q(
+        `SELECT week_start_date
+           FROM nutrition_plans
+          WHERE user_id = $1
+            AND status IN ('ready','archived')
+          ORDER BY week_start_date DESC, created_at DESC
+          LIMIT 1`,
+        [userId]
+      );
+      if (latest[0]?.week_start_date) {
+        const startIso: string = latest[0].week_start_date;
+        const endIso = addDaysISO(startIso, 2); // покрывает 3 дня
+        const todayIso = currentDateISO(tz);
+        // Разрешаем новую генерацию в 3-й день (todayIso >= endIso)
+        if (todayIso < endIso && !force) {
+          console.log(
+            `[NUTRITION] blocked: active plan covers today (start=${startIso} end=${endIso} today=${todayIso})`
+          );
+          throw new AppError(
+            "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
+            429
+          );
+        }
+        console.log(
+          `[NUTRITION] latest plan start=${startIso} end=${endIso} today=${todayIso} force=${force}`
         );
       }
-      console.log(
-        `[NUTRITION] latest plan start=${startIso} end=${endIso} today=${todayIso} force=${force}`
-      );
-    }
-
-    let existing = await loadWeekPlan(userId, weekStart);
-
-    // Если план готов и не force - вернуть его
-    if (existing?.status === "ready" && !force) {
-      console.log(`[NUTRITION] returning cached plan ${existing.planId}`);
-      console.log(`[NUTRITION] ⚡ cached plan returned in ${Date.now() - start}ms`);
-      return res.json({
-        plan: existing.plan,
-        meta: {
-          status: existing.status,
-          planId: existing.planId,
-          cached: true,
-        },
+  
+      let existing = await loadWeekPlan(userId, weekStart);
+  
+      // Если план готов и не force - вернуть его
+      if (existing?.status === "ready" && !force) {
+        console.log(`[NUTRITION] returning cached plan ${existing.planId}`);
+        console.log(`[NUTRITION] ⚡ cached plan returned in ${Date.now() - start}ms`);
+        return res.json({
+          plan: existing.plan,
+          meta: {
+            status: existing.status,
+            planId: existing.planId,
+            cached: true,
+          },
+        });
+      }
+  
+      // Если план в обработке и не force - вернуть статус
+      if (existing?.status === "processing" && !force) {
+        console.log(`[NUTRITION] ⏳ plan already processing, returning status`);
+        const skeleton = buildSkeletonWeek(weekStart, calculateNutritionTargets(onboarding));
+        return res.json({
+          plan: skeleton.week,
+          meta: {
+            status: "processing",
+            planId: existing.planId,
+            cached: false,
+          },
+        });
+      }
+  
+      // Удалить старый план если force или failed
+      if (existing?.planId) {
+        console.log(`[NUTRITION] archiving existing plan ${existing.planId} (force=${force})`);
+        await archivePlanById(existing.planId);
+        existing = null;
+      }
+  
+      const targets = calculateNutritionTargets(onboarding);
+      const skeleton = buildSkeletonWeek(weekStart, targets);
+      const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
+  
+      console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}, starting async generation`);
+  
+      // 🔥 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: запускаем генерацию в фоне
+      queueDetailedPlanGeneration({
+        planId,
+        userId,
+        weekStart,
+        onboarding,
+        targets,
+        timeZone: tz,
       });
-    }
-
-    // Если план в обработке и не force - вернуть статус
-    if (existing?.status === "processing" && !force) {
-      console.log(`[NUTRITION] ⏳ plan already processing, returning status`);
-      const skeleton = buildSkeletonWeek(weekStart, calculateNutritionTargets(onboarding));
+  
+      // Сразу возвращаем skeleton со статусом processing
+      console.log(`[NUTRITION] ⚡ returned skeleton in ${Date.now() - start}ms`);
+  
       return res.json({
         plan: skeleton.week,
         meta: {
           status: "processing",
-          planId: existing.planId,
-          cached: false,
+          planId: planId,
+          created: true,
         },
       });
+    } catch (err) {
+      console.error("[NUTRITION] generate-week error:", err);
+      throw err;
     }
-
-    // Удалить старый план если force или failed
-    if (existing?.planId) {
-      console.log(`[NUTRITION] archiving existing plan ${existing.planId} (force=${force})`);
-      await archivePlanById(existing.planId);
-      existing = null;
-    }
-
-    const targets = calculateNutritionTargets(onboarding);
-    const skeleton = buildSkeletonWeek(weekStart, targets);
-    const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
-
-    console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}, starting async generation`);
-
-    // 🔥 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: запускаем генерацию в фоне
-    queueDetailedPlanGeneration({
-      planId,
-      userId,
-      weekStart,
-      onboarding,
-      targets,
-      timeZone: tz,
-    });
-
-    // Сразу возвращаем skeleton со статусом processing
-    console.log(`[NUTRITION] ⚡ returned skeleton in ${Date.now() - start}ms`);
-
-    return res.json({
-      plan: skeleton.week,
-      meta: {
-        status: "processing",
-        planId: planId,
-        created: true,
-      },
-    });
   })
 );
 
