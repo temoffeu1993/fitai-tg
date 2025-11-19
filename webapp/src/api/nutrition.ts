@@ -73,7 +73,7 @@ export type NutritionAvailability = {
   reason: string | null;
   nextDateIso: string | null;
   nextDateLabel: string | null;
-  reasonCode: "daily" | "weekly" | "active" | null;
+  reasonCode: "active" | null;
 };
 
 export type NutritionFeedResponse<TPlan = any> = {

@@ -62,12 +62,11 @@ type WeekPlanAI = {
 type PlanStatus = "processing" | "ready" | "failed" | "archived";
 
 const MOSCOW_TZ = "Europe/Moscow";
-const WEEKLY_NUTRITION_LIMIT = 3;
 const FEED_PLAN_LIMIT = 2;
 
 type PlanAvailability = {
   canGenerate: boolean;
-  reasonCode: "daily" | "weekly" | "active" | null;
+  reasonCode: "active" | null;
   reason: string | null;
   nextDateIso: string | null;
   nextDateLabel: string | null;
@@ -153,14 +152,6 @@ function ensureIsoDate(value: any): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function startOfWeekISO(iso: string) {
-  const base = new Date(`${iso}T00:00:00Z`);
-  const day = base.getUTCDay() || 7; // convert Sunday -> 7
-  const diff = day - 1; // Monday as start
-  const start = new Date(base.getTime() - diff * 86400000);
-  return start.toISOString().slice(0, 10);
-}
-
 async function getNutritionAvailability(userId: string, tz: string): Promise<PlanAvailability> {
   const todayIso = currentDateISO(tz);
   const latest = await q<{ week_start_date: string }>(
@@ -176,57 +167,16 @@ async function getNutritionAvailability(userId: string, tz: string): Promise<Pla
   const afterLatest = latestStart ? addDaysISO(latestStart, 3) : todayIso;
   const targetWeekStart = todayIso >= afterLatest ? todayIso : afterLatest;
 
-  const todayCount = await q<{ cnt: number }>(
-    `SELECT COUNT(*)::int AS cnt
-       FROM nutrition_plans
-      WHERE user_id = $1
-        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-    [userId, tz]
-  );
-  if ((todayCount[0]?.cnt || 0) >= 1) {
-    const nextIso = addDaysISO(todayIso, 1);
-    return {
-      canGenerate: false,
-      reasonCode: "daily",
-      reason: "Сегодня план уже обновлялся. Вернись завтра, чтобы получить новый блок.",
-      nextDateIso: nextIso,
-      nextDateLabel: formatShortDate(nextIso, tz),
-      targetWeekStart,
-    };
-  }
-
-  const weeklyCount = await q<{ cnt: number }>(
-    `SELECT COUNT(*)::int AS cnt
-       FROM nutrition_plans
-      WHERE user_id = $1
-        AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
-    [userId, tz]
-  );
-  if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT) {
-    const nextWeekIso = addDaysISO(startOfWeekISO(todayIso), 7);
-    const nextWeekLabel = formatShortDate(nextWeekIso, tz);
-    return {
-      canGenerate: false,
-      reasonCode: "weekly",
-      reason: `На этой неделе планы уже обновлялись. Следующее меню можно будет обновить ${nextWeekLabel}.`,
-      nextDateIso: nextWeekIso,
-      nextDateLabel: nextWeekLabel,
-      targetWeekStart,
-    };
-  }
-
   if (latestStart) {
     const thirdDayIso = addDaysISO(latestStart, 2);
+    const thirdDayLabel = formatShortDate(thirdDayIso, tz);
     if (todayIso < thirdDayIso) {
       return {
         canGenerate: false,
         reasonCode: "active",
-        reason: `Новый план можно будет сгенерировать ${formatShortDate(
-          thirdDayIso,
-          tz
-        )} — это третий день текущего блока.`,
+        reason: `Новый план питания можно будет сгенерировать ${thirdDayLabel} — в третий день текущего меню.`,
         nextDateIso: thirdDayIso,
-        nextDateLabel: formatShortDate(thirdDayIso, tz),
+        nextDateLabel: thirdDayLabel,
         targetWeekStart,
       };
     }
