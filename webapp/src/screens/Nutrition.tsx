@@ -461,6 +461,18 @@ function guessMeals(p: WeekPlan | null): number {
 }
 const num = (x: any) => (Number.isFinite(x) ? String(x) : "");
 
+function calcMealMacros(meal: Meal) {
+  return (meal.items || []).reduce(
+    (acc, it) => ({
+      kcal: acc.kcal + Number(it.kcal ?? 0),
+      protein: acc.protein + Number(it.protein_g ?? 0),
+      fat: acc.fat + Number(it.fat_g ?? 0),
+      carbs: acc.carbs + Number(it.carbs_g ?? 0),
+    }),
+    { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+}
+
 /* ---------------- shared UI from Plan «Сегодня» ---------------- */
 function SoftGlowStyles() { return (<style>{`
   .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
