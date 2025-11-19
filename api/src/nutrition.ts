@@ -204,12 +204,13 @@ async function getNutritionAvailability(userId: string, tz: string): Promise<Pla
   );
   if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT) {
     const nextWeekIso = addDaysISO(startOfWeekISO(todayIso), 7);
+    const nextWeekLabel = formatShortDate(nextWeekIso, tz);
     return {
       canGenerate: false,
       reasonCode: "weekly",
-      reason: "На этой неделе планы уже обновлялись. Следующее меню можно будет обновить в начале следующей недели.",
+      reason: `На этой неделе планы уже обновлялись. Следующее меню можно будет обновить ${nextWeekLabel}.`,
       nextDateIso: nextWeekIso,
-      nextDateLabel: formatShortDate(nextWeekIso, tz),
+      nextDateLabel: nextWeekLabel,
       targetWeekStart,
     };
   }
