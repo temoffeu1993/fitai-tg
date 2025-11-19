@@ -263,16 +263,9 @@ export default function Nutrition() {
                             <div style={ux.caretInner} />
                           </div>
                         </div>
-                        {(() => {
-                          const dt = parseISODate(day.date);
-                          return (
-                            <div style={ux.cardHint}>
-                              {dt
-                                ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" })
-                                : `День ${day.day_index}`}
-                            </div>
-                          );
-                        })()}
+                        <div style={ux.cardHint}>
+                          {new Date(day.date).toLocaleDateString("ru-RU", { day: "2-digit", month: "long" })}
+                        </div>
                       </div>
                     </button>
                     {isOpen && (
@@ -311,7 +304,7 @@ export default function Nutrition() {
                                   </li>
                                 ))}
                               </ul>
-                              {meal.notes and <div style={ux.mealNotes}>{meal.notes}</div>}
+                              {meal.notes && <div style={ux.mealNotes}>{meal.notes}</div>}
                             </div>
                           );
                         })}
