@@ -695,14 +695,13 @@ const ux: Record<string, any> = {
 const mealCard: Record<string, React.CSSProperties> = {
   wrap:{
     borderRadius:14,
-    padding:12,
+    padding:10,
     display:"grid",
-    gap:10,
+    gap:8,
     background:"rgba(255,255,255,0.75)",
     border:"1px solid rgba(255,255,255,.35)",
     boxShadow:"0 10px 24px rgba(0,0,0,.12)",
     backdropFilter:"blur(10px)",
-    marginBottom:12,
   },
   header:{display:"grid",gap:4,color:"#1b1b1b"},
   notes:{fontSize:11,color:"#4a4a4a",marginTop:6, whiteSpace:"pre-wrap"},
@@ -718,7 +717,7 @@ const food: Record<string, React.CSSProperties> = {
     display:"grid",
     gridTemplateColumns:"1fr auto",
     alignItems:"center",
-    gap:10,
+    gap:8,
     padding:"10px 12px",
     borderRadius:12,
     background:"rgba(255,255,255,0.9)",
@@ -726,23 +725,17 @@ const food: Record<string, React.CSSProperties> = {
     boxShadow:"0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
     backdropFilter:"blur(6px)",
   },
-  left:{display:"flex",alignItems:"flex-start",gap:8,minWidth:0},
+  left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
   textCol:{display:"grid",gap:4,minWidth:0},
-  // >>> Обновлено: переносы текста, без обрезания, поддержка длинных названий
-  foodName:{
-    fontSize:13.5,fontWeight:600,color:"#1b1b1b",lineHeight:1.25,
-    whiteSpace:"pre-wrap",            // переносы строк по \n
-    wordBreak:"break-word",           // перенос длинных слов/брендов
-    overflow:"visible",
-  },
-  // мета-инфа: способ приготовления и заметки QA
+  foodName:{fontSize:13.5,fontWeight:400,color:"#1b1b1b",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
   metaText:{
-    fontSize:11.5,color:"#666",
+    fontSize:11.5,
+    color:"#666",
     whiteSpace:"pre-wrap",
     wordBreak:"break-word",
   },
-  qty:{fontSize:12,color:"#666",flexShrink:0, marginTop:2},
-  right:{fontSize:12,fontWeight:600,color:"#1b1b1b"},
+  qty:{fontSize:12,color:"#666",flexShrink:0},
+  right:{fontSize:12,fontWeight:400,color:"#1b1b1b"},
 };
 
 const notesStyles: Record<string, React.CSSProperties> = {
