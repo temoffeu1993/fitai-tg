@@ -128,7 +128,6 @@ const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
 const MIN_EXERCISES = 5;
 const DAILY_WORKOUT_LIMIT = 1;
-const MIN_WORKOUT_INTERVAL_HOURS = 8;
 const MIN_REAL_DURATION_MIN = 20;
 const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // включено: сверяем с онбордингом (+1 запас)
 const MOSCOW_TZ = "Europe/Moscow";
@@ -149,6 +148,26 @@ function resolveTimezone(req: any): string {
     }
   }
   return MOSCOW_TZ;
+}
+
+function currentDateIsoInTz(tz: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+}
+
+function dateIsoFromTimestamp(ts: string, tz: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date(ts));
 }
 
 const formatDateLabel = (date: Date, tz: string, opts?: Intl.DateTimeFormatOptions) =>
@@ -863,6 +882,8 @@ plan.post(
     // Подписка / пробник
     await ensureSubscription(userId, "workout");
 
+    let existing = await getLatestWorkoutPlan(userId);
+
     // Лимиты по частоте
     // 1) по фактическим сохранённым сессиям
     const todaySessions = await q<{ cnt: number }>(
@@ -884,8 +905,25 @@ plan.post(
     if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
       const nextIso = await getNextDailyResetIso(tz);
       const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+
+      if (existing && existing.status !== "failed") {
+        const createdSameDay =
+          existing.created_at &&
+          dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
+        if (createdSameDay) {
+          throw new AppError(
+            "Вы уже сгенерировали тренировку. Чтобы получить следующую, завершите текущую и сохраните результат — так мы поддерживаем прогрессию.",
+            429,
+            {
+              code: "active_plan",
+              details: { reason: "active_plan", nextDateIso: nextIso, nextDateLabel: nextLabel },
+            }
+          );
+        }
+      }
+
       throw new AppError(
-        `Сегодня тренировка уже сгенерирована. Следующий доступ откроется ${nextLabel}.`,
+        "Новую тренировку можно будет сгенерировать завтра — телу нужно восстановиться после нагрузки.",
         429,
         {
           code: "daily_limit",
@@ -895,26 +933,6 @@ plan.post(
     }
 
     const lastSession = await getLastWorkoutSession(userId);
-    if (lastSession?.created_at) {
-      const last = new Date(lastSession.created_at);
-      const diffHrs = (Date.now() - last.getTime()) / 1000 / 60 / 60;
-      if (diffHrs < MIN_WORKOUT_INTERVAL_HOURS) {
-        const nextUnlock = new Date(last.getTime() + MIN_WORKOUT_INTERVAL_HOURS * MS_PER_HOUR);
-        const nextLabel = formatDateTimeLabel(nextUnlock, tz);
-        throw new AppError(
-          `Дай организму восстановиться. Следующую тренировку можно будет запустить ${nextLabel}.`,
-          429,
-          {
-            code: "interval_limit",
-            details: {
-              reason: "interval_limit",
-              nextDateIso: nextUnlock.toISOString(),
-              nextDateLabel: nextLabel,
-            },
-          }
-        );
-      }
-    }
 
     // Проверка валидности последней тренировки
     if (lastSession) {
@@ -952,24 +970,28 @@ plan.post(
             AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
         [userId, tz]
       );
-      if ((weeklySessions[0]?.cnt || 0) >= softCap && !force) {
-        const nextIso = await getNextWeeklyResetIso(tz);
-        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
-        throw new AppError(
-          `Ты уже закрыл план на эту неделю. Новый блок появится ${nextLabel}.`,
-          429,
-          {
-            code: "weekly_limit",
-            details: { reason: "weekly_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
-          }
-        );
-      }
+    if ((weeklySessions[0]?.cnt || 0) >= softCap) {
+      const nextIso = await getNextWeeklyResetIso(tz);
+      const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+      throw new AppError(
+        `Вы достигли недельного лимита тренировок. Программа строится под выбранный ритм — сейчас это ${desiredDaysPerWeek} тренировки в неделю. Если хотите увеличить нагрузку, обновите настройки в анкете.`,
+        429,
+        {
+          code: "weekly_limit",
+          details: {
+            reason: "weekly_limit",
+            nextDateIso: nextIso,
+            nextDateLabel: nextLabel,
+            weeklyTarget: desiredDaysPerWeek,
+          },
+        }
+      );
+    }
     }
 
     console.log("\n=== GENERATING WORKOUT (async) ===");
     console.log("User ID:", userId, "force:", force);
 
-    const existing = await getLatestWorkoutPlan(userId);
     if (existing && !force) {
       console.log("Existing plan status:", existing.status);
       return res.json(buildWorkoutPlanResponse(existing));

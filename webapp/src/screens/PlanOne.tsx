@@ -432,15 +432,25 @@ function humanizePlanError(err: any): string {
       ? `Сегодня тренировка уже была. Следующую можно запросить ${label}.`
       : "Сегодня лимит на генерацию исчерпан. Вернись завтра.";
   }
+  if (code === "active_plan") {
+    return label
+      ? `Тренировка на сегодня уже готова. Заверши её, и новый план появится ${label}.`
+      : "Тренировка на сегодня уже готова. Заверши её, чтобы получить новую.";
+  }
   if (code === "interval_limit") {
     return label
       ? `Дай телу восстановиться. Следующую тренировку можно запустить ${label}.`
       : "Дай телу восстановиться. Попробуй чуть позже.";
   }
   if (code === "weekly_limit") {
-    return label
-      ? `Ты выполнил план на неделю. Следующий блок откроется ${label}.`
-      : "Ты выполнил план на неделю. Скоро откроем новый блок.";
+    const weeklyTarget = Number(err?.body?.details?.weeklyTarget) || null;
+    const targetText = weeklyTarget
+      ? `Программа строится под выбранный ритм — сейчас это ${weeklyTarget} ${pluralizeTrainings(
+          weeklyTarget
+        )} в неделю.`
+      : "Ты выполнил план на эту неделю.";
+    const dateText = label ? ` Следующий блок откроется ${label}.` : "";
+    return `${targetText} Если хочешь тренироваться чаще, обнови настройки в анкете.${dateText}`.trim();
   }
   if (code === "unlock_pending") {
     return "Сначала заверши текущую тренировку, затем откроем новую.";
@@ -478,6 +488,14 @@ function extractPlanError(err: any): string {
     return `${message} ${nextLabel}`.trim();
   }
   return message;
+}
+
+function pluralizeTrainings(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "тренировка";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "тренировки";
+  return "тренировок";
 }
 
 function djb2(str: string) {
