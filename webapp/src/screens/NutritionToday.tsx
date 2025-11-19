@@ -1,9 +1,10 @@
 // webapp/src/screens/NutritionToday.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useNutritionPlan } from "@/hooks/useNutritionPlan";
-import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { getScheduleOverview, PlannedWorkout, ScheduleByDate } from "@/api/schedule";
+import { generateWeek, getNutritionFeed, type NutritionFeedPlan, type NutritionFeedResponse } from "@/api/nutrition";
+import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import NavBar from "@/components/NavBar";
 
 type FoodItem = { food: string; qty: number; unit: string; kcal?: number; protein_g?: number; fat_g?: number; carbs_g?: number; prep?: string; notes?: string; };
@@ -118,15 +119,12 @@ const toNum = (v: any) => {
 };
 
 export default function NutritionToday() {
-  const {
-    plan,
-    status: planStatus,
-    metaError,
-    error,
-    loading,
-    regenerate,
-    refresh,
-  } = useNutritionPlan<WeekPlan>({ normalize });
+  const sub = useSubscriptionStatus();
+  const [feed, setFeed] = useState<NutritionFeedResponse<WeekPlan> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const [trainingInfo, setTrainingInfo] = useState<TrainingInfo | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const navigate = useNavigate();
@@ -135,12 +133,80 @@ export default function NutritionToday() {
     () => ["Анализ онбординга", "Расчёт КБЖУ", "Подбор рецептов", "Баланс дней", "Готовим неделю"],
     []
   );
+
+  const loadFeed = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = Boolean(opts?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const data = await getNutritionFeed<WeekPlan>();
+        setFeed({
+          ...data,
+          plans: data.plans.map((entry) => ({ ...entry, plan: normalize(entry.plan) })),
+        });
+        if (!silent) {
+          setInlineError(null);
+        }
+      } catch (err: any) {
+        if (!silent) {
+          setError(err?.userMessage || "Не удалось получить план питания");
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  const plans = feed?.plans ?? [];
+  const activeEntry = useMemo<NutritionFeedPlan<WeekPlan> | null>(() => {
+    if (!plans.length) return null;
+    return plans.find((p) => p.isActive) || plans.find((p) => p.isUpcoming) || plans[0];
+  }, [plans]);
+
+  const plan = activeEntry?.plan ?? null;
+  const planStatus = activeEntry?.status ?? (regenerating ? "processing" : null);
+
   const {
     progress: loaderProgress,
     stepIndex: loaderStepIndex,
     stepNumber: loaderStepNumber,
     startManual: kickProgress,
   } = useNutritionGenerationProgress(planStatus, { steps: steps.length });
+
+  const availability = feed?.availability;
+  const canGenerate = availability?.canGenerate ?? false;
+  const buttonNote = canGenerate
+    ? "Можно сгенерировать новый план питания."
+    : availability?.reason ||
+      (availability?.nextDateLabel
+        ? "Новый план можно будет сгенерировать " + availability.nextDateLabel + "."
+        : "Новый план пока недоступен.");
+  const buttonDisabled = regenerating || !canGenerate || sub.locked;
+
+  const handleRegenerate = useCallback(async () => {
+    if (buttonDisabled) return;
+    setInlineError(null);
+    kickProgress();
+    setRegenerating(true);
+    try {
+      await generateWeek({ force: true });
+      await loadFeed({ silent: true });
+    } catch (err: any) {
+      setInlineError(err?.userMessage || "Не удалось запустить генерацию");
+    } finally {
+      setRegenerating(false);
+    }
+  }, [buttonDisabled, kickProgress, loadFeed]);
 
   useEffect(() => {
     let active = true;
@@ -182,8 +248,13 @@ export default function NutritionToday() {
   }, [day, trainingInfo]);
 
   const isProcessing = planStatus === "processing";
+  const buttonLabel = regenerating ? "Готовим меню..." : plan ? "Сгенерировать заново" : "Сгенерировать план";
 
-  if (loading || isProcessing || !plan || !day || !displayDay) {
+  if (error) {
+    return <ErrorView msg={error} onRetry={() => { loadFeed(); }} />;
+  }
+
+  if (!plan && (loading || isProcessing)) {
     return (
       <Loader
         steps={steps}
@@ -195,20 +266,50 @@ export default function NutritionToday() {
     );
   }
 
-  if (error) {
-    return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
+  if (!plan) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>{new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "long" })}</span>
+            <span style={s.credits}>Нет меню</span>
+          </div>
+          <div style={s.heroTitle}>Собрать план питания</div>
+          <div style={s.heroSubtitle}>AI подготовит рацион на 3 дня</div>
+          <button
+            className="soft-glow"
+            disabled={buttonDisabled}
+            style={{
+              ...s.primaryBtn,
+              opacity: buttonDisabled ? 0.6 : 1,
+              cursor: buttonDisabled ? "not-allowed" : "pointer",
+              marginTop: 12,
+            }}
+            onClick={handleRegenerate}
+          >
+            {buttonLabel}
+          </button>
+          <div style={s.buttonNote}>{buttonNote}</div>
+          {inlineError && <div style={s.inlineError}>{inlineError}</div>}
+        </section>
+        <div style={{ height: 56 }} />
+        <NavBar
+          current="none"
+          onChange={(t) => {
+            if (t === "home") navigate("/");
+            if (t === "history") navigate("/history");
+            if (t === "nutrition") navigate("/nutrition");
+            if (t === "profile") navigate("/profile");
+          }}
+        />
+      </div>
+    );
   }
 
-  if (planStatus === "failed") {
-    return (
-      <ErrorView
-        msg={metaError || "Не удалось сгенерировать план питания"}
-        onRetry={() => {
-          kickProgress();
-          regenerate().catch(() => {});
-        }}
-      />
-    );
+  if (!day || !displayDay) {
+    return <ErrorView msg="Не удалось подготовить меню на сегодня" onRetry={() => { loadFeed(); }} />;
   }
 
   const isTrainingDay = trainingInfo?.isTraining ?? false;
@@ -263,20 +364,19 @@ const pillDateLabel = new Date().toLocaleDateString("ru-RU", {
 
         <button
           className="soft-glow"
-          disabled={loading}
+          disabled={buttonDisabled}
           style={{
             ...s.primaryBtn,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
+            opacity: buttonDisabled ? 0.6 : 1,
+            cursor: buttonDisabled ? "not-allowed" : "pointer",
             marginTop: 12,
           }}
-          onClick={() => {
-            kickProgress();
-            regenerate().catch(() => {});
-          }}
+          onClick={handleRegenerate}
         >
-          Сгенерировать заново
+          {buttonLabel}
         </button>
+        <div style={s.buttonNote}>{buttonNote}</div>
+        {inlineError && <div style={s.inlineError}>{inlineError}</div>}
       </section>
 
       {/* Чипы под героем как на «Расписании» */}
@@ -752,6 +852,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   heroTitle:{fontSize:26,fontWeight:800,marginTop:6,color:"#fff"},
   heroSubtitle:{opacity:.9,marginTop:4,color:"rgba(255,255,255,.85)"},
+  buttonNote:{fontSize:13,marginTop:10,opacity:0.85,color:"rgba(255,255,255,.85)"},
+  inlineError:{marginTop:8,color:"#ff4d4f",fontSize:13,fontWeight:600},
 
   // кнопка как на «Расписании»
   primaryBtn:{
