@@ -1091,6 +1091,8 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     color: "rgba(255,255,255,.85)",
     marginTop: 6,
+    fontWeight: 400,
+    opacity: 0.85,
   },
   inlineError: {
     fontSize: 13,
