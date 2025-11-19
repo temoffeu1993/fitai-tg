@@ -269,7 +269,7 @@ export default function Nutrition() {
                       </div>
                     </button>
                     {isOpen && (
-                      <div style={{ marginTop: 18, display: "grid", gap: 16 }}>
+                      <div style={{ marginTop: 18, padding: 10, display: "grid", gap: 10 }}>
                         {(day.meals || []).map((meal, idxMeal) => {
                           const macros = calcMealMacros(meal);
                           const targetKcal = Number(meal.target_kcal) || macros.kcal;
