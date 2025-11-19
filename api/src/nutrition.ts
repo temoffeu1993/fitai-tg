@@ -142,6 +142,17 @@ function formatShortDate(iso: string, timeZone = MOSCOW_TZ) {
   });
 }
 
+function ensureIsoDate(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+    return match ? match[0] : value;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
 function startOfWeekISO(iso: string) {
   const base = new Date(`${iso}T00:00:00Z`);
   const day = base.getUTCDay() || 7; // convert Sunday -> 7
@@ -161,7 +172,7 @@ async function getNutritionAvailability(userId: string, tz: string): Promise<Pla
       LIMIT 1`,
     [userId]
   );
-  const latestStart = latest[0]?.week_start_date || null;
+  const latestStart = ensureIsoDate(latest[0]?.week_start_date) || null;
   const afterLatest = latestStart ? addDaysISO(latestStart, 3) : todayIso;
   const targetWeekStart = todayIso >= afterLatest ? todayIso : afterLatest;
 
@@ -1454,9 +1465,12 @@ nutrition.get(
 
     const plans: any[] = [];
     for (const row of heads) {
-      const planData = await loadWeekPlan(userId, row.week_start_date, { exact: true });
+      const planStart = ensureIsoDate(row.week_start_date);
+      if (!planStart) continue;
+      const planData = await loadWeekPlan(userId, planStart, { exact: true });
       if (!planData) continue;
-      const startIso = planData.plan.week_start_date;
+      const startIso = ensureIsoDate(planData.plan.week_start_date) || planStart;
+      planData.plan.week_start_date = startIso;
       const endIso = addDaysISO(startIso, 2);
       plans.push({
         plan: planData.plan,
