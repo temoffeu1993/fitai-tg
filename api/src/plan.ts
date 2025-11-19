@@ -940,19 +940,6 @@ plan.post(
       if (!lastSession.completed_at) {
         throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
       }
-      // если слишком короткая — не даём открыть следующую
-      if (lastSession.started_at && lastSession.completed_at) {
-        const durMin =
-          (new Date(lastSession.completed_at).getTime() -
-            new Date(lastSession.started_at).getTime()) /
-          60000;
-        if (durMin < MIN_REAL_DURATION_MIN) {
-          throw new AppError(
-            "Предыдущая тренировка слишком короткая. Сгенерируй следующую после полноценной сессии.",
-            403
-          );
-        }
-      }
       // если уже использована как ключ для следующей — запрет
       if (lastSession.unlock_used) {
         throw new AppError("Следующая тренировка появится после выполнения текущей.", 403);

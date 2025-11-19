@@ -428,14 +428,10 @@ function humanizePlanError(err: any): string {
   const labelPart = typeof label === "string" && label.trim() ? ` ${label}` : "";
 
   if (code === "daily_limit") {
-    return label
-      ? `Сегодня тренировка уже была. Следующую можно запросить ${label}.`
-      : "Сегодня лимит на генерацию исчерпан. Вернись завтра.";
+    return "Новую тренировку можно сгенерировать завтра — телу нужно восстановиться после нагрузки.";
   }
   if (code === "active_plan") {
-    return label
-      ? `Тренировка на сегодня уже готова. Заверши её, и новый план появится ${label}.`
-      : "Тренировка на сегодня уже готова. Заверши её, чтобы получить новую.";
+    return "Вы уже сгенерировали тренировку. Чтобы получить следующую, заверши текущую и сохрани результат — так мы поддерживаем структуру плана и прогрессию.";
   }
   if (code === "interval_limit") {
     return label
@@ -445,18 +441,15 @@ function humanizePlanError(err: any): string {
   if (code === "weekly_limit") {
     const weeklyTarget = Number(err?.body?.details?.weeklyTarget) || null;
     const targetText = weeklyTarget
-      ? `Программа строится под выбранный ритм — сейчас это ${weeklyTarget} ${pluralizeTrainings(
+      ? `Вы достигли недельного лимита тренировок. Программа строится под выбранный вами ритм — сейчас это ${weeklyTarget} ${pluralizeTrainings(
           weeklyTarget
         )} в неделю.`
-      : "Ты выполнил план на эту неделю.";
-    const dateText = label ? ` Следующий блок откроется ${label}.` : "";
-    return `${targetText} Если хочешь тренироваться чаще, обнови настройки в анкете.${dateText}`.trim();
+      : "Вы достигли недельного лимита тренировок.";
+    const tail = " Если хотите увеличить нагрузку, обновите настройки в анкете.";
+    return `${targetText}${tail}`;
   }
   if (code === "unlock_pending") {
     return "Сначала заверши текущую тренировку, затем откроем новую.";
-  }
-  if (code === "short_session") {
-    return "Предыдущая тренировка получилась слишком короткой. Проведи полноценную и потом запроси новую.";
   }
 
   const fallback = extractPlanError(err);
