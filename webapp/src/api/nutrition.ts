@@ -57,3 +57,31 @@ export async function checkPlanStatus<T = any>(planId: string): Promise<Nutritio
   const res = await apiFetch(`/api/nutrition/status/${planId}`);
   return parseJson(res, "check-status");
 }
+
+export type NutritionFeedPlan<TPlan = any> = {
+  plan: TPlan;
+  status: PlanStatus;
+  planId: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isUpcoming: boolean;
+};
+
+export type NutritionAvailability = {
+  canGenerate: boolean;
+  reason: string | null;
+  nextDateIso: string | null;
+  nextDateLabel: string | null;
+  reasonCode: "daily" | "weekly" | "active" | null;
+};
+
+export type NutritionFeedResponse<TPlan = any> = {
+  plans: NutritionFeedPlan<TPlan>[];
+  availability: NutritionAvailability;
+};
+
+export async function getNutritionFeed<T = any>(): Promise<NutritionFeedResponse<T>> {
+  const res = await apiFetch("/api/nutrition/feed");
+  return parseJson(res, "nutrition-feed");
+}

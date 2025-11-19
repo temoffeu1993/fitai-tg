@@ -1,8 +1,7 @@
 // webapp/src/screens/Nutrition.tsx
 // Экран недельного плана питания. Визуал выровнен под «Питание сегодня».
-import { useMemo, useState } from "react";
-import { useNutritionPlan } from "@/hooks/useNutritionPlan";
-import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { generateWeek, getNutritionFeed, type NutritionFeedResponse } from "@/api/nutrition";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 
 type FoodItem = {
@@ -26,71 +25,96 @@ type WeekPlan = {
   days: Day[];
 };
 
-export default function Nutrition() {
-  const {
-    plan,
-    status: planStatus,
-    metaError,
-    error,
-    loading,
-    regenerate,
-    refresh,
-  } = useNutritionPlan<WeekPlan>({ normalize });
-  const sub = useSubscriptionStatus();
-  const [openDay, setOpenDay] = useState<number | null>(1);
-  const [showNotes, setShowNotes] = useState(false);
+type FeedPlanCard = NutritionFeedResponse<WeekPlan>["plans"][number];
 
+export default function Nutrition() {
+  const sub = useSubscriptionStatus();
   const steps = useMemo(
     () => ["Анализ онбординга", "Расчёт КБЖУ", "Подбор рецептов", "Баланс дней", "Готовим неделю"],
     []
   );
-  const {
-    progress: loaderProgress,
-    stepIndex: loaderStepIndex,
-    stepNumber: loaderStepNumber,
-    startManual: kickProgress,
-  } = useNutritionGenerationProgress(planStatus, { steps: steps.length });
-
-  const totals = useMemo(() => {
-    if (!plan) return null;
-    const days = plan.days || [];
-    const avg = (key: "kcal"|"protein_g"|"fat_g"|"carbs_g") => {
-      const perDay = days.map(d =>
-        (d.meals || []).reduce((a, m) => a + Number(m[`target_${key}` as any] ?? 0), 0)
-      );
-      const sum = perDay.reduce((a, x) => a + x, 0);
-      return Math.round(sum / Math.max(1, days.length));
-    };
-    return {
-      kcal: plan.goal?.kcal || avg("kcal"),
-      protein: plan.goal?.protein_g || avg("protein_g"),
-      fat: plan.goal?.fat_g || avg("fat_g"),
-      carbs: plan.goal?.carbs_g || avg("carbs_g"),
-      meals: plan.goal?.meals_per_day || guessMeals(plan),
-    };
-  }, [plan]);
-
-  const periodLabel = useMemo(() => {
-    if (!plan) return "";
-    const start = parseISODate(plan.week_start_date);
-    if (!start) return "";
-    const end = new Date(start);
-    end.setDate(start.getDate() + 2);
-    const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
-    return `${fmt(start)} – ${fmt(end)}`;
-  }, [plan]);
-
-  const isProcessing = planStatus === "processing";
+  const [feed, setFeed] = useState<NutritionFeedResponse<WeekPlan> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
+  const [showNotes, setShowNotes] = useState(false);
 
-  if (loading || isProcessing || !plan) {
+  const loadFeed = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = Boolean(opts?.silent);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const data = await getNutritionFeed<WeekPlan>();
+        setFeed({
+          ...data,
+          plans: data.plans.map((entry) => ({ ...entry, plan: normalize(entry.plan) })),
+        });
+        if (!silent) setInlineError(null);
+      } catch (err: any) {
+        if (!silent) {
+          setError(err?.userMessage || "Не удалось получить план питания");
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  const plans = feed?.plans ?? [];
+  const availability = feed?.availability;
+  const canGenerate = availability?.canGenerate ?? false;
+  const buttonNote = canGenerate
+    ? "Можно сгенерировать новый план питания."
+    : availability?.reason ||
+      (availability?.nextDateLabel
+        ? "Новый план можно будет сгенерировать " + availability.nextDateLabel + "."
+        : "Новый план пока недоступен.");
+  const buttonDisabled = regenerating || !canGenerate || sub.locked;
+
+  const handleRegenerate = async () => {
+    if (sub.locked) {
+      setShowPaywall(true);
+      return;
+    }
+    if (buttonDisabled) return;
+    setRegenerating(true);
+    setInlineError(null);
+    try {
+      await generateWeek({ force: true });
+      await loadFeed({ silent: true });
+    } catch (err: any) {
+      setInlineError(err?.userMessage || "Не удалось запустить генерацию");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const toggleDay = (planId: string, idx: number) => {
+    const key = planId + "-" + idx;
+    setExpandedDayKey((prev) => (prev === key ? null : key));
+  };
+
+  if (loading && !feed) {
     return (
       <Loader
         steps={steps}
         label="Готовлю план питания на 3 дня"
-        progress={loaderProgress}
-        activeStep={loaderStepIndex}
-        stepNumber={loaderStepNumber}
+        progress={30}
+        activeStep={0}
+        stepNumber={1}
       />
     );
   }
@@ -121,164 +145,188 @@ export default function Nutrition() {
   }
 
   if (error) {
-    return <ErrorView msg={error} onRetry={() => refresh().catch(() => {})} />;
+    return <ErrorView msg={error} onRetry={() => loadFeed()} />;
   }
 
-  if (planStatus === "failed") {
+  if (!plans.length) {
     return (
-      <ErrorView
-        msg={metaError || "Не удалось сгенерировать план питания"}
-        onRetry={() => {
-          kickProgress();
-          regenerate().catch(() => {});
-        }}
-      />
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>Питание</span>
+            <span style={s.credits}>3 дня</span>
+          </div>
+          <div style={s.heroTitle}>Собрать первое меню</div>
+          <div style={s.heroSubtitle}>AI подготовит сбалансированное питание под твою цель</div>
+          <button
+            className="soft-glow"
+            disabled={buttonDisabled}
+            style={{
+              ...s.primaryBtn,
+              opacity: buttonDisabled ? 0.6 : 1,
+              cursor: buttonDisabled ? "not-allowed" : "pointer",
+            }}
+            onClick={handleRegenerate}
+          >
+            {regenerating ? "Готовим меню..." : "Сгенерировать план"}
+          </button>
+          <div style={s.buttonNote}>{buttonNote}</div>
+          {inlineError && <div style={s.inlineError}>{inlineError}</div>}
+        </section>
+      </div>
     );
   }
 
-  const heroStatus = "План готов";
+  const primaryPlan = plans[0]?.plan;
 
   return (
     <div style={s.page}>
       <SoftGlowStyles />
       <TypingDotsStyles />
 
-      {/* HERO — чёрный как на «Питание сегодня» */}
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>{periodLabel || "3 дня"}</span>
-          <span style={s.credits}>{heroStatus}</span>
-        </div>
-
-        <div style={s.heroTitle}>{plan.name || "Питание на неделю"}</div>
-        <div style={s.heroSubtitle}>Сбалансированные приёмы пищи под твою цель</div>
-
-        <button
-          className="soft-glow"
-          disabled={loading || sub.locked}
-          style={{
-            ...s.primaryBtn,
-            opacity: loading || sub.locked ? 0.6 : 1,
-            cursor: loading || sub.locked ? "not-allowed" : "pointer",
-          }}
-          onClick={() => {
-            if (sub.locked) {
-              setShowPaywall(true);
-              return;
-            }
-            kickProgress();
-            regenerate().catch((err) => {
-              if ((err as any)?.status === 403) setShowPaywall(true);
-            });
-          }}
-        >
-          Сгенерировать заново
-        </button>
-      </section>
-
-      {/* ЧИПЫ ПОД ГЕРОЕМ — фирменный стиль как «Питание сегодня» */}
-      {totals && (
-        <section style={{ ...s.block, ...s.statsSection }}>
-          <div style={s.statsRow}>
-            <Stat icon="🔥" label="Ккал/день" value={String(totals.kcal)} />
-            <Stat icon="🥚" label="Белки" value={`${totals.protein} г`} />
-            <Stat icon="🍚" label="Ж/У" value={`${totals.fat}/${totals.carbs} г`} />
-          </div>
-        </section>
-      )}
-
-      {/* Список дней — стеклянные карточки как в «сегодня» */}
-      {(plan.days || []).map((d) => (
-        <section key={d.day_index} style={s.block}>
-          <div style={ux.card}>
-            <button
-              style={{ ...ux.cardHeader, width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
-              onClick={() => setOpenDay(openDay === d.day_index ? null : d.day_index)}
-            >
-              <div style={{ ...ux.iconInline }}>🍽️</div>
-              <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                <div style={ux.cardTitleRow}>
-                  <div style={ux.cardTitle}>{weekdayTitle(d)}</div>
-                  <div
+      {plans.map((entry, idx) => {
+        const plan = entry.plan;
+        const chip = entry.isActive ? "Текущий план" : entry.isUpcoming ? "Следующий блок" : "Прошлый план";
+        const rangeLabel = formatRangeLabel(plan.week_start_date);
+        const statusLabel = entry.status === "processing" ? "Готовим меню" : "План готов";
+        const totals = computeTotals(plan);
+        return (
+          <div key={plan.id} style={{ marginBottom: 24 }}>
+            <section style={s.heroCard}>
+              <div style={s.heroHeader}>
+                <span style={s.pill}>{chip}</span>
+                <span style={s.credits}>{rangeLabel}</span>
+              </div>
+              <div style={s.heroTitle}>{plan.name || "Питание на 3 дня"}</div>
+              <div style={s.heroSubtitle}>{statusLabel}</div>
+              {idx === 0 && (
+                <>
+                  <button
+                    className="soft-glow"
+                    disabled={buttonDisabled}
                     style={{
-                      ...ux.caretWrap,
-                      transform: openDay === d.day_index ? "rotate(180deg)" : "rotate(0deg)",
+                      ...s.primaryBtn,
+                      opacity: buttonDisabled ? 0.6 : 1,
+                      cursor: buttonDisabled ? "not-allowed" : "pointer",
                     }}
+                    onClick={handleRegenerate}
                   >
-                    <div style={ux.caretInner} />
-                  </div>
-                </div>
-                {(() => {
-                  const dt = parseISODate(d.date);
-                  return (
-                    <div style={ux.cardHint}>
-                      {dt ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }) : `День ${d.day_index}`}
-                    </div>
-                  );
-                })()}
-              </div>
-            </button>
+                    {regenerating ? "Готовим меню..." : "Сгенерировать заново"}
+                  </button>
+                  <div style={s.buttonNote}>{buttonNote}</div>
+                  {inlineError && <div style={s.inlineError}>{inlineError}</div>}
+                </>
+              )}
+            </section>
 
-            {openDay === d.day_index && (
-              <div style={{ padding: 12 }}>
-                {(d.meals || []).map((m, idx) => {
-                  const totals = (m.items || []).reduce(
-                    (acc, it) => ({
-                      kcal: acc.kcal + Number(it.kcal ?? 0),
-                      protein: acc.protein + Number(it.protein_g ?? 0),
-                      fat: acc.fat + Number(it.fat_g ?? 0),
-                      carbs: acc.carbs + Number(it.carbs_g ?? 0),
-                    }),
-                    { kcal: 0, protein: 0, fat: 0, carbs: 0 }
-                  );
-                  const mk = Math.round(totals.kcal);
-                  const mp = Math.round(totals.protein);
-                  const mf = Math.round(totals.fat);
-                  const mc = Math.round(totals.carbs);
-                  const targetKcal = m.target_kcal ?? mk;
-                  return (
-                    <div key={idx} style={mealCard.wrap}>
-                      <div style={mealCard.header}>
-                        <div style={row.name}>{m.title}{m.time ? ` • ${m.time}` : ""}</div>
-                        <div style={row.cues}>{fmtTargets({ mk, mp, mf, mc, targetKcal })}</div>
-                      </div>
-
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {(m.items || []).map((it, k) => (
-                          <div key={k} style={food.line}>
-                            <div style={food.left}>
-                              <div style={food.textCol}>
-                                <div style={food.foodName}>{it.food}</div>
-                                {(it.prep || it.notes) && (
-                                  <div style={food.metaText}>
-                                    {it.prep ? `Способ: ${it.prep}` : null}
-                                    {it.prep && it.notes ? " • " : ""}
-                                    {it.notes ? it.notes : null}
-                                  </div>
-                                )}
-                              </div>
-                              <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
-                            </div>
-                            <div style={food.right}>
-                              {typeof it.kcal === "number" ? <span>{it.kcal} ккал</span> : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {m.notes ? <div style={mealCard.notes}>{m.notes}</div> : null}
-                    </div>
-                  );
-                })}
-              </div>
+            {entry.status === "processing" && (
+              <section style={s.blockWhite}>
+                <p style={{ margin: 0 }}>
+                  ИИ формирует детальный рацион. Обычно это занимает около минуты — пока можешь изучить текущий блок
+                  ниже.
+                </p>
+              </section>
             )}
+
+            {totals && (
+              <section style={{ ...s.block, ...s.statsSection }}>
+                <div style={s.statsRow}>
+                  <Stat icon="🔥" label="Ккал/день" value={String(totals.kcal)} />
+                  <Stat icon="🥚" label="Белки" value={`${totals.protein} г`} />
+                  <Stat icon="🍚" label="Ж/У" value={`${totals.fat}/${totals.carbs} г`} />
+                </div>
+              </section>
+            )}
+
+            {(plan.days || []).map((day) => {
+              const key = plan.id + "-" + day.day_index;
+              const isOpen = expandedDayKey === key;
+              return (
+                <section key={key} style={s.block}>
+                  <div style={ux.card}>
+                    <button
+                      style={{ ...ux.cardHeader, width: "100%", border: "none", textAlign: "left", cursor: "pointer" }}
+                      onClick={() => toggleDay(plan.id, day.day_index)}
+                    >
+                      <div style={{ ...ux.iconInline }}>🍽️</div>
+                      <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+                        <div style={ux.cardTitleRow}>
+                          <div style={ux.cardTitle}>{weekdayTitle(day)}</div>
+                          <div
+                            style={{
+                              ...ux.caretWrap,
+                              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                            }}
+                          >
+                            <div style={ux.caretInner} />
+                          </div>
+                        </div>
+                        {(() => {
+                          const dt = parseISODate(day.date);
+                          return (
+                            <div style={ux.cardHint}>
+                              {dt
+                                ? dt.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" })
+                                : `День ${day.day_index}`}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div style={{ marginTop: 18, display: "grid", gap: 16 }}>
+                        {(day.meals || []).map((meal, idxMeal) => {
+                          const macros = calcMealMacros(meal);
+                          const targetKcal = Number(meal.target_kcal) || macros.kcal;
+                          return (
+                            <div key={`${plan.id}-${day.day_index}-${idxMeal}`} style={ux.mealCard}>
+                              <div style={ux.mealHeader}>
+                                <div>
+                                  <div style={{ fontWeight: 700 }}>{meal.title}</div>
+                                  <div style={{ opacity: 0.7, fontSize: 13 }}>{meal.time || "--:--"}</div>
+                                </div>
+                                <div style={ux.mealTarget}>{fmtTargets({
+                                  mk: macros.kcal,
+                                  mp: macros.protein,
+                                  mf: macros.fat,
+                                  mc: macros.carbs,
+                                  targetKcal,
+                                })}</div>
+                              </div>
+                              <ul style={ux.mealList}>
+                                {(meal.items || []).map((it, itemIdx) => (
+                                  <li key={itemIdx}>
+                                    <div>
+                                      <div style={{ fontWeight: 600 }}>{it.food}</div>
+                                      <div style={ux.mealDetail}>
+                                        {num(it.qty)} {it.unit}
+                                        {it.notes ? ` • ${it.notes}` : ""}
+                                      </div>
+                                    </div>
+                                    <div style={{ fontSize: 13, opacity: 0.75 }}>
+                                      {typeof it.kcal === "number" ? `${it.kcal} ккал` : ""}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                              {meal.notes and <div style={ux.mealNotes}>{meal.notes}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </div>
-        </section>
-      ))}
+        );
+      })}
 
       <div style={{ height: 56 }} />
-      {/* Плавающие заметки нутрициолога */}
-      {plan.notes && (
+      {primaryPlan?.notes && (
         <>
           {showNotes && (
             <div style={notesStyles.chatPanelWrap}>
@@ -290,7 +338,7 @@ export default function Nutrition() {
                   </div>
                   <button style={notesStyles.closeBtn} onClick={() => setShowNotes(false)}>✕</button>
                 </div>
-                <div style={notesStyles.chatBody}>{plan.notes}</div>
+                <div style={notesStyles.chatBody}>{primaryPlan.notes}</div>
               </div>
             </div>
           )}
@@ -310,6 +358,49 @@ export default function Nutrition() {
 }
 
 /* ---------------- utils ---------------- */
+function computeTotals(plan: WeekPlan) {
+  const days = plan.days || [];
+  if (!days.length) return null;
+  const sum = days.reduce(
+    (acc, day) => {
+      const daily = (day.meals || []).reduce(
+        (mAcc, meal) => {
+          const macros = calcMealMacros(meal);
+          return {
+            kcal: mAcc.kcal + macros.kcal,
+            protein: mAcc.protein + macros.protein,
+            fat: mAcc.fat + macros.fat,
+            carbs: mAcc.carbs + macros.carbs,
+          };
+        },
+        { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+      );
+      return {
+        kcal: acc.kcal + daily.kcal,
+        protein: acc.protein + daily.protein,
+        fat: acc.fat + daily.fat,
+        carbs: acc.carbs + daily.carbs,
+      };
+    },
+    { kcal: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+  return {
+    kcal: Math.round(sum.kcal / days.length),
+    protein: Math.round(sum.protein / days.length),
+    fat: Math.round(sum.fat / days.length),
+    carbs: Math.round(sum.carbs / days.length),
+  };
+}
+
+function formatRangeLabel(startIso: string) {
+  const start = parseISODate(startIso);
+  if (!start) return "";
+  const end = new Date(start);
+  end.setDate(start.getDate() + 2);
+  const fmt = (d: Date) => d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
 function normalize(p: any) {
   p.days = (p.days || []).map((d: any, i: number) => ({
     day_index: Number(d.day_index ?? i + 1),
@@ -509,6 +600,8 @@ const s: Record<string, React.CSSProperties> = {
     border:"none",borderRadius:16,padding:"14px 18px",fontSize:16,fontWeight:700,color:"#000",
     background:SCHEDULE_BTN_GRADIENT,boxShadow:"0 12px 30px rgba(0,0,0,.35)",cursor:"pointer",width:"100%",marginTop:12
   },
+  buttonNote:{fontSize:13,marginTop:10,opacity:0.85,color:"rgba(255,255,255,.85)"},
+  inlineError:{fontSize:13,marginTop:6,color:"#ff9b8f"},
   statsSection:{marginTop:12,padding:0,background:"transparent",boxShadow:"none"},
   statsRow:{
     display:"grid",

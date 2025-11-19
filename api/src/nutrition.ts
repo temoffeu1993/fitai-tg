@@ -63,6 +63,16 @@ type PlanStatus = "processing" | "ready" | "failed" | "archived";
 
 const MOSCOW_TZ = "Europe/Moscow";
 const WEEKLY_NUTRITION_LIMIT = 3;
+const FEED_PLAN_LIMIT = 2;
+
+type PlanAvailability = {
+  canGenerate: boolean;
+  reasonCode: "daily" | "weekly" | "active" | null;
+  reason: string | null;
+  nextDateIso: string | null;
+  nextDateLabel: string | null;
+  targetWeekStart: string;
+};
 
 function resolveTimezone(req: any): string {
   const candidate =
@@ -121,6 +131,103 @@ function buildWeekWindow(startIso: string, timeZone = MOSCOW_TZ) {
     const iso = addDaysISO(startIso, idx);
     return { iso, label: formatLabel(iso, timeZone) };
   });
+}
+
+function formatShortDate(iso: string, timeZone = MOSCOW_TZ) {
+  const date = new Date(`${iso}T00:00:00Z`);
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    timeZone,
+  });
+}
+
+function startOfWeekISO(iso: string) {
+  const base = new Date(`${iso}T00:00:00Z`);
+  const day = base.getUTCDay() || 7; // convert Sunday -> 7
+  const diff = day - 1; // Monday as start
+  const start = new Date(base.getTime() - diff * 86400000);
+  return start.toISOString().slice(0, 10);
+}
+
+async function getNutritionAvailability(userId: string, tz: string): Promise<PlanAvailability> {
+  const todayIso = currentDateISO(tz);
+  const latest = await q<{ week_start_date: string }>(
+    `SELECT week_start_date
+       FROM nutrition_plans
+      WHERE user_id = $1
+        AND status IN ('ready','processing')
+      ORDER BY week_start_date DESC
+      LIMIT 1`,
+    [userId]
+  );
+  const latestStart = latest[0]?.week_start_date || null;
+  const afterLatest = latestStart ? addDaysISO(latestStart, 3) : todayIso;
+  const targetWeekStart = todayIso >= afterLatest ? todayIso : afterLatest;
+
+  const todayCount = await q<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt
+       FROM nutrition_plans
+      WHERE user_id = $1
+        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+    [userId, tz]
+  );
+  if ((todayCount[0]?.cnt || 0) >= 1) {
+    const nextIso = addDaysISO(todayIso, 1);
+    return {
+      canGenerate: false,
+      reasonCode: "daily",
+      reason: "Сегодня план уже обновлялся. Вернись завтра, чтобы получить новый блок.",
+      nextDateIso: nextIso,
+      nextDateLabel: formatShortDate(nextIso, tz),
+      targetWeekStart,
+    };
+  }
+
+  const weeklyCount = await q<{ cnt: number }>(
+    `SELECT COUNT(*)::int AS cnt
+       FROM nutrition_plans
+      WHERE user_id = $1
+        AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
+    [userId, tz]
+  );
+  if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT) {
+    const nextWeekIso = addDaysISO(startOfWeekISO(todayIso), 7);
+    return {
+      canGenerate: false,
+      reasonCode: "weekly",
+      reason: "На этой неделе планы уже обновлялись. Следующее меню можно будет обновить в начале следующей недели.",
+      nextDateIso: nextWeekIso,
+      nextDateLabel: formatShortDate(nextWeekIso, tz),
+      targetWeekStart,
+    };
+  }
+
+  if (latestStart) {
+    const thirdDayIso = addDaysISO(latestStart, 2);
+    if (todayIso < thirdDayIso) {
+      return {
+        canGenerate: false,
+        reasonCode: "active",
+        reason: `Новый план можно будет сгенерировать ${formatShortDate(
+          thirdDayIso,
+          tz
+        )} — это третий день текущего блока.`,
+        nextDateIso: thirdDayIso,
+        nextDateLabel: formatShortDate(thirdDayIso, tz),
+        targetWeekStart,
+      };
+    }
+  }
+
+  return {
+    canGenerate: true,
+    reasonCode: null,
+    reason: null,
+    nextDateIso: null,
+    nextDateLabel: null,
+    targetWeekStart,
+  };
 }
 
 function makePlanSeed(userId: string, planId: string, iso: string) {
@@ -1208,72 +1315,30 @@ nutrition.post(
     try {
       const start = Date.now();
       console.log(`[NUTRITION] ▶️ start generation at ${new Date().toISOString()}`);
-  
+
       const userId = await getUserId(req as any);
       const tz = resolveTimezone(req);
       await ensureSubscription(userId, "nutrition");
       const onboarding = await getOnboarding(userId);
-      const weekStart = currentDateISO(tz);
+      const availability = await getNutritionAvailability(userId, tz);
       const force = Boolean(req.body?.force);
-      console.log(`[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`);
-  
-    // Лимит: не более одного нового плана в день
-    const todayCount = await q<{ cnt: number }>(
-      `SELECT COUNT(*)::int AS cnt
-         FROM nutrition_plans
-        WHERE user_id = $1
-          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
-      [userId, tz]
-    );
-    if ((todayCount[0]?.cnt || 0) >= 1) {
-      console.log(`[NUTRITION] blocked: daily limit reached (today=${todayCount[0]?.cnt})`);
-      throw new AppError("Сегодня план питания уже обновлялся. Новый можно будет завтра.", 429);
-    }
-  
-      // Недельный лимит (опционально)
-      const weeklyCount = await q<{ cnt: number }>(
-        `SELECT COUNT(*)::int AS cnt
-           FROM nutrition_plans
-          WHERE user_id = $1
-            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
-        [userId, tz]
-      );
-    if ((weeklyCount[0]?.cnt || 0) >= WEEKLY_NUTRITION_LIMIT) {
-      console.log(`[NUTRITION] blocked: weekly limit reached (week=${weeklyCount[0]?.cnt})`);
-      throw new AppError("На этой неделе планы уже обновлялись. Новый можно будет позже.", 429);
-    }
-  
-      // Проверка, что текущий 3-дневный блок уже закончился
-      const latest = await q(
-        `SELECT week_start_date
-           FROM nutrition_plans
-          WHERE user_id = $1
-            AND status IN ('ready','archived')
-          ORDER BY week_start_date DESC, created_at DESC
-          LIMIT 1`,
-        [userId]
-      );
-      if (latest[0]?.week_start_date) {
-        const startIso: string = latest[0].week_start_date;
-        const endIso = addDaysISO(startIso, 2); // покрывает 3 дня
-        const todayIso = currentDateISO(tz);
-        // Разрешаем новую генерацию в 3-й день (todayIso >= endIso)
-      if (todayIso < endIso) {
+      if (!availability.canGenerate) {
         console.log(
-          `[NUTRITION] blocked: active plan covers today (start=${startIso} end=${endIso} today=${todayIso})`
+          "[NUTRITION] blocked by availability:",
+          availability.reason || availability.reasonCode
         );
         throw new AppError(
-          "У тебя уже есть активный план питания на эти дни. Новый можно будет сделать в третий день текущего блока.",
-            429
-          );
-        }
-        console.log(
-          `[NUTRITION] latest plan start=${startIso} end=${endIso} today=${todayIso} force=${force}`
+          availability.reason || "Новый план пока нельзя сгенерировать.",
+          429
         );
       }
-  
-      let existing = await loadWeekPlan(userId, weekStart);
-  
+      const weekStart = availability.targetWeekStart;
+      console.log(
+        `[NUTRITION] params user=${userId} tz=${tz} weekStart=${weekStart} force=${force}`
+      );
+
+      let existing = await loadWeekPlan(userId, weekStart, { exact: true });
+
       // Если план готов и не force - вернуть его
       if (existing?.status === "ready" && !force) {
         console.log(`[NUTRITION] returning cached plan ${existing.planId}`);
@@ -1287,7 +1352,7 @@ nutrition.post(
           },
         });
       }
-  
+
       // Если план в обработке и не force - вернуть статус
       if (existing?.status === "processing" && !force) {
         console.log(`[NUTRITION] ⏳ plan already processing, returning status`);
@@ -1301,20 +1366,20 @@ nutrition.post(
           },
         });
       }
-  
+
       // Удалить старый план если force или failed
       if (existing?.planId) {
         console.log(`[NUTRITION] archiving existing plan ${existing.planId} (force=${force})`);
         await archivePlanById(existing.planId);
         existing = null;
       }
-  
+
       const targets = calculateNutritionTargets(onboarding);
       const skeleton = buildSkeletonWeek(weekStart, targets);
       const planId = await insertSkeletonPlan(userId, weekStart, skeleton, targets, onboarding);
-  
+
       console.log(`[NUTRITION] planId=${planId} weekStart=${weekStart}, starting async generation`);
-  
+
       // 🔥 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: запускаем генерацию в фоне
       queueDetailedPlanGeneration({
         planId,
@@ -1324,10 +1389,10 @@ nutrition.post(
         targets,
         timeZone: tz,
       });
-  
+
       // Сразу возвращаем skeleton со статусом processing
       console.log(`[NUTRITION] ⚡ returned skeleton in ${Date.now() - start}ms`);
-  
+
       return res.json({
         plan: skeleton.week,
         meta: {
@@ -1362,6 +1427,51 @@ nutrition.get(
         planId: data.planId,
         error: data.error,
       },
+    });
+  })
+);
+
+// ----------------------------------------------------------------------------
+// ROUTE: получить стек планов (текущий + следующий)
+// ----------------------------------------------------------------------------
+nutrition.get(
+  "/feed",
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = await getUserId(req as any);
+    const tz = resolveTimezone(req);
+    const todayIso = currentDateISO(tz);
+    const availability = await getNutritionAvailability(userId, tz);
+
+    const heads = await q<{ week_start_date: string }>(
+      `SELECT week_start_date
+         FROM nutrition_plans
+        WHERE user_id = $1
+          AND status IN ('ready','processing')
+        ORDER BY week_start_date DESC
+        LIMIT $2`,
+      [userId, FEED_PLAN_LIMIT]
+    );
+
+    const plans: any[] = [];
+    for (const row of heads) {
+      const planData = await loadWeekPlan(userId, row.week_start_date, { exact: true });
+      if (!planData) continue;
+      const startIso = planData.plan.week_start_date;
+      const endIso = addDaysISO(startIso, 2);
+      plans.push({
+        plan: planData.plan,
+        status: planData.status,
+        planId: planData.planId,
+        startDate: startIso,
+        endDate: endIso,
+        isActive: todayIso >= startIso && todayIso <= endIso,
+        isUpcoming: todayIso < startIso,
+      });
+    }
+
+    res.json({
+      plans,
+      availability,
     });
   })
 );
