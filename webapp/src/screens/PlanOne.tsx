@@ -1089,10 +1089,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   buttonNote: {
     fontSize: 13,
-    color: "rgba(255,255,255,.85)",
-    marginTop: 6,
+    color: "rgba(255,255,255,.8)",
+    marginTop: 10,
     fontWeight: 400,
     opacity: 0.85,
+    textAlign: "left",
   },
   inlineError: {
     fontSize: 13,
