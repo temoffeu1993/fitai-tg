@@ -418,7 +418,12 @@ export default function PlanOne() {
 
 function humanizePlanError(err: any): string {
   if (!err) return "Не удалось обновить план";
-  const code = err?.body?.code || err?.body?.details?.reason;
+  const rawError = typeof err?.body?.error === "string" ? err.body.error : null;
+  const code =
+    err?.body?.code ||
+    err?.body?.details?.reason ||
+    rawError ||
+    (typeof err?.message === "string" ? err.message : null);
   const label = err?.body?.details?.nextDateLabel;
   const labelPart = typeof label === "string" && label.trim() ? ` ${label}` : "";
 
