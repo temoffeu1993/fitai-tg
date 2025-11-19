@@ -274,37 +274,38 @@ export default function Nutrition() {
                           const macros = calcMealMacros(meal);
                           const targetKcal = Number(meal.target_kcal) || macros.kcal;
                           return (
-                            <div key={`${plan.id}-${day.day_index}-${idxMeal}`} style={ux.mealCard}>
-                              <div style={ux.mealHeader}>
-                                <div>
-                                  <div style={{ fontWeight: 700 }}>{meal.title}</div>
-                                  <div style={{ opacity: 0.7, fontSize: 13 }}>{meal.time || "--:--"}</div>
+                            <div key={`${plan.id}-${day.day_index}-${idxMeal}`} style={mealCard.wrap}>
+                              <div style={mealCard.header}>
+                                <div style={row.name}>
+                                  {meal.title} {meal.time ? `• ${meal.time}` : ""}
                                 </div>
-                                <div style={ux.mealTarget}>{fmtTargets({
-                                  mk: macros.kcal,
-                                  mp: macros.protein,
-                                  mf: macros.fat,
-                                  mc: macros.carbs,
-                                  targetKcal,
-                                })}</div>
+                                <div style={row.cues}>
+                                  {fmtTargets({
+                                    mk: macros.kcal,
+                                    mp: macros.protein,
+                                    mf: macros.fat,
+                                    mc: macros.carbs,
+                                    targetKcal,
+                                  })}
+                                </div>
                               </div>
-                              <ul style={ux.mealList}>
+                              <div style={{ display: "grid", gap: 6 }}>
                                 {(meal.items || []).map((it, itemIdx) => (
-                                  <li key={itemIdx}>
-                                    <div>
-                                      <div style={{ fontWeight: 600 }}>{it.food}</div>
-                                      <div style={ux.mealDetail}>
-                                        {num(it.qty)} {it.unit}
-                                        {it.notes ? ` • ${it.notes}` : ""}
+                                  <div key={itemIdx} style={food.line}>
+                                    <div style={food.left}>
+                                      <div style={food.textCol}>
+                                        <div style={food.foodName}>{it.food}</div>
+                                        {it.notes ? <div style={food.metaText}>{it.notes}</div> : null}
                                       </div>
+                                      <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
                                     </div>
-                                    <div style={{ fontSize: 13, opacity: 0.75 }}>
+                                    <div style={food.right}>
                                       {typeof it.kcal === "number" ? `${it.kcal} ккал` : ""}
                                     </div>
-                                  </li>
+                                  </div>
                                 ))}
-                              </ul>
-                              {meal.notes && <div style={ux.mealNotes}>{meal.notes}</div>}
+                              </div>
+                              {meal.notes ? <div style={mealCard.notes}>{meal.notes}</div> : null}
                             </div>
                           );
                         })}
