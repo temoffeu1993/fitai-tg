@@ -4,11 +4,19 @@ import { Request, Response, NextFunction } from 'express';
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
+  code?: string | null;
+  details?: any;
 
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+  constructor(
+    message: string,
+    statusCode: number = 500,
+    options?: { isOperational?: boolean; code?: string; details?: any }
+  ) {
     super(message);
     this.statusCode = statusCode;
-    this.isOperational = isOperational;
+    this.isOperational = options?.isOperational ?? true;
+    this.code = options?.code ?? null;
+    this.details = options?.details ?? null;
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -31,10 +39,15 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
   }
 
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+    const payload: Record<string, any> = {
       error: err.message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
+    };
+    if (err.code) payload.code = err.code;
+    if (err.details) payload.details = err.details;
+    if (process.env.NODE_ENV === 'development' && err.stack) {
+      payload.stack = err.stack;
+    }
+    return res.status(err.statusCode).json(payload);
   }
 
   // Database errors

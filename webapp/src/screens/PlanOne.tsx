@@ -53,7 +53,6 @@ export default function PlanOne() {
 
   // trainer notes popup
   const [showNotes, setShowNotes] = useState(false);
-  const [regenBlocked, setRegenBlocked] = useState(false);
   const [regenNotice, setRegenNotice] = useState<string | null>(null);
   const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
   const [regenPending, setRegenPending] = useState(false);
@@ -122,7 +121,6 @@ export default function PlanOne() {
     }
     kickProgress();
     setRegenPending(true);
-    setRegenBlocked(false);
     setRegenNotice(null);
     try {
       await refresh({ force: true, silent: true });
@@ -130,7 +128,6 @@ export default function PlanOne() {
       const status = err?.status;
       const message = extractPlanError(err);
       if (status === 403 || status === 429) {
-        setRegenBlocked(true);
         setRegenNotice(message);
         return;
       }
@@ -251,7 +248,7 @@ export default function PlanOne() {
     try { const history = loadHistory(); return history.length + 1; } catch { return 1; }
   })();
   const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
-  const regenButtonDisabled = sub.locked || regenBlocked || regenPending;
+  const regenButtonDisabled = sub.locked || regenPending;
   const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
 
   return (
@@ -304,7 +301,7 @@ export default function PlanOne() {
       >
         {regenButtonLabel}
       </button>
-      {regenBlocked && regenNotice ? (
+      {regenNotice ? (
         <div style={s.buttonNote}>{regenNotice}</div>
       ) : regenInlineError ? (
         <div style={s.inlineError}>{regenInlineError}</div>
@@ -422,22 +419,28 @@ export default function PlanOne() {
 function extractPlanError(err: any): string {
   if (!err) return "Не удалось обновить план";
   const body = err?.body;
+  let message: string | null = null;
   if (body) {
     if (typeof body === "string") {
-      return body;
+      message = body;
+    } else if (typeof body === "object") {
+      if (typeof body.error === "string") message = body.error;
+      else if (typeof body.message === "string") message = body.message;
     }
-    if (typeof body === "object") {
-      if (typeof body.error === "string") return body.error;
-      if (typeof body.message === "string") return body.message;
-    }
   }
-  if (err?.status === 429 || err?.status === 403) {
-    return "Ограничение на генерацию. Попробуй чуть позже.";
+  if (!message && (err?.status === 429 || err?.status === 403)) {
+    message = "Ограничение на генерацию. Попробуй чуть позже.";
   }
-  if (typeof err?.message === "string" && !/_failed$/.test(err.message)) {
-    return err.message;
+  if (!message && typeof err?.message === "string" && !/_failed$/.test(err.message)) {
+    message = err.message;
   }
-  return "Не удалось обновить план";
+  if (!message) message = "Не удалось обновить план";
+
+  const nextLabel = body?.details?.nextDateLabel;
+  if (typeof nextLabel === "string" && nextLabel.trim() && !message.includes(nextLabel)) {
+    return `${message} ${nextLabel}`.trim();
+  }
+  return message;
 }
 
 function djb2(str: string) {
@@ -676,43 +679,51 @@ function SectionCard({
 
 function ExercisesList({
   items,
-  variant, // warmup | main | cooldown
+  variant,
   isOpen,
 }: {
-  items: Exercise[];
+  items: Array<Exercise | string>;
   variant: "warmup" | "main" | "cooldown";
   isOpen: boolean;
 }) {
-  if (!Array.isArray(items) || items.length === 0) return null;
-  if (!isOpen) return null;
-
+  if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
+
   return (
     <div style={{ display: "grid", gap: 6 }}>
-      {items.map((ex, i) => (
-        <div key={i} style={row.wrap}>
-          {/* Левая часть */}
-          <div style={row.left}>
-            <div style={row.name}>{ex.name}</div>
-            {ex.cues && <div style={row.cues}>{ex.cues}</div>}
-          </div>
+      {items.map((item, i) => {
+        const isString = typeof item === "string";
+        const name = isString ? item : item.name;
+        const cues = isString ? null : item.cues;
+        const sets = !isString ? item.sets : null;
+        const reps = !isString ? item.reps : null;
+        const restSec = !isString ? item.restSec : null;
 
-          {/* Правая часть: две одинаковые компактные капсулы, контент вправо */}
-          {isMain ? (
-            <div style={row.metrics}>
-              <div style={caps.wrap} title="Подходы и отдых">
-                <div style={caps.box}>
-                  <span style={caps.num}>{ex.sets}×{formatReps(ex.reps)}</span>
-                </div>
-                <div style={caps.box}>
-                  <span style={caps.label}>Отдых</span>
-                  <span style={caps.num}>{formatSec(ex.restSec)}</span>
+        return (
+          <div key={`${variant}-${i}-${name ?? "step"}`} style={row.wrap}>
+            <div style={row.left}>
+              <div style={row.name}>{name || `Шаг ${i + 1}`}</div>
+              {cues ? <div style={row.cues}>{cues}</div> : null}
+            </div>
+
+            {isMain && typeof sets === "number" && typeof restSec === "number" ? (
+              <div style={row.metrics}>
+                <div style={caps.wrap} title="Подходы и отдых">
+                  <div style={caps.box}>
+                    <span style={caps.num}>
+                      {sets}×{formatReps(reps)}
+                    </span>
+                  </div>
+                  <div style={caps.box}>
+                    <span style={caps.label}>Отдых</span>
+                    <span style={caps.num}>{formatSec(restSec)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : null}
-        </div>
-      ))}
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

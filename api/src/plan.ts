@@ -132,6 +132,7 @@ const MIN_WORKOUT_INTERVAL_HOURS = 8;
 const MIN_REAL_DURATION_MIN = 20;
 const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // включено: сверяем с онбордингом (+1 запас)
 const MOSCOW_TZ = "Europe/Moscow";
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 function resolveTimezone(req: any): string {
   const candidate =
@@ -148,6 +149,39 @@ function resolveTimezone(req: any): string {
     }
   }
   return MOSCOW_TZ;
+}
+
+const formatDateLabel = (date: Date, tz: string, opts?: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    timeZone: tz,
+    day: "numeric",
+    month: "long",
+    ...(opts || {}),
+  }).format(date);
+
+const formatDateTimeLabel = (date: Date, tz: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    timeZone: tz,
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+
+async function getNextDailyResetIso(tz: string): Promise<string> {
+  const rows = await q<{ boundary: string }>(
+    `SELECT ((date_trunc('day', (now() AT TIME ZONE $1)) + interval '1 day')) AT TIME ZONE 'UTC' AS boundary`,
+    [tz]
+  );
+  return rows[0]?.boundary ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function getNextWeeklyResetIso(tz: string): Promise<string> {
+  const rows = await q<{ boundary: string }>(
+    `SELECT ((date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 day')) AT TIME ZONE 'UTC' AS boundary`,
+    [tz]
+  );
+  return rows[0]?.boundary ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
 const ensureUser = (req: any): string => {
@@ -848,7 +882,16 @@ plan.post(
     );
 
     if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
-      throw new AppError("Сегодня тренировка уже сгенерирована. Новая будет доступна завтра.", 429);
+      const nextIso = await getNextDailyResetIso(tz);
+      const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+      throw new AppError(
+        `Сегодня тренировка уже сгенерирована. Следующий доступ откроется ${nextLabel}.`,
+        429,
+        {
+          code: "daily_limit",
+          details: { reason: "daily_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
+        }
+      );
     }
 
     const lastSession = await getLastWorkoutSession(userId);
@@ -856,7 +899,20 @@ plan.post(
       const last = new Date(lastSession.created_at);
       const diffHrs = (Date.now() - last.getTime()) / 1000 / 60 / 60;
       if (diffHrs < MIN_WORKOUT_INTERVAL_HOURS) {
-        throw new AppError("Следующая тренировка будет доступна чуть позже — дай организму отдохнуть.", 429);
+        const nextUnlock = new Date(last.getTime() + MIN_WORKOUT_INTERVAL_HOURS * MS_PER_HOUR);
+        const nextLabel = formatDateTimeLabel(nextUnlock, tz);
+        throw new AppError(
+          `Дай организму восстановиться. Следующую тренировку можно будет запустить ${nextLabel}.`,
+          429,
+          {
+            code: "interval_limit",
+            details: {
+              reason: "interval_limit",
+              nextDateIso: nextUnlock.toISOString(),
+              nextDateLabel: nextLabel,
+            },
+          }
+        );
       }
     }
 
@@ -897,9 +953,15 @@ plan.post(
         [userId, tz]
       );
       if ((weeklySessions[0]?.cnt || 0) >= softCap && !force) {
+        const nextIso = await getNextWeeklyResetIso(tz);
+        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
         throw new AppError(
-          "Ты уже сделал тренировки на эту неделю. Дай телу восстановиться и возвращайся завтра.",
-          429
+          `Ты уже закрыл план на эту неделю. Новый блок появится ${nextLabel}.`,
+          429,
+          {
+            code: "weekly_limit",
+            details: { reason: "weekly_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
+          }
         );
       }
     }
