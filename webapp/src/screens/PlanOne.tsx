@@ -126,7 +126,7 @@ export default function PlanOne() {
       await refresh({ force: true, silent: true });
     } catch (err: any) {
       const status = err?.status;
-      const message = extractPlanError(err);
+      const message = humanizePlanError(err);
       if (status === 403 || status === 429) {
         setRegenNotice(message);
         return;
@@ -415,6 +415,38 @@ export default function PlanOne() {
 }
 
 /* ----------------- Типы и утилиты ----------------- */
+
+function humanizePlanError(err: any): string {
+  if (!err) return "Не удалось обновить план";
+  const code = err?.body?.code || err?.body?.details?.reason;
+  const label = err?.body?.details?.nextDateLabel;
+  const labelPart = typeof label === "string" && label.trim() ? ` ${label}` : "";
+
+  if (code === "daily_limit") {
+    return label
+      ? `Сегодня тренировка уже была. Следующую можно запросить ${label}.`
+      : "Сегодня лимит на генерацию исчерпан. Вернись завтра.";
+  }
+  if (code === "interval_limit") {
+    return label
+      ? `Дай телу восстановиться. Следующую тренировку можно запустить ${label}.`
+      : "Дай телу восстановиться. Попробуй чуть позже.";
+  }
+  if (code === "weekly_limit") {
+    return label
+      ? `Ты выполнил план на неделю. Следующий блок откроется ${label}.`
+      : "Ты выполнил план на неделю. Скоро откроем новый блок.";
+  }
+  if (code === "unlock_pending") {
+    return "Сначала заверши текущую тренировку, затем откроем новую.";
+  }
+  if (code === "short_session") {
+    return "Предыдущая тренировка получилась слишком короткой. Проведи полноценную и потом запроси новую.";
+  }
+
+  const fallback = extractPlanError(err);
+  return labelPart ? `${fallback}${labelPart}`.trim() : fallback;
+}
 
 function extractPlanError(err: any): string {
   if (!err) return "Не удалось обновить план";
