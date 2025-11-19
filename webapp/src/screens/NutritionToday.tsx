@@ -428,7 +428,10 @@ const pillDateLabel = new Date().toLocaleDateString("ru-RU", {
                       return (
                         <div key={k} style={food.line}>
                           <div style={food.left}>
-                            <div style={food.foodName}>{it.food}</div>
+                            <div style={food.textCol}>
+                              <div style={food.foodName}>{it.food}</div>
+                              {it.notes ? <div style={food.metaText}>{it.notes}</div> : null}
+                            </div>
                             <div style={food.qty}>{`${num(it.qty)} ${it.unit}`}</div>
                           </div>
                           <div style={food.right}>
@@ -965,7 +968,9 @@ const food: Record<string, React.CSSProperties> = {
     backdropFilter:"blur(6px)",
   },
   left:{display:"flex",alignItems:"baseline",gap:8,minWidth:0},
+  textCol:{display:"grid",gap:4,minWidth:0},
   foodName:{fontSize:13.5,fontWeight:400,color:"#1b1b1b",lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+  metaText:{fontSize:11.5,color:"#666",whiteSpace:"pre-wrap",wordBreak:"break-word"},
   qty:{fontSize:12,color:"#666",flexShrink:0},
   right:{fontSize:12,fontWeight:400,color:"#1b1b1b"},
 };
