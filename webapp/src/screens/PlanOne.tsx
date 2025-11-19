@@ -53,6 +53,10 @@ export default function PlanOne() {
 
   // trainer notes popup
   const [showNotes, setShowNotes] = useState(false);
+  const [regenBlocked, setRegenBlocked] = useState(false);
+  const [regenNotice, setRegenNotice] = useState<string | null>(null);
+  const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
+  const [regenPending, setRegenPending] = useState(false);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -105,20 +109,39 @@ export default function PlanOne() {
   }, [refresh]);
 
   // --- новый обработчик регенерации: сброс экрана и запуск генерации ---
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
     try {
       localStorage.removeItem("current_plan");
       localStorage.removeItem("session_draft");
     } catch {}
     setShowNotes(false);
+    setRegenInlineError(null);
     if (sub.locked) {
       setPaywall(true);
       return;
     }
     kickProgress();
-    regenerate().catch((err) => {
-      if ((err as any)?.status === 403) setPaywall(true);
-    });
+    setRegenPending(true);
+    setRegenBlocked(false);
+    setRegenNotice(null);
+    try {
+      await refresh({ force: true, silent: true });
+    } catch (err: any) {
+      const status = err?.status;
+      const message = extractPlanError(err);
+      if (status === 403 || status === 429) {
+        setRegenBlocked(true);
+        setRegenNotice(message);
+        return;
+      }
+      if (status === 401) {
+        setPaywall(true);
+        return;
+      }
+      setRegenInlineError(message || "Не удалось обновить план");
+    } finally {
+      setRegenPending(false);
+    }
   };
 
   const handleScheduleOpen = () => {
@@ -228,6 +251,8 @@ export default function PlanOne() {
     try { const history = loadHistory(); return history.length + 1; } catch { return 1; }
   })();
   const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
+  const regenButtonDisabled = sub.locked || regenBlocked || regenPending;
+  const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
 
   return (
     <div style={s.page}>
@@ -271,14 +296,19 @@ export default function PlanOne() {
         type="button"
         style={{
           ...s.ghostBtn,
-          opacity: sub.locked ? 0.6 : 1,
-          cursor: sub.locked ? "not-allowed" : "pointer",
+          opacity: regenButtonDisabled ? 0.6 : 1,
+          cursor: regenButtonDisabled ? "not-allowed" : "pointer",
         }}
-        disabled={sub.locked}
+        disabled={regenButtonDisabled}
         onClick={handleRegenerate}
       >
-        Сгенерировать заново
+        {regenButtonLabel}
       </button>
+      {regenBlocked && regenNotice ? (
+        <div style={s.buttonNote}>{regenNotice}</div>
+      ) : regenInlineError ? (
+        <div style={s.inlineError}>{regenInlineError}</div>
+      ) : null}
       </section>
 
       {/* Чипы в фирменном стиле под верхним блоком */}
@@ -388,6 +418,27 @@ export default function PlanOne() {
 }
 
 /* ----------------- Типы и утилиты ----------------- */
+
+function extractPlanError(err: any): string {
+  if (!err) return "Не удалось обновить план";
+  const body = err?.body;
+  if (body) {
+    if (typeof body === "string") {
+      return body;
+    }
+    if (typeof body === "object") {
+      if (typeof body.error === "string") return body.error;
+      if (typeof body.message === "string") return body.message;
+    }
+  }
+  if (err?.status === 429 || err?.status === 403) {
+    return "Ограничение на генерацию. Попробуй чуть позже.";
+  }
+  if (typeof err?.message === "string" && !/_failed$/.test(err.message)) {
+    return err.message;
+  }
+  return "Не удалось обновить план";
+}
 
 function djb2(str: string) {
   let h = 5381;
@@ -976,6 +1027,17 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     cursor: "pointer",
     textAlign: "center",
+  },
+  buttonNote: {
+    fontSize: 13,
+    color: "rgba(255,255,255,.85)",
+    marginTop: 6,
+  },
+  inlineError: {
+    fontSize: 13,
+    color: "#ff7070",
+    marginTop: 6,
+    fontWeight: 600,
   },
 
   analysisGrid: {
