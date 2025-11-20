@@ -65,12 +65,14 @@ type Profile = {
 };
 
 type HistoryExerciseSet = { reps?: number; weight?: number };
+type EffortTag = "easy" | "normal" | "hard";
 type HistoryExercise = {
   name: string;
   reps?: string | number;
   weight?: string | number | null;
   sets?: HistoryExerciseSet[];
   targetMuscles?: string[];
+  effort?: EffortTag | null;
 };
 
 type HistorySession = {
@@ -543,6 +545,11 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   } else if (reps < repsRange.min) {
     recommended = Math.max(5, stats.weight - increment);
   }
+  if (ex.effort === "easy") {
+    recommended = stats.weight + increment;
+  } else if (ex.effort === "hard") {
+    recommended = Math.max(5, stats.weight - increment);
+  }
   const min = stats.weight * 0.95;
   const max = stats.weight * 1.08;
   const bodyCap = profile.weight ? profile.weight * 2 : 999;
@@ -717,6 +724,7 @@ async function getRecentSessions(userId: string, limit = 10): Promise<HistorySes
       reps: ex.reps,
       weight: ex.weight,
       targetMuscles: ex.targetMuscles,
+      effort: typeof ex.effort === "string" ? ex.effort : null,
       sets: Array.isArray(ex.sets)
         ? ex.sets.map((set: any) => ({
             reps: numberFrom(set?.reps),

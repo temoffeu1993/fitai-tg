@@ -26,7 +26,7 @@ type Plan = {
 
 type SetEntry = { reps?: number; weight?: number };
 
-type EffortTag = "easy" | "hard" | null;
+type EffortTag = "easy" | "normal" | "hard" | null;
 
 type Item = {
   name: string;
@@ -374,7 +374,11 @@ const plan: Plan | null = useMemo(() => {
       {/* Упражнения */}
       <main style={{ display: "grid", gap: 12 }}>
         {items.map((it, ei) => {
-          const showWeightInput = it.targetWeight != null || !isBodyweightLike(it.name + " " + (it.pattern || ""));
+          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
+          const hasExplicitWeight =
+            typeof it.targetWeight === "number" ||
+            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
+          const showWeightInput = !isBodyweight || hasExplicitWeight;
           return (
             <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
               <button
@@ -468,6 +472,13 @@ const plan: Plan | null = useMemo(() => {
                     onClick={() => setEffort(ei, "easy")}
                   >
                     Легко
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...btn.badge, ...(it.effort === "normal" ? btn.badgeActive : {}) }}
+                    onClick={() => setEffort(ei, "normal")}
+                  >
+                    Нормально
                   </button>
                   <button
                     type="button"
