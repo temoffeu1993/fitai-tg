@@ -101,6 +101,8 @@ export default function LayoutWithNav() {
     if (t === "profile") navigate("/profile");
   };
 
+  const disableKeyboardShift = pathname.startsWith("/workout/session");
+
   return (
     <div style={{ minHeight: "100%", background: "transparent", paddingBottom: 72, position: "relative" }}>
       {/* общий фиксированный фон */}
@@ -118,7 +120,7 @@ export default function LayoutWithNav() {
         <NavBar
           current={current}
           onChange={handleChange}
-          pushDown={keyboardOffset}
+          pushDown={disableKeyboardShift ? 0 : keyboardOffset}
           disabledAll={!onbDone}
         />
       )}
