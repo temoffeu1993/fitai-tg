@@ -1097,9 +1097,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   inlineError: {
     fontSize: 13,
-    color: "#ff7070",
-    marginTop: 6,
-    fontWeight: 600,
+    color: "rgba(255,255,255,.8)",
+    marginTop: 10,
+    fontWeight: 400,
+    opacity: 0.85,
+    textAlign: "left",
   },
 
   analysisGrid: {
