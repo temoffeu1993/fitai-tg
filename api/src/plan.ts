@@ -954,7 +954,7 @@ function buildTrainerPrompt(params: {
   constraints: Constraints;
   sessionMinutes: number;
   history: HistorySession[];
-}: string) {
+}): string {
   const { profile, onboarding, program, constraints, sessionMinutes, history } = params;
   const blueprint = program.blueprint_json;
 
