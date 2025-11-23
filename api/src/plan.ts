@@ -19,9 +19,18 @@ const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 // TYPES
 // ============================================================================
 
+type ProgramDayKey = "FullBodyA" | "FullBodyB" | "FullBodyC" | "Upper" | "Lower" | "Push" | "Pull" | "Legs";
+type ProgramDayFocus = "strength" | "hypertrophy" | "conditioning" | "mixed";
+
+type ProgramDay = {
+  key: ProgramDayKey;
+  focus: ProgramDayFocus;
+  label: string; // человекочитаемое название дня, для промпта
+};
+
 type ProgramBlueprint = {
   name: string;
-  days: string[];
+  days: ProgramDay[];
   description?: string;
   guidelines?: string[];
 };
@@ -132,15 +141,29 @@ type WorkoutPlanRow = {
 // ============================================================================
 
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
-const TEMPERATURE = 0.35;
+
+// температура выше для большей вариативности упражнений
+const TEMPERATURE = 0.6;
+
 const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
-const MIN_EXERCISES = 5;
+const MIN_EXERCISES = 4;
 const DAILY_WORKOUT_LIMIT = 1;
 const MIN_REAL_DURATION_MIN = 20;
 const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // сверяем с онбордингом (+1 запас)
 const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
+
+// лёгкая рандомизация «темы дня» для вариативности
+const DAY_THEMES = [
+  "чуть больше акцент на кор и стабилизацию корпуса",
+  "чуть больше акцент на осанку и спину",
+  "чуть больше акцент на ягодицы и заднюю поверхность бедра",
+  "чуть больше акцент на одноногие упражнения и баланс",
+  "чуть больше акцент на технику и медленный негатив",
+  "чуть больше акцент на объём для верхней части тела",
+  "чуть больше акцент на объём для нижней части тела",
+];
 
 // ============================================================================
 // TIME / TZ HELPERS
@@ -229,18 +252,46 @@ const ensureUser = (req: any): string => {
 // GENERAL HELPERS
 // ============================================================================
 
-function minExercisesForDuration(duration: number) {
-  if (duration >= 85) return 6;
-  if (duration >= 70) return 6;
-  if (duration >= 50) return 5;
-  return 5;
+// Целевой объём по длительности: сколько подходов и упражнений реально успеть
+// ~30 мин: 4–6 упражнений × 3 подхода = 12–18 подходов
+// ~60 мин: 6–8 упражнений × 3 подхода = 18–24 подхода
+// ~90 мин: 8–10 упражнений × 3 подхода = 24–30 подходов
+function targetVolumeForDuration(duration: number) {
+  if (duration <= 35) {
+    return {
+      totalSets: 14, // среднее между 12–18
+      minExercises: 4,
+      maxExercises: 6,
+    };
+  }
+  if (duration <= 65) {
+    return {
+      totalSets: 20, // среднее между 18–24
+      minExercises: 6,
+      maxExercises: 8,
+    };
+  }
+  if (duration <= 95) {
+    return {
+      totalSets: 26, // среднее между 24–30
+      minExercises: 8,
+      maxExercises: 10,
+    };
+  }
+  return {
+    totalSets: 26,
+    minExercises: 8,
+    maxExercises: 10,
+  };
 }
 
+function minExercisesForDuration(duration: number) {
+  return targetVolumeForDuration(duration).minExercises;
+}
+
+// legacy, оставляем для совместимости, но используем ту же логику
 function dynamicMinExercises(duration: number) {
-  if (duration >= 85) return 6;
-  if (duration >= 70) return 6;
-  if (duration >= 50) return 5;
-  return 5;
+  return targetVolumeForDuration(duration).minExercises;
 }
 
 function slugify(value: string): string {
@@ -445,13 +496,16 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   };
 }
 
+// Объём по типу дня
 const DAY_VOLUME_HINT: Record<string, string> = {
-  Push: "7-9 подходов на грудь, 5-7 на плечи и трицепс",
-  Pull: "8-10 подходов на спину, 4-6 на бицепс и задние дельты",
-  Legs: "10-12 подходов на ноги + 3-4 на ягодицы/кор",
-  "Upper Focus": "6-8 подходов на грудь и спину, по 3-4 на руки",
-  "Lower Focus": "8-10 подходов на квадрицепс и бёдра, 4-6 на ягодицы",
-  "Full Body": "по 3-4 подхода на каждую крупную группу без перегруза",
+  Push: "7–9 подходов на грудь, 5–7 на плечи и трицепс",
+  Pull: "8–10 подходов на спину, 4–6 на бицепс и задние дельты",
+  Legs: "10–12 подходов на ноги + 3–4 на ягодицы/кор",
+  Upper: "6–8 подходов на грудь и спину, по 3–4 на руки",
+  Lower: "8–10 подходов на квадрицепс и бёдра, 4–6 на ягодицы",
+  FullBodyA: "по 3–4 подхода на каждую крупную группу без перегруза",
+  FullBodyB: "по 3–4 подхода на каждую крупную группу, с уклоном в верх тела",
+  FullBodyC: "по 3–4 подхода на каждую крупную группу, с уклоном в низ тела",
 };
 
 function buildConstraints(
@@ -488,7 +542,19 @@ function buildConstraints(
     (plateau && history.length >= 4) ||
     ((lastRpe ?? 0) >= 9 && (hoursSinceLast ?? 999) < 72);
 
-  const dayKey = program.blueprint_json?.days?.[program.day_idx];
+  // аккуратно обрабатываем и новый формат days (ProgramDay), и старый string[]
+  const daysAny: any[] = Array.isArray((program as any).blueprint_json?.days)
+    ? (program as any).blueprint_json.days
+    : [];
+  const currentDay = daysAny[program.day_idx] || null;
+
+  let dayKey: string | null = null;
+  if (currentDay && typeof currentDay === "object" && "key" in currentDay) {
+    dayKey = currentDay.key as string;
+  } else if (typeof currentDay === "string") {
+    dayKey = currentDay;
+  }
+
   const volumeHint =
     (dayKey && DAY_VOLUME_HINT[dayKey]) ||
     "Держи баланс по группам мышц: жим, тяга, ноги, кор.";
@@ -563,12 +629,20 @@ function parseDuration(value: unknown): number | null {
   return null;
 }
 
-// ГИБРИДНЫЙ BLUEPRINT: дни абстрактные, принципы — через guidelines
+// ГИБРИДНЫЙ BLUEPRINT: дни как объекты с типом и фокусом
 function createBlueprint(daysPerWeek: number): ProgramBlueprint {
   if (daysPerWeek >= 5) {
+    const days: ProgramDay[] = [
+      { key: "Push", focus: "hypertrophy", label: "Push — грудь, плечи и трицепс" },
+      { key: "Pull", focus: "hypertrophy", label: "Pull — спина и бицепс" },
+      { key: "Legs", focus: "strength", label: "Ноги — сила и объём" },
+      { key: "Push", focus: "mixed", label: "Push — вариации и углы" },
+      { key: "Pull", focus: "mixed", label: "Pull — спина, задняя дельта, кор" },
+    ];
+
     return {
       name: "Гибкий сплит Push/Pull/Legs",
-      days: ["День 1", "День 2", "День 3", "День 4", "День 5"],
+      days,
       description:
         "5 тренировок в неделю с акцентом на чередование толкающих, тянущих движений и ног.",
       guidelines: [
@@ -580,9 +654,16 @@ function createBlueprint(daysPerWeek: number): ProgramBlueprint {
   }
 
   if (daysPerWeek === 4) {
+    const days: ProgramDay[] = [
+      { key: "Upper", focus: "hypertrophy", label: "Верх тела — грудь и спина" },
+      { key: "Lower", focus: "strength", label: "Низ тела — ноги и ягодицы" },
+      { key: "Upper", focus: "mixed", label: "Верх тела — плечи и руки" },
+      { key: "Lower", focus: "conditioning", label: "Низ тела — выносливость и кор" },
+    ];
+
     return {
       name: "Гибкий Upper/Lower сплит",
-      days: ["День 1", "День 2", "День 3", "День 4"],
+      days,
       description: "4 тренировки в неделю, чередуем верх и низ тела.",
       guidelines: [
         "Чередуй тренировки, где больше акцент на верх, и тренировки, где больше акцент на низ.",
@@ -592,10 +673,16 @@ function createBlueprint(daysPerWeek: number): ProgramBlueprint {
     };
   }
 
-  // 3 дня или меньше
+  // 3 дня или меньше — разные full body
+  const days: ProgramDay[] = [
+    { key: "FullBodyA", focus: "mixed", label: "Full body A — базовые движения" },
+    { key: "FullBodyB", focus: "hypertrophy", label: "Full body B — вариации и углы" },
+    { key: "FullBodyC", focus: "conditioning", label: "Full body C — плотность и кор" },
+  ];
+
   return {
     name: "Full Body 2–3 раза в неделю",
-    days: ["День 1", "День 2", "День 3"],
+    days,
     description: "2–3 full body-тренировки в неделю с разным акцентом.",
     guidelines: [
       "Каждая тренировка должна включать хотя бы одно упражнение на верх, одно на низ и одно на кор.",
@@ -616,12 +703,24 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
 
   if (existing && existing[0]) {
     const stored = existing[0];
-    const storedDays = stored.blueprint_json?.days || [];
-    const desiredDays = desiredBlueprint.days;
+
+    // сравниваем только массив days (по key/focus/label), чтобы не дёргать программу без нужды
+    const storedDays: any[] = Array.isArray((stored as any).blueprint_json?.days)
+      ? (stored as any).blueprint_json.days
+      : [];
+    const desiredDays: ProgramDay[] = desiredBlueprint.days;
+
     const sameBlueprint =
-      Array.isArray(storedDays) &&
       storedDays.length === desiredDays.length &&
-      storedDays.every((day: string, idx: number) => day === desiredDays[idx]);
+      storedDays.every((day, idx) => {
+        const target = desiredDays[idx];
+        if (!target) return false;
+        if (typeof day === "object" && day !== null && "key" in day && "focus" in day && "label" in day) {
+          return day.key === target.key && day.focus === target.focus && day.label === target.label;
+        }
+        // старый формат: просто строки "День 1" и т.п. → считаем, что нужно обновить
+        return false;
+      });
 
     if (!sameBlueprint) {
       const updated = await q<ProgramRow>(
@@ -720,38 +819,24 @@ function describeEquipment(onboarding: any) {
   return "простой инвентарь: коврик, резинки, лёгкие гантели, турник/брусья при наличии. если требуются тренажёры — замени на вариации с собственным весом.";
 }
 
-const FEW_SHOT_EXAMPLES = `
-ПРИМЕР 1:
-{
-  "title": "Грудь и плечи с акцентом на технику",
-  "duration": 60,
-  "warmup": ["5 минут на эллипсе", "Круговые движения плеч", "Отжимания с паузой 2×10"],
-  "exercises": [
-    {"name":"Жим штанги лёжа","sets":4,"reps":"8-10","restSec":120,"weight":"60 кг","targetMuscles":["грудь","трицепс"],"cues":"Сведение лопаток, пауза внизу"},
-    {"name":"Жим гантелей на наклоне","sets":3,"reps":"10-12","restSec":90,"weight":"22.5 кг","targetMuscles":["верх груди"],"cues":"Контроль на негативе"},
-    {"name":"Жим штанги стоя","sets":3,"reps":"8-10","restSec":120,"weight":"32.5 кг","targetMuscles":["плечи"],"cues":"Не прогибай поясницу"},
-    {"name":"Разведения в тренажёре","sets":3,"reps":"12-15","restSec":60,"weight":"35 кг","targetMuscles":["грудь"],"cues":"Пауза в пик-концентрации"},
-    {"name":"Французский жим","sets":3,"reps":"10-12","restSec":75,"weight":"20 кг","targetMuscles":["трицепс"],"cues":"Локти смотрят вверх"}
-  ],
-  "cooldown": ["Растяжка груди у стены", "Разведение рук с эластичной лентой", "Глубокое дыхание 1 минуту"],
-  "notes": "Сначала тяжёлый базовый жим, затем вариации под углом и изоляция. Отдых после тяжёлых подходов 2 минуты, чтобы сохранять качество."
-}
+// Определение основной цели по тексту целей
+function detectPrimaryGoal(goals: string[]): "fat_loss" | "muscle_gain" | "health" | "performance" | "other" {
+  const lower = goals.map((g) => String(g).toLowerCase());
 
-ПРИМЕР 2:
-{
-  "title": "Сила ног и стабилизация",
-  "duration": 70,
-  "warmup": ["5 минут велотренажёр", "Приседания с весом тела 2×15", "Выпады назад 2×10 на ногу"],
-  "exercises": [
-    {"name":"Приседания со штангой","sets":4,"reps":"6-8","restSec":150,"weight":"80 кг","targetMuscles":["квадрицепс","ягодицы"],"cues":"Нейтральная спина, колени следуют за носками"},
-    {"name":"Жим ногами","sets":3,"reps":"10-12","restSec":120,"weight":"160 кг","targetMuscles":["ноги"],"cues":"Полный контроль хода"},
-    {"name":"Румынская тяга","sets":3,"reps":"8-10","restSec":120,"weight":"70 кг","targetMuscles":["задняя поверхность","ягодицы"],"cues":"Держи спину ровной"},
-    {"name":"Выпады с гантелями","sets":3,"reps":"10 на ногу","restSec":90,"weight":"18 кг","targetMuscles":["ягодицы","квадрицепс"],"cues":"Шаг назад, толчок пяткой"},
-    {"name":"Подъём на носки стоя","sets":3,"reps":"12-15","restSec":60,"weight":"40 кг","targetMuscles":["икры"],"cues":"Пауза в верхней точке"}
-  ],
-  "cooldown": ["Растяжка квадрицепса", "Скрутка для поясницы", "Диафрагмальное дыхание"],
-  "notes": "Базу ставим первой, затем добиваем объёмом и работаем над балансом."
-}`.trim();
+  if (lower.some((g) => g.includes("сброс") || g.includes("похуд") || g.includes("жир") || g.includes("weight"))) {
+    return "fat_loss";
+  }
+  if (lower.some((g) => g.includes("набрать") || g.includes("мышц") || g.includes("масса") || g.includes("hypertrophy"))) {
+    return "muscle_gain";
+  }
+  if (lower.some((g) => g.includes("здоров") || g.includes("энерг") || g.includes("самочувств"))) {
+    return "health";
+  }
+  if (lower.some((g) => g.includes("спорт") || g.includes("результ") || g.includes("соревн"))) {
+    return "performance";
+  }
+  return "other";
+}
 
 // Контекст прогрессии: как старший тренер объясняет ассистенту, что делать
 function buildProgressionContext(
@@ -851,7 +936,17 @@ function buildProgressionContext(
   return lines.join("\n");
 }
 
-// Новый промпт: естественное описание клиента + программа + прогрессия
+// Получаем «архитектуру дня» из blueprint_json
+function getCurrentProgramDay(blueprint: ProgramBlueprint, dayIdx: number): ProgramDay | null {
+  if (!blueprint || !Array.isArray(blueprint.days)) return null;
+  const day = blueprint.days[dayIdx];
+  if (day && typeof day === "object" && "key" in day && "focus" in day && "label" in day) {
+    return day as ProgramDay;
+  }
+  return null;
+}
+
+// Новый промпт: явная таблица фич + программа + прогрессия
 function buildTrainerPrompt(params: {
   profile: Profile;
   onboarding: any;
@@ -859,7 +954,7 @@ function buildTrainerPrompt(params: {
   constraints: Constraints;
   sessionMinutes: number;
   history: HistorySession[];
-}): string {
+}: string) {
   const { profile, onboarding, program, constraints, sessionMinutes, history } = params;
   const blueprint = program.blueprint_json;
 
@@ -874,11 +969,53 @@ function buildTrainerPrompt(params: {
 
   const goalsText = profile.goals.length ? profile.goals.join(", ") : "поддержание формы";
 
+  const ageGroup =
+    profile.age == null
+      ? "не указана"
+      : profile.age < 25
+      ? "18–24"
+      : profile.age < 40
+      ? "25–39"
+      : profile.age < 55
+      ? "40–54"
+      : "55+";
+
+  const primaryGoal = detectPrimaryGoal(profile.goals);
+  const primaryGoalLabel =
+    primaryGoal === "fat_loss"
+      ? "снижение жира и веса"
+      : primaryGoal === "muscle_gain"
+      ? "набор мышц и силы"
+      : primaryGoal === "health"
+      ? "здоровье и самочувствие"
+      : primaryGoal === "performance"
+      ? "спорт и результат"
+      : "поддержание формы";
+
+  const sessionIntensity =
+    sessionMinutes <= 40 ? "короткая" : sessionMinutes <= 70 ? "средняя" : "длинная";
+
+  const trainingRisk =
+    profile.experience === "beginner" || (profile.age ?? 0) >= 45 ? "повышенный" : "обычный";
+
+  const sexFlag =
+    profile.sex === "female" ? "female" : profile.sex === "male" ? "male" : "unknown";
+
+  const keyParams = `
+КЛЮЧЕВЫЕ ПАРАМЕТРЫ (ИХ НУЖНО ЯВНО УЧИТЫВАТЬ)
+- Пол: ${sexFlag}
+- Возрастная группа: ${ageGroup}
+- Опыт: ${expStr}
+- Основная цель: ${primaryGoalLabel}
+- Длительность сессии: ${sessionMinutes} минут (${sessionIntensity})
+- Уровень риска: ${trainingRisk} (при повышенном риске избегай крайне тяжёлых упражнений «до отказа» и резких рывков).
+`.trim();
+
   const clientDescription = `
 Передо мной ${sexStr} ${profile.age ?? "неизвестного"} лет.
 Рост: ${profile.height ?? "не указан"} см, вес: ${profile.weight ?? "не указан"} кг.
 Опыт тренировок: ${expStr}.
-Цели: ${goalsText}.
+Цели (как формулировал клиент): ${goalsText}.
 
 Клиент тренируется ${profile.daysPerWeek} раз(а) в неделю по ${sessionMinutes} минут.
 Место и оборудование: ${describeEquipment(onboarding)}
@@ -890,9 +1027,24 @@ ${constraints.historySummary ? `Кратко по последним трени�
 
   const guidelines = (blueprint.guidelines || []).map((g) => `- ${g}`).join("\n");
 
+  const currentDay = getCurrentProgramDay(blueprint, program.day_idx);
+  const dayLabel = currentDay?.label ?? "гибкий день без жёсткой специализации";
+  const dayKey = currentDay?.key ?? "generic";
+  const dayFocus =
+    currentDay?.focus === "strength"
+      ? "силовая работа и более тяжёлые веса"
+      : currentDay?.focus === "hypertrophy"
+      ? "гипертрофия, умеренно тяжёлые веса и качественный объём"
+      : currentDay?.focus === "conditioning"
+      ? "выносливость и плотность тренировки"
+      : "сбалансированная нагрузка по основным группам";
+
   const programContext = `
 Клиент идёт по программе "${blueprint.name}".
 Неделя: ${program.week}, тренировка ${program.day_idx + 1} из ${program.microcycle_len} в микропериоде.
+
+Тип сегодняшнего дня: ${dayLabel}.
+Фокус дня: ${dayFocus} (ключ дня: ${dayKey}).
 
 Принципы программы:
 ${guidelines || "- Программа гибкая, распределяй нагрузку по неделе логично."}
@@ -908,7 +1060,17 @@ ${guidelines || "- Программа гибкая, распределяй на�
       ? constraints.weightNotes.map((x) => `- ${x}`).join("\n")
       : "- Новые упражнения: выбери вес примерно на уровне 6/10 по ощущениям и оставляй запас 2 повтора.";
 
-  const minExercises = minExercisesForDuration(sessionMinutes);
+  const { totalSets, minExercises, maxExercises } = targetVolumeForDuration(sessionMinutes);
+
+  // Фокус дня (рандомизация для вариативности, но без ломания логики)
+  const theme =
+    DAY_THEMES[Math.floor(Math.random() * DAY_THEMES.length)] ??
+    "держи хороший баланс между базой и изоляцией";
+
+  const focusBlock = `
+# ФОКУС НА СЕГОДНЯ
+Сегодня сделай ${theme}, если это не противоречит безопасности и ключевым параметрам клиента.
+`.trim();
 
   // Разные правила структуры для 2–3 и для 4–5 тренировок в неделю
   let structureRules: string;
@@ -935,7 +1097,10 @@ ${guidelines || "- Программа гибкая, распределяй на�
   return `
 Ты опытный персональный тренер. К тебе пришёл клиент, и тебе нужно составить для него конкретную тренировку под текущую фазу и прогрессию, а не абстрактный план.
 
-# О КЛИЕНТЕ
+# КЛЮЧЕВЫЕ ПАРАМЕТРЫ КЛИЕНТА
+${keyParams}
+
+# О КЛИЕНТЕ (РАССКАЗ)
 ${clientDescription}
 
 # ПРОГРАММА И СТРУКТУРА НЕДЕЛИ
@@ -947,9 +1112,21 @@ ${progressionContext}
 # РУКОВОДСТВО ПО ВЕСАМ
 ${weightGuidance}
 
+${focusBlock}
+
+# ОГРАНИЧЕНИЯ ПО ОБЪЁМУ
+- Цель по общему количеству рабочих подходов: ~${totalSets} (±2).
+- Ожидаемое количество упражнений: ${minExercises}-${Math.min(
+    maxExercises,
+    MAX_EXERCISES
+  )} (для ${sessionMinutes} минут). Подбирай объём так, чтобы он был реалистичным по времени.
+
 # ЖЁСТКИЕ ПРАВИЛА
 1. Продолжительность тренировки строго около ${sessionMinutes} минут.
-2. Количество упражнений: ${minExercises}-${MAX_EXERCISES} (для ${sessionMinutes} минут).
+2. Количество упражнений: ${minExercises}-${Math.min(
+    maxExercises,
+    MAX_EXERCISES
+  )} (ориентируйся на целевой объём по подходам).
 ${structureRules}
 5. Если рекомендован deload — снизь вес или количество подходов на ~15%.
 6. Warmup: 3–5 конкретных пунктов под сегодняшний день. Cooldown: 2–4 простых пункта.
@@ -976,8 +1153,6 @@ ${structureRules}
   "cooldown": ["пункт заминки 1", "..."],
   "notes": "3-4 предложения, объясняющие логику тренировки и на что обратить внимание."
 }
-
-${FEW_SHOT_EXAMPLES}
 
 Составь тренировку как живой тренер, но строго соблюдай формат и правила безопасности.
   `.trim();
@@ -1220,21 +1395,24 @@ function validatePlanStructure(
   constraints: Constraints,
   sessionMinutes: number
 ) {
+  const { totalSets, minExercises, maxExercises } = targetVolumeForDuration(sessionMinutes);
+
   const normalized: WorkoutPlan = {
     title: plan.title || "Персональная тренировка",
     duration: sessionMinutes,
     warmup: Array.isArray(plan.warmup) ? plan.warmup.slice(0, 5) : [],
-    exercises: Array.isArray(plan.exercises) ? plan.exercises.slice(0, MAX_EXERCISES) : [],
+    exercises: Array.isArray(plan.exercises)
+      ? plan.exercises.slice(0, Math.min(MAX_EXERCISES, maxExercises))
+      : [],
     cooldown: Array.isArray(plan.cooldown) ? plan.cooldown.slice(0, 4) : [],
     notes: plan.notes || "",
   };
 
   const warnings: string[] = [];
 
-  const minRequired = minExercisesForDuration(sessionMinutes);
-  if (normalized.exercises.length < minRequired) {
+  if (normalized.exercises.length < minExercises) {
     warnings.push(
-      `Мало упражнений (${normalized.exercises.length}) — нужно минимум ${minRequired} для такой длительности.`
+      `Мало упражнений (${normalized.exercises.length}) — нужно минимум ${minExercises} для такой длительности.`
     );
   }
 
@@ -1281,6 +1459,18 @@ function validatePlanStructure(
   }
   if (!normalized.cooldown.length) {
     warnings.push("Добавь заминку для восстановления.");
+  }
+
+  // контроль суммарного количества подходов
+  const actualTotalSets = normalized.exercises.reduce((sum, ex) => sum + (Number(ex.sets) || 0), 0);
+  if (actualTotalSets < totalSets - 3) {
+    warnings.push(
+      `Суммарно мало рабочих подходов (${actualTotalSets}) относительно целевых ~${totalSets}. Можно добавить 1–2 подхода в части упражнений.`
+    );
+  } else if (actualTotalSets > totalSets + 4) {
+    warnings.push(
+      `Суммарно слишком много рабочих подходов (${actualTotalSets}) относительно целевых ~${totalSets}. Следи, чтобы тренировка не растягивалась по времени.`
+    );
   }
 
   return { plan: normalized, warnings };
@@ -1552,7 +1742,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "2.0-ai-first-hybrid-blueprint" });
+  res.json({ ok: true, version: "2.1-ai-first-hybrid-blueprint-personalized" });
 });
 
 export default plan;
