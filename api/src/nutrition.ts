@@ -814,7 +814,7 @@ async function generateDetailedPlan({
       { role: "user", content: prompt },
     ],
   });
-  console.log(`[NUTRITION] openai.chat ${Date.now() - tLLM}ms`);
+  console.log(`[NUTRITION] openai.chat ${Date.now() - tLLM}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${completion.usage?.completion_tokens ?? "?"} total=${completion.usage?.total_tokens ?? "?"}`);
 
   let ai: WeekPlanAI | null = null;
   try {
