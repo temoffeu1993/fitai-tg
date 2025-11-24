@@ -124,8 +124,8 @@ type WorkoutPlanRow = {
 
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
 
-// Чуть выше температура — больше вариативности и "живости" планов
-const TEMPERATURE = 0.65;
+// Для генерации JSON-плана держим температуру пониже
+const TEMPERATURE = 0.5;
 
 const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
@@ -489,6 +489,142 @@ function describeRecovery(hours: number | null, rpe: number | null): string {
   return base;
 }
 
+// ============================================================================
+// НОВЫЕ ХЕЛПЕРЫ ДЛЯ "ДУМАНИЯ" ТРЕНЕРА
+// ============================================================================
+
+function formatUserDataShort(
+  profile: Profile,
+  onboarding: any,
+  sessionMinutes: number
+): string {
+  const parts: string[] = [];
+
+  if (profile.sex !== "unknown") {
+    parts.push(profile.sex === "male" ? "Мужчина" : "Женщина");
+  }
+  if (profile.age) parts.push(`${profile.age} лет`);
+  if (profile.height && profile.weight) {
+    parts.push(`${profile.height} см, ${profile.weight} кг`);
+  }
+
+  const userData = parts.length ? parts.join(", ") : "данные частично не указаны";
+
+  const expMap: Record<Profile["experience"], string> = {
+    beginner: "новичок",
+    intermediate: "средний уровень",
+    advanced: "продвинутый",
+  };
+  const experience = expMap[profile.experience] || "средний уровень";
+
+  const goals = profile.goals?.length ? profile.goals.join(", ") : "поддержание формы";
+  const equipment = describeEquipment(onboarding);
+
+  return `
+${userData}
+Опыт: ${experience}
+Цель: ${goals}
+Тренировок в неделю: ${profile.daysPerWeek}
+Длительность одной сессии: примерно ${sessionMinutes} минут
+Оборудование / условия: ${equipment}
+`.trim();
+}
+
+function buildAnalysisPrompt(
+  profile: Profile,
+  onboarding: any,
+  constraints: Constraints,
+  sessionMinutes: number
+): string {
+  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
+
+  const historyContext = constraints.historySummary
+    ? `\n\nКраткая история последних тренировок (для контекста, не как жёсткий план):\n${constraints.historySummary}`
+    : "\n\nЭто первая тренировка, истории ещё нет.";
+
+  const recoveryLine = constraints.recovery.label;
+
+  return `
+Мне нужна рекомендация по тренировке на сегодня.
+
+Мои данные:
+${userData}
+
+Восстановление и ощущения:
+${recoveryLine}
+
+${historyContext}
+
+Ответь кратко, 3–5 предложений:
+1) Какой тип тренировки логично сделать сегодня (фулбоди, верх, низ, сплит и т.п.)?
+2) Какие основные группы мышц имеет смысл нагрузить?
+3) Какая примерная структура и интенсивность (диапазоны повторов, отдых, ориентир по объёму) будет оптимальной?
+4) Если есть риски перегруза или нужен делoad — упомяни это.
+`.trim();
+}
+
+function buildGenerationPrompt(
+  profile: Profile,
+  onboarding: any,
+  constraints: Constraints,
+  sessionMinutes: number,
+  trainerThinking: string
+): string {
+  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
+
+  const weightsContext =
+    constraints.weightNotes.length > 0
+      ? `Рабочие веса из недавних тренировок (ориентиры, а не жёсткие правила):\n${constraints.weightNotes
+          .slice(0, 5)
+          .join("\n")}\n`
+      : "Точных ориентиров по рабочим весам нет — веса нужно подобрать с запасом по ощущениям.\n";
+
+  return `
+Данные пользователя:
+${userData}
+
+${weightsContext}
+
+Краткая рекомендация тренера (анализ на предыдущем шаге):
+"${trainerThinking}"
+
+На основе этих данных составь ОДНУ следующую тренировку "на сегодня" в формате JSON:
+
+{
+  "title": "Название тренировки (2–6 слов)",
+  "duration": ${sessionMinutes},
+  "warmup": [
+    "Короткий пункт разминки 1",
+    "Короткий пункт разминки 2"
+  ],
+  "exercises": [
+    {
+      "name": "Название упражнения",
+      "sets": 3,
+      "reps": "8-10",
+      "restSec": 90,
+      "weight": "рабочий вес в кг или описание",
+      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
+      "cues": "очень короткая подсказка по технике"
+    }
+  ],
+  "cooldown": [
+    "Короткий пункт заминки 1",
+    "Короткий пункт заминки 2"
+  ],
+  "notes": "1–3 предложения: зачем такая структура и как её чувствовать по нагрузке"
+}
+
+Требования:
+- Тренировка должна быть реалистичной по ощущениям на ~${sessionMinutes} минут.
+- Количество упражнений: обычно 5–8, но можно чуть меньше или больше, если это логично под пользователя.
+- Структура и акценты должны следовать рекомендациям из анализа выше.
+- Если по анализу нужен более лёгкий день или делoad — заложи это в объём и интенсивность.
+
+Верни СТРОГО один JSON-объект по этой схеме, без markdown-блоков и лишнего текста.
+`.trim();
+}
+
 function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightConstraint | null {
   const stats = averageSetStats(ex);
   if (!stats.weight) return null;
@@ -708,29 +844,32 @@ function createBlueprint(daysPerWeek: number) {
 // AI TRAINER PROMPTS
 // ============================================================================
 
-// Системный промпт — только роль и формат, без жёстких правил
+// Системный промпт — роль тренера и схема ответа
 const TRAINER_SYSTEM = `
-Ты — персональный фитнес-тренер с большим опытом работы в тренажёрном зале.
-Ты общаешься с человеком на русском языке простыми понятными фразами.
-Твоя задача — по данным человека и его недавней истории составить одну следующую тренировку "на сегодня".
+Ты — опытный персональный фитнес-тренер.
+Ты умеешь работать с любыми целями (набор массы, похудение, поддержание формы, здоровье),
+с разным опытом (от новичка до продвинутого) и в любых условиях (зал, дом, улица).
 
-Важно:
-- учитывай цель, уровень, оборудование и ограничения;
-- учитывай краткое описание прошлых тренировок и восстановления;
-- делай тренировку реалистичной по времени и нагрузке;
-- думай как живой тренер, а не как шаблонный алгоритм;
-- используй только реальные, распространённые упражнения, которые можно сделать в обычном зале или в описанных условиях.
+Твоя задача — на основе описания человека и его недавней истории
+составить одну следующую тренировку "на сегодня".
 
-Ответ:
-Всегда отвечай строго ОДНИМ JSON-объектом с полями:
-"title" (строка),
-"duration" (число минут),
-"warmup" (массив строк),
-"exercises" (массив объектов упражнений),
-"cooldown" (массив строк),
-"notes" (строка).
-
-Никакого дополнительного текста до или после JSON, только сам объект.
+Формат финального ответа (JSON-объект):
+{
+  "title": string,
+  "duration": number,
+  "warmup": string[],
+  "exercises": [{
+    "name": string,
+    "sets": number,
+    "reps": string,
+    "restSec": number,
+    "weight": string,
+    "targetMuscles": string[],
+    "cues": string
+  }],
+  "cooldown": string[],
+  "notes": string
+}
 `.trim();
 
 function describeEquipment(onboarding: any) {
@@ -755,6 +894,7 @@ function describeEquipment(onboarding: any) {
   return "условия средние: можно делать упражнения с собственным весом, с гантелями/резинками и подручным инвентарём, но без полноценных крупных тренажёров.";
 }
 
+// Старый промпт можно оставить, но он больше не используется напрямую
 function buildTrainerPrompt(params: {
   profile: Profile;
   onboarding: any;
@@ -1033,102 +1173,137 @@ function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {
   }, 0);
 }
 
+// ============================================================================
+// ДВУХШАГОВАЯ ГЕНЕРАЦИЯ ТРЕНИРОВКИ (АНАЛИЗ + JSON)
+// ============================================================================
+
 async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
-  console.log(`[WORKOUT] ▶️ start async generation planId=${planId}`);
-  await setWorkoutPlanProgress(planId, "context", 15);
-
-  const onboarding = await getOnboarding(userId);
-  const sessionMinutes = resolveSessionLength(onboarding);
-  const profile = buildProfile(onboarding, sessionMinutes);
-  const program = await getOrCreateProgram(userId, onboarding);
-  const history = summarizeHistory(await getRecentSessions(userId, 10));
-  const constraints = buildConstraints(profile, history);
-
-  console.log(
-    `[WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
-      program.day_idx + 1
-    }`
-  );
-
-  await setWorkoutPlanProgress(planId, "prompt", 30);
-  const prompt = buildTrainerPrompt({
-    profile,
-    onboarding,
-    program,
-    constraints,
-    sessionMinutes,
-  });
-
-  if (process.env.DEBUG_AI === "1") {
-    console.log("\n=== WORKOUT PROMPT (first 600 chars) ===");
-    console.log(prompt.slice(0, 600) + "...\n");
-  }
-
-  await setWorkoutPlanProgress(planId, "ai", 55);
-  const tAi = Date.now();
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    temperature: TEMPERATURE,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: TRAINER_SYSTEM },
-      { role: "user", content: prompt },
-    ],
-  });
-  console.log(
-    `[WORKOUT] openai.chat ${Date.now() - tAi}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${
-      completion.usage?.completion_tokens ?? "?"
-    } total=${completion.usage?.total_tokens ?? "?"}`
-  );
-
-  let plan: WorkoutPlan;
+  console.log(`[WORKOUT] ▶️ start two-step generation planId=${planId}`);
   try {
-    plan = JSON.parse(completion.choices[0].message.content || "{}");
-  } catch (err) {
-    console.error("Failed to parse AI response:", err);
-    throw new AppError("AI returned invalid JSON", 500);
-  }
+    await setWorkoutPlanProgress(planId, "context", 15);
 
-  if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
-    console.error("Invalid plan structure:", plan);
-    throw new AppError("AI generated invalid workout plan", 500);
-  }
+    const onboarding = await getOnboarding(userId);
+    const sessionMinutes = resolveSessionLength(onboarding);
+    const profile = buildProfile(onboarding, sessionMinutes);
+    const program = await getOrCreateProgram(userId, onboarding);
+    const history = summarizeHistory(await getRecentSessions(userId, 10));
+    const constraints = buildConstraints(profile, history);
 
-  for (const ex of plan.exercises) {
-    if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
-      console.error("Invalid exercise:", ex);
-      throw new AppError("AI generated exercise with missing fields", 500);
+    console.log(
+      `[WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
+        program.day_idx + 1
+      }, exp=${profile.experience}, goal=${profile.goals.join(", ")}`
+    );
+
+    // ШАГ 1: "человеческий" анализ тренера
+    await setWorkoutPlanProgress(planId, "analysis", 35);
+    const analysisPrompt = buildAnalysisPrompt(profile, onboarding, constraints, sessionMinutes);
+
+    if (process.env.DEBUG_AI === "1") {
+      console.log("\n=== ANALYSIS PROMPT (first 600 chars) ===");
+      console.log(analysisPrompt.slice(0, 600) + "...\n");
     }
-  }
 
-  plan.duration = sessionMinutes;
-  await setWorkoutPlanProgress(planId, "validation", 80);
+    const tAnalysis = Date.now();
+    const analysisCompletion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 0.8, // больше свободы для рассуждений
+      messages: [
+        {
+          role: "system",
+          content:
+            "Ты опытный персональный тренер. Кратко анализируешь данные человека и формулируешь, какая тренировка ему логично подходит сегодня.",
+        },
+        { role: "user", content: analysisPrompt },
+      ],
+    });
 
-  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
-  plan = validation.plan;
+    const trainerThinking = analysisCompletion.choices[0].message.content || "";
+    console.log(
+      `[WORKOUT] analysis done in ${Date.now() - tAnalysis}ms, thinking="${trainerThinking
+        .replace(/\s+/g, " ")
+        .slice(0, 200)}..."`
+    );
 
-  if (validation.warnings.length) {
-    console.warn("Plan warnings:", validation.warnings);
-  }
+    // ШАГ 2: генерация JSON-плана на основе анализа
+    await setWorkoutPlanProgress(planId, "ai", 60);
+    const generationPrompt = buildGenerationPrompt(
+      profile,
+      onboarding,
+      constraints,
+      sessionMinutes,
+      trainerThinking
+    );
 
-  const analysis = {
-    historySummary: constraints.historySummary,
-    recovery: constraints.recovery.label,
-    hoursSinceLast: constraints.recovery.hoursSinceLast,
-    lastRpe: constraints.lastRpe,
-    plateau: constraints.plateau,
-    deloadSuggested: constraints.deloadSuggested,
-    weightNotes: constraints.weightNotes,
-    warnings: validation.warnings,
-  };
+    if (process.env.DEBUG_AI === "1") {
+      console.log("\n=== GENERATION PROMPT (first 600 chars) ===");
+      console.log(generationPrompt.slice(0, 600) + "...\n");
+    }
 
-  await markWorkoutPlanReady(planId, plan, analysis);
-  console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+    const tGen = Date.now();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: TEMPERATURE, // пониже для стабильного JSON
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: TRAINER_SYSTEM },
+        { role: "user", content: generationPrompt },
+      ],
+    });
+    console.log(
+      `[WORKOUT] openai.chat (generation) ${Date.now() - tGen}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${
+        completion.usage?.completion_tokens ?? "?"
+      } total=${completion.usage?.total_tokens ?? "?"}`
+    );
 
-  // Помечаем предыдущую валидную сессию как использованную для разблокировки
-  const lastSession = await getLastWorkoutSession(userId);
-  if (lastSession?.completed_at && !lastSession.unlock_used) {
-    await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
+    let plan: WorkoutPlan;
+    try {
+      plan = JSON.parse(completion.choices[0].message.content || "{}");
+    } catch (err) {
+      console.error("Failed to parse AI plan JSON:", err);
+      console.error("Raw content:", completion.choices[0].message.content);
+      throw new AppError("AI вернул невалидный JSON", 500);
+    }
+
+    if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+      console.error("Invalid plan structure (no exercises):", plan);
+      throw new AppError("AI сгенерировал некорректный план тренировки", 500);
+    }
+
+    await setWorkoutPlanProgress(planId, "validation", 80);
+
+    // нормализация + проверки через существующий валидатор
+    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+    plan = validation.plan;
+
+    if (validation.warnings.length) {
+      console.warn("Plan warnings:", validation.warnings);
+    }
+
+    const analysis = {
+      trainerAnalysis: trainerThinking, // можно показывать как "мысль тренера"
+      historySummary: constraints.historySummary,
+      recovery: constraints.recovery.label,
+      hoursSinceLast: constraints.recovery.hoursSinceLast,
+      lastRpe: constraints.lastRpe,
+      plateau: constraints.plateau,
+      deloadSuggested: constraints.deloadSuggested,
+      weightNotes: constraints.weightNotes,
+      warnings: validation.warnings,
+    };
+
+    await markWorkoutPlanReady(planId, plan, analysis);
+    console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+
+    // Помечаем предыдущую валидную сессию как использованную для разблокировки
+    const lastSession = await getLastWorkoutSession(userId);
+    if (lastSession?.completed_at && !lastSession.unlock_used) {
+      await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
+    }
+  } catch (err) {
+    console.error("Async workout generation failed:", err);
+    await markWorkoutPlanFailed(planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
+    throw err;
   }
 }
 
@@ -1317,7 +1492,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "2.0-ai-first-user-style" });
+  res.json({ ok: true, version: "2.0-ai-first-user-style-two-step" });
 });
 
 export default plan;
