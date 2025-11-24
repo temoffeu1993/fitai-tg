@@ -1,10 +1,7 @@
 // plan-refactored.ts
 // ============================================================================
 // AI-FIRST FITNESS TRAINER
-// Персональный тренер: одна сессия за раз, максимум "свободы GPT-4o"
-// Архитектура генерации:
-//   1) GPT-4o свободно пишет план тренировки "как в чате"
-//   2) Отдельный запрос GPT-4o аккуратно конвертирует этот текст → JSON
+// Персональный тренер: одна сессия за раз, минимум жёстких правил
 // ============================================================================
 
 import { Router, Response } from "express";
@@ -128,9 +125,10 @@ type WorkoutPlanRow = {
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
 
 // Для генерации JSON-плана держим температуру пониже
-const TEMPERATURE_JSON = 0.25;
+const TEMPERATURE_JSON = 0.25; // второй шаг (строгий JSON)
+// Для свободного текста даём больше "человечности"
+const TEMPERATURE_FREE = 0.9; // первый шаг (как в чате)
 
-// Исторические лимиты
 const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
 const DAILY_WORKOUT_LIMIT = 1;
@@ -432,26 +430,22 @@ function buildProfile(onboarding: any, minutesFallback: number): Profile {
 
 function summarizeHistory(rows: any[]): HistorySession[] {
   return rows.map((row) => ({
-    ...row,
-    volumeKg: calcSessionVolume({
-      date: row.finished_at,
-      title: row.payload?.title,
-      exercises: (row.payload?.exercises || []).map((ex: any) => ({
-        name: ex.name,
-        reps: ex.reps,
-        weight: ex.weight,
-        targetMuscles: ex.targetMuscles,
-        effort: typeof ex.effort === "string" ? ex.effort : null,
-        sets: Array.isArray(ex.sets)
-          ? ex.sets.map((set: any) => ({
-              reps: numberFrom(set?.reps),
-              weight: numberFrom(set?.weight),
-            }))
-          : [],
-      })),
-      volumeKg: 0,
-      avgRpe: numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
-    }),
+    date: row.finished_at,
+    title: row.payload?.title,
+    exercises: (row.payload?.exercises || []).map((ex: any) => ({
+      name: ex.name,
+      reps: ex.reps,
+      weight: ex.weight,
+      targetMuscles: ex.targetMuscles,
+      effort: typeof ex.effort === "string" ? ex.effort : null,
+      sets: Array.isArray(ex.sets)
+        ? ex.sets.map((set: any) => ({
+            reps: numberFrom(set?.reps),
+            weight: numberFrom(set?.weight),
+          }))
+        : [],
+    })),
+    volumeKg: 0,
     avgRpe: numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
   }));
 }
@@ -512,7 +506,7 @@ function describeRecovery(hours: number | null, rpe: number | null): string {
 }
 
 // ============================================================================
-// "ДУМАНИЕ" ТРЕНЕРА + ОГРАНИЧЕНИЯ
+// НОВЫЕ ХЕЛПЕРЫ ДЛЯ "ДУМАНИЯ" ТРЕНЕРА
 // ============================================================================
 
 function formatUserDataShort(
@@ -549,6 +543,133 @@ ${userData}
 Тренировок в неделю: ${profile.daysPerWeek}
 Длительность одной сессии: примерно ${sessionMinutes} минут
 Оборудование / условия: ${equipment}
+`.trim();
+}
+
+function describeEquipment(onboarding: any) {
+  const env = onboarding.environment || {};
+  if (env.bodyweightOnly === true) {
+    return "тренируюсь только с весом собственного тела, без штанги и без больших тренажёров. Если предлагаешь упражнения со штангой/машинами — предложи вариант с собственным весом или резинками.";
+  }
+
+  const location = (env.location || "").toLowerCase();
+  if (location === "gym" || location.includes("зал")) {
+    return "занимаюсь в полноценном тренажёрном зале: свободные веса (гантели, штанги), стойки, блочные тренажёры, кроссовер, тренажёры для ног, скамьи и базовое кардиооборудование.";
+  }
+
+  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
+    return "занимаюсь на уличной площадке: турник, брусья, возможно петли/TRX и резинки. Нет полноценных тренажёров и штанги.";
+  }
+
+  if (location === "home" || location.includes("дом")) {
+    return "занимаюсь дома: коврик, свободное пространство, стул/скамья, возможно лёгкие гантели или резинки. Нет больших тренажёров.";
+  }
+
+  return "условия средние: можно делать упражнения с собственным весом, с гантелями/резинками и подручным инвентарём, но без полноценных крупных тренажёров.";
+}
+
+/**
+ * Шаг 1. Свободный запрос к GPT-4o "как в чате" — одна следующая тренировка.
+ * Никакого JSON, обычный человеческий текст.
+ */
+function buildFreeFormWorkoutRequest(
+  profile: Profile,
+  onboarding: any,
+  program: ProgramRow,
+  constraints: Constraints,
+  sessionMinutes: number
+): string {
+  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
+  const historyText = constraints.historySummary;
+  const recoveryLine = constraints.recovery.label;
+
+  const programLine = `Сейчас это ${program.week}-я неделя моей программы и ${program.day_idx + 1}-я тренировка в этой неделе. Это ориентир по хронологии, сплит не жёсткий.`;
+
+  const deloadHint = constraints.deloadSuggested
+    ? "Если по твоему опыту нужен более лёгкий день или делoad, учти это в объёме и интенсивности."
+    : "Если по твоему опыту можно слегка усилить нагрузку, сделай это аккуратно, без резких скачков.";
+
+  return `
+Составь, пожалуйста, подробный план ОДНОЙ следующей тренировки "на сегодня" специально под меня.
+
+Кто я:
+${userData}
+
+Контекст программы:
+${programLine}
+
+Восстановление и ощущения:
+${recoveryLine}
+
+Мои недавние тренировки (для понимания уровня и логики прогрессии, а не как жёсткий шаблон):
+${historyText}
+
+Пожелания к формату ответа:
+- Дай короткое и понятное название тренировки.
+- Опиши разминку (3–6 конкретных пунктов, что сделать в начале).
+- Затем опиши основную часть: список упражнений с подходами, повторами и примерным отдыхом, можно в виде списка.
+- В конце опиши заминку/растяжку и пару рекомендаций, как по ощущениям должна заходить эта тренировка.
+- Пиши обычным живым текстом, как в чате с человеком, без JSON и без технических схем.
+
+Важно:
+- Тренировка должна по ощущениям укладываться примерно в ${sessionMinutes} минут.
+- Учитывай мой пол, возраст, цель, опыт, частоту тренировок и доступное оборудование.
+- Структура, акценты и конкретные упражнения полностью на твоё усмотрение.
+- ${deloadHint}
+`.trim();
+}
+
+/**
+ * Шаг 2. Промпт: из готового текстового плана → строгий JSON по схеме WorkoutPlan.
+ */
+function buildJsonConversionPrompt(freeTextPlan: string, sessionMinutes: number): string {
+  return `
+Ниже дан готовый текстовый план одной тренировки (разминка, основная часть с упражнениями, заминка, пояснения).
+
+ТВОЯ ЗАДАЧА:
+аккуратно конвертировать этот план в один JSON-объект по следующей схеме, не меняя смысл, порядок и общую логику тренировки.
+
+Текст плана:
+
+"""
+${freeTextPlan}
+"""
+
+Нужный формат JSON (это ТОЛЬКО формат, не придумывай новую структуру тренировки):
+
+{
+  "title": "Название тренировки (2–6 слов)",
+  "duration": ${sessionMinutes},             // ориентировочная длительность сессии в минутах
+  "warmup": [
+    "Короткий пункт разминки 1",
+    "Короткий пункт разминки 2"
+  ],
+  "exercises": [
+    {
+      "name": "Название упражнения по-русски",
+      "sets": 3,                             // количество подходов (целое число)
+      "reps": "8-10",                        // повторения: одно число "10" или диапазон "8-10"
+      "restSec": 90,                         // отдых между подходами в секундах
+      "weight": "текстовое описание веса",   // "рабочий вес", "собственный вес", "10-12 кг" и т.п.
+      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
+      "cues": "очень короткая подсказка по технике"
+    }
+  ],
+  "cooldown": [
+    "Короткий пункт заминки 1",
+    "Короткий пункт заминки 2"
+  ],
+  "notes": "1–3 предложения: зачем такая структура и как её чувствовать по нагрузке"
+}
+
+Правила конвертации:
+- Основа — текстовый план. НЕ выдумывай других упражнений и не меняй их порядок без необходимости.
+- Если в тексте нет явного деления на warmup / основную часть / заминку, аккуратно разнеси элементы по этим блокам по смыслу.
+- Если какие-то параметры не указаны (restSec, точные повторения), заполни разумными типичными значениями, не противоречащими плану.
+- Массивы "warmup" и "cooldown" — это просто короткие текстовые пункты (по 2–5 штук), извлекай их из плана.
+- "targetMuscles" можно выводить по здравому смыслу, даже если в тексте они не названы явно.
+- "duration" поставь в районе ${sessionMinutes}, это именно время всей тренировки.
+- Верни СТРОГО один JSON-объект по этой схеме, без markdown, без комментариев и без дополнительного текста вокруг.
 `.trim();
 }
 
@@ -723,7 +844,7 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
   return result[0];
 }
 
-async function getRecentSessions(userId: string, limit = 10): Promise<HistorySession[]> {
+async function getRecentSessions(userId: string, limit = 10): Promise<any[]> {
   const rows = await q<any>(
     `SELECT finished_at, payload
        FROM workout_sessions
@@ -733,25 +854,7 @@ async function getRecentSessions(userId: string, limit = 10): Promise<HistorySes
     [userId, limit]
   );
 
-  return rows.map((row) => ({
-    date: row.finished_at,
-    title: row.payload?.title,
-    exercises: (row.payload?.exercises || []).map((ex: any) => ({
-      name: ex.name,
-      reps: ex.reps,
-      weight: ex.weight,
-      targetMuscles: ex.targetMuscles,
-      effort: typeof ex.effort === "string" ? ex.effort : null,
-      sets: Array.isArray(ex.sets)
-        ? ex.sets.map((set: any) => ({
-            reps: numberFrom(set?.reps),
-            weight: numberFrom(set?.weight),
-          }))
-        : [],
-    })),
-    volumeKg: 0,
-    avgRpe: numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
-  }));
+  return rows;
 }
 
 // ============================================================================
@@ -766,135 +869,6 @@ function createBlueprint(daysPerWeek: number) {
     description:
       "Без жёсткого фиксированного сплита — тренер сам решает структуру каждой тренировки под пользователя.",
   };
-}
-
-// ============================================================================
-// AI TRAINER PROMPTS: СВОБОДНЫЙ GPT-4o → ТЕКСТ → JSON
-// ============================================================================
-
-function describeEquipment(onboarding: any) {
-  const env = onboarding.environment || {};
-  if (env.bodyweightOnly === true) {
-    return "тренируюсь только с весом собственного тела, без штанги и без больших тренажёров. Если предлагаешь упражнения со штангой/машинами — предложи вариант с собственным весом или резинками.";
-  }
-
-  const location = (env.location || "").toLowerCase();
-  if (location === "gym" || location.includes("зал")) {
-    return "занимаюсь в полноценном тренажёрном зале: свободные веса (гантели, штанги), стойки, блочные тренажёры, кроссовер, тренажёры для ног, скамьи и базовое кардиооборудование.";
-  }
-
-  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
-    return "занимаюсь на уличной площадке: турник, брусья, возможно петли/TRX и резинки. Нет полноценных тренажёров и штанги.";
-  }
-
-  if (location === "home" || location.includes("дом")) {
-    return "занимаюсь дома: коврик, свободное пространство, стул/скамья, возможно лёгкие гантели или резинки. Нет больших тренажёров.";
-  }
-
-  return "условия средние: можно делать упражнения с собственным весом, с гантелями/резинками и подручным инвентарём, но без полноценных крупных тренажёров.";
-}
-
-/**
- * Свободный запрос к GPT-4o "как в чате" — одна следующая тренировка.
- * Никаких JSON, минимум формализации, всё — обычный человеческий текст.
- */
-function buildFreeFormWorkoutRequest(
-  profile: Profile,
-  onboarding: any,
-  program: ProgramRow,
-  constraints: Constraints,
-  sessionMinutes: number
-): string {
-  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
-  const historyText = constraints.historySummary;
-  const recoveryLine = constraints.recovery.label;
-
-  const programLine = `Сейчас это ${program.week}-я неделя моей программы и ${program.day_idx + 1}-я тренировка в этой неделе. Это просто ориентир, сплит не жёсткий.`;
-
-  const deloadHint = constraints.deloadSuggested
-    ? "Если по ощущениям нужен более лёгкий день или делoad, учти это в объёме и интенсивности."
-    : "Если по твоему опыту можно слегка усилить нагрузку, сделай это аккуратно, без резких скачков.";
-
-  return `
-Составь, пожалуйста, подробный план ОДНОЙ следующей тренировки "на сегодня" специально под меня.
-
-Кто я:
-${userData}
-
-Контекст:
-${programLine}
-Восстановление и ощущения: ${recoveryLine}
-
-Мои недавние тренировки (для понимания уровня и логики прогрессии, а не как жёсткий шаблон):
-${historyText}
-
-Пожелания к формату ответа:
-- Дай короткое и понятное название тренировки.
-- Опиши разминку (что поделать в начале, чтобы включиться в работу).
-- Затем опиши основную часть: список упражнений с указанием количества подходов, повторов и примерного отдыха.
-- В конце опиши заминку/растяжку и пару рекомендаций, как по ощущениям должна заходить эта тренировка.
-- Пиши обычным живым текстом, как в чате с человеком, без JSON и без технических схем.
-
-Важно:
-- Тренировка должна по ощущениям укладываться примерно в ${sessionMinutes} минут.
-- Учитывай мой пол, возраст, цель, опыт, частоту тренировок и доступное оборудование.
-- Структура, акценты и конкретные упражнения полностью на твоё усмотрение.
-- ${deloadHint}
-`.trim();
-}
-
-/**
- * Промпт для второго шага: из уже готового текстового плана → строгий JSON по схеме WorkoutPlan.
- */
-function buildJsonConversionPrompt(freeTextPlan: string, sessionMinutes: number): string {
-  return `
-Ниже дан готовый текстовый план одной тренировки (разминка, основная часть с упражнениями, заминка, пояснения).
-
-ТВОЯ ЗАДАЧА:
-аккуратно конвертировать этот план в один JSON-объект по следующей схеме, не меняя смысл, порядок и общую логику тренировки.
-
-Текст плана:
-
-"""
-${freeTextPlan}
-"""
-
-Нужный формат JSON (это ТОЛЬКО формат, не придумывай новую структуру тренировки):
-
-{
-  "title": "Название тренировки (2–6 слов)",
-  "duration": ${sessionMinutes},             // ориентировочная длительность сессии в минутах
-  "warmup": [
-    "Короткий пункт разминки 1",
-    "Короткий пункт разминки 2"
-  ],
-  "exercises": [
-    {
-      "name": "Название упражнения по-русски",
-      "sets": 3,                             // количество подходов (целое число)
-      "reps": "8-10",                        // повторения: одно число "10" или диапазон "8-10"
-      "restSec": 90,                         // отдых между подходами в секундах
-      "weight": "текстовое описание веса",   // текст: "рабочий вес", "собственный вес", "10-12 кг" и т.п.
-      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
-      "cues": "очень короткая подсказка по технике"
-    }
-  ],
-  "cooldown": [
-    "Короткий пункт заминки 1",
-    "Короткий пункт заминки 2"
-  ],
-  "notes": "1–3 предложения: зачем такая структура и как её чувствовать по нагрузке"
-}
-
-Правила конвертации:
-- Основа — текстовый план. НЕ выдумывай других упражнений и не меняй их порядок без необходимости.
-- Если в тексте нет явного деления на warmup / основную часть / заминку, аккуратно разнеси элементы по этим блокам по смыслу.
-- Если какие-то параметры не указаны (restSec, точные повторения), заполни разумными типичными значениями, не противоречащими плану.
-- Массивы "warmup" и "cooldown" — это просто короткие текстовые пункты (по 2–5 штук), извлекай их из плана.
-- "targetMuscles" можно выводить по здравому смыслу, даже если в тексте они не названы явно.
-- "duration" поставь в районе ${sessionMinutes}, это именно время всей тренировки.
-- Верни СТРОГО один JSON-объект по этой схеме, без markdown, без комментариев и без дополнительного текста вокруг.
-`.trim();
 }
 
 // ============================================================================
@@ -1012,7 +986,7 @@ plan.post(
       console.log("[WORKOUT] admin bypass weekly limit for user", userId);
     }
 
-    console.log("\n=== GENERATING WORKOUT (async two-step free-form) ===");
+    console.log("\n=== GENERATING WORKOUT (async) ===");
     console.log("User ID:", userId, "force:", force);
 
     if (existing && !force) {
@@ -1090,7 +1064,7 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
       }, exp=${profile.experience}, goals=${profile.goals.join(", ")}`
     );
 
-    // ШАГ 1: свободный "человеческий" план тренировки (как в чате GPT-4o)
+    // ШАГ 1: свободный «человеческий» план тренировки (как в чате GPT-4o)
     await setWorkoutPlanProgress(planId, "analysis", 35);
     const freeFormPrompt = buildFreeFormWorkoutRequest(
       profile,
@@ -1108,7 +1082,7 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
     const tFree = Date.now();
     const freeCompletion = await openai.chat.completions.create({
       model: "gpt-4o",
-      temperature: 0.9, // максимум свободы и "человечности"
+      temperature: TEMPERATURE_FREE, // максимум свободы и "человечности"
       messages: [
         {
           role: "system",
@@ -1176,7 +1150,7 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
 
     await setWorkoutPlanProgress(planId, "validation", 80);
 
-    // нормализация + проверки через валидатор
+    // нормализация + проверки
     const validation = validatePlanStructure(plan, constraints, sessionMinutes);
     plan = validation.plan;
 
@@ -1185,7 +1159,6 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
     }
 
     const analysis = {
-      // для обратной связи в UI можно показывать весь "человеческий" текст
       trainerAnalysis: freeTextPlan,
       trainerPlanText: freeTextPlan,
       historySummary: constraints.historySummary,
@@ -1398,7 +1371,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "2.1-ai-first-free-form-two-step" });
+  res.json({ ok: true, version: "2.0-ai-first-user-style-two-step-free-form" });
 });
 
 export default plan;
