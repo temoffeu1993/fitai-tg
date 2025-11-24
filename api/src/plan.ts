@@ -277,6 +277,17 @@ async function getWorkoutPlanById(planId: string): Promise<WorkoutPlanRow | null
   return rows[0] || null;
 }
 
+async function getNextBlockCycle(userId: string): Promise<number> {
+  const rows = await q<{ max_cycle: number | null }>(
+    `SELECT MAX(block_cycle)::int AS max_cycle
+       FROM workout_plans
+      WHERE user_id = $1`,
+    [userId]
+  );
+  const current = rows[0]?.max_cycle ?? 0;
+  return current + 1;
+}
+
 async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
   const rows = await q<WorkoutPlanRow>(
     `INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
@@ -975,19 +986,6 @@ async function getRecentSessions(userId: string, limit = 10): Promise<any[]> {
   );
 
   return rows;
-}
-
-// НОВЫЙ ХЕЛПЕР: получить следующий block_cycle для пользователя
-
-async function getNextBlockCycle(userId: string): Promise<number> {
-  const rows = await q<{ max_cycle: number | null }>(
-    `SELECT MAX(block_cycle)::int AS max_cycle
-       FROM workout_plans
-      WHERE user_id = $1`,
-    [userId]
-  );
-  const current = rows[0]?.max_cycle ?? 0;
-  return current + 1;
 }
 
 // ============================================================================

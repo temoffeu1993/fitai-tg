@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  generatePlan,
-  getCurrentPlan,
-  checkPlanStatus,
+  generatePlanBlock,
   type WorkoutPlanResponse,
   type PlanStatus,
 } from "@/api/plan";
@@ -11,6 +9,7 @@ const WORKOUT_CACHE_KEY = "plan_cache_v2";
 
 export type UseWorkoutPlanResult<TPlan> = {
   plan: TPlan | null;
+  plans: TPlan[];
   analysis: any | null;
   status: PlanStatus | null;
   planId: string | null;
@@ -26,6 +25,7 @@ export type UseWorkoutPlanResult<TPlan> = {
 
 export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
   const [plan, setPlan] = useState<TPlan | null>(null);
+  const [plans, setPlans] = useState<TPlan[]>([]);
   const [analysis, setAnalysis] = useState<any | null>(null);
   const [status, setStatus] = useState<PlanStatus | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
@@ -49,6 +49,7 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
 
       if (nextStatus === "ready" && resp.plan) {
         setPlan(resp.plan);
+        setPlans([resp.plan]);
         setAnalysis(resp.analysis ?? null);
         try {
           localStorage.setItem(
@@ -61,6 +62,7 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
       } else if (nextStatus === "failed") {
         if (!opts?.keepPlan) {
           setPlan(null);
+          setPlans([]);
           setAnalysis(null);
         }
         try {
@@ -86,21 +88,25 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
         setError(null);
       }
       try {
-        let resp: WorkoutPlanResponse<TPlan>;
-        if (opts?.force) {
-          resp = await generatePlan<TPlan>({ force: true });
+        // Всегда генерируем блок из 3 тренировок, чтобы отдать связку
+        const block = await generatePlanBlock<TPlan>({ daysInBlock: 3 });
+        const first = block.plans?.[0];
+
+        if (first?.plan) {
+          setPlan(first.plan);
+          setPlans(block.plans.map((p) => p.plan!).filter(Boolean));
+          setAnalysis(first.analysis ?? null);
+          const meta = first.meta ?? {};
+          setStatus((meta.status ?? "ready") as PlanStatus);
+          setPlanId(meta.planId ?? null);
+          setServerProgress(typeof meta.progress === "number" ? meta.progress : null);
+          setProgressStage(meta.progressStage ?? null);
+          setMetaError(meta.error ?? null);
+          setError(null);
+          setLoading(false);
         } else {
-          try {
-            resp = await getCurrentPlan<TPlan>();
-          } catch (err: any) {
-            if (err?.status === 404) {
-              resp = await generatePlan<TPlan>();
-            } else {
-              throw err;
-            }
-          }
+          throw new Error("empty_block");
         }
-        applyResponse(resp);
       } catch (err) {
         console.error("Workout plan request failed", err);
         if (!silent) {
@@ -114,7 +120,7 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
         }
       }
     },
-    [applyResponse]
+    []
   );
 
   useEffect(() => {
@@ -140,43 +146,6 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
     });
   }, [refresh]);
 
-  useEffect(() => {
-    if (status !== "processing" || !planId) {
-      setPolling(false);
-      return;
-    }
-
-    setPolling(true);
-    let cancelled = false;
-
-    const tick = async () => {
-      try {
-        const resp = await checkPlanStatus<TPlan>(planId);
-        applyResponse(resp, { keepPlan: true });
-        if (resp.meta?.status !== "processing" && !cancelled) {
-          setPolling(false);
-          setLoading(false);
-          return true;
-        }
-      } catch (err: any) {
-        if (err?.status === 404 && !cancelled) {
-          setPolling(false);
-          return true;
-        }
-      }
-      return false;
-    };
-
-    const interval = setInterval(tick, 4000);
-    tick();
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      setPolling(false);
-    };
-  }, [status, planId, applyResponse]);
-
   const regenerate = useCallback(async () => {
     try {
       await refresh({ force: true });
@@ -187,6 +156,7 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
 
   return {
     plan,
+    plans,
     analysis,
     status,
     planId,
