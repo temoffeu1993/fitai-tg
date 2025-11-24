@@ -12,26 +12,32 @@ const defaultScheduleTime = () => {
   return hour < 12 ? "18:00" : "09:00";
 };
 
-export type Exercise = {
-  name: string; sets: number;
-  reps?: number|string; restSec?: number; cues?: string;
-  pattern?: string; targetMuscles?: string[]; tempo?: string; guideUrl?: string; weight?: string;
-};
+/**
+ * Вытащить заголовок тренировки из текста плана:
+ * первая непустая строка, подрезанная до 80 символов.
+ */
+function derivePlanTitle(plan: any): string {
+  if (!plan || !plan.text) return "Тренировка дня";
+  const raw = String(plan.text);
+  const firstLine = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
+  if (!firstLine) return "Тренировка дня";
+  const cleaned = firstLine.replace(/^[-•]/, "").trim();
+  return cleaned.length > 80 ? cleaned.slice(0, 77) + "…" : cleaned;
+}
 
 /**
  * PLAN — ознакомительный экран в общем стиле приложения.
- * - collapsible секции (разминка, основная часть, заминка)
- * - плавающий комментарий тренера (plan.notes)
- * - улучшенный caret
- * - увеличенный бот
- * - "пишет..." при генерации
- * - чат-бабл без затемнения
+ * Теперь план — один большой текст от тренера (plan.text).
  */
 
 export default function PlanOne() {
   const nav = useNavigate();
   const {
     plan,
+    analysis,
     status: planStatus,
     error: planError,
     metaError,
@@ -46,12 +52,10 @@ export default function PlanOne() {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
 
-  // collapsible state
-  const [openWarmup, setOpenWarmup] = useState(false);
-  const [openMain, setOpenMain] = useState(false);
-  const [openCooldown, setOpenCooldown] = useState(false);
+  // одна секция с текстом плана
+  const [openText, setOpenText] = useState(true);
 
-  // trainer notes popup
+  // trainer notes popup (теперь на основе analysis)
   const [showNotes, setShowNotes] = useState(false);
   const [regenNotice, setRegenNotice] = useState<string | null>(null);
   const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
@@ -61,16 +65,24 @@ export default function PlanOne() {
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
     []
   );
+
   const today = useMemo(() => new Date(), []);
   const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
+
+  // эвристики по тексту плана: время, упражнения, ккал
   const chips = useMemo(() => {
-    if (!plan) return null;
-    const sets = (plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
-    const minutes = Number(plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
-    const kcal = Math.round(minutes * 6);
-    return { sets, minutes, kcal };
+    if (!plan || !plan.text) return null;
+    const text = String(plan.text);
+    const words = text.split(/\s+/).filter(Boolean).length;
+    const approxMinutes = Math.max(25, Math.min(90, Math.round(words / 5))); // длина текста ≈ время
+    const bulletMatches = text.match(/(^|\n)\s*[-•\d]/g) || [];
+    const approxExercises =
+      Math.max(3, Math.min(15, bulletMatches.length || Math.round(words / 80))) || 3;
+    const kcal = Math.round(approxMinutes * 6);
+    return { minutes: approxMinutes, kcal, exercises: approxExercises };
   }, [plan]);
+
   const {
     progress: loaderProgress,
     startManual: kickProgress,
@@ -91,6 +103,28 @@ export default function PlanOne() {
   const showLoader = loading || isProcessing || (!plan && !error);
   const [paywall, setPaywall] = useState(false);
 
+  // заголовок тренировки из текста
+  const planTitle = useMemo(() => derivePlanTitle(plan), [plan]);
+
+  // комментарий тренера из analysis
+  const trainerNote = useMemo(() => {
+    if (!analysis) return "";
+    const parts: string[] = [];
+    if (analysis.recovery) parts.push(String(analysis.recovery));
+    if (analysis.deloadSuggested) {
+      parts.push(
+        "Сейчас логично держать нагрузку чуть легче и внимательно следить за самочувствием: техника, пульс, дыхание."
+      );
+    }
+    if (Array.isArray(analysis.weightNotes) && analysis.weightNotes.length) {
+      parts.push(
+        "По рабочим весам можно ориентироваться на недавние тренировки (ориентиры, не жёсткие правила):\n" +
+          analysis.weightNotes.slice(0, 3).join("\n")
+      );
+    }
+    return parts.join("\n\n").trim();
+  }, [analysis]);
+
   useEffect(() => {
     const onPlanCompleted = () => {
       regenerate().catch(() => {});
@@ -107,7 +141,7 @@ export default function PlanOne() {
     return () => window.removeEventListener("onb_updated" as any, onOnbUpdated);
   }, [refresh]);
 
-  // --- новый обработчик регенерации: сброс экрана и запуск генерации ---
+  // --- обработчик регенерации ---
   const handleRegenerate = async () => {
     try {
       localStorage.removeItem("current_plan");
@@ -225,7 +259,9 @@ export default function PlanOne() {
         <section style={s.blockWhite}>
           <h3 style={{ marginTop: 0 }}>{error}</h3>
           <p style={{ marginTop: 6, color: "#555" }}>Проверь подключение и повтори попытку.</p>
-          <button style={s.rowBtn} onClick={() => window.location.reload()}>Повторить</button>
+          <button style={s.rowBtn} onClick={() => window.location.reload()}>
+            Повторить
+          </button>
         </section>
       </div>
     );
@@ -245,9 +281,14 @@ export default function PlanOne() {
 
   // вычисления для верхнего блока (кнопки и метрики)
   const workoutNumber = (() => {
-    try { const history = loadHistory(); return history.length + 1; } catch { return 1; }
+    try {
+      const history = loadHistory();
+      return history.length + 1;
+    } catch {
+      return 1;
+    }
   })();
-  const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
+  const totalExercises = chips?.exercises ?? 0;
   const regenButtonDisabled = sub.locked || regenPending;
   const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
 
@@ -261,7 +302,7 @@ export default function PlanOne() {
         <div style={s.heroHeader}>
           <span style={s.pill}>{heroDateChip}</span>
         </div>
-        <div style={s.heroTitle}>{plan.title || "Тренировка дня"}</div>
+        <div style={s.heroTitle}>{planTitle}</div>
         <div style={s.heroSubtitle}>Краткое превью перед стартом</div>
 
         <div style={s.heroCtas}>
@@ -284,31 +325,31 @@ export default function PlanOne() {
             type="button"
             style={s.secondaryBtn}
             onClick={handleScheduleOpen}
-        >
-          Запланировать
-        </button>
-      </div>
+          >
+            Запланировать
+          </button>
+        </div>
 
-      <button
-        type="button"
-        style={{
-          ...s.ghostBtn,
-          opacity: regenButtonDisabled ? 0.6 : 1,
-          cursor: regenButtonDisabled ? "not-allowed" : "pointer",
-        }}
-        disabled={regenButtonDisabled}
-        onClick={handleRegenerate}
-      >
-        {regenButtonLabel}
-      </button>
-      {regenNotice ? (
-        <div style={s.buttonNote}>{regenNotice}</div>
-      ) : regenInlineError ? (
-        <div style={s.inlineError}>{regenInlineError}</div>
-      ) : null}
+        <button
+          type="button"
+          style={{
+            ...s.ghostBtn,
+            opacity: regenButtonDisabled ? 0.6 : 1,
+            cursor: regenButtonDisabled ? "not-allowed" : "pointer",
+          }}
+          disabled={regenButtonDisabled}
+          onClick={handleRegenerate}
+        >
+          {regenButtonLabel}
+        </button>
+        {regenNotice ? (
+          <div style={s.buttonNote}>{regenNotice}</div>
+        ) : regenInlineError ? (
+          <div style={s.inlineError}>{regenInlineError}</div>
+        ) : null}
       </section>
 
-      {/* Чипы в фирменном стиле под верхним блоком */}
+      {/* Чипы под верхним блоком */}
       {chips && (
         <section style={s.statsRow}>
           <ChipStatSquare emoji="🎯" label="Тренировка" value={`#${workoutNumber}`} />
@@ -317,48 +358,31 @@ export default function PlanOne() {
         </section>
       )}
 
-      {/* Разминка */}
-      {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
-        <SectionCard
-          icon="🧘‍♀️"
-          title="Разминка"
-          hint="Мягкая активация. Двигайся без спешки."
-          isOpen={openWarmup}
-          onToggle={() => setOpenWarmup((v) => !v)}
-        >
-          <ExercisesList items={plan.warmup} variant="warmup" isOpen={openWarmup} />
-        </SectionCard>
-      )}
-
-      {/* Основная часть */}
+      {/* Одна секция с целым текстом плана */}
       <SectionCard
-        icon="⚡"
-        title="Основная часть"
-        hint="Техника приоритетнее веса. Держи темп и отдых по самочувствию."
-        isOpen={openMain}
-        onToggle={() => setOpenMain((v) => !v)}
+        icon="📋"
+        title="План тренировки"
+        hint="Следуй по порядку, подстраивая под свои ощущения."
+        isOpen={openText}
+        onToggle={() => setOpenText((v) => !v)}
       >
-        <ExercisesList items={plan.exercises} variant="main" isOpen={openMain} />
-      </SectionCard>
-
-      {/* Заминка */}
-      {Array.isArray(plan.cooldown) && plan.cooldown.length > 0 && (
-        <SectionCard
-          icon="🧘‍♂️"
-          title="Заминка"
-          hint="Снижаем пульс. Растяжка без боли. Ровное дыхание."
-          isOpen={openCooldown}
-          onToggle={() => setOpenCooldown((v) => !v)}
+        <div
+          style={{
+            fontSize: 14,
+            lineHeight: 1.5,
+            color: "#1b1b1b",
+            whiteSpace: "pre-wrap",
+          }}
         >
-          <ExercisesList items={plan.cooldown} variant="cooldown" isOpen={openCooldown} />
-        </SectionCard>
-      )}
+          {plan.text}
+        </div>
+      </SectionCard>
 
       <div style={{ height: 56 }} />
 
       {showScheduleModal && (
         <ScheduleModal
-          title={plan.title || "Тренировка"}
+          title={planTitle || "Тренировка"}
           date={scheduleDate}
           time={scheduleTime}
           loading={scheduleSaving}
@@ -370,14 +394,11 @@ export default function PlanOne() {
         />
       )}
 
-      {/* Комментарий тренера */}
-      {plan.notes && (
+      {/* Комментарий тренера (из analysis) */}
+      {trainerNote && (
         <>
-          {/* чат-панель над иконкой */}
           {showNotes && (
-            <div
-              style={notesStyles.chatPanelWrap}
-            >
+            <div style={notesStyles.chatPanelWrap}>
               <div style={notesStyles.chatPanel}>
                 <div style={notesStyles.chatHeader}>
                   <div style={notesStyles.chatHeaderLeft}>
@@ -391,12 +412,11 @@ export default function PlanOne() {
                     ✕
                   </button>
                 </div>
-                <div style={notesStyles.chatBody}>{plan.notes}</div>
+                <div style={notesStyles.chatBody}>{trainerNote}</div>
               </div>
             </div>
           )}
 
-          {/* плавающая кнопка тренера */}
           <div style={notesStyles.fabWrap} onClick={() => setShowNotes((v) => !v)}>
             {!showNotes && (
               <div style={notesStyles.speechBubble}>
@@ -414,7 +434,7 @@ export default function PlanOne() {
   );
 }
 
-/* ----------------- Типы и утилиты ----------------- */
+/* ----------------- Типы/утилиты для ошибок ----------------- */
 
 function humanizePlanError(err: any): string {
   if (!err) return "Не удалось обновить план";
@@ -495,18 +515,6 @@ function djb2(str: string) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
   return String(h >>> 0);
-}
-
-function formatReps(r?: number | string) {
-  if (r == null || r === "") return "—";
-  return typeof r === "number" ? String(r) : String(r);
-}
-
-function formatSec(s?: number) {
-  if (s == null) return "—";
-  const m = Math.floor((s as number) / 60);
-  const sec = Math.round((s as number) % 60);
-  return m ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}с`;
 }
 
 /* ----------------- Компоненты UI ----------------- */
@@ -690,7 +698,6 @@ function SectionCard({
   return (
     <section style={s.block}>
       <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-        {/* Шапка секции */}
         <button
           style={{
             ...ux.cardHeader,
@@ -706,12 +713,12 @@ function SectionCard({
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
             <div style={ux.cardTitleRow}>
               <div style={ux.cardTitle}>{title}</div>
-
-              {/* Новый caret */}
-              <div style={{
-                ...ux.caretWrap,
-                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-              }}>
+              <div
+                style={{
+                  ...ux.caretWrap,
+                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              >
                 <div style={ux.caretInner} />
               </div>
             </div>
@@ -722,57 +729,6 @@ function SectionCard({
         {isOpen && <div style={ux.cardBody}>{children}</div>}
       </div>
     </section>
-  );
-}
-
-function ExercisesList({
-  items,
-  variant,
-  isOpen,
-}: {
-  items: Array<Exercise | string>;
-  variant: "warmup" | "main" | "cooldown";
-  isOpen: boolean;
-}) {
-  if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
-  const isMain = variant === "main";
-
-  return (
-    <div style={{ display: "grid", gap: 6 }}>
-      {items.map((item, i) => {
-        const isString = typeof item === "string";
-        const name = isString ? item : item.name;
-        const cues = isString ? null : item.cues;
-        const sets = !isString ? item.sets : null;
-        const reps = !isString ? item.reps : null;
-        const restSec = !isString ? item.restSec : null;
-
-        return (
-          <div key={`${variant}-${i}-${name ?? "step"}`} style={row.wrap}>
-            <div style={row.left}>
-              <div style={row.name}>{name || `Шаг ${i + 1}`}</div>
-              {cues ? <div style={row.cues}>{cues}</div> : null}
-            </div>
-
-            {isMain && typeof sets === "number" && typeof restSec === "number" ? (
-              <div style={row.metrics}>
-                <div style={caps.wrap} title="Подходы и отдых">
-                  <div style={caps.box}>
-                    <span style={caps.num}>
-                      {sets}×{formatReps(reps)}
-                    </span>
-                  </div>
-                  <div style={caps.box}>
-                    <span style={caps.label}>Отдых</span>
-                    <span style={caps.num}>{formatSec(restSec)}</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -848,9 +804,15 @@ function Spinner() {
     <svg width="56" height="56" viewBox="0 0 50 50" style={{ display: "block" }}>
       <circle cx="25" cy="25" r="20" stroke="rgba(255,255,255,.35)" strokeWidth="6" fill="none" />
       <circle
-        cx="25" cy="25" r="20"
-        stroke="#fff" strokeWidth="6" strokeLinecap="round" fill="none"
-        strokeDasharray="110" strokeDashoffset="80"
+        cx="25"
+        cy="25"
+        r="20"
+        stroke="#fff"
+        strokeWidth="6"
+        strokeLinecap="round"
+        fill="none"
+        strokeDasharray="110"
+        strokeDashoffset="80"
         style={{ transformOrigin: "25px 25px", animation: "spin 1.2s linear infinite" }}
       />
       <style>{`
@@ -917,8 +879,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     padding: "16px",
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
-    background:
-"transparent",
+    background: "transparent",
     minHeight: "100vh",
   },
 
@@ -968,8 +929,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 700,
     color: "#000",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    background: BLOCK_GRADIENT,
     border: "none",
     boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
@@ -982,8 +942,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 700,
     color: "#000",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    background: BLOCK_GRADIENT,
     border: "none",
     boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
@@ -1003,7 +962,6 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "none",
   },
 
-  /* фирменные чипы как на Dashboard */
   statsRow: {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(96px, 1fr))",
@@ -1030,7 +988,6 @@ const s: Record<string, React.CSSProperties> = {
     hyphens: "none",
   },
 
-  /* старые стат-блоки оставлены, но не используются для чипов */
   stat: {
     background: "rgba(255,255,255,0.6)",
     borderRadius: 12,
@@ -1249,15 +1206,8 @@ const modal: Record<string, React.CSSProperties> = {
   },
 };
 
-/* ----------------- Единые цвета секций ----------------- */
-const uxColors = {
-  headerBg: "rgba(255,255,255,0.6)",
-  subPill: "rgba(139,92,246,.14)",
-  border: "rgba(139,92,246,.22)",
-  iconBg: "transparent",
-};
+/* ----------------- Карточки секций ----------------- */
 
-/* ----------------- Микро-стили карточек ----------------- */
 const ux: Record<string, any> = {
   card: {
     borderRadius: 18,
@@ -1294,7 +1244,6 @@ const ux: Record<string, any> = {
   cardTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b", lineHeight: 1.2 },
   cardHint: { fontSize: 11, color: "#2b2b2b", opacity: 0.85 },
 
-  // новый caret
   caretWrap: {
     width: 24,
     height: 24,
@@ -1319,99 +1268,9 @@ const ux: Record<string, any> = {
   },
 };
 
-/* ----------------- Строки упражнений ----------------- */
-const row: Record<string, React.CSSProperties> = {
-  wrap: {
-    display: "flex",
-    alignItems: "stretch",
-    gap: 12,
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.7)",
-    borderRadius: 14,
-    boxShadow: "0 8px 18px rgba(0,0,0,.06)",
-    border: "1px solid rgba(0,0,0,.04)",
-    backdropFilter: "blur(12px)",
-    flexWrap: "nowrap",
-  },
-  left: {
-    display: "grid",
-    gap: 4,
-    minWidth: 0,
-    flex: "1 1 auto",
-    marginRight: 8,
-  },
-  name: { fontSize: 13.5, fontWeight: 650, color: "#111", lineHeight: 1.15, whiteSpace: "normal" },
-  cues: { fontSize: 11, color: "#666" },
-  metrics: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    alignItems: "flex-end",
-    justifyContent: "center",
-    flex: "0 0 auto",
-    minWidth: 120,
-  },
-};
-
-/* ----------------- Капсулы метрик ----------------- */
-const caps: Record<string, React.CSSProperties> = {
-  wrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    alignItems: "flex-end",
-  },
-  box: {
-    display: "inline-flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    minWidth: 110,
-    padding: "6px 10px",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(0,0,0,.08)",
-    fontSize: 12.5,
-    lineHeight: 1,
-    fontFeatureSettings: "'tnum' 1, 'lnum' 1",
-    color: "#222",
-    textAlign: "center",
-  },
-  label: {
-    fontSize: 10.5,
-    color: "#555",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  num: {
-    letterSpacing: 0.2,
-    fontWeight: 700,
-    fontSize: 12.5,
-  },
-};
-
-/* ----------------- Старые метрики (если где-то используются) ----------------- */
-const metricLabelStyle: React.CSSProperties = {
-  fontSize: 20,
-  textTransform: "uppercase",
-  letterSpacing: 0.6,
-  color: "#555",
-  fontWeight: 700,
-};
-
-const metricNumStyle: React.CSSProperties = {
-  fontSize: 15,
-  lineHeight: 1.1,
-  fontWeight: 600,
-  letterSpacing: 0.2,
-  fontFamily:
-    "'Inter Tight', 'Roboto Condensed', 'SF Compact', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif",
-};
-
 /* ----------------- Комментарий тренера styles ----------------- */
+
 const notesStyles: Record<string, React.CSSProperties> = {
-  // плавающий блок, пока план уже сгенерен
   fabWrap: {
     position: "fixed",
     right: 16,
@@ -1422,8 +1281,6 @@ const notesStyles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     zIndex: 9999,
   },
-
-  // плавающий блок, пока генерим (нет клика, просто показывает typing)
   fabWrapLoading: {
     position: "fixed",
     right: 16,
@@ -1435,11 +1292,10 @@ const notesStyles: Record<string, React.CSSProperties> = {
   },
 
   fabCircle: {
-    width: 56, // увеличили
+    width: 56,
     height: 56,
     borderRadius: "50%",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    background: BLOCK_GRADIENT,
     boxShadow: "0 10px 24px rgba(0,0,0,.2)",
     display: "grid",
     placeItems: "center",
@@ -1474,11 +1330,10 @@ const notesStyles: Record<string, React.CSSProperties> = {
     filter: "drop-shadow(0 2px 2px rgba(0,0,0,.1))",
   },
 
-  // чат-панель. без затемнения. появляется над иконкой
   chatPanelWrap: {
     position: "fixed",
     right: 16,
-    bottom: 160 + 56 + 12, // подняли выше, чтобы не перекрывать иконку
+    bottom: 160 + 56 + 12,
     zIndex: 10000,
     maxWidth: 300,
     width: "calc(100% - 32px)",
