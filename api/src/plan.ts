@@ -1,7 +1,7 @@
 // plan-refactored.ts
 // ============================================================================
 // AI-FIRST FITNESS TRAINER
-// Персональный тренер: одна сессия за раз, минимум жёстких правил
+// Полный рефакторинг: простой код, умный AI
 // ============================================================================
 
 import { Router, Response } from "express";
@@ -98,8 +98,14 @@ type Constraints = {
     label: string;
   };
   lastRpe: number | null;
+  phase: {
+    label: string;
+    repScheme: string;
+    notes: string;
+  };
   plateau: boolean;
   deloadSuggested: boolean;
+  volumeHint: string;
   historySummary: string;
 };
 
@@ -118,30 +124,16 @@ type WorkoutPlanRow = {
   updated_at: string;
 };
 
-// ============================================================================
-// CONSTANTS / UTILS
-// ============================================================================
-
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
-
-// Для генерации JSON-плана держим температуру пониже
-const TEMPERATURE = 0.5;
-
+const TEMPERATURE = 0.35;
 const HISTORY_LIMIT = 5;
 const MAX_EXERCISES = 10;
+const MIN_EXERCISES = 5;
 const DAILY_WORKOUT_LIMIT = 1;
 const MIN_REAL_DURATION_MIN = 20;
-const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // сверяем с онбордингом (+1 запас)
+const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // включено: сверяем с онбордингом (+1 запас)
 const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
-
-const ADMIN_IDS = new Set(
-  (process.env.ADMIN_IDS || "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean)
-);
-const isAdminUser = (userId: string) => ADMIN_IDS.has(userId);
 
 function resolveTimezone(req: any): string {
   const candidate =
@@ -199,7 +191,7 @@ const formatDateTimeLabel = (date: Date, tz: string) =>
 
 async function getNextDailyResetIso(tz: string): Promise<string> {
   const rows = await q<{ boundary: string }>(
-    SELECT ((date_trunc('day', (now() AT TIME ZONE $1)) + interval '1 day')) AT TIME ZONE 'UTC' AS boundary,
+    `SELECT ((date_trunc('day', (now() AT TIME ZONE $1)) + interval '1 day')) AT TIME ZONE 'UTC' AS boundary`,
     [tz]
   );
   return rows[0]?.boundary ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -207,7 +199,7 @@ async function getNextDailyResetIso(tz: string): Promise<string> {
 
 async function getNextWeeklyResetIso(tz: string): Promise<string> {
   const rows = await q<{ boundary: string }>(
-    SELECT ((date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 day')) AT TIME ZONE 'UTC' AS boundary,
+    `SELECT ((date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 day')) AT TIME ZONE 'UTC' AS boundary`,
     [tz]
   );
   return rows[0]?.boundary ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -218,8 +210,14 @@ const ensureUser = (req: any): string => {
   throw new AppError("Unauthorized", 401);
 };
 
-// Для валидации (AI про это не знает)
 function minExercisesForDuration(duration: number) {
+  if (duration >= 85) return 6;
+  if (duration >= 70) return 6;
+  if (duration >= 50) return 5;
+  return 5;
+}
+
+function dynamicMinExercises(duration: number) {
   if (duration >= 85) return 6;
   if (duration >= 70) return 6;
   if (duration >= 50) return 5;
@@ -228,11 +226,11 @@ function minExercisesForDuration(duration: number) {
 
 async function getLatestWorkoutPlan(userId: string): Promise<WorkoutPlanRow | null> {
   const rows = await q<WorkoutPlanRow>(
-    SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
+    `SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
        FROM workout_plans
       WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT 1,
+      LIMIT 1`,
     [userId]
   );
   return rows[0] || null;
@@ -240,10 +238,10 @@ async function getLatestWorkoutPlan(userId: string): Promise<WorkoutPlanRow | nu
 
 async function getWorkoutPlanById(planId: string): Promise<WorkoutPlanRow | null> {
   const rows = await q<WorkoutPlanRow>(
-    SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
-      FROM workout_plans
+    `SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
+       FROM workout_plans
       WHERE id = $1
-      LIMIT 1,
+      LIMIT 1`,
     [planId]
   );
   return rows[0] || null;
@@ -251,9 +249,9 @@ async function getWorkoutPlanById(planId: string): Promise<WorkoutPlanRow | null
 
 async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
   const rows = await q<WorkoutPlanRow>(
-    INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
+    `INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
      VALUES ($1, 'processing', 'queued', 5)
-     RETURNING id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at,
+     RETURNING id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at`,
     [userId]
   );
   return rows[0];
@@ -261,11 +259,11 @@ async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
 
 async function getLastWorkoutSession(userId: string) {
   const rows = await q(
-    SELECT id, started_at, completed_at, unlock_used, created_at
+    `SELECT id, started_at, completed_at, unlock_used, created_at
        FROM workouts
       WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT 1,
+      LIMIT 1`,
     [userId]
   );
   return rows[0];
@@ -273,18 +271,18 @@ async function getLastWorkoutSession(userId: string) {
 
 async function setWorkoutPlanProgress(planId: string, stage: string, percent: number | null) {
   await q(
-    UPDATE workout_plans
+    `UPDATE workout_plans
         SET progress_stage = $2,
             progress_percent = $3,
             updated_at = now()
-      WHERE id = $1,
+      WHERE id = $1`,
     [planId, stage, percent]
   );
 }
 
 async function markWorkoutPlanReady(planId: string, plan: WorkoutPlan, analysis: any) {
   await q(
-    UPDATE workout_plans
+    `UPDATE workout_plans
         SET status = 'ready',
             plan = $2::jsonb,
             analysis = $3::jsonb,
@@ -292,20 +290,20 @@ async function markWorkoutPlanReady(planId: string, plan: WorkoutPlan, analysis:
             progress_stage = 'ready',
             progress_percent = 100,
             updated_at = now()
-      WHERE id = $1,
+      WHERE id = $1`,
     [planId, plan, analysis]
   );
 }
 
 async function markWorkoutPlanFailed(planId: string, message: string | null) {
   await q(
-    UPDATE workout_plans
+    `UPDATE workout_plans
         SET status = 'failed',
             error_info = $2,
             progress_stage = 'failed',
             progress_percent = NULL,
             updated_at = now()
-      WHERE id = $1,
+      WHERE id = $1`,
     [planId, message]
   );
 }
@@ -338,6 +336,54 @@ function buildWorkoutPlanResponse(row: WorkoutPlanRow | null) {
   };
 }
 
+const PHASES = [
+  { label: "Гипертрофия", repScheme: "8-12 повторов", notes: "умеренный вес, контролируемый темп" },
+  { label: "Сила", repScheme: "4-6 повторов", notes: "более тяжёлые веса, отдых до 3 мин" },
+  { label: "Выносливость", repScheme: "12-15 повторов", notes: "легче вес, короче отдых" },
+];
+
+const DAY_VOLUME_HINT: Record<string, string> = {
+  Push: "7-9 подходов на грудь, 5-7 на плечи и трицепс",
+  Pull: "8-10 подходов на спину, 4-6 на бицепс и задние дельты",
+  Legs: "10-12 подходов на ноги + 3-4 на ягодицы/кор",
+  "Upper Focus": "6-8 подходов на грудь и спину, по 3-4 на руки",
+  "Lower Focus": "8-10 подходов на квадрицепс и бёдра, 4-6 на ягодицы",
+  "Full Body": "по 3-4 подхода на каждую крупную группу без перегруза",
+};
+
+const FEW_SHOT_EXAMPLES = `
+ПРИМЕР 1 (Push, 60 минут):
+{
+  "title": "Грудь и плечи с акцентом на технику",
+  "duration": 60,
+  "warmup": ["5 минут на эллипсе", "Круговые движения плеч", "Отжимания с паузой 2×10"],
+  "exercises": [
+    {"name":"Жим штанги лёжа","sets":4,"reps":"8-10","restSec":120,"weight":"60 кг","targetMuscles":["грудь","трицепс"],"cues":"Сведение лопаток, пауза внизу"},
+    {"name":"Жим гантелей на наклоне","sets":3,"reps":"10-12","restSec":90,"weight":"22.5 кг","targetMuscles":["верх груди"],"cues":"Контроль на негативе"},
+    {"name":"Жим штанги стоя","sets":3,"reps":"8-10","restSec":120,"weight":"32.5 кг","targetMuscles":["плечи"],"cues":"Не прогибай поясницу"},
+    {"name":"Разведения в тренажёре","sets":3,"reps":"12-15","restSec":60,"weight":"35 кг","targetMuscles":["грудь"],"cues":"Пауза в пик-концентрации"},
+    {"name":"Французский жим","sets":3,"reps":"10-12","restSec":75,"weight":"20 кг","targetMuscles":["трицепс"],"cues":"Локти смотрят вверх"}
+  ],
+  "cooldown": ["Растяжка груди у стены", "Разведение рук с эластичной лентой", "Глубокое дыхание 1 минуту"],
+  "notes": "Сначала тяжёлый базовый жим, затем вариации под углом и изоляция. Отдых после тяжёлых подходов 2 минуты, чтобы сохранять качество."
+}
+
+ПРИМЕР 2 (Legs, 70 минут):
+{
+  "title": "Сила ног и стабилизация",
+  "duration": 70,
+  "warmup": ["5 минут велотренажёр", "Приседания с весом тела 2×15", "Выпады назад 2×10 на ногу"],
+  "exercises": [
+    {"name":"Приседания со штангой","sets":4,"reps":"6-8","restSec":150,"weight":"80 кг","targetMuscles":["квадрицепс","ягодицы"],"cues":"Нейтральная спина, колени следуют за носками"},
+    {"name":"Жим ногами","sets":3,"reps":"10-12","restSec":120,"weight":"160 кг","targetMuscles":["ноги"],"cues":"Полный контроль хода"},
+    {"name":"Румынская тяга","sets":3,"reps":"8-10","restSec":120,"weight":"70 кг","targetMuscles":["задняя поверхность","ягодицы"],"cues":"Держи спину ровной"},
+    {"name":"Выпады с гантелями","sets":3,"reps":"10 на ногу","restSec":90,"weight":"18 кг","targetMuscles":["ягодицы","квадрицепс"],"cues":"Шаг назад, толчок пяткой"},
+    {"name":"Подъём на носки стоя","sets":3,"reps":"12-15","restSec":60,"weight":"40 кг","targetMuscles":["икры"],"cues":"Пауза в верхней точке"}
+  ],
+  "cooldown": ["Растяжка квадрицепса", "Скрутка для поясницы", "Диафрагмальное дыхание"],
+  "notes": "Базу ставим первой, затем добиваем объёмом и работаем над балансом."
+}`;
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -360,7 +406,7 @@ const numberFrom = (value: unknown): number | null => {
 
 const formatWeight = (value: number | null | undefined): string | null => {
   if (value == null || Number.isNaN(value)) return null;
-  return ${Number(value.toFixed(1))} кг;
+  return `${Number(value.toFixed(1))} кг`;
 };
 
 function parseRepsRange(reps: string | number | undefined): { min: number; max: number } {
@@ -414,11 +460,7 @@ function buildProfile(onboarding: any, minutesFallback: number): Profile {
         : experienceRaw.includes("adv")
         ? "advanced"
         : "intermediate",
-    goals: Array.isArray(onboarding?.goals)
-      ? onboarding.goals
-      : onboarding?.goals
-      ? [onboarding.goals]
-      : ["поддержание формы"],
+    goals: Array.isArray(onboarding?.goals) ? onboarding.goals : onboarding?.goals ? [onboarding.goals] : ["поддержание формы"],
     daysPerWeek: Number(onboarding?.schedule?.daysPerWeek) || 3,
     minutesPerSession: minutesFallback,
     location: onboarding?.environment?.location || "unknown",
@@ -435,29 +477,31 @@ function summarizeHistory(rows: any[]): HistorySession[] {
 }
 
 function historyNarrative(history: HistorySession[]): string {
-  if (!history.length)
-    return "Это первая тренировка, я только начинаю — сделай осторожную, но осмысленную сессию.";
-  return history
-    .slice(0, HISTORY_LIMIT)
-    .map((session, idx) => {
-      const when = idx === 0 ? "Последняя тренировка" : ${idx + 1}-я тренировка назад;
-      const exercises = session.exercises
-        .slice(0, 3)
-        .map((ex) => {
-          const stats = averageSetStats(ex);
-          const repsRange = parseRepsRange(ex.reps);
-          const repsText = stats.reps ? ${Math.round(stats.reps)} повт. : ${repsRange.min}-${repsRange.max} повт.;
-          const weightText = stats.weight ? ${stats.weight.toFixed(1)} кг : "без веса или лёгкий вес";
-          return • ${ex.name}: ${repsText}, ${weightText};
-        })
-        .join("\n");
-      const metaParts: string[] = [];
-      if (session.avgRpe) metaParts.push(RPE ${session.avgRpe});
-      if (session.volumeKg) metaParts.push(объём ~${Math.round(session.volumeKg)} кг);
-      const meta = metaParts.length ?  — ${metaParts.join(", ")} : "";
-      return ${when} (${new Date(session.date).toLocaleDateString("ru-RU")})${meta}:\n${exercises};
-    })
-    .join("\n\n");
+  if (!history.length) return "Это первая тренировка клиента, действуй осмотрительно.";
+  return history.slice(0, HISTORY_LIMIT).map((session, idx) => {
+    const when = idx === 0 ? "Последняя" : `${idx + 1}-я назад`;
+    const exercises = session.exercises
+      .slice(0, 3)
+      .map((ex) => {
+        const stats = averageSetStats(ex);
+        const repsRange = parseRepsRange(ex.reps);
+        const repsText = stats.reps ? `${Math.round(stats.reps)} повт.` : `${repsRange.min}-${repsRange.max}`;
+        const weightText = stats.weight ? `${stats.weight.toFixed(1)} кг` : "без веса/легкий вес";
+        return `• ${ex.name}: ${repsText}, ${weightText}`;
+      })
+      .join("\n");
+    const metaParts: string[] = [];
+    if (session.avgRpe) metaParts.push(`RPE ${session.avgRpe}`);
+    if (session.volumeKg) metaParts.push(`объём ~${Math.round(session.volumeKg)} кг`);
+    const meta = metaParts.length ? ` — ${metaParts.join(", ")}` : "";
+    return `${when} (${new Date(session.date).toLocaleDateString("ru-RU")})${meta}:\n${exercises}`;
+  }).join("\n\n");
+}
+
+function determinePhase(week: number) {
+  if (!Number.isFinite(week) || week <= 0) return PHASES[0];
+  const idx = Math.floor((week - 1) / 4) % PHASES.length;
+  return PHASES[idx];
 }
 
 function hoursDiffFrom(dateISO?: string): number | null {
@@ -471,158 +515,22 @@ function hoursDiffFrom(dateISO?: string): number | null {
 function describeRecovery(hours: number | null, rpe: number | null): string {
   let base: string;
   if (hours == null) {
-    base = "нет точных данных по отдыху";
+    base = "нет данных по отдыху";
   } else if (hours < 36) {
-    base = "прошло не так много времени после прошлой тренировки — не перегружай чрезмерно";
+    base = "ещё не восстановился полностью — не перегружай";
   } else if (hours < 72) {
-    base = "по времени восстановления всё примерно оптимально";
+    base = "оптимально восстановлен";
   } else {
-    base = "отдых был довольно долгим — можно немного усилить нагрузку, если чувствуешь себя нормально";
+    base = "можно слегка увеличить нагрузку — отдых был долгим";
   }
 
   if (rpe != null) {
-    if (rpe >= 9) return ${base}. Прошлая тренировка была очень тяжёлой (RPE ${rpe}).;
-    if (rpe <= 6) return ${base}. Прошлая тренировка ощущалась относительно лёгкой (RPE ${rpe}).;
-    return ${base}. RPE прошлой тренировки: ${rpe}.;
+    if (rpe >= 9) return `${base}. Прошлая тренировка была очень тяжёлой (RPE ${rpe}).`;
+    if (rpe <= 6) return `${base}. Прошлая тренировка далась легко (RPE ${rpe}).`;
+    return `${base}. RPE прошлой тренировки: ${rpe}.`;
   }
 
   return base;
-}
-
-// ============================================================================
-// НОВЫЕ ХЕЛПЕРЫ ДЛЯ "ДУМАНИЯ" ТРЕНЕРА
-// ============================================================================
-
-function formatUserDataShort(
-  profile: Profile,
-  onboarding: any,
-  sessionMinutes: number
-): string {
-  const parts: string[] = [];
-
-  if (profile.sex !== "unknown") {
-    parts.push(profile.sex === "male" ? "Мужчина" : "Женщина");
-  }
-  if (profile.age) parts.push(${profile.age} лет);
-  if (profile.height && profile.weight) {
-    parts.push(${profile.height} см, ${profile.weight} кг);
-  }
-
-  const userData = parts.length ? parts.join(", ") : "данные частично не указаны";
-
-  const expMap: Record<Profile["experience"], string> = {
-    beginner: "новичок",
-    intermediate: "средний уровень",
-    advanced: "продвинутый",
-  };
-  const experience = expMap[profile.experience] || "средний уровень";
-
-  const goals = profile.goals?.length ? profile.goals.join(", ") : "поддержание формы";
-  const equipment = describeEquipment(onboarding);
-
-  return 
-${userData}
-Опыт: ${experience}
-Цель: ${goals}
-Тренировок в неделю: ${profile.daysPerWeek}
-Длительность одной сессии: примерно ${sessionMinutes} минут
-Оборудование / условия: ${equipment}
-.trim();
-}
-
-function buildAnalysisPrompt(
-  profile: Profile,
-  onboarding: any,
-  constraints: Constraints,
-  sessionMinutes: number
-): string {
-  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
-
-  const historyContext = constraints.historySummary
-    ? \n\nКраткая история последних тренировок (для контекста, не как жёсткий план):\n${constraints.historySummary}
-    : "\n\nЭто первая тренировка, истории ещё нет.";
-
-  const recoveryLine = constraints.recovery.label;
-
-  return `
-Мне нужна рекомендация по тренировке на сегодня.
-
-Мои данные:
-${userData}
-
-Восстановление и ощущения:
-${recoveryLine}
-
-${historyContext}
-
-Ответь кратко, 3–5 предложений:
-1) Какой тип тренировки логично сделать сегодня (фулбоди, верх, низ, сплит и т.п.)?
-2) Какие основные группы мышц имеет смысл нагрузить?
-3) Какая примерная структура и интенсивность (диапазоны повторов, отдых, ориентир по объёму) будет оптимальной?
-4) Если есть риски перегруза или нужен делoad — упомяни это.
-`.trim();
-}
-
-function buildGenerationPrompt(
-  profile: Profile,
-  onboarding: any,
-  constraints: Constraints,
-  sessionMinutes: number,
-  trainerThinking: string
-): string {
-  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
-
-  const weightsContext =
-    constraints.weightNotes.length > 0
-      ? Рабочие веса из недавних тренировок (ориентиры, а не жёсткие правила):\n${constraints.weightNotes
-          .slice(0, 5)
-          .join("\n")}\n
-      : "Точных ориентиров по рабочим весам нет — веса нужно подобрать с запасом по ощущениям.\n";
-
-  return `
-Данные пользователя:
-${userData}
-
-${weightsContext}
-
-Краткая рекомендация тренера (анализ на предыдущем шаге):
-"${trainerThinking}"
-
-На основе этих данных составь ОДНУ следующую тренировку "на сегодня" в формате JSON:
-
-{
-  "title": "Название тренировки (2–6 слов)",
-  "duration": ${sessionMinutes},
-  "warmup": [
-    "Короткий пункт разминки 1",
-    "Короткий пункт разминки 2"
-  ],
-  "exercises": [
-    {
-      "name": "Название упражнения",
-      "sets": 3,
-      "reps": "8-10",
-      "restSec": 90,
-      "weight": "рабочий вес в кг или описание",
-      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
-      "cues": "очень короткая подсказка по технике"
-    }
-  ],
-  "cooldown": [
-    "Короткий пункт заминки 1",
-    "Короткий пункт заминки 2"
-  ],
-  "notes": "1–3 предложения: зачем такая структура и как её чувствовать по нагрузке"
-}
-
-Требования:
-- Тренировка должна быть реалистичной по ощущениям на ~${sessionMinutes} минут.
-- Количество упражнений: обычно 5–8, но можно чуть меньше или больше, если это логично под пользователя.
-- Структура и акценты должны следовать рекомендациям из анализа выше.
-- Если по анализу нужен более лёгкий день или делoad — заложи это в объём и интенсивность.
-
-Верни СТРОГО один JSON-объект по этой схеме, без markdown-блоков и лишнего текста.
-`.trim();
 }
 
 function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightConstraint | null {
@@ -653,7 +561,8 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   };
 }
 
-function buildConstraints(profile: Profile, history: HistorySession[]): Constraints {
+function buildConstraints(profile: Profile, history: HistorySession[], program: ProgramRow, sessionMinutes: number): Constraints {
+  const phase = determinePhase(program.week || 1);
   const historySummary = historyNarrative(history);
   const weightGuards: Record<string, WeightConstraint> = {};
   const weightNotes: string[] = [];
@@ -665,9 +574,7 @@ function buildConstraints(profile: Profile, history: HistorySession[]): Constrai
       const key = slugify(ex.name);
       if (weightGuards[key]) continue;
       weightGuards[key] = suggestion;
-      weightNotes.push(
-        ${ex.name}: в прошлый раз ~${suggestion.last} кг, комфортный коридор примерно ${suggestion.min}–${suggestion.max} кг
-      );
+      weightNotes.push(`${ex.name}: держи ${suggestion.min}-${suggestion.max} кг (прошлый раз ${suggestion.last} кг)`);
       if (weightNotes.length >= 5) break;
     }
     if (weightNotes.length >= 5) break;
@@ -680,7 +587,8 @@ function buildConstraints(profile: Profile, history: HistorySession[]): Constrai
   const hoursSinceLast = hoursDiffFrom(history[0]?.date);
   const lastRpe = history[0]?.avgRpe ?? null;
   const deloadSuggested =
-    (plateau && history.length >= 4) || ((lastRpe ?? 0) >= 9 && (hoursSinceLast ?? 999) < 72);
+    (plateau && history.length >= 4) ||
+    ((lastRpe ?? 0) >= 9 && (hoursSinceLast ?? 999) < 72);
 
   return {
     weightGuards,
@@ -690,8 +598,10 @@ function buildConstraints(profile: Profile, history: HistorySession[]): Constrai
       label: describeRecovery(hoursSinceLast, lastRpe),
     },
     lastRpe,
+    phase,
     plateau,
     deloadSuggested,
+    volumeHint: DAY_VOLUME_HINT[program.blueprint_json?.days[program.day_idx]] || "Держи баланс по группам мышц",
     historySummary,
   };
 }
@@ -702,11 +612,11 @@ function buildConstraints(profile: Profile, history: HistorySession[]): Constrai
 
 async function getOnboarding(userId: string): Promise<any> {
   const rows = await q(
-    SELECT data
+    `SELECT data
        FROM onboardings
       WHERE user_id = $1
       ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
-      LIMIT 1,
+      LIMIT 1`,
     [userId]
   );
   return rows[0]?.data || {};
@@ -755,7 +665,7 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
   const desiredBlueprint = createBlueprint(desiredDaysPerWeek);
 
   const existing = await q<ProgramRow>(
-    SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1,
+    `SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1`,
     [userId]
   );
 
@@ -770,14 +680,14 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
 
     if (!sameBlueprint) {
       const updated = await q<ProgramRow>(
-        UPDATE training_programs
+        `UPDATE training_programs
             SET blueprint_json = $2,
                 microcycle_len = $3,
                 day_idx = 0,
                 week = 1,
                 updated_at = NOW()
           WHERE id = $1
-          RETURNING *,
+          RETURNING *`,
         [stored.id, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
       );
       return updated[0];
@@ -787,9 +697,9 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
   }
 
   const result = await q<ProgramRow>(
-    INSERT INTO training_programs (user_id, blueprint_json, microcycle_len, week, day_idx)
+    `INSERT INTO training_programs (user_id, blueprint_json, microcycle_len, week, day_idx)
      VALUES ($1, $2, $3, 1, 0)
-     RETURNING *,
+     RETURNING *`,
     [userId, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
   );
 
@@ -798,11 +708,11 @@ async function getOrCreateProgram(userId: string, onboarding: any): Promise<Prog
 
 async function getRecentSessions(userId: string, limit = 10): Promise<HistorySession[]> {
   const rows = await q<any>(
-    SELECT finished_at, payload
+    `SELECT finished_at, payload
        FROM workout_sessions
       WHERE user_id = $1
       ORDER BY finished_at DESC
-      LIMIT $2,
+      LIMIT $2`,
     [userId, limit]
   );
 
@@ -827,74 +737,71 @@ async function getRecentSessions(userId: string, limit = 10): Promise<HistorySes
 }
 
 // ============================================================================
-// BLUEPRINT CREATION (минимально нейтральная логика)
+// BLUEPRINT CREATION (простая логика)
 // ============================================================================
 
 function createBlueprint(daysPerWeek: number) {
-  const n = Math.max(1, daysPerWeek || 3);
+  if (daysPerWeek >= 5) {
+    return {
+      name: "Push/Pull/Legs Split",
+      days: ["Push", "Pull", "Legs", "Push", "Pull"],
+      description: "Classic 5-day split focusing on movement patterns"
+    };
+  }
+
+  if (daysPerWeek === 4) {
+    return {
+      name: "Upper/Lower Split",
+      days: ["Upper", "Lower", "Upper", "Lower"],
+      description: "Balanced 4-day split alternating upper and lower body"
+    };
+  }
+
+  // 3 дня или меньше
   return {
-    name: "Гибкая персональная программа",
-    days: Array.from({ length: n }, (_, i) => День ${i + 1}),
-    description:
-      "Без жёсткого фиксированного сплита — тренер сам решает структуру каждой тренировки под пользователя.",
+    name: "Full Body Split",
+    days: ["Upper Focus", "Lower Focus", "Full Body"],
+    description: "3-day full body with varied emphasis"
   };
 }
 
 // ============================================================================
-// AI TRAINER PROMPTS
+// AI TRAINER PROMPT (главное отличие от старого кода!)
 // ============================================================================
 
-// Системный промпт — роль тренера и схема ответа
-const TRAINER_SYSTEM = `
-Ты — опытный персональный фитнес-тренер.
-Ты умеешь работать с любыми целями (набор массы, похудение, поддержание формы, здоровье),
-с разным опытом (от новичка до продвинутого) и в любых условиях (зал, дом, улица).
+const TRAINER_SYSTEM = `You are an expert personal trainer with 15+ years of experience in strength training, hypertrophy, and athletic performance.
 
-Твоя задача — на основе описания человека и его недавней истории
-составить одну следующую тренировку "на сегодня".
+Your approach:
+- You understand periodization, progressive overload, and recovery
+- You vary exercises to prevent plateaus and boredom
+- You consider individual limitations and preferences
+- You write detailed, helpful technique cues
+- You think holistically about the client's journey
 
-Формат финального ответа (JSON-объект):
-{
-  "title": string,
-  "duration": number,
-  "warmup": string[],
-  "exercises": [{
-    "name": string,
-    "sets": number,
-    "reps": string,
-    "restSec": number,
-    "weight": string,
-    "targetMuscles": string[],
-    "cues": string
-  }],
-  "cooldown": string[],
-  "notes": string
-}
-`.trim();
+You are NOT a rigid algorithm. You are a thinking, adaptive coach.`;
 
 function describeEquipment(onboarding: any) {
   const env = onboarding.environment || {};
   if (env.bodyweightOnly === true) {
-    return "тренируюсь только с весом собственного тела, без штанги и без больших тренажёров. Если предлагаешь упражнения со штангой/машинами — предложи вариант с собственным весом или резинками.";
+    return "только вес собственного тела. нет штанги, нет тренажёров, нет станка для жима ногами, нет блочных машин";
   }
 
   const location = (env.location || "").toLowerCase();
   if (location === "gym" || location.includes("зал")) {
-    return "занимаюсь в полноценном тренажёрном зале: свободные веса (гантели, штанги), стойки, блочные тренажёры, кроссовер, тренажёры для ног, скамьи и базовое кардиооборудование.";
+    return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
   }
 
   if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
-    return "занимаюсь на уличной площадке: турник, брусья, возможно петли/TRX и резинки. Нет полноценных тренажёров и штанги.";
+    return "уличная площадка: турник, брусья, петли TRX/эспандеры, скакалка, набивные мячи, лёгкие гантели. нет полноценных штанг и станков, упражнения адаптируй под площадку";
   }
 
   if (location === "home" || location.includes("дом")) {
-    return "занимаюсь дома: коврик, свободное пространство, стул/скамья, возможно лёгкие гантели или резинки. Нет больших тренажёров.";
+    return "домашние условия: коврик, свободное пространство, стул/лавка, лёгкие гантели или резинки. нет больших тренажёров, но можно использовать мебель и подручный инвентарь";
   }
 
-  return "условия средние: можно делать упражнения с собственным весом, с гантелями/резинками и подручным инвентарём, но без полноценных крупных тренажёров.";
+  return "простой инвентарь: коврик, резинки, лёгкие гантели, турник/брусья при наличии. если требуются тренажёры — замени на вариации с собственным весом.";
 }
 
-// Старый промпт можно оставить, но он больше не используется напрямую
 function buildTrainerPrompt(params: {
   profile: Profile;
   onboarding: any;
@@ -904,106 +811,72 @@ function buildTrainerPrompt(params: {
 }): string {
   const { profile, onboarding, program, constraints, sessionMinutes } = params;
   const blueprint = program.blueprint_json;
+  const todayFocus = blueprint.days[program.day_idx];
 
-  const sexStr =
-    profile.sex === "female" ? "женщина" : profile.sex === "male" ? "мужчина" : "пол не указан";
-  const expStr =
-    profile.experience === "beginner"
-      ? "новичок"
-      : profile.experience === "advanced"
-      ? "продвинутый"
-      : "средний уровень";
+  const goalsText = profile.goals.map((g) => `- ${g}`).join("\n") || "- поддержание формы";
+  const weightGuidance = constraints.weightNotes.length
+    ? constraints.weightNotes.map((x) => `- ${x}`).join("\n")
+    : "- Новые упражнения: выбирай вес на уровне 6/10 по ощущению и оставляй запас 2 повтора";
 
-  const goalsText =
-    profile.goals && profile.goals.length
-      ? profile.goals.map((g) => - ${g}).join("\n")
-      : "- поддерживать форму";
+  const minExercises = minExercisesForDuration(sessionMinutes);
 
-  const weightGuidanceBlock =
-    constraints.weightNotes.length > 0
-      ? Вот что я помню по рабочим весам из последних тренировок (ориентиры, а не жёсткие правила):
-${constraints.weightNotes.map((x) => - ${x}).join("\n")}
-      : "По рабочим весам у меня нет точных ориентиров — подбери адекватный стартовый вес с запасом по ощущениям.";
+  return `# РОЛЬ
+Ты персональный тренер с опытом 15+ лет. Безопасность важнее эго. Говори тоном живого тренера.
 
-  const deloadLine = constraints.deloadSuggested
-    ? "Если по твоему опыту нагрузка выглядит слишком высокой, можешь сделать эту тренировку чуть легче (меньше подходов или чуть ниже веса)."
-    : "Если по твоему опыту можно слегка усилить нагрузку — сделай это аккуратно, без резких скачков.";
+# ПРОФИЛЬ
+- Возраст: ${profile.age ?? "?"}, пол: ${profile.sex}, опыт: ${profile.experience}
+- Вес: ${profile.weight ?? "?"} кг, рост: ${profile.height ?? "?"} см
+- Цели:\n${goalsText}
+- График: ${profile.daysPerWeek} тренировок в неделю, ${sessionMinutes} мин каждая
+- Оборудование: ${describeEquipment(onboarding)}
 
-  const historyBlock = constraints.historySummary;
-  const recoveryLine = constraints.recovery.label;
+# ПРОГРАММА
+- Программа: ${blueprint.name}, неделя ${program.week}, день ${program.day_idx + 1}/${program.microcycle_len}
+- Сегодня: ${todayFocus}
+- Фаза: ${constraints.phase.label} (${constraints.phase.repScheme}) — ${constraints.phase.notes}
+- План по объёму: ${constraints.volumeHint}
 
-  const programLine = Сейчас это ${program.week}-я неделя моей программы и ${program.day_idx + 1}-я тренировка в этой неделе. Это просто ориентир по хронологии, а не жёсткий шаблон по мышечным группам.;
+# СОСТОЯНИЕ
+- Восстановление: ${constraints.recovery.label}
+- Плато: ${constraints.plateau ? "обнаружено (держи объём под контролем)" : "нет признаков"}
+- Deload рекомендуем? ${constraints.deloadSuggested ? "да, снизь объём/вес на 15%" : "не требуется"}
 
-  return `
-Привет. Мне нужна персональная тренировка.
+# ИСТОРИЯ (последние тренировки)
+${constraints.historySummary}
 
-Вот кто я:
-- ${sexStr}, возраст: ${profile.age ?? "не указал"}
-- рост: ${profile.height ?? "не указал"} см, вес: ${profile.weight ?? "не указал"} кг
-- опыт тренировок: ${expStr}
-- цель(цели):
-${goalsText}
+# РЕКОМЕНДАЦИИ ПО ВЕСАМ
+${weightGuidance}
 
-Как я обычно тренируюсь:
-- планирую ${profile.daysPerWeek} тренировок в неделю
-- на одну тренировку у меня есть примерно ${sessionMinutes} минут
-- условия и инвентарь: ${describeEquipment(onboarding)}
+# ЖЁСТКИЕ ПРАВИЛА
+1. Продолжительность строго ${sessionMinutes} минут.
+2. Кол-во упражнений ${minExercises}-${MAX_EXERCISES} (для ${sessionMinutes} мин). У тяжёлых базовых 3-4 подхода, у изоляции 2-3.
+3. Меняй углы/оборудование, не повторяй точь-в-точь прошлую тренировку.
+4. Не превышай диапазоны весов. Если данных нет — выбирай умеренно и оставляй запас 1-2 повтора.
+5. Учитывай цели и фазу программы. Если рекомендован deload — снизь вес/подходы.
+6. Warmup 3-5 пунктов под конкретные мышцы дня. Cooldown 2-4 пункта.
+7. Пиши cues простым языком без академических терминов.
+8. Все названия, подсказки и комментарии — строго на русском языке, без английских слов.
 
-Немного про текущую логику программы:
-${programLine}
-
-Как я восстанавливаюсь и как ощущалась нагрузка:
-- восстановление по времени и ощущениям: ${recoveryLine}
-- по суммарной нагрузке и объёму: ${
-    constraints.plateau
-      ? "последние тренировки были плюс-минус на одном уровне по объёму, особого скачка нет."
-      : "объём и нагрузка меняются, сильного застоя не чувствую."
-  }
-
-Моя недавняя история тренировок (для контекста, не как жёсткий шаблон):
-${historyBlock}
-
-${weightGuidanceBlock}
-
-Дополнительные пожелания:
-- время этой тренировки: примерно ${sessionMinutes} минут, чтобы по ощущениям всё укладывалось в одну нормальную сессию;
-- тренировка должна быть реалистичной для живого человека с моими данными;
-- не обязательно жёстко держаться за прошлые упражнения: можно повторять базу, но чуть менять вариации или акценты;
-- важнее, чтобы тренировка была осмысленной и помогала прогрессировать постепенно, а не "убивала" на один раз.
-
-${deloadLine}
-
-Пожалуйста, составь ОДНУ следующую тренировку "на сегодня" специально под меня.
-Не программу на несколько недель, а одну сессию.
-
-Формат ответа:
-Верни один JSON-объект со структурой:
-
+# ВЫХОД
+Верни JSON (response_format json_object) вида:
 {
-  "title": string,          // название тренировки
-  "duration": number,       // ожидаемая длительность в минутах (ориентируйся на ~${sessionMinutes})
-  "warmup": string[],       // несколько пунктов разминки простым текстом
-  "exercises": [            // список упражнений
-    {
-      "name": string,       // название упражнения по-русски
-      "sets": number,       // количество подходов
-      "reps": string,       // формат повтора, например "5", "8-10"
-      "restSec": number,    // ориентировочный отдых между подходами в секундах
-      "weight": string,     // опционально: рабочий вес, если уместно
-      "targetMuscles": string[], // какие мышцы в фокусе
-      "cues": string        // короткая подсказка по технике, живым языком
-    }
+  "title": "...",
+  "duration": ${sessionMinutes},
+  "warmup": ["..."],
+  "exercises": [
+     {"name":"...","sets":3,"reps":"8-12","restSec":90,"weight":"...","targetMuscles":["..."],"cues":"..."}
   ],
-  "cooldown": string[],     // несколько пунктов заминки/растяжки
-  "notes": string           // короткое объяснение логики тренировки
+  "cooldown": ["..."],
+  "notes": "3-4 предложения, объясняющие логику"
 }
 
-Никакого текста вне этого JSON, только сам объект.
-`.trim();
+${FEW_SHOT_EXAMPLES}
+
+Будь творческим тренером, но следуй правилам безопасности.`.trim();
 }
 
 // ============================================================================
-// ROUTES: ГЕНЕРАЦИЯ/СТАТУС/СОХРАНЕНИЕ
+// ROUTE: ГЕНЕРАЦИЯ ТРЕНИРОВКИ
 // ============================================================================
 
 plan.post(
@@ -1013,7 +886,6 @@ plan.post(
     const tz = resolveTimezone(req);
     const force = Boolean(req.body?.force);
     const onboarding = await getOnboarding(userId);
-    const isAdmin = isAdminUser(userId);
 
     // Подписка / пробник
     await ensureSubscription(userId, "workout");
@@ -1021,100 +893,95 @@ plan.post(
     let existing = await getLatestWorkoutPlan(userId);
 
     // Лимиты по частоте
+    // 1) по фактическим сохранённым сессиям
     const todaySessions = await q<{ cnt: number }>(
-      SELECT COUNT(*)::int AS cnt
+      `SELECT COUNT(*)::int AS cnt
          FROM workouts
         WHERE user_id = $1
-          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date,
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
       [userId, tz]
     );
+    // 2) по сгенерированным планам (чтобы не кликали много до сохранения)
     const todayPlans = await q<{ cnt: number }>(
-      SELECT COUNT(*)::int AS cnt
+      `SELECT COUNT(*)::int AS cnt
          FROM workout_plans
         WHERE user_id = $1
-          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date,
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
       [userId, tz]
     );
 
-    if (!isAdmin) {
-      if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
-        const nextIso = await getNextDailyResetIso(tz);
-        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+    if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
+      const nextIso = await getNextDailyResetIso(tz);
+      const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
 
-        if (existing && existing.status !== "failed") {
-          const createdSameDay =
-            existing.created_at &&
-            dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
-          if (createdSameDay) {
-            throw new AppError(
-              "Вы уже сгенерировали тренировку. Чтобы получить следующую, завершите текущую и сохраните результат — так мы держим прогрессию под контролем.",
-              429,
-              {
-                code: "active_plan",
-                details: { reason: "active_plan", nextDateIso: nextIso, nextDateLabel: nextLabel },
-              }
-            );
-          }
+      if (existing && existing.status !== "failed") {
+        const createdSameDay =
+          existing.created_at &&
+          dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
+        if (createdSameDay) {
+          throw new AppError(
+            "Вы уже сгенерировали тренировку. Чтобы получить следующую, завершите текущую и сохраните результат — так мы поддерживаем прогрессию.",
+            429,
+            {
+              code: "active_plan",
+              details: { reason: "active_plan", nextDateIso: nextIso, nextDateLabel: nextLabel },
+            }
+          );
         }
-
-        throw new AppError(
-          "Новую тренировку можно будет сгенерировать завтра — телу тоже нужен разумный отдых.",
-          429,
-          {
-            code: "daily_limit",
-            details: { reason: "daily_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
-          }
-        );
       }
-    } else {
-      console.log("[WORKOUT] admin bypass daily limit for user", userId);
+
+      throw new AppError(
+        "Новую тренировку можно будет сгенерировать завтра — телу нужно восстановиться после нагрузки.",
+        429,
+        {
+          code: "daily_limit",
+          details: { reason: "daily_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
+        }
+      );
     }
 
     const lastSession = await getLastWorkoutSession(userId);
 
-    if (!isAdmin) {
-      if (lastSession) {
-        if (!lastSession.completed_at) {
-          throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
-        }
-        if (lastSession.unlock_used) {
-          throw new AppError("Следующая тренировка появится после выполнения текущей.", 403);
-        }
+    // Проверка валидности последней тренировки
+    if (lastSession) {
+      // если ещё не завершена — запрет
+      if (!lastSession.completed_at) {
+        throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
       }
-    } else {
-      console.log("[WORKOUT] admin bypass last-session checks for user", userId);
+      // если уже использована как ключ для следующей — запрет
+      if (lastSession.unlock_used) {
+        throw new AppError("Следующая тренировка появится после выполнения текущей.", 403);
+      }
     }
 
     // Недельный лимит по онбордингу (мягкий +1 запас)
-    if (!isAdmin && WEEKLY_WORKOUT_SOFT_LIMIT > 0) {
+    if (WEEKLY_WORKOUT_SOFT_LIMIT > 0) {
       const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
       const softCap = desiredDaysPerWeek + 1;
       const weeklySessions = await q<{ cnt: number }>(
-        SELECT COUNT(*)::int AS cnt
+        `SELECT COUNT(*)::int AS cnt
            FROM workouts
           WHERE user_id = $1
-            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2)),
+            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2))`,
         [userId, tz]
       );
-      if ((weeklySessions[0]?.cnt || 0) >= softCap) {
-        const nextIso = await getNextWeeklyResetIso(tz);
-        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
-        throw new AppError(
-          Вы достигли недельного лимита тренировок. Программа строится под выбранный ритм — сейчас это ${desiredDaysPerWeek} тренировки в неделю. Если хотите увеличить нагрузку, обновите настройки в анкете.,
-          429,
-          {
-            code: "weekly_limit",
-            details: {
-              reason: "weekly_limit",
-              nextDateIso: nextIso,
-              nextDateLabel: nextLabel,
-              weeklyTarget: desiredDaysPerWeek,
-            },
-          }
-        );
-      }
-    } else if (isAdmin) {
-      console.log("[WORKOUT] admin bypass weekly limit for user", userId);
+    if ((weeklySessions[0]?.cnt || 0) >= softCap) {
+      const nextIso = await getNextWeeklyResetIso(tz);
+      const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+      throw new AppError(
+        `Вы достигли недельного лимита тренировок. Программа строится под выбранный ритм — сейчас это ${desiredDaysPerWeek} тренировки в неделю. Если хотите увеличить нагрузку, обновите настройки в анкете.`,
+        429,
+        {
+          code: "weekly_limit",
+          details: {
+            reason: "weekly_limit",
+            nextDateIso: nextIso,
+            nextDateLabel: nextLabel,
+            weeklyTarget: desiredDaysPerWeek,
+          },
+        }
+      );
+    }
     }
 
     console.log("\n=== GENERATING WORKOUT (async) ===");
@@ -1173,145 +1040,107 @@ function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {
   }, 0);
 }
 
-// ============================================================================
-// ДВУХШАГОВАЯ ГЕНЕРАЦИЯ ТРЕНИРОВКИ (АНАЛИЗ + JSON)
-// ============================================================================
-
 async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
-  console.log([WORKOUT] ▶️ start two-step generation planId=${planId});
+  console.log(`[WORKOUT] ▶️ start async generation planId=${planId}`);
+  await setWorkoutPlanProgress(planId, "context", 15);
+
+  const onboarding = await getOnboarding(userId);
+  const sessionMinutes = resolveSessionLength(onboarding);
+  const profile = buildProfile(onboarding, sessionMinutes);
+  const program = await getOrCreateProgram(userId, onboarding);
+  const history = summarizeHistory(await getRecentSessions(userId, 10));
+  const constraints = buildConstraints(profile, history, program, sessionMinutes);
+
+  console.log(
+    `[WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
+      program.day_idx + 1
+    }`
+  );
+
+  await setWorkoutPlanProgress(planId, "prompt", 30);
+  const prompt = buildTrainerPrompt({
+    profile,
+    onboarding,
+    program,
+    constraints,
+    sessionMinutes,
+  });
+
+  if (process.env.DEBUG_AI === "1") {
+    console.log("\n=== WORKOUT PROMPT ===");
+    console.log(prompt.slice(0, 500) + "...\n");
+  }
+
+  await setWorkoutPlanProgress(planId, "ai", 55);
+  const tAi = Date.now();
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    temperature: TEMPERATURE,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: TRAINER_SYSTEM },
+      { role: "user", content: prompt },
+    ],
+  });
+  console.log(
+    `[WORKOUT] openai.chat ${Date.now() - tAi}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${completion.usage?.completion_tokens ?? "?"} total=${completion.usage?.total_tokens ?? "?"}`
+  );
+
+  let plan: WorkoutPlan;
   try {
-    await setWorkoutPlanProgress(planId, "context", 15);
-
-    const onboarding = await getOnboarding(userId);
-    const sessionMinutes = resolveSessionLength(onboarding);
-    const profile = buildProfile(onboarding, sessionMinutes);
-    const program = await getOrCreateProgram(userId, onboarding);
-    const history = summarizeHistory(await getRecentSessions(userId, 10));
-    const constraints = buildConstraints(profile, history);
-
-    console.log(
-      [WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
-        program.day_idx + 1
-      }, exp=${profile.experience}, goal=${profile.goals.join(", ")}
-    );
-
-    // ШАГ 1: "человеческий" анализ тренера
-    await setWorkoutPlanProgress(planId, "analysis", 35);
-    const analysisPrompt = buildAnalysisPrompt(profile, onboarding, constraints, sessionMinutes);
-
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== ANALYSIS PROMPT (first 600 chars) ===");
-      console.log(analysisPrompt.slice(0, 600) + "...\n");
-    }
-
-    const tAnalysis = Date.now();
-    const analysisCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 0.8, // больше свободы для рассуждений
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты опытный персональный тренер. Кратко анализируешь данные человека и формулируешь, какая тренировка ему логично подходит сегодня.",
-        },
-        { role: "user", content: analysisPrompt },
-      ],
-    });
-
-    const trainerThinking = analysisCompletion.choices[0].message.content || "";
-    console.log(
-      [WORKOUT] analysis done in ${Date.now() - tAnalysis}ms, thinking="${trainerThinking
-        .replace(/\s+/g, " ")
-        .slice(0, 200)}..."
-    );
-
-    // ШАГ 2: генерация JSON-плана на основе анализа
-    await setWorkoutPlanProgress(planId, "ai", 60);
-    const generationPrompt = buildGenerationPrompt(
-      profile,
-      onboarding,
-      constraints,
-      sessionMinutes,
-      trainerThinking
-    );
-
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== GENERATION PROMPT (first 600 chars) ===");
-      console.log(generationPrompt.slice(0, 600) + "...\n");
-    }
-
-    const tGen = Date.now();
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: TEMPERATURE, // пониже для стабильного JSON
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: TRAINER_SYSTEM },
-        { role: "user", content: generationPrompt },
-      ],
-    });
-    console.log(
-      [WORKOUT] openai.chat (generation) ${Date.now() - tGen}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${
-        completion.usage?.completion_tokens ?? "?"
-      } total=${completion.usage?.total_tokens ?? "?"}
-    );
-
-    let plan: WorkoutPlan;
-    try {
-      plan = JSON.parse(completion.choices[0].message.content || "{}");
-    } catch (err) {
-      console.error("Failed to parse AI plan JSON:", err);
-      console.error("Raw content:", completion.choices[0].message.content);
-      throw new AppError("AI вернул невалидный JSON", 500);
-    }
-
-    if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
-      console.error("Invalid plan structure (no exercises):", plan);
-      throw new AppError("AI сгенерировал некорректный план тренировки", 500);
-    }
-
-    await setWorkoutPlanProgress(planId, "validation", 80);
-
-    // нормализация + проверки через существующий валидатор
-    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
-    plan = validation.plan;
-
-    if (validation.warnings.length) {
-      console.warn("Plan warnings:", validation.warnings);
-    }
-
-    const analysis = {
-      trainerAnalysis: trainerThinking, // можно показывать как "мысль тренера"
-      historySummary: constraints.historySummary,
-      recovery: constraints.recovery.label,
-      hoursSinceLast: constraints.recovery.hoursSinceLast,
-      lastRpe: constraints.lastRpe,
-      plateau: constraints.plateau,
-      deloadSuggested: constraints.deloadSuggested,
-      weightNotes: constraints.weightNotes,
-      warnings: validation.warnings,
-    };
-
-    await markWorkoutPlanReady(planId, plan, analysis);
-    console.log([WORKOUT] ✅ plan ready ${planId});
-
-    // Помечаем предыдущую валидную сессию как использованную для разблокировки
-    const lastSession = await getLastWorkoutSession(userId);
-    if (lastSession?.completed_at && !lastSession.unlock_used) {
-      await q(UPDATE workouts SET unlock_used = true WHERE id = $1, [lastSession.id]);
-    }
+    plan = JSON.parse(completion.choices[0].message.content || "{}");
   } catch (err) {
-    console.error("Async workout generation failed:", err);
-    await markWorkoutPlanFailed(planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
-    throw err;
+    console.error("Failed to parse AI response:", err);
+    throw new AppError("AI returned invalid JSON", 500);
+  }
+
+  if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+    console.error("Invalid plan structure:", plan);
+    throw new AppError("AI generated invalid workout plan", 500);
+  }
+
+  for (const ex of plan.exercises) {
+    if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
+      console.error("Invalid exercise:", ex);
+      throw new AppError("AI generated exercise with missing fields", 500);
+    }
+  }
+
+  plan.duration = sessionMinutes;
+  await setWorkoutPlanProgress(planId, "validation", 80);
+
+  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+  plan = validation.plan;
+
+  if (validation.warnings.length) {
+    console.warn("Plan warnings:", validation.warnings);
+  }
+
+  const analysis = {
+    historySummary: constraints.historySummary,
+    recovery: constraints.recovery.label,
+    hoursSinceLast: constraints.recovery.hoursSinceLast,
+    lastRpe: constraints.lastRpe,
+    phase: constraints.phase.label,
+    phaseNotes: constraints.phase.notes,
+    plateau: constraints.plateau,
+    deloadSuggested: constraints.deloadSuggested,
+    volumeHint: constraints.volumeHint,
+    weightNotes: constraints.weightNotes,
+    warnings: validation.warnings,
+  };
+
+  await markWorkoutPlanReady(planId, plan, analysis);
+  console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+
+  // Помечаем предыдущую валидную сессию как использованную для разблокировки
+  const lastSession = await getLastWorkoutSession(userId);
+  if (lastSession?.completed_at && !lastSession.unlock_used) {
+    await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
   }
 }
 
-function validatePlanStructure(
-  plan: WorkoutPlan,
-  constraints: Constraints,
-  sessionMinutes: number
-): { plan: WorkoutPlan; warnings: string[] } {
+function validatePlanStructure(plan: WorkoutPlan, constraints: Constraints, sessionMinutes: number) {
   const normalized: WorkoutPlan = {
     title: plan.title || "Персональная тренировка",
     duration: sessionMinutes,
@@ -1325,9 +1154,7 @@ function validatePlanStructure(
 
   const minRequired = minExercisesForDuration(sessionMinutes);
   if (normalized.exercises.length < minRequired) {
-    warnings.push(
-      Мало упражнений (${normalized.exercises.length}) — ожидается хотя бы ${minRequired} для такой длительности.
-    );
+    warnings.push(`Мало упражнений (${normalized.exercises.length}) — нужно минимум ${minRequired}`);
   }
 
   normalized.exercises = normalized.exercises.map((ex) => {
@@ -1341,10 +1168,10 @@ function validatePlanStructure(
     const updated: Exercise = {
       name: ex.name || "Упражнение",
       sets: Math.min(5, Math.max(2, Number(ex.sets) || 3)),
-      reps: ex.reps || "8-12 повторов",
+      reps: ex.reps || constraints.phase.repScheme,
       restSec: Number(ex.restSec) || 90,
       targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles : [],
-      cues: ex.cues || "Следи за техникой и контролируй движение",
+      cues: ex.cues || "Держи технику и контролируй движение",
       weight: baseWeight,
     } as Exercise;
 
@@ -1353,15 +1180,13 @@ function validatePlanStructure(
     if (guard) {
       if (numericWeight == null) {
         updated.weight = formatWeight(guard.recommended) || undefined;
-        warnings.push(${updated.name}: добавлен рекомендуемый вес ${updated.weight});
+        warnings.push(`${updated.name}: добавил рекомендуемый вес ${updated.weight}`);
       } else if (numericWeight < guard.min) {
         updated.weight = formatWeight(guard.min) || undefined;
-        warnings.push(${updated.name}: поднят вес до безопасного минимума ${updated.weight});
+        warnings.push(`${updated.name}: поднял вес до безопасного минимума ${updated.weight}`);
       } else if (numericWeight > guard.max) {
         updated.weight = formatWeight(guard.max) || undefined;
-        warnings.push(
-          ${updated.name}: снижен вес до ${updated.weight}, чтобы не превышать разумный диапазон
-        );
+        warnings.push(`${updated.name}: снизил вес до ${updated.weight}, чтобы не превысить лимит`);
       }
     }
 
@@ -1369,10 +1194,10 @@ function validatePlanStructure(
   });
 
   if (!normalized.warmup.length) {
-    warnings.push("В плане нет разминки — добавь 3–5 простых пунктов разминки под мышцы дня.");
+    warnings.push("Добавь разминку из 3-5 простых пунктов");
   }
   if (!normalized.cooldown.length) {
-    warnings.push("В плане нет заминки — добавь несколько пунктов лёгкой растяжки/дыхания.");
+    warnings.push("Добавь заминку для восстановление");
   }
 
   return { plan: normalized, warnings };
@@ -1407,9 +1232,11 @@ plan.post(
     console.log("Exercises:", payload.exercises.length);
     console.log("Title:", payload.title);
 
-    await q("BEGIN");
+    // Сохраняем в транзакции
+    await q('BEGIN');
 
     try {
+      // 1. Сохраняем тренировку КАК ЕСТЬ (не модифицируем!)
       const nowIso = new Date();
       let startedAt: Date | null = null;
       let completedAt: Date | null = null;
@@ -1420,19 +1247,21 @@ plan.post(
         completedAt = new Date(startedAt.getTime() + durMin * 60000);
       } else {
         startedAt = nowIso;
+        // если не дали длительность — ставим минимально реалистичную
         completedAt = new Date(nowIso.getTime() + MIN_REAL_DURATION_MIN * 60000);
       }
 
       const result = await q(
-        INSERT INTO workout_sessions (user_id, payload, finished_at)
+        `INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
-         RETURNING id, finished_at,
+         RETURNING id, finished_at`,
         [userId, payload, completedAt]
       );
 
+      // дублируем в workouts таблицу ключевые поля
       await q(
-        INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false),
+        `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false)`,
         [userId, payload, payload, completedAt, startedAt, completedAt]
       );
 
@@ -1440,47 +1269,48 @@ plan.post(
 
       if (plannedWorkoutId) {
         await q(
-          UPDATE planned_workouts
+          `UPDATE planned_workouts
               SET status = 'completed',
                   result_session_id = $3,
                   updated_at = NOW()
-            WHERE id = $1 AND user_id = $2,
+            WHERE id = $1 AND user_id = $2`,
           [plannedWorkoutId, userId, result[0].id]
         );
         console.log("✓ Planned workout completed:", plannedWorkoutId);
       } else {
         const finishedAt: string = result[0].finished_at;
         await q(
-          INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id)
-           VALUES ($1, $2::jsonb, $3, 'completed', $4),
+          `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id)
+           VALUES ($1, $2::jsonb, $3, 'completed', $4)`,
           [userId, payload, finishedAt, result[0].id]
         );
         console.log("✓ Created completed planned workout entry");
       }
 
+      // 2. Двигаем программу на следующий день
       await q(
-        UPDATE training_programs
+        `UPDATE training_programs
          SET day_idx = (day_idx + 1) % microcycle_len,
              week = CASE 
                WHEN (day_idx + 1) % microcycle_len = 0 THEN week + 1 
                ELSE week 
              END,
              updated_at = NOW()
-         WHERE user_id = $1,
+         WHERE user_id = $1`,
         [userId]
       );
 
       console.log("✓ Program advanced");
 
-      await q("COMMIT");
+      await q('COMMIT');
 
       res.json({
         ok: true,
         sessionId: result[0].id,
-        finishedAt: result[0].finished_at,
+        finishedAt: result[0].finished_at
       });
     } catch (err) {
-      await q("ROLLBACK");
+      await q('ROLLBACK');
       console.error("Save failed:", err);
       throw err;
     }
@@ -1492,7 +1322,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "2.0-ai-first-user-style-two-step" });
+  res.json({ ok: true, version: "2.0-ai-first" });
 });
 
 export default plan;
