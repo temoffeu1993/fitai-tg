@@ -569,7 +569,7 @@ async function getOnboarding(userId: string): Promise<any> {
     `SELECT data
        FROM onboardings
       WHERE user_id = $1
-      ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLС LAST
+      ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
       LIMIT 1`,
     [userId]
   );
