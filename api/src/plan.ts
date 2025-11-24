@@ -10,6 +10,8 @@ import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
 import { ensureSubscription } from "./subscription.js";
+import { isUUID } from "./utils/validation.js";
+import { resolveTimezone, currentDateIsoInTz, dateIsoFromTimestamp, getNextDailyResetIso, formatDateLabel } from "./utils/timezone.js";
 
 export const plan = Router();
 
@@ -495,13 +497,41 @@ async function createWorkoutPlanShell(userId: string): Promise<any> {
   return rows[0];
 }
 
+async function getLastWorkoutSession(userId: string): Promise<any> {
+  const rows = await q(
+    `SELECT * FROM workouts 
+     WHERE user_id = $1 
+     ORDER BY created_at DESC 
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0];
+}
+
+async function getWorkoutPlanById(planId: string): Promise<any> {
+  const rows = await q(
+    `SELECT * FROM workout_plans WHERE id = $1`,
+    [planId]
+  );
+  return rows[0];
+}
+
 function ensureUser(req: any): string {
   if (!req.user?.id) throw new AppError("Unauthorized", 401);
   return req.user.id;
 }
 
-function isAdminUser(userId: string): boolean {
-  return config.adminUserIds?.includes(userId) || false;
+async function isAdminUser(userId: string): Promise<boolean> {
+  // Проверяем через переменные окружения
+  const adminIds = process.env.ADMIN_USER_IDS?.split(',') || [];
+  if (adminIds.includes(userId)) return true;
+  
+  // Альтернативно проверяем в БД
+  const rows = await q(
+    `SELECT is_admin FROM users WHERE id = $1`,
+    [userId]
+  );
+  return rows[0]?.is_admin || false;
 }
 
 // ============================================================================
@@ -512,15 +542,70 @@ plan.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
     const userId = ensureUser(req);
+    const tz = resolveTimezone(req);
     const force = Boolean(req.body?.force);
     
     // Проверка подписки
     await ensureSubscription(userId, "workout");
     
-    // Проверка лимитов (оставляем как есть)
-    const isAdmin = isAdminUser(userId);
+    // Проверка лимитов
+    const isAdmin = await isAdminUser(userId);
+    
     if (!isAdmin) {
-      // ... существующая логика проверки лимитов ...
+      // Проверяем дневной лимит
+      const todaySessions = await q<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt
+         FROM workouts
+         WHERE user_id = $1
+           AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+        [userId, tz]
+      );
+      
+      const todayPlans = await q<{ cnt: number }>(
+        `SELECT COUNT(*)::int AS cnt
+         FROM workout_plans
+         WHERE user_id = $1
+           AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+        [userId, tz]
+      );
+
+      if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || 
+          (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
+        const nextIso = await getNextDailyResetIso(tz);
+        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+        
+        throw new AppError(
+          "Новую тренировку можно будет сгенерировать завтра — телу тоже нужен разумный отдых.",
+          429,
+          {
+            code: "daily_limit",
+            details: { reason: "daily_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
+          }
+        );
+      }
+      
+      // Проверяем существующий активный план
+      const existing = await getLatestWorkoutPlan(userId);
+      if (existing && existing.status !== "failed" && !force) {
+        const createdSameDay = existing.created_at &&
+          dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
+          
+        if (createdSameDay) {
+          throw new AppError(
+            "Вы уже сгенерировали тренировку. Чтобы получить следующую, завершите текущую и сохраните результат.",
+            429,
+            { code: "active_plan" }
+          );
+        }
+      }
+      
+      // Проверяем последнюю сессию
+      const lastSession = await getLastWorkoutSession(userId);
+      if (lastSession) {
+        if (!lastSession.completed_at) {
+          throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
+        }
+      }
     }
     
     // Проверяем существующий план
@@ -564,16 +649,16 @@ plan.get(
     const userId = ensureUser(req);
     const { planId } = req.params;
     
-    const row = await q(
-      `SELECT * FROM workout_plans WHERE id = $1 AND user_id = $2`,
-      [planId, userId]
-    );
+    if (!isUUID(planId)) {
+      throw new AppError("Invalid plan id", 400);
+    }
     
-    if (!row[0]) {
+    const row = await getWorkoutPlanById(planId);
+    if (!row || row.user_id !== userId) {
       return res.status(404).json({ error: "workout_plan_not_found" });
     }
     
-    res.json(buildWorkoutPlanResponse(row[0]));
+    res.json(buildWorkoutPlanResponse(row));
   })
 );
 
