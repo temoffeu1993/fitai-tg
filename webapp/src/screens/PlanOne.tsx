@@ -32,7 +32,6 @@ export default function PlanOne() {
   const nav = useNavigate();
   const {
     plan,
-    plans,
     status: planStatus,
     error: planError,
     metaError,
@@ -57,7 +56,6 @@ export default function PlanOne() {
   const [regenNotice, setRegenNotice] = useState<string | null>(null);
   const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
   const [regenPending, setRegenPending] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(0);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -66,22 +64,13 @@ export default function PlanOne() {
   const today = useMemo(() => new Date(), []);
   const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
-  const currentPlan = useMemo(() => {
-    if (plans && plans.length) {
-      const safeIdx = Math.max(0, Math.min(activeIdx, plans.length - 1));
-      return plans[safeIdx];
-    }
-    return plan;
-  }, [plans, plan, activeIdx]);
-
   const chips = useMemo(() => {
-    if (!currentPlan) return null;
-    const sets = (currentPlan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
-    const minutes =
-      Number(currentPlan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
+    if (!plan) return null;
+    const sets = (plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
+    const minutes = Number(plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
     const kcal = Math.round(minutes * 6);
     return { sets, minutes, kcal };
-  }, [currentPlan]);
+  }, [plan]);
   const {
     progress: loaderProgress,
     startManual: kickProgress,
@@ -99,7 +88,7 @@ export default function PlanOne() {
 
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
-  const showLoader = loading || isProcessing || (!currentPlan && !error);
+  const showLoader = loading || isProcessing || (!plan && !error);
   const [paywall, setPaywall] = useState(false);
 
   useEffect(() => {
@@ -134,7 +123,6 @@ export default function PlanOne() {
     setRegenPending(true);
     setRegenNotice(null);
     try {
-      setActiveIdx(0);
       await refresh({ force: true, silent: true });
     } catch (err: any) {
       const status = err?.status;
@@ -161,7 +149,7 @@ export default function PlanOne() {
   };
 
   const handleScheduleConfirm = async () => {
-    if (!currentPlan) return;
+    if (!plan) return;
     if (!scheduleDate || !scheduleTime) {
       setScheduleError("Укажи дату и время");
       return;
@@ -175,11 +163,7 @@ export default function PlanOne() {
     try {
       setScheduleSaving(true);
       setScheduleError(null);
-      await createPlannedWorkout({
-        plan: currentPlan,
-        scheduledFor: when.toISOString(),
-        scheduledTime: scheduleTime,
-      });
+      await createPlannedWorkout({ plan, scheduledFor: when.toISOString(), scheduledTime: scheduleTime });
       setShowScheduleModal(false);
       try {
         window.dispatchEvent(new CustomEvent("schedule_updated"));
@@ -247,7 +231,7 @@ export default function PlanOne() {
     );
   }
 
-  if (!currentPlan) {
+  if (!plan) {
     return (
       <div style={s.page}>
         <SoftGlowStyles />
@@ -261,14 +245,9 @@ export default function PlanOne() {
 
   // вычисления для верхнего блока (кнопки и метрики)
   const workoutNumber = (() => {
-    try {
-      const history = loadHistory();
-      return history.length + 1;
-    } catch {
-      return 1;
-    }
+    try { const history = loadHistory(); return history.length + 1; } catch { return 1; }
   })();
-  const totalExercises = Array.isArray(currentPlan.exercises) ? currentPlan.exercises.length : 0;
+  const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
   const regenButtonDisabled = sub.locked || regenPending;
   const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
 
@@ -282,20 +261,7 @@ export default function PlanOne() {
         <div style={s.heroHeader}>
           <span style={s.pill}>{heroDateChip}</span>
         </div>
-        {plans && plans.length > 1 && (
-          <div style={s.blockTabs}>
-            {plans.map((_, idx) => (
-              <button
-                key={idx}
-                style={idx === activeIdx ? s.tabActive : s.tab}
-                onClick={() => setActiveIdx(idx)}
-              >
-                Тренировка {idx + 1}/{plans.length}
-              </button>
-            ))}
-          </div>
-        )}
-        <div style={s.heroTitle}>{currentPlan.title || "Тренировка дня"}</div>
+        <div style={s.heroTitle}>{plan.title || "Тренировка дня"}</div>
         <div style={s.heroSubtitle}>Краткое превью перед стартом</div>
 
         <div style={s.heroCtas}>
@@ -303,8 +269,8 @@ export default function PlanOne() {
             style={s.primaryBtn}
             onClick={() => {
               try {
-                localStorage.setItem("current_plan", JSON.stringify(currentPlan));
-                nav("/workout/session", { state: { plan: currentPlan } });
+                localStorage.setItem("current_plan", JSON.stringify(plan));
+                nav("/workout/session", { state: { plan } });
               } catch (err) {
                 console.error("open session error", err);
                 alert("Не удалось открыть тренировку");
@@ -352,7 +318,7 @@ export default function PlanOne() {
       )}
 
       {/* Разминка */}
-      {Array.isArray(currentPlan.warmup) && currentPlan.warmup.length > 0 && (
+      {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
         <SectionCard
           icon="🧘‍♀️"
           title="Разминка"
@@ -360,7 +326,7 @@ export default function PlanOne() {
           isOpen={openWarmup}
           onToggle={() => setOpenWarmup((v) => !v)}
         >
-          <ExercisesList items={currentPlan.warmup} variant="warmup" isOpen={openWarmup} />
+          <ExercisesList items={plan.warmup} variant="warmup" isOpen={openWarmup} />
         </SectionCard>
       )}
 
@@ -372,11 +338,11 @@ export default function PlanOne() {
         isOpen={openMain}
         onToggle={() => setOpenMain((v) => !v)}
       >
-        <ExercisesList items={currentPlan.exercises} variant="main" isOpen={openMain} />
+        <ExercisesList items={plan.exercises} variant="main" isOpen={openMain} />
       </SectionCard>
 
       {/* Заминка */}
-      {Array.isArray(currentPlan.cooldown) && currentPlan.cooldown.length > 0 && (
+      {Array.isArray(plan.cooldown) && plan.cooldown.length > 0 && (
         <SectionCard
           icon="🧘‍♂️"
           title="Заминка"
@@ -384,7 +350,7 @@ export default function PlanOne() {
           isOpen={openCooldown}
           onToggle={() => setOpenCooldown((v) => !v)}
         >
-          <ExercisesList items={currentPlan.cooldown} variant="cooldown" isOpen={openCooldown} />
+          <ExercisesList items={plan.cooldown} variant="cooldown" isOpen={openCooldown} />
         </SectionCard>
       )}
 
@@ -392,7 +358,7 @@ export default function PlanOne() {
 
       {showScheduleModal && (
         <ScheduleModal
-          title={currentPlan.title || "Тренировка"}
+          title={plan.title || "Тренировка"}
           date={scheduleDate}
           time={scheduleTime}
           loading={scheduleSaving}
@@ -405,7 +371,7 @@ export default function PlanOne() {
       )}
 
       {/* Комментарий тренера */}
-      {currentPlan.notes && (
+      {plan.notes && (
         <>
           {/* чат-панель над иконкой */}
           {showNotes && (
@@ -425,7 +391,7 @@ export default function PlanOne() {
                     ✕
                   </button>
                 </div>
-                <div style={notesStyles.chatBody}>{currentPlan.notes}</div>
+                <div style={notesStyles.chatBody}>{plan.notes}</div>
               </div>
             </div>
           )}
@@ -966,30 +932,6 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  blockTabs: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-  tab: {
-    padding: "8px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,.15)",
-    background: "rgba(255,255,255,.04)",
-    color: "#fff",
-    fontSize: 13,
-    cursor: "pointer",
-  },
-  tabActive: {
-    padding: "8px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,.35)",
-    background: "rgba(255,255,255,.12)",
-    color: "#fff",
-    fontSize: 13,
-    cursor: "pointer",
-  },
   pill: {
     background: "rgba(255,255,255,.08)",
     padding: "6px 10px",

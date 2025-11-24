@@ -1,7 +1,7 @@
 // plan-refactored.ts
 // ============================================================================
-// AI-FIRST FITNESS TRAINER - BLOCK GENERATION
-// Генерация блоков из 3 тренировок с прогрессией
+// AI-FIRST FITNESS TRAINER
+// Персональный тренер: одна сессия за раз, минимум жёстких правил
 // ============================================================================
 
 import { Router, Response } from "express";
@@ -18,6 +18,19 @@ const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 // ============================================================================
 // TYPES
 // ============================================================================
+
+type ProgramRow = {
+  id: string;
+  user_id: string;
+  blueprint_json: {
+    name: string;
+    days: string[];
+    description: string;
+  };
+  microcycle_len: number;
+  week: number;
+  day_idx: number;
+};
 
 type Exercise = {
   name: string;
@@ -52,17 +65,42 @@ type Profile = {
 };
 
 type HistoryExerciseSet = { reps?: number; weight?: number };
+type EffortTag = "easy" | "normal" | "hard";
 type HistoryExercise = {
   name: string;
   reps?: string | number;
   weight?: string | number | null;
   sets?: HistoryExerciseSet[];
+  targetMuscles?: string[];
+  effort?: EffortTag | null;
 };
 
 type HistorySession = {
   date: string;
   title?: string;
   exercises: HistoryExercise[];
+  volumeKg: number;
+  avgRpe?: number | null;
+};
+
+type WeightConstraint = {
+  min: number;
+  max: number;
+  recommended: number;
+  last: number;
+};
+
+type Constraints = {
+  weightGuards: Record<string, WeightConstraint>;
+  weightNotes: string[];
+  recovery: {
+    hoursSinceLast: number | null;
+    label: string;
+  };
+  lastRpe: number | null;
+  plateau: boolean;
+  deloadSuggested: boolean;
+  historySummary: string;
 };
 
 type PlanStatus = "processing" | "ready" | "failed";
@@ -78,14 +116,6 @@ type WorkoutPlanRow = {
   progress_percent: number | null;
   created_at: string;
   updated_at: string;
-  block_cycle?: number | null;
-  block_index?: number | null;
-};
-
-type BlockGenerationJob = {
-  userId: string;
-  blockCycle: number;
-  planIds: string[];
 };
 
 // ============================================================================
@@ -94,12 +124,16 @@ type BlockGenerationJob = {
 
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
 
-const TEMPERATURE_FREE = 0.9;
-const TEMPERATURE_JSON = 0.25;
+// Для генерации JSON-плана держим температуру пониже
+const TEMPERATURE = 0.5;
 
-const HISTORY_LIMIT = 6; // всегда берём 6 последних тренировок
+const HISTORY_LIMIT = 5;
+const MAX_EXERCISES = 10;
+const DAILY_WORKOUT_LIMIT = 1;
 const MIN_REAL_DURATION_MIN = 20;
+const WEEKLY_WORKOUT_SOFT_LIMIT = 1; // сверяем с онбордингом (+1 запас)
 const MOSCOW_TZ = "Europe/Moscow";
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 const ADMIN_IDS = new Set(
   (process.env.ADMIN_IDS || "")
@@ -154,12 +188,29 @@ const formatDateLabel = (date: Date, tz: string, opts?: Intl.DateTimeFormatOptio
     ...(opts || {}),
   }).format(date);
 
+const formatDateTimeLabel = (date: Date, tz: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    timeZone: tz,
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+
 async function getNextDailyResetIso(tz: string): Promise<string> {
   const rows = await q<{ boundary: string }>(
-    `SELECT ((date_trunc('day', (now() AT TIME ZONE $1)) + interval '1 day')) AT TIME ZONE 'UTC' AS boundary`,
+    SELECT ((date_trunc('day', (now() AT TIME ZONE $1)) + interval '1 day')) AT TIME ZONE 'UTC' AS boundary,
     [tz]
   );
   return rows[0]?.boundary ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function getNextWeeklyResetIso(tz: string): Promise<string> {
+  const rows = await q<{ boundary: string }>(
+    SELECT ((date_trunc('week', (now() AT TIME ZONE $1)) + interval '7 day')) AT TIME ZONE 'UTC' AS boundary,
+    [tz]
+  );
+  return rows[0]?.boundary ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
 const ensureUser = (req: any): string => {
@@ -167,24 +218,21 @@ const ensureUser = (req: any): string => {
   throw new AppError("Unauthorized", 401);
 };
 
+// Для валидации (AI про это не знает)
+function minExercisesForDuration(duration: number) {
+  if (duration >= 85) return 6;
+  if (duration >= 70) return 6;
+  if (duration >= 50) return 5;
+  return 5;
+}
+
 async function getLatestWorkoutPlan(userId: string): Promise<WorkoutPlanRow | null> {
   const rows = await q<WorkoutPlanRow>(
-    `SELECT id,
-            user_id,
-            status,
-            plan,
-            analysis,
-            error_info,
-            progress_stage,
-            progress_percent,
-            created_at,
-            updated_at,
-            block_cycle,
-            block_index
+    SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
        FROM workout_plans
       WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT 1`,
+      LIMIT 1,
     [userId]
   );
   return rows[0] || null;
@@ -192,75 +240,32 @@ async function getLatestWorkoutPlan(userId: string): Promise<WorkoutPlanRow | nu
 
 async function getWorkoutPlanById(planId: string): Promise<WorkoutPlanRow | null> {
   const rows = await q<WorkoutPlanRow>(
-    `SELECT id,
-            user_id,
-            status,
-            plan,
-            analysis,
-            error_info,
-            progress_stage,
-            progress_percent,
-            created_at,
-            updated_at,
-            block_cycle,
-            block_index
+    SELECT id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at
       FROM workout_plans
       WHERE id = $1
-      LIMIT 1`,
+      LIMIT 1,
     [planId]
   );
   return rows[0] || null;
 }
 
-async function getNextBlockCycle(userId: string): Promise<number> {
-  const rows = await q<{ max_cycle: number | null }>(
-    `SELECT MAX(block_cycle)::int AS max_cycle
-       FROM workout_plans
-      WHERE user_id = $1`,
+async function createWorkoutPlanShell(userId: string): Promise<WorkoutPlanRow> {
+  const rows = await q<WorkoutPlanRow>(
+    INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent)
+     VALUES ($1, 'processing', 'queued', 5)
+     RETURNING id, user_id, status, plan, analysis, error_info, progress_stage, progress_percent, created_at, updated_at,
     [userId]
   );
-  const current = rows[0]?.max_cycle ?? 0;
-  return current + 1;
-}
-
-async function createWorkoutPlanShells(
-  userId: string,
-  blockCycle: number,
-  count: number
-): Promise<WorkoutPlanRow[]> {
-  const shells: WorkoutPlanRow[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    const rows = await q<WorkoutPlanRow>(
-      `INSERT INTO workout_plans (user_id, status, progress_stage, progress_percent, block_cycle, block_index)
-       VALUES ($1, 'processing', 'queued', 5, $2, $3)
-       RETURNING id,
-                 user_id,
-                 status,
-                 plan,
-                 analysis,
-                 error_info,
-                 progress_stage,
-                 progress_percent,
-                 created_at,
-                 updated_at,
-                 block_cycle,
-                 block_index`,
-      [userId, blockCycle, i + 1]
-    );
-    shells.push(rows[0]);
-  }
-  
-  return shells;
+  return rows[0];
 }
 
 async function getLastWorkoutSession(userId: string) {
   const rows = await q(
-    `SELECT id, started_at, completed_at, unlock_used, created_at
+    SELECT id, started_at, completed_at, unlock_used, created_at
        FROM workouts
       WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT 1`,
+      LIMIT 1,
     [userId]
   );
   return rows[0];
@@ -268,30 +273,18 @@ async function getLastWorkoutSession(userId: string) {
 
 async function setWorkoutPlanProgress(planId: string, stage: string, percent: number | null) {
   await q(
-    `UPDATE workout_plans
+    UPDATE workout_plans
         SET progress_stage = $2,
             progress_percent = $3,
             updated_at = now()
-      WHERE id = $1`,
+      WHERE id = $1,
     [planId, stage, percent]
-  );
-}
-
-async function setBlockProgress(planIds: string[], stage: string, percent: number | null) {
-  if (!planIds.length) return;
-  await q(
-    `UPDATE workout_plans
-        SET progress_stage = $2,
-            progress_percent = $3,
-            updated_at = now()
-      WHERE id = ANY($1::uuid[])`,
-    [planIds, stage, percent]
   );
 }
 
 async function markWorkoutPlanReady(planId: string, plan: WorkoutPlan, analysis: any) {
   await q(
-    `UPDATE workout_plans
+    UPDATE workout_plans
         SET status = 'ready',
             plan = $2::jsonb,
             analysis = $3::jsonb,
@@ -299,22 +292,21 @@ async function markWorkoutPlanReady(planId: string, plan: WorkoutPlan, analysis:
             progress_stage = 'ready',
             progress_percent = 100,
             updated_at = now()
-      WHERE id = $1`,
+      WHERE id = $1,
     [planId, plan, analysis]
   );
 }
 
-async function markWorkoutPlansFailed(planIds: string[], message: string | null) {
-  if (!planIds.length) return;
+async function markWorkoutPlanFailed(planId: string, message: string | null) {
   await q(
-    `UPDATE workout_plans
+    UPDATE workout_plans
         SET status = 'failed',
             error_info = $2,
             progress_stage = 'failed',
             progress_percent = NULL,
             updated_at = now()
-      WHERE id = ANY($1::uuid[])`,
-    [planIds, message]
+      WHERE id = $1,
+    [planId, message]
   );
 }
 
@@ -329,8 +321,6 @@ function buildWorkoutPlanResponse(row: WorkoutPlanRow | null) {
         error: null,
         progress: null,
         progressStage: null,
-        blockCycle: null,
-        blockIndex: null,
       },
     };
   }
@@ -344,10 +334,16 @@ function buildWorkoutPlanResponse(row: WorkoutPlanRow | null) {
       error: row.error_info ?? null,
       progress: typeof row.progress_percent === "number" ? row.progress_percent : null,
       progressStage: row.progress_stage ?? null,
-      blockCycle: row.block_cycle ?? null,
-      blockIndex: row.block_index ?? null,
     },
   };
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 const numberFrom = (value: unknown): number | null => {
@@ -361,6 +357,48 @@ const numberFrom = (value: unknown): number | null => {
   }
   return null;
 };
+
+const formatWeight = (value: number | null | undefined): string | null => {
+  if (value == null || Number.isNaN(value)) return null;
+  return ${Number(value.toFixed(1))} кг;
+};
+
+function parseRepsRange(reps: string | number | undefined): { min: number; max: number } {
+  if (typeof reps === "number" && Number.isFinite(reps)) return { min: reps, max: reps };
+  if (typeof reps === "string") {
+    const match = reps.match(/(\d+)\s*[-–]\s*(\d+)/);
+    if (match) return { min: Number(match[1]), max: Number(match[2]) };
+    const single = reps.match(/(\d+)/);
+    if (single) {
+      const val = Number(single[1]);
+      return { min: val, max: val };
+    }
+  }
+  return { min: 8, max: 12 };
+}
+
+function averageSetStats(ex: HistoryExercise): { weight: number | null; reps: number | null } {
+  if (!Array.isArray(ex.sets) || ex.sets.length === 0) {
+    return { weight: numberFrom(ex.weight), reps: numberFrom(ex.reps) };
+  }
+  const reps = ex.sets.map((s) => numberFrom(s.reps)).filter((n): n is number => n != null);
+  const weights = ex.sets.map((s) => numberFrom(s.weight)).filter((n): n is number => n != null);
+  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+  return { weight: avg(weights), reps: avg(reps) };
+}
+
+function calcSessionVolume(session: HistorySession): number {
+  let total = 0;
+  for (const ex of session.exercises) {
+    const sub = (ex.sets || []).reduce((acc, set) => {
+      const reps = numberFrom(set.reps) ?? numberFrom(ex.reps) ?? 0;
+      const weight = numberFrom(set.weight) ?? numberFrom(ex.weight) ?? 0;
+      return acc + reps * weight;
+    }, 0);
+    total += sub;
+  }
+  return Number(total.toFixed(1));
+}
 
 function buildProfile(onboarding: any, minutesFallback: number): Profile {
   const sexRaw = (onboarding?.ageSex?.sex || "").toLowerCase();
@@ -390,69 +428,272 @@ function buildProfile(onboarding: any, minutesFallback: number): Profile {
 
 function summarizeHistory(rows: any[]): HistorySession[] {
   return rows.map((row) => ({
-    date: row.finished_at,
-    title: row.payload?.title,
-    exercises: (row.payload?.exercises || []).map((ex: any) => ({
-      name: ex.name,
-      reps: ex.reps,
-      weight: ex.weight,
-      sets: Array.isArray(ex.sets)
-        ? ex.sets.map((set: any) => ({
-            reps: numberFrom(set?.reps),
-            weight: numberFrom(set?.weight),
-          }))
-        : [],
-    })),
+    ...row,
+    volumeKg: calcSessionVolume(row),
+    avgRpe: numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
   }));
 }
 
-function formatHistorySimple(history: HistorySession[]): string {
-  if (!history.length) {
-    return "В истории тренировок пока ничего нет. Это первый блок из 3 тренировок.";
-  }
-
+function historyNarrative(history: HistorySession[]): string {
+  if (!history.length)
+    return "Это первая тренировка, я только начинаю — сделай осторожную, но осмысленную сессию.";
   return history
     .slice(0, HISTORY_LIMIT)
     .map((session, idx) => {
+      const when = idx === 0 ? "Последняя тренировка" : ${idx + 1}-я тренировка назад;
       const exercises = session.exercises
-        .slice(0, 5)
+        .slice(0, 3)
         .map((ex) => {
-          const sets = ex.sets || [];
-          if (sets.length > 0) {
-            const avgReps = sets.reduce((sum, s) => sum + (s.reps || 0), 0) / sets.length;
-            const avgWeight = sets.reduce((sum, s) => sum + (s.weight || 0), 0) / sets.length;
-            return `${ex.name} ${sets.length}х${Math.round(avgReps)} ${avgWeight > 0 ? avgWeight.toFixed(1) + "кг" : ""}`;
-          }
-          return `${ex.name} ${ex.reps || ""} ${ex.weight || ""}`;
+          const stats = averageSetStats(ex);
+          const repsRange = parseRepsRange(ex.reps);
+          const repsText = stats.reps ? ${Math.round(stats.reps)} повт. : ${repsRange.min}-${repsRange.max} повт.;
+          const weightText = stats.weight ? ${stats.weight.toFixed(1)} кг : "без веса или лёгкий вес";
+          return • ${ex.name}: ${repsText}, ${weightText};
         })
-        .join(", ");
-
-      const dateStr = new Date(session.date).toLocaleDateString("ru-RU");
-      return `Тренировка ${idx + 1} (${dateStr}): ${exercises}`;
+        .join("\n");
+      const metaParts: string[] = [];
+      if (session.avgRpe) metaParts.push(RPE ${session.avgRpe});
+      if (session.volumeKg) metaParts.push(объём ~${Math.round(session.volumeKg)} кг);
+      const meta = metaParts.length ?  — ${metaParts.join(", ")} : "";
+      return ${when} (${new Date(session.date).toLocaleDateString("ru-RU")})${meta}:\n${exercises};
     })
-    .join("\n");
+    .join("\n\n");
 }
 
-function describeEquipment(onboarding: any): string {
-  const env = onboarding.environment || {};
-  if (env.bodyweightOnly === true) {
-    return "тренируюсь только с весом собственного тела";
+function hoursDiffFrom(dateISO?: string): number | null {
+  if (!dateISO) return null;
+  const ts = new Date(dateISO).getTime();
+  if (Number.isNaN(ts)) return null;
+  const diffMs = Date.now() - ts;
+  return Math.max(0, Math.round(diffMs / 36e5));
+}
+
+function describeRecovery(hours: number | null, rpe: number | null): string {
+  let base: string;
+  if (hours == null) {
+    base = "нет точных данных по отдыху";
+  } else if (hours < 36) {
+    base = "прошло не так много времени после прошлой тренировки — не перегружай чрезмерно";
+  } else if (hours < 72) {
+    base = "по времени восстановления всё примерно оптимально";
+  } else {
+    base = "отдых был довольно долгим — можно немного усилить нагрузку, если чувствуешь себя нормально";
   }
 
-  const location = (env.location || "").toLowerCase();
-  if (location === "gym" || location.includes("зал")) {
-    return "занимаюсь в полноценном тренажёрном зале со свободными весами и тренажёрами";
+  if (rpe != null) {
+    if (rpe >= 9) return ${base}. Прошлая тренировка была очень тяжёлой (RPE ${rpe}).;
+    if (rpe <= 6) return ${base}. Прошлая тренировка ощущалась относительно лёгкой (RPE ${rpe}).;
+    return ${base}. RPE прошлой тренировки: ${rpe}.;
   }
 
-  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
-    return "занимаюсь на уличной площадке с турником и брусьями";
+  return base;
+}
+
+// ============================================================================
+// НОВЫЕ ХЕЛПЕРЫ ДЛЯ "ДУМАНИЯ" ТРЕНЕРА
+// ============================================================================
+
+function formatUserDataShort(
+  profile: Profile,
+  onboarding: any,
+  sessionMinutes: number
+): string {
+  const parts: string[] = [];
+
+  if (profile.sex !== "unknown") {
+    parts.push(profile.sex === "male" ? "Мужчина" : "Женщина");
+  }
+  if (profile.age) parts.push(${profile.age} лет);
+  if (profile.height && profile.weight) {
+    parts.push(${profile.height} см, ${profile.weight} кг);
   }
 
-  if (location === "home" || location.includes("дом")) {
-    return "занимаюсь дома с минимальным оборудованием";
+  const userData = parts.length ? parts.join(", ") : "данные частично не указаны";
+
+  const expMap: Record<Profile["experience"], string> = {
+    beginner: "новичок",
+    intermediate: "средний уровень",
+    advanced: "продвинутый",
+  };
+  const experience = expMap[profile.experience] || "средний уровень";
+
+  const goals = profile.goals?.length ? profile.goals.join(", ") : "поддержание формы";
+  const equipment = describeEquipment(onboarding);
+
+  return 
+${userData}
+Опыт: ${experience}
+Цель: ${goals}
+Тренировок в неделю: ${profile.daysPerWeek}
+Длительность одной сессии: примерно ${sessionMinutes} минут
+Оборудование / условия: ${equipment}
+.trim();
+}
+
+function buildAnalysisPrompt(
+  profile: Profile,
+  onboarding: any,
+  constraints: Constraints,
+  sessionMinutes: number
+): string {
+  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
+
+  const historyContext = constraints.historySummary
+    ? \n\nКраткая история последних тренировок (для контекста, не как жёсткий план):\n${constraints.historySummary}
+    : "\n\nЭто первая тренировка, истории ещё нет.";
+
+  const recoveryLine = constraints.recovery.label;
+
+  return `
+Мне нужна рекомендация по тренировке на сегодня.
+
+Мои данные:
+${userData}
+
+Восстановление и ощущения:
+${recoveryLine}
+
+${historyContext}
+
+Ответь кратко, 3–5 предложений:
+1) Какой тип тренировки логично сделать сегодня (фулбоди, верх, низ, сплит и т.п.)?
+2) Какие основные группы мышц имеет смысл нагрузить?
+3) Какая примерная структура и интенсивность (диапазоны повторов, отдых, ориентир по объёму) будет оптимальной?
+4) Если есть риски перегруза или нужен делoad — упомяни это.
+`.trim();
+}
+
+function buildGenerationPrompt(
+  profile: Profile,
+  onboarding: any,
+  constraints: Constraints,
+  sessionMinutes: number,
+  trainerThinking: string
+): string {
+  const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
+
+  const weightsContext =
+    constraints.weightNotes.length > 0
+      ? Рабочие веса из недавних тренировок (ориентиры, а не жёсткие правила):\n${constraints.weightNotes
+          .slice(0, 5)
+          .join("\n")}\n
+      : "Точных ориентиров по рабочим весам нет — веса нужно подобрать с запасом по ощущениям.\n";
+
+  return `
+Данные пользователя:
+${userData}
+
+${weightsContext}
+
+Краткая рекомендация тренера (анализ на предыдущем шаге):
+"${trainerThinking}"
+
+На основе этих данных составь ОДНУ следующую тренировку "на сегодня" в формате JSON:
+
+{
+  "title": "Название тренировки (2–6 слов)",
+  "duration": ${sessionMinutes},
+  "warmup": [
+    "Короткий пункт разминки 1",
+    "Короткий пункт разминки 2"
+  ],
+  "exercises": [
+    {
+      "name": "Название упражнения",
+      "sets": 3,
+      "reps": "8-10",
+      "restSec": 90,
+      "weight": "рабочий вес в кг или описание",
+      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
+      "cues": "очень короткая подсказка по технике"
+    }
+  ],
+  "cooldown": [
+    "Короткий пункт заминки 1",
+    "Короткий пункт заминки 2"
+  ],
+  "notes": "1–3 предложения: зачем такая структура и как её чувствовать по нагрузке"
+}
+
+Требования:
+- Тренировка должна быть реалистичной по ощущениям на ~${sessionMinutes} минут.
+- Количество упражнений: обычно 5–8, но можно чуть меньше или больше, если это логично под пользователя.
+- Структура и акценты должны следовать рекомендациям из анализа выше.
+- Если по анализу нужен более лёгкий день или делoad — заложи это в объём и интенсивность.
+
+Верни СТРОГО один JSON-объект по этой схеме, без markdown-блоков и лишнего текста.
+`.trim();
+}
+
+function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightConstraint | null {
+  const stats = averageSetStats(ex);
+  if (!stats.weight) return null;
+  const repsRange = parseRepsRange(ex.reps);
+  const reps = stats.reps ?? repsRange.min;
+  const increment = stats.weight < 20 ? 1 : stats.weight < 50 ? 2.5 : stats.weight < 100 ? 5 : 7.5;
+  let recommended = stats.weight;
+  if (reps >= repsRange.max) {
+    recommended = stats.weight + increment;
+  } else if (reps < repsRange.min) {
+    recommended = Math.max(5, stats.weight - increment);
+  }
+  if (ex.effort === "easy") {
+    recommended = stats.weight + increment;
+  } else if (ex.effort === "hard") {
+    recommended = Math.max(5, stats.weight - increment);
+  }
+  const min = stats.weight * 0.95;
+  const max = stats.weight * 1.08;
+  const bodyCap = profile.weight ? profile.weight * 2 : 999;
+  return {
+    min: Number(Math.max(0, Math.min(min, bodyCap)).toFixed(1)),
+    max: Number(Math.min(max, bodyCap).toFixed(1)),
+    recommended: Number(Math.min(recommended, bodyCap).toFixed(1)),
+    last: Number(stats.weight.toFixed(1)),
+  };
+}
+
+function buildConstraints(profile: Profile, history: HistorySession[]): Constraints {
+  const historySummary = historyNarrative(history);
+  const weightGuards: Record<string, WeightConstraint> = {};
+  const weightNotes: string[] = [];
+
+  for (const session of history.slice(0, 3)) {
+    for (const ex of session.exercises.slice(0, 3)) {
+      const suggestion = nextWeightSuggestion(ex, profile);
+      if (!suggestion) continue;
+      const key = slugify(ex.name);
+      if (weightGuards[key]) continue;
+      weightGuards[key] = suggestion;
+      weightNotes.push(
+        ${ex.name}: в прошлый раз ~${suggestion.last} кг, комфортный коридор примерно ${suggestion.min}–${suggestion.max} кг
+      );
+      if (weightNotes.length >= 5) break;
+    }
+    if (weightNotes.length >= 5) break;
   }
 
-  return "занимаюсь с доступным оборудованием";
+  const volumes = history.map((s) => s.volumeKg).filter((v) => v > 0);
+  const avgVolume = volumes.length ? volumes.reduce((a, b) => a + b, 0) / volumes.length : 0;
+  const plateau =
+    volumes.length >= 3 && volumes.every((v) => Math.abs(v - avgVolume) / (avgVolume || 1) < 0.05);
+  const hoursSinceLast = hoursDiffFrom(history[0]?.date);
+  const lastRpe = history[0]?.avgRpe ?? null;
+  const deloadSuggested =
+    (plateau && history.length >= 4) || ((lastRpe ?? 0) >= 9 && (hoursSinceLast ?? 999) < 72);
+
+  return {
+    weightGuards,
+    weightNotes,
+    recovery: {
+      hoursSinceLast,
+      label: describeRecovery(hoursSinceLast, lastRpe),
+    },
+    lastRpe,
+    plateau,
+    deloadSuggested,
+    historySummary,
+  };
 }
 
 // ============================================================================
@@ -461,11 +702,11 @@ function describeEquipment(onboarding: any): string {
 
 async function getOnboarding(userId: string): Promise<any> {
   const rows = await q(
-    `SELECT data
+    SELECT data
        FROM onboardings
       WHERE user_id = $1
       ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
-      LIMIT 1`,
+      LIMIT 1,
     [userId]
   );
   return rows[0]?.data || {};
@@ -509,277 +750,260 @@ function parseDuration(value: unknown): number | null {
   return null;
 }
 
-async function getRecentSessions(userId: string, limit = 10): Promise<any[]> {
+async function getOrCreateProgram(userId: string, onboarding: any): Promise<ProgramRow> {
+  const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
+  const desiredBlueprint = createBlueprint(desiredDaysPerWeek);
+
+  const existing = await q<ProgramRow>(
+    SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1,
+    [userId]
+  );
+
+  if (existing && existing[0]) {
+    const stored = existing[0];
+    const storedDays = stored.blueprint_json?.days || [];
+    const desiredDays = desiredBlueprint.days;
+    const sameBlueprint =
+      Array.isArray(storedDays) &&
+      storedDays.length === desiredDays.length &&
+      storedDays.every((day: string, idx: number) => day === desiredDays[idx]);
+
+    if (!sameBlueprint) {
+      const updated = await q<ProgramRow>(
+        UPDATE training_programs
+            SET blueprint_json = $2,
+                microcycle_len = $3,
+                day_idx = 0,
+                week = 1,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *,
+        [stored.id, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
+      );
+      return updated[0];
+    }
+
+    return stored;
+  }
+
+  const result = await q<ProgramRow>(
+    INSERT INTO training_programs (user_id, blueprint_json, microcycle_len, week, day_idx)
+     VALUES ($1, $2, $3, 1, 0)
+     RETURNING *,
+    [userId, JSON.stringify(desiredBlueprint), desiredBlueprint.days.length]
+  );
+
+  return result[0];
+}
+
+async function getRecentSessions(userId: string, limit = 10): Promise<HistorySession[]> {
   const rows = await q<any>(
-    `SELECT finished_at, payload
+    SELECT finished_at, payload
        FROM workout_sessions
       WHERE user_id = $1
       ORDER BY finished_at DESC
-      LIMIT $2`,
+      LIMIT $2,
     [userId, limit]
   );
 
-  return rows;
+  return rows.map((row) => ({
+    date: row.finished_at,
+    title: row.payload?.title,
+    exercises: (row.payload?.exercises || []).map((ex: any) => ({
+      name: ex.name,
+      reps: ex.reps,
+      weight: ex.weight,
+      targetMuscles: ex.targetMuscles,
+      effort: typeof ex.effort === "string" ? ex.effort : null,
+      sets: Array.isArray(ex.sets)
+        ? ex.sets.map((set: any) => ({
+            reps: numberFrom(set?.reps),
+            weight: numberFrom(set?.weight),
+          }))
+        : [],
+    })),
+    volumeKg: 0,
+  }));
 }
 
 // ============================================================================
-// ПРОМПТЫ ДЛЯ ГЕНЕРАЦИИ БЛОКА
+// BLUEPRINT CREATION (минимально нейтральная логика)
 // ============================================================================
 
-function buildBlockPrompt(params: {
+function createBlueprint(daysPerWeek: number) {
+  const n = Math.max(1, daysPerWeek || 3);
+  return {
+    name: "Гибкая персональная программа",
+    days: Array.from({ length: n }, (_, i) => День ${i + 1}),
+    description:
+      "Без жёсткого фиксированного сплита — тренер сам решает структуру каждой тренировки под пользователя.",
+  };
+}
+
+// ============================================================================
+// AI TRAINER PROMPTS
+// ============================================================================
+
+// Системный промпт — роль тренера и схема ответа
+const TRAINER_SYSTEM = `
+Ты — опытный персональный фитнес-тренер.
+Ты умеешь работать с любыми целями (набор массы, похудение, поддержание формы, здоровье),
+с разным опытом (от новичка до продвинутого) и в любых условиях (зал, дом, улица).
+
+Твоя задача — на основе описания человека и его недавней истории
+составить одну следующую тренировку "на сегодня".
+
+Формат финального ответа (JSON-объект):
+{
+  "title": string,
+  "duration": number,
+  "warmup": string[],
+  "exercises": [{
+    "name": string,
+    "sets": number,
+    "reps": string,
+    "restSec": number,
+    "weight": string,
+    "targetMuscles": string[],
+    "cues": string
+  }],
+  "cooldown": string[],
+  "notes": string
+}
+`.trim();
+
+function describeEquipment(onboarding: any) {
+  const env = onboarding.environment || {};
+  if (env.bodyweightOnly === true) {
+    return "тренируюсь только с весом собственного тела, без штанги и без больших тренажёров. Если предлагаешь упражнения со штангой/машинами — предложи вариант с собственным весом или резинками.";
+  }
+
+  const location = (env.location || "").toLowerCase();
+  if (location === "gym" || location.includes("зал")) {
+    return "занимаюсь в полноценном тренажёрном зале: свободные веса (гантели, штанги), стойки, блочные тренажёры, кроссовер, тренажёры для ног, скамьи и базовое кардиооборудование.";
+  }
+
+  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
+    return "занимаюсь на уличной площадке: турник, брусья, возможно петли/TRX и резинки. Нет полноценных тренажёров и штанги.";
+  }
+
+  if (location === "home" || location.includes("дом")) {
+    return "занимаюсь дома: коврик, свободное пространство, стул/скамья, возможно лёгкие гантели или резинки. Нет больших тренажёров.";
+  }
+
+  return "условия средние: можно делать упражнения с собственным весом, с гантелями/резинками и подручным инвентарём, но без полноценных крупных тренажёров.";
+}
+
+// Старый промпт можно оставить, но он больше не используется напрямую
+function buildTrainerPrompt(params: {
   profile: Profile;
   onboarding: any;
-  historyText: string;
+  program: ProgramRow;
+  constraints: Constraints;
   sessionMinutes: number;
 }): string {
-  const { profile, onboarding, historyText, sessionMinutes } = params;
+  const { profile, onboarding, program, constraints, sessionMinutes } = params;
+  const blueprint = program.blueprint_json;
 
-  const sexText = profile.sex === "male" ? "мужчина" : profile.sex === "female" ? "женщина" : "";
-  const ageText = profile.age ? `${profile.age} лет` : "";
-  const bodyText =
-    profile.height && profile.weight ? `рост ${profile.height} см вес ${profile.weight} кг` : "";
+  const sexStr =
+    profile.sex === "female" ? "женщина" : profile.sex === "male" ? "мужчина" : "пол не указан";
+  const expStr =
+    profile.experience === "beginner"
+      ? "новичок"
+      : profile.experience === "advanced"
+      ? "продвинутый"
+      : "средний уровень";
 
-  const expMap: Record<Profile["experience"], string> = {
-    beginner: "новичок",
-    intermediate: "средний уровень",
-    advanced: "продвинутый",
-  };
-  const experience = expMap[profile.experience] || "средний уровень";
+  const goalsText =
+    profile.goals && profile.goals.length
+      ? profile.goals.map((g) => - ${g}).join("\n")
+      : "- поддерживать форму";
 
-  const goals = profile.goals?.length ? profile.goals.join(", ") : "поддержание формы";
-  const equipment = describeEquipment(onboarding);
+  const weightGuidanceBlock =
+    constraints.weightNotes.length > 0
+      ? Вот что я помню по рабочим весам из последних тренировок (ориентиры, а не жёсткие правила):
+${constraints.weightNotes.map((x) => - ${x}).join("\n")}
+      : "По рабочим весам у меня нет точных ориентиров — подбери адекватный стартовый вес с запасом по ощущениям.";
+
+  const deloadLine = constraints.deloadSuggested
+    ? "Если по твоему опыту нагрузка выглядит слишком высокой, можешь сделать эту тренировку чуть легче (меньше подходов или чуть ниже веса)."
+    : "Если по твоему опыту можно слегка усилить нагрузку — сделай это аккуратно, без резких скачков.";
+
+  const historyBlock = constraints.historySummary;
+  const recoveryLine = constraints.recovery.label;
+
+  const programLine = Сейчас это ${program.week}-я неделя моей программы и ${program.day_idx + 1}-я тренировка в этой неделе. Это просто ориентир по хронологии, а не жёсткий шаблон по мышечным группам.;
 
   return `
-Сгенерируй 3 тренировки для ${sexText} ${ageText} ${bodyText}, цель: ${goals}, опыт: ${experience}, готов тренироваться ${profile.daysPerWeek} раза в неделю по ${sessionMinutes} минут. ${equipment}.
+Привет. Мне нужна персональная тренировка.
 
-${historyText}
+Вот кто я:
+- ${sexStr}, возраст: ${profile.age ?? "не указал"}
+- рост: ${profile.height ?? "не указал"} см, вес: ${profile.weight ?? "не указал"} кг
+- опыт тренировок: ${expStr}
+- цель(цели):
+${goalsText}
+
+Как я обычно тренируюсь:
+- планирую ${profile.daysPerWeek} тренировок в неделю
+- на одну тренировку у меня есть примерно ${sessionMinutes} минут
+- условия и инвентарь: ${describeEquipment(onboarding)}
+
+Немного про текущую логику программы:
+${programLine}
+
+Как я восстанавливаюсь и как ощущалась нагрузка:
+- восстановление по времени и ощущениям: ${recoveryLine}
+- по суммарной нагрузке и объёму: ${
+    constraints.plateau
+      ? "последние тренировки были плюс-минус на одном уровне по объёму, особого скачка нет."
+      : "объём и нагрузка меняются, сильного застоя не чувствую."
+  }
+
+Моя недавняя история тренировок (для контекста, не как жёсткий шаблон):
+${historyBlock}
+
+${weightGuidanceBlock}
+
+Дополнительные пожелания:
+- время этой тренировки: примерно ${sessionMinutes} минут, чтобы по ощущениям всё укладывалось в одну нормальную сессию;
+- тренировка должна быть реалистичной для живого человека с моими данными;
+- не обязательно жёстко держаться за прошлые упражнения: можно повторять базу, но чуть менять вариации или акценты;
+- важнее, чтобы тренировка была осмысленной и помогала прогрессировать постепенно, а не "убивала" на один раз.
+
+${deloadLine}
+
+Пожалуйста, составь ОДНУ следующую тренировку "на сегодня" специально под меня.
+Не программу на несколько недель, а одну сессию.
 
 Формат ответа:
-Напиши текстом, как в обычном чате. Я хочу увидеть чётко разделённые блоки:
-
-Тренировка 1
-Название: ...
-Разминка:
-- ...
-Основная часть:
-1) Упражнение (подходы х повторения, отдых, вес)
-2) ...
-Заминка:
-- ...
-Краткий комментарий.
-
-Тренировка 2
-...
-
-Тренировка 3
-...
-
-Важно:
-- Учитывай мой пол, возраст, цель, опыт и оборудование
-- Каждая тренировка примерно ${sessionMinutes} минут
-- Если есть история тренировок, делай прогрессию по весам и повторениям
-- Структуру и упражнения выбираешь сам
-`.trim();
-}
-
-function buildBlockJsonConversionPrompt(freeTextBlock: string, sessionMinutes: number): string {
-  return `
-Ниже дан текстовый план из 3 тренировок.
-
-ТВОЯ ЗАДАЧА:
-Извлечь тренировки и вернуть один JSON-объект:
+Верни один JSON-объект со структурой:
 
 {
-  "workouts": [
+  "title": string,          // название тренировки
+  "duration": number,       // ожидаемая длительность в минутах (ориентируйся на ~${sessionMinutes})
+  "warmup": string[],       // несколько пунктов разминки простым текстом
+  "exercises": [            // список упражнений
     {
-      "title": "Название тренировки",
-      "duration": ${sessionMinutes},
-      "warmup": ["Пункт разминки 1", "Пункт разминки 2"],
-      "exercises": [
-        {
-          "name": "Название упражнения",
-          "sets": 3,
-          "reps": "8-10",
-          "restSec": 90,
-          "weight": "текстовое описание веса",
-          "targetMuscles": ["Мышца 1", "Мышца 2"],
-          "cues": "короткая подсказка по технике"
-        }
-      ],
-      "cooldown": ["Пункт заминки 1"],
-      "notes": "краткий комментарий"
+      "name": string,       // название упражнения по-русски
+      "sets": number,       // количество подходов
+      "reps": string,       // формат повтора, например "5", "8-10"
+      "restSec": number,    // ориентировочный отдых между подходами в секундах
+      "weight": string,     // опционально: рабочий вес, если уместно
+      "targetMuscles": string[], // какие мышцы в фокусе
+      "cues": string        // короткая подсказка по технике, живым языком
     }
-  ]
+  ],
+  "cooldown": string[],     // несколько пунктов заминки/растяжки
+  "notes": string           // короткое объяснение логики тренировки
 }
 
-Исходный текст:
-
-"""
-${freeTextBlock}
-"""
-
-Требования:
-- Основа — этот текст, не придумывай другие тренировки
-- Распознай границы между тренировками
-- Если полей нет, заполни по смыслу
-- Верни СТРОГО один JSON-объект, без markdown и комментариев
+Никакого текста вне этого JSON, только сам объект.
 `.trim();
 }
 
 // ============================================================================
-// ГЕНЕРАЦИЯ БЛОКА (ASYNC)
-// ============================================================================
-
-async function generateWorkoutBlock(job: BlockGenerationJob) {
-  const { userId, blockCycle, planIds } = job;
-  console.log(`[WORKOUT BLOCK] ▶️ start generation user=${userId} cycle=${blockCycle}`);
-
-  try {
-    await setBlockProgress(planIds, "context", 15);
-
-    const onboarding = await getOnboarding(userId);
-    const sessionMinutes = resolveSessionLength(onboarding);
-    const profile = buildProfile(onboarding, sessionMinutes);
-    const historyRows = await getRecentSessions(userId, HISTORY_LIMIT);
-    const history = summarizeHistory(historyRows);
-    const historyText = formatHistorySimple(history);
-
-    console.log(
-      `[WORKOUT BLOCK] context user=${userId} exp=${profile.experience} goals=${profile.goals.join(", ")} history=${history.length} sessions`
-    );
-
-    // ШАГ 1: свободный текст
-    await setBlockProgress(planIds, "analysis", 35);
-    const freeFormPrompt = buildBlockPrompt({
-      profile,
-      onboarding,
-      historyText,
-      sessionMinutes,
-    });
-
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== BLOCK FREE-FORM PROMPT ===");
-      console.log(freeFormPrompt.slice(0, 800) + "...\n");
-    }
-
-    const tFree = Date.now();
-    const freeCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: TEMPERATURE_FREE,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты персональный фитнес-тренер. Пишешь живым текстом, как в чате. Структуру и упражнения выбираешь сам на основе данных пользователя.",
-        },
-        { role: "user", content: freeFormPrompt },
-      ],
-    });
-
-    const freeTextBlock = freeCompletion.choices[0].message.content || "";
-    console.log(
-      `[WORKOUT BLOCK] free-form done in ${Date.now() - tFree}ms, tokens: ${
-        freeCompletion.usage?.total_tokens ?? "?"
-      }`
-    );
-
-    // ШАГ 2: конвертация в JSON
-    await setBlockProgress(planIds, "ai", 60);
-    const jsonPrompt = buildBlockJsonConversionPrompt(freeTextBlock, sessionMinutes);
-
-    if (process.env.DEBUG_AI === "1") {
-      console.log("\n=== BLOCK JSON CONVERSION PROMPT ===");
-      console.log(jsonPrompt.slice(0, 800) + "...\n");
-    }
-
-    const tGen = Date.now();
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: TEMPERATURE_JSON,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты помощник, который конвертирует текстовый план тренировок в строгий JSON без изменения смысла.",
-        },
-        { role: "user", content: jsonPrompt },
-      ],
-    });
-
-    console.log(
-      `[WORKOUT BLOCK] json conversion done in ${Date.now() - tGen}ms, tokens: ${
-        completion.usage?.total_tokens ?? "?"
-      }`
-    );
-
-    let parsed: { workouts: WorkoutPlan[] };
-    try {
-      parsed = JSON.parse(completion.choices[0].message.content || "{}");
-    } catch (err) {
-      console.error("Failed to parse AI block JSON:", err);
-      throw new AppError("AI вернул невалидный JSON", 500);
-    }
-
-    const workouts = Array.isArray(parsed.workouts) ? parsed.workouts : [];
-    if (workouts.length !== 3) {
-      console.error("Block JSON has wrong number of workouts:", workouts.length);
-      throw new AppError("AI сгенерировал неверное количество тренировок", 500);
-    }
-
-    await setBlockProgress(planIds, "validation", 80);
-
-    // Сохраняем каждую тренировку
-    for (let i = 0; i < workouts.length; i++) {
-      const plan = normalizeWorkoutPlan(workouts[i], sessionMinutes);
-      const analysis = {
-        freeTextBlock,
-        historyCount: history.length,
-      };
-
-      await markWorkoutPlanReady(planIds[i], plan, analysis);
-    }
-
-    console.log(`[WORKOUT BLOCK] ✅ block ready user=${userId} cycle=${blockCycle}`);
-  } catch (err) {
-    console.error("Block generation failed:", err);
-    await markWorkoutPlansFailed(planIds, (err as any)?.message?.slice(0, 500) ?? "AI error");
-    throw err;
-  }
-}
-
-function normalizeWorkoutPlan(plan: WorkoutPlan, sessionMinutes: number): WorkoutPlan {
-  return {
-    title: plan.title || "Персональная тренировка",
-    duration: plan.duration || sessionMinutes || 60,
-    warmup: Array.isArray(plan.warmup) ? plan.warmup : [],
-    exercises: Array.isArray(plan.exercises)
-      ? plan.exercises.map((ex) => ({
-          name: ex.name || "Упражнение",
-          sets: ex.sets || 3,
-          reps: ex.reps || "8-12",
-          restSec: ex.restSec || 90,
-          weight: ex.weight,
-          targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles : [],
-          cues: ex.cues || "",
-        }))
-      : [],
-    cooldown: Array.isArray(plan.cooldown) ? plan.cooldown : [],
-    notes: plan.notes || "",
-  };
-}
-
-function queueBlockGeneration(job: BlockGenerationJob) {
-  setTimeout(() => {
-    generateWorkoutBlock(job).catch(async (err) => {
-      console.error("Async block generation failed:", err);
-      await markWorkoutPlansFailed(job.planIds, (err as any)?.message?.slice(0, 500) ?? "AI error");
-    });
-  }, 0);
-}
-
-// ============================================================================
-// ROUTES
+// ROUTES: ГЕНЕРАЦИЯ/СТАТУС/СОХРАНЕНИЕ
 // ============================================================================
 
 plan.post(
@@ -791,58 +1015,122 @@ plan.post(
     const onboarding = await getOnboarding(userId);
     const isAdmin = isAdminUser(userId);
 
+    // Подписка / пробник
     await ensureSubscription(userId, "workout");
 
     let existing = await getLatestWorkoutPlan(userId);
 
-    // Проверка: если есть незавершённая генерация
-    if (existing && existing.status === "processing" && !force) {
-      console.log("Existing processing plan:", existing.id);
-      return res.json(buildWorkoutPlanResponse(existing));
-    }
+    // Лимиты по частоте
+    const todaySessions = await q<{ cnt: number }>(
+      SELECT COUNT(*)::int AS cnt
+         FROM workouts
+        WHERE user_id = $1
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date,
+      [userId, tz]
+    );
+    const todayPlans = await q<{ cnt: number }>(
+      SELECT COUNT(*)::int AS cnt
+         FROM workout_plans
+        WHERE user_id = $1
+          AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date,
+      [userId, tz]
+    );
 
-    // Проверка: если есть готовый план за сегодня
-    if (existing && existing.status === "ready" && !force) {
-      const createdSameDay =
-        existing.created_at &&
-        dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
-      
-      if (createdSameDay && !isAdmin) {
+    if (!isAdmin) {
+      if ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT || (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT) {
         const nextIso = await getNextDailyResetIso(tz);
         const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
-        
+
+        if (existing && existing.status !== "failed") {
+          const createdSameDay =
+            existing.created_at &&
+            dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
+          if (createdSameDay) {
+            throw new AppError(
+              "Вы уже сгенерировали тренировку. Чтобы получить следующую, завершите текущую и сохраните результат — так мы держим прогрессию под контролем.",
+              429,
+              {
+                code: "active_plan",
+                details: { reason: "active_plan", nextDateIso: nextIso, nextDateLabel: nextLabel },
+              }
+            );
+          }
+        }
+
         throw new AppError(
-          "Вы уже сгенерировали блок тренировок сегодня. Чтобы получить следующий блок, завершите текущие тренировки.",
+          "Новую тренировку можно будет сгенерировать завтра — телу тоже нужен разумный отдых.",
           429,
           {
-            code: "active_plan",
-            details: { reason: "active_plan", nextDateIso: nextIso, nextDateLabel: nextLabel },
+            code: "daily_limit",
+            details: { reason: "daily_limit", nextDateIso: nextIso, nextDateLabel: nextLabel },
           }
         );
       }
+    } else {
+      console.log("[WORKOUT] admin bypass daily limit for user", userId);
     }
 
-    // Проверка последней сессии
     const lastSession = await getLastWorkoutSession(userId);
-    if (!isAdmin && lastSession) {
-      if (!lastSession.completed_at) {
-        throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
+
+    if (!isAdmin) {
+      if (lastSession) {
+        if (!lastSession.completed_at) {
+          throw new AppError("Сначала заверши текущую тренировку, потом сгенерируем новую.", 403);
+        }
+        if (lastSession.unlock_used) {
+          throw new AppError("Следующая тренировка появится после выполнения текущей.", 403);
+        }
       }
+    } else {
+      console.log("[WORKOUT] admin bypass last-session checks for user", userId);
     }
 
-    console.log("\n=== GENERATING WORKOUT BLOCK (async) ===");
+    // Недельный лимит по онбордингу (мягкий +1 запас)
+    if (!isAdmin && WEEKLY_WORKOUT_SOFT_LIMIT > 0) {
+      const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
+      const softCap = desiredDaysPerWeek + 1;
+      const weeklySessions = await q<{ cnt: number }>(
+        SELECT COUNT(*)::int AS cnt
+           FROM workouts
+          WHERE user_id = $1
+            AND created_at >= date_trunc('week', (now() AT TIME ZONE $2)),
+        [userId, tz]
+      );
+      if ((weeklySessions[0]?.cnt || 0) >= softCap) {
+        const nextIso = await getNextWeeklyResetIso(tz);
+        const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
+        throw new AppError(
+          Вы достигли недельного лимита тренировок. Программа строится под выбранный ритм — сейчас это ${desiredDaysPerWeek} тренировки в неделю. Если хотите увеличить нагрузку, обновите настройки в анкете.,
+          429,
+          {
+            code: "weekly_limit",
+            details: {
+              reason: "weekly_limit",
+              nextDateIso: nextIso,
+              nextDateLabel: nextLabel,
+              weeklyTarget: desiredDaysPerWeek,
+            },
+          }
+        );
+      }
+    } else if (isAdmin) {
+      console.log("[WORKOUT] admin bypass weekly limit for user", userId);
+    }
+
+    console.log("\n=== GENERATING WORKOUT (async) ===");
     console.log("User ID:", userId, "force:", force);
 
-    const blockCycle = await getNextBlockCycle(userId);
-    const shells = await createWorkoutPlanShells(userId, blockCycle, 3);
-    const planIds = shells.map((s) => s.id);
+    if (existing && !force) {
+      console.log("Existing plan status:", existing.status);
+      return res.json(buildWorkoutPlanResponse(existing));
+    }
 
-    console.log("Queued workout block:", blockCycle, "plans:", planIds);
+    const shell = await createWorkoutPlanShell(userId);
+    console.log("Queued workout plan:", shell.id);
 
-    queueBlockGeneration({ userId, blockCycle, planIds });
+    queueWorkoutPlanGeneration({ planId: shell.id, userId });
 
-    // Возвращаем первую тренировку из блока
-    res.json(buildWorkoutPlanResponse(shells[0]));
+    res.json(buildWorkoutPlanResponse(shell));
   })
 );
 
@@ -874,45 +1162,224 @@ plan.get(
   })
 );
 
-// Получить все тренировки текущего блока
-plan.get(
-  "/block/current",
-  asyncHandler(async (req: any, res: Response) => {
-    const userId = ensureUser(req);
-    
-    const latest = await getLatestWorkoutPlan(userId);
-    if (!latest?.block_cycle) {
-      return res.status(404).json({ error: "no_block_found" });
-    }
+type WorkoutGenerationJob = { planId: string; userId: string };
 
-    const rows = await q<WorkoutPlanRow>(
-      `SELECT id,
-              user_id,
-              status,
-              plan,
-              analysis,
-              error_info,
-              progress_stage,
-              progress_percent,
-              created_at,
-              updated_at,
-              block_cycle,
-              block_index
-         FROM workout_plans
-        WHERE user_id = $1 AND block_cycle = $2
-        ORDER BY block_index ASC`,
-      [userId, latest.block_cycle]
-    );
-
-    res.json({
-      blockCycle: latest.block_cycle,
-      workouts: rows.map(buildWorkoutPlanResponse),
+function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {
+  setTimeout(() => {
+    generateWorkoutPlan(job).catch(async (err) => {
+      console.error("Async workout generation failed:", err);
+      await markWorkoutPlanFailed(job.planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
     });
-  })
-);
+  }, 0);
+}
 
 // ============================================================================
-// СОХРАНЕНИЕ ТРЕНИРОВКИ
+// ДВУХШАГОВАЯ ГЕНЕРАЦИЯ ТРЕНИРОВКИ (АНАЛИЗ + JSON)
+// ============================================================================
+
+async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
+  console.log([WORKOUT] ▶️ start two-step generation planId=${planId});
+  try {
+    await setWorkoutPlanProgress(planId, "context", 15);
+
+    const onboarding = await getOnboarding(userId);
+    const sessionMinutes = resolveSessionLength(onboarding);
+    const profile = buildProfile(onboarding, sessionMinutes);
+    const program = await getOrCreateProgram(userId, onboarding);
+    const history = summarizeHistory(await getRecentSessions(userId, 10));
+    const constraints = buildConstraints(profile, history);
+
+    console.log(
+      [WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${program.week} day=${
+        program.day_idx + 1
+      }, exp=${profile.experience}, goal=${profile.goals.join(", ")}
+    );
+
+    // ШАГ 1: "человеческий" анализ тренера
+    await setWorkoutPlanProgress(planId, "analysis", 35);
+    const analysisPrompt = buildAnalysisPrompt(profile, onboarding, constraints, sessionMinutes);
+
+    if (process.env.DEBUG_AI === "1") {
+      console.log("\n=== ANALYSIS PROMPT (first 600 chars) ===");
+      console.log(analysisPrompt.slice(0, 600) + "...\n");
+    }
+
+    const tAnalysis = Date.now();
+    const analysisCompletion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 0.8, // больше свободы для рассуждений
+      messages: [
+        {
+          role: "system",
+          content:
+            "Ты опытный персональный тренер. Кратко анализируешь данные человека и формулируешь, какая тренировка ему логично подходит сегодня.",
+        },
+        { role: "user", content: analysisPrompt },
+      ],
+    });
+
+    const trainerThinking = analysisCompletion.choices[0].message.content || "";
+    console.log(
+      [WORKOUT] analysis done in ${Date.now() - tAnalysis}ms, thinking="${trainerThinking
+        .replace(/\s+/g, " ")
+        .slice(0, 200)}..."
+    );
+
+    // ШАГ 2: генерация JSON-плана на основе анализа
+    await setWorkoutPlanProgress(planId, "ai", 60);
+    const generationPrompt = buildGenerationPrompt(
+      profile,
+      onboarding,
+      constraints,
+      sessionMinutes,
+      trainerThinking
+    );
+
+    if (process.env.DEBUG_AI === "1") {
+      console.log("\n=== GENERATION PROMPT (first 600 chars) ===");
+      console.log(generationPrompt.slice(0, 600) + "...\n");
+    }
+
+    const tGen = Date.now();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: TEMPERATURE, // пониже для стабильного JSON
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: TRAINER_SYSTEM },
+        { role: "user", content: generationPrompt },
+      ],
+    });
+    console.log(
+      [WORKOUT] openai.chat (generation) ${Date.now() - tGen}ms prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${
+        completion.usage?.completion_tokens ?? "?"
+      } total=${completion.usage?.total_tokens ?? "?"}
+    );
+
+    let plan: WorkoutPlan;
+    try {
+      plan = JSON.parse(completion.choices[0].message.content || "{}");
+    } catch (err) {
+      console.error("Failed to parse AI plan JSON:", err);
+      console.error("Raw content:", completion.choices[0].message.content);
+      throw new AppError("AI вернул невалидный JSON", 500);
+    }
+
+    if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+      console.error("Invalid plan structure (no exercises):", plan);
+      throw new AppError("AI сгенерировал некорректный план тренировки", 500);
+    }
+
+    await setWorkoutPlanProgress(planId, "validation", 80);
+
+    // нормализация + проверки через существующий валидатор
+    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+    plan = validation.plan;
+
+    if (validation.warnings.length) {
+      console.warn("Plan warnings:", validation.warnings);
+    }
+
+    const analysis = {
+      trainerAnalysis: trainerThinking, // можно показывать как "мысль тренера"
+      historySummary: constraints.historySummary,
+      recovery: constraints.recovery.label,
+      hoursSinceLast: constraints.recovery.hoursSinceLast,
+      lastRpe: constraints.lastRpe,
+      plateau: constraints.plateau,
+      deloadSuggested: constraints.deloadSuggested,
+      weightNotes: constraints.weightNotes,
+      warnings: validation.warnings,
+    };
+
+    await markWorkoutPlanReady(planId, plan, analysis);
+    console.log([WORKOUT] ✅ plan ready ${planId});
+
+    // Помечаем предыдущую валидную сессию как использованную для разблокировки
+    const lastSession = await getLastWorkoutSession(userId);
+    if (lastSession?.completed_at && !lastSession.unlock_used) {
+      await q(UPDATE workouts SET unlock_used = true WHERE id = $1, [lastSession.id]);
+    }
+  } catch (err) {
+    console.error("Async workout generation failed:", err);
+    await markWorkoutPlanFailed(planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
+    throw err;
+  }
+}
+
+function validatePlanStructure(
+  plan: WorkoutPlan,
+  constraints: Constraints,
+  sessionMinutes: number
+): { plan: WorkoutPlan; warnings: string[] } {
+  const normalized: WorkoutPlan = {
+    title: plan.title || "Персональная тренировка",
+    duration: sessionMinutes,
+    warmup: Array.isArray(plan.warmup) ? plan.warmup.slice(0, 5) : [],
+    exercises: Array.isArray(plan.exercises) ? plan.exercises.slice(0, MAX_EXERCISES) : [],
+    cooldown: Array.isArray(plan.cooldown) ? plan.cooldown.slice(0, 4) : [],
+    notes: plan.notes || "",
+  };
+
+  const warnings: string[] = [];
+
+  const minRequired = minExercisesForDuration(sessionMinutes);
+  if (normalized.exercises.length < minRequired) {
+    warnings.push(
+      Мало упражнений (${normalized.exercises.length}) — ожидается хотя бы ${minRequired} для такой длительности.
+    );
+  }
+
+  normalized.exercises = normalized.exercises.map((ex) => {
+    const baseWeight =
+      typeof ex.weight === "string"
+        ? ex.weight
+        : typeof ex.weight === "number" && Number.isFinite(ex.weight)
+        ? formatWeight(ex.weight)
+        : undefined;
+
+    const updated: Exercise = {
+      name: ex.name || "Упражнение",
+      sets: Math.min(5, Math.max(2, Number(ex.sets) || 3)),
+      reps: ex.reps || "8-12 повторов",
+      restSec: Number(ex.restSec) || 90,
+      targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles : [],
+      cues: ex.cues || "Следи за техникой и контролируй движение",
+      weight: baseWeight,
+    } as Exercise;
+
+    const guard = constraints.weightGuards[slugify(updated.name)];
+    const numericWeight = numberFrom(ex.weight ?? null);
+    if (guard) {
+      if (numericWeight == null) {
+        updated.weight = formatWeight(guard.recommended) || undefined;
+        warnings.push(${updated.name}: добавлен рекомендуемый вес ${updated.weight});
+      } else if (numericWeight < guard.min) {
+        updated.weight = formatWeight(guard.min) || undefined;
+        warnings.push(${updated.name}: поднят вес до безопасного минимума ${updated.weight});
+      } else if (numericWeight > guard.max) {
+        updated.weight = formatWeight(guard.max) || undefined;
+        warnings.push(
+          ${updated.name}: снижен вес до ${updated.weight}, чтобы не превышать разумный диапазон
+        );
+      }
+    }
+
+    return updated;
+  });
+
+  if (!normalized.warmup.length) {
+    warnings.push("В плане нет разминки — добавь 3–5 простых пунктов разминки под мышцы дня.");
+  }
+  if (!normalized.cooldown.length) {
+    warnings.push("В плане нет заминки — добавь несколько пунктов лёгкой растяжки/дыхания.");
+  }
+
+  return { plan: normalized, warnings };
+}
+
+// ============================================================================
+// ROUTE: СОХРАНЕНИЕ ЗАВЕРШЁННОЙ ТРЕНИРОВКИ
 // ============================================================================
 
 plan.post(
@@ -921,8 +1388,8 @@ plan.post(
     const userId = ensureUser(req);
 
     const payload = req.body?.payload;
-    const startedAtInput = req.body?.startedAt;
-    const durationMinInput = req.body?.durationMin;
+    const startedAtInput = req.body?.startedAt; // ISO date string
+    const durationMinInput = req.body?.durationMin; // number
 
     if (!payload || !Array.isArray(payload.exercises)) {
       throw new AppError("Invalid payload: exercises array required", 400);
@@ -938,6 +1405,7 @@ plan.post(
     console.log("\n=== SAVING WORKOUT ===");
     console.log("User ID:", userId);
     console.log("Exercises:", payload.exercises.length);
+    console.log("Title:", payload.title);
 
     await q("BEGIN");
 
@@ -956,15 +1424,15 @@ plan.post(
       }
 
       const result = await q(
-        `INSERT INTO workout_sessions (user_id, payload, finished_at)
+        INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
-         RETURNING id, finished_at`,
+         RETURNING id, finished_at,
         [userId, payload, completedAt]
       );
 
       await q(
-        `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false)`,
+        INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false),
         [userId, payload, payload, completedAt, startedAt, completedAt]
       );
 
@@ -972,21 +1440,37 @@ plan.post(
 
       if (plannedWorkoutId) {
         await q(
-          `UPDATE planned_workouts
+          UPDATE planned_workouts
               SET status = 'completed',
                   result_session_id = $3,
                   updated_at = NOW()
-            WHERE id = $1 AND user_id = $2`,
+            WHERE id = $1 AND user_id = $2,
           [plannedWorkoutId, userId, result[0].id]
         );
         console.log("✓ Planned workout completed:", plannedWorkoutId);
+      } else {
+        const finishedAt: string = result[0].finished_at;
+        await q(
+          INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id)
+           VALUES ($1, $2::jsonb, $3, 'completed', $4),
+          [userId, payload, finishedAt, result[0].id]
+        );
+        console.log("✓ Created completed planned workout entry");
       }
 
-      // Помечаем предыдущую сессию как использованную
-      const lastSession = await getLastWorkoutSession(userId);
-      if (lastSession?.completed_at && !lastSession.unlock_used) {
-        await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
-      }
+      await q(
+        UPDATE training_programs
+         SET day_idx = (day_idx + 1) % microcycle_len,
+             week = CASE 
+               WHEN (day_idx + 1) % microcycle_len = 0 THEN week + 1 
+               ELSE week 
+             END,
+             updated_at = NOW()
+         WHERE user_id = $1,
+        [userId]
+      );
+
+      console.log("✓ Program advanced");
 
       await q("COMMIT");
 
@@ -1008,7 +1492,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "3.0-block-generation-simple-history" });
+  res.json({ ok: true, version: "2.0-ai-first-user-style-two-step" });
 });
 
 export default plan;

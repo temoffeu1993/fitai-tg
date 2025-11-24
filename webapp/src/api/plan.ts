@@ -11,15 +11,7 @@ export type WorkoutPlanResponse<TPlan = any> = {
     error?: string | null;
     progress?: number | null;
     progressStage?: string | null;
-    blockCycle?: number | null;
-    blockIndex?: number | null;
   };
-};
-
-export type WorkoutBlockResponse<TPlan = any> = {
-  blockCycle: number;
-  count: number;
-  plans: WorkoutPlanResponse<TPlan>[];
 };
 
 async function parseJson<T>(res: Response, label: string): Promise<T> {
@@ -53,17 +45,6 @@ export async function generatePlan<T = any>(
     body: JSON.stringify({ force: Boolean(opts.force) }),
   });
   return parseJson(res, "generate_plan");
-}
-
-export async function generatePlanBlock<T = any>(
-  opts: { daysInBlock?: number } = {}
-): Promise<WorkoutBlockResponse<T>> {
-  const res = await apiFetch("/plan/generate-block", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ daysInBlock: opts.daysInBlock ?? 3 }),
-  });
-  return parseJson(res, "generate_plan_block");
 }
 
 export async function checkPlanStatus<T = any>(planId: string): Promise<WorkoutPlanResponse<T>> {
