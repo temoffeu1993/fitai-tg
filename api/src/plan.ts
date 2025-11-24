@@ -725,9 +725,9 @@ ${freeTextPlan}
 `.trim();
 }
 
-// НОВЫЙ ПРОМПТ ДЛЯ БЛОКА ИЗ N ТРЕНИРОВОК (МИКРОЦИКЛ)
+// НОВЫЙ ШАГ 1 ДЛЯ БЛОКА: свободный человеческий текст, как в чате
 
-function buildBlockGenerationPrompt(params: {
+function buildFreeFormBlockRequest(params: {
   profile: Profile;
   onboarding: any;
   constraints: Constraints;
@@ -738,18 +738,10 @@ function buildBlockGenerationPrompt(params: {
   const userData = formatUserDataShort(profile, onboarding, sessionMinutes);
   const historyText = constraints.historySummary;
   const recoveryLine = constraints.recovery.label;
-
   const freq = profile.daysPerWeek || 3;
 
   return `
-Составь, пожалуйста, ПЛАН ИЗ ${daysInBlock} ПОСЛЕДОВАТЕЛЬНЫХ ТРЕНИРОВОК ДЛЯ ОДНОГО ЧЕЛОВЕКА.
-
-Важно:
-- Это НЕ недельная схема и НЕ жёсткий сплит "верх/низ/фулбади".
-- Это просто три СЛЕДУЮЩИЕ друг за другом тренировки (Тренировка 1 → Тренировка 2 → Тренировка 3),
-  которые будут выполняться по мере того, как человек приходит в зал.
-- Обычно человек тренируется примерно ${freq} раз в неделю, но это только ориентир по объёму и восстановлению,
-  а не жёсткая привязка к дням недели.
+Составь, пожалуйста, ПЛАН ИЗ ${daysInBlock} ПОСЛЕДОВАТЕЛЬНЫХ ТРЕНИРОВОК для одного человека.
 
 Кто это:
 ${userData}
@@ -757,52 +749,102 @@ ${userData}
 Восстановление и ощущения сейчас:
 ${recoveryLine}
 
-Моя недавняя история тренировок (это контекст для прогрессии, а не жёсткий шаблон):
+Моя недавняя история тренировок (для понимания уровня и прогрессии, а не как жёсткий шаблон):
 ${historyText}
 
-Требования:
-- Нужно ровно ${daysInBlock} ОТДЕЛЬНЫХ тренировок: "Тренировка 1", "Тренировка 2", "Тренировка 3".
-- Они должны быть логично связаны по нагрузке и мышечным группам, как последовательность сессий:
-  можно чередовать акценты (пример: общая фулбоди → больше ноги/ягодицы → больше верх/руки),
-  но НЕ нужно строить жёсткий недельный сплит.
-- Каждая тренировка по ощущениям должна занимать около ${sessionMinutes} минут.
-- Учитывай цель, опыт, частоту тренировок и доступное оборудование.
-- Следи за тем, чтобы суммарная нагрузка за эти три сессии была разумной для человека с такими данными.
+Как использовать этот план:
+- Это просто последовательность тренировок: Тренировка 1 → Тренировка 2 → Тренировка 3.
+- Человек обычно тренируется примерно ${freq} раз в неделю, но дни недели фиксировать не надо.
+- Он будет проходить эти тренировки по порядку, как только приходит в зал.
+- Каждая тренировка по ощущениям должна занимать примерно ${sessionMinutes} минут.
 
-Верни СТРОГО один JSON-объект:
+Формат ответа:
+- Напиши текстом, как в обычном чате.
+- Я хочу увидеть чётко разделённые блоки:
+
+Тренировка 1
+Название: ...
+Разминка:
+- ...
+Основная часть:
+1) ...
+2) ...
+Заминка:
+- ...
+Краткий комментарий тренера (как должны ощущаться мышцы/нагрузка).
+
+Тренировка 2
+...
+
+Тренировка 3
+...
+
+Важно:
+- Структуру, упражнения, акценты и объём ты выбираешь сам, исходя из данных обо мне.
+- Не нужно думать про JSON и формальные схемы, просто сделай живой, осмысленный план из ${daysInBlock} тренировок.
+`.trim();
+}
+
+// Шаг 2 для блока: свободный текст с несколькими тренировками → JSON { workouts: [...] }
+
+function buildBlockJsonConversionPrompt(
+  freeTextBlock: string,
+  sessionMinutes: number,
+  daysInBlock: number
+): string {
+  return `
+Ниже дан текстовый план из нескольких последовательных тренировок ("Тренировка 1", "Тренировка 2", ...).
+
+ТВОЯ ЗАДАЧА:
+аккуратно извлечь из текста сами тренировки и вернуть один JSON-объект вида:
 
 {
   "workouts": [
-    { ...WorkoutPlan для Тренировки 1 },
-    { ...WorkoutPlan для Тренировки 2 },
-    { ...WorkoutPlan для Тренировки 3 }
+    {
+      "title": string,
+      "duration": number,
+      "warmup": string[],
+      "exercises": [
+        {
+          "name": string,
+          "sets": number,
+          "reps": string,
+          "restSec": number,
+          "weight": string | null,
+          "targetMuscles": string[],
+          "cues": string
+        }
+      ],
+      "cooldown": string[],
+      "notes": string
+    }
   ]
 }
 
-Где каждый элемент массива "workouts" имеет структуру:
+Где:
+- "workouts" — массив из ${daysInBlock} тренировок в том же порядке, что и в тексте.
+- "title" — название тренировки в 2–6 слов.
+- "duration" — примерная длительность тренировки в минутах (ориентируйся на ~${sessionMinutes} минут, если в тексте нет других явных подсказок).
+- "warmup" — пункты разминки (короткие текстовые строки).
+- "exercises" — список упражнений из основной части тренировки.
+- "cooldown" — пункты заминки/растяжки.
+- "notes" — краткий комментарий тренера по логике и ощущениям тренировки.
 
-{
-  "title": "Название тренировки (2–6 слов)",
-  "duration": ${sessionMinutes},
-  "warmup": ["пункты разминки"],
-  "exercises": [
-    {
-      "name": "Название упражнения по-русски",
-      "sets": 3,
-      "reps": "8-10",
-      "restSec": 90,
-      "weight": "рабочий вес или 'собственный вес'",
-      "targetMuscles": ["Целевая мышца 1", "Целевая мышца 2"],
-      "cues": "короткая подсказка по технике"
-    }
-  ],
-  "cooldown": ["пункты заминки"],
-  "notes": "1–3 предложения: логика и ощущения этой конкретной тренировки"
-}
+Исходный текстовый план:
 
-Без какого-либо текста вне этого JSON-объекта.
+"""
+${freeTextBlock}
+"""
+
+Требования:
+- Основа — этот текст. Не придумывай другие тренировки, не меняй их порядок без необходимости.
+- Распознай границы между "Тренировка 1", "Тренировка 2", "Тренировка 3" по тексту.
+- Если каких-то полей явно нет (например, нет "notes" или "cooldown"), можно оставить их пустыми или заполнить по здравому смыслу.
+- Верни СТРОГО один JSON-объект в указанном формате, без markdown, без комментариев и без дополнительного текста.
 `.trim();
 }
+
+// НОВЫЙ ПРОМПТ ДЛЯ БЛОКА ИЗ N ТРЕНИРОВОК (МИКРОЦИКЛ) — УБРАН, ЗАМЕНЁН НА buildFreeFormBlockRequest + buildBlockJsonConversionPrompt
 
 function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightConstraint | null {
   const stats = averageSetStats(ex);
@@ -1338,7 +1380,7 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
 
     await setWorkoutPlanProgress(planId, "validation", 80);
 
-    // нормализация + проверки
+    // минимальная нормализация
     const validation = validatePlanStructure(plan, constraints, sessionMinutes);
     plan = validation.plan;
 
@@ -1375,7 +1417,7 @@ async function generateWorkoutPlan({ planId, userId }: WorkoutGenerationJob) {
 }
 
 // ============================================================================
-// СИНХРОННАЯ ГЕНЕРАЦИЯ БЛОКА ИЗ N ТРЕНИРОВОК (МИКРОЦИКЛ)
+// СИНХРОННАЯ ГЕНЕРАЦИЯ БЛОКА ИЗ N ТРЕНИРОВОК (МИКРОЦИКЛ) — ДВУХШАГОВАЯ
 // ============================================================================
 
 type WorkoutBlockGenerationResult = {
@@ -1405,7 +1447,8 @@ async function generateWorkoutBlockNow(
 
   const blockCycle = await getNextBlockCycle(userId);
 
-  const prompt = buildBlockGenerationPrompt({
+  // ШАГ 1: свободный человеческий текст (как в чате)
+  const freeFormPrompt = buildFreeFormBlockRequest({
     profile,
     onboarding,
     constraints,
@@ -1414,27 +1457,59 @@ async function generateWorkoutBlockNow(
   });
 
   if (process.env.DEBUG_AI === "1") {
-    console.log("\n=== BLOCK PROMPT (first 600 chars) ===");
-    console.log(prompt.slice(0, 600) + "...\n");
+    console.log("\n=== BLOCK FREE-FORM PROMPT (first 600 chars) ===");
+    console.log(freeFormPrompt.slice(0, 600) + "...\n");
+  }
+
+  const tFree = Date.now();
+  const freeCompletion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    temperature: TEMPERATURE_FREE,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Ты — персональный фитнес-тренер мирового уровня. Пишешь живым, понятным текстом, как в обычном чате с человеком. Структуру и содержание тренировок выбираешь сам.",
+      },
+      { role: "user", content: freeFormPrompt },
+    ],
+  });
+
+  const freeTextBlock = freeCompletion.choices[0].message.content || "";
+  console.log(
+    `[WORKOUT] block free-form done in ${Date.now() - tFree}ms, tokens prompt=${
+      freeCompletion.usage?.prompt_tokens ?? "?"
+    } completion=${freeCompletion.usage?.completion_tokens ?? "?"}`
+  );
+  console.log(
+    `[WORKOUT] block free-form preview="${freeTextBlock.replace(/\s+/g, " ").slice(0, 240)}..."`
+  );
+
+  // ШАГ 2: конвертация всего блока в JSON
+  const jsonPrompt = buildBlockJsonConversionPrompt(freeTextBlock, sessionMinutes, daysInBlock);
+
+  if (process.env.DEBUG_AI === "1") {
+    console.log("\n=== BLOCK JSON CONVERSION PROMPT (first 600 chars) ===");
+    console.log(jsonPrompt.slice(0, 600) + "...\n");
   }
 
   const tGen = Date.now();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
-    temperature: 0.5,
+    temperature: TEMPERATURE_JSON,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
-          "Ты опытный персональный тренер. Составляешь связанный микроцикл из нескольких тренировок. Возвращаешь строго JSON-объект с массивом тренировок по заданной схеме.",
+          "Ты помощник, который берёт готовый текстовый план из нескольких тренировок и аккуратно переводит его в строгий JSON по заданной схеме, без изменения смысла.",
       },
-      { role: "user", content: prompt },
+      { role: "user", content: jsonPrompt },
     ],
   });
 
   console.log(
-    `[WORKOUT] block generation done in ${Date.now() - tGen}ms prompt=${
+    `[WORKOUT] block json conversion done in ${Date.now() - tGen}ms prompt=${
       completion.usage?.prompt_tokens ?? "?"
     } completion=${completion.usage?.completion_tokens ?? "?"} total=${
       completion.usage?.total_tokens ?? "?"
@@ -1461,12 +1536,8 @@ async function generateWorkoutBlockNow(
   for (let i = 0; i < workouts.length; i++) {
     const rawPlan = workouts[i];
 
-    const validation = validatePlanStructure(rawPlan, constraints, sessionMinutes);
-    const plan = validation.plan;
-
-    if (validation.warnings.length) {
-      console.warn(`Block plan[${i}] warnings:`, validation.warnings);
-    }
+    // минимальная нормализация без жёстких правил
+    const { plan } = validatePlanStructure(rawPlan, constraints, sessionMinutes);
 
     const analysis = {
       historySummary: constraints.historySummary,
@@ -1476,7 +1547,8 @@ async function generateWorkoutBlockNow(
       plateau: constraints.plateau,
       deloadSuggested: constraints.deloadSuggested,
       weightNotes: constraints.weightNotes,
-      warnings: validation.warnings,
+      warnings: [] as string[],
+      freeTextBlock,
     };
 
     const rows = await q<WorkoutPlanRow>(
@@ -1509,78 +1581,35 @@ async function generateWorkoutBlockNow(
 }
 
 // ============================================================================
-// ВАЛИДАЦИЯ И НОРМАЛИЗАЦИЯ ПЛАНА
+// ВАЛИДАЦИЯ И МИНИМАЛЬНАЯ НОРМАЛИЗАЦИЯ ПЛАНА
 // ============================================================================
 
 function validatePlanStructure(
   plan: WorkoutPlan,
-  constraints: Constraints,
+  _constraints: Constraints,
   sessionMinutes: number
 ): { plan: WorkoutPlan; warnings: string[] } {
+  // минимальные дефолты, без правил по количеству упражнений, весам и т.п.
   const normalized: WorkoutPlan = {
     title: plan.title || "Персональная тренировка",
-    duration: sessionMinutes,
-    warmup: Array.isArray(plan.warmup) ? plan.warmup.slice(0, 5) : [],
-    exercises: Array.isArray(plan.exercises) ? plan.exercises.slice(0, MAX_EXERCISES) : [],
-    cooldown: Array.isArray(plan.cooldown) ? plan.cooldown.slice(0, 4) : [],
+    duration: plan.duration || sessionMinutes || 60,
+    warmup: Array.isArray(plan.warmup) ? plan.warmup : [],
+    exercises: Array.isArray(plan.exercises)
+      ? plan.exercises.map((ex) => ({
+          name: ex.name || "Упражнение",
+          sets: ex.sets || 3,
+          reps: ex.reps || "8-12",
+          restSec: ex.restSec || 90,
+          weight: ex.weight,
+          targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles : [],
+          cues: ex.cues || "",
+        }))
+      : [],
+    cooldown: Array.isArray(plan.cooldown) ? plan.cooldown : [],
     notes: plan.notes || "",
   };
 
-  const warnings: string[] = [];
-
-  const minRequired = minExercisesForDuration(sessionMinutes);
-  if (normalized.exercises.length < minRequired) {
-    warnings.push(
-      `Мало упражнений (${normalized.exercises.length}) — ожидается хотя бы ${minRequired} для такой длительности.`
-    );
-  }
-
-  normalized.exercises = normalized.exercises.map((ex) => {
-    const baseWeight =
-      typeof ex.weight === "string"
-        ? ex.weight
-        : typeof ex.weight === "number" && Number.isFinite(ex.weight)
-        ? formatWeight(ex.weight)
-        : undefined;
-
-    const updated: Exercise = {
-      name: ex.name || "Упражнение",
-      sets: Math.min(5, Math.max(2, Number(ex.sets) || 3)),
-      reps: ex.reps || "8-12 повторов",
-      restSec: Number(ex.restSec) || 90,
-      targetMuscles: Array.isArray(ex.targetMuscles) ? ex.targetMuscles : [],
-      cues: ex.cues || "Следи за техникой и контролируй движение",
-      weight: baseWeight,
-    } as Exercise;
-
-    const guard = constraints.weightGuards[slugify(updated.name)];
-    const numericWeight = numberFrom(ex.weight ?? null);
-    if (guard) {
-      if (numericWeight == null) {
-        updated.weight = formatWeight(guard.recommended) || undefined;
-        warnings.push(`${updated.name}: добавлен рекомендуемый вес ${updated.weight}`);
-      } else if (numericWeight < guard.min) {
-        updated.weight = formatWeight(guard.min) || undefined;
-        warnings.push(`${updated.name}: поднят вес до безопасного минимума ${updated.weight}`);
-      } else if (numericWeight > guard.max) {
-        updated.weight = formatWeight(guard.max) || undefined;
-        warnings.push(
-          `${updated.name}: снижен вес до ${updated.weight}, чтобы не превышать разумный диапазон`
-        );
-      }
-    }
-
-    return updated;
-  });
-
-  if (!normalized.warmup.length) {
-    warnings.push("В плане нет разминки — добавь 3–5 простых пунктов разминки под мышцы дня.");
-  }
-  if (!normalized.cooldown.length) {
-    warnings.push("В плане нет заминки — добавь несколько пунктов лёгкой растяжки/дыхания.");
-  }
-
-  return { plan: normalized, warnings };
+  return { plan: normalized, warnings: [] };
 }
 
 // ============================================================================
@@ -1697,7 +1726,7 @@ plan.post(
 // ============================================================================
 
 plan.get("/ping", (_req, res) => {
-  res.json({ ok: true, version: "2.1-ai-first-user-style-two-step-free-form-with-blocks" });
+  res.json({ ok: true, version: "2.2-ai-first-user-style-two-step-free-form-with-blocks" });
 });
 
 export default plan;
