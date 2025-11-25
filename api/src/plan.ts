@@ -569,17 +569,20 @@ function buildProfile(
 
   const sexRaw = (onboarding?.ageSex?.sex || "").toLowerCase();
   const experienceRaw = (onboarding?.experience || "intermediate").toLowerCase();
+  const sex: Profile["sex"] =
+    sexRaw === "female" ? "female" : sexRaw === "male" ? "male" : "unknown";
+  const experience: Profile["experience"] =
+    experienceRaw.includes("novice") || experienceRaw.includes("begin")
+      ? "beginner"
+      : experienceRaw.includes("adv")
+      ? "advanced"
+      : "intermediate";
   const profile = {
     age: numberFrom(onboarding?.ageSex?.age) ?? null,
     weight: numberFrom(onboarding?.body?.weight) ?? null,
     height: numberFrom(onboarding?.body?.height) ?? null,
-    sex: sexRaw === "female" ? "female" : sexRaw === "male" ? "male" : "unknown",
-    experience:
-      experienceRaw.includes("novice") || experienceRaw.includes("begin")
-        ? "beginner"
-        : experienceRaw.includes("adv")
-        ? "advanced"
-        : "intermediate",
+    sex,
+    experience,
     goals: buildGoalsDescription(onboarding?.goals),
     daysPerWeek: Number(onboarding?.schedule?.daysPerWeek) || 3,
     minutesPerSession: minutesFallback,
