@@ -21,7 +21,9 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.use(cors({ origin: true, credentials: true }));
 
+// Быстрый health/ping без БД
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
 app.use(requireAuth, onboarding);
