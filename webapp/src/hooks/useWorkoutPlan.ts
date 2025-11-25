@@ -24,14 +24,15 @@ export type UseWorkoutPlanResult<TPlan> = {
   refresh: (opts?: { force?: boolean; silent?: boolean }) => Promise<void>;
 };
 
-export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
+export function useWorkoutPlan<TPlan = any>(opts?: { autoFetch?: boolean }): UseWorkoutPlanResult<TPlan> {
+  const autoFetch = opts?.autoFetch ?? true;
   const [plan, setPlan] = useState<TPlan | null>(null);
   const [analysis, setAnalysis] = useState<any | null>(null);
   const [status, setStatus] = useState<PlanStatus | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(autoFetch);
   const [polling, setPolling] = useState(false);
   const [serverProgress, setServerProgress] = useState<number | null>(null);
   const [progressStage, setProgressStage] = useState<string | null>(null);
@@ -134,11 +135,14 @@ export function useWorkoutPlan<TPlan = any>(): UseWorkoutPlanResult<TPlan> {
     } catch {
       // ignore
     }
-
-    refresh({ silent: hasCache }).catch(() => {
-      if (!hasCache) setLoading(false);
-    });
-  }, [refresh]);
+    if (autoFetch) {
+      refresh({ silent: hasCache }).catch(() => {
+        if (!hasCache) setLoading(false);
+      });
+    } else if (!hasCache) {
+      setLoading(false);
+    }
+  }, [refresh, autoFetch]);
 
   useEffect(() => {
     if (status !== "processing" || !planId) {

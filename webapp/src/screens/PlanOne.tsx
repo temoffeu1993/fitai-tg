@@ -40,7 +40,7 @@ export default function PlanOne() {
     loading,
     regenerate,
     refresh,
-  } = useWorkoutPlan<any>();
+  } = useWorkoutPlan<any>({ autoFetch: false });
   const sub = useSubscriptionStatus();
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(() => toDateInput(new Date()));
@@ -61,6 +61,7 @@ export default function PlanOne() {
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
+  const [initialPlanRequested, setInitialPlanRequested] = useState(false);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -93,8 +94,15 @@ export default function PlanOne() {
 
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
-  const showLoader = loading || isProcessing || (!plan && !error);
+  const showLoader = (loading || isProcessing) && initialPlanRequested;
   const [paywall, setPaywall] = useState(false);
+
+  useEffect(() => {
+    if (plan) {
+      setInitialPlanRequested(true);
+      setCheckInOpen(false);
+    }
+  }, [plan]);
 
   useEffect(() => {
     const onPlanCompleted = () => {
@@ -151,7 +159,8 @@ export default function PlanOne() {
     setCheckInError(null);
     try {
       await submitCheckIn(data);
-      await refresh({ force: true, silent: true });
+      setInitialPlanRequested(true);
+      await refresh({ force: true });
       setCheckInOpen(false);
     } catch (err: any) {
       const message =
@@ -162,6 +171,26 @@ export default function PlanOne() {
       setCheckInError(String(message));
     } finally {
       setCheckInLoading(false);
+    }
+  };
+
+  const handleInitialGenerate = async () => {
+    kickProgress();
+    setInitialPlanRequested(true);
+    setRegenPending(true);
+    setRegenInlineError(null);
+    try {
+      await refresh({ force: true });
+    } catch (err: any) {
+      const status = err?.status;
+      const message = humanizePlanError(err);
+      if (status === 403 || status === 429) {
+        setRegenNotice(message);
+      } else {
+        setRegenInlineError(message || "Не удалось обновить план");
+      }
+    } finally {
+      setRegenPending(false);
     }
   };
 
@@ -260,9 +289,71 @@ export default function PlanOne() {
       <div style={s.page}>
         <SoftGlowStyles />
         <TypingDotsStyles />
-        <section style={s.blockWhite}>
-          <h3 style={{ marginTop: 0 }}>План отсутствует</h3>
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>{heroDateChip}</span>
+          </div>
+          <div style={s.heroTitle}>Первая тренировка</div>
+          <div style={s.heroSubtitle}>
+            Перед генерацией можно коротко указать сон, энергию и ограничения — это учтёт тренер.
+          </div>
+
+          {showLoader || regenPending ? (
+            <div style={{ ...s.loaderBox, marginTop: 16 }}>
+              <div style={s.loaderTitle}>Готовим план…</div>
+              <div style={s.loaderSteps}>
+                {steps.map((step, idx) => (
+                  <div key={step} style={s.loaderStep}>
+                    <div
+                      style={{
+                        ...s.loaderDot,
+                        background: idx <= loaderStepIndex ? "#4ade80" : "rgba(255,255,255,0.2)",
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: idx <= loaderStepIndex ? "#fff" : "rgba(255,255,255,0.6)",
+                      }}
+                    >
+                      {step}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={s.heroCtas}>
+                <button type="button" style={s.primaryBtn} onClick={() => setCheckInOpen(true)}>
+                  Сообщить самочувствие
+                </button>
+                <button
+                  type="button"
+                  style={{ ...s.secondaryBtn, whiteSpace: "nowrap" }}
+                  onClick={handleInitialGenerate}
+                >
+                  Сгенерировать без чек-ина
+                </button>
+              </div>
+              <div style={{ ...s.buttonNote, marginTop: 8 }}>
+                Чек-ин помогает точнее подобрать нагрузку, но можно пропустить.
+              </div>
+              {regenInlineError ? <div style={s.inlineError}>{regenInlineError}</div> : null}
+              {regenNotice ? <div style={s.buttonNote}>{regenNotice}</div> : null}
+            </>
+          )}
         </section>
+
+        {checkInOpen && (
+          <CheckInForm
+            open={checkInOpen}
+            loading={checkInLoading}
+            error={checkInError}
+            onSubmit={handleCheckInSubmit}
+            onSkip={() => setCheckInOpen(false)}
+            onClose={() => setCheckInOpen(false)}
+          />
+        )}
       </div>
     );
   }
@@ -1003,6 +1094,18 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     width: "100%",
   },
+  loaderBox: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,.08)",
+    background: "rgba(255,255,255,.06)",
+    backdropFilter: "blur(6px)",
+  },
+  loaderTitle: { fontWeight: 700, fontSize: 16, color: "#fff", marginBottom: 8 },
+  loaderSteps: { display: "grid", gap: 8 },
+  loaderStep: { display: "flex", alignItems: "center", gap: 10, fontSize: 14 },
+  loaderDot: { width: 12, height: 12, borderRadius: 999, background: "rgba(255,255,255,.2)" },
   primaryBtn: {
     width: "100%",
     borderRadius: 16,

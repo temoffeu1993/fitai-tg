@@ -196,8 +196,36 @@ const DAILY_WORKOUT_LIMIT = 1;
 const MIN_REAL_DURATION_MIN = 20;
 // сколько «запасных» тренировок сверх онбординга можно делать в неделю (мягкий лимит)
 const WEEKLY_WORKOUT_EXTRA_SOFT_CAP = 1;
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+function isAdminUser(userId: string): boolean {
+  const hardcoded = ["d5d09c2c-f82b-4055-8cfa-77342b3a89f2"];
+  return ADMIN_USER_IDS.includes(userId) || hardcoded.includes(userId);
+}
 const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
+
+// ============================================================================
+// LOGGING HELPERS
+// ============================================================================
+function logSection(title: string) {
+  console.log(`\n${"=".repeat(80)}`);
+  console.log(title);
+  console.log(`${"=".repeat(80)}`);
+}
+
+function logData(label: string, data: any, maxLength = 500) {
+  const str = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  const truncated = str.length > maxLength ? str.slice(0, maxLength) + "..." : str;
+  console.log(`[${label}] ${truncated}`);
+}
+
+function logTiming(label: string, startTime: number) {
+  const duration = Date.now() - startTime;
+  console.log(`⏱️  ${label}: ${duration}ms`);
+}
 
 function resolveTimezone(req: any): string {
   const candidate =
@@ -535,9 +563,13 @@ function buildProfile(
   minutesFallback: number,
   checkIn: DailyCheckIn | null
 ): Profile {
+  console.log("\n🏗️  Building profile from data...");
+  console.log("  Onboarding keys:", Object.keys(onboarding || {}).join(", "));
+  console.log("  Check-in present:", Boolean(checkIn));
+
   const sexRaw = (onboarding?.ageSex?.sex || "").toLowerCase();
   const experienceRaw = (onboarding?.experience || "intermediate").toLowerCase();
-  return {
+  const profile = {
     age: numberFrom(onboarding?.ageSex?.age) ?? null,
     weight: numberFrom(onboarding?.body?.weight) ?? null,
     height: numberFrom(onboarding?.body?.height) ?? null,
@@ -555,7 +587,7 @@ function buildProfile(
     bodyweightOnly: Boolean(onboarding?.environment?.bodyweightOnly),
     healthLimitations: checkIn?.limitations || [],
     injuries: checkIn?.injuries || [],
-    chronicConditions: [],
+    chronicConditions: onboarding?.health?.chronicConditions || [],
     pain: checkIn?.pain || [],
     stressLevel: checkIn?.stressLevel || null,
     sleepHours: checkIn?.sleepHours ?? null,
@@ -569,6 +601,17 @@ function buildProfile(
     motivation: checkIn?.motivation || null,
     mood: checkIn?.mood || null,
   };
+
+  console.log("  Profile result:", {
+    hasCheckInData: Boolean(checkIn),
+    experience: profile.experience,
+    goals: profile.goals[0],
+    hasEnergyLevel: Boolean(profile.energyLevel),
+    hasSleepData: Boolean(profile.sleepHours),
+    hasStressLevel: Boolean(profile.stressLevel),
+  });
+
+  return profile;
 }
 
 function summarizeHistory(rows: any[]): HistorySession[] {
@@ -613,27 +656,6 @@ function hoursDiffFrom(dateISO?: string): number | null {
   if (Number.isNaN(ts)) return null;
   const diffMs = Date.now() - ts;
   return Math.max(0, Math.round(diffMs / 36e5));
-}
-
-function describeRecovery(hours: number | null, rpe: number | null): string {
-  let base: string;
-  if (hours == null) {
-    base = "нет данных по отдыху";
-  } else if (hours < 36) {
-    base = "ещё не восстановился полностью — не перегружай";
-  } else if (hours < 72) {
-    base = "оптимально восстановлен";
-  } else {
-    base = "можно слегка увеличить нагрузку — отдых был долгим";
-  }
-
-  if (rpe != null) {
-    if (rpe >= 9) return `${base}. Прошлая тренировка была очень тяжёлой (RPE ${rpe}).`;
-    if (rpe <= 6) return `${base}. Прошлая тренировка далась легко (RPE ${rpe}).`;
-    return `${base}. RPE прошлой тренировки: ${rpe}.`;
-  }
-
-  return base;
 }
 
 function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightConstraint | null {
@@ -1058,24 +1080,30 @@ async function getRecentSessions(userId: string, limit = 10): Promise<HistorySes
     [userId, limit]
   );
 
-  return rows.map((row) => ({
-    date: row.finished_at,
-    title: row.payload?.title,
-    exercises: (row.payload?.exercises || []).map((ex: any) => ({
-      name: ex.name,
-      reps: ex.reps,
-      weight: ex.weight,
-      targetMuscles: ex.targetMuscles,
-      effort: typeof ex.effort === "string" ? ex.effort : null,
-      sets: Array.isArray(ex.sets)
-        ? ex.sets.map((set: any) => ({
-            reps: numberFrom(set?.reps),
-            weight: numberFrom(set?.weight),
-          }))
-        : [],
-    })),
-    volumeKg: 0,
-  }));
+  return rows.map((row) => {
+    const payload = row.payload || {};
+    const exercisesRaw = payload.exercises || [];
+
+    return {
+      date: row.finished_at,
+      title: payload.title,
+      exercises: exercisesRaw.map((ex: any) => ({
+        name: ex.name,
+        reps: ex.reps,
+        weight: ex.weight,
+        targetMuscles: ex.targetMuscles,
+        effort: typeof ex.effort === "string" ? ex.effort : null,
+        sets: Array.isArray(ex.sets)
+          ? ex.sets.map((set: any) => ({
+              reps: numberFrom(set?.reps),
+              weight: numberFrom(set?.weight),
+            }))
+          : [],
+      })),
+      volumeKg: 0,
+      avgRpe: numberFrom(payload?.feedback?.sessionRpe) ?? null,
+    } as HistorySession;
+  });
 }
 
 // Получение последнего check-in (48 часов)
@@ -1146,24 +1174,30 @@ async function getWeekSessions(userId: string, tz: string): Promise<HistorySessi
     [userId, tz]
   );
 
-  return rows.map((row) => ({
-    date: row.finished_at,
-    title: row.payload?.title,
-    exercises: (row.payload?.exercises || []).map((ex: any) => ({
-      name: ex.name,
-      reps: ex.reps,
-      weight: ex.weight,
-      targetMuscles: ex.targetMuscles,
-      effort: typeof ex.effort === "string" ? ex.effort : null,
-      sets: Array.isArray(ex.sets)
-        ? ex.sets.map((set: any) => ({
-            reps: numberFrom(set?.reps),
-            weight: numberFrom(set?.weight),
-          }))
-        : [],
-    })),
-    volumeKg: 0,
-  }));
+  return rows.map((row) => {
+    const payload = row.payload || {};
+    const exercisesRaw = payload.exercises || [];
+
+    return {
+      date: row.finished_at,
+      title: payload.title,
+      exercises: exercisesRaw.map((ex: any) => ({
+        name: ex.name,
+        reps: ex.reps,
+        weight: ex.weight,
+        targetMuscles: ex.targetMuscles,
+        effort: typeof ex.effort === "string" ? ex.effort : null,
+        sets: Array.isArray(ex.sets)
+          ? ex.sets.map((set: any) => ({
+              reps: numberFrom(set?.reps),
+              weight: numberFrom(set?.weight),
+            }))
+          : [],
+      })),
+      volumeKg: 0,
+      avgRpe: numberFrom(payload?.feedback?.sessionRpe) ?? null,
+    } as HistorySession;
+  });
 }
 
 async function getGlobalWeekIndex(userId: string, _tz: string): Promise<number> {
@@ -1398,45 +1432,22 @@ function buildClientDataBlock(
 
   const lifestyleItems: string[] = [];
   if (profile.stressLevel) {
-    const stressLabel: Record<string, string> = {
-      low: "низкий ✅",
-      medium: "средний",
-      high: "высокий ⚠️",
-      very_high: "очень высокий 🚨",
-    };
-    lifestyleItems.push(`- **Уровень стресса:** ${stressLabel[profile.stressLevel] || profile.stressLevel}`);
+    lifestyleItems.push(`- Уровень стресса: ${profile.stressLevel}`);
   }
   if (profile.sleepHours !== null) {
-    const sleepWarning = profile.sleepHours < 6 ? " 🚨" : profile.sleepHours < 7 ? " ⚠️" : " ✅";
-    lifestyleItems.push(`- **Сон:** ${profile.sleepHours} часов/ночь${sleepWarning}`);
+    lifestyleItems.push(`- Сон: ${profile.sleepHours} часов/ночь`);
   }
   if (profile.sleepQuality) {
-    const qualityLabel: Record<string, string> = {
-      poor: "плохое 🚨",
-      fair: "удовлетворительное ⚠️",
-      good: "хорошее ✅",
-      excellent: "отличное ✅",
-    };
-    lifestyleItems.push(`- **Качество сна:** ${qualityLabel[profile.sleepQuality] || profile.sleepQuality}`);
+    lifestyleItems.push(`- Качество сна: ${profile.sleepQuality}`);
   }
   if (profile.energyLevel) {
-    const energyLabel: Record<string, string> = {
-      low: "низкий ⚠️",
-      medium: "средний",
-      high: "высокий ✅",
-    };
-    lifestyleItems.push(`- **Уровень энергии:** ${energyLabel[profile.energyLevel] || profile.energyLevel}`);
+    lifestyleItems.push(`- Уровень энергии: ${profile.energyLevel}`);
   }
   if (profile.motivation) {
-    const motivationLabel: Record<string, string> = {
-      low: "низкая ⚠️",
-      medium: "средняя",
-      high: "высокая ✅",
-    };
-    lifestyleItems.push(`- **Мотивация:** ${motivationLabel[profile.motivation] || profile.motivation}`);
+    lifestyleItems.push(`- Мотивация: ${profile.motivation}`);
   }
   if (profile.mood) {
-    lifestyleItems.push(`- **Настроение:** ${profile.mood}`);
+    lifestyleItems.push(`- Настроение: ${profile.mood}`);
   }
   if (lifestyleItems.length) {
     sections.push(`## Образ жизни и восстановление\n${lifestyleItems.join("\n")}`);
@@ -1445,16 +1456,10 @@ function buildClientDataBlock(
   if (profile.sex === "female" && profile.menstrualCycle) {
     const cycleItems: string[] = [];
     if (profile.menstrualCycle.phase) {
-      const phaseInfo: Record<string, string> = {
-        follicular: "фолликулярная (дни 1-13) — хорошая энергия",
-        ovulation: "овуляция (дни 14-16) — пик силы и выносливости",
-        luteal: "лютеиновая (дни 17-28) — энергия падает",
-        menstruation: "менструация (дни 1-5) — низкая энергия, возможны спазмы",
-      };
-      cycleItems.push(`- **Фаза цикла:** ${phaseInfo[profile.menstrualCycle.phase] || profile.menstrualCycle.phase}`);
+      cycleItems.push(`- Фаза цикла: ${profile.menstrualCycle.phase}`);
     }
     if (profile.menstrualCycle.symptoms.length > 0) {
-      cycleItems.push(`- **Симптомы:** ${profile.menstrualCycle.symptoms.join(", ")}`);
+      cycleItems.push(`- Симптомы: ${profile.menstrualCycle.symptoms.join(", ")}`);
     }
     if (cycleItems.length) {
       sections.push(`## Женское здоровье\n${cycleItems.join("\n")}`);
@@ -1464,17 +1469,10 @@ function buildClientDataBlock(
   if (profile.nutritionInfo?.diet || profile.nutritionInfo?.hydration) {
     const nutritionItems: string[] = [];
     if (profile.nutritionInfo.diet) {
-      nutritionItems.push(`- **Тип питания:** ${profile.nutritionInfo.diet}`);
+      nutritionItems.push(`- Тип питания: ${profile.nutritionInfo.diet}`);
     }
     if (profile.nutritionInfo.hydration) {
-      const hydrationLabel: Record<string, string> = {
-        poor: "недостаточная ⚠️",
-        adequate: "адекватная",
-        good: "хорошая ✅",
-      };
-      nutritionItems.push(
-        `- **Гидратация:** ${hydrationLabel[profile.nutritionInfo.hydration] || profile.nutritionInfo.hydration}`
-      );
+      nutritionItems.push(`- Гидратация: ${profile.nutritionInfo.hydration}`);
     }
     if (nutritionItems.length) {
       sections.push(`## Питание\n${nutritionItems.join("\n")}`);
@@ -1482,12 +1480,15 @@ function buildClientDataBlock(
   }
 
   const currentStateItems: string[] = [];
-  const recoveryLabel = describeRecovery(constraints.recovery.hoursSinceLast, constraints.lastRpe);
-  currentStateItems.push(`- **Восстановление:** ${recoveryLabel}`);
-  if (constraints.lastRpe) currentStateItems.push(`- **RPE прошлой тренировки:** ${constraints.lastRpe}/10`);
-  if (constraints.plateau) currentStateItems.push("- ⚠️ **Обнаружено плато:** объём не растёт несколько тренировок");
-  if (constraints.deloadSuggested) currentStateItems.push("- 🚨 **Рекомендуется deload:** признаки перетренированности");
-  sections.push(`## Текущее состояние\n${currentStateItems.join("\n")}`);
+  if (constraints.recovery.hoursSinceLast !== null) {
+    currentStateItems.push(`- Часов с последней тренировки: ${constraints.recovery.hoursSinceLast}`);
+  }
+  if (constraints.lastRpe) currentStateItems.push(`- RPE прошлой тренировки: ${constraints.lastRpe}/10`);
+  if (constraints.plateau) currentStateItems.push("- Плато: объём не растёт несколько тренировок");
+  if (constraints.deloadSuggested) currentStateItems.push("- Deload рекомендован: признаки перетренированности");
+  if (currentStateItems.length > 0) {
+    sections.push(`## Текущее состояние\n${currentStateItems.join("\n")}`);
+  }
 
   sections.push(`## Контекст недели
 - Глобальная неделя программы: ${weekContext.globalWeekIndex}
@@ -1641,19 +1642,22 @@ function buildProgressionContext(history: HistorySession[], globalWeekIndex: num
 
   const recentSessions = history.slice(0, 5);
   const weightProgression: string[] = [];
-  const exerciseMap = new Map<string, number[]>();
+  type WeightTrack = { name: string; weights: number[] };
+  const exerciseMap = new Map<string, WeightTrack>();
   recentSessions.forEach((session) => {
     session.exercises.forEach((ex) => {
       const stats = averageSetStats(ex);
-      if (stats.weight && stats.weight > 0) {
+      if (stats.weight && stats.weight > 0 && ex.name) {
         const key = slugify(ex.name);
-        if (!exerciseMap.has(key)) exerciseMap.set(key, []);
-        exerciseMap.get(key)!.push(stats.weight);
+        if (!exerciseMap.has(key)) {
+          exerciseMap.set(key, { name: ex.name, weights: [] });
+        }
+        exerciseMap.get(key)!.weights.push(stats.weight);
       }
     });
   });
 
-  exerciseMap.forEach((weights, exerciseName) => {
+  exerciseMap.forEach(({ name, weights }) => {
     if (weights.length >= 2) {
       const last = weights[0];
       const first = weights[weights.length - 1];
@@ -1661,7 +1665,7 @@ function buildProgressionContext(history: HistorySession[], globalWeekIndex: num
       const changePercent = (change / first) * 100;
       if (Math.abs(changePercent) >= 5) {
         weightProgression.push(
-          `${exerciseName}: веса ${change > 0 ? "растут" : "падают"} (${change.toFixed(1)} кг, ${changePercent.toFixed(
+          `${name}: веса ${change > 0 ? "растут" : "падают"} (${change.toFixed(1)} кг, ${changePercent.toFixed(
             0
           )}%)`
         );
@@ -1776,15 +1780,23 @@ ${poorSleep ? "- Недостаточный сон — центральная н
 plan.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
+    const tStart = Date.now();
     const userId = ensureUser(req);
     const tz = resolveTimezone(req);
     const force = Boolean(req.body?.force);
     const onboarding = await getOnboarding(userId);
+    const isAdmin = isAdminUser(userId);
+
+    logSection("🎯 WORKOUT GENERATION REQUEST");
+    console.log(`User ID: ${userId}`);
+    console.log(`Timezone: ${tz}`);
+    console.log(`Force: ${force}`);
+    logData("Request body", req.body ?? {});
 
     // Подписка / пробник
     await ensureSubscription(userId, "workout");
 
-    let existing = await getLatestWorkoutPlan(userId);
+  let existing = await getLatestWorkoutPlan(userId);
 
     // Лимиты по частоте
     // 1) по фактическим сохранённым сессиям
@@ -1805,6 +1817,7 @@ plan.post(
     );
 
     if (
+      !isAdmin &&
       (todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT ||
       (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT
     ) {
@@ -1840,7 +1853,7 @@ plan.post(
     const lastSession = await getLastWorkoutSession(userId);
 
     // Проверка валидности последней тренировки
-    if (lastSession) {
+    if (lastSession && !isAdmin) {
       // если ещё не завершена — запрет
       if (!lastSession.completed_at) {
         throw new AppError(
@@ -1855,7 +1868,7 @@ plan.post(
     }
 
     // Недельный лимит по онбордингу (мягкий +1 запас)
-    if (WEEKLY_WORKOUT_EXTRA_SOFT_CAP >= 0) {
+    if (!isAdmin && WEEKLY_WORKOUT_EXTRA_SOFT_CAP >= 0) {
       const desiredDaysPerWeek = Number(onboarding?.schedule?.daysPerWeek) || 3;
       const softCap = desiredDaysPerWeek + WEEKLY_WORKOUT_EXTRA_SOFT_CAP;
       const weeklySessions = await q<{ cnt: number }>(
@@ -1939,7 +1952,9 @@ plan.post(
     const userId = ensureUser(req);
     const data = req.body || {};
 
-    console.log(`[CHECK-IN] Saving for user=${userId}`, JSON.stringify(data));
+    logSection("💾 CHECK-IN SAVE REQUEST");
+    console.log(`User ID: ${userId}`);
+    logData("Check-in data", data);
 
     if (data.sleepHours != null && (data.sleepHours < 0 || data.sleepHours > 24)) {
       throw new AppError("sleepHours must be between 0 and 24", 400);
@@ -1975,21 +1990,22 @@ plan.post(
       throw new AppError(`hydration must be one of: ${validHydration.join(", ")}`, 400);
     }
 
-    const result = await q(
-      `INSERT INTO daily_check_ins (
-        user_id,
-        injuries, limitations, pain,
-        sleep_hours, sleep_quality, stress_level, energy_level,
-        motivation, mood,
-        menstrual_phase, menstrual_symptoms,
-        hydration, last_meal, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
-      DO UPDATE SET
-        injuries = EXCLUDED.injuries,
-        limitations = EXCLUDED.limitations,
-        pain = EXCLUDED.pain,
-        sleep_hours = EXCLUDED.sleep_hours,
+    const tSave = Date.now();
+  const result = await q(
+    `INSERT INTO daily_check_ins (
+      user_id,
+      injuries, limitations, pain,
+      sleep_hours, sleep_quality, stress_level, energy_level,
+      motivation, mood,
+      menstrual_phase, menstrual_symptoms,
+      hydration, last_meal, notes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
+    DO UPDATE SET
+      injuries = EXCLUDED.injuries,
+      limitations = EXCLUDED.limitations,
+      pain = EXCLUDED.pain,
+      sleep_hours = EXCLUDED.sleep_hours,
         sleep_quality = EXCLUDED.sleep_quality,
         stress_level = EXCLUDED.stress_level,
         energy_level = EXCLUDED.energy_level,
@@ -2021,7 +2037,9 @@ plan.post(
       ]
     );
 
-    console.log(`[CHECK-IN] ✅ Saved check-in id=${result[0].id} for user=${userId}`);
+    logTiming("Database save", tSave);
+    console.log(`✅ Check-in saved: ${result[0].id}`);
+    console.log(`   Created at: ${result[0].created_at}`);
 
     res.json({
       ok: true,
@@ -2058,111 +2076,228 @@ function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {
 }
 
 async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob) {
-  console.log(`[WORKOUT] ▶️ start async generation planId=${planId}`);
-  await setWorkoutPlanProgress(planId, "context", 15);
+  const tTotal = Date.now();
+  logSection("🤖 ASYNC WORKOUT GENERATION START");
+  console.log(`Plan ID: ${planId}`);
+  console.log(`User ID: ${userId}`);
+  console.log(`Timezone: ${tz}`);
 
-  const onboarding = await getOnboarding(userId);
-  const checkIn = await getLatestCheckIn(userId);
-  const sessionMinutes = resolveSessionLength(onboarding);
-  const profile = buildProfile(onboarding, sessionMinutes, checkIn);
-  const program = await getOrCreateProgram(userId, onboarding, profile);
-  const history = summarizeHistory(await getRecentSessions(userId, 10));
-  const weekContext = await buildWeekContext(userId, tz);
-  const weekSessions = summarizeHistory(await getWeekSessions(userId, tz));
-  const constraints = buildConstraints(profile, history);
-
-  console.log(
-    `[WORKOUT] context user=${userId} program=${program.blueprint_json.name} week=${
-      program.week
-    } day=${program.day_idx + 1}`
-  );
-
-  await setWorkoutPlanProgress(planId, "prompt", 30);
-  const prompt = buildTrainerPrompt({
-    profile,
-    onboarding,
-    program,
-    constraints,
-    sessionMinutes,
-    history,
-    weekContext,
-    weekSessions,
-  });
-
-  if (process.env.DEBUG_AI === "1") {
-    console.log("\n=== WORKOUT PROMPT ===");
-    console.log(prompt.slice(0, 500) + "...\n");
-  }
-
-  await setWorkoutPlanProgress(planId, "ai", 55);
-  const tAi = Date.now();
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    temperature: TEMPERATURE,
-    top_p: TOP_P,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: TRAINER_SYSTEM },
-      { role: "user", content: prompt },
-    ],
-  });
-  console.log(
-    `[WORKOUT] openai.chat ${Date.now() - tAi}ms prompt=${
-      completion.usage?.prompt_tokens ?? "?"
-    } completion=${completion.usage?.completion_tokens ?? "?"} total=${
-      completion.usage?.total_tokens ?? "?"
-    }`
-  );
-
-  let plan: WorkoutPlan;
   try {
-    plan = JSON.parse(completion.choices[0].message.content || "{}");
-  } catch (err) {
-    console.error("Failed to parse AI response:", err);
-    throw new AppError("AI returned invalid JSON", 500);
-  }
+    await setWorkoutPlanProgress(planId, "context", 15);
+    const tContext = Date.now();
+    console.log("\n📦 Loading context data...");
 
-  if (!plan.exercises || !Array.isArray(plan.exercises) || plan.exercises.length === 0) {
-    console.error("Invalid plan structure:", plan);
-    throw new AppError("AI generated invalid workout plan", 500);
-  }
+    const onboarding = await getOnboarding(userId);
+    console.log("✓ Onboarding loaded:", Object.keys(onboarding || {}).join(", "));
 
-  for (const ex of plan.exercises) {
-    if (!ex.name || !ex.sets || !ex.reps || !ex.restSec) {
-      console.error("Invalid exercise:", ex);
-      throw new AppError("AI generated exercise with missing fields", 500);
+    const checkIn = await getLatestCheckIn(userId);
+    if (checkIn) {
+      console.log("✓ Check-in found:", {
+        createdAt: checkIn.createdAt,
+        ageHours: Math.round((Date.now() - new Date(checkIn.createdAt).getTime()) / 3600000),
+        sleepHours: checkIn.sleepHours,
+        energyLevel: checkIn.energyLevel,
+        stressLevel: checkIn.stressLevel,
+        motivation: checkIn.motivation,
+      });
+    } else {
+      console.log("⚠️  No recent check-in found (48h window)");
     }
-  }
 
-  plan.duration = sessionMinutes;
-  await setWorkoutPlanProgress(planId, "validation", 80);
+    const sessionMinutes = resolveSessionLength(onboarding);
+    console.log(`✓ Session duration: ${sessionMinutes} minutes`);
 
-  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
-  plan = validation.plan;
+    const profile = buildProfile(onboarding, sessionMinutes, checkIn);
+    console.log("✓ Profile built:", {
+      age: profile.age,
+      sex: profile.sex,
+      experience: profile.experience,
+      goals: profile.goals,
+      daysPerWeek: profile.daysPerWeek,
+      minutesPerSession: profile.minutesPerSession,
+      location: profile.location,
+      energyLevel: profile.energyLevel,
+      sleepHours: profile.sleepHours,
+      stressLevel: profile.stressLevel,
+    });
 
-  if (validation.warnings.length) {
-    console.warn("Plan warnings:", validation.warnings);
-  }
+    const program = await getOrCreateProgram(userId, onboarding, profile);
+    console.log("✓ Program loaded:", {
+      name: program.blueprint_json.name,
+      week: program.week,
+      dayIdx: program.day_idx,
+      microcycleLen: program.microcycle_len,
+      todayFocus: program.blueprint_json.days[program.day_idx],
+    });
 
-  const recoveryLabel = describeRecovery(constraints.recovery.hoursSinceLast, constraints.lastRpe);
-  const analysis = {
-    historySummary: constraints.historySummary,
-    recovery: recoveryLabel,
-    hoursSinceLast: constraints.recovery.hoursSinceLast,
-    lastRpe: constraints.lastRpe,
-    plateau: constraints.plateau,
-    deloadSuggested: constraints.deloadSuggested,
-    weightNotes: constraints.weightNotes,
-    warnings: validation.warnings,
-  };
+    const history = summarizeHistory(await getRecentSessions(userId, 10));
+    console.log(`✓ History loaded: ${history.length} sessions`);
+    if (history.length > 0) {
+      console.log(`  Last session: ${new Date(history[0].date).toISOString()}`);
+      console.log(`  Last RPE: ${history[0].avgRpe}`);
+      console.log(`  Last volume: ${history[0].volumeKg} kg`);
+    }
 
-  await markWorkoutPlanReady(planId, plan, analysis);
-  console.log(`[WORKOUT] ✅ plan ready ${planId}`);
+    const weekContext = await buildWeekContext(userId, tz);
+    console.log("✓ Week context:", {
+      globalWeekIndex: weekContext.globalWeekIndex,
+      sessionsThisWeek: weekContext.sessionsThisWeek,
+      todayIndexInWeek: weekContext.todayIndexInWeek,
+    });
 
-  // Помечаем предыдущую валидную сессию как использованную для разблокировки
-  const lastSession = await getLastWorkoutSession(userId);
-  if (lastSession?.completed_at && !lastSession.unlock_used) {
-    await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
+    const weekSessions = summarizeHistory(await getWeekSessions(userId, tz));
+    console.log(`✓ Week sessions: ${weekSessions.length}`);
+
+    const constraints = buildConstraints(profile, history);
+    console.log("✓ Constraints built:", {
+      weightGuardsCount: Object.keys(constraints.weightGuards).length,
+      hoursSinceLast: constraints.recovery.hoursSinceLast,
+      lastRpe: constraints.lastRpe,
+      plateau: constraints.plateau,
+      deloadSuggested: constraints.deloadSuggested,
+    });
+
+    logTiming("Context loading", tContext);
+
+    await setWorkoutPlanProgress(planId, "prompt", 30);
+    const tPrompt = Date.now();
+    console.log("\n📝 Building prompt...");
+
+    const prompt = buildTrainerPrompt({
+      profile,
+      onboarding,
+      program,
+      constraints,
+      sessionMinutes,
+      history,
+      weekContext,
+      weekSessions,
+    });
+
+    console.log("✓ Prompt built:");
+    console.log(`  Total length: ${prompt.length} chars`);
+    console.log(`  Estimated tokens: ~${Math.round(prompt.length / 4)}`);
+    console.log("\n--- PROMPT PREVIEW (first 1000 chars) ---");
+    console.log(prompt.slice(0, 1000));
+    console.log("--- END PREVIEW ---\n");
+
+    logTiming("Prompt building", tPrompt);
+
+    await setWorkoutPlanProgress(planId, "ai", 55);
+    const tAi = Date.now();
+    console.log("\n🤖 Calling OpenAI API...");
+    console.log(`  Model: gpt-4o`);
+    console.log(`  Temperature: ${TEMPERATURE}`);
+    console.log(`  Top P: ${TOP_P}`);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: TEMPERATURE,
+      top_p: TOP_P,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: TRAINER_SYSTEM },
+        { role: "user", content: prompt },
+      ],
+    });
+    console.log("✓ AI Response received:");
+    console.log(`  Prompt tokens: ${completion.usage?.prompt_tokens ?? "?"}`);
+    console.log(`  Completion tokens: ${completion.usage?.completion_tokens ?? "?"}`);
+    console.log(`  Total tokens: ${completion.usage?.total_tokens ?? "?"}`);
+    console.log(`  Finish reason: ${completion.choices[0].finish_reason}`);
+
+    logTiming("OpenAI API call", tAi);
+
+    const tParse = Date.now();
+    console.log("\n🔍 Parsing AI response...");
+
+    let plan: WorkoutPlan;
+    try {
+      const rawResponse = completion.choices[0].message.content || "{}";
+      console.log("\n--- AI RESPONSE (raw JSON) ---");
+      console.log(rawResponse);
+      console.log("--- END AI RESPONSE ---\n");
+
+      plan = JSON.parse(rawResponse);
+      console.log("✓ JSON parsed successfully");
+    } catch (err) {
+      console.error("❌ JSON parse error:", err);
+      throw new AppError("AI returned invalid JSON", 500);
+    }
+
+    console.log("✓ Plan structure:", {
+      title: plan.title,
+      exercisesCount: plan.exercises?.length ?? 0,
+      warmupItems: plan.warmup?.length ?? 0,
+      cooldownItems: plan.cooldown?.length ?? 0,
+      hasNotes: Boolean(plan.notes),
+    });
+
+    if (plan.exercises && plan.exercises.length > 0) {
+      console.log("\n📋 Exercises list:");
+      plan.exercises.forEach((ex, idx) => {
+        console.log(`  ${idx + 1}. ${ex.name}`);
+        console.log(
+          `     Sets: ${ex.sets}, Reps: ${ex.reps}, Rest: ${ex.restSec}s, Weight: ${ex.weight || "bodyweight"}`
+        );
+        console.log(`     Muscles: ${(ex.targetMuscles || []).join(", ")}`);
+      });
+    }
+
+    plan.duration = sessionMinutes;
+    await setWorkoutPlanProgress(planId, "validation", 80);
+
+    console.log("\n✅ Validating plan structure...");
+    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+    plan = validation.plan;
+
+    if (validation.warnings.length) {
+      console.log("⚠️  Validation warnings:");
+      validation.warnings.forEach((w) => console.log(`  - ${w}`));
+    } else {
+      console.log("✓ No validation warnings");
+    }
+
+    console.log("\n✓ Final plan:", {
+      exercisesCount: plan.exercises.length,
+      totalSets: plan.exercises.reduce((sum, ex) => sum + ex.sets, 0),
+      estimatedDuration: plan.duration,
+    });
+
+    logTiming("Parsing & validation", tParse);
+
+    const tSave = Date.now();
+    console.log("\n💾 Saving to database...");
+
+    const analysis = {
+      historySummary: constraints.historySummary,
+      recovery: "no_interpretation",
+      hoursSinceLast: constraints.recovery.hoursSinceLast,
+      lastRpe: constraints.lastRpe,
+      plateau: constraints.plateau,
+      deloadSuggested: constraints.deloadSuggested,
+      weightNotes: constraints.weightNotes,
+      warnings: validation.warnings,
+    };
+
+    await markWorkoutPlanReady(planId, plan, analysis);
+    console.log(`✓ Plan saved: ${planId}`);
+
+    logTiming("Database save", tSave);
+    logTiming("TOTAL GENERATION TIME", tTotal);
+
+    const lastSession = await getLastWorkoutSession(userId);
+    if (lastSession?.completed_at && !lastSession.unlock_used) {
+      await q(`UPDATE workouts SET unlock_used = true WHERE id = $1`, [lastSession.id]);
+      console.log("✓ Previous session marked as used");
+    }
+
+    logSection("✅ WORKOUT GENERATION COMPLETE");
+  } catch (err) {
+    console.error("\n❌ GENERATION FAILED:");
+    console.error(err);
+    await markWorkoutPlanFailed(planId, (err as any)?.message?.slice(0, 500) ?? "AI error");
+    throw err;
   }
 }
 
@@ -2291,10 +2426,13 @@ plan.post(
     const plannedRaw = req.body?.plannedWorkoutId;
     const plannedWorkoutId = isUUID(plannedRaw) ? plannedRaw : null;
 
-    console.log("\n=== SAVING WORKOUT ===");
+    logSection("💪 WORKOUT SESSION SAVE");
     console.log("User ID:", userId);
     console.log("Exercises:", payload.exercises.length);
     console.log("Title:", payload.title);
+    if (payload?.feedback?.sessionRpe) {
+      console.log(`Session RPE: ${payload.feedback.sessionRpe}/10`);
+    }
 
     // Сохраняем в транзакции
     await q("BEGIN");
@@ -2352,8 +2490,8 @@ plan.post(
       }
 
       // 2. Двигаем программу на следующий день
-      await q(
-        `UPDATE training_programs
+    await q(
+      `UPDATE training_programs
          SET day_idx = (day_idx + 1) % microcycle_len,
              week = CASE 
                WHEN (day_idx + 1) % microcycle_len = 0 THEN week + 1 
