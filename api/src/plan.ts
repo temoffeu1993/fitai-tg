@@ -575,7 +575,8 @@ function summarizeHistory(rows: any[]): HistorySession[] {
   return rows.map((row) => ({
     ...row,
     volumeKg: calcSessionVolume(row),
-    avgRpe: numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
+    avgRpe:
+      row.avgRpe != null ? Number(row.avgRpe) : numberFrom(row.payload?.feedback?.sessionRpe) ?? null,
   }));
 }
 
