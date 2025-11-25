@@ -1825,13 +1825,13 @@ plan.post(
 
       if (
         !isAdmin &&
-        (todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT ||
-        (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT
+        ((todaySessions[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT ||
+          (todayPlans[0]?.cnt || 0) >= DAILY_WORKOUT_LIMIT)
       ) {
         const nextIso = await getNextDailyResetIso(tz);
         const nextLabel = formatDateLabel(new Date(nextIso), tz, { weekday: "long" });
 
-        if (existing && existing.status !== "failed") {
+        if (existing && existing.status !== "failed" && !isAdmin) {
           const createdSameDay =
             existing.created_at &&
             dateIsoFromTimestamp(existing.created_at, tz) === currentDateIsoInTz(tz);
