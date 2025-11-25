@@ -590,7 +590,7 @@ function buildConstraints(
   sessionMinutes: number,
   globalWeekIndex: number | null
 ): Constraints {
-  const phase = determinePhase(globalWeekIndex ?? program.week || 1);
+  const phase = determinePhase((globalWeekIndex ?? program.week) || 1);
   const historySummary = historyNarrative(history);
   const weightGuards: Record<string, WeightConstraint> = {};
   const weightNotes: string[] = [];
