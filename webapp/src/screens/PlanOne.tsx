@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadHistory } from "@/lib/history";
 import { createPlannedWorkout } from "@/api/schedule";
+import { submitCheckIn, type CheckInPayload } from "@/api/plan";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { CheckInForm } from "@/components/CheckInForm";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -56,6 +58,9 @@ export default function PlanOne() {
   const [regenNotice, setRegenNotice] = useState<string | null>(null);
   const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
   const [regenPending, setRegenPending] = useState(false);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -138,6 +143,25 @@ export default function PlanOne() {
       setRegenInlineError(message || "Не удалось обновить план");
     } finally {
       setRegenPending(false);
+    }
+  };
+
+  const handleCheckInSubmit = async (data: CheckInPayload) => {
+    setCheckInLoading(true);
+    setCheckInError(null);
+    try {
+      await submitCheckIn(data);
+      await refresh({ force: true, silent: true });
+      setCheckInOpen(false);
+    } catch (err: any) {
+      const message =
+        err?.body?.error ||
+        err?.body?.message ||
+        err?.message ||
+        "Не удалось сохранить самочувствие";
+      setCheckInError(String(message));
+    } finally {
+      setCheckInLoading(false);
     }
   };
 
@@ -301,6 +325,13 @@ export default function PlanOne() {
       >
         {regenButtonLabel}
       </button>
+      <button
+        type="button"
+        style={s.linkBtn}
+        onClick={() => setCheckInOpen(true)}
+      >
+        Сообщить самочувствие перед генерацией
+      </button>
       {regenNotice ? (
         <div style={s.buttonNote}>{regenNotice}</div>
       ) : regenInlineError ? (
@@ -409,6 +440,17 @@ export default function PlanOne() {
             </div>
           </div>
         </>
+      )}
+
+      {checkInOpen && (
+        <CheckInForm
+          open={checkInOpen}
+          loading={checkInLoading}
+          error={checkInError}
+          onSubmit={handleCheckInSubmit}
+          onSkip={() => setCheckInOpen(false)}
+          onClose={() => setCheckInOpen(false)}
+        />
       )}
     </div>
   );
@@ -1001,6 +1043,19 @@ const s: Record<string, React.CSSProperties> = {
     padding: 0,
     background: "transparent",
     boxShadow: "none",
+  },
+
+  linkBtn: {
+    marginTop: 8,
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#fff",
+    textDecoration: "underline",
+    cursor: "pointer",
+    fontSize: 14,
+    textAlign: "left",
+    padding: 0,
   },
 
   /* фирменные чипы как на Dashboard */

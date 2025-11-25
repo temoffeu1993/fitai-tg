@@ -1,7 +1,14 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
 import { useMemo, useState } from "react";
 
-export type Goal = "fat_loss" | "muscle_gain" | "maintenance" | "event_prep" | "custom";
+export type Goal =
+  | "weight_loss"
+  | "muscle_gain"
+  | "glutes_legs"
+  | "energy_tone"
+  | "health_improvement"
+  | "endurance_functional"
+  | "custom";
 const MOTIVES = [
   { key: "health", label: "Здоровье" },
   { key: "energy", label: "Энергия" },
@@ -16,7 +23,10 @@ export type OnbMotivationData = {
     goal: Goal;
     goalCustom?: string;
   };
-  goals: Array<Goal | string>;
+  goals: {
+    primary: Goal;
+    customText?: string;
+  };
 };
 
 type Props = {
@@ -37,7 +47,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   const [motiveOther, setMotiveOther] = useState<string>(initial?.motivation?.motiveOther ?? "");
 
   // 2) Цель
-  const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "fat_loss");
+  const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "weight_loss");
   const [goalCustom, setGoalCustom] = useState<string>(initial?.motivation?.goalCustom ?? "");
 
   const canNext = useMemo(() => {
@@ -59,8 +69,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       return Array.from(new Set(base));
     })();
 
-    const goalOut = goal === "custom" ? goalCustom.trim() : goal;
-
     // === МГНОВЕННЫЙ ФЛАГ И ОПОВЕЩЕНИЕ ДЛЯ НАВБАРА ===
     try { localStorage.setItem("onb_complete", "1"); } catch {}
     try { new BroadcastChannel("onb").postMessage("onb_complete"); } catch {}
@@ -73,7 +81,10 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         goal,
         goalCustom: goal === "custom" ? goalCustom.trim() : "",
       },
-      goals: [goalOut],
+      goals: {
+        primary: goal,
+        customText: goal === "custom" ? goalCustom.trim() : undefined,
+      },
     });
   }
 
@@ -126,10 +137,12 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       <section style={st.cardGlass}>
         <div style={st.blockTitle}>Какая у тебя цель?</div>
         <div style={st.wrapGridEven}>
-          <Chip label="🏃 Сбросить вес" active={goal === "fat_loss"} onClick={() => setGoal("fat_loss")} />
+          <Chip label="🏃 Сбросить вес" active={goal === "weight_loss"} onClick={() => setGoal("weight_loss")} />
           <Chip label="💪 Набрать мышцы" active={goal === "muscle_gain"} onClick={() => setGoal("muscle_gain")} />
-          <Chip label="⚖️ Поддерживать форму" active={goal === "maintenance"} onClick={() => setGoal("maintenance")} />
-          <Chip label="🎯 Подготовиться к событию" active={goal === "event_prep"} onClick={() => setGoal("event_prep")} />
+          <Chip label="🍑 Ягодицы и ноги" active={goal === "glutes_legs"} onClick={() => setGoal("glutes_legs")} />
+          <Chip label="⚡️ Тонус и энергия" active={goal === "energy_tone"} onClick={() => setGoal("energy_tone")} />
+          <Chip label="🩺 Здоровье и осанка" active={goal === "health_improvement"} onClick={() => setGoal("health_improvement")} />
+          <Chip label="🏋️‍♂️ Функциональность/выносливость" active={goal === "endurance_functional"} onClick={() => setGoal("endurance_functional")} />
           <Chip label="Другое" active={goal === "custom"} onClick={() => setGoal("custom")} />
         </div>
 
