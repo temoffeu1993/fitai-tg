@@ -54,6 +54,8 @@ type Exercise = {
 type WorkoutPlan = {
   title: string;
   duration: number;
+  targetDuration?: number;
+  estimatedDuration?: number;
   warmup: string[];
   exercises: Exercise[];
   cooldown: string[];
@@ -64,6 +66,7 @@ type WorkoutPlan = {
 type DailyCheckIn = {
   userId: string;
   createdAt: string;
+  availableMinutes: number | null;
   injuries: string[];
   limitations: string[];
   pain: Array<{ location: string; level: number }>;
@@ -1146,9 +1149,16 @@ async function getLatestCheckIn(userId: string): Promise<DailyCheckIn | null> {
     }
   }
 
+  let availableMinutes: number | null = null;
+  if (row.available_minutes != null) {
+    const parsed = numberFrom(row.available_minutes);
+    availableMinutes = parsed != null ? parsed : null;
+  }
+
   return {
     userId: row.user_id,
     createdAt: row.created_at,
+    availableMinutes,
     injuries: row.injuries || [],
     limitations: row.limitations || [],
     pain,
@@ -1349,6 +1359,7 @@ ${antiRepeatBlock}
 - Структура недели: ${blueprint.days.join(" → ")}
 - Сегодняшний фокус: **${todayFocus}**
 - Целевая длительность: ${sessionMinutes} минут
+- Пользователь указал доступное время на эту сессию: ${sessionMinutes} минут
 
 ${progressionContext}
 
@@ -1368,7 +1379,8 @@ ${safetyNotes}
 JSON (response_format json_object):
 {
   "title": "Название тренировки",
-  "duration": ${sessionMinutes},
+  "targetDuration": ${sessionMinutes},
+  "estimatedDuration": "сколько минут по твоей оценке займёт вся тренировка",
   "warmup": ["пункт 1", "пункт 2", ...],
   "exercises": [
     {
@@ -1991,6 +2003,13 @@ plan.post(
       throw new AppError("sleepHours must be between 0 and 24", 400);
     }
 
+    if (data.availableMinutes != null) {
+      const av = Number(data.availableMinutes);
+      if (!Number.isFinite(av) || av < 10 || av > 240) {
+        throw new AppError("availableMinutes must be between 10 and 240", 400);
+      }
+    }
+
     const validEnergy = ["low", "medium", "high"];
     if (data.energyLevel && !validEnergy.includes(data.energyLevel)) {
       throw new AppError(`energyLevel must be one of: ${validEnergy.join(", ")}`, 400);
@@ -2022,20 +2041,21 @@ plan.post(
     }
 
     const tSave = Date.now();
-  const result = await q(
-    `INSERT INTO daily_check_ins (
-      user_id,
-      injuries, limitations, pain,
-      sleep_hours, sleep_quality, stress_level, energy_level,
-      motivation, mood,
-      menstrual_phase, menstrual_symptoms,
-      hydration, last_meal, notes
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-    ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
-    DO UPDATE SET
-      injuries = EXCLUDED.injuries,
-      limitations = EXCLUDED.limitations,
-      pain = EXCLUDED.pain,
+    const result = await q(
+      `INSERT INTO daily_check_ins (
+        user_id,
+        injuries, limitations, pain,
+        sleep_hours, sleep_quality, stress_level, energy_level,
+        motivation, mood,
+        menstrual_phase, menstrual_symptoms,
+        hydration, last_meal, notes,
+        available_minutes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
+      DO UPDATE SET
+        injuries = EXCLUDED.injuries,
+        limitations = EXCLUDED.limitations,
+        pain = EXCLUDED.pain,
       sleep_hours = EXCLUDED.sleep_hours,
         sleep_quality = EXCLUDED.sleep_quality,
         stress_level = EXCLUDED.stress_level,
@@ -2047,6 +2067,7 @@ plan.post(
         hydration = EXCLUDED.hydration,
         last_meal = EXCLUDED.last_meal,
         notes = EXCLUDED.notes,
+        available_minutes = EXCLUDED.available_minutes,
         updated_at = NOW()
       RETURNING id, created_at`,
       [
@@ -2065,6 +2086,7 @@ plan.post(
         data.hydration || null,
         data.lastMeal || null,
         data.notes || null,
+        data.availableMinutes || null,
       ]
     );
 
@@ -2130,12 +2152,14 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
         energyLevel: checkIn.energyLevel,
         stressLevel: checkIn.stressLevel,
         motivation: checkIn.motivation,
+        availableMinutes: checkIn.availableMinutes,
       });
     } else {
       console.log("⚠️  No recent check-in found (48h window)");
     }
 
-    const sessionMinutes = resolveSessionLength(onboarding);
+    const sessionMinutes =
+      numberFrom(checkIn?.availableMinutes) ?? resolveSessionLength(onboarding);
     console.log(`✓ Session duration: ${sessionMinutes} minutes`);
 
     const profile = buildProfile(onboarding, sessionMinutes, checkIn);
@@ -2262,6 +2286,8 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       warmupItems: plan.warmup?.length ?? 0,
       cooldownItems: plan.cooldown?.length ?? 0,
       hasNotes: Boolean(plan.notes),
+      targetDuration: (plan as any).targetDuration ?? sessionMinutes,
+      estimatedDuration: (plan as any).estimatedDuration ?? null,
     });
 
     if (plan.exercises && plan.exercises.length > 0) {
@@ -2340,6 +2366,10 @@ function validatePlanStructure(
   const normalized: WorkoutPlan = {
     title: plan.title || "Персональная тренировка",
     duration: sessionMinutes,
+    targetDuration: plan.targetDuration ?? sessionMinutes,
+    estimatedDuration:
+      numberFrom((plan as any).estimatedDuration ?? (plan as any).duration) ??
+      sessionMinutes,
     warmup: Array.isArray(plan.warmup) ? plan.warmup : [],
     exercises: Array.isArray(plan.exercises) ? plan.exercises : [],
     cooldown: Array.isArray(plan.cooldown) ? plan.cooldown : [],

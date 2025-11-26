@@ -39,6 +39,7 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
   const [newInjury, setNewInjury] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [availableMinutes, setAvailableMinutes] = useState<number>(60);
 
   const sliderLabel = useMemo(() => {
     if (sleepHours >= 8) return "Выспался";
@@ -60,6 +61,7 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
     setFormError(null);
     const payload: CheckInPayload = {
       sleepHours,
+      availableMinutes,
       energyLevel,
       stressLevel,
       sleepQuality,
@@ -128,6 +130,20 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
           >
             {showAdvanced ? "Скрыть детали" : "Уточнить детали"}
           </button>
+
+          <label style={modal.label}>
+            <div style={modal.labelText}>Время на эту тренировку (минут)</div>
+            <input
+              type="number"
+              min={20}
+              max={180}
+              step={5}
+              style={modal.input}
+              value={availableMinutes}
+              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+              placeholder="Например, 60–90"
+            />
+          </label>
 
           {showAdvanced && (
             <div style={{ display: "grid", gap: 12 }}>
