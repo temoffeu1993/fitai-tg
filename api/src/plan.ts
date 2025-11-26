@@ -1341,6 +1341,73 @@ ${JSON.stringify(payload, null, 2)}`;
   }
 }
 
+function rebalanceDurationBreakdown(
+  db: WorkoutPlan["durationBreakdown"] | undefined,
+  sessionMinutes: number
+): { updated: WorkoutPlan["durationBreakdown"]; note: string | null } {
+  const original = {
+    warmup: numberFrom(db?.warmup),
+    cooldown: numberFrom(db?.cooldown),
+    exercises: numberFrom(db?.exercises),
+    buffer: numberFrom(db?.buffer),
+  };
+
+  // Если сессия совсем короткая, даём по 1 минуте на разминку/заминку.
+  if (sessionMinutes <= 35) {
+    const warmup = 1;
+    const cooldown = 1;
+    const buffer = original.buffer ?? 0;
+    const exercises = Math.max(0, sessionMinutes - warmup - cooldown - buffer);
+    const changed =
+      original.warmup !== warmup ||
+      original.cooldown !== cooldown ||
+      original.exercises !== exercises;
+    return {
+      updated: { warmup, cooldown, exercises, buffer: buffer || undefined, calculation: db?.calculation },
+      note: changed ? "Поджали разминку/заминку до 1+1 мин для короткой сессии" : null,
+    };
+  }
+
+  // Базовые значения, если AI не дал.
+  let warmup = original.warmup ?? 10;
+  let cooldown = original.cooldown ?? 5;
+  const buffer = original.buffer ?? 0;
+
+  // Ограничиваем сумму разминка+заминка максимум 15 мин.
+  const sum = warmup + cooldown;
+  if (sum > 15) {
+    const ratio = 15 / sum;
+    warmup = Math.max(1, Math.round(warmup * ratio));
+    cooldown = Math.max(1, Math.round(cooldown * ratio));
+    const adjusted = warmup + cooldown;
+    if (adjusted > 15) {
+      const diff = adjusted - 15;
+      if (warmup >= cooldown) warmup = Math.max(1, warmup - diff);
+      else cooldown = Math.max(1, cooldown - diff);
+    }
+  }
+
+  // Всё оставшееся время отдаём основной части.
+  const exercises = Math.max(0, sessionMinutes - warmup - cooldown - buffer);
+
+  const changed =
+    warmup !== original.warmup ||
+    cooldown !== original.cooldown ||
+    exercises !== original.exercises ||
+    buffer !== (original.buffer ?? 0);
+
+  return {
+    updated: {
+      warmup,
+      cooldown,
+      exercises,
+      buffer: buffer || undefined,
+      calculation: db?.calculation,
+    },
+    note: changed ? "Сбалансировали длительность: разминка+заминка ≤15 мин, остальное в основную часть" : null,
+  };
+}
+
 function describeEquipment(onboarding: any) {
   const env = onboarding.environment || {};
   if (env.bodyweightOnly === true) {
@@ -2367,6 +2434,19 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
 
     const targetDuration = targetDurationCandidate ?? sessionMinutesFinal;
     const estimatedDuration = estimatedDurationCandidate ?? sessionMinutesFinal;
+
+    // Ужимаем разминку/заминку и перераспределяем на основную часть
+    const clamped = rebalanceDurationBreakdown(plan.durationBreakdown, sessionMinutesFinal);
+    if (clamped.note) {
+      console.warn(`  ⚠️  ${clamped.note}`);
+      if (plan.timeNotes) {
+        plan.timeNotes = `${plan.timeNotes} | ${clamped.note}`;
+      } else {
+        plan.timeNotes = clamped.note;
+      }
+    }
+    plan.durationBreakdown = clamped.updated;
+
     console.log("✓ Plan structure:", {
       title: plan.title,
       exercisesCount: plan.exercises?.length ?? 0,
