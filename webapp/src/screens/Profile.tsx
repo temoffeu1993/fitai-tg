@@ -158,6 +158,10 @@ export default function Profile() {
 
   const expText = expRus(onb.experience);
   const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek;
+  const minutes =
+    onb?.schedule?.minutesPerSession ??
+    onb?.schedule?.minutes ??
+    onb?.schedule?.duration;
 
   const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
   const motives: string[] = onb?.motivation?.motives || [];
@@ -291,13 +295,14 @@ export default function Profile() {
 
           {/* Все нижние блоки — стеклянные. Внутри строки тоже стеклянные. */}
           <Accordion
-            title="⏱️ Опыт и режим"
+            title="⏱️ Опыт и время"
             open={open.expTime}
             onToggle={() => toggle("expTime")}
           >
             <Grid>
               <RowSmall k="Опыт" v={expText} />
               <RowSmall k="Частота тренировок" v={safeNum(perWeek, "раз/нед")} />
+              <RowSmall k="Длительность тренировки" v={safeNum(minutes, "мин")} />
             </Grid>
           </Accordion>
 

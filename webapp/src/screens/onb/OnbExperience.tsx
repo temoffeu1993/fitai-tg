@@ -5,7 +5,7 @@ export type Experience = "beginner" | "intermediate" | "advanced";
 
 export type OnbExperienceData = {
   experience: "beginner" | "intermediate" | "advanced",
-  schedule: { daysPerWeek: number }
+  schedule: { daysPerWeek: number; minutesPerSession: number }
 };
 
 type Props = {
@@ -21,12 +21,15 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
     (initial?.experience as Experience) ?? "beginner"
   );
   const [daysPerWeek, setDaysPerWeek] = useState<number>(initial?.schedule?.daysPerWeek ?? 3);
+  const [minutesPerSession, setMinutesPerSession] = useState<number>(
+    initial?.schedule?.minutesPerSession ?? 60
+  );
 
-  const canNext = Boolean(experience && daysPerWeek);
+  const canNext = Boolean(experience && daysPerWeek && minutesPerSession);
 
   function handleNext() {
     if (!canNext || loading) return;
-    onSubmit({ experience, schedule: { daysPerWeek } });
+    onSubmit({ experience, schedule: { daysPerWeek, minutesPerSession } });
   }
 
   return (
@@ -39,8 +42,8 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         </div>
 
         <div style={s.heroKicker}>Режим</div>
-        <div style={s.heroTitle}>Опыт и частота ⏱️</div>
-        <div style={s.heroSubtitle}>Выбери уровень и сколько раз в неделю тренироваться.</div>
+        <div style={s.heroTitle}>Опыт и время ⏱️</div>
+        <div style={s.heroSubtitle}>Выбери уровень, частоту и длительность.</div>
       </section>
 
       {/* Опыт — широкие стеклянные чипы с подзаголовком */}
@@ -68,7 +71,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         </div>
       </section>
 
-      {/* Частота тренировок */}
+      {/* Два стеклянных мини-блока: частота и длительность */}
       <section style={ux.grid2Equal}>
         <div style={ux.cardMini}>
           <div style={ux.cardMiniTitle}>📅 Сколько раз в неделю?</div>
@@ -77,6 +80,15 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
               <Chip key={d} label={`${d}`} active={daysPerWeek === d} onClick={() => setDaysPerWeek(d)} />
             ))}
             <Chip label="6+" active={daysPerWeek >= 6} onClick={() => setDaysPerWeek(6)} />
+          </div>
+        </div>
+
+        <div style={ux.cardMini}>
+          <div style={ux.cardMiniTitle}>⌛ Сколько минут на тренировку?</div>
+          <div style={ux.rowChips}>
+            <Chip label="30 мин" active={minutesPerSession === 30} onClick={() => setMinutesPerSession(30)} />
+            <Chip label="60 мин" active={minutesPerSession === 60} onClick={() => setMinutesPerSession(60)} />
+            <Chip label="90+ мин" active={minutesPerSession >= 90} onClick={() => setMinutesPerSession(90)} />
           </div>
         </div>
       </section>
