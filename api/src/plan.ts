@@ -2300,13 +2300,13 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
 
     const targetDurationCandidate = numberFrom((plan as any).targetDuration);
     const estimatedDurationCandidate = numberFrom((plan as any).estimatedDuration);
-    const sessionMinutes =
+    const sessionMinutesFinal =
       estimatedDurationCandidate ??
       targetDurationCandidate ??
       resolveSessionLength(onboarding);
 
-    const targetDuration = targetDurationCandidate ?? sessionMinutes;
-    const estimatedDuration = estimatedDurationCandidate ?? sessionMinutes;
+    const targetDuration = targetDurationCandidate ?? sessionMinutesFinal;
+    const estimatedDuration = estimatedDurationCandidate ?? sessionMinutesFinal;
     console.log("✓ Plan structure:", {
       title: plan.title,
       exercisesCount: plan.exercises?.length ?? 0,
@@ -2360,11 +2360,11 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       });
     }
 
-    plan.duration = sessionMinutes;
+    plan.duration = sessionMinutesFinal;
     await setWorkoutPlanProgress(planId, "validation", 80);
 
     console.log("\n✅ Validating plan structure...");
-  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+  const validation = validatePlanStructure(plan, constraints, sessionMinutesFinal);
   plan = validation.plan;
 
   if (validation.warnings.length) {
