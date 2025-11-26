@@ -218,6 +218,7 @@ function isAdminUser(userId: string): boolean {
 const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
 const DEFAULT_SESSION_MINUTES = 60;
+const DEFAULT_EXERCISES_COUNT = 8;
 
 // ============================================================================
 // LOGGING HELPERS
@@ -1264,6 +1265,81 @@ const TRAINER_SYSTEM = `Ты опытный персональный трене�
 
 Ты создаёшь тренировки для конкретного человека в конкретный день, учитывая его полную картину.`;
 
+type ExercisesTarget = { count: number; reason?: string };
+
+async function recommendExercisesCount(params: {
+  profile: Profile;
+  onboarding: any;
+  checkIn: DailyCheckIn | null;
+  history: HistorySession[];
+  sessionMinutes: number;
+  constraints: Constraints;
+}): Promise<ExercisesTarget> {
+  const { profile, onboarding, checkIn, history, sessionMinutes, constraints } = params;
+  const recentRpes = history
+    .map((h) => h.avgRpe)
+    .filter((r): r is number => r != null && Number.isFinite(r));
+  const avgRpe =
+    recentRpes.length > 0 ? Number((recentRpes.reduce((a, b) => a + b, 0) / recentRpes.length).toFixed(2)) : null;
+
+  const payload = {
+    profile: {
+      sex: profile.sex,
+      age: profile.age,
+      experience: profile.experience,
+      daysPerWeek: profile.daysPerWeek,
+      minutesPerSession: profile.minutesPerSession,
+      goals: profile.goals,
+      location: profile.location,
+    },
+    onboarding: {
+      goals: onboarding?.goals ?? null,
+      environment: onboarding?.environment ?? null,
+      schedule: onboarding?.schedule ?? null,
+    },
+    checkIn: checkIn || null,
+    history: {
+      lastRpe: constraints.lastRpe,
+      avgRpe,
+      sessions: history.slice(0, 5).map((h) => ({
+        date: h.date,
+        avgRpe: h.avgRpe,
+        exercises: h.exercises?.length ?? null,
+      })),
+    },
+    sessionMinutes,
+  };
+
+  const prompt = `Определи разумное количество упражнений для одной тренировки.
+Учитывай данные профиля, чек-ина и средний RPE последних тренировок.
+Верни JSON {"count": число, "reason": "кратко почему"}.
+
+Данные:
+${JSON.stringify(payload, null, 2)}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Ты тренер. Выбираешь разумное количество упражнений на сессию." },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(raw);
+    const countRaw = parsed?.count;
+    const count = Number.isFinite(countRaw) ? Number(countRaw) : DEFAULT_EXERCISES_COUNT;
+    const clamped = Math.min(15, Math.max(4, Math.round(count)));
+    return { count: clamped, reason: typeof parsed?.reason === "string" ? parsed.reason : undefined };
+  } catch (err) {
+    console.error("[PROGRAM] ⚠️ Exercise count AI failed, using default:", err);
+    return { count: DEFAULT_EXERCISES_COUNT, reason: "fallback_default" };
+  }
+}
+
 function describeEquipment(onboarding: any) {
   const env = onboarding.environment || {};
   if (env.bodyweightOnly === true) {
@@ -1291,6 +1367,7 @@ function buildTrainerPrompt(params: {
   onboarding: any;
   program: ProgramRow;
   constraints: Constraints;
+  targetExercises: number | null;
   sessionMinutes: number;
   history: HistorySession[];
   weekContext: WeekContext;
@@ -1301,6 +1378,7 @@ function buildTrainerPrompt(params: {
     onboarding,
     program,
     constraints,
+    targetExercises,
     sessionMinutes,
     history,
     weekContext,
@@ -1334,6 +1412,7 @@ ${antiRepeatBlock}
 - Глобальная неделя тренировок: ${weekContext.globalWeekIndex ?? program.week}
 - Структура недели: ${blueprint.days.join(" → ")}
 - Сегодняшний фокус: **${todayFocus}**
+${targetExercises ? `- Цель по количеству упражнений: ~${targetExercises}` : ""}
 - Целевая длительность: ${sessionMinutes} минут
 - Пользователь указал доступное время на эту сессию: ${sessionMinutes} минут
 
@@ -1350,6 +1429,7 @@ ${safetyNotes}
 - Не копирует недавние тренировки — используй вариации упражнений
 - Безопасна для здоровья клиента
 - Использует доступное время максимально эффективно: при нормальном состоянии заполняй всю сессию полноценным объёмом; если состояние слабое — укажи это в timeNotes и адаптируй объём
+${targetExercises ? `- Поддерживай примерно ${targetExercises} упражнений (можешь уменьшить при плохом самочувствии, но отметь это в timeNotes)` : ""}
 
 # ФОРМАТ ОТВЕТА
 
@@ -2204,11 +2284,22 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     const tPrompt = Date.now();
     console.log("\n📝 Building prompt...");
 
+    const exercisesTarget = await recommendExercisesCount({
+      profile,
+      onboarding,
+      checkIn,
+      history,
+      sessionMinutes,
+      constraints,
+    });
+    console.log("✓ Target exercises (AI):", exercisesTarget);
+
     const prompt = buildTrainerPrompt({
       profile,
       onboarding,
       program,
       constraints,
+      targetExercises: exercisesTarget.count,
       sessionMinutes,
       history,
       weekContext,
