@@ -2423,13 +2423,21 @@ function validatePlanStructure(
       numberFrom((plan as any).estimatedDuration ?? (plan as any).duration) ??
       sessionMinutes,
     durationBreakdown: plan.durationBreakdown
-      ? {
-          warmup: numberFrom((plan as any).durationBreakdown?.warmup),
-          exercises: numberFrom((plan as any).durationBreakdown?.exercises),
-          cooldown: numberFrom((plan as any).durationBreakdown?.cooldown),
-          buffer: numberFrom((plan as any).durationBreakdown?.buffer),
-          calculation: (plan as any).durationBreakdown?.calculation,
-        }
+      ? (() => {
+          const db = (plan as any).durationBreakdown ?? {};
+          const numOrUndef = (v: any) => {
+            const n = numberFrom(v);
+            return n != null ? n : undefined;
+          };
+          const mapped = {
+            warmup: numOrUndef(db.warmup),
+            exercises: numOrUndef(db.exercises),
+            cooldown: numOrUndef(db.cooldown),
+            buffer: numOrUndef(db.buffer),
+            calculation: typeof db.calculation === "string" ? db.calculation : undefined,
+          };
+          return mapped;
+        })()
       : undefined,
     timeNotes: (plan as any).timeNotes,
     warmup: Array.isArray(plan.warmup) ? plan.warmup : [],
