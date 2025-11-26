@@ -645,7 +645,7 @@ function historyNarrative(history: HistorySession[]): string {
     .map((session, idx) => {
       const when = idx === 0 ? "Последняя" : `${idx + 1}-я назад`;
       const exercises = session.exercises
-        .slice(0, 3)
+        .slice(0, 12)
         .map((ex) => {
           const stats = averageSetStats(ex);
           const repsRange = parseRepsRange(ex.reps);
@@ -756,7 +756,7 @@ function buildAntiRepeatBlock(history: HistorySession[]): string {
 
   sessions.forEach((session, idx) => {
     const label = idx === 0 ? "Последняя тренировка" : "Предыдущая до неё";
-    const exLines = session.exercises.slice(0, 6).map((ex) => `- ${ex.name}`);
+    const exLines = session.exercises.slice(0, 12).map((ex) => `- ${ex.name}`);
     if (exLines.length) {
       lines.push(`${label} — НЕ копируй эти упражнения один-в-один:\n${exLines.join("\n")}`);
     }
@@ -1515,7 +1515,7 @@ function buildHistoryBlock(history: HistorySession[], weekSessions: HistorySessi
         const date = new Date(session.date).toLocaleDateString("ru-RU");
 
         const exercises = session.exercises
-          .slice(0, 5)
+          .slice(0, 12)
           .map((ex) => {
             const stats = averageSetStats(ex);
             const setsCount =
@@ -1569,7 +1569,7 @@ ${recentHistory}
         const title = session.title || `Тренировка ${dayNum}`;
 
         const exercises = session.exercises
-          .slice(0, 8)
+          .slice(0, 12)
           .map((ex) => {
             const stats = averageSetStats(ex);
             const setsCount =
