@@ -1526,7 +1526,12 @@ function buildHistoryBlock(history: HistorySession[], weekSessions: HistorySessi
                 : "?";
             const repsText = stats.reps ? `${Math.round(stats.reps)} повт.` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)} кг` : "собств. вес";
-            const effortTag = ex.effort ? ` [ощущение: ${ex.effort}]` : "";
+            const effortMap: Record<string, string> = {
+              easy: "легко",
+              normal: "нормально",
+              hard: "тяжело",
+            };
+            const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =
               ex.targetMuscles && ex.targetMuscles.length > 0 ? ` (${ex.targetMuscles.join(", ")})` : "";
 
@@ -1575,10 +1580,16 @@ ${recentHistory}
                 : "?";
             const repsText = stats.reps ? `${Math.round(stats.reps)}` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)}кг` : "вес тела";
+            const effortMap: Record<string, string> = {
+              easy: "легко",
+              normal: "нормально",
+              hard: "тяжело",
+            };
+            const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =
               ex.targetMuscles && ex.targetMuscles.length > 0 ? ` [${ex.targetMuscles.join(", ")}]` : "";
 
-            return `  • ${ex.name}${muscles}: ${setsCount}×${repsText} @${weightText}`;
+            return `  • ${ex.name}${muscles}: ${setsCount}×${repsText} @${weightText}${effortTag}`;
           })
           .join("\n");
 
