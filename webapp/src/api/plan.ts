@@ -54,7 +54,6 @@ export async function checkPlanStatus<T = any>(planId: string): Promise<WorkoutP
 
 export type CheckInPayload = {
   sleepHours?: number;
-  availableMinutes?: number;
   energyLevel?: "low" | "medium" | "high";
   stressLevel?: "low" | "medium" | "high" | "very_high";
   sleepQuality?: "poor" | "fair" | "good" | "excellent";

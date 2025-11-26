@@ -74,7 +74,6 @@ type WorkoutPlan = {
 type DailyCheckIn = {
   userId: string;
   createdAt: string;
-  availableMinutes: number | null;
   injuries: string[];
   limitations: string[];
   pain: Array<{ location: string; level: number }>;
@@ -101,7 +100,6 @@ type Profile = {
   experience: "beginner" | "intermediate" | "advanced";
   goals: string[];
   daysPerWeek: number;
-  minutesPerSession: number;
   location: string;
   bodyweightOnly: boolean;
 
@@ -217,6 +215,7 @@ function isAdminUser(userId: string): boolean {
 }
 const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
+const DEFAULT_SESSION_MINUTES = 50;
 
 // ============================================================================
 // LOGGING HELPERS
@@ -569,11 +568,7 @@ function buildGoalsDescription(goalsData: any): string[] {
   return goalDescriptions[goalsData.primary] || ["поддержание общей физической формы"];
 }
 
-function buildProfile(
-  onboarding: any,
-  minutesFallback: number,
-  checkIn: DailyCheckIn | null
-): Profile {
+function buildProfile(onboarding: any, checkIn: DailyCheckIn | null): Profile {
   console.log("\n🏗️  Building profile from data...");
   console.log("  Onboarding keys:", Object.keys(onboarding || {}).join(", "));
   console.log("  Check-in present:", Boolean(checkIn));
@@ -596,7 +591,6 @@ function buildProfile(
     experience,
     goals: buildGoalsDescription(onboarding?.goals),
     daysPerWeek: Number(onboarding?.schedule?.daysPerWeek) || 3,
-    minutesPerSession: minutesFallback,
     location: onboarding?.environment?.location || "unknown",
     bodyweightOnly: Boolean(onboarding?.environment?.bodyweightOnly),
     healthLimitations: checkIn?.limitations || [],
@@ -788,42 +782,9 @@ async function getOnboarding(userId: string): Promise<any> {
   return rows[0]?.data || {};
 }
 
-function resolveSessionLength(onboarding: any): number {
-  const raw = onboarding?.schedule || {};
-  const candidates = [
-    raw.minutesPerSession,
-    raw.sessionLength,
-    raw.duration,
-    raw.length,
-    raw.minutes,
-    raw.timePerSession,
-    onboarding?.preferences?.workoutDuration,
-    onboarding?.profile?.sessionMinutes,
-    onboarding?.profile?.workoutDuration,
-  ];
-
-  for (const value of candidates) {
-    const parsed = parseDuration(value);
-    if (parsed) return parsed;
-  }
-
-  return 60;
-}
-
-function parseDuration(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return Math.round(value);
-  }
-  if (typeof value === "string") {
-    const match = value.replace(",", ".").match(/(\d+(\.\d+)?)/);
-    if (match) {
-      const num = Number(match[1]);
-      if (Number.isFinite(num) && num > 0) {
-        return Math.round(num);
-      }
-    }
-  }
-  return null;
+function resolveSessionLength(): number {
+  // Время не собираем у пользователя и не задаём жёстко в промте; используем безопасный запас для валидации.
+  return DEFAULT_SESSION_MINUTES;
 }
 
 // AI генерация blueprint + fallback
@@ -845,7 +806,6 @@ ${JSON.stringify(
     experience: profile.experience,
     goals: profile.goals,
     daysPerWeek: profile.daysPerWeek,
-    minutesPerSession: profile.minutesPerSession,
     location: profile.location,
     bodyweightOnly: profile.bodyweightOnly,
     limitations: limitations.length ? limitations : "нет данных",
@@ -1157,16 +1117,9 @@ async function getLatestCheckIn(userId: string): Promise<DailyCheckIn | null> {
     }
   }
 
-  let availableMinutes: number | null = null;
-  if (row.available_minutes != null) {
-    const parsed = numberFrom(row.available_minutes);
-    availableMinutes = parsed != null ? parsed : null;
-  }
-
   return {
     userId: row.user_id,
     createdAt: row.created_at,
-    availableMinutes,
     injuries: row.injuries || [],
     limitations: row.limitations || [],
     pain,
@@ -1323,7 +1276,6 @@ function buildTrainerPrompt(params: {
   onboarding: any;
   program: ProgramRow;
   constraints: Constraints;
-  sessionMinutes: number;
   history: HistorySession[];
   weekContext: WeekContext;
   weekSessions: HistorySession[];
@@ -1333,7 +1285,6 @@ function buildTrainerPrompt(params: {
     onboarding,
     program,
     constraints,
-    sessionMinutes,
     history,
     weekContext,
     weekSessions,
@@ -1366,8 +1317,6 @@ ${antiRepeatBlock}
 - Глобальная неделя тренировок: ${weekContext.globalWeekIndex ?? program.week}
 - Структура недели: ${blueprint.days.join(" → ")}
 - Сегодняшний фокус: **${todayFocus}**
-- Целевая длительность: ${sessionMinutes} минут
-- Пользователь указал доступное время на эту сессию: ${sessionMinutes} минут
 
 ${progressionContext}
 
@@ -1381,15 +1330,15 @@ ${safetyNotes}
 - Обеспечивает прогрессию (если клиент готов) или восстановление (если нужно)
 - Не копирует недавние тренировки — используй вариации упражнений
 - Безопасна для здоровья клиента
-- Использует доступное время максимально эффективно: при нормальном состоянии заполняй всю сессию полноценным объёмом; если состояние слабое — укажи это в timeNotes и адаптируй объём
+- Сам выбери подходящую длительность, исходя из профиля и состояния клиента. Если состояние слабое — укажи это в timeNotes и адаптируй объём
 
 # ФОРМАТ ОТВЕТА
 
 JSON (response_format json_object):
 {
   "title": "Название тренировки",
-  "targetDuration": ${sessionMinutes},
-  "estimatedDuration": число,
+  "targetDuration": число (сколько минут планируешь),
+  "estimatedDuration": число (расчёт по пунктам ниже),
   "durationBreakdown": {
     "warmup": число,
     "exercises": число,
@@ -1440,7 +1389,6 @@ function buildClientDataBlock(
 
   sections.push(`## График и локация
 - Тренировок в неделю: ${profile.daysPerWeek}
-- Целевая длительность сессии: ${profile.minutesPerSession} минут
 - Локация: ${profile.location}
 - Оборудование: ${describeEquipment(onboarding)}`);
 
@@ -2021,13 +1969,6 @@ plan.post(
       throw new AppError("sleepHours must be between 0 and 24", 400);
     }
 
-    if (data.availableMinutes != null) {
-      const av = Number(data.availableMinutes);
-      if (!Number.isFinite(av) || av < 10 || av > 240) {
-        throw new AppError("availableMinutes must be between 10 and 240", 400);
-      }
-    }
-
     const validEnergy = ["low", "medium", "high"];
     if (data.energyLevel && !validEnergy.includes(data.energyLevel)) {
       throw new AppError(`energyLevel must be one of: ${validEnergy.join(", ")}`, 400);
@@ -2066,9 +2007,8 @@ plan.post(
         sleep_hours, sleep_quality, stress_level, energy_level,
         motivation, mood,
         menstrual_phase, menstrual_symptoms,
-        hydration, last_meal, notes,
-        available_minutes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        hydration, last_meal, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
       DO UPDATE SET
         injuries = EXCLUDED.injuries,
@@ -2085,7 +2025,6 @@ plan.post(
         hydration = EXCLUDED.hydration,
         last_meal = EXCLUDED.last_meal,
         notes = EXCLUDED.notes,
-        available_minutes = EXCLUDED.available_minutes,
         updated_at = NOW()
       RETURNING id, created_at`,
       [
@@ -2104,7 +2043,6 @@ plan.post(
         data.hydration || null,
         data.lastMeal || null,
         data.notes || null,
-        data.availableMinutes || null,
       ]
     );
 
@@ -2170,24 +2108,21 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
         energyLevel: checkIn.energyLevel,
         stressLevel: checkIn.stressLevel,
         motivation: checkIn.motivation,
-        availableMinutes: checkIn.availableMinutes,
       });
     } else {
       console.log("⚠️  No recent check-in found (48h window)");
     }
 
-    const sessionMinutes =
-      numberFrom(checkIn?.availableMinutes) ?? resolveSessionLength(onboarding);
-    console.log(`✓ Session duration: ${sessionMinutes} minutes`);
+    const sessionMinutesHint = resolveSessionLength();
+    console.log("✓ Session duration hint: not provided by user (using internal fallback)");
 
-    const profile = buildProfile(onboarding, sessionMinutes, checkIn);
+    const profile = buildProfile(onboarding, checkIn);
     console.log("✓ Profile built:", {
       age: profile.age,
       sex: profile.sex,
       experience: profile.experience,
       goals: profile.goals,
       daysPerWeek: profile.daysPerWeek,
-      minutesPerSession: profile.minutesPerSession,
       location: profile.location,
       energyLevel: profile.energyLevel,
       sleepHours: profile.sleepHours,
@@ -2241,7 +2176,6 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       onboarding,
       program,
       constraints,
-      sessionMinutes,
       history,
       weekContext,
       weekSessions,
@@ -2298,8 +2232,15 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       throw new AppError("AI returned invalid JSON", 500);
     }
 
-    const targetDuration = (plan as any).targetDuration ?? sessionMinutes;
-    const estimatedDuration = (plan as any).estimatedDuration ?? null;
+    const targetDurationCandidate = numberFrom((plan as any).targetDuration);
+    const estimatedDurationCandidate = numberFrom((plan as any).estimatedDuration);
+    const sessionMinutes =
+      estimatedDurationCandidate ??
+      targetDurationCandidate ??
+      sessionMinutesHint;
+
+    const targetDuration = targetDurationCandidate ?? sessionMinutes;
+    const estimatedDuration = estimatedDurationCandidate ?? sessionMinutes;
     console.log("✓ Plan structure:", {
       title: plan.title,
       exercisesCount: plan.exercises?.length ?? 0,
