@@ -56,6 +56,14 @@ type WorkoutPlan = {
   duration: number;
   targetDuration?: number;
   estimatedDuration?: number;
+  durationBreakdown?: {
+    warmup?: number;
+    exercises?: number;
+    cooldown?: number;
+    buffer?: number;
+    calculation?: string;
+  };
+  timeNotes?: string;
   warmup: string[];
   exercises: Exercise[];
   cooldown: string[];
@@ -1373,6 +1381,7 @@ ${safetyNotes}
 - Обеспечивает прогрессию (если клиент готов) или восстановление (если нужно)
 - Не копирует недавние тренировки — используй вариации упражнений
 - Безопасна для здоровья клиента
+- Использует доступное время максимально эффективно: при нормальном состоянии заполняй всю сессию полноценным объёмом; если состояние слабое — укажи это в timeNotes и адаптируй объём
 
 # ФОРМАТ ОТВЕТА
 
@@ -1380,7 +1389,15 @@ JSON (response_format json_object):
 {
   "title": "Название тренировки",
   "targetDuration": ${sessionMinutes},
-  "estimatedDuration": "сколько минут по твоей оценке займёт вся тренировка",
+  "estimatedDuration": число,
+  "durationBreakdown": {
+    "warmup": число,
+    "exercises": число,
+    "cooldown": число,
+    "buffer": число,
+    "calculation": "Текстовое объяснение как ты посчитал время (пример: '5 упражнений × 12 мин = 60 мин')"
+  },
+  "timeNotes": "как ты посчитал время: разминка X мин, упражнения/отдых Y мин, заминка Z мин",
   "warmup": ["пункт 1", "пункт 2", ...],
   "exercises": [
     {
@@ -1400,7 +1417,8 @@ JSON (response_format json_object):
 **Важно:**
 - Ты сам решаешь, сколько упражнений, подходов и как долго разминка — исходя из состояния клиента.
 - Слишком экстремальные значения (например, 1 подход или 50 подходов, отдых 5 секунд или 10 минут) будут автоматически нормализованы системой до разумных диапазонов.
-- Твоя задача — предложить логичную структуру тренировки, а не подгонять под скрытые лимиты.`.trim();
+- Твоя задача — предложить логичную структуру тренировки, а не подгонять под скрытые лимиты.
+- Обязательно укажи, как ты посчитал время в durationBreakdown.calculation.`.trim();
 }
 
 // Блок фактов о клиенте
@@ -2280,15 +2298,49 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       throw new AppError("AI returned invalid JSON", 500);
     }
 
+    const targetDuration = (plan as any).targetDuration ?? sessionMinutes;
+    const estimatedDuration = (plan as any).estimatedDuration ?? null;
     console.log("✓ Plan structure:", {
       title: plan.title,
       exercisesCount: plan.exercises?.length ?? 0,
       warmupItems: plan.warmup?.length ?? 0,
       cooldownItems: plan.cooldown?.length ?? 0,
       hasNotes: Boolean(plan.notes),
-      targetDuration: (plan as any).targetDuration ?? sessionMinutes,
-      estimatedDuration: (plan as any).estimatedDuration ?? null,
+      targetDuration,
+      estimatedDuration,
+      timeUsage:
+        estimatedDuration && targetDuration
+          ? `${Math.round((estimatedDuration / targetDuration) * 100)}%`
+          : "N/A",
     });
+
+    if ((plan as any).timeNotes) {
+      console.log("\n⏱️  AI Time Calculation:");
+      console.log(`  "${(plan as any).timeNotes}"`);
+    }
+
+    if ((plan as any).durationBreakdown) {
+      const db = (plan as any).durationBreakdown as any;
+      const sum =
+        (numberFrom(db.warmup) ?? 0) +
+        (numberFrom(db.exercises) ?? 0) +
+        (numberFrom(db.cooldown) ?? 0) +
+        (numberFrom(db.buffer) ?? 0);
+      console.log("\n⏱️  Duration Breakdown:");
+      console.log(`  Warmup: ${db.warmup ?? "?"} min`);
+      console.log(`  Exercises: ${db.exercises ?? "?"} min`);
+      console.log(`  Cooldown: ${db.cooldown ?? "?"} min`);
+      console.log(`  Buffer: ${db.buffer ?? "?"} min`);
+      if (db.calculation) {
+        console.log(`  Calculation: "${db.calculation}"`);
+      }
+      console.log(`  Sum: ${sum} min (expected: ${(plan as any).estimatedDuration ?? "?"})`);
+      if ((plan as any).estimatedDuration != null && Math.abs(sum - (plan as any).estimatedDuration) > 5) {
+        console.warn(`  ⚠️  Mismatch! Sum (${sum}) != estimated (${(plan as any).estimatedDuration})`);
+      }
+    } else {
+      console.log("\n⚠️  No duration breakdown provided by AI");
+    }
 
     if (plan.exercises && plan.exercises.length > 0) {
       console.log("\n📋 Exercises list:");
@@ -2305,21 +2357,21 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     await setWorkoutPlanProgress(planId, "validation", 80);
 
     console.log("\n✅ Validating plan structure...");
-    const validation = validatePlanStructure(plan, constraints, sessionMinutes);
-    plan = validation.plan;
+  const validation = validatePlanStructure(plan, constraints, sessionMinutes);
+  plan = validation.plan;
 
-    if (validation.warnings.length) {
-      console.log("⚠️  Validation warnings:");
+  if (validation.warnings.length) {
+    console.log("⚠️  Validation warnings:");
       validation.warnings.forEach((w) => console.log(`  - ${w}`));
     } else {
       console.log("✓ No validation warnings");
     }
 
-    console.log("\n✓ Final plan:", {
-      exercisesCount: plan.exercises.length,
-      totalSets: plan.exercises.reduce((sum, ex) => sum + ex.sets, 0),
-      estimatedDuration: plan.duration,
-    });
+  console.log("\n✓ Final plan:", {
+    exercisesCount: plan.exercises.length,
+    totalSets: plan.exercises.reduce((sum, ex) => sum + ex.sets, 0),
+    estimatedDuration: plan.duration,
+  });
 
     logTiming("Parsing & validation", tParse);
 
@@ -2370,6 +2422,16 @@ function validatePlanStructure(
     estimatedDuration:
       numberFrom((plan as any).estimatedDuration ?? (plan as any).duration) ??
       sessionMinutes,
+    durationBreakdown: plan.durationBreakdown
+      ? {
+          warmup: numberFrom((plan as any).durationBreakdown?.warmup),
+          exercises: numberFrom((plan as any).durationBreakdown?.exercises),
+          cooldown: numberFrom((plan as any).durationBreakdown?.cooldown),
+          buffer: numberFrom((plan as any).durationBreakdown?.buffer),
+          calculation: (plan as any).durationBreakdown?.calculation,
+        }
+      : undefined,
+    timeNotes: (plan as any).timeNotes,
     warmup: Array.isArray(plan.warmup) ? plan.warmup : [],
     exercises: Array.isArray(plan.exercises) ? plan.exercises : [],
     cooldown: Array.isArray(plan.cooldown) ? plan.cooldown : [],
