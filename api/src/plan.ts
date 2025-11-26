@@ -1632,6 +1632,7 @@ function buildProgressionContext(history: HistorySession[], globalWeekIndex: num
 
 Это первые тренировки клиента.
 - Начни с консервативных весов и простых движений
+- Объём по упражнениям всё равно полноценный
 - Приоритет — обучение технике, а не нагрузка`;
   }
 
@@ -1639,7 +1640,7 @@ function buildProgressionContext(history: HistorySession[], globalWeekIndex: num
 
   let stageDescription = "";
   if (week <= 4) {
-    stageDescription = `Клиент тренируется ${week} неделю. Ранняя стадия (недели 1-4): адаптация к нагрузкам, закрепление техники.`;
+    stageDescription = `Клиент тренируется ${week} неделю. Ранняя стадия (недели 1-4): адаптация к нагрузкам, полноценный объем по упражнениям, закрепление техники.`;
   } else if (week <= 8) {
     stageDescription = `Клиент тренируется ${week} неделю. Средняя стадия (недели 5-8): активная прогрессия весов и объёма.`;
   } else if (week <= 12) {
