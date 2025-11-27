@@ -98,11 +98,8 @@ export function CheckInForm({
   const [sleepQuality, setSleepQuality] = useState<CheckInPayload["sleepQuality"]>("good");
   const sleepQualityIndex = sleepQualityScale.indexOf(sleepQuality);
   const [motivation, setMotivation] = useState<CheckInPayload["motivation"]>("medium");
-  const [mood, setMood] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
   const [injuries, setInjuries] = useState<string[]>([]);
   const [newInjury, setNewInjury] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [availableMinutes, setAvailableMinutes] = useState<number>(60);
 
@@ -132,9 +129,7 @@ export function CheckInForm({
       stressLevel,
       sleepQuality,
       motivation,
-      mood: mood.trim() || undefined,
       injuries: injuries.length ? injuries : undefined,
-      notes: notes.trim() || undefined,
     };
 
     try {
@@ -232,160 +227,144 @@ export function CheckInForm({
             </datalist>
           </div>
 
-          <div style={modal.cardWide}>
+          <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
             <input
-              type="number"
-              min={20}
-              max={180}
-              step={5}
-              style={modal.inputGlass}
+              type="range"
+              min={40}
+              max={90}
+              step={10}
               value={availableMinutes}
               onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-              placeholder="60–90"
+              style={{ ...modal.sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]), marginTop: 4 }}
+              className="checkin-slider"
             />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>{availableMinutes} мин</div>
+          </div>
+
+          <div style={modal.cardMini}>
+            <div style={modal.cardMiniTitle}>⚡ Энергия</div>
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={1}
+              value={["low", "medium", "high"].indexOf(energyLevel || "medium")}
+              onChange={(e) => {
+                const idx = Number(e.target.value);
+                setEnergyLevel((["low", "medium", "high"] as const)[idx] || "medium");
+              }}
+              style={{ ...modal.sliderStyle(0, 2, ["low", "medium", "high"].indexOf(energyLevel || "medium"), [0, 50, 100]), marginTop: 4 }}
+              className="checkin-slider"
+            />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
+              {energyLevel === "low" ? "Низкая" : energyLevel === "medium" ? "Средняя" : "Высокая"}
+            </div>
+          </div>
+
+          <div style={modal.cardMini}>
+            <div style={modal.cardMiniTitle}>💤 Качество сна</div>
+            <input
+              type="range"
+              min={0}
+              max={3}
+              step={1}
+              value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
+              onChange={(e) => {
+                const idx = Number(e.target.value);
+                setSleepQuality(sleepQualityScale[idx] || "good");
+              }}
+              style={{
+                ...modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100]),
+                marginTop: 4,
+              }}
+              className="checkin-slider"
+            />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
+              {{
+                0: "Плохое",
+                1: "Так себе",
+                2: "Хорошее",
+                3: "Отличное",
+              }[String(sleepQualityIndex < 0 ? 2 : sleepQualityIndex) as "0" | "1" | "2" | "3"]}
+            </div>
+          </div>
+
+          <div style={modal.cardMini}>
+            <div style={modal.cardMiniTitle}>😰 Стресс</div>
+            <input
+              type="range"
+              min={0}
+              max={3}
+              step={1}
+              value={["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium")}
+              onChange={(e) => {
+                const idx = Number(e.target.value);
+                setStressLevel((["low", "medium", "high", "very_high"] as const)[idx] || "medium");
+              }}
+              style={{ ...modal.sliderStyle(0, 3, ["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium"), [0, 33.333, 66.666, 100]), marginTop: 4 }}
+              className="checkin-slider"
+            />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
+              {{
+                low: "Низкий",
+                medium: "Средний",
+                high: "Высокий",
+                very_high: "Очень высокий",
+              }[stressLevel || "medium"]}
+            </div>
+          </div>
+
+          <div style={modal.cardMini}>
+            <div style={modal.cardMiniTitle}>🚀 Мотивация</div>
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={1}
+              value={["low", "medium", "high"].indexOf(motivation || "medium")}
+              onChange={(e) => {
+                const idx = Number(e.target.value);
+                setMotivation((["low", "medium", "high"] as const)[idx] || "medium");
+              }}
+              style={{ ...modal.sliderStyle(0, 2, ["low", "medium", "high"].indexOf(motivation || "medium"), [0, 50, 100]), marginTop: 4 }}
+              className="checkin-slider"
+            />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
+              {motivation === "low" ? "Низкая" : motivation === "medium" ? "Средняя" : "Высокая"}
+            </div>
           </div>
 
           <div style={modal.cardWide}>
-            <div style={modal.groupTitle}>⚡ Энергия</div>
-            <div style={modal.chips}>
-              {(["low", "medium", "high"] as const).map((val) => (
-                <button
-                  key={val}
-                  style={energyLevel === val ? chipActive : chipStyle}
-                  onClick={() => setEnergyLevel(val)}
-                  type="button"
-                >
-                  {val === "low" ? "🥱 Низкая" : val === "medium" ? "😊 Средняя" : "🔥 Высокая"}
-                </button>
-              ))}
+            <div style={modal.groupTitle}>Травмы/боли</div>
+            {injuries.length > 0 && (
+              <div style={modal.tagRow}>
+                {injuries.map((item) => (
+                  <span key={item} style={modal.tag}>
+                    {item}
+                    <button
+                      type="button"
+                      style={modal.tagClose}
+                      onClick={() => setInjuries(injuries.filter((x) => x !== item))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <input
+                style={modal.inputGlass}
+                placeholder="Например: боль в колене"
+                value={newInjury}
+                onChange={(e) => setNewInjury(e.target.value)}
+              />
+              <button type="button" style={modal.smallBtn} onClick={handleAddInjury}>
+                + добавить
+              </button>
             </div>
           </div>
-
-          <button
-            type="button"
-            style={modal.advancedToggle}
-            onClick={() => setShowAdvanced((v) => !v)}
-          >
-            {showAdvanced ? "Скрыть детали" : "Уточнить детали"}
-          </button>
-
-          {showAdvanced && (
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Стресс</div>
-                <div style={modal.chips}>
-                  {(["low", "medium", "high", "very_high"] as const).map((val) => (
-                    <button
-                      key={val}
-                      style={stressLevel === val ? chipActive : chipStyle}
-                      onClick={() => setStressLevel(val)}
-                      type="button"
-                    >
-                      {{
-                        low: "Низкий",
-                        medium: "Средний",
-                        high: "Высокий",
-                        very_high: "Очень высокий",
-                      }[val]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Качество сна</div>
-                <div style={modal.chips}>
-                  {(["poor", "fair", "good", "excellent"] as const).map((val) => (
-                    <button
-                      key={val}
-                      style={sleepQuality === val ? chipActive : chipStyle}
-                      onClick={() => setSleepQuality(val)}
-                      type="button"
-                    >
-                      {{
-                        poor: "Плохое",
-                        fair: "Так себе",
-                        good: "Хорошее",
-                        excellent: "Отличное",
-                      }[val]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Травмы/боли</div>
-                {injuries.length > 0 && (
-                  <div style={modal.tagRow}>
-                    {injuries.map((item) => (
-                      <span key={item} style={modal.tag}>
-                        {item}
-                        <button
-                          type="button"
-                          style={modal.tagClose}
-                          onClick={() => setInjuries(injuries.filter((x) => x !== item))}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                  <input
-                    style={modal.inputGlass}
-                    placeholder="Например: боль в колене"
-                    value={newInjury}
-                    onChange={(e) => setNewInjury(e.target.value)}
-                  />
-                  <button type="button" style={modal.smallBtn} onClick={handleAddInjury}>
-                    + добавить
-                  </button>
-                </div>
-              </div>
-
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Мотивация</div>
-                <div style={modal.chips}>
-                  {(["low", "medium", "high"] as const).map((val) => (
-                    <button
-                      key={val}
-                      style={motivation === val ? chipActive : chipStyle}
-                      onClick={() => setMotivation(val)}
-                      type="button"
-                    >
-                      {{
-                        low: "Низкая",
-                        medium: "Средняя",
-                        high: "Высокая",
-                      }[val]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Настроение</div>
-                <input
-                  style={modal.inputGlass}
-                  placeholder="Например: бодрость, усталость"
-                  value={mood}
-                  onChange={(e) => setMood(e.target.value)}
-                />
-              </div>
-
-              <div style={modal.cardWide}>
-                <div style={modal.groupTitle}>Комментарий</div>
-                <textarea
-                  style={{ ...modal.inputGlass, minHeight: 72, resize: "vertical" }}
-                  placeholder="Свободная заметка о самочувствии"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
 
           {(error || formError) && (
             <div style={modal.error}>{error || formError}</div>
@@ -454,13 +433,13 @@ const modal: Record<string, React.CSSProperties> = {
   bodyInline: { padding: "0", display: "grid", gap: 12 },
   label: { display: "grid", gap: 6 },
   labelText: { fontSize: 13, opacity: 0.7 },
-  subLabel: { fontSize: 13, opacity: 0.8, marginTop: 2 },
+  subLabel: { fontSize: 13, opacity: 0.8, marginTop: 1 },
   inputGlass: {
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
-    padding: "12px 12px",
-    fontSize: 15,
+    padding: "10px 10px",
+    fontSize: 14.5,
     background: "rgba(255,255,255,0.55)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
@@ -479,7 +458,7 @@ const modal: Record<string, React.CSSProperties> = {
     const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
     return {
       width: "100%",
-      height: 32,
+      height: 28,
       backgroundImage: bgImages,
       backgroundSize: bgSizes,
       backgroundPosition: bgPositions,
@@ -493,13 +472,14 @@ const modal: Record<string, React.CSSProperties> = {
     };
   },
   cardMini: {
-    padding: 12,
-    borderRadius: 16,
+    padding: 10,
+    borderRadius: 14,
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(0,0,0,0.05)",
-    boxShadow: "0 10px 30px rgba(15,23,42,0.10)",
+    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
-    gap: 6,
+    gap: 4,
+    minHeight: 82,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
@@ -510,13 +490,13 @@ const modal: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   cardWide: {
-    padding: 14,
-    borderRadius: 16,
+    padding: 10,
+    borderRadius: 14,
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(0,0,0,0.05)",
-    boxShadow: "0 10px 30px rgba(15,23,42,0.10)",
+    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
-    gap: 10,
+    gap: 6,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
