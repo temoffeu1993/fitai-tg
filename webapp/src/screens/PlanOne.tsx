@@ -68,11 +68,15 @@ export default function PlanOne() {
       const raw = localStorage.getItem("profile");
       const profile = raw ? JSON.parse(raw) : null;
       const userId = profile?.id ? String(profile.id) : null;
+      const userUuid = profile?.uuid ? String(profile.uuid) : null;
+      const username = profile?.username ? String(profile.username).toLowerCase() : null;
       const admins = String(import.meta.env.VITE_ADMIN_IDS || "")
         .split(",")
-        .map((v) => v.trim())
+        .map((v) => v.trim().toLowerCase())
         .filter(Boolean);
-      return userId ? admins.includes(userId) : false;
+      const hardcoded = ["d5d09c2c-f82b-4055-8cfa-77342b3a89f2", "artemryzih"];
+      const identifiers = [userId, userUuid, username].filter(Boolean).map((v) => v!.toLowerCase());
+      return identifiers.some((v) => admins.includes(v) || hardcoded.includes(v));
     } catch {
       return false;
     }
@@ -112,6 +116,12 @@ export default function PlanOne() {
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const [paywall, setPaywall] = useState(false);
   const effectivePlan = needsCheckIn ? null : plan;
+  const planTitle = useMemo(() => {
+    const t = effectivePlan?.title?.trim();
+    if (!t) return "Тренировка дня";
+    const hasCyr = /[а-яА-ЯёЁ]/.test(t);
+    return hasCyr ? t : "Тренировка дня";
+  }, [effectivePlan]);
 
   useEffect(() => {
     if (plan) {
@@ -298,9 +308,17 @@ export default function PlanOne() {
           </div>
           <div style={s.heroTitle}>Чек-ин перед тренировкой</div>
           <div style={s.heroSubtitle}>Укажи самочувствие и время — тренировка подстроится под тебя.</div>
+          {(regenInlineError || regenNotice) && (
+            <div style={{ marginTop: 10 }}>
+              {regenInlineError ? <div style={s.inlineError}>{regenInlineError}</div> : null}
+              {regenNotice ? <div style={s.buttonNote}>{regenNotice}</div> : null}
+            </div>
+          )}
+        </section>
 
+        <section style={s.checkInCard}>
           {showLoader || regenPending ? (
-            <div style={{ ...s.loaderBox, marginTop: 16 }}>
+            <div style={{ ...s.loaderBox, marginTop: 4 }}>
               <div style={s.loaderTitle}>Готовим план…</div>
               <div style={s.loaderSteps}>
                 {steps.map((step, idx) => (
@@ -308,12 +326,12 @@ export default function PlanOne() {
                     <div
                       style={{
                         ...s.loaderDot,
-                        background: idx <= loaderStepIndex ? "#4ade80" : "rgba(255,255,255,0.2)",
+                        background: idx <= loaderStepIndex ? "#4ade80" : "rgba(0,0,0,0.1)",
                       }}
                     />
                     <span
                       style={{
-                        color: idx <= loaderStepIndex ? "#fff" : "rgba(255,255,255,0.6)",
+                        color: idx <= loaderStepIndex ? "#0f172a" : "rgba(15,23,42,0.6)",
                       }}
                     >
                       {step}
@@ -323,19 +341,15 @@ export default function PlanOne() {
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: 12 }}>
-              {regenInlineError ? <div style={s.inlineError}>{regenInlineError}</div> : null}
-              {regenNotice ? <div style={s.buttonNote}>{regenNotice}</div> : null}
-              <CheckInForm
-                inline
-                loading={checkInLoading}
-                error={checkInError}
-                onSubmit={handleCheckInSubmit}
-                showSkip={false}
-                submitLabel={checkInLoading ? "Сохраняем..." : "Сгенерировать тренировку"}
-                title="Как ты сегодня? 💬"
-              />
-            </div>
+            <CheckInForm
+              inline
+              loading={checkInLoading}
+              error={checkInError}
+              onSubmit={handleCheckInSubmit}
+              showSkip={false}
+              submitLabel={checkInLoading ? "Сохраняем..." : "Сгенерировать тренировку"}
+              title="Как ты сегодня? 💬"
+            />
           )}
         </section>
       </div>
@@ -360,7 +374,7 @@ export default function PlanOne() {
         <div style={s.heroHeader}>
           <span style={s.pill}>{heroDateChip}</span>
         </div>
-        <div style={s.heroTitle}>{plan.title || "Тренировка дня"}</div>
+        <div style={s.heroTitle}>{planTitle}</div>
         <div style={s.heroSubtitle}>Краткое превью перед стартом</div>
 
         <div style={s.heroCtas}>
@@ -1186,6 +1200,15 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     background: "#fff",
     boxShadow: cardShadow,
+  },
+  checkInCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 18,
+    background: "rgba(255,255,255,0.9)",
+    boxShadow: "0 20px 45px rgba(15,23,42,0.12)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
   },
 
   rowBtn: {
