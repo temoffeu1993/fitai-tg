@@ -3,11 +3,15 @@ import type { CheckInPayload } from "@/api/plan";
 
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
-  onSkip: () => void;
-  open: boolean;
+  onSkip?: () => void;
+  open?: boolean;
   loading?: boolean;
   error?: string | null;
   onClose?: () => void;
+  inline?: boolean;
+  showSkip?: boolean;
+  title?: string;
+  submitLabel?: string;
 };
 
 const chipStyle: React.CSSProperties = {
@@ -27,7 +31,18 @@ const chipActive: React.CSSProperties = {
   border: "1px solid #0f172a",
 };
 
-export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }: Props) {
+export function CheckInForm({
+  onSubmit,
+  onSkip,
+  open = true,
+  loading,
+  error,
+  onClose,
+  inline = false,
+  showSkip = true,
+  title,
+  submitLabel,
+}: Props) {
   const [sleepHours, setSleepHours] = useState<number>(7);
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
   const [stressLevel, setStressLevel] = useState<CheckInPayload["stressLevel"]>("medium");
@@ -47,7 +62,8 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
     return "Мало сна";
   }, [sleepHours]);
 
-  if (!open) return null;
+  const shouldRender = inline || open;
+  if (!shouldRender) return null;
 
   const handleAddInjury = () => {
     const v = newInjury.trim();
@@ -82,14 +98,20 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
     }
   };
 
+  const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
+  const cardStyle = inline ? { ...modal.card, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" } : modal.card;
+  const footerStyle = inline ? { ...modal.footer, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr" } : modal.footer;
+
   return (
-    <div style={modal.wrap} role="dialog" aria-modal="true">
-      <div style={modal.card}>
+    <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
+      <div style={cardStyle}>
         <div style={modal.header}>
-          <div style={modal.title}>Как ты сегодня? 💬</div>
-          <button style={modal.close} onClick={onClose || onSkip} type="button">
-            ✕
-          </button>
+          <div style={modal.title}>{title || "Как ты сегодня? 💬"}</div>
+          {!inline && (onClose || onSkip) ? (
+            <button style={modal.close} onClick={onClose || onSkip} type="button">
+              ✕
+            </button>
+          ) : null}
         </div>
 
         <div style={modal.body}>
@@ -267,12 +289,14 @@ export function CheckInForm({ onSubmit, onSkip, open, loading, error, onClose }:
           )}
         </div>
 
-        <div style={modal.footer}>
-          <button style={modal.ghostBtn} onClick={onSkip} type="button" disabled={loading}>
-            Пропустить
-          </button>
+        <div style={footerStyle}>
+          {showSkip && onSkip ? (
+            <button style={modal.ghostBtn} onClick={onSkip} type="button" disabled={loading}>
+              Пропустить
+            </button>
+          ) : null}
           <button style={modal.save} onClick={handleSubmit} type="button" disabled={loading}>
-            {loading ? "Сохраняем..." : "Сохранить и сгенерировать"}
+            {loading ? "Сохраняем..." : submitLabel || "Сохранить и сгенерировать"}
           </button>
         </div>
       </div>
@@ -297,6 +321,11 @@ const modal: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
     overflow: "hidden",
+  },
+  inlineWrap: {
+    position: "relative",
+    background: "transparent",
+    display: "block",
   },
   header: {
     padding: "16px 18px",

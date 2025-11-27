@@ -58,10 +58,25 @@ export default function PlanOne() {
   const [regenNotice, setRegenNotice] = useState<string | null>(null);
   const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
   const [regenPending, setRegenPending] = useState(false);
-  const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
   const [initialPlanRequested, setInitialPlanRequested] = useState(false);
+  const [needsCheckIn, setNeedsCheckIn] = useState(false);
+
+  const isAdmin = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("profile");
+      const profile = raw ? JSON.parse(raw) : null;
+      const userId = profile?.id ? String(profile.id) : null;
+      const admins = String(import.meta.env.VITE_ADMIN_IDS || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      return userId ? admins.includes(userId) : false;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -94,19 +109,28 @@ export default function PlanOne() {
 
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
-  const showLoader = (loading || isProcessing) && initialPlanRequested;
+  const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const [paywall, setPaywall] = useState(false);
+  const effectivePlan = needsCheckIn ? null : plan;
 
   useEffect(() => {
     if (plan) {
       setInitialPlanRequested(true);
-      setCheckInOpen(false);
+      setNeedsCheckIn(false);
     }
   }, [plan]);
 
   useEffect(() => {
     const onPlanCompleted = () => {
-      regenerate().catch(() => {});
+      try {
+        localStorage.removeItem("current_plan");
+        localStorage.removeItem("session_draft");
+        localStorage.removeItem("plan_cache_v2");
+      } catch {}
+      setNeedsCheckIn(true);
+      setInitialPlanRequested(false);
+      setRegenPending(false);
+      setRegenInlineError(null);
     };
     window.addEventListener("plan_completed", onPlanCompleted as any);
     return () => window.removeEventListener("plan_completed", onPlanCompleted as any);
@@ -161,7 +185,6 @@ export default function PlanOne() {
       await submitCheckIn(data);
       setInitialPlanRequested(true);
       await refresh({ force: true });
-      setCheckInOpen(false);
     } catch (err: any) {
       const message =
         err?.body?.error ||
@@ -171,26 +194,6 @@ export default function PlanOne() {
       setCheckInError(String(message));
     } finally {
       setCheckInLoading(false);
-    }
-  };
-
-  const handleInitialGenerate = async () => {
-    kickProgress();
-    setInitialPlanRequested(true);
-    setRegenPending(true);
-    setRegenInlineError(null);
-    try {
-      await refresh({ force: true });
-    } catch (err: any) {
-      const status = err?.status;
-      const message = humanizePlanError(err);
-      if (status === 403 || status === 429) {
-        setRegenNotice(message);
-      } else {
-        setRegenInlineError(message || "Не удалось обновить план");
-      }
-    } finally {
-      setRegenPending(false);
     }
   };
 
@@ -284,7 +287,7 @@ export default function PlanOne() {
     );
   }
 
-  if (!plan) {
+  if (!effectivePlan) {
     return (
       <div style={s.page}>
         <SoftGlowStyles />
@@ -293,10 +296,8 @@ export default function PlanOne() {
           <div style={s.heroHeader}>
             <span style={s.pill}>{heroDateChip}</span>
           </div>
-          <div style={s.heroTitle}>Первая тренировка</div>
-          <div style={s.heroSubtitle}>
-            Перед генерацией можно коротко указать сон, энергию и ограничения — это учтёт тренер.
-          </div>
+          <div style={s.heroTitle}>Чек-ин перед тренировкой</div>
+          <div style={s.heroSubtitle}>Укажи самочувствие и время — тренировка подстроится под тебя.</div>
 
           {showLoader || regenPending ? (
             <div style={{ ...s.loaderBox, marginTop: 16 }}>
@@ -322,38 +323,21 @@ export default function PlanOne() {
               </div>
             </div>
           ) : (
-            <>
-              <div style={s.heroCtas}>
-                <button type="button" style={s.primaryBtn} onClick={() => setCheckInOpen(true)}>
-                  Сообщить самочувствие
-                </button>
-                <button
-                  type="button"
-                  style={{ ...s.secondaryBtn, whiteSpace: "nowrap" }}
-                  onClick={handleInitialGenerate}
-                >
-                  Сгенерировать без чек-ина
-                </button>
-              </div>
-              <div style={{ ...s.buttonNote, marginTop: 8 }}>
-                Чек-ин помогает точнее подобрать нагрузку, но можно пропустить.
-              </div>
+            <div style={{ marginTop: 12 }}>
               {regenInlineError ? <div style={s.inlineError}>{regenInlineError}</div> : null}
               {regenNotice ? <div style={s.buttonNote}>{regenNotice}</div> : null}
-            </>
+              <CheckInForm
+                inline
+                loading={checkInLoading}
+                error={checkInError}
+                onSubmit={handleCheckInSubmit}
+                showSkip={false}
+                submitLabel={checkInLoading ? "Сохраняем..." : "Сгенерировать тренировку"}
+                title="Как ты сегодня? 💬"
+              />
+            </div>
           )}
         </section>
-
-        {checkInOpen && (
-          <CheckInForm
-            open={checkInOpen}
-            loading={checkInLoading}
-            error={checkInError}
-            onSubmit={handleCheckInSubmit}
-            onSkip={() => setCheckInOpen(false)}
-            onClose={() => setCheckInOpen(false)}
-          />
-        )}
       </div>
     );
   }
@@ -404,25 +388,20 @@ export default function PlanOne() {
         </button>
       </div>
 
-      <button
-        type="button"
-        style={{
-          ...s.ghostBtn,
-          opacity: regenButtonDisabled ? 0.6 : 1,
-          cursor: regenButtonDisabled ? "not-allowed" : "pointer",
-        }}
-        disabled={regenButtonDisabled}
-        onClick={handleRegenerate}
-      >
-        {regenButtonLabel}
-      </button>
-      <button
-        type="button"
-        style={s.linkBtn}
-        onClick={() => setCheckInOpen(true)}
-      >
-        Сообщить самочувствие перед генерацией
-      </button>
+      {isAdmin && (
+        <button
+          type="button"
+          style={{
+            ...s.ghostBtn,
+            opacity: regenButtonDisabled ? 0.6 : 1,
+            cursor: regenButtonDisabled ? "not-allowed" : "pointer",
+          }}
+          disabled={regenButtonDisabled}
+          onClick={handleRegenerate}
+        >
+          {regenButtonLabel}
+        </button>
+      )}
       {regenNotice ? (
         <div style={s.buttonNote}>{regenNotice}</div>
       ) : regenInlineError ? (
@@ -533,16 +512,6 @@ export default function PlanOne() {
         </>
       )}
 
-      {checkInOpen && (
-        <CheckInForm
-          open={checkInOpen}
-          loading={checkInLoading}
-          error={checkInError}
-          onSubmit={handleCheckInSubmit}
-          onSkip={() => setCheckInOpen(false)}
-          onClose={() => setCheckInOpen(false)}
-        />
-      )}
     </div>
   );
 }
