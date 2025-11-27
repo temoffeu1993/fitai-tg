@@ -1,6 +1,67 @@
 import React, { useMemo, useState } from "react";
 import type { CheckInPayload } from "@/api/plan";
 
+const sliderCss = `
+.checkin-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+}
+.checkin-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(15,23,42,0.55);
+  border-radius: 999px;
+}
+.checkin-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0f172a;
+  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
+  margin-top: -8px;
+}
+.checkin-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(15,23,42,0.55);
+  border-radius: 999px;
+}
+.checkin-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0f172a;
+  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
+  border: none;
+}
+.checkin-slider.ticks-5 {
+  background:
+    radial-gradient(circle at 0% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 25% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 50% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 75% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 100% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55));
+  background-repeat: no-repeat;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 10px 10px, 100% 4px;
+  background-position: 0% 50%, 25% 50%, 50% 50%, 75% 50%, 100% 50%, 0 50%;
+}
+.checkin-slider.ticks-4 {
+  background:
+    radial-gradient(circle at 0% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 33.333% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 66.666% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    radial-gradient(circle at 100% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 45%, transparent 46%),
+    linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55));
+  background-repeat: no-repeat;
+  background-size: 10px 10px, 10px 10px, 10px 10px, 10px 10px, 100% 4px;
+  background-position: 0% 50%, 33.333% 50%, 66.666% 50%, 100% 50%, 0 50%;
+}
+`;
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
   onSkip?: () => void;
@@ -113,6 +174,7 @@ export function CheckInForm({
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
+      <style>{sliderCss}</style>
       <div style={cardStyle}>
         {!inline && (
           <div style={modal.header}>
@@ -136,7 +198,8 @@ export function CheckInForm({
                 step={1}
                 value={sleepHours}
                 onChange={(e) => setSleepHours(Number(e.target.value))}
-                style={{ ...modal.sliderBase, ...modal.sliderTicks5 }}
+                style={{ width: "100%" }}
+                className="checkin-slider ticks-5"
                 list="sleepTicks"
               />
               <div style={modal.subLabel}>
@@ -163,7 +226,8 @@ export function CheckInForm({
                   const idx = Number(e.target.value);
                   setSleepQuality(sleepQualityScale[idx] || "good");
                 }}
-                style={{ ...modal.sliderBase, ...modal.sliderTicks4 }}
+                style={{ width: "100%" }}
+                className="checkin-slider ticks-4"
                 list="sleepQualityTicks"
               />
               <div style={modal.subLabel}>
@@ -449,30 +513,6 @@ const modal: Record<string, React.CSSProperties> = {
     gap: 10,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
-  },
-  sliderBase: {
-    width: "100%",
-    accentColor: "#0f172a",
-    background: "transparent",
-    height: 32,
-    padding: 0,
-    margin: 0,
-  },
-  sliderTicks5: {
-    backgroundImage:
-      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
-    backgroundSize: "25% 60%, 100% 4px",
-    backgroundPosition: "0 50%, 0 50%",
-    backgroundRepeat: "repeat-x, no-repeat",
-    borderRadius: 999,
-  },
-  sliderTicks4: {
-    backgroundImage:
-      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
-    backgroundSize: "33.333% 60%, 100% 4px",
-    backgroundPosition: "0 50%, 0 50%",
-    backgroundRepeat: "repeat-x, no-repeat",
-    borderRadius: 999,
   },
   groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
   chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" },
