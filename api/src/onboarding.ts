@@ -33,9 +33,7 @@ onboarding.post(
 
     const equipment =
       equipmentList.length ? equipmentList :
-      d?.environment?.bodyweightOnly ? ["bodyweight"] :
-      d?.environment?.location ? [d.environment.location] :
-      [];
+      ["gym_full"];
 
     const experience = d?.experience?.level ?? d?.experience ?? null;
 
@@ -47,10 +45,10 @@ onboarding.post(
       weight: d?.body?.weight ?? null,
       experience,
       equipment,
-      lifestyle: d?.lifestyle ?? null,
+      lifestyle: null,
       dietPrefs: d?.dietPrefs ?? null,
       motivation: d?.motivation ?? null,
-      environment: d?.environment ?? null,
+      environment: { location: "gym", bodyweightOnly: false },
       goals: d?.goals ?? null,
     };
 

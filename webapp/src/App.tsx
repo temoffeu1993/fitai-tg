@@ -15,9 +15,7 @@ import Progress from "./screens/Progress";
 
 import OnbAgeSex from "./screens/onb/OnbAgeSex";
 import OnbExperience from "./screens/onb/OnbExperience";
-import OnbEquipment from "./screens/onb/OnbEquipment";
 import OnbDiet from "./screens/onb/OnbDiet";
-import OnbLifestyle from "./screens/onb/OnbLifestyle";
 import OnbMotivation from "./screens/onb/OnbMotivation";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -48,24 +46,9 @@ function StepExperience() {
       initial={draft}
       onSubmit={(p) => {
         patch(p);
-        nav("/onb/equipment");
-      }}
-      onBack={() => nav("/onb/age-sex")}
-    />
-  );
-}
-
-function StepEquipment() {
-  const { draft, patch } = useOnboarding();
-  const nav = useNavigate();
-  return (
-    <OnbEquipment
-      initial={draft}
-      onSubmit={(p) => {
-        patch(p);
         nav("/onb/diet");
       }}
-      onBack={() => nav("/onb/experience")}
+      onBack={() => nav("/onb/age-sex")}
     />
   );
 }
@@ -78,24 +61,9 @@ function StepDiet() {
       initial={draft}
       onSubmit={(p) => {
         patch(p);
-        nav("/onb/lifestyle");
-      }}
-      onBack={() => nav("/onb/equipment")}
-    />
-  );
-}
-
-function StepLifestyle() {
-  const { draft, patch } = useOnboarding();
-  const nav = useNavigate();
-  return (
-    <OnbLifestyle
-      initial={draft}
-      onSubmit={(p) => {
-        patch(p);
         nav("/onb/motivation");
       }}
-      onBack={() => nav("/onb/diet")}
+      onBack={() => nav("/onb/experience")}
     />
   );
 }
@@ -142,7 +110,7 @@ function StepMotivation() {
           }
         })();
       }}
-      onBack={() => nav("/onb/lifestyle")}
+      onBack={() => nav("/onb/diet")}
     />
   );
 }
@@ -165,9 +133,7 @@ export default function App() {
 
             <Route path="/onb/age-sex" element={<StepAgeSex />} />
             <Route path="/onb/experience" element={<StepExperience />} />
-            <Route path="/onb/equipment" element={<StepEquipment />} />
             <Route path="/onb/diet" element={<StepDiet />} />
-            <Route path="/onb/lifestyle" element={<StepLifestyle />} />
             <Route path="/onb/motivation" element={<StepMotivation />} />
           </Route>
         </Routes>

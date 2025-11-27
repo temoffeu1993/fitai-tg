@@ -1,11 +1,15 @@
 // webapp/src/screens/onb/OnbExperience.tsx
 import { useState } from "react";
 
-export type Experience = "beginner" | "intermediate" | "advanced";
+export type Experience =
+  | "never_trained"
+  | "long_break"
+  | "training_regularly"
+  | "training_experienced";
 
 export type OnbExperienceData = {
-  experience: "beginner" | "intermediate" | "advanced",
-  schedule: { daysPerWeek: number; minutesPerSession: number }
+  experience: Experience;
+  schedule: { daysPerWeek: number };
 };
 
 type Props = {
@@ -18,18 +22,14 @@ type Props = {
 
 export default function OnbExperience({ initial, loading, onSubmit, onBack, onTabChange }: Props) {
   const [experience, setExperience] = useState<Experience>(
-    (initial?.experience as Experience) ?? "beginner"
+    (initial?.experience as Experience) ?? "never_trained"
   );
   const [daysPerWeek, setDaysPerWeek] = useState<number>(initial?.schedule?.daysPerWeek ?? 3);
-  const [minutesPerSession, setMinutesPerSession] = useState<number>(
-    initial?.schedule?.minutesPerSession ?? 60
-  );
-
-  const canNext = Boolean(experience && daysPerWeek && minutesPerSession);
+  const canNext = Boolean(experience && daysPerWeek);
 
   function handleNext() {
     if (!canNext || loading) return;
-    onSubmit({ experience, schedule: { daysPerWeek, minutesPerSession } });
+    onSubmit({ experience, schedule: { daysPerWeek } });
   }
 
   return (
@@ -37,41 +37,47 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
       {/* HERO — чёрный, как в OnbAgeSex/Dashboard */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Шаг 2 из 6</span>
+          <span style={s.pill}>Шаг 2 из 4</span>
           <span style={s.pill}>Анкета</span>
         </div>
 
         <div style={s.heroKicker}>Режим</div>
-        <div style={s.heroTitle}>Опыт и время ⏱️</div>
-        <div style={s.heroSubtitle}>Выбери уровень, частоту и длительность.</div>
+        <div style={s.heroTitle}>Опыт и частота ⏱️</div>
+        <div style={s.heroSubtitle}>Выбери свой опыт и сколько раз в неделю тренироваться.</div>
       </section>
 
       {/* Опыт — широкие стеклянные чипы с подзаголовком */}
       <section style={s.block}>
-        <div style={s.blockTitle}>🎓 Опыт тренировок</div>
+        <div style={s.blockTitle}>🎓 Твой опыт тренировок</div>
         <div style={ux.row3Equal}>
           <ChipWide
-            label="Новичок"
-            sub="< 6 мес"
-            active={experience === "beginner"}
-            onClick={() => setExperience("beginner")}
+            label="Никогда не занимался в зале"
+            sub="Только начинаю свой путь"
+            active={experience === "never_trained"}
+            onClick={() => setExperience("never_trained")}
           />
           <ChipWide
-            label="Средний"
-            sub="6–24 мес"
-            active={experience === "intermediate"}
-            onClick={() => setExperience("intermediate")}
+            label="Перерыв 3+ месяца"
+            sub="Раньше занимался, но тело отвыкло"
+            active={experience === "long_break"}
+            onClick={() => setExperience("long_break")}
           />
           <ChipWide
-            label="Профи"
-            sub="2+ года"
-            active={experience === "advanced"}
-            onClick={() => setExperience("advanced")}
+            label="Тренируюсь регулярно (< 1 года)"
+            sub="Хожу в зал, ещё учусь"
+            active={experience === "training_regularly"}
+            onClick={() => setExperience("training_regularly")}
+          />
+          <ChipWide
+            label="Тренируюсь давно (1+ год)"
+            sub="Знаю технику, тренируюсь стабильно"
+            active={experience === "training_experienced"}
+            onClick={() => setExperience("training_experienced")}
           />
         </div>
       </section>
 
-      {/* Два стеклянных мини-блока: частота и длительность */}
+      {/* Частота тренировок */}
       <section style={ux.grid2Equal}>
         <div style={ux.cardMini}>
           <div style={ux.cardMiniTitle}>📅 Сколько раз в неделю?</div>
@@ -80,15 +86,6 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
               <Chip key={d} label={`${d}`} active={daysPerWeek === d} onClick={() => setDaysPerWeek(d)} />
             ))}
             <Chip label="6+" active={daysPerWeek >= 6} onClick={() => setDaysPerWeek(6)} />
-          </div>
-        </div>
-
-        <div style={ux.cardMini}>
-          <div style={ux.cardMiniTitle}>⌛ Сколько минут на тренировку?</div>
-          <div style={ux.rowChips}>
-            <Chip label="30 мин" active={minutesPerSession === 30} onClick={() => setMinutesPerSession(30)} />
-            <Chip label="60 мин" active={minutesPerSession === 60} onClick={() => setMinutesPerSession(60)} />
-            <Chip label="90+ мин" active={minutesPerSession >= 90} onClick={() => setMinutesPerSession(90)} />
           </div>
         </div>
       </section>
@@ -244,7 +241,7 @@ const s: Record<string, React.CSSProperties> = {
 const ux: Record<string, React.CSSProperties> = {
   row3Equal: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 10,
     alignItems: "stretch",
   },

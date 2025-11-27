@@ -2,9 +2,7 @@
 import { useState } from "react";
 import OnbAgeSex, { OnbAgeSexData } from "./OnbAgeSex";
 import OnbExperience, { OnbExperienceData } from "./OnbExperience";
-import OnbEquipment, { OnbEquipmentData } from "./OnbEquipment";
 import OnbDiet, { OnbDietData } from "./OnbDiet";
-import OnbLifestyle, { OnbLifestyleData } from "./OnbLifestyle";
 import OnbMotivation, { OnbMotivationData } from "./OnbMotivation";
 // + API
 import { saveOnboarding } from "@/api/onboarding";
@@ -12,9 +10,7 @@ import { saveOnboarding } from "@/api/onboarding";
 type OnbAll =
   & Partial<OnbAgeSexData>
   & Partial<OnbExperienceData>
-  & Partial<OnbEquipmentData>
   & Partial<OnbDietData>
-  & Partial<OnbLifestyleData>
   & Partial<OnbMotivationData>;
 
 export default function OnboardingWizard() {
@@ -34,7 +30,11 @@ export default function OnboardingWizard() {
   async function persistAndFinish() {
     setSaving(true);
     try {
-      const summary = await saveOnboarding(acc);
+      const payload = {
+        ...acc,
+        environment: { location: "gym", bodyweightOnly: false },
+      };
+      const summary = await saveOnboarding(payload);
       localStorage.setItem("onb_summary", JSON.stringify(summary ?? acc));
       localStorage.setItem("onboarding_done", "1");
       try { localStorage.setItem("onb_complete", "1"); } catch {}
@@ -69,22 +69,8 @@ export default function OnboardingWizard() {
       onBack={goBack}
       onSubmit={(patch) => { saveLocal(patch); setStep(step + 1); }}
     />,
-    <OnbEquipment
-      key="eq"
-      initial={acc as any}
-      loading={saving}
-      onBack={goBack}
-      onSubmit={(patch) => { saveLocal(patch); setStep(step + 1); }}
-    />,
     <OnbDiet
       key="diet"
-      initial={acc as any}
-      loading={saving}
-      onBack={goBack}
-      onSubmit={(patch) => { saveLocal(patch); setStep(step + 1); }}
-    />,
-    <OnbLifestyle
-      key="life"
       initial={acc as any}
       loading={saving}
       onBack={goBack}

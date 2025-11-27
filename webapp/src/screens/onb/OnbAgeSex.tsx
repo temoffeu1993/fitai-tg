@@ -69,7 +69,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       {/* HERO в фирменном стиле */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Шаг 1 из 6</span>
+          <span style={s.pill}>Шаг 1 из 4</span>
           <span style={s.pill}>Анкета</span>
         </div>
 

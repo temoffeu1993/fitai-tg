@@ -18,10 +18,7 @@ function isOnboardingCompleteLocal(): boolean {
       Number.isFinite(Number(s?.body?.weight)) &&
       s?.experience &&
       s?.schedule?.daysPerWeek &&
-      s?.schedule?.minutesPerSession &&
-      s?.environment?.location &&
       s?.dietPrefs &&
-      s?.lifestyle &&
       s?.motivation?.goal;
     return Boolean(ok);
   } catch {

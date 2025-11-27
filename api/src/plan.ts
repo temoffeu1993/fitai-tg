@@ -27,7 +27,7 @@ type Blueprint = {
     daysPerWeek: number;
     goals: string[];
     location: string;
-    experience: "beginner" | "intermediate" | "advanced";
+    trainingStatus: TrainingStatus;
     createdAt: string;
   };
 };
@@ -98,16 +98,18 @@ type Profile = {
   weight: number | null;
   height: number | null;
   sex: "male" | "female" | "unknown";
-  experience: "beginner" | "intermediate" | "advanced";
+  trainingStatus: TrainingStatus;
   goals: string[];
   daysPerWeek: number;
   minutesPerSession: number;
   location: string;
   bodyweightOnly: boolean;
 
-  healthLimitations: string[];
-  injuries: string[];
+  chronicLimitations: string[];
+  chronicInjuries: string[];
   chronicConditions: string[];
+  todayLimitations: string[];
+  todayInjuries: string[];
   pain: Array<{ location: string; level: number }>;
   stressLevel: "low" | "medium" | "high" | "very_high" | null;
   sleepHours: number | null;
@@ -152,6 +154,12 @@ type OnboardingGoal =
   | "health_improvement"
   | "endurance_functional"
   | "custom";
+
+type TrainingStatus =
+  | "never_trained" // Никогда не занимался
+  | "long_break" // Большой перерыв (3+ месяца)
+  | "training_regularly" // Тренируюсь регулярно (<1 года)
+  | "training_experienced"; // Тренируюсь давно и регулярно
 
 type WeightConstraint = {
   min: number;
@@ -219,6 +227,18 @@ const MOSCOW_TZ = "Europe/Moscow";
 const MS_PER_HOUR = 60 * 60 * 1000;
 const DEFAULT_SESSION_MINUTES = 60;
 const DEFAULT_EXERCISES_COUNT = 8;
+function mapTrainingStatus(raw: any): TrainingStatus {
+  const v = String(raw || "").toLowerCase();
+  if (v.includes("never")) return "never_trained";
+  if (v.includes("break") || v.includes("перерыв")) return "long_break";
+  if (v.includes("experienced") || v.includes("advanced") || v.includes("1+") || v.includes("long")) {
+    return "training_experienced";
+  }
+  if (v.includes("regular") || v.includes("регуляр")) return "training_regularly";
+  if (v.includes("begin") || v.includes("novice") || v.includes("new")) return "never_trained";
+  if (v.includes("intermediate")) return "training_regularly";
+  return "never_trained";
+}
 
 // ============================================================================
 // LOGGING HELPERS
@@ -581,29 +601,29 @@ function buildProfile(
   console.log("  Check-in present:", Boolean(checkIn));
 
   const sexRaw = (onboarding?.ageSex?.sex || "").toLowerCase();
-  const experienceRaw = (onboarding?.experience || "intermediate").toLowerCase();
+  const experienceRaw = onboarding?.experience || "never_trained";
+  const trainingStatus = mapTrainingStatus(experienceRaw);
   const sex: Profile["sex"] =
     sexRaw === "female" ? "female" : sexRaw === "male" ? "male" : "unknown";
-  const experience: Profile["experience"] =
-    experienceRaw.includes("novice") || experienceRaw.includes("begin")
-      ? "beginner"
-      : experienceRaw.includes("adv")
-      ? "advanced"
-      : "intermediate";
+  const chronicLimitations = normalizeList(onboarding?.health?.limitations ?? onboarding?.health?.limitsText);
+  const chronicInjuries = normalizeList(onboarding?.health?.injuries);
+  const chronicConditions = normalizeList(onboarding?.health?.chronicConditions);
   const profile = {
     age: numberFrom(onboarding?.ageSex?.age) ?? null,
     weight: numberFrom(onboarding?.body?.weight) ?? null,
     height: numberFrom(onboarding?.body?.height) ?? null,
     sex,
-    experience,
+    trainingStatus,
     goals: buildGoalsDescription(onboarding?.goals),
     daysPerWeek: Number(onboarding?.schedule?.daysPerWeek) || 3,
     minutesPerSession: minutesFallback,
-    location: onboarding?.environment?.location || "unknown",
-    bodyweightOnly: Boolean(onboarding?.environment?.bodyweightOnly),
-    healthLimitations: checkIn?.limitations || [],
-    injuries: checkIn?.injuries || [],
-    chronicConditions: onboarding?.health?.chronicConditions || [],
+    location: "gym",
+    bodyweightOnly: false,
+    chronicLimitations,
+    chronicInjuries,
+    chronicConditions,
+    todayLimitations: checkIn?.limitations || [],
+    todayInjuries: checkIn?.injuries || [],
     pain: checkIn?.pain || [],
     stressLevel: checkIn?.stressLevel || null,
     sleepHours: checkIn?.sleepHours ?? null,
@@ -620,7 +640,7 @@ function buildProfile(
 
   console.log("  Profile result:", {
     hasCheckInData: Boolean(checkIn),
-    experience: profile.experience,
+    trainingStatus: profile.trainingStatus,
     goals: profile.goals[0],
     hasEnergyLevel: Boolean(profile.energyLevel),
     hasSleepData: Boolean(profile.sleepHours),
@@ -790,28 +810,6 @@ async function getOnboarding(userId: string): Promise<any> {
   return rows[0]?.data || {};
 }
 
-function resolveSessionLength(onboarding: any): number {
-  const raw = onboarding?.schedule || {};
-  const candidates = [
-    raw.minutesPerSession,
-    raw.sessionLength,
-    raw.duration,
-    raw.length,
-    raw.minutes,
-    raw.timePerSession,
-    onboarding?.preferences?.workoutDuration,
-    onboarding?.profile?.sessionMinutes,
-    onboarding?.profile?.workoutDuration,
-  ];
-
-  for (const value of candidates) {
-    const parsed = parseDuration(value);
-    if (parsed) return parsed;
-  }
-
-  return DEFAULT_SESSION_MINUTES;
-}
-
 function parseDuration(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return Math.round(value);
@@ -828,12 +826,25 @@ function parseDuration(value: unknown): number | null {
   return null;
 }
 
+function normalizeList(value: any): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => String(v || "").trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[,;\n]/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 // AI генерация blueprint + fallback
 async function generateBlueprintWithAI(profile: Profile, onboarding: any): Promise<Blueprint> {
-  const stressLevel = onboarding?.lifestyle?.stressLevel || null;
-  const sleepHours = onboarding?.lifestyle?.sleepHours || null;
-  const limitations = onboarding?.health?.limitations || [];
-  const injuries = onboarding?.health?.injuries || [];
+  const limitations = profile.chronicLimitations || [];
+  const injuries = profile.chronicInjuries || [];
 
   const prompt = `Создай структуру тренировочной программы (недельный микроцикл) для клиента.
 
@@ -844,15 +855,13 @@ ${JSON.stringify(
     sex: profile.sex === "unknown" ? "не указан" : profile.sex,
     weight: profile.weight ? `${profile.weight} кг` : "не указан",
     height: profile.height ? `${profile.height} см` : "не указан",
-    experience: profile.experience,
+    trainingStatus: profile.trainingStatus,
     goals: profile.goals,
     daysPerWeek: profile.daysPerWeek,
     location: profile.location,
     bodyweightOnly: profile.bodyweightOnly,
     limitations: limitations.length ? limitations : "нет данных",
     injuries: injuries.length ? injuries : "нет данных",
-    stressLevel: stressLevel || "нет данных",
-    sleepHours: sleepHours ? `${sleepHours} часов` : "нет данных",
   },
   null,
   2
@@ -910,7 +919,7 @@ ${JSON.stringify(
       daysPerWeek: profile.daysPerWeek,
       goals: [...profile.goals],
       location: profile.location,
-      experience: profile.experience,
+      trainingStatus: profile.trainingStatus,
       createdAt: new Date().toISOString(),
     },
   };
@@ -933,16 +942,19 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
     goalText.includes("гипертроф");
   const age = profile.age ?? null;
   const isSenior = age != null && age >= 50;
-  const hasInjuries = profile.injuries.length > 0 || profile.healthLimitations.length > 0;
-  const highStress = profile.stressLevel === "high" || profile.stressLevel === "very_high";
-  const poorSleep = profile.sleepHours != null && profile.sleepHours < 6;
-
+  const hasInjuries =
+    (profile.chronicInjuries?.length || 0) > 0 ||
+    (profile.chronicLimitations?.length || 0) > 0;
   let name: string;
   let baseDays: string[];
   let description: string;
 
+  const isExperienced = profile.trainingStatus === "training_experienced";
+  const isRegular = profile.trainingStatus === "training_regularly";
+  const isBeginner = profile.trainingStatus === "never_trained" || profile.trainingStatus === "long_break";
+
   if (profile.daysPerWeek >= 5) {
-    if (profile.experience === "advanced" && !isSenior && !hasInjuries) {
+    if (isExperienced && !isSenior && !hasInjuries) {
       name = "Push/Pull/Legs Split";
       baseDays = ["Push", "Pull", "Legs", "Push", "Pull", "Legs"];
       description = "Классический многодневный сплит для продвинутых";
@@ -952,11 +964,11 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
       description = "Сбалансированный сплит с днём восстановления";
     }
   } else if (profile.daysPerWeek === 4) {
-    if (isWeightLoss || isSenior || hasInjuries || highStress || poorSleep) {
+    if (isWeightLoss || isSenior || hasInjuries) {
       name = "Full Body Circuit";
       baseDays = ["Full Body A", "Кардио + Кор", "Full Body B", "Активное восстановление"];
       description = "Щадящая программа с акцентом на здоровье";
-    } else if (isHypertrophy && profile.experience !== "beginner") {
+    } else if (isHypertrophy && !isBeginner) {
       name = "Upper/Lower (Гипертрофия)";
       baseDays = ["Upper Heavy", "Lower Volume", "Upper Volume", "Lower Heavy"];
       description = "Силовой вариант для роста массы";
@@ -970,11 +982,11 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
       profile.sex === "female" &&
       (goalText.includes("ягод") || goalText.includes("ног") || goalText.includes("попа"));
 
-    if (isFemaleLowerFocus && profile.experience !== "beginner") {
+    if (isFemaleLowerFocus && !isBeginner) {
       name = "Glutes & Lower Emphasis";
       baseDays = ["Lower + Glutes Heavy", "Upper Push/Pull", "Glutes + Core Volume"];
       description = "Акцент на нижнюю часть тела";
-    } else if (isSenior || hasInjuries || highStress || poorSleep) {
+    } else if (isSenior || hasInjuries) {
       name = "Full Body Easy";
       baseDays = ["Full Body Light", "Кардио + Мобильность", "Full Body Moderate"];
       description = "Безопасная программа для здоровья суставов";
@@ -999,7 +1011,7 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
       daysPerWeek: profile.daysPerWeek,
       goals: [...profile.goals],
       location: profile.location,
-      experience: profile.experience,
+      trainingStatus: profile.trainingStatus,
       createdAt: new Date().toISOString(),
     },
   };
@@ -1020,6 +1032,7 @@ async function getOrCreateProgram(
     const storedMeta = stored.blueprint_json?.meta;
     const needsRecreate =
       storedMeta?.daysPerWeek !== profile.daysPerWeek ||
+      storedMeta?.trainingStatus !== profile.trainingStatus ||
       JSON.stringify((storedMeta?.goals || []).slice().sort()) !==
         JSON.stringify((profile.goals || []).slice().sort());
 
@@ -1267,6 +1280,65 @@ const TRAINER_SYSTEM = `Ты опытный персональный трене�
 
 type ExercisesTarget = { count: number; reason?: string };
 
+function getTrainingStatusPrompt(status: TrainingStatus): string {
+  switch (status) {
+    case "never_trained":
+      return `
+## ПОЛНЫЙ НОВИЧОК
+
+Клиент **никогда не тренировался** в зале систематически.
+
+**Что это значит для программы:**
+- Начни с самых простых упражнений (машины, лёгкие гантели)
+- Внимания технике — подробные cues в каждом упражнении
+- Консервативные веса (клиент должен чувствовать лёгкость в первые недели)
+- Избегай: штанга, сложные многосуставные, тяжёлые веса
+- Тренировка должна вдохновлять, а не пугать объёмом
+`;
+
+    case "long_break":
+      return `
+## ВОЗВРАЩЕНИЕ ПОСЛЕ ПЕРЕРЫВА
+
+Клиент **раньше тренировался**, но был перерыв **3+ месяца**.
+
+**Что это значит:**
+- Мышечная память есть, техника знакома, но тело отвыкло
+- Сила и выносливость снизились — не нагружай как опытного
+- Можно использовать базовые упражнения, но с лёгкими весами
+- Первые 2-3 недели — период ре-адаптации
+- Прогрессия быстрее чем у новичка, но не сразу на старые веса
+`;
+
+    case "training_regularly":
+      return `
+## РЕГУЛЯРНО ТРЕНИРУЕТСЯ (менее 1 года опыта)
+
+Клиент **активно тренируется** последние месяцы, но ещё не очень опытный.
+
+**Что это значит:**
+- Знает базовые упражнения, но техника может быть неидеальной
+- Прогрессия линейная — можно добавлять веса каждую неделю
+- Всё ещё нужны технические подсказки, но не детальные как новичку
+`;
+
+    case "training_experienced":
+      return `
+## ОПЫТНЫЙ АТЛЕТ (1+ год регулярных тренировок)
+
+Клиент **тренируется давно и стабильно**, знает что делает.
+
+**Что это значит:**
+- Владеет техникой сложных упражнений
+- Можно использовать продвинутые сплиты и периодизацию
+- Понимает принципы прогрессии (линейная, волновая, циклы)
+- Можно использовать интенсивные техники (суперсеты, дропсеты и т.д.)
+`;
+    default:
+      return "";
+  }
+}
+
 async function recommendExercisesCount(params: {
   profile: Profile;
   onboarding: any;
@@ -1286,7 +1358,7 @@ async function recommendExercisesCount(params: {
     profile: {
       sex: profile.sex,
       age: profile.age,
-      experience: profile.experience,
+      trainingStatus: profile.trainingStatus,
       daysPerWeek: profile.daysPerWeek,
       minutesPerSession: profile.minutesPerSession,
       goals: profile.goals,
@@ -1410,25 +1482,7 @@ function rebalanceDurationBreakdown(
 }
 
 function describeEquipment(onboarding: any) {
-  const env = onboarding.environment || {};
-  if (env.bodyweightOnly === true) {
-    return "только вес собственного тела. нет штанги, нет тренажёров, нет станка для жима ногами, нет блочных машин";
-  }
-
-  const location = (env.location || "").toLowerCase();
-  if (location === "gym" || location.includes("зал")) {
-    return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
-  }
-
-  if (location === "outdoor" || location.includes("street") || location.includes("улиц")) {
-    return "уличная площадка: турник, брусья, петли TRX/эспандеры, скакалка, набивные мячи, лёгкие гантели. нет полноценных штанг и станков, упражнения адаптируй под площадку";
-  }
-
-  if (location === "home" || location.includes("дом")) {
-    return "домашние условия: коврик, свободное пространство, стул/лавка, лёгкие гантели или резинки. нет больших тренажёров, но можно использовать мебель и подручный инвентарь";
-  }
-
-  return "простой инвентарь: коврик, резинки, лёгкие гантели, турник/брусья при наличии. если требуются тренажёры — замени на вариации с собственным весом.";
+  return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
 }
 
 function buildTrainerPrompt(params: {
@@ -1455,12 +1509,17 @@ function buildTrainerPrompt(params: {
   } = params;
   const blueprint = program.blueprint_json;
   const todayFocus = blueprint.days[program.day_idx];
+  const trainingStatusNotes = getTrainingStatusPrompt(profile.trainingStatus);
 
   const clientData = buildClientDataBlock(profile, onboarding, constraints, weekContext);
   const historyBlock = buildHistoryBlock(history, weekSessions);
   const antiRepeatBlock = buildAntiRepeatBlock(history);
   const safetyNotes = buildSafetyGuidelines(profile, onboarding, constraints);
-  const progressionContext = buildProgressionContext(history, weekContext.globalWeekIndex);
+  const progressionContext = buildProgressionContext(
+    history,
+    weekContext.globalWeekIndex,
+    profile.trainingStatus
+  );
 
   return `# ТЫ — ПЕРСОНАЛЬНЫЙ ТРЕНЕР
 
@@ -1473,6 +1532,9 @@ ${clientData}
 ${historyBlock}
 
 ${antiRepeatBlock}
+
+# УРОВЕНЬ ПОДГОТОВКИ
+${trainingStatusNotes}
 
 # ПРОГРАММА
 - Название: ${blueprint.name}
@@ -1552,7 +1614,7 @@ function buildClientDataBlock(
 - Пол: ${profile.sex === "unknown" ? "не указан" : profile.sex === "male" ? "мужской" : "женский"}
 - Вес: ${profile.weight ? `${profile.weight} кг` : "не указан"}
 - Рост: ${profile.height ? `${profile.height} см` : "не указан"}
-- Опыт тренировок: ${profile.experience}
+- Опыт тренировок: ${profile.trainingStatus}
 - Цели: ${profile.goals.join(", ")}`);
 
   sections.push(`## График и локация
@@ -1562,18 +1624,24 @@ function buildClientDataBlock(
 - Оборудование: ${describeEquipment(onboarding)}`);
 
   const healthItems: string[] = [];
-  if (profile.injuries.length > 0) {
-    healthItems.push(`- **Травмы/проблемные зоны:** ${profile.injuries.join(", ")}`);
+  if (profile.chronicInjuries.length > 0) {
+    healthItems.push(`- **Хронические травмы:** ${profile.chronicInjuries.join(", ")}`);
   }
-  if (profile.healthLimitations.length > 0) {
-    healthItems.push(`- **Ограничения:** ${profile.healthLimitations.join(", ")}`);
+  if (profile.chronicLimitations.length > 0) {
+    healthItems.push(`- **Хронические ограничения:** ${profile.chronicLimitations.join(", ")}`);
+  }
+  if (profile.chronicConditions.length > 0) {
+    healthItems.push(`- **Хронические состояния:** ${profile.chronicConditions.join(", ")}`);
+  }
+  if (profile.todayInjuries.length > 0) {
+    healthItems.push(`- **Травмы сегодня:** ${profile.todayInjuries.join(", ")}`);
+  }
+  if (profile.todayLimitations.length > 0) {
+    healthItems.push(`- **Ограничения сегодня:** ${profile.todayLimitations.join(", ")}`);
   }
   if (profile.pain.length > 0) {
     const painList = profile.pain.map((p) => `${p.location} (уровень ${p.level}/10)`).join(", ");
     healthItems.push(`- **Текущие боли:** ${painList}`);
-  }
-  if (profile.chronicConditions.length > 0) {
-    healthItems.push(`- **Хронические состояния:** ${profile.chronicConditions.join(", ")}`);
   }
   if (!healthItems.length) {
     healthItems.push("- Ограничений и травм не указано");
@@ -1773,31 +1841,57 @@ ${muscleVolumeText}
   return sections.join("\n\n");
 }
 
-function buildProgressionContext(history: HistorySession[], globalWeekIndex: number | null): string {
+function buildProgressionContext(
+  history: HistorySession[],
+  globalWeekIndex: number | null,
+  trainingStatus: TrainingStatus
+): string {
   const week = globalWeekIndex ?? 1;
 
   if (!history.length) {
+    const firstTimeGuidance =
+      trainingStatus === "never_trained"
+        ? "Начни с консервативных весов и простых движений. Приоритет — обучение технике."
+        : trainingStatus === "long_break"
+        ? "Первая тренировка после перерыва — начни с умеренных нагрузок для проверки готовности."
+        : "Первая тренировка в приложении — оцени текущую форму и адаптируй под неё нагрузку.";
+
     return `# КОНТЕКСТ ПРОГРЕССИИ
 
-Это первые тренировки клиента.
-- Начни с консервативных весов и простых движений
-- Объём по упражнениям всё равно полноценный
-- Приоритет — обучение технике, а не нагрузка`;
+Это первая тренировка клиента в приложении.
+${firstTimeGuidance}`;
   }
 
   const sections: string[] = [];
 
   let stageDescription = "";
-  if (week <= 4) {
-    stageDescription = `Клиент тренируется ${week} неделю. Ранняя стадия (недели 1-4): адаптация к нагрузкам, полноценный объем по упражнениям, закрепление техники.`;
-  } else if (week <= 8) {
-    stageDescription = `Клиент тренируется ${week} неделю. Средняя стадия (недели 5-8): активная прогрессия весов и объёма.`;
-  } else if (week <= 12) {
-    stageDescription = `Клиент тренируется ${week} неделю. Поздняя стадия (недели 9-12): пиковые нагрузки или специализация.`;
+  if (trainingStatus === "never_trained") {
+    if (week <= 4) {
+      stageDescription = `Неделя ${week} из первого месяца. Ранняя стадия: адаптация к нагрузкам, изучение техники базовых движений.`;
+    } else if (week <= 8) {
+      stageDescription = `Неделя ${week}, второй месяц. Средняя стадия: техника закреплена, начинается постепенная прогрессия весов.`;
+    } else if (week <= 12) {
+      stageDescription = `Неделя ${week}, третий месяц. Поздняя стадия начального периода: активная прогрессия, можно усложнять упражнения.`;
+    } else {
+      stageDescription = `Неделя ${week}. Клиент вышел из начального периода — продолжай стандартную линейную прогрессию.`;
+    }
+  } else if (trainingStatus === "long_break") {
+    if (week <= 2) {
+      stageDescription = `Неделя ${week} возвращения. Период ре-адаптации: восстанавливаем нейромышечные связи, веса консервативные.`;
+    } else if (week <= 4) {
+      stageDescription = `Неделя ${week} возвращения. Адаптация завершена, можно активно добавлять веса (мышечная память работает).`;
+    } else {
+      stageDescription = `Неделя ${week}. Тело адаптировалось — работай как с регулярно тренирующимся.`;
+    }
+  } else if (trainingStatus === "training_regularly") {
+    if (week <= 8) {
+      stageDescription = `Неделя ${week} в приложении. Продолжай линейную прогрессию весов — клиент в активной фазе роста.`;
+    } else {
+      const cycleNum = Math.floor((week - 1) / 8) + 1;
+      stageDescription = `Неделя ${week} в приложении (цикл ${cycleNum}). Можно начинать варьировать нагрузку для избежания плато.`;
+    }
   } else {
-    const cycleNum = Math.floor((week - 1) / 12) + 1;
-    const weekInCycle = ((week - 1) % 12) + 1;
-    stageDescription = `Клиент тренируется ${week} неделю. Цикл ${cycleNum}, неделя ${weekInCycle}/12 в текущем цикле.`;
+    stageDescription = `Неделя ${week} в приложении. Опытный атлет — используй волновую периодизацию и варьируй интенсивность.`;
   }
   sections.push(`## Стадия программы\n${stageDescription}`);
 
@@ -1892,10 +1986,8 @@ ${constraints.weightNotes.map((note) => `- ${note}`).join("\n")}
 Это первые тренировки клиента. Начни с консервативных весов — клиент должен освоить технику, а не гнаться за рекордами.`);
   }
 
-  const injuries = profile.injuries.length ? profile.injuries : onboarding?.health?.injuries || [];
-  const limitations = profile.healthLimitations.length
-    ? profile.healthLimitations
-    : onboarding?.health?.limitations || [];
+  const injuries = [...(profile.chronicInjuries || []), ...(profile.todayInjuries || [])];
+  const limitations = [...(profile.chronicLimitations || []), ...(profile.todayLimitations || [])];
 
   if (injuries.length > 0 || limitations.length > 0) {
     guidelines.push(`## ⚠️ Критически важно
@@ -1903,7 +1995,7 @@ ${injuries.length > 0 ? `- Травмы: ${injuries.join(", ")} — избега
 ${limitations.length > 0 ? `- Ограничения: ${limitations.join(", ")} — учитывай при выборе упражнений` : ""}`);
   }
 
-  if (profile.experience === "beginner") {
+  if (profile.trainingStatus === "never_trained") {
     guidelines.push(`## Новичок
 - Простые движения (машины, гантели лучше штанги)
 - Больше времени на разучивание техники
@@ -2294,19 +2386,19 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     }
 
     const sessionMinutes =
-      numberFrom(checkIn?.availableMinutes) ?? resolveSessionLength(onboarding);
+      numberFrom(checkIn?.availableMinutes) ?? DEFAULT_SESSION_MINUTES;
     console.log(`✓ Session duration: ${sessionMinutes} minutes`);
 
     const profile = buildProfile(onboarding, sessionMinutes, checkIn);
-    console.log("✓ Profile built:", {
-      age: profile.age,
-      sex: profile.sex,
-      experience: profile.experience,
-      goals: profile.goals,
-      daysPerWeek: profile.daysPerWeek,
-      minutesPerSession: profile.minutesPerSession,
-      location: profile.location,
-      energyLevel: profile.energyLevel,
+  console.log("✓ Profile built:", {
+    age: profile.age,
+    sex: profile.sex,
+    trainingStatus: profile.trainingStatus,
+    goals: profile.goals,
+    daysPerWeek: profile.daysPerWeek,
+    minutesPerSession: profile.minutesPerSession,
+    location: profile.location,
+    energyLevel: profile.energyLevel,
       sleepHours: profile.sleepHours,
       stressLevel: profile.stressLevel,
     });
@@ -2431,7 +2523,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     const sessionMinutesFinal =
       estimatedDurationCandidate ??
       targetDurationCandidate ??
-      resolveSessionLength(onboarding);
+      DEFAULT_SESSION_MINUTES;
 
     const targetDuration = targetDurationCandidate ?? sessionMinutesFinal;
     const estimatedDuration = estimatedDurationCandidate ?? sessionMinutesFinal;

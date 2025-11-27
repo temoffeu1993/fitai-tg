@@ -39,7 +39,7 @@ export default function OnbLifestyle({ initial, loading, onSubmit, onBack }: Pro
       {/* HERO — чёрный, как в других шагах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 5 из 6</span>
+          <span style={st.pill}>Шаг 4 из 5</span>
           <span style={st.pill}>Анкета</span>
         </div>
 

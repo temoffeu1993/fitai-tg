@@ -88,7 +88,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       {/* HERO — чёрный, как на других онбординг-экранах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 4 из 6</span>
+          <span style={st.pill}>Шаг 3 из 4</span>
           <span style={st.pill}>Анкета</span>
         </div>
 
@@ -100,7 +100,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       {/* Ряд 1: Ограничения + Бюджет */}
       <section style={st.grid2Cols}>
         <div style={st.cardGlass}>
-          <div style={st.blockTitle}>🩺 Есть ли травмы или мед. ограничения?</div>
+          <div style={st.blockTitle}>🩺 Хронические травмы/ограничения</div>
           <div style={st.row2Equal}>
             <Chip label="Нет"  active={!hasLimits} onClick={() => setHasLimits(false)} />
             <Chip label="Есть" active={hasLimits}  onClick={() => setHasLimits(true)} />
@@ -110,7 +110,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             <textarea
               value={limitsText}
               onChange={(e) => setLimitsText(e.target.value)}
-              placeholder="Уточни: колени, спина, давление…"
+              placeholder="Опиши постоянные проблемы: спина, колени, хронические болезни…"
               style={{ ...st.inputGlass, marginTop: 12, minHeight: 88, resize: "vertical" as const }}
             />
           )}

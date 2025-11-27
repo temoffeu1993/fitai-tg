@@ -158,13 +158,9 @@ export default function Profile() {
 
   const expText = expRus(onb.experience);
   const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek;
-  const minutes =
-    onb?.schedule?.minutesPerSession ??
-    onb?.schedule?.minutes ??
-    onb?.schedule?.duration;
+  const minutes = undefined;
 
   const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
-  const motives: string[] = onb?.motivation?.motives || [];
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
   const dietStyles: string[] = onb?.dietPrefs?.styles || [];
 
@@ -314,9 +310,9 @@ export default function Profile() {
             <Grid>
               <RowSmall
                 k="Локация"
-                v={onb?.environment?.location ? locRus(onb.environment.location) : "—"}
+                v={locRus("gym")}
               />
-              <RowSmall k="Оборудование" v={equipmentText} />
+              <RowSmall k="Оборудование" v="Полностью оборудованный зал" />
             </Grid>
           </Accordion>
 
@@ -334,24 +330,11 @@ export default function Profile() {
           </Accordion>
 
           <Accordion
-            title="💤 Образ жизни"
-            open={open.life}
-            onToggle={() => toggle("life")}
-          >
-            <Grid>
-              <RowSmall k="Подвижность" v={activityRus(onb?.lifestyle)} />
-              <RowSmall k="Сон" v={safeNum(onb?.lifestyle?.sleep, "ч")} />
-              <RowSmall k="Стресс" v={stressRus(onb?.lifestyle?.stress)} />
-            </Grid>
-          </Accordion>
-
-          <Accordion
             title="🎯 Мотивация и цель"
             open={open.mot}
             onToggle={() => toggle("mot")}
           >
             <Grid>
-              <RowSmall k="Мотивация" v={<ChipList items={motives.map(motiveRus)} empty="—" />} />
               <RowSmall
                 k="Цель"
                 v={onb?.motivation?.goalCustom || goalRus(onb?.motivation?.goal) || "—"}
@@ -527,6 +510,10 @@ function goalRus(g?: string) {
 function expRus(e: any) {
   const v = typeof e === "string" ? e : e?.level;
   const map: Record<string, string> = {
+    never_trained: "Никогда не занимался",
+    long_break: "Перерыв 3+ месяцев",
+    training_regularly: "Тренируется регулярно (<1 года)",
+    training_experienced: "Тренируется давно (1+ года)",
     beginner: "новичок",
     intermediate: "средний",
     advanced: "продвинутый",
@@ -540,21 +527,7 @@ function stressRus(s?: string) {
 }
 function motiveRus(m?: string) {
   if (!m) return "—";
-  const map: Record<string, string> = {
-    health: "здоровье",
-    appearance: "внешний вид",
-    performance: "производительность",
-    energy: "энергия",
-    habit: "привычка",
-    stress: "снижение стресса",
-    rehabilitation: "реабилитация",
-    weight_loss: "похудение",
-    weight_gain: "набор веса",
-    strength: "сила",
-    endurance: "выносливость",
-    flexibility: "гибкость",
-  };
-  return map[m] || m;
+  return m;
 }
 function activityRus(lifestyle: any) {
   const v =

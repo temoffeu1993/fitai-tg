@@ -1,6 +1,4 @@
 // webapp/src/screens/onb/OnbEquipment.tsx
-import { useState } from "react";
-
 export type Location = "gym" | "outdoor" | "home";
 
 export type OnbEquipmentData = {
@@ -15,18 +13,10 @@ type Props = {
   onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
-const locationHints: Record<Location, string> = {
-  gym: "Полностью оборудованный зал: есть все основные тренажёры, свободные веса и кардио.",
-  outdoor: "Уличная площадка: турники, брусья, петли TRX, лёгкие аксессуары.",
-  home: "Домашние условия: коврик, стул/лавка, резинки, лёгкие гантели.",
-};
-
-export default function OnbEquipment({ initial, loading, onSubmit, onBack }: Props) {
-  const [location, setLocation] = useState<Location>(initial?.environment?.location ?? "gym");
-  const [bodyweightOnly, setBodyweightOnly] = useState<boolean>(initial?.environment?.bodyweightOnly ?? false);
-
+export default function OnbEquipment({ loading, onSubmit, onBack }: Props) {
+  // Локацию фиксируем на «зал» с полным набором оборудования.
   function submit() {
-    onSubmit({ environment: { location, bodyweightOnly } });
+    onSubmit({ environment: { location: "gym", bodyweightOnly: false } });
   }
 
   return (
@@ -40,52 +30,16 @@ export default function OnbEquipment({ initial, loading, onSubmit, onBack }: Pro
           <span style={st.pill}>Анкета</span>
         </div>
         <div style={st.heroKicker}>Локация</div>
-        <div style={st.heroTitle}>Где тренируемся?</div>
-        <div style={st.heroSubtitle}>От этого зависит выбор упражнений и инвентаря.</div>
+        <div style={st.heroTitle}>Тренируемся в зале</div>
+        <div style={st.heroSubtitle}>Полностью оборудованный тренажёрный зал, весь инвентарь доступен.</div>
       </section>
 
-      {/* Блок выбора локации — стеклянная карточка + чипы как в фирменном стиле */}
+      {/* Информация об инвентаре — без выбора */}
       <section style={st.cardGlass}>
-        <div style={st.blockTitle}>📍 Выбери локацию</div>
-        <div style={st.row3Equal}>
-          <ChipWide
-            label="Зал"
-            active={location === "gym"}
-            onClick={() => setLocation("gym")}
-          />
-          <ChipWide
-            label="Улица"
-            active={location === "outdoor"}
-            onClick={() => setLocation("outdoor")}
-          />
-          <ChipWide
-            label="Дом"
-            active={location === "home"}
-            onClick={() => setLocation("home")}
-          />
-        </div>
-        <div style={st.hint}>{locationHints[location]}</div>
-      </section>
-
-      {/* Блок инвентаря — стеклянная карточка + чипы */}
-      <section style={st.cardGlass}>
-        <div style={st.blockTitle}>🧱 Инвентарь</div>
-        <div style={st.row2Equal}>
-          <Chip
-            label="Только вес тела"
-            active={bodyweightOnly}
-            onClick={() => setBodyweightOnly(true)}
-          />
-          <Chip
-            label="Есть инвентарь"
-            active={!bodyweightOnly}
-            onClick={() => setBodyweightOnly(false)}
-          />
-        </div>
+        <div style={st.blockTitle}>📍 Локация зафиксирована</div>
         <div style={st.hint}>
-          {bodyweightOnly
-            ? "Программы будут полностью на собственном весе, без оборудования."
-            : "Используем весь стандартный инвентарь для выбранной локации."}
+          Тренировки будут строиться под полностью оборудованный тренажёрный зал: свободные веса, машины Смита,
+          блочные тренажёры, кроссоверы, тренажёры для ног и кардиооборудование.
         </div>
       </section>
 

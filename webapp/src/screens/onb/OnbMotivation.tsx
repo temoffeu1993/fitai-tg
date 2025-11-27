@@ -18,8 +18,6 @@ const MOTIVES = [
 
 export type OnbMotivationData = {
   motivation: {
-    motives: string[];
-    motiveOther?: string;
     goal: Goal;
     goalCustom?: string;
   };
@@ -37,37 +35,17 @@ type Props = {
 };
 
 export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Props) {
-  // 1) Зачем
-  const [motives, setMotives] = useState<string[]>(
-    (initial?.motivation?.motives as string[]) ?? []
-  );
-  const [motiveOtherEnabled, setMotiveOtherEnabled] = useState<boolean>(
-    Boolean(initial?.motivation?.motiveOther && initial?.motivation?.motiveOther.trim())
-  );
-  const [motiveOther, setMotiveOther] = useState<string>(initial?.motivation?.motiveOther ?? "");
-
-  // 2) Цель
+  // Цель
   const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "weight_loss");
   const [goalCustom, setGoalCustom] = useState<string>(initial?.motivation?.goalCustom ?? "");
 
   const canNext = useMemo(() => {
-    if (motiveOtherEnabled && !motiveOther.trim()) return false;
     if (goal === "custom" && !goalCustom.trim()) return false;
     return true;
-  }, [motiveOtherEnabled, motiveOther, goal, goalCustom]);
-
-  function toggle(arr: string[], v: string, set: (x: string[]) => void) {
-    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  }
+  }, [goal, goalCustom]);
 
   function handleNext() {
     if (!canNext || loading) return;
-
-    const motivesOut = (() => {
-      const base = [...motives];
-      if (motiveOtherEnabled && motiveOther.trim()) base.push(motiveOther.trim());
-      return Array.from(new Set(base));
-    })();
 
     // === МГНОВЕННЫЙ ФЛАГ И ОПОВЕЩЕНИЕ ДЛЯ НАВБАРА ===
     try { localStorage.setItem("onb_complete", "1"); } catch {}
@@ -76,8 +54,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
     onSubmit({
       motivation: {
-        motives: motivesOut,
-        motiveOther: motiveOtherEnabled ? motiveOther.trim() : "",
         goal,
         goalCustom: goal === "custom" ? goalCustom.trim() : "",
       },
@@ -95,42 +71,13 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       {/* HERO — чёрный, как на остальных онбординг-экранах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 6 из 6</span>
+          <span style={st.pill}>Шаг 4 из 4</span>
         <span style={st.pill}>Анкета</span>
         </div>
 
         <div style={st.heroKicker}>Мотивация</div>
         <div style={st.heroTitle}>Мотивация и цель 🎯</div>
         <div style={st.heroSubtitle}>Понимание целей поможет точнее настроить план.</div>
-      </section>
-
-      {/* Зачем тренировки — стеклянная карточка */}
-      <section style={st.cardGlass}>
-        <div style={st.blockTitle}>Зачем тебе тренировки?</div>
-        <div style={st.wrapGridEven}>
-          {MOTIVES.map((m) => (
-            <Chip
-              key={m.key}
-              label={m.label}
-              active={motives.includes(m.key)}
-              onClick={() => toggle(motives, m.key, setMotives)}
-            />
-          ))}
-          <Chip
-            label="Другое"
-            active={motiveOtherEnabled}
-            onClick={() => setMotiveOtherEnabled((v) => !v)}
-          />
-        </div>
-
-        {motiveOtherEnabled && (
-          <input
-            value={motiveOther}
-            onChange={(e) => setMotiveOther(e.target.value)}
-            placeholder="Например: подготовка к нормам ГТО"
-            style={{ ...st.inputGlass, marginTop: 12 }}
-          />
-        )}
       </section>
 
       {/* Цель — стеклянная карточка */}
