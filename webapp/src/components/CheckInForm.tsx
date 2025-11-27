@@ -54,8 +54,9 @@ const sliderCss = `
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #0f172a;
-  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
+  background: #fff;
+  border: 1px solid #0f172a;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.16);
   margin-top: -8px;
 }
 .checkin-slider::-moz-range-track {
@@ -67,9 +68,9 @@ const sliderCss = `
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #0f172a;
-  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
-  border: none;
+  background: #fff;
+  border: 1px solid #0f172a;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.16);
 }
 `;
 
@@ -464,12 +465,11 @@ const modal: Record<string, React.CSSProperties> = {
         `radial-gradient(circle at ${p}% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 41%)`
     );
     const bgImages = [
-      `linear-gradient(to right, #0f172a ${pct}%, rgba(15,23,42,0.18) ${pct}%)`,
+      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
-      "linear-gradient(to right, rgba(15,23,42,0.18), rgba(15,23,42,0.18))",
     ].join(", ");
-    const bgSizes = ["100% 4px", ...tickImgs.map(() => "10px 10px"), "100% 4px"].join(", ");
-    const bgPositions = ["0 50%", ...tickImgs.map(() => "0 50%"), "0 50%"].join(", ");
+    const bgSizes = ["100% 4px", ...tickImgs.map(() => "10px 10px")].join(", ");
+    const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
     return {
       width: "100%",
       height: 32,
