@@ -49,7 +49,9 @@ export function CheckInForm({
   const [sleepHours, setSleepHours] = useState<number>(7);
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
   const [stressLevel, setStressLevel] = useState<CheckInPayload["stressLevel"]>("medium");
+  const sleepQualityScale: CheckInPayload["sleepQuality"][] = ["poor", "fair", "good", "excellent"];
   const [sleepQuality, setSleepQuality] = useState<CheckInPayload["sleepQuality"]>("good");
+  const sleepQualityIndex = sleepQualityScale.indexOf(sleepQuality);
   const [motivation, setMotivation] = useState<CheckInPayload["motivation"]>("medium");
   const [mood, setMood] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -129,31 +131,70 @@ export function CheckInForm({
               <div style={modal.cardMiniTitle}>😴 Сон</div>
               <input
                 type="range"
-                min={3}
-                max={12}
+                min={5}
+                max={9}
                 step={0.5}
                 value={sleepHours}
                 onChange={(e) => setSleepHours(Number(e.target.value))}
                 style={{ width: "100%" }}
+                list="sleepTicks"
               />
               <div style={modal.subLabel}>
                 {sleepHours} ч · {sliderLabel}
               </div>
+              <datalist id="sleepTicks">
+                <option value="5" />
+                <option value="6" />
+                <option value="7" />
+                <option value="8" />
+                <option value="9" />
+              </datalist>
             </div>
 
             <div style={modal.cardMini}>
-              <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
+              <div style={modal.cardMiniTitle}>🌙 Качество сна</div>
               <input
-                type="number"
-                min={20}
-                max={180}
-                step={5}
-                style={modal.inputGlass}
-                value={availableMinutes}
-                onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-                placeholder="60–90"
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSleepQuality(sleepQualityScale[idx] || "good");
+                }}
+                style={{ width: "100%" }}
+                list="sleepQualityTicks"
               />
+              <div style={modal.subLabel}>
+                {{
+                  0: "Плохое",
+                  1: "Так себе",
+                  2: "Хорошее",
+                  3: "Отличное",
+                }[String(sleepQualityIndex < 0 ? 2 : sleepQualityIndex) as "0" | "1" | "2" | "3"]}
+              </div>
+              <datalist id="sleepQualityTicks">
+                <option value="0" label="Плохое" />
+                <option value="1" label="Так себе" />
+                <option value="2" label="Хорошее" />
+                <option value="3" label="Отличное" />
+              </datalist>
             </div>
+          </div>
+
+          <div style={modal.cardWide}>
+            <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
+            <input
+              type="number"
+              min={20}
+              max={180}
+              step={5}
+              style={modal.inputGlass}
+              value={availableMinutes}
+              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+              placeholder="60–90"
+            />
           </div>
 
           <div style={modal.cardWide}>
