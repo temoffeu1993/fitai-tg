@@ -15,13 +15,16 @@ type Props = {
 };
 
 const chipStyle: React.CSSProperties = {
-  padding: "10px 12px",
+  padding: "10px 14px",
   borderRadius: 12,
-  border: "1px solid rgba(0,0,0,0.08)",
-  background: "#fff",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+  border: "1px solid rgba(0,0,0,0.06)",
+  background: "rgba(255,255,255,0.6)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
   cursor: "pointer",
   fontSize: 14,
+  transition: "all .15s ease",
 };
 
 const chipActive: React.CSSProperties = {
@@ -100,53 +103,73 @@ export function CheckInForm({
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const cardStyle = inline
-    ? { ...modal.card, background: "transparent", boxShadow: "none", border: "none", padding: 0 }
+    ? modal.inlineCard
     : modal.card;
   const footerStyle = inline
-    ? { ...modal.footer, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr", padding: "10px 0 0" }
+    ? { ...modal.footerInline, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr" }
     : modal.footer;
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
       <div style={cardStyle}>
-        <div style={modal.header}>
-          <div style={modal.title}>{title || "Как ты сегодня? 💬"}</div>
-          {!inline && (onClose || onSkip) ? (
-            <button style={modal.close} onClick={onClose || onSkip} type="button">
-              ✕
-            </button>
-          ) : null}
-        </div>
-
-        <div style={modal.body}>
-          <label style={modal.label}>
-            <div style={modal.labelText}>Сон</div>
-            <input
-              type="range"
-              min={3}
-              max={12}
-              step={0.5}
-              value={sleepHours}
-              onChange={(e) => setSleepHours(Number(e.target.value))}
-              style={{ width: "100%" }}
-            />
-            <div style={modal.subLabel}>
-              {sleepHours} ч · {sliderLabel}
-            </div>
-          </label>
-
-          <div style={modal.groupTitle}>Энергия</div>
-          <div style={modal.chips}>
-            {(["low", "medium", "high"] as const).map((val) => (
-              <button
-                key={val}
-                style={energyLevel === val ? chipActive : chipStyle}
-                onClick={() => setEnergyLevel(val)}
-                type="button"
-              >
-                {val === "low" ? "🥱 Низкая" : val === "medium" ? "😊 Средняя" : "🔥 Высокая"}
+        {!inline && (
+          <div style={modal.header}>
+            <div style={modal.title}>{title || "Как ты сегодня? 💬"}</div>
+            {(onClose || onSkip) ? (
+              <button style={modal.close} onClick={onClose || onSkip} type="button">
+                ✕
               </button>
-            ))}
+            ) : null}
+          </div>
+        )}
+
+        <div style={modal.bodyInline}>
+          <div style={modal.grid2}>
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>😴 Сон</div>
+              <input
+                type="range"
+                min={3}
+                max={12}
+                step={0.5}
+                value={sleepHours}
+                onChange={(e) => setSleepHours(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={modal.subLabel}>
+                {sleepHours} ч · {sliderLabel}
+              </div>
+            </div>
+
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
+              <input
+                type="number"
+                min={20}
+                max={180}
+                step={5}
+                style={modal.inputGlass}
+                value={availableMinutes}
+                onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+                placeholder="60–90"
+              />
+            </div>
+          </div>
+
+          <div style={modal.cardWide}>
+            <div style={modal.groupTitle}>⚡ Энергия</div>
+            <div style={modal.chips}>
+              {(["low", "medium", "high"] as const).map((val) => (
+                <button
+                  key={val}
+                  style={energyLevel === val ? chipActive : chipStyle}
+                  onClick={() => setEnergyLevel(val)}
+                  type="button"
+                >
+                  {val === "low" ? "🥱 Низкая" : val === "medium" ? "😊 Средняя" : "🔥 Высокая"}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
@@ -157,23 +180,9 @@ export function CheckInForm({
             {showAdvanced ? "Скрыть детали" : "Уточнить детали"}
           </button>
 
-          <label style={modal.label}>
-            <div style={modal.labelText}>Время на эту тренировку (минут)</div>
-            <input
-              type="number"
-              min={20}
-              max={180}
-              step={5}
-              style={modal.input}
-              value={availableMinutes}
-              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-              placeholder="Например, 60–90"
-            />
-          </label>
-
           {showAdvanced && (
             <div style={{ display: "grid", gap: 12 }}>
-              <div>
+              <div style={modal.cardWide}>
                 <div style={modal.groupTitle}>Стресс</div>
                 <div style={modal.chips}>
                   {(["low", "medium", "high", "very_high"] as const).map((val) => (
@@ -194,7 +203,7 @@ export function CheckInForm({
                 </div>
               </div>
 
-              <div>
+              <div style={modal.cardWide}>
                 <div style={modal.groupTitle}>Качество сна</div>
                 <div style={modal.chips}>
                   {(["poor", "fair", "good", "excellent"] as const).map((val) => (
@@ -215,7 +224,7 @@ export function CheckInForm({
                 </div>
               </div>
 
-              <div>
+              <div style={modal.cardWide}>
                 <div style={modal.groupTitle}>Травмы/боли</div>
                 {injuries.length > 0 && (
                   <div style={modal.tagRow}>
@@ -235,7 +244,7 @@ export function CheckInForm({
                 )}
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   <input
-                    style={modal.input}
+                    style={modal.inputGlass}
                     placeholder="Например: боль в колене"
                     value={newInjury}
                     onChange={(e) => setNewInjury(e.target.value)}
@@ -246,7 +255,7 @@ export function CheckInForm({
                 </div>
               </div>
 
-              <div>
+              <div style={modal.cardWide}>
                 <div style={modal.groupTitle}>Мотивация</div>
                 <div style={modal.chips}>
                   {(["low", "medium", "high"] as const).map((val) => (
@@ -266,25 +275,25 @@ export function CheckInForm({
                 </div>
               </div>
 
-              <label style={modal.label}>
-                <div style={modal.labelText}>Настроение</div>
+              <div style={modal.cardWide}>
+                <div style={modal.groupTitle}>Настроение</div>
                 <input
-                  style={modal.input}
+                  style={modal.inputGlass}
                   placeholder="Например: бодрость, усталость"
                   value={mood}
                   onChange={(e) => setMood(e.target.value)}
                 />
-              </label>
+              </div>
 
-              <label style={modal.label}>
-                <div style={modal.labelText}>Комментарий</div>
+              <div style={modal.cardWide}>
+                <div style={modal.groupTitle}>Комментарий</div>
                 <textarea
-                  style={{ ...modal.input, minHeight: 72, resize: "vertical" }}
+                  style={{ ...modal.inputGlass, minHeight: 72, resize: "vertical" }}
                   placeholder="Свободная заметка о самочувствии"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
-              </label>
+              </div>
             </div>
           )}
 
@@ -300,7 +309,7 @@ export function CheckInForm({
             </button>
           ) : null}
           <button style={modal.save} onClick={handleSubmit} type="button" disabled={loading}>
-            {loading ? "Сохраняем..." : submitLabel || "Сохранить и сгенерировать"}
+            {loading ? "Сохраняем..." : submitLabel || "Сгенерировать тренировку"}
           </button>
         </div>
       </div>
@@ -331,6 +340,12 @@ const modal: Record<string, React.CSSProperties> = {
     background: "transparent",
     display: "block",
   },
+  inlineCard: {
+    width: "100%",
+    background: "transparent",
+    borderRadius: 16,
+    padding: 0,
+  },
   header: {
     padding: "16px 18px",
     display: "flex",
@@ -346,27 +361,30 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     lineHeight: 1,
   },
-  body: { padding: "14px 18px", display: "grid", gap: 12, maxHeight: "65vh", overflowY: "auto" },
+  bodyInline: { padding: "0", display: "grid", gap: 12 },
   label: { display: "grid", gap: 6 },
   labelText: { fontSize: 13, opacity: 0.7 },
   subLabel: { fontSize: 13, opacity: 0.8, marginTop: 2 },
-  input: {
+  inputGlass: {
     width: "100%",
-    borderRadius: 12,
+    borderRadius: 14,
     border: "1px solid rgba(0,0,0,0.08)",
     padding: "12px 12px",
     fontSize: 15,
-    background: "#f9fafb",
+    background: "rgba(255,255,255,0.7)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   },
   groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
   chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" },
   advancedToggle: {
     border: "none",
-    background: "rgba(0,0,0,0.05)",
+    background: "rgba(0,0,0,0.04)",
     padding: "10px 12px",
     borderRadius: 12,
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 700,
   },
   tagRow: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 },
   tag: {
@@ -391,6 +409,13 @@ const modal: Record<string, React.CSSProperties> = {
     gap: 10,
     borderTop: "1px solid rgba(0,0,0,0.06)",
   },
+  footerInline: {
+    padding: "0",
+    marginTop: 6,
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 10,
+  },
   ghostBtn: {
     borderRadius: 12,
     padding: "12px 14px",
@@ -400,13 +425,14 @@ const modal: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   save: {
-    borderRadius: 12,
-    padding: "12px 14px",
+    borderRadius: 14,
+    padding: "14px 14px",
     border: "none",
     background: "linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b)",
     color: "#000",
-    fontWeight: 800,
+    fontWeight: 850,
     cursor: "pointer",
+    boxShadow: "0 14px 40px rgba(255,140,100,0.35)",
   },
   smallBtn: {
     borderRadius: 10,

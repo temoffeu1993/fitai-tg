@@ -1044,7 +1044,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: 20,
     borderRadius: 24,
     boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#050505",
+    background: "#0f172a",
     color: "#fff",
     overflow: "hidden",
   },
