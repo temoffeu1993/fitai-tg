@@ -63,8 +63,8 @@ export function CheckInForm({
 
   const sliderLabel = useMemo(() => {
     if (sleepHours >= 8) return "Выспался";
-    if (sleepHours >= 6.5) return "Нормально";
-    return "Мало сна";
+    if (sleepHours < 6) return "Мало сна";
+    return "Нормально";
   }, [sleepHours]);
 
   const shouldRender = inline || open;
@@ -133,10 +133,10 @@ export function CheckInForm({
                 type="range"
                 min={5}
                 max={9}
-                step={0.5}
+                step={1}
                 value={sleepHours}
                 onChange={(e) => setSleepHours(Number(e.target.value))}
-                style={{ width: "100%" }}
+                style={{ ...modal.sliderBase, ...modal.sliderTicks5 }}
                 list="sleepTicks"
               />
               <div style={modal.subLabel}>
@@ -163,7 +163,7 @@ export function CheckInForm({
                   const idx = Number(e.target.value);
                   setSleepQuality(sleepQualityScale[idx] || "good");
                 }}
-                style={{ width: "100%" }}
+                style={{ ...modal.sliderBase, ...modal.sliderTicks4 }}
                 list="sleepQualityTicks"
               />
               <div style={modal.subLabel}>
@@ -437,7 +437,7 @@ const modal: Record<string, React.CSSProperties> = {
   grid2: {
     display: "grid",
     gap: 10,
-    gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+    gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
   },
   cardWide: {
     padding: 14,
@@ -449,6 +449,30 @@ const modal: Record<string, React.CSSProperties> = {
     gap: 10,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
+  },
+  sliderBase: {
+    width: "100%",
+    accentColor: "#0f172a",
+    background: "transparent",
+    height: 32,
+    padding: 0,
+    margin: 0,
+  },
+  sliderTicks5: {
+    backgroundImage:
+      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
+    backgroundSize: "25% 60%, 100% 4px",
+    backgroundPosition: "0 50%, 0 50%",
+    backgroundRepeat: "repeat-x, no-repeat",
+    borderRadius: 999,
+  },
+  sliderTicks4: {
+    backgroundImage:
+      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
+    backgroundSize: "33.333% 60%, 100% 4px",
+    backgroundPosition: "0 50%, 0 50%",
+    backgroundRepeat: "repeat-x, no-repeat",
+    borderRadius: 999,
   },
   groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
   chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" },
