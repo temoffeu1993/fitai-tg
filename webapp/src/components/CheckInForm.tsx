@@ -464,14 +464,13 @@ const modal: Record<string, React.CSSProperties> = {
   sliderStyle: (min: number, max: number, value: number, ticks: number[]) => {
     const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
     const tickImgs = ticks.map(
-      (p) =>
-        `radial-gradient(circle at ${p}% 50%, rgba(15,23,42,0.2) 0, rgba(15,23,42,0.2) 46%, transparent 47%)`
+      (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
     );
     const bgImages = [
       `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
     ].join(", ");
-    const bgSizes = ["100% 4px", ...tickImgs.map(() => "8px 8px")].join(", ");
+    const bgSizes = ["100% 4px", ...tickImgs.map(() => "2px 12px")].join(", ");
     const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
     return {
       width: "100%",
