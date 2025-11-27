@@ -99,8 +99,12 @@ export function CheckInForm({
   };
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
-  const cardStyle = inline ? { ...modal.card, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" } : modal.card;
-  const footerStyle = inline ? { ...modal.footer, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr" } : modal.footer;
+  const cardStyle = inline
+    ? { ...modal.card, background: "transparent", boxShadow: "none", border: "none", padding: 0 }
+    : modal.card;
+  const footerStyle = inline
+    ? { ...modal.footer, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr", padding: "10px 0 0" }
+    : modal.footer;
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>

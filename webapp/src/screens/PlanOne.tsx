@@ -352,6 +352,7 @@ export default function PlanOne() {
             />
           )}
         </section>
+        <div style={{ height: 16 }} />
       </div>
     );
   }
@@ -1203,12 +1204,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   checkInCard: {
     marginTop: 12,
-    padding: 12,
+    padding: 14,
     borderRadius: 18,
-    background: "rgba(255,255,255,0.9)",
-    boxShadow: "0 20px 45px rgba(15,23,42,0.12)",
+    background: "rgba(255,255,255,0.8)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    boxShadow: "0 20px 45px rgba(15,23,42,0.10)",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
+    marginBottom: 72,
   },
 
   rowBtn: {
