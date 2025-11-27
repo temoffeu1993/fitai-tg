@@ -263,34 +263,6 @@ export function CheckInForm({
           </div>
 
           <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>💤 Качество сна</div>
-            <input
-              type="range"
-              min={0}
-              max={3}
-              step={1}
-              value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setSleepQuality(sleepQualityScale[idx] || "good");
-              }}
-              style={{
-                ...modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100]),
-                marginTop: 4,
-              }}
-              className="checkin-slider"
-            />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {{
-                0: "Плохое",
-                1: "Так себе",
-                2: "Хорошее",
-                3: "Отличное",
-              }[String(sleepQualityIndex < 0 ? 2 : sleepQualityIndex) as "0" | "1" | "2" | "3"]}
-            </div>
-          </div>
-
-          <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>😰 Стресс</div>
             <input
               type="range"
@@ -575,13 +547,13 @@ const modal: Record<string, React.CSSProperties> = {
   save: {
     borderRadius: 16,
     padding: "14px 18px",
-    border: "none",
-    background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    color: "#000",
+    border: "1px solid #0f172a",
+    background: "#0f172a",
+    color: "#fff",
     fontWeight: 800,
     fontSize: 16,
     cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
   },
   smallBtn: {
     borderRadius: 10,
