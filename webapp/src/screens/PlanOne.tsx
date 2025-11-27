@@ -116,12 +116,7 @@ export default function PlanOne() {
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const [paywall, setPaywall] = useState(false);
   const effectivePlan = needsCheckIn ? null : plan;
-  const planTitle = useMemo(() => {
-    const t = effectivePlan?.title?.trim();
-    if (!t) return "Тренировка дня";
-    const hasCyr = /[а-яА-ЯёЁ]/.test(t);
-    return hasCyr ? t : "Тренировка дня";
-  }, [effectivePlan]);
+  const planTitle = useMemo(() => effectivePlan?.title?.trim() || "Тренировка дня", [effectivePlan]);
 
   useEffect(() => {
     if (plan) {

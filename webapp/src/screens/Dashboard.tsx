@@ -361,7 +361,7 @@ export default function Dashboard() {
       <section style={{ ...s.block, ...s.chipSurface, ...(onbDone ? {} : s.disabledBtn) }}>
         <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
         <p style={s.blockText}>
-          Я делаю каждую тренировку эффективной с учётом твоей цели, опыта и истории.
+          Я делаю каждую тренировку эффективной с учётом твоего состояния, цели, опыта и истории тренировок.
         </p>
         <button
           className={onbDone ? "glow-anim" : undefined}
@@ -497,7 +497,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: 20,
     borderRadius: 20,
     boxShadow: cardShadow,
-    background: "#000",
+    background: "#0f172a",
     color: "#fff",
     minHeight: 240,
     overflow: "visible",
@@ -563,7 +563,14 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.15,
   },
 
-  heroCtaWords: { display: "flex", flexDirection: "column", lineHeight: 1.1, gap: 2 },
+  heroCtaWords: {
+    display: "flex",
+    flexDirection: "column",
+    lineHeight: 1.05,
+    gap: 1,
+    fontSize: "clamp(13px, 3.5vw, 16px)",
+    whiteSpace: "nowrap",
+  },
   heroCtaWord: { display: "block" },
 
   heroClip: {
