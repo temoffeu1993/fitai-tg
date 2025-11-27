@@ -178,12 +178,12 @@ export function CheckInForm({
                 type="range"
                 min={5}
                 max={9}
-                step={1}
-                value={sleepHours}
-                onChange={(e) => setSleepHours(Number(e.target.value))}
-                style={{ ...modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100]), marginTop: 4 }}
-                className="checkin-slider"
-                list="sleepTicks"
+              step={0.5}
+              value={sleepHours}
+              onChange={(e) => setSleepHours(Number(e.target.value))}
+              style={{ ...modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100]), marginTop: 4 }}
+              className="checkin-slider"
+              list="sleepTicks"
               />
             <div style={{ ...modal.subLabel, marginTop: 2 }}>
               {sleepHours} ч · {sliderLabel}
@@ -475,7 +475,7 @@ const modal: Record<string, React.CSSProperties> = {
       `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
     ].join(", ");
-    const bgSizes = ["100% 4px", ...tickImgs.map(() => "2px 12px")].join(", ");
+    const bgSizes = ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", ");
     const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
     return {
       width: "100%",
