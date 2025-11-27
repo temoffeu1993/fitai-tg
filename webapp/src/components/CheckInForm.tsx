@@ -39,12 +39,12 @@ const sliderCss = `
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 52px;
+  height: 44px;
   background: transparent;
   cursor: pointer;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  padding: 16px 0;
+  padding: 12px 0;
 }
 .checkin-slider::-webkit-slider-runnable-track {
   height: 4px;
@@ -54,12 +54,12 @@ const sliderCss = `
 .checkin-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.16), 0 0 0 10px rgba(0,0,0,0.02);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.16);
   margin-top: -10px;
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
@@ -69,12 +69,12 @@ const sliderCss = `
   border-radius: 999px;
 }
 .checkin-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.16), 0 0 0 10px rgba(0,0,0,0.02);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.16);
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 `;
