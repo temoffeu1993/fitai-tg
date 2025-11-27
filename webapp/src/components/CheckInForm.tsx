@@ -55,8 +55,8 @@ const sliderCss = `
   height: 20px;
   border-radius: 50%;
   background: #fff;
-  border: 1px solid #0f172a;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.16);
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
   margin-top: -8px;
 }
 .checkin-slider::-moz-range-track {
@@ -69,8 +69,8 @@ const sliderCss = `
   height: 20px;
   border-radius: 50%;
   background: #fff;
-  border: 1px solid #0f172a;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.16);
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 `;
 
@@ -167,20 +167,20 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>😴 Сон</div>
-            <input
-              type="range"
-              min={5}
-              max={9}
-              step={1}
-              value={sleepHours}
-              onChange={(e) => setSleepHours(Number(e.target.value))}
-              style={modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100])}
-              className="checkin-slider"
-              list="sleepTicks"
-            />
-            <div style={modal.subLabel}>
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>😴 Сон</div>
+              <input
+                type="range"
+                min={5}
+                max={9}
+                step={1}
+                value={sleepHours}
+                onChange={(e) => setSleepHours(Number(e.target.value))}
+                style={{ ...modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100]), marginTop: 4 }}
+                className="checkin-slider"
+                list="sleepTicks"
+              />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
               {sleepHours} ч · {sliderLabel}
             </div>
             <datalist id="sleepTicks">
@@ -192,23 +192,26 @@ export function CheckInForm({
             </datalist>
           </div>
 
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>🌙 Качество сна</div>
-            <input
-              type="range"
-              min={0}
-              max={3}
-              step={1}
-              value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setSleepQuality(sleepQualityScale[idx] || "good");
-              }}
-              style={modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100])}
-              className="checkin-slider"
-              list="sleepQualityTicks"
-            />
-            <div style={modal.subLabel}>
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>🌙 Качество сна</div>
+              <input
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSleepQuality(sleepQualityScale[idx] || "good");
+                }}
+                style={{
+                  ...modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100]),
+                  marginTop: 4,
+                }}
+                className="checkin-slider"
+                list="sleepQualityTicks"
+              />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
               {{
                 0: "Плохое",
                 1: "Так себе",
@@ -462,13 +465,13 @@ const modal: Record<string, React.CSSProperties> = {
     const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
     const tickImgs = ticks.map(
       (p) =>
-        `radial-gradient(circle at ${p}% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 41%)`
+        `radial-gradient(circle at ${p}% 50%, rgba(15,23,42,0.2) 0, rgba(15,23,42,0.2) 46%, transparent 47%)`
     );
     const bgImages = [
       `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
     ].join(", ");
-    const bgSizes = ["100% 4px", ...tickImgs.map(() => "10px 10px")].join(", ");
+    const bgSizes = ["100% 4px", ...tickImgs.map(() => "8px 8px")].join(", ");
     const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
     return {
       width: "100%",
@@ -486,20 +489,20 @@ const modal: Record<string, React.CSSProperties> = {
     };
   },
   cardMini: {
-    padding: 14,
+    padding: 12,
     borderRadius: 16,
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(0,0,0,0.05)",
     boxShadow: "0 10px 30px rgba(15,23,42,0.10)",
     display: "grid",
-    gap: 8,
+    gap: 6,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
   cardMiniTitle: {
     fontSize: 13,
     opacity: 0.8,
-    marginBottom: 2,
+    marginBottom: 0,
     fontWeight: 700,
   },
   cardWide: {
