@@ -34,6 +34,45 @@ const chipActive: React.CSSProperties = {
   border: "1px solid #0f172a",
 };
 
+const sliderCss = `
+.checkin-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+}
+.checkin-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.checkin-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0f172a;
+  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
+  margin-top: -8px;
+}
+.checkin-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.checkin-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0f172a;
+  box-shadow: 0 0 0 4px rgba(15,23,42,0.12);
+  border: none;
+}
+`;
+
 export function CheckInForm({
   onSubmit,
   onSkip,
@@ -113,6 +152,7 @@ export function CheckInForm({
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
+      <style>{sliderCss}</style>
       <div style={cardStyle}>
         {!inline && (
           <div style={modal.header}>
@@ -135,8 +175,8 @@ export function CheckInForm({
               step={1}
               value={sleepHours}
               onChange={(e) => setSleepHours(Number(e.target.value))}
-              style={{ width: "100%" }}
-              className="checkin-slider ticks-5"
+              style={modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100])}
+              className="checkin-slider"
               list="sleepTicks"
             />
             <div style={modal.subLabel}>
@@ -163,8 +203,8 @@ export function CheckInForm({
                 const idx = Number(e.target.value);
                 setSleepQuality(sleepQualityScale[idx] || "good");
               }}
-              style={{ width: "100%" }}
-              className="checkin-slider ticks-4"
+              style={modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100])}
+              className="checkin-slider"
               list="sleepQualityTicks"
             />
             <div style={modal.subLabel}>
@@ -417,6 +457,34 @@ const modal: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
   },
+  sliderStyle: (min: number, max: number, value: number, ticks: number[]) => {
+    const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+    const tickImgs = ticks.map(
+      (p) =>
+        `radial-gradient(circle at ${p}% 50%, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 41%)`
+    );
+    const bgImages = [
+      `linear-gradient(to right, #0f172a ${pct}%, rgba(15,23,42,0.18) ${pct}%)`,
+      ...tickImgs,
+      "linear-gradient(to right, rgba(15,23,42,0.18), rgba(15,23,42,0.18))",
+    ].join(", ");
+    const bgSizes = ["100% 4px", ...tickImgs.map(() => "10px 10px"), "100% 4px"].join(", ");
+    const bgPositions = ["0 50%", ...tickImgs.map(() => "0 50%"), "0 50%"].join(", ");
+    return {
+      width: "100%",
+      height: 32,
+      backgroundImage: bgImages,
+      backgroundSize: bgSizes,
+      backgroundPosition: bgPositions,
+      backgroundRepeat: "no-repeat",
+      borderRadius: 999,
+      cursor: "pointer",
+      appearance: "none" as const,
+      WebkitAppearance: "none" as const,
+      padding: 0,
+      margin: 0,
+    };
+  },
   cardMini: {
     padding: 14,
     borderRadius: 16,
@@ -433,11 +501,6 @@ const modal: Record<string, React.CSSProperties> = {
     opacity: 0.8,
     marginBottom: 2,
     fontWeight: 700,
-  },
-  grid2: {
-    display: "grid",
-    gap: 10,
-    gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
   },
   cardWide: {
     padding: 14,
