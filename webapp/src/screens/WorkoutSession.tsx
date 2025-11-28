@@ -398,7 +398,7 @@ export default function WorkoutSession() {
     <div style={page.outer}>
       <div style={page.inner}>
       <SoftGlowStyles />
-      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
+      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
 
       {/* HERO */}
       <section style={s.heroCard}>
@@ -1287,59 +1287,18 @@ function ruPlural(n: number, forms: [string, string, string]) {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1];
   return forms[2];
 }
-const sliderCss = `
-.effort-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  background: transparent;
-  border-radius: 999px;
-}
-.effort-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.16);
-  margin-top: -10px;
-  transition: transform 80ms ease, box-shadow 80ms ease;
-}
-.effort-slider::-moz-range-track {
-  height: 4px;
-  background: transparent;
-  border-radius: 999px;
-}
-.effort-slider::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.12);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.16);
-  transition: transform 80ms ease, box-shadow 80ms ease;
-}
-`;
 function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
-  const thumbSize = 22;
-  const offset = thumbSize / 2; // чтобы заливка шла от центра кружка
   const tickImgs = ticks.map(
-    () => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
+    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
   );
   return {
     backgroundImage: [
       `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
     ].join(", "),
-    backgroundSize: [
-      `calc(100% - ${thumbSize}px) 4px`,
-      ...tickImgs.map(() => "1px 8px")
-    ].join(", "),
-    backgroundPosition: [
-      `${offset}px 50%`,
-      ...ticks.map((p) => `calc(${offset}px + (calc(100% - ${thumbSize}px) * ${p / 100})) 50%`)
-    ].join(", "),
+    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
+    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
     backgroundRepeat: "no-repeat",
   };
 }
