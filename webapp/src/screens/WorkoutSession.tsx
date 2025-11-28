@@ -494,20 +494,20 @@ const plan: Plan | null = useMemo(() => {
                     max={3}
                     step={1}
             value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
-            onChange={(e) => {
-              const idx = Number(e.target.value);
-              const opt = effortOptions[idx] || effortOptions[1];
-              setEffort(ei, opt.key);
-            }}
-            style={{
-              ...effortRow.slider,
-              ...sliderFillStyle(
-                Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
-                0,
-                3,
-                [0, 33.333, 66.666, 100]
-              ),
-            }}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value);
+                      const opt = effortOptions[idx] || effortOptions[1];
+                      setEffort(ei, opt.key);
+                    }}
+                    style={{
+                      ...effortRow.slider,
+                      ...sliderFillStyle(
+                        Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
+                        0,
+                        3,
+                        [0, 33.333, 66.666, 100]
+                      ),
+                    }}
             className="effort-slider"
           />
                   <div style={effortRow.value}>
@@ -750,12 +750,12 @@ const s: Record<string, React.CSSProperties> = {
   feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
   feedbackSlider: {
     width: "100%",
-    height: 42,
+    height: 52,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "12px 0",
+    padding: "16px 0",
     touchAction: "none",
   },
   feedbackValue: { display: "grid", gap: 2 },
@@ -763,10 +763,6 @@ const s: Record<string, React.CSSProperties> = {
   feedbackValueDesc: {
     fontSize: 12,
     color: "#4b5563",
-    background: "rgba(0,0,0,0.03)",
-    borderRadius: 10,
-    padding: "7px 9px",
-    border: "1px solid rgba(0,0,0,0.05)",
     lineHeight: 1.35,
   },
   feedbackNotes: {
@@ -1210,12 +1206,12 @@ const effortRow = {
   sliderWrap: { display: "grid", gap: 4 },
   slider: {
     width: "100%",
-    height: 38,
+    height: 52,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "12px 0",
+    padding: "16px 0",
     touchAction: "none",
   } as React.CSSProperties,
   ticks: {
@@ -1232,10 +1228,6 @@ const effortRow = {
   valueDesc: {
     fontSize: 11.5,
     color: "#4b5563",
-    background: "rgba(0,0,0,0.03)",
-    borderRadius: 10,
-    padding: "7px 9px",
-    border: "1px solid rgba(0,0,0,0.05)",
     lineHeight: 1.35,
   } as React.CSSProperties,
 };
