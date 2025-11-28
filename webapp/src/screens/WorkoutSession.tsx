@@ -214,10 +214,26 @@ const plan: Plan | null = useMemo(() => {
   };
 
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string }> = [
-    { key: "very_easy", label: "Очень легко", desc: "RPE ~5–6 · +5–7% веса или +1–2 повтора" },
-    { key: "comfortable", label: "Комфортно", desc: "RPE ~7 · оставить или +2.5% веса" },
-    { key: "hard", label: "Тяжело", desc: "RPE ~8–9 · оставить или -1 повтор" },
-    { key: "too_hard", label: "Слишком тяжело", desc: "RPE ~9.5–10 · -2.5–5% веса" },
+    {
+      key: "very_easy",
+      label: "Очень легко",
+      desc: "Супер! В следующий раз можно немного увеличить вес или количество повторов.",
+    },
+    {
+      key: "comfortable",
+      label: "Комфортно",
+      desc: "Оптимальная нагрузка. В следующий раз сохраним вес и посмотрим на динамику.",
+    },
+    {
+      key: "hard",
+      label: "Тяжело",
+      desc: "Почти на пределе. Вес оставим, а повторы можно снизить на 1–2.",
+    },
+    {
+      key: "too_hard",
+      label: "Слишком тяжело",
+      desc: "Перегруз. Следующий раз снизим вес/повторы для лучшего прогресса.",
+    },
   ];
   const setEffort = (ei: number, effort: EffortTag) => {
     setItems((prev) => {
@@ -483,9 +499,17 @@ const plan: Plan | null = useMemo(() => {
               const opt = effortOptions[idx] || effortOptions[1];
               setEffort(ei, opt.key);
             }}
-                style={effortRow.slider}
-                className="effort-slider"
-              />
+            style={{
+              ...effortRow.slider,
+              ...sliderFillStyle(
+                Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
+                0,
+                3,
+                [0, 33.333, 66.666, 100]
+              ),
+            }}
+            className="effort-slider"
+          />
                   <div style={effortRow.value}>
                     <div style={effortRow.valueTitle}>
                       {effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}
@@ -554,7 +578,10 @@ const plan: Plan | null = useMemo(() => {
             step={1}
             value={sessionRpe}
             onChange={(e) => setSessionRpe(Number(e.target.value))}
-            style={s.feedbackSlider}
+            style={{
+              ...s.feedbackSlider,
+              ...sliderFillStyle(sessionRpe, 4, 10, [0, 20, 40, 60, 80, 100]),
+            }}
             className="effort-slider"
           />
           <div style={s.feedbackValue}>
@@ -1253,19 +1280,34 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 `;
+function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
+  const tickImgs = ticks.map(
+    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.28) 0%, rgba(15,23,42,0.28) 100%)`
+  );
+  return {
+    backgroundImage: [
+      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
+      ...tickImgs,
+    ].join(", "),
+    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
+    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
+    backgroundRepeat: "no-repeat",
+  };
+}
 function sessionRpeLabel(val: number): string {
-  if (val >= 9.5) return "Предел (RPE 10)";
-  if (val >= 9) return "Очень тяжело (RPE 9)";
-  if (val >= 8) return "Тяжело (RPE 8)";
-  if (val >= 7) return "Комфортно (RPE 7)";
-  if (val >= 6) return "Ниже среднего (RPE 6)";
-  return "Очень легко (RPE 5)";
+  if (val >= 9.5) return "Слишком тяжело";
+  if (val >= 9) return "Очень тяжело";
+  if (val >= 8) return "Тяжело";
+  if (val >= 7) return "Комфортно";
+  if (val >= 6) return "Ниже среднего";
+  return "Очень легко";
 }
 
 function sessionRpeHint(val: number): string {
-  if (val >= 9.5) return "Перегруз — в следующий раз уменьши объём или вес.";
-  if (val >= 9) return "Почти на пределе — сохраним или снизим нагрузку.";
-  if (val >= 8) return "Тяжело, но рабоче — держим или слегка снижаем объём.";
+  if (val >= 9.5) return "Перегруз — в следующий раз уменьшим объём или вес.";
+  if (val >= 9) return "Почти на пределе — оставим или снизим нагрузку.";
+  if (val >= 8) return "Тяжело, но рабоче — сохраним или немного снизим объём.";
   if (val >= 7) return "Оптимально — продолжаем в том же темпе.";
   if (val >= 6) return "Легковато — можно добавить немного объёма/веса.";
   return "Очень легко — можно поднять интенсивность.";
