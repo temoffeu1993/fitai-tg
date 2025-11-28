@@ -128,7 +128,7 @@ type Profile = {
 };
 
 type HistoryExerciseSet = { reps?: number; weight?: number };
-type EffortTag = "very_easy" | "comfortable" | "hard" | "too_hard";
+type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max";
 type HistoryExercise = {
   name: string;
   reps?: string | number;
@@ -706,13 +706,15 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   } else if (reps < repsRange.min) {
     recommended = Math.max(5, stats.weight - increment);
   }
-  if (ex.effort === "very_easy") {
+  if (ex.effort === "easy") {
     recommended = stats.weight * 1.05;
-  } else if (ex.effort === "comfortable") {
-    recommended = stats.weight + increment * 0.25;
+  } else if (ex.effort === "working") {
+    recommended = stats.weight + increment * 0.2;
+  } else if (ex.effort === "quite_hard") {
+    recommended = stats.weight;
   } else if (ex.effort === "hard") {
-    recommended = Math.max(5, stats.weight - increment * 0.5);
-  } else if (ex.effort === "too_hard") {
+    recommended = Math.max(5, stats.weight - increment * 0.4);
+  } else if (ex.effort === "max") {
     recommended = Math.max(5, stats.weight - increment);
   }
   const min = stats.weight * 0.95;
@@ -1755,10 +1757,11 @@ function buildHistoryBlock(history: HistorySession[], weekSessions: HistorySessi
             const repsText = stats.reps ? `${Math.round(stats.reps)} повт.` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)} кг` : "собств. вес";
             const effortMap: Record<string, string> = {
-              very_easy: "очень легко (RPE ~5-6)",
-              comfortable: "комфортно (RPE ~7)",
-              hard: "тяжело (RPE ~8-9)",
-              too_hard: "слишком тяжело (RPE ~9.5-10)",
+              easy: "легко (RPE ~6)",
+              working: "рабочий (RPE ~7)",
+              quite_hard: "тяжеловато (RPE ~8)",
+              hard: "тяжело (RPE ~9)",
+              max: "предел (RPE ~10)",
             };
             const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =
@@ -1810,10 +1813,11 @@ ${recentHistory}
             const repsText = stats.reps ? `${Math.round(stats.reps)}` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)}кг` : "вес тела";
             const effortMap: Record<string, string> = {
-              very_easy: "очень легко (RPE ~5-6)",
-              comfortable: "комфортно (RPE ~7)",
-              hard: "тяжело (RPE ~8-9)",
-              too_hard: "слишком тяжело (RPE ~9.5-10)",
+              easy: "легко (RPE ~6)",
+              working: "рабочий (RPE ~7)",
+              quite_hard: "тяжеловато (RPE ~8)",
+              hard: "тяжело (RPE ~9)",
+              max: "предел (RPE ~10)",
             };
             const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =

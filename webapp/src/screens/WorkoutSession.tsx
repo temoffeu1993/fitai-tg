@@ -26,7 +26,7 @@ type Plan = {
 
 type SetEntry = { reps?: number; weight?: number };
 
-type EffortTag = "very_easy" | "comfortable" | "hard" | "too_hard" | null;
+type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
 
 type Item = {
   name: string;
@@ -64,8 +64,14 @@ const plan: Plan | null = useMemo(() => {
   const [running, setRunning] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [pendingNavHome, setPendingNavHome] = useState(false);
-  const [sessionRpe, setSessionRpe] = useState(7);
-  const [sessionNotes, setSessionNotes] = useState("");
+  const sessionRpeOptions = [
+    { value: 6, label: "Легко", desc: "Тренировка почти не утомила, мог сделать гораздо больше.", icon: "🟢" },
+    { value: 7, label: "Рабочая", desc: "Хорошая тренировка, есть ощущение нагрузки, но без надрыва.", icon: "🟡" },
+    { value: 8, label: "Тяжеловато", desc: "Местами пришлось напрягаться; сил в конце стало заметно меньше.", icon: "🟠" },
+    { value: 9, label: "Тяжело", desc: "Вся тренировка была напряжённой, к концу чувствуется сильная усталость.", icon: "🔴" },
+    { value: 10, label: "Предел", desc: "Очень изматывающая тренировка, почти на максимум возможностей.", icon: "⛔" },
+  ];
+  const [sessionRpe, setSessionRpe] = useState(sessionRpeOptions[1].value);
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const [finishModal, setFinishModal] = useState(false);
   const [finishStart, setFinishStart] = useState<string>("");
@@ -103,7 +109,6 @@ const plan: Plan | null = useMemo(() => {
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
       if (typeof draft.sessionRpe === "number") setSessionRpe(draft.sessionRpe);
-      if (typeof draft.sessionNotes === "string") setSessionNotes(draft.sessionNotes);
     } else {
       setItems(
         plan.exercises.map((ex) => ({
@@ -126,10 +131,9 @@ const plan: Plan | null = useMemo(() => {
       );
       setElapsed(0);
       setRunning(true);
-      setSessionRpe(7);
-      setSessionNotes("");
+      setSessionRpe(sessionRpeOptions[1].value);
     }
-  }, [plan, plannedWorkoutId]);
+  }, [plan, plannedWorkoutId, sessionRpeOptions]);
 
   // timer
   useEffect(() => {
@@ -154,10 +158,9 @@ const plan: Plan | null = useMemo(() => {
       running,
       plannedWorkoutId: plannedWorkoutId || null,
       sessionRpe,
-      sessionNotes,
     };
-      localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, elapsed, running, plan, plannedWorkoutId, sessionRpe, sessionNotes]);
+    localStorage.setItem("session_draft", JSON.stringify(draftPayload));
+  }, [items, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
 
   if (!plan) {
     return (
@@ -213,26 +216,36 @@ const plan: Plan | null = useMemo(() => {
     });
   };
 
-  const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string }> = [
+  const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = [
     {
-      key: "very_easy",
-      label: "Очень легко",
-      desc: "Супер! В следующий раз можно немного увеличить вес или количество повторов.",
+      key: "easy",
+      label: "Легко",
+      desc: "Мышцы включились, но не уставали. В следующий раз можно немного увеличить вес или повторы.",
+      icon: "🟢",
     },
     {
-      key: "comfortable",
-      label: "Комфортно",
-      desc: "Оптимальная нагрузка. В следующий раз сохраним вес и посмотрим на динамику.",
+      key: "working",
+      label: "Рабочий",
+      desc: "Хороший темп, чувствуешь работу, но спокойно контролируешь движение. Оставляем как есть.",
+      icon: "🟡",
+    },
+    {
+      key: "quite_hard",
+      label: "Тяжеловато",
+      desc: "Мышцы хорошо горят, последние повторы требуют усилия. Можно чуть снизить темп или повторы.",
+      icon: "🟠",
     },
     {
       key: "hard",
       label: "Тяжело",
-      desc: "Почти на пределе. Вес оставим, а повторы можно снизить на 1–2.",
+      desc: "Почти максимум, очень сложно закончить подход. В следующей сессии снизь повторы на 1–2 или вес.",
+      icon: "🔴",
     },
     {
-      key: "too_hard",
-      label: "Слишком тяжело",
-      desc: "Перегруз. Следующий раз снизим вес/повторы для лучшего прогресса.",
+      key: "max",
+      label: "Предел",
+      desc: "Максимально тяжело, сил нет после подхода. Следующий раз — уменьшить вес/повторы.",
+      icon: "⛔",
     },
   ];
   const setEffort = (ei: number, effort: EffortTag) => {
@@ -287,7 +300,6 @@ const plan: Plan | null = useMemo(() => {
       })),
       feedback: {
         sessionRpe,
-        sessionNotes: sessionNotes.trim() || undefined,
       },
     };
 
@@ -487,6 +499,14 @@ const plan: Plan | null = useMemo(() => {
 
               <div style={effortRow.wrap}>
                 <span style={effortRow.label}>Ощущение от упражнения</span>
+                <div style={effortRow.value}>
+                  <div style={effortRow.valueTitle}>
+                    {effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}
+                  </div>
+                  <div style={effortRow.valueDesc}>
+                    {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
+                  </div>
+                </div>
                 <div style={effortRow.sliderWrap}>
                   <input
                     type="range"
@@ -494,30 +514,22 @@ const plan: Plan | null = useMemo(() => {
                     max={3}
                     step={1}
             value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
-                    onChange={(e) => {
-                      const idx = Number(e.target.value);
-                      const opt = effortOptions[idx] || effortOptions[1];
-                      setEffort(ei, opt.key);
-                    }}
-                    style={{
-                      ...effortRow.slider,
-                      ...sliderFillStyle(
-                        Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
-                        0,
-                        3,
-                        [0, 33.333, 66.666, 100]
-                      ),
-                    }}
+            onChange={(e) => {
+              const idx = Number(e.target.value);
+              const opt = effortOptions[idx] || effortOptions[1];
+              setEffort(ei, opt.key);
+            }}
+            style={{
+              ...effortRow.slider,
+              ...sliderFillStyle(
+                Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
+                0,
+                4,
+                [0, 25, 50, 75, 100]
+              ),
+            }}
             className="effort-slider"
           />
-                  <div style={effortRow.value}>
-                    <div style={effortRow.valueTitle}>
-                      {effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}
-                    </div>
-                    <div style={effortRow.valueDesc}>
-                      {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
-                    </div>
-                  </div>
                 </div>
               </div>
             </section>
@@ -567,27 +579,24 @@ const plan: Plan | null = useMemo(() => {
       <section style={s.feedbackCard}>
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
         <div style={s.feedbackInner}>
-          <label htmlFor="session-rpe" style={s.feedbackLabel}>
-            Субъективная нагрузка
-          </label>
+          <div style={s.feedbackValue}>
+            <div style={s.feedbackValueTitle}>{sessionRpeLabel(sessionRpe)}</div>
+            <div style={s.feedbackValueDesc}>{sessionRpeHint(sessionRpe)}</div>
+          </div>
           <input
             id="session-rpe"
             type="range"
-            min={4}
+            min={6}
             max={10}
             step={1}
             value={sessionRpe}
             onChange={(e) => setSessionRpe(Number(e.target.value))}
             style={{
               ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpe, 4, 10, [0, 20, 40, 60, 80, 100]),
+              ...sliderFillStyle(sessionRpe, 6, 10, [0, 25, 50, 75, 100]),
             }}
             className="effort-slider"
           />
-          <div style={s.feedbackValue}>
-            <div style={s.feedbackValueTitle}>{sessionRpeLabel(sessionRpe)}</div>
-            <div style={s.feedbackValueDesc}>{sessionRpeHint(sessionRpe)}</div>
-          </div>
         </div>
       </section>
 
@@ -1286,5 +1295,5 @@ function sessionRpeHint(val: number): string {
   if (val >= 8) return "Тяжело, но рабоче — сохраним или немного снизим объём.";
   if (val >= 7) return "Оптимально — продолжаем в том же темпе.";
   if (val >= 6) return "Легковато — можно добавить немного объёма/веса.";
-  return "Очень легко — можно поднять интенсивность.";
+  return "Легко — можно поднять интенсивность.";
 }
