@@ -588,13 +588,6 @@ const plan: Plan | null = useMemo(() => {
             <div style={s.feedbackValueTitle}>{sessionRpeLabel(sessionRpe)}</div>
             <div style={s.feedbackValueDesc}>{sessionRpeHint(sessionRpe)}</div>
           </div>
-          <textarea
-            style={s.feedbackNotes}
-            rows={3}
-            value={sessionNotes}
-            onChange={(e) => setSessionNotes(e.target.value)}
-            placeholder="Заметки о самочувствии, сне, болях..."
-          />
         </div>
       </section>
 
@@ -765,15 +758,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#4b5563",
     lineHeight: 1.35,
   },
-  feedbackNotes: {
-    width: "100%",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.12)",
-    padding: 10,
-    fontFamily: "inherit",
-    fontSize: 16,
-    resize: "none",
-  } as React.CSSProperties,
 };
 
 const modal: Record<string, React.CSSProperties> = {
