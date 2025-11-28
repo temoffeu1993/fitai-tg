@@ -26,7 +26,7 @@ type Plan = {
 
 type SetEntry = { reps?: number; weight?: number };
 
-type EffortTag = "easy" | "normal" | "hard" | null;
+type EffortTag = "very_easy" | "comfortable" | "hard" | "too_hard" | null;
 
 type Item = {
   name: string;
@@ -213,10 +213,16 @@ const plan: Plan | null = useMemo(() => {
     });
   };
 
+  const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string }> = [
+    { key: "very_easy", label: "Очень легко", desc: "RPE ~5–6 · +5–7% веса или +1–2 повтора" },
+    { key: "comfortable", label: "Комфортно", desc: "RPE ~7 · оставить или +2.5% веса" },
+    { key: "hard", label: "Тяжело", desc: "RPE ~8–9 · оставить или -1 повтор" },
+    { key: "too_hard", label: "Слишком тяжело", desc: "RPE ~9.5–10 · -2.5–5% веса" },
+  ];
   const setEffort = (ei: number, effort: EffortTag) => {
     setItems((prev) => {
       const next = structuredClone(prev);
-      next[ei].effort = next[ei].effort === effort ? null : effort;
+      next[ei].effort = effort;
       return next;
     });
   };
@@ -320,7 +326,7 @@ const plan: Plan | null = useMemo(() => {
     <div style={page.outer}>
       <div style={page.inner}>
       <SoftGlowStyles />
-      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
+      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
 
       {/* HERO */}
       <section style={s.heroCard}>
@@ -465,28 +471,38 @@ const plan: Plan | null = useMemo(() => {
 
               <div style={effortRow.wrap}>
                 <span style={effortRow.label}>Ощущение от упражнения</span>
-                <div style={effortRow.buttons}>
-                  <button
-                    type="button"
-                    style={{ ...btn.badge, ...(it.effort === "easy" ? btn.badgeActive : {}) }}
-                    onClick={() => setEffort(ei, "easy")}
-                  >
-                    Легко
-                  </button>
-                  <button
-                    type="button"
-                    style={{ ...btn.badge, ...(it.effort === "normal" ? btn.badgeActive : {}) }}
-                    onClick={() => setEffort(ei, "normal")}
-                  >
-                    Нормально
-                  </button>
-                  <button
-                    type="button"
-                    style={{ ...btn.badge, ...(it.effort === "hard" ? btn.badgeActive : {}) }}
-                    onClick={() => setEffort(ei, "hard")}
-                  >
-                    Тяжело
-                  </button>
+                <div style={effortRow.sliderWrap}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={3}
+                    step={1}
+                    value={
+                      Math.max(
+                        0,
+                        effortOptions.findIndex((opt) => opt.key === it.effort) === -1
+                          ? 1
+                          : effortOptions.findIndex((opt) => opt.key === it.effort)
+                      )
+                    }
+                    onChange={(e) => {
+                      const idx = Number(e.target.value);
+                  const opt = effortOptions[idx] || effortOptions[1];
+                  setEffort(ei, opt.key);
+                }}
+                style={effortRow.slider}
+                className="effort-slider"
+              />
+                  <div style={effortRow.ticks}>
+                    {effortOptions.map((opt, idx) => (
+                      <span key={opt.key} style={effortRow.tickLabel}>
+                        {opt.label}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={effortRow.hint}>
+                    {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
+                  </div>
                 </div>
               </div>
             </section>
@@ -536,18 +552,19 @@ const plan: Plan | null = useMemo(() => {
       <section style={s.feedbackCard}>
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
         <div style={s.feedbackInner}>
-          <label htmlFor="session-rpe" style={s.feedbackLabel}>
-            Субъективная нагрузка: {sessionRpe}/10
-          </label>
-          <input
-            id="session-rpe"
-            type="range"
-            min={4}
-            max={10}
-            step={1}
-            value={sessionRpe}
-            onChange={(e) => setSessionRpe(Number(e.target.value))}
+         <label htmlFor="session-rpe" style={s.feedbackLabel}>
+           Субъективная нагрузка: {sessionRpe}/10
+         </label>
+         <input
+           id="session-rpe"
+           type="range"
+           min={4}
+           max={10}
+           step={1}
+           value={sessionRpe}
+           onChange={(e) => setSessionRpe(Number(e.target.value))}
             style={s.feedbackSlider}
+            className="effort-slider"
           />
           <textarea
             style={s.feedbackNotes}
@@ -707,9 +724,18 @@ const s: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(12px)",
   },
   feedbackHeader: { fontWeight: 800, fontSize: 15, marginBottom: 8 },
-  feedbackInner: { display: "grid", gap: 10 },
+  feedbackInner: { display: "grid", gap: 6 },
   feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
-  feedbackSlider: { width: "100%" },
+  feedbackSlider: {
+    width: "100%",
+    height: 42,
+    appearance: "none",
+    WebkitAppearance: "none",
+    background: "transparent",
+    cursor: "pointer",
+    padding: "12px 0",
+    touchAction: "none",
+  },
   feedbackNotes: {
     width: "100%",
     borderRadius: 12,
@@ -1144,14 +1170,37 @@ const effortRow = {
     marginTop: 8,
     paddingTop: 8,
     borderTop: "1px solid rgba(0,0,0,.08)",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
+    display: "grid",
+    gap: 6,
   } as React.CSSProperties,
   label: { fontSize: 12.5, color: "#374151", fontWeight: 600 } as React.CSSProperties,
-  buttons: { display: "flex", gap: 8 } as React.CSSProperties,
+  sliderWrap: { display: "grid", gap: 6 },
+  slider: {
+    width: "100%",
+    height: 38,
+    appearance: "none",
+    WebkitAppearance: "none",
+    background: "transparent",
+    cursor: "pointer",
+    padding: "12px 0",
+    touchAction: "none",
+  } as React.CSSProperties,
+  ticks: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4,1fr)",
+    fontSize: 11,
+    color: "#475569",
+    textAlign: "center",
+  } as React.CSSProperties,
+  tickLabel: { whiteSpace: "nowrap" } as React.CSSProperties,
+  hint: {
+    fontSize: 11.5,
+    color: "#4b5563",
+    background: "rgba(0,0,0,0.03)",
+    borderRadius: 10,
+    padding: "8px 10px",
+    border: "1px solid rgba(0,0,0,0.05)",
+  } as React.CSSProperties,
 };
 
 function ruPlural(n: number, forms: [string, string, string]) {
@@ -1161,3 +1210,36 @@ function ruPlural(n: number, forms: [string, string, string]) {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1];
   return forms[2];
 }
+const sliderCss = `
+.effort-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.16);
+  margin-top: -9px;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.effort-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.16);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+`;

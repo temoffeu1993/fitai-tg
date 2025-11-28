@@ -128,7 +128,7 @@ type Profile = {
 };
 
 type HistoryExerciseSet = { reps?: number; weight?: number };
-type EffortTag = "easy" | "normal" | "hard";
+type EffortTag = "very_easy" | "comfortable" | "hard" | "too_hard";
 type HistoryExercise = {
   name: string;
   reps?: string | number;
@@ -706,9 +706,13 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   } else if (reps < repsRange.min) {
     recommended = Math.max(5, stats.weight - increment);
   }
-  if (ex.effort === "easy") {
-    recommended = stats.weight + increment;
+  if (ex.effort === "very_easy") {
+    recommended = stats.weight * 1.05;
+  } else if (ex.effort === "comfortable") {
+    recommended = stats.weight + increment * 0.25;
   } else if (ex.effort === "hard") {
+    recommended = Math.max(5, stats.weight - increment * 0.5);
+  } else if (ex.effort === "too_hard") {
     recommended = Math.max(5, stats.weight - increment);
   }
   const min = stats.weight * 0.95;
@@ -1601,6 +1605,7 @@ JSON (response_format json_object):
 }
 
 **Важно:**
+- Пиши по-русски ВСЕ поля и значения, включая title. Никаких английских слов.
 - Название делай коротким (2–4 слова), только по-русски, чтобы сразу было понятно, что за тренировка и на что акцент.
 - Ты сам решаешь, сколько упражнений, подходов и как долго разминка — исходя из состояния клиента.
 - Слишком экстремальные значения (например, 1 подход или 50 подходов, отдых 5 секунд или 10 минут) будут автоматически нормализованы системой до разумных диапазонов.
@@ -1750,9 +1755,10 @@ function buildHistoryBlock(history: HistorySession[], weekSessions: HistorySessi
             const repsText = stats.reps ? `${Math.round(stats.reps)} повт.` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)} кг` : "собств. вес";
             const effortMap: Record<string, string> = {
-              easy: "легко",
-              normal: "нормально",
-              hard: "тяжело",
+              very_easy: "очень легко (RPE ~5-6)",
+              comfortable: "комфортно (RPE ~7)",
+              hard: "тяжело (RPE ~8-9)",
+              too_hard: "слишком тяжело (RPE ~9.5-10)",
             };
             const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =
@@ -1804,9 +1810,10 @@ ${recentHistory}
             const repsText = stats.reps ? `${Math.round(stats.reps)}` : ex.reps || "—";
             const weightText = stats.weight ? `${stats.weight.toFixed(1)}кг` : "вес тела";
             const effortMap: Record<string, string> = {
-              easy: "легко",
-              normal: "нормально",
-              hard: "тяжело",
+              very_easy: "очень легко (RPE ~5-6)",
+              comfortable: "комфортно (RPE ~7)",
+              hard: "тяжело (RPE ~8-9)",
+              too_hard: "слишком тяжело (RPE ~9.5-10)",
             };
             const effortTag = ex.effort ? ` [ощущение: ${effortMap[ex.effort] || ex.effort}]` : "";
             const muscles =
