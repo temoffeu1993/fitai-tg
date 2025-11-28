@@ -545,7 +545,8 @@ export default function WorkoutSession() {
                 <span style={effortRow.label}>Ощущение от упражнения</span>
                 <div style={effortRow.value}>
                   <div style={effortRow.valueTitle}>
-                    {effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}
+                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.icon || "🟡"}</span>
+                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}</span>
                   </div>
                   <div style={effortRow.valueDesc}>
                     {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
@@ -623,9 +624,10 @@ export default function WorkoutSession() {
       <section style={s.feedbackCard}>
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
         <div style={s.feedbackInner}>
-          <div style={s.feedbackValue}>
+            <div style={s.feedbackValue}>
             <div style={s.feedbackValueTitle}>
-              {sessionRpeOptions[sessionRpeIndex]?.icon} {sessionRpeOptions[sessionRpeIndex]?.label}
+              <span>{sessionRpeOptions[sessionRpeIndex]?.icon}</span>
+              <span>{sessionRpeOptions[sessionRpeIndex]?.label}</span>
             </div>
             <div style={s.feedbackValueDesc}>{sessionRpeOptions[sessionRpeIndex]?.desc}</div>
           </div>
@@ -1267,6 +1269,9 @@ const effortRow = {
     fontSize: 12.5,
     fontWeight: 700,
     color: "#1f2933",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   } as React.CSSProperties,
   valueDesc: {
     fontSize: 11.5,
@@ -1291,13 +1296,13 @@ const sliderCss = `
 .effort-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.12);
   box-shadow: 0 2px 8px rgba(0,0,0,0.16);
-  margin-top: -9px;
+  margin-top: -10px;
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .effort-slider::-moz-range-track {
@@ -1306,8 +1311,8 @@ const sliderCss = `
   border-radius: 999px;
 }
 .effort-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.12);
