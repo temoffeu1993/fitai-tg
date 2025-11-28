@@ -550,7 +550,8 @@ export default function WorkoutSession() {
               ...sliderFillStyle(
                 Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
                 0,
-                4
+                4,
+                [0, 25, 50, 75, 100]
               ),
             }}
             className="effort-slider"
@@ -624,7 +625,7 @@ export default function WorkoutSession() {
             }}
             style={{
               ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1),
+              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, [0, 25, 50, 75, 100]),
             }}
             className="effort-slider"
           />
@@ -783,12 +784,12 @@ const s: Record<string, React.CSSProperties> = {
   feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
   feedbackSlider: {
     width: "100%",
-    height: 60,
+    height: 28,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "18px 0",
+    padding: 0,
     touchAction: "none",
   },
   feedbackValue: { display: "grid", gap: 2 },
@@ -1230,12 +1231,12 @@ const effortRow = {
   sliderWrap: { display: "grid", gap: 4 },
   slider: {
     width: "100%",
-    height: 60,
+    height: 28,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "18px 0",
+    padding: 0,
     touchAction: "none",
   } as React.CSSProperties,
   ticks: {
@@ -1296,13 +1297,19 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 `;
-function sliderFillStyle(value: number, min: number, max: number) {
+function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
+  const tickImgs = ticks.map(
+    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
+  );
   return {
-    background: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.85) ${pct}%, rgba(15,23,42,0.16) ${pct}%, rgba(15,23,42,0.16) 100%)`,
+    backgroundImage: [
+      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
+      ...tickImgs,
+    ].join(", "),
+    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
+    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
     backgroundRepeat: "no-repeat",
-    backgroundSize: "100% 4px",
-    backgroundPosition: "0 50%",
   };
 }
 function sessionRpeLabel(val: number): string {
