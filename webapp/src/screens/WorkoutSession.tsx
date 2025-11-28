@@ -803,7 +803,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: 0,
+    padding: "8px 0",
     touchAction: "none",
   },
   feedbackValue: { display: "grid", gap: 2 },
@@ -1233,7 +1233,7 @@ const effortRow = {
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: 0,
+    padding: "8px 0",
     touchAction: "none",
   } as React.CSSProperties,
   ticks: {
