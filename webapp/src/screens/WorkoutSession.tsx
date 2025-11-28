@@ -398,7 +398,7 @@ export default function WorkoutSession() {
     <div style={page.outer}>
       <div style={page.inner}>
       <SoftGlowStyles />
-      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS}</style>
+      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
 
       {/* HERO */}
       <section style={s.heroCard}>
@@ -1266,6 +1266,41 @@ function ruPlural(n: number, forms: [string, string, string]) {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1];
   return forms[2];
 }
+
+const sliderCss = `
+.effort-slider {
+  -webkit-tap-highlight-color: transparent;
+}
+.effort-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.02);
+  margin-top: -11px;
+}
+.effort-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.02);
+}
+`;
 function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
   const tickImgs = ticks.map(
