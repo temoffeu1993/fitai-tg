@@ -43,11 +43,17 @@ type Item = {
 export default function WorkoutSession() {
   const nav = useNavigate();
   const loc = useLocation();
-const plan: Plan | null = useMemo(() => {
-  const raw = (loc.state as any)?.plan || JSON.parse(localStorage.getItem("current_plan") || "null");
-  const p = raw?.plan || raw; // поддержка структуры { plan: {...} }
-  return p;
-}, [loc.state]);
+  const plan: Plan | null = useMemo(() => {
+    try {
+      const fromState = (loc.state as any)?.plan || null;
+      if (fromState) return (fromState as any).plan || fromState;
+      const rawCurrent = JSON.parse(localStorage.getItem("current_plan") || "null");
+      if (rawCurrent?.plan || rawCurrent?.exercises) return rawCurrent.plan || rawCurrent;
+      const rawCache = JSON.parse(localStorage.getItem("plan_cache_v2") || "null");
+      if (rawCache?.plan || rawCache?.plan?.exercises) return rawCache.plan || rawCache;
+    } catch {}
+    return null;
+  }, [loc.state]);
   const plannedWorkoutId = useMemo(() => {
     const fromState = (loc.state as any)?.plannedWorkoutId;
     if (typeof fromState === "string" && fromState.trim()) return fromState;
@@ -104,11 +110,20 @@ const plan: Plan | null = useMemo(() => {
   // init
   useEffect(() => {
     if (!plan) return;
+    if (!Array.isArray(plan.exercises) || plan.exercises.length === 0) {
+      setItems([]);
+      setElapsed(0);
+      setRunning(true);
+      setSessionRpeIndex(1);
+      setSessionRpe(sessionRpeOptions[1].value);
+      return;
+    }
     const draft = JSON.parse(localStorage.getItem("session_draft") || "null");
-    if (
-      draft?.title === plan.title &&
-      (draft?.plannedWorkoutId || null) === (plannedWorkoutId || null)
-    ) {
+    const draftMatches =
+      draft?.title === plan.title && (draft?.plannedWorkoutId || null) === (plannedWorkoutId || null);
+    const hasDraftItems = Array.isArray(draft?.items) && draft.items.length > 0;
+
+    if (draftMatches && hasDraftItems) {
       setItems(draft.items || []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
@@ -118,31 +133,32 @@ const plan: Plan | null = useMemo(() => {
         setSessionRpeIndex(safeIdx);
         setSessionRpe(sessionRpeOptions[safeIdx].value);
       }
-    } else {
-      setItems(
-        plan.exercises.map((ex) => ({
-          name: ex.name,
-          pattern: ex.pattern,
-          targetMuscles: (ex as any).targetMuscles || [],
-          targetReps: ex.reps,
-          targetWeight:
-            (ex as any).weight != null
-              ? String((ex as any).weight)
-              : (ex as any).targetWeight ?? null,
-          restSec: ex.restSec,
-          done: false,
-          effort: null,
-          sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
-            reps: undefined,
-            weight: undefined,
-          })),
-        }))
-      );
-      setElapsed(0);
-      setRunning(true);
-      setSessionRpeIndex(1);
-      setSessionRpe(sessionRpeOptions[1].value);
+      return;
     }
+
+    setItems(
+      plan.exercises.map((ex) => ({
+        name: ex.name,
+        pattern: ex.pattern,
+        targetMuscles: (ex as any).targetMuscles || [],
+        targetReps: ex.reps,
+        targetWeight:
+          (ex as any).weight != null
+            ? String((ex as any).weight)
+            : (ex as any).targetWeight ?? null,
+        restSec: ex.restSec,
+        done: false,
+        effort: null,
+        sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
+          reps: undefined,
+          weight: undefined,
+        })),
+      }))
+    );
+    setElapsed(0);
+    setRunning(true);
+    setSessionRpeIndex(1);
+    setSessionRpe(sessionRpeOptions[1].value);
   }, [plan, plannedWorkoutId, sessionRpeOptions]);
 
   // timer
