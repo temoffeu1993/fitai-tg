@@ -82,6 +82,20 @@ export default function WorkoutSession() {
   );
   const [sessionRpeIndex, setSessionRpeIndex] = useState(1);
   const [sessionRpe, setSessionRpe] = useState(sessionRpeOptions[1].value);
+  const effortTicks = useMemo(
+    () =>
+      effortOptions.map((_, i) =>
+        effortOptions.length > 1 ? (i / (effortOptions.length - 1)) * 100 : 0
+      ),
+    [effortOptions]
+  );
+  const sessionTicks = useMemo(
+    () =>
+      sessionRpeOptions.map((_, i) =>
+        sessionRpeOptions.length > 1 ? (i / (sessionRpeOptions.length - 1)) * 100 : 0
+      ),
+    [sessionRpeOptions]
+  );
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const [finishModal, setFinishModal] = useState(false);
   const [finishStart, setFinishStart] = useState<string>("");
@@ -536,8 +550,8 @@ export default function WorkoutSession() {
                 <div style={effortRow.sliderWrap}>
                   <input
                     type="range"
-                    min={0}
-                    max={3}
+                min={0}
+                    max={4}
                     step={1}
             value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
             onChange={(e) => {
@@ -550,8 +564,8 @@ export default function WorkoutSession() {
               ...sliderFillStyle(
                 Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
                 0,
-                4,
-                [0, 25, 50, 75, 100]
+                effortOptions.length - 1,
+                effortTicks
               ),
             }}
             className="effort-slider"
@@ -625,7 +639,7 @@ export default function WorkoutSession() {
             }}
             style={{
               ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, [0, 25, 50, 75, 100]),
+              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, sessionTicks),
             }}
             className="effort-slider"
           />
@@ -1299,16 +1313,24 @@ const sliderCss = `
 `;
 function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
+  const thumbSize = 22;
+  const offset = thumbSize / 2; // чтобы заливка шла от центра кружка
   const tickImgs = ticks.map(
-    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
+    () => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
   );
   return {
     backgroundImage: [
       `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
       ...tickImgs,
     ].join(", "),
-    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
-    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
+    backgroundSize: [
+      `calc(100% - ${thumbSize}px) 4px`,
+      ...tickImgs.map(() => "1px 8px")
+    ].join(", "),
+    backgroundPosition: [
+      `${offset}px 50%`,
+      ...ticks.map((p) => `calc(${offset}px + (calc(100% - ${thumbSize}px) * ${p / 100})) 50%`)
+    ].join(", "),
     backgroundRepeat: "no-repeat",
   };
 }
