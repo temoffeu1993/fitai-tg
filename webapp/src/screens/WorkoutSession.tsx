@@ -550,8 +550,7 @@ export default function WorkoutSession() {
               ...sliderFillStyle(
                 Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
                 0,
-                4,
-                [0, 25, 50, 75, 100]
+                4
               ),
             }}
             className="effort-slider"
@@ -625,7 +624,7 @@ export default function WorkoutSession() {
             }}
             style={{
               ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, [0, 25, 50, 75, 100]),
+              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1),
             }}
             className="effort-slider"
           />
@@ -1297,19 +1296,13 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 `;
-function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
+function sliderFillStyle(value: number, min: number, max: number) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
-  const tickImgs = ticks.map(
-    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.32) 0%, rgba(15,23,42,0.32) 100%)`
-  );
   return {
-    backgroundImage: [
-      `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.85) ${pct}%, rgba(15,23,42,0.12) ${pct}%, rgba(15,23,42,0.12) 100%)`,
-      ...tickImgs,
-    ].join(", "),
-    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 10px")].join(", "),
-    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
+    background: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.85) ${pct}%, rgba(15,23,42,0.16) ${pct}%, rgba(15,23,42,0.16) 100%)`,
     backgroundRepeat: "no-repeat",
+    backgroundSize: "100% 4px",
+    backgroundPosition: "0 50%",
   };
 }
 function sessionRpeLabel(val: number): string {
