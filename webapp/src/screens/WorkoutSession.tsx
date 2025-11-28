@@ -784,12 +784,12 @@ const s: Record<string, React.CSSProperties> = {
   feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
   feedbackSlider: {
     width: "100%",
-    height: 52,
+    height: 60,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "16px 0",
+    padding: "18px 0",
     touchAction: "none",
   },
   feedbackValue: { display: "grid", gap: 2 },
@@ -1231,12 +1231,12 @@ const effortRow = {
   sliderWrap: { display: "grid", gap: 4 },
   slider: {
     width: "100%",
-    height: 52,
+    height: 60,
     appearance: "none",
     WebkitAppearance: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: "16px 0",
+    padding: "18px 0",
     touchAction: "none",
   } as React.CSSProperties,
   ticks: {
@@ -1300,14 +1300,14 @@ const sliderCss = `
 function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
   const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
   const tickImgs = ticks.map(
-    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.28) 0%, rgba(15,23,42,0.28) 100%)`
+    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.32) 0%, rgba(15,23,42,0.32) 100%)`
   );
   return {
     backgroundImage: [
-      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
+      `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.85) ${pct}%, rgba(15,23,42,0.12) ${pct}%, rgba(15,23,42,0.12) 100%)`,
       ...tickImgs,
     ].join(", "),
-    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
+    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 10px")].join(", "),
     backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
     backgroundRepeat: "no-repeat",
   };
