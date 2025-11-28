@@ -1066,11 +1066,11 @@ const setrow = {
   } as React.CSSProperties,
   label: { fontSize: 13, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
   inputs: {
-    display: "grid",
-    width: "100%",
-    gridTemplateColumns: "repeat(2, minmax(110px, 1fr))",
+    display: "flex",
     gap: 10,
+    width: "100%",
     alignItems: "center",
+    minWidth: 0,
   } as React.CSSProperties,
 };
 
