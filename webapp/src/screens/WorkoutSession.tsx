@@ -64,13 +64,17 @@ const plan: Plan | null = useMemo(() => {
   const [running, setRunning] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [pendingNavHome, setPendingNavHome] = useState(false);
-  const sessionRpeOptions = [
-    { value: 6, label: "Легко", desc: "Тренировка почти не утомила, мог сделать гораздо больше.", icon: "🟢" },
-    { value: 7, label: "Рабочая", desc: "Хорошая тренировка, есть ощущение нагрузки, но без надрыва.", icon: "🟡" },
-    { value: 8, label: "Тяжеловато", desc: "Местами пришлось напрягаться; сил в конце стало заметно меньше.", icon: "🟠" },
-    { value: 9, label: "Тяжело", desc: "Вся тренировка была напряжённой, к концу чувствуется сильная усталость.", icon: "🔴" },
-    { value: 10, label: "Предел", desc: "Очень изматывающая тренировка, почти на максимум возможностей.", icon: "⛔" },
-  ];
+  const sessionRpeOptions = useMemo(
+    () => [
+      { value: 6, label: "Легко", desc: "Тренировка почти не утомила, мог сделать гораздо больше.", icon: "🟢" },
+      { value: 7, label: "Рабочая", desc: "Хорошая тренировка, есть ощущение нагрузки, но без надрыва.", icon: "🟡" },
+      { value: 8, label: "Тяжеловато", desc: "Местами пришлось напрягаться; сил в конце стало заметно меньше.", icon: "🟠" },
+      { value: 9, label: "Тяжело", desc: "Вся тренировка была напряжённой, к концу чувствуется сильная усталость.", icon: "🔴" },
+      { value: 10, label: "Предел", desc: "Очень изматывающая тренировка, почти на максимум возможностей.", icon: "⛔" },
+    ],
+    []
+  );
+  const [sessionRpeIndex, setSessionRpeIndex] = useState(1);
   const [sessionRpe, setSessionRpe] = useState(sessionRpeOptions[1].value);
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const [finishModal, setFinishModal] = useState(false);
@@ -108,7 +112,12 @@ const plan: Plan | null = useMemo(() => {
       setItems(draft.items || []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
-      if (typeof draft.sessionRpe === "number") setSessionRpe(draft.sessionRpe);
+      if (typeof draft.sessionRpe === "number") {
+        const idx = sessionRpeOptions.findIndex((o) => Math.abs(o.value - draft.sessionRpe) < 0.25);
+        const safeIdx = idx >= 0 ? idx : 1;
+        setSessionRpeIndex(safeIdx);
+        setSessionRpe(sessionRpeOptions[safeIdx].value);
+      }
     } else {
       setItems(
         plan.exercises.map((ex) => ({
@@ -131,6 +140,7 @@ const plan: Plan | null = useMemo(() => {
       );
       setElapsed(0);
       setRunning(true);
+      setSessionRpeIndex(1);
       setSessionRpe(sessionRpeOptions[1].value);
     }
   }, [plan, plannedWorkoutId, sessionRpeOptions]);
@@ -580,20 +590,26 @@ const plan: Plan | null = useMemo(() => {
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
         <div style={s.feedbackInner}>
           <div style={s.feedbackValue}>
-            <div style={s.feedbackValueTitle}>{sessionRpeLabel(sessionRpe)}</div>
-            <div style={s.feedbackValueDesc}>{sessionRpeHint(sessionRpe)}</div>
+            <div style={s.feedbackValueTitle}>
+              {sessionRpeOptions[sessionRpeIndex]?.icon} {sessionRpeOptions[sessionRpeIndex]?.label}
+            </div>
+            <div style={s.feedbackValueDesc}>{sessionRpeOptions[sessionRpeIndex]?.desc}</div>
           </div>
           <input
             id="session-rpe"
             type="range"
-            min={6}
-            max={10}
+            min={0}
+            max={sessionRpeOptions.length - 1}
             step={1}
-            value={sessionRpe}
-            onChange={(e) => setSessionRpe(Number(e.target.value))}
+            value={sessionRpeIndex}
+            onChange={(e) => {
+              const idx = Math.max(0, Math.min(sessionRpeOptions.length - 1, Number(e.target.value)));
+              setSessionRpeIndex(idx);
+              setSessionRpe(sessionRpeOptions[idx].value);
+            }}
             style={{
               ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpe, 6, 10, [0, 25, 50, 75, 100]),
+              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, [0, 25, 50, 75, 100]),
             }}
             className="effort-slider"
           />
