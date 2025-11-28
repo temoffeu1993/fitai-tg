@@ -493,7 +493,6 @@ export default function WorkoutSession() {
                         value={s.reps}
                         placeholder={String(it.targetReps ?? "повт./сек")}
                         onChange={(v) => setValue(ei, si, "reps", v)}
-                        onBump={(d) => bump(ei, si, "reps", d)}
                         disabled={it.done}
                       />
                       {showWeightInput ? (
@@ -501,7 +500,6 @@ export default function WorkoutSession() {
                           value={s.weight}
                           placeholder="кг"
                           onChange={(v) => setValue(ei, si, "weight", v)}
-                          onBump={(d) => bump(ei, si, "weight", d)}
                           disabled={it.done}
                         />
                       ) : null}
@@ -671,18 +669,15 @@ function NumInput({
   value,
   placeholder,
   onChange,
-  onBump,
   disabled,
 }: {
   value?: number;
   placeholder?: string;
   onChange: (v: string) => void;
-  onBump: (d: number) => void;
   disabled?: boolean;
 }) {
   return (
     <div style={num.wrap}>
-      <button type="button" style={num.btn} onClick={() => onBump(-1)} aria-label="-1" disabled={disabled}>−</button>
       <input
         type="number"
         inputMode="numeric"
@@ -692,7 +687,6 @@ function NumInput({
         style={num.input}
         disabled={disabled}
       />
-      <button type="button" style={num.btn} onClick={() => onBump(+1)} aria-label="+1" disabled={disabled}>+</button>
     </div>
   );
 }
@@ -1074,8 +1068,8 @@ const setrow = {
   inputs: {
     display: "grid",
     width: "100%",
-    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-    gap: 14,
+    gridTemplateColumns: "repeat(2, minmax(110px, 1fr))",
+    gap: 10,
     alignItems: "center",
   } as React.CSSProperties,
 };
@@ -1143,27 +1137,10 @@ const btn = {
 
 const num = {
   wrap: {
-    display: "grid",
-    gridTemplateColumns: "40px minmax(0,1fr) 40px",
-    alignItems: "center",
-    gap: 8,
     width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-  } as React.CSSProperties,
-  btn: {
-    height: 38,
-    width: "100%",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.08)",
-    background: "rgba(255,255,255,0.75)",
-    backdropFilter: "blur(6px)",
-    cursor: "pointer",
-    fontSize: 18,
-    lineHeight: 1,
   } as React.CSSProperties,
   input: {
-    height: 44,
+    height: 40,
     width: "100%",
     padding: "0 10px",
     borderRadius: 12,
