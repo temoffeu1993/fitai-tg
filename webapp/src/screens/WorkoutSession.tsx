@@ -659,6 +659,7 @@ export default function WorkoutSession() {
           }}
         />
       )}
+      <div style={s.bottomSpacer} />
       </div>
     </div>
   );
@@ -813,6 +814,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#4b5563",
     lineHeight: 1.35,
   },
+  bottomSpacer: { height: 80 },
 };
 
 const modal: Record<string, React.CSSProperties> = {
