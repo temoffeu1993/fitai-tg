@@ -477,31 +477,22 @@ const plan: Plan | null = useMemo(() => {
                     min={0}
                     max={3}
                     step={1}
-                    value={
-                      Math.max(
-                        0,
-                        effortOptions.findIndex((opt) => opt.key === it.effort) === -1
-                          ? 1
-                          : effortOptions.findIndex((opt) => opt.key === it.effort)
-                      )
-                    }
-                    onChange={(e) => {
-                      const idx = Number(e.target.value);
-                  const opt = effortOptions[idx] || effortOptions[1];
-                  setEffort(ei, opt.key);
-                }}
+            value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
+            onChange={(e) => {
+              const idx = Number(e.target.value);
+              const opt = effortOptions[idx] || effortOptions[1];
+              setEffort(ei, opt.key);
+            }}
                 style={effortRow.slider}
                 className="effort-slider"
               />
-                  <div style={effortRow.ticks}>
-                    {effortOptions.map((opt, idx) => (
-                      <span key={opt.key} style={effortRow.tickLabel}>
-                        {opt.label}
-                      </span>
-                    ))}
-                  </div>
-                  <div style={effortRow.hint}>
-                    {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
+                  <div style={effortRow.value}>
+                    <div style={effortRow.valueTitle}>
+                      {effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}
+                    </div>
+                    <div style={effortRow.valueDesc}>
+                      {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -552,20 +543,24 @@ const plan: Plan | null = useMemo(() => {
       <section style={s.feedbackCard}>
         <div style={s.feedbackHeader}>Как прошло занятие?</div>
         <div style={s.feedbackInner}>
-         <label htmlFor="session-rpe" style={s.feedbackLabel}>
-           Субъективная нагрузка: {sessionRpe}/10
-         </label>
-         <input
-           id="session-rpe"
-           type="range"
-           min={4}
-           max={10}
-           step={1}
-           value={sessionRpe}
-           onChange={(e) => setSessionRpe(Number(e.target.value))}
+          <label htmlFor="session-rpe" style={s.feedbackLabel}>
+            Субъективная нагрузка
+          </label>
+          <input
+            id="session-rpe"
+            type="range"
+            min={4}
+            max={10}
+            step={1}
+            value={sessionRpe}
+            onChange={(e) => setSessionRpe(Number(e.target.value))}
             style={s.feedbackSlider}
             className="effort-slider"
           />
+          <div style={s.feedbackValue}>
+            <div style={s.feedbackValueTitle}>{sessionRpeLabel(sessionRpe)}</div>
+            <div style={s.feedbackValueDesc}>{sessionRpeHint(sessionRpe)}</div>
+          </div>
           <textarea
             style={s.feedbackNotes}
             rows={3}
@@ -735,6 +730,17 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     padding: "12px 0",
     touchAction: "none",
+  },
+  feedbackValue: { display: "grid", gap: 2 },
+  feedbackValueTitle: { fontSize: 13, fontWeight: 700, color: "#1f2933" },
+  feedbackValueDesc: {
+    fontSize: 12,
+    color: "#4b5563",
+    background: "rgba(0,0,0,0.03)",
+    borderRadius: 10,
+    padding: "7px 9px",
+    border: "1px solid rgba(0,0,0,0.05)",
+    lineHeight: 1.35,
   },
   feedbackNotes: {
     width: "100%",
@@ -1171,10 +1177,10 @@ const effortRow = {
     paddingTop: 8,
     borderTop: "1px solid rgba(0,0,0,.08)",
     display: "grid",
-    gap: 6,
+    gap: 4,
   } as React.CSSProperties,
   label: { fontSize: 12.5, color: "#374151", fontWeight: 600 } as React.CSSProperties,
-  sliderWrap: { display: "grid", gap: 6 },
+  sliderWrap: { display: "grid", gap: 4 },
   slider: {
     width: "100%",
     height: 38,
@@ -1186,20 +1192,24 @@ const effortRow = {
     touchAction: "none",
   } as React.CSSProperties,
   ticks: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4,1fr)",
-    fontSize: 11,
-    color: "#475569",
-    textAlign: "center",
   } as React.CSSProperties,
-  tickLabel: { whiteSpace: "nowrap" } as React.CSSProperties,
-  hint: {
+  value: {
+    display: "grid",
+    gap: 2,
+  } as React.CSSProperties,
+  valueTitle: {
+    fontSize: 12.5,
+    fontWeight: 700,
+    color: "#1f2933",
+  } as React.CSSProperties,
+  valueDesc: {
     fontSize: 11.5,
     color: "#4b5563",
     background: "rgba(0,0,0,0.03)",
     borderRadius: 10,
-    padding: "8px 10px",
+    padding: "7px 9px",
     border: "1px solid rgba(0,0,0,0.05)",
+    lineHeight: 1.35,
   } as React.CSSProperties,
 };
 
@@ -1243,3 +1253,20 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 `;
+function sessionRpeLabel(val: number): string {
+  if (val >= 9.5) return "Предел (RPE 10)";
+  if (val >= 9) return "Очень тяжело (RPE 9)";
+  if (val >= 8) return "Тяжело (RPE 8)";
+  if (val >= 7) return "Комфортно (RPE 7)";
+  if (val >= 6) return "Ниже среднего (RPE 6)";
+  return "Очень легко (RPE 5)";
+}
+
+function sessionRpeHint(val: number): string {
+  if (val >= 9.5) return "Перегруз — в следующий раз уменьши объём или вес.";
+  if (val >= 9) return "Почти на пределе — сохраним или снизим нагрузку.";
+  if (val >= 8) return "Тяжело, но рабоче — держим или слегка снижаем объём.";
+  if (val >= 7) return "Оптимально — продолжаем в том же темпе.";
+  if (val >= 6) return "Легковато — можно добавить немного объёма/веса.";
+  return "Очень легко — можно поднять интенсивность.";
+}
