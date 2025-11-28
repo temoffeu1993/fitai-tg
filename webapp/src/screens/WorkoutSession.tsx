@@ -1152,6 +1152,7 @@ const num = {
     textAlign: "center",
     minWidth: 0,
     background: "rgba(255,255,255,0.85)",
+    caretColor: "#9ca3af",
   } as React.CSSProperties,
 };
 
@@ -1284,7 +1285,7 @@ const sliderCss = `
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.14);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.02);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.001);
   margin-top: -11px;
 }
 .effort-slider::-moz-range-track {
@@ -1298,7 +1299,7 @@ const sliderCss = `
   border-radius: 50%;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.14);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.02);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.001);
 }
 `;
 function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
