@@ -168,30 +168,17 @@ export default function PlanOne() {
     } catch {}
     setShowNotes(false);
     setRegenInlineError(null);
+    setRegenNotice(null);
+
     if (sub.locked) {
       setPaywall(true);
       return;
     }
-    kickProgress();
-    setRegenPending(true);
-    setRegenNotice(null);
-    try {
-      await refresh({ force: true, silent: true });
-    } catch (err: any) {
-      const status = err?.status;
-      const message = humanizePlanError(err);
-      if (status === 403 || status === 429) {
-        setRegenNotice(message);
-        return;
-      }
-      if (status === 401) {
-        setPaywall(true);
-        return;
-      }
-      setRegenInlineError(message || "Не удалось обновить план");
-    } finally {
-      setRegenPending(false);
-    }
+
+    // переводим пользователя обратно к форме чек-ина, чтобы сгенерировать с новыми данными
+    setNeedsCheckIn(true);
+    setInitialPlanRequested(false);
+    setRegenPending(false);
   };
 
   const handleCheckInSubmit = async (data: CheckInPayload) => {
