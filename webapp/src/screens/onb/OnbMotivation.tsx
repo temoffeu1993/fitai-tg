@@ -2,13 +2,12 @@
 import { useMemo, useState } from "react";
 
 export type Goal =
-  | "weight_loss"
-  | "muscle_gain"
-  | "glutes_legs"
-  | "energy_tone"
-  | "health_improvement"
-  | "endurance_functional"
-  | "custom";
+  | "lose_weight"
+  | "build_muscle"
+  | "athletic_body"
+  | "lower_body_focus"
+  | "strength"
+  | "health_wellness";
 const MOTIVES = [
   { key: "health", label: "Здоровье" },
   { key: "energy", label: "Энергия" },
@@ -19,11 +18,9 @@ const MOTIVES = [
 export type OnbMotivationData = {
   motivation: {
     goal: Goal;
-    goalCustom?: string;
   };
   goals: {
     primary: Goal;
-    customText?: string;
   };
 };
 
@@ -36,13 +33,8 @@ type Props = {
 
 export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Props) {
   // Цель
-  const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "weight_loss");
-  const [goalCustom, setGoalCustom] = useState<string>(initial?.motivation?.goalCustom ?? "");
-
-  const canNext = useMemo(() => {
-    if (goal === "custom" && !goalCustom.trim()) return false;
-    return true;
-  }, [goal, goalCustom]);
+  const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "lose_weight");
+  const canNext = useMemo(() => true, []);
 
   function handleNext() {
     if (!canNext || loading) return;
@@ -55,11 +47,9 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
     onSubmit({
       motivation: {
         goal,
-        goalCustom: goal === "custom" ? goalCustom.trim() : "",
       },
       goals: {
         primary: goal,
-        customText: goal === "custom" ? goalCustom.trim() : undefined,
       },
     });
   }
@@ -84,23 +74,13 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       <section style={st.cardGlass}>
         <div style={st.blockTitle}>Какая у тебя цель?</div>
         <div style={st.wrapGridEven}>
-          <Chip label="🏃 Сбросить вес" active={goal === "weight_loss"} onClick={() => setGoal("weight_loss")} />
-          <Chip label="💪 Набрать мышцы" active={goal === "muscle_gain"} onClick={() => setGoal("muscle_gain")} />
-          <Chip label="🍑 Ягодицы и ноги" active={goal === "glutes_legs"} onClick={() => setGoal("glutes_legs")} />
-          <Chip label="⚡️ Тонус и энергия" active={goal === "energy_tone"} onClick={() => setGoal("energy_tone")} />
-          <Chip label="🩺 Здоровье и осанка" active={goal === "health_improvement"} onClick={() => setGoal("health_improvement")} />
-          <Chip label="🏋️‍♂️ Функциональность/выносливость" active={goal === "endurance_functional"} onClick={() => setGoal("endurance_functional")} />
-          <Chip label="Другое" active={goal === "custom"} onClick={() => setGoal("custom")} />
+          <Chip label="🏃 Похудеть" active={goal === "lose_weight"} onClick={() => setGoal("lose_weight")} />
+          <Chip label="💪 Набрать массу" active={goal === "build_muscle"} onClick={() => setGoal("build_muscle")} />
+          <Chip label="⚡️ Спортивное тело (рельеф)" active={goal === "athletic_body"} onClick={() => setGoal("athletic_body")} />
+          <Chip label="🍑 Ноги и ягодицы" active={goal === "lower_body_focus"} onClick={() => setGoal("lower_body_focus")} />
+          <Chip label="🏋️‍♂️ Стать сильнее" active={goal === "strength"} onClick={() => setGoal("strength")} />
+          <Chip label="🩺 Здоровье и самочувствие" active={goal === "health_wellness"} onClick={() => setGoal("health_wellness")} />
         </div>
-
-        {goal === "custom" && (
-          <input
-            value={goalCustom}
-            onChange={(e) => setGoalCustom(e.target.value)}
-            placeholder="Например: подтянуться 10 раз, пробежать 5 км"
-            style={{ ...st.inputGlass, marginTop: 12 }}
-          />
-        )}
       </section>
 
       {/* CTA — увеличенный размер как просили */}

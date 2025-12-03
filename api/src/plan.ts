@@ -147,13 +147,12 @@ type HistorySession = {
 };
 
 type OnboardingGoal =
-  | "weight_loss"
-  | "muscle_gain"
-  | "glutes_legs"
-  | "energy_tone"
-  | "health_improvement"
-  | "endurance_functional"
-  | "custom";
+  | "lose_weight" // Похудеть
+  | "build_muscle" // Масса (верх+низ)
+  | "athletic_body" // Рельеф/тонус
+  | "lower_body_focus" // Акцент на ноги и ягодицы
+  | "strength" // Стать сильнее
+  | "health_wellness"; // Здоровье/самочувствие
 
 type TrainingStatus =
   | "never_trained" // Никогда не занимался
@@ -590,17 +589,19 @@ function buildGoalsDescription(goalsData: any): string[] {
     return ["поддержание общей физической формы"];
   }
 
-  const goalDescriptions: Record<string, string[]> = {
-    weight_loss: ["похудеть и улучшить фигуру", "убрать лишний вес, подтянуть тело"],
-    muscle_gain: ["набрать мышечную массу и стать сильнее", "увеличить объём мышц, повысить силовые показатели"],
-    glutes_legs: ["Акцент на развитии ягодиц и ног в составе сбалансированного тренинга всего тела"],
-    energy_tone: ["быть в тонусе и чувствовать себя энергичнее", "улучшить общее самочувствие, повысить уровень энергии"],
-    health_improvement: ["улучшить здоровье", "укрепить спину, суставы, улучшить осанку, избавиться от болей"],
-    endurance_functional: ["повысить выносливость и функциональность", "больше выносливости для спорта и активной жизни"],
-    custom: [goalsData.customText || "индивидуальная цель клиента"],
+  const goalDescriptions: Record<OnboardingGoal | string, string[]> = {
+    lose_weight: ["похудеть и улучшить композицию тела", "сбросить лишний вес, подтянуть фигуру"],
+    build_muscle: ["набрать мышечную массу всего тела", "увеличить объём мышц равномерно"],
+    athletic_body: ["спортивное подтянутое тело", "улучшить рельеф и тонус мышц"],
+    lower_body_focus: [
+      "акцент на развитие ног и ягодиц",
+      "сильная и красивая нижняя часть тела в составе сбалансированных тренировок",
+    ],
+    strength: ["стать сильнее и выносливее", "повысить силовые показатели и функциональность"],
+    health_wellness: ["улучшить здоровье и самочувствие", "больше энергии, здоровые суставы и спина"],
   };
 
-  return goalDescriptions[goalsData.primary] || ["поддержание общей физической формы"];
+  return goalDescriptions[goalsData.primary] || [goalsData.customText || "поддержание общей физической формы"];
 }
 
 function buildProfile(
@@ -950,14 +951,22 @@ ${JSON.stringify(
 
 function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint {
   const goalText = JSON.stringify(onboarding?.goals ?? "").toLowerCase();
+  const goalPrimary: string | null = onboarding?.goals?.primary || null;
   const isWeightLoss =
+    goalPrimary === "lose_weight" ||
     goalText.includes("сброс") ||
     goalText.includes("похуд") ||
-    goalText.includes("жир");
+    goalText.includes("жир") ||
+    goalText.includes("рельеф") ||
+    goalText.includes("сушка");
   const isHypertrophy =
+    goalPrimary === "build_muscle" ||
+    goalPrimary === "athletic_body" ||
+    goalPrimary === "strength" ||
     goalText.includes("масса") ||
     goalText.includes("мышц") ||
-    goalText.includes("гипертроф");
+    goalText.includes("гипертроф") ||
+    goalText.includes("спорт");
   const age = profile.age ?? null;
   const isSenior = age != null && age >= 50;
   const hasInjuries =
@@ -998,7 +1007,10 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
   } else {
     const isFemaleLowerFocus =
       profile.sex === "female" &&
-      (goalText.includes("ягод") || goalText.includes("ног") || goalText.includes("попа"));
+      (goalPrimary === "lower_body_focus" ||
+        goalText.includes("ягод") ||
+        goalText.includes("ног") ||
+        goalText.includes("попа"));
 
     if (isFemaleLowerFocus && !isBeginner) {
       name = "Glutes & Lower Emphasis";
@@ -2576,7 +2588,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       const rawW = (ex as any).weight;
       const num = numberFrom(rawW);
       if (!hasHistory) {
-        (ex as any).weight = "Подбери рабочий вес: начни с лёгкого, оставь 1–2 повтора в запасе.";
+        (ex as any).weight = "Подбери рабочий вес";
         if (!ex.cues) {
           ex.cues = "Стартовый вес подбирай на месте: первый подход лёгкий, техника идеальна.";
         }
