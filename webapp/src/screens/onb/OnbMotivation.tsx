@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type Goal =
   | "lose_weight"
@@ -37,6 +37,15 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   const [accepted, setAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const canNext = useMemo(() => accepted, [accepted]);
+  useEffect(() => {
+    if (showTerms) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [showTerms]);
   const termsSections = [
     {
       title: "1. О приложении",
@@ -411,9 +420,16 @@ const st: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "auto 1fr",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
+    width: "100%",
   },
-  termsText: { fontSize: 12.5, color: "#0B1220", lineHeight: 1.35, display: "block" },
+  termsText: {
+    fontSize: 12.5,
+    color: "#0B1220",
+    lineHeight: 1.35,
+    display: "block",
+    width: "100%",
+  },
   inlineLink: {
     border: "none",
     background: "transparent",
@@ -429,8 +445,8 @@ const st: Record<string, React.CSSProperties> = {
     width: 30,
     height: 30,
     borderRadius: "50%",
-    border: "2px solid rgba(148,163,184,.5)",
-    background: "rgba(255,255,255,.85)",
+    border: "1.5px solid rgba(148,163,184,.5)",
+    background: "#f9fafb",
     color: "#6b7280",
     display: "inline-flex",
     alignItems: "center",
@@ -442,10 +458,9 @@ const st: Record<string, React.CSSProperties> = {
     transition: "all .15s ease",
   },
   circleCheckOn: {
-    borderColor: "transparent",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    color: "#1b1b1b",
+    borderColor: "rgba(148,163,184,.4)",
+    background: "linear-gradient(135deg, #ffe680 0%, #ffb36b 45%, #ff8a6b 100%)",
+    color: "#0f172a",
     boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
   modalOverlay: {
@@ -457,11 +472,12 @@ const st: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     padding: 16,
     zIndex: 9999,
+    overscrollBehavior: "contain" as const,
   },
   modalCard: {
     width: "100%",
     maxWidth: 780,
-    maxHeight: "80vh",
+    maxHeight: "85vh",
     background: "#fff",
     borderRadius: 20,
     boxShadow: "0 12px 40px rgba(0,0,0,.2)",
@@ -487,11 +503,12 @@ const st: Record<string, React.CSSProperties> = {
     color: "#111",
   },
   modalBody: {
-    padding: "12px 16px 16px",
+    padding: "12px 16px 24px",
     overflowY: "auto" as const,
     lineHeight: 1.5,
     color: "#111",
     fontSize: 14,
+    overscrollBehavior: "contain" as const,
   },
   termsSection: { marginBottom: 12 },
   termsSectionTitle: { fontWeight: 800, marginBottom: 6, fontSize: 14.5 },
