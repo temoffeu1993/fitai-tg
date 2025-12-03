@@ -488,6 +488,18 @@ const formatWeight = (value: number | null | undefined): string | null => {
   return `${Number(value.toFixed(1))} кг`;
 };
 
+const parseWeightValue = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const match = value.replace(",", ".").match(/-?\d+(?:\.\d+)?/);
+    if (match) {
+      const num = Number(match[0]);
+      if (Number.isFinite(num)) return num;
+    }
+  }
+  return null;
+};
+
 function parseRepsRange(reps: string | number | undefined): { min: number; max: number } {
   if (typeof reps === "number" && Number.isFinite(reps)) return { min: reps, max: reps };
   if (typeof reps === "string") {
@@ -719,7 +731,7 @@ function nextWeightSuggestion(ex: HistoryExercise, profile: Profile): WeightCons
   }
   const min = stats.weight * 0.95;
   const max = stats.weight * 1.08;
-  const bodyCap = profile.weight ? profile.weight * 2 : 999;
+  const bodyCap = profile.weight ? profile.weight * 1.8 : 999;
   return {
     min: Number(Math.max(0, Math.min(min, bodyCap)).toFixed(1)),
     max: Number(Math.min(max, bodyCap).toFixed(1)),
@@ -2522,11 +2534,11 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     logTiming("OpenAI API call", tAi);
 
     const tParse = Date.now();
-    console.log("\n🔍 Parsing AI response...");
+  console.log("\n🔍 Parsing AI response...");
 
-    let plan: WorkoutPlan;
-    try {
-      const rawResponse = completion.choices[0].message.content || "{}";
+  let plan: WorkoutPlan;
+  try {
+    const rawResponse = completion.choices[0].message.content || "{}";
       console.log("\n--- AI RESPONSE (raw JSON) ---");
       console.log(rawResponse);
       console.log("--- END AI RESPONSE ---\n");
@@ -2536,12 +2548,38 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     } catch (err) {
       console.error(" JSON parse error:", err);
       throw new AppError("AI returned invalid JSON", 500);
-    }
+  }
 
-    const targetDurationCandidate = numberFrom((plan as any).targetDuration);
-    const estimatedDurationCandidate = numberFrom((plan as any).estimatedDuration);
-    const sessionMinutesFinal =
-      estimatedDurationCandidate ??
+  // Консервативные веса при отсутствии истории
+  const applyWeightClamp = (p: WorkoutPlan) => {
+    if (!Array.isArray(p.exercises)) return;
+    const bw = profile.weight && profile.weight > 0 ? profile.weight : 70;
+    for (const ex of p.exercises) {
+      const rawW = (ex as any).weight;
+      const num = numberFrom(rawW);
+      if (num == null) continue;
+      const isLower = /ног|leg|squat|deadlift|станов|присед|выпад|бедр|glute/i.test(ex.name || "");
+      const isIsolation = /развод|сгиб|разгиб|extension|curl|fly|подъем|подъём/i.test(ex.name || "");
+      let cap = bw * (isLower ? 1.2 : 0.8);
+      if (isIsolation) cap = Math.min(cap, 40);
+      cap = Math.max(10, Math.min(cap, 140));
+      if (num > cap) {
+        const clamped = Math.round(cap * 2) / 2;
+        (ex as any).weight = `${clamped} кг (стартовый ориентир, подбери в 1-м подходе)`;
+        if (!ex.cues) {
+          ex.cues = "Стартовый вес, подбери в первом подходе без геройства.";
+        }
+      } else if (rawW && typeof rawW === "string" && !/ориентир/i.test(rawW)) {
+        (ex as any).weight = `${rawW} (стартовый ориентир, подбери в 1-м подходе)`;
+      }
+    }
+  };
+  applyWeightClamp(plan);
+
+  const targetDurationCandidate = numberFrom((plan as any).targetDuration);
+  const estimatedDurationCandidate = numberFrom((plan as any).estimatedDuration);
+  const sessionMinutesFinal =
+    estimatedDurationCandidate ??
       targetDurationCandidate ??
       DEFAULT_SESSION_MINUTES;
 
