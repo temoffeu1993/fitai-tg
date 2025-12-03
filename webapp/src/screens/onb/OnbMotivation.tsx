@@ -105,20 +105,23 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
             ))}
           </div>
         </div>
-
-        <div style={st.termsRow}>
-          <button type="button" onClick={() => setAccepted((v) => !v)} style={{ ...st.circleCheck, ...(accepted ? st.circleCheckOn : {}) }}>
-            {accepted ? "✓" : ""}
-          </button>
-          <span style={st.termsText}>
-            Я ознакомился и согласен с Условиями использования приложения и политикой конфиденциальности.
-          </span>
-          <button type="button" onClick={() => setShowTerms(true)} style={st.linkBtn}>
-            Подробнее
-          </button>
-        </div>
-        <div style={st.doctorNote}>Рекомендуем проконсультироваться с врачом перед тренировками.</div>
       </section>
+
+      <div style={st.termsRow}>
+        <button
+          type="button"
+          onClick={() => setAccepted((v) => !v)}
+          style={{ ...st.circleCheck, ...(accepted ? st.circleCheckOn : {}) }}
+        >
+          {accepted ? "✓" : ""}
+        </button>
+        <span style={st.termsText}>
+          Я ознакомился и согласен с Условиями использования приложения и политикой конфиденциальности.
+        </span>
+        <button type="button" onClick={() => setShowTerms(true)} style={st.linkBtn}>
+          Подробнее
+        </button>
+      </div>
 
       {/* CTA — увеличенный размер как просили */}
       <button
@@ -416,6 +419,45 @@ const st: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
   },
   goalInfoTitle: { fontSize: 13, fontWeight: 800, marginBottom: 6, opacity: 0.8 },
-  goalInfoList: { margin: 0, padding: 0, lineHeight: 1.4, fontSize: 13.5 },
+  goalInfoList: { margin: 0, padding: 0, lineHeight: 1.4, fontSize: 13 },
   goalInfoItem: { marginBottom: 4 },
+
+  termsRow: {
+    marginTop: 14,
+    display: "grid",
+    gridTemplateColumns: "auto 1fr auto",
+    alignItems: "center",
+    gap: 8,
+  },
+  termsText: { fontSize: 12.5, color: "#0B1220", lineHeight: 1.35 },
+  linkBtn: {
+    border: "1px solid #111",
+    background: "transparent",
+    color: "#111",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontSize: 12.5,
+    cursor: "pointer",
+  },
+
+  circleCheck: {
+    width: 26,
+    height: 26,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.2)",
+    background: "#f8f8f8",
+    color: "#fff",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    fontSize: 14,
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+    transition: "all .15s ease",
+  },
+  circleCheckOn: {
+    borderColor: "#111",
+    background: "#111",
+  },
 };
