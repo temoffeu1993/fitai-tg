@@ -35,6 +35,17 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   // Цель
   const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "lose_weight");
   const canNext = useMemo(() => true, []);
+  const goalInfo: Record<Goal, string[]> = {
+    lose_weight: ["похудеть и улучшить композицию тела", "сбросить лишний вес, подтянуть фигуру"],
+    build_muscle: ["набрать мышечную массу всего тела", "увеличить объём мышц равномерно"],
+    athletic_body: ["спортивное подтянутое тело", "улучшить рельеф и тонус мышц"],
+    lower_body_focus: [
+      "акцент на развитие ног и ягодиц",
+      "сильная и красивая нижняя часть тела в составе сбалансированных тренировок",
+    ],
+    strength: ["стать сильнее и выносливее", "повысить силовые показатели и функциональность"],
+    health_wellness: ["улучшить здоровье и самочувствие", "больше энергии, здоровые суставы и спина"],
+  };
 
   function handleNext() {
     if (!canNext || loading) return;
@@ -80,6 +91,17 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           <Chip label="🍑 Ноги и ягодицы" active={goal === "lower_body_focus"} onClick={() => setGoal("lower_body_focus")} />
           <Chip label="🏋️‍♂️ Стать сильнее" active={goal === "strength"} onClick={() => setGoal("strength")} />
           <Chip label="🩺 Здоровье и самочувствие" active={goal === "health_wellness"} onClick={() => setGoal("health_wellness")} />
+        </div>
+
+        <div style={st.goalInfo}>
+          <div style={st.goalInfoTitle}>Что это значит</div>
+          <ul style={st.goalInfoList}>
+            {goalInfo[goal].map((t) => (
+              <li key={t} style={st.goalInfoItem}>
+                {t}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -260,4 +282,16 @@ const st: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center" as const,
   },
+  goalInfo: {
+    marginTop: 12,
+    padding: "12px 12px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.8)",
+    border: "1px solid rgba(0,0,0,0.05)",
+    color: "#0B1220",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+  },
+  goalInfoTitle: { fontSize: 13, fontWeight: 800, marginBottom: 6, opacity: 0.8 },
+  goalInfoList: { margin: 0, paddingLeft: 16, lineHeight: 1.4, fontSize: 13.5 },
+  goalInfoItem: { marginBottom: 4 },
 };
