@@ -187,6 +187,9 @@ export default function PlanOne() {
     try {
       await submitCheckIn(data);
       setInitialPlanRequested(true);
+      setNeedsCheckIn(false); // сразу уходим из формы и ждём новую генерацию
+      kickProgress();
+      setRegenPending(true);
       await refresh({ force: true });
     } catch (err: any) {
       const message =
@@ -196,6 +199,7 @@ export default function PlanOne() {
         "Не удалось сохранить самочувствие";
       setCheckInError(String(message));
     } finally {
+      setRegenPending(false);
       setCheckInLoading(false);
     }
   };
