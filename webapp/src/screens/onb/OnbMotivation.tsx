@@ -116,11 +116,11 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           {accepted ? "✓" : ""}
         </button>
         <span style={st.termsText}>
-          Я ознакомился и согласен с Условиями использования приложения и политикой конфиденциальности.
+          Я ознакомился и согласен с Условиями использования приложения и политикой конфиденциальности{" "}
+          <button type="button" onClick={() => setShowTerms(true)} style={st.inlineLink}>
+            Подробнее
+          </button>
         </span>
-        <button type="button" onClick={() => setShowTerms(true)} style={st.linkBtn}>
-          Подробнее
-        </button>
       </div>
 
       {/* CTA — увеличенный размер как просили */}
@@ -425,33 +425,34 @@ const st: Record<string, React.CSSProperties> = {
   termsRow: {
     marginTop: 14,
     display: "grid",
-    gridTemplateColumns: "auto 1fr auto",
+    gridTemplateColumns: "auto 1fr",
     alignItems: "center",
     gap: 8,
   },
   termsText: { fontSize: 12.5, color: "#0B1220", lineHeight: 1.35 },
-  linkBtn: {
-    border: "1px solid #111",
+  inlineLink: {
+    border: "none",
     background: "transparent",
-    color: "#111",
-    padding: "8px 12px",
-    borderRadius: 10,
+    color: "#0B1220",
+    textDecoration: "underline",
     fontSize: 12.5,
+    padding: 0,
+    margin: 0,
     cursor: "pointer",
   },
 
   circleCheck: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.2)",
-    background: "#f8f8f8",
-    color: "#fff",
+    border: "2px solid rgba(0,0,0,0.25)",
+    background: "#f7f7f7",
+    color: "#0B1220",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 800,
-    fontSize: 14,
+    fontSize: 13,
     cursor: "pointer",
     boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
     transition: "all .15s ease",
@@ -459,5 +460,6 @@ const st: Record<string, React.CSSProperties> = {
   circleCheckOn: {
     borderColor: "#111",
     background: "#111",
+    color: "#fff",
   },
 };
