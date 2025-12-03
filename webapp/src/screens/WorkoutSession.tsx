@@ -1,7 +1,6 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import facePng from "@/assets/face.png";
 import { saveSession } from "@/api/plan";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
@@ -138,12 +137,7 @@ export default function WorkoutSession() {
   const [finishStart, setFinishStart] = useState<string>("");
   const [finishDuration, setFinishDuration] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const [showCoachIntro, setShowCoachIntro] = useState(false);
   const blockTimer = useRef<number | null>(null);
-  const hideCoachIntro = () => {
-    setShowCoachIntro(false);
-    try { localStorage.setItem("workout_intro_seen", "1"); } catch {}
-  };
   useEffect(() => {
     const prevBodyBg = document.body.style.background;
     const prevHtmlBg = document.documentElement.style.background;
@@ -162,13 +156,6 @@ export default function WorkoutSession() {
       try { localStorage.removeItem("planned_workout_id"); } catch {}
     }
   }, [plannedWorkoutId]);
-
-  useEffect(() => {
-    const flag = localStorage.getItem("workout_intro_seen");
-    if (!flag) {
-      setShowCoachIntro(true);
-    }
-  }, []);
 
   // init
   useEffect(() => {
@@ -412,22 +399,6 @@ export default function WorkoutSession() {
       <div style={page.inner}>
       <SoftGlowStyles />
       <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
-
-      {showCoachIntro && (
-        <div style={s.coachOverlay}>
-          <div style={s.coachCard}>
-            <img src={facePng} alt="FitAI" style={s.coachAvatar} />
-            <div style={s.coachTitle}>Это твоя первая тренировка</div>
-            <div style={s.coachText}>
-              Сконцентрируйся на технике и подбери для себя рабочие веса. Заполни повторы и веса, отметь ощущение
-              нагрузки — это важно для прогрессии.
-            </div>
-            <button style={s.coachBtn} onClick={hideCoachIntro}>
-              Понятно
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* HERO */}
       <section style={s.heroCard}>
@@ -813,44 +784,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: "rgba(255,255,255,.9)",
     textAlign: "center",
-  },
-  coachOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 18,
-    zIndex: 9999,
-  },
-  coachCard: {
-    maxWidth: 400,
-    width: "100%",
-    background: "rgba(255,255,255,0.98)",
-    borderRadius: 20,
-    padding: 18,
-    textAlign: "center",
-    boxShadow: "0 12px 36px rgba(0,0,0,.15)",
-  },
-  coachAvatar: {
-    width: 110,
-    height: 110,
-    objectFit: "contain",
-    marginBottom: 14,
-  },
-  coachTitle: { fontSize: 18, fontWeight: 800, marginBottom: 8, color: "#0f172a" },
-  coachText: { fontSize: 14, color: "#111827", lineHeight: 1.5, marginBottom: 14 },
-  coachBtn: {
-    marginTop: 8,
-    padding: "12px 18px",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b)",
-    color: "#0f172a",
-    border: "none",
-    borderRadius: 12,
-    fontWeight: 800,
-    cursor: "pointer",
-    width: "100%",
   },
   feedbackCard: {
     marginTop: 16,
