@@ -1173,7 +1173,7 @@ async function getLatestCheckIn(userId: string): Promise<DailyCheckIn | null> {
       try {
         pain = JSON.parse(row.pain);
       } catch {
-        pain = [];
+        pain = [{ location: row.pain, level: null as any }];
       }
     } else {
       pain = row.pain;
@@ -1668,7 +1668,12 @@ function buildClientDataBlock(
     healthItems.push(`- **Ограничения сегодня:** ${profile.todayLimitations.join(", ")}`);
   }
   if (profile.pain.length > 0) {
-    const painList = profile.pain.map((p) => `${p.location} (уровень ${p.level}/10)`).join(", ");
+    const painList = profile.pain
+      .map((p) => {
+        const level = p.level != null ? ` (уровень ${p.level}/10)` : "";
+        return `${p.location}${level}`;
+      })
+      .join(", ");
     healthItems.push(`- **Текущие боли:** ${painList}`);
   }
   if (!healthItems.length) {
@@ -2412,6 +2417,9 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
         stressLevel: checkIn.stressLevel,
         motivation: checkIn.motivation,
         availableMinutes: checkIn.availableMinutes,
+        injuries: checkIn.injuries,
+        limitations: checkIn.limitations,
+        pain: checkIn.pain,
       });
     } else {
       console.log("⚠️  No recent check-in found (48h window)");
@@ -2433,6 +2441,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     energyLevel: profile.energyLevel,
       sleepHours: profile.sleepHours,
       stressLevel: profile.stressLevel,
+      painCount: profile.pain.length,
     });
 
     const program = await getOrCreateProgram(userId, onboarding, profile);
