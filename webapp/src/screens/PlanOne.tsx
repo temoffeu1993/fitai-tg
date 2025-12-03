@@ -67,16 +67,27 @@ export default function PlanOne() {
     try {
       const raw = localStorage.getItem("profile");
       const profile = raw ? JSON.parse(raw) : null;
-      const userId = profile?.id ? String(profile.id) : null;
+      const tgId = profile?.id ? String(profile.id) : null; // telegram numeric id
+      const userId = profile?.user_id ? String(profile.user_id) : null; // backend uuid if есть
       const userUuid = profile?.uuid ? String(profile.uuid) : null;
-      const username = profile?.username ? String(profile.username).toLowerCase() : null;
-      const admins = String(import.meta.env.VITE_ADMIN_IDS || "")
+      const username = profile?.username ? String(profile.username) : null;
+      const adminEnv = String(import.meta.env.VITE_ADMIN_IDS || "")
+        .split(",")
+        .map((v) => v.trim().toLowerCase())
+        .filter(Boolean);
+      const adminTgEnv = String(import.meta.env.VITE_ADMIN_TG_IDS || "")
         .split(",")
         .map((v) => v.trim().toLowerCase())
         .filter(Boolean);
       const hardcoded = ["d5d09c2c-f82b-4055-8cfa-77342b3a89f2", "artemryzih"];
-      const identifiers = [userId, userUuid, username].filter(Boolean).map((v) => v!.toLowerCase());
-      return identifiers.some((v) => admins.includes(v) || hardcoded.includes(v));
+      const override = localStorage.getItem("admin_override") === "1";
+      const identifiers = [tgId, userId, userUuid, username]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase());
+      return (
+        override ||
+        identifiers.some((v) => adminEnv.includes(v) || adminTgEnv.includes(v) || hardcoded.includes(v))
+      );
     } catch {
       return false;
     }
