@@ -409,20 +409,18 @@ export default function PlanOne() {
         </button>
       </div>
 
-      {isAdmin && (
-        <button
-          type="button"
-          style={{
-            ...s.ghostBtn,
-            opacity: regenButtonDisabled ? 0.6 : 1,
-            cursor: regenButtonDisabled ? "not-allowed" : "pointer",
-          }}
-          disabled={regenButtonDisabled}
-          onClick={handleRegenerate}
-        >
-          {regenButtonLabel}
-        </button>
-      )}
+      <button
+        type="button"
+        style={{
+          ...s.ghostBtn,
+          opacity: regenButtonDisabled ? 0.6 : 1,
+          cursor: regenButtonDisabled ? "not-allowed" : "pointer",
+        }}
+        disabled={regenButtonDisabled}
+        onClick={handleRegenerate}
+      >
+        {regenButtonLabel}
+      </button>
       {regenNotice ? (
         <div style={s.buttonNote}>{regenNotice}</div>
       ) : regenInlineError ? (
