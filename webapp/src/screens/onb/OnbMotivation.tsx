@@ -191,7 +191,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           {accepted ? "✓" : ""}
         </button>
         <span style={st.termsText}>
-          Я ознакомился и согласен с Условиями использования приложения и политикой конфиденциальности{" "}
+          Я ознакомился и согласен с Условиями использования приложения{" "}
           <button type="button" onClick={() => setShowTerms(true)} style={st.inlineLink}>
             Подробнее
           </button>
