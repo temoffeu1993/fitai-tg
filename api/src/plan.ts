@@ -2550,31 +2550,24 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       throw new AppError("AI returned invalid JSON", 500);
   }
 
-  // Консервативные веса при отсутствии истории
-  const applyWeightClamp = (p: WorkoutPlan) => {
+  // Консервативные веса: если нет истории — просим подобрать
+  const applyWeightClamp = (p: WorkoutPlan, guards: Constraints["weightGuards"]) => {
     if (!Array.isArray(p.exercises)) return;
-    const bw = profile.weight && profile.weight > 0 ? profile.weight : 70;
     for (const ex of p.exercises) {
+      const key = slugify(ex.name || "");
+      const hasHistory = Boolean(guards[key]);
       const rawW = (ex as any).weight;
       const num = numberFrom(rawW);
-      if (num == null) continue;
-      const isLower = /ног|leg|squat|deadlift|станов|присед|выпад|бедр|glute/i.test(ex.name || "");
-      const isIsolation = /развод|сгиб|разгиб|extension|curl|fly|подъем|подъём/i.test(ex.name || "");
-      let cap = bw * (isLower ? 1.2 : 0.8);
-      if (isIsolation) cap = Math.min(cap, 40);
-      cap = Math.max(10, Math.min(cap, 140));
-      if (num > cap) {
-        const clamped = Math.round(cap * 2) / 2;
-        (ex as any).weight = `${clamped} кг (стартовый ориентир, подбери в 1-м подходе)`;
+      if (!hasHistory) {
+        (ex as any).weight = "Подбери рабочий вес: начни с лёгкого, оставь 1–2 повтора в запасе.";
         if (!ex.cues) {
-          ex.cues = "Стартовый вес, подбери в первом подходе без геройства.";
+          ex.cues = "Стартовый вес подбирай на месте: первый подход лёгкий, техника идеальна.";
         }
-      } else if (rawW && typeof rawW === "string" && !/ориентир/i.test(rawW)) {
-        (ex as any).weight = `${rawW} (стартовый ориентир, подбери в 1-м подходе)`;
+        continue;
       }
     }
   };
-  applyWeightClamp(plan);
+  applyWeightClamp(plan, constraints.weightGuards);
 
   const targetDurationCandidate = numberFrom((plan as any).targetDuration);
   const estimatedDurationCandidate = numberFrom((plan as any).estimatedDuration);
