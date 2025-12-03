@@ -256,34 +256,6 @@ export default function Dashboard() {
             rgba(255,216,194,.35), rgba(236,227,255,.35));
           filter: blur(12px); z-index:-1; animation: spinAngle 2.8s linear infinite;
         }
-        .ai-border { position: relative; isolation: isolate; background:#0f172a; color:#fff; border:none; }
-        .ai-border::before{
-          content:""; position:absolute; inset:-2px; padding:2px; border-radius:14px;
-          background: conic-gradient(
-            from 0deg,
-            rgba(236,227,255,.95),
-            rgba(217,194,240,.95),
-            rgba(255,216,194,.95),
-            rgba(236,227,255,.95)
-          );
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor; mask-composite: exclude;
-          animation: aiSpin 3.5s linear infinite;
-        }
-        .ai-border::after{
-          content:""; position:absolute; inset:-8px; border-radius:18px;
-          background: conic-gradient(
-            from 0deg,
-            rgba(236,227,255,.28),
-            rgba(217,194,240,.28),
-            rgba(255,216,194,.28),
-            rgba(236,227,255,.28)
-          );
-          filter: blur(12px);
-          animation: aiSpin 4s linear infinite reverse;
-          z-index:-1;
-        }
-        @keyframes aiSpin{ to{ transform: rotate(360deg); } }
         @property --angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
         @keyframes spinAngle{ to{ --angle:360deg; } }
 
@@ -318,8 +290,8 @@ export default function Dashboard() {
                 {/* В HERO кнопка только после онбординга, без анимации */}
                 {onbDone ? (
                   <button
-                    className="heroCTA ai-border"
-                    style={{ ...s.ctaGenerate, background: "#0f172a", color: "#fff" }}
+                    className="heroCTA"
+                    style={s.ctaGenerate}
                     onClick={goOnb}
                     aria-label={heroCtaLabel}
                   >
