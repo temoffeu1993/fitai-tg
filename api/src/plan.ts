@@ -746,8 +746,8 @@ function buildConstraints(profile: Profile, history: HistorySession[]): Constrai
   const weightGuards: Record<string, WeightConstraint> = {};
   const weightNotes: string[] = [];
 
-  for (const session of history.slice(0, 3)) {
-    for (const ex of session.exercises.slice(0, 3)) {
+  for (const session of history.slice(0, 5)) {
+    for (const ex of session.exercises) {
       const suggestion = nextWeightSuggestion(ex, profile);
       if (!suggestion) continue;
       const key = slugify(ex.name);
@@ -2598,21 +2598,47 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       throw new AppError("AI returned invalid JSON", 500);
   }
 
-  // Консервативные веса: если нет истории — просим подобрать
+  // Консервативные веса: если нет истории — просим подобрать; с историей — в диапазоне
   const applyWeightClamp = (p: WorkoutPlan, guards: Constraints["weightGuards"]) => {
     if (!Array.isArray(p.exercises)) return;
+
     for (const ex of p.exercises) {
       const key = slugify(ex.name || "");
-      const hasHistory = Boolean(guards[key]);
+      const guard = guards[key]; // только точное совпадение
       const rawW = (ex as any).weight;
       const num = numberFrom(rawW);
-      if (!hasHistory) {
+      console.log("[WEIGHT_CLAMP]", {
+        name: ex.name,
+        key,
+        hasGuard: !!guard,
+        guard,
+        rawWeight: rawW,
+      });
+
+      // Нет истории — просим подобрать вес руками
+      if (!guard) {
         (ex as any).weight = "Подбери рабочий вес";
         if (!ex.cues) {
           ex.cues = "Стартовый вес подбирай на месте: первый подход лёгкий, техника идеальна.";
         }
         continue;
       }
+
+      // Есть история, но AI не указал вес → ставим recommended
+      if (num == null) {
+        (ex as any).weight = formatWeight(guard.recommended) || undefined;
+        if (!ex.cues) {
+          ex.cues =
+            "Ориентируйся на этот вес из прошлых тренировок; если слишком легко или тяжело — скорректируй на 2–5 кг.";
+        }
+        continue;
+      }
+
+      // AI дал число: зажимаем в диапазон безопасных весов
+      let w = num;
+      if (w < guard.min) w = guard.min;
+      if (w > guard.max) w = guard.max;
+      (ex as any).weight = formatWeight(w) || undefined;
     }
   };
   applyWeightClamp(plan, constraints.weightGuards);
@@ -2838,20 +2864,26 @@ function validatePlanStructure(
     }
     updated.restSec = Math.round(restSec);
 
-    // weight safety
+    // weight safety (повторная проверка на всякий случай)
     const guard = constraints.weightGuards[slugify(updated.name)];
-    const numericWeight = numberFrom(ex.weight ?? null);
+    const numericWeight =
+      numberFrom(updated.weight ?? ex.weight ?? null);
     if (guard && numericWeight != null) {
-      if (numericWeight < guard.min) {
-        updated.weight = formatWeight(guard.min) || undefined;
+      let w = numericWeight;
+      if (w < guard.min) {
+        w = guard.min;
+        updated.weight = formatWeight(w) || undefined;
         warnings.push(
           `${updated.name}: вес ${numericWeight} кг ниже безопасного минимума, подняли до ${updated.weight}`
         );
-      } else if (numericWeight > guard.max) {
-        updated.weight = formatWeight(guard.max) || undefined;
+      } else if (w > guard.max) {
+        w = guard.max;
+        updated.weight = formatWeight(w) || undefined;
         warnings.push(
           `${updated.name}: вес ${numericWeight} кг выше безопасного, снизили до ${updated.weight}`
         );
+      } else {
+        updated.weight = formatWeight(w) || undefined;
       }
     }
 
