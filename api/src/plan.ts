@@ -2355,17 +2355,22 @@ async function generateSessionStructure(params: {
     throw new AppError("AI не вернул структуру блоков сессии", 500);
   }
 
-  const mappedBlocks = parsed.blocks.map((b: any) => ({
-    role: b.role,
-    focus: String(b.focus || ""),
-    targetMuscles: Array.isArray(b.targetMuscles) ? b.targetMuscles.map(String) : [],
-    intensity: b.intensity || "moderate",
-    setsPlanned: Number.isFinite(b.setsPlanned) ? Math.round(b.setsPlanned) : 6,
-    repRange: String(b.repRange || "6-12"),
-    notes: String(b.notes || ""),
-  }));
+  const mappedBlocks: SessionBlock[] = parsed.blocks.map(
+    (b: any): SessionBlock => ({
+      role: b.role,
+      focus: String(b.focus || ""),
+      targetMuscles: Array.isArray(b.targetMuscles) ? b.targetMuscles.map(String) : [],
+      intensity: b.intensity || "moderate",
+      setsPlanned: Number.isFinite(b.setsPlanned) ? Math.round(b.setsPlanned) : 6,
+      repRange: String(b.repRange || "6-12"),
+      notes: String(b.notes || ""),
+    })
+  );
 
-  const totalPlannedSets = mappedBlocks.reduce((sum, b) => sum + (Number.isFinite(b.setsPlanned) ? b.setsPlanned : 0), 0);
+  const totalPlannedSets = mappedBlocks.reduce<number>(
+    (sum, b) => sum + (Number.isFinite(b.setsPlanned) ? b.setsPlanned : 0),
+    0
+  );
   const totalPlannedMinutes =
     numberFrom(parsed.totalPlannedMinutes) ??
     numberFrom(parsed.targetDuration) ??
