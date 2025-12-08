@@ -51,6 +51,55 @@ type Exercise = {
   cues: string;
 };
 
+type SessionBlockRole =
+  | "main_lift"
+  | "secondary"
+  | "accessory"
+  | "isolation"
+  | "core"
+  | "conditioning"
+  | "mobility"
+  | "recovery";
+
+type SessionBlock = {
+  role: SessionBlockRole;
+  focus: string; // кратко: "жимы верх", "тяги спина", "ноги/ягодицы", "кор", "общая выносливость" и т.п.
+  targetMuscles: string[];
+  intensity: "easy" | "moderate" | "hard";
+  setsPlanned: number;
+  repRange: string;
+  notes: string; // зачем этот блок и как его построить
+};
+
+type SessionMode = "normal" | "light" | "recovery" | "deload";
+const SESSION_MODES: SessionMode[] = ["normal", "light", "recovery", "deload"];
+const isSessionMode = (mode: any): mode is SessionMode =>
+  typeof mode === "string" && SESSION_MODES.includes(mode as SessionMode);
+
+type SessionStructure = {
+  dayLabel: string; // например, todayFocus из blueprint
+  goalSummary: string; // 1–2 предложения, под что эта сессия
+  mode: SessionMode;
+  blocks: SessionBlock[];
+  warmupMinutes: number;
+  cooldownMinutes: number;
+  expectedExercisesCount: number;
+  totalPlannedSets: number;
+  totalPlannedMinutes: number;
+  hardTimeCap: boolean;
+  priorityNotes: string; // что обязательно должно быть, что опционально
+  antiRepeatNotes: string;
+  historySummaryShort: string;
+  weekLoadSummaryShort: string;
+  progressionSummaryShort: string;
+  lastSessionsCompact: Array<{
+    date: string;
+    title: string;
+    avgRpe: number | null;
+    volumeKg: number | null;
+  }>;
+};
+
 type WorkoutPlan = {
   title: string;
   duration: number;
@@ -99,6 +148,10 @@ type Profile = {
   height: number | null;
   sex: "male" | "female" | "unknown";
   trainingStatus: TrainingStatus;
+  trainingAgeWeeks: number | null;
+  weeklyTargetSessions: number;
+  recoveryScore: number | null; // 0–100
+  fatigueScore: number | null; // 0–100
   goals: string[];
   daysPerWeek: number;
   minutesPerSession: number;
@@ -201,6 +254,12 @@ type WeekContext = {
   globalWeekIndex: number;
 };
 
+type WeeklyLoadSummary = {
+  totalSetsByGroup: Record<string, number>;
+  totalVolumeKg: number;
+  sessionsCount: number;
+};
+
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
 
 // Больше разнообразия
@@ -237,6 +296,10 @@ function mapTrainingStatus(raw: any): TrainingStatus {
   if (v.includes("begin") || v.includes("novice") || v.includes("new")) return "never_trained";
   if (v.includes("intermediate")) return "training_regularly";
   return "never_trained";
+}
+
+function clampScore(v: number): number {
+  return Math.max(0, Math.min(100, Math.round(v)));
 }
 
 // ============================================================================
@@ -584,6 +647,229 @@ function calcSessionVolume(session: HistorySession): number {
   return Number(total.toFixed(1));
 }
 
+function buildWeeklyLoadSummary(weekSessions: HistorySession[]): WeeklyLoadSummary {
+  const totalSetsByGroup: Record<string, number> = {};
+  let totalVolumeKg = 0;
+  for (const s of weekSessions) {
+    totalVolumeKg += calcSessionVolume(s);
+    for (const ex of s.exercises) {
+      const groups = Array.isArray(ex.targetMuscles) && ex.targetMuscles.length > 0 ? ex.targetMuscles : ["прочее"];
+      const setsCount = Array.isArray(ex.sets) ? ex.sets.length : 0;
+      for (const g of groups) {
+        const key = String(g || "прочее").toLowerCase();
+        totalSetsByGroup[key] = (totalSetsByGroup[key] || 0) + setsCount;
+      }
+    }
+  }
+  return {
+    totalSetsByGroup,
+    totalVolumeKg: Number(totalVolumeKg.toFixed(1)),
+    sessionsCount: weekSessions.length,
+  };
+}
+
+function pickSessionMode(profile: Profile, constraints: Constraints): SessionMode {
+  if (constraints.deloadSuggested) return "deload";
+  const fatigue = profile.fatigueScore ?? null;
+  const recovery = profile.recoveryScore ?? null;
+  if ((fatigue != null && fatigue >= 60) || (recovery != null && recovery <= 40)) {
+    return "recovery";
+  }
+  if (constraints.lastRpe != null && constraints.lastRpe >= 9) return "light";
+  return "normal";
+}
+
+function buildLastSessionsCompact(history: HistorySession[]): SessionStructure["lastSessionsCompact"] {
+  return history.slice(0, 3).map((s) => ({
+    date: new Date(s.date).toLocaleDateString("ru-RU"),
+    title: s.title || "тренировка",
+    avgRpe: Number.isFinite(s.avgRpe) ? Number(s.avgRpe) : null,
+    volumeKg: Number.isFinite(s.volumeKg) ? Number(s.volumeKg) : null,
+  }));
+}
+
+function buildHistorySummaryShort(history: HistorySession[], weekSessions: HistorySession[]): string {
+  if (!history.length) {
+    return "Это первая тренировка клиента в приложении. Начни с умеренного объёма и базовых упражнений.";
+  }
+
+  const last = history[0];
+  const recent = history.slice(0, 3);
+  const avgRpeArr = recent.map((s) => s.avgRpe).filter((r): r is number => r != null);
+  const avgRpe =
+    avgRpeArr.length > 0
+      ? Number((avgRpeArr.reduce((a, b) => a + b, 0) / avgRpeArr.length).toFixed(1))
+      : null;
+  const totalRecentVolume = recent.map((s) => s.volumeKg || 0).reduce((a, b) => a + b, 0);
+
+  const lineLast = `Последняя тренировка: ${last.title || "без названия"} (объём ~${Math.round(
+    last.volumeKg
+  )} кг${last.avgRpe ? `, RPE ${last.avgRpe}/10` : ""}).`;
+  const lineAvg = avgRpe != null ? `Средний RPE за последние ${recent.length} тренировок: ${avgRpe}/10.` : "";
+  const lineVolume =
+    totalRecentVolume > 0
+      ? `Суммарный объём за последние ${recent.length} тренировок: ~${Math.round(totalRecentVolume)} кг.`
+      : "";
+
+  let weekLine = "";
+  if (weekSessions.length > 0) {
+    const weekSummary = buildWeeklyLoadSummary(weekSessions);
+    const mainGroups = Object.entries(weekSummary.totalSetsByGroup)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([g, sets]) => `${g}: ${sets} подх.`);
+    weekLine = `За эту неделю: ${weekSessions.length} тренировок, объём ~${Math.round(
+      weekSummary.totalVolumeKg
+    )} кг. Основная нагрузка: ${mainGroups.join("; ")}.`;
+  }
+
+  return ["Краткая история тренировок:", lineLast, lineAvg, lineVolume, weekLine].filter(Boolean).join("\n");
+}
+
+function buildWeekLoadSummaryShort(
+  weekSessions: HistorySession[],
+  weeklyLoadSummary: WeeklyLoadSummary
+): string {
+  if (!weekSessions.length) {
+    return "На этой неделе ещё не было тренировок — мышцы свежие.";
+  }
+
+  const topGroups = Object.entries(weeklyLoadSummary.totalSetsByGroup)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([group, sets]) => `${group}: ${sets} подходов`);
+  const totalVolume = Math.round(weeklyLoadSummary.totalVolumeKg);
+
+  return `Неделя: ${weekSessions.length} тренировки, суммарный объём ~${totalVolume} кг. Уже нагружены: ${topGroups.join(
+    "; "
+  )}.`;
+}
+
+function buildProgressionSummaryShort(
+  history: HistorySession[],
+  globalWeekIndex: number | null,
+  trainingStatus: TrainingStatus
+): string {
+  const week = globalWeekIndex ?? 1;
+
+  let stageNote = "";
+  if (trainingStatus === "never_trained") {
+    stageNote =
+      week <= 4
+        ? `Неделя ${week} из первого месяца: фаза адаптации к нагрузкам.`
+        : `Неделя ${week}: начальный период освоен, можно аккуратно повышать объём и интенсивность.`;
+  } else if (trainingStatus === "long_break") {
+    stageNote =
+      week <= 2
+        ? `Неделя ${week} после перерыва: ре-адаптация, умеренные веса.`
+        : `Неделя ${week} после перерыва: можно прогрессировать ближе к прежним весам.`;
+  } else if (trainingStatus === "training_regularly") {
+    stageNote = `Неделя ${week}: регулярные тренировки, допустима линейная прогрессия весов и/или объёма.`;
+  } else if (trainingStatus === "training_experienced") {
+    stageNote = `Неделя ${week}: опытный атлет, следи за чередованием тяжёлых и более лёгких сессий.`;
+  }
+
+  if (!history.length) {
+    return ["Краткий контекст прогрессии:", stageNote || "Истории тренировок ещё нет, это стартовый этап."]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const recent = history.slice(0, 5);
+  const volumes = recent.map((s) => s.volumeKg).filter((v) => v > 0);
+  const rpes = recent.map((s) => s.avgRpe).filter((r): r is number => r != null);
+
+  let trendLine = "";
+  if (volumes.length >= 2) {
+    const first = volumes[volumes.length - 1];
+    const last = volumes[0];
+    const change = last - first;
+    const pct = (change / (first || 1)) * 100;
+    if (pct > 10) trendLine = "Объём тренировок растёт.";
+    else if (pct < -10) trendLine = "Объём тренировок снижается.";
+    else trendLine = "Объём тренировок примерно стабилен.";
+  }
+
+  let rpeLine = "";
+  if (rpes.length >= 2) {
+    const avgRpe = rpes.reduce((a, b) => a + b, 0) / rpes.length;
+    if (avgRpe >= 9)
+      rpeLine = "Последние тренировки были очень тяжёлыми — можно слегка снизить интенсивность.";
+    else if (avgRpe <= 6) rpeLine = "Последние тренировки ощущались легко — можно немного увеличить нагрузку.";
+    else rpeLine = "Интенсивность в целом комфортная и рабочая.";
+  }
+
+  return ["Краткий контекст прогрессии:", stageNote, trendLine, rpeLine].filter(Boolean).join("\n");
+}
+
+function buildHistorySummaryForFinal(struct: SessionStructure): string {
+  const last = struct.lastSessionsCompact || [];
+  const lastTwo = last.slice(0, 2);
+
+  const lines: string[] = [];
+
+  if (!lastTwo.length) {
+    lines.push("Это первая тренировка клиента в системе. Будь особенно аккуратен с объёмом и интенсивностью.");
+  } else {
+    lines.push("Последние тренировки (кратко):");
+    lastTwo.forEach((s, idx) => {
+      const label = idx === 0 ? "Последняя" : "Предыдущая";
+      const rpe = s.avgRpe != null ? `, RPE ~${s.avgRpe}` : "";
+      const vol = s.volumeKg != null ? `, объём ~${Math.round(s.volumeKg)} кг` : "";
+      lines.push(`- ${label}: ${s.title || "тренировка"} (${s.date}${rpe}${vol})`);
+    });
+  }
+
+  if (struct.historySummaryShort) {
+    lines.push("");
+    lines.push(struct.historySummaryShort);
+  }
+
+  if (struct.weekLoadSummaryShort) {
+    lines.push("");
+    lines.push("Нагрузка по неделе (кратко):");
+    lines.push(struct.weekLoadSummaryShort);
+  }
+
+  return lines.join("\n");
+}
+
+function buildProgressionSummaryForFinal(struct: SessionStructure): string {
+  return struct.progressionSummaryShort || "";
+}
+
+function compressHistoryToShortSummary(
+  historyBlockFull: string,
+  history: HistorySession[],
+  weekSessions: HistorySession[]
+): string {
+  const generated = buildHistorySummaryShort(history, weekSessions);
+  if (generated) return generated;
+
+  const normalized = historyBlockFull.replace(/\s+/g, " ").trim();
+  return normalized.length > 500 ? `${normalized.slice(0, 500)}...` : normalized;
+}
+
+function compressWeekLoadToShortSummary(
+  weekSessions: HistorySession[],
+  weeklyLoadSummary: WeeklyLoadSummary
+): string {
+  return buildWeekLoadSummaryShort(weekSessions, weeklyLoadSummary);
+}
+
+function compressProgressionToShortSummary(
+  progressionFull: string,
+  history: HistorySession[],
+  globalWeekIndex: number | null,
+  trainingStatus: TrainingStatus
+): string {
+  const generated = buildProgressionSummaryShort(history, globalWeekIndex, trainingStatus);
+  if (generated) return generated;
+
+  const normalized = progressionFull.replace(/\s+/g, " ").trim();
+  return normalized.length > 400 ? `${normalized.slice(0, 400)}...` : normalized;
+}
+
 function buildGoalsDescription(goalsData: any): string[] {
   if (!goalsData || !goalsData.primary) {
     return ["поддержание общей физической формы"];
@@ -607,7 +893,9 @@ function buildGoalsDescription(goalsData: any): string[] {
 function buildProfile(
   onboarding: any,
   minutesFallback: number,
-  checkIn: DailyCheckIn | null
+  checkIn: DailyCheckIn | null,
+  trainingAgeWeeks: number | null,
+  weeklyTargetSessions: number
 ): Profile {
   console.log("\n  Building profile from data...");
   console.log("  Onboarding keys:", Object.keys(onboarding || {}).join(", "));
@@ -627,6 +915,10 @@ function buildProfile(
     height: numberFrom(onboarding?.body?.height) ?? null,
     sex,
     trainingStatus,
+    trainingAgeWeeks,
+    weeklyTargetSessions: weeklyTargetSessions || Number(onboarding?.schedule?.daysPerWeek) || 3,
+    recoveryScore: null,
+    fatigueScore: null,
     goals: buildGoalsDescription(onboarding?.goals),
     daysPerWeek: Number(onboarding?.schedule?.daysPerWeek) || 3,
     minutesPerSession: minutesFallback,
@@ -661,6 +953,81 @@ function buildProfile(
   });
 
   return profile;
+}
+
+function computeRecoveryFatigue(profile: Profile, constraints: Constraints): {
+  recoveryScore: number;
+  fatigueScore: number;
+} {
+  let recovery = 70;
+  let fatigue = 30;
+
+  const sleep = typeof profile.sleepHours === "number" ? profile.sleepHours : null;
+  const stress = profile.stressLevel;
+  const energy = profile.energyLevel;
+  const hoursSinceLast = constraints.recovery.hoursSinceLast;
+  const lastRpe = constraints.lastRpe;
+
+  if (sleep !== null) {
+    if (sleep >= 8) {
+      recovery += 10;
+      fatigue -= 5;
+    } else if (sleep >= 7) {
+      recovery += 5;
+    } else if (sleep >= 6) {
+      recovery -= 5;
+      fatigue += 5;
+    } else {
+      recovery -= 15;
+      fatigue += 10;
+    }
+  }
+
+  if (stress === "high" || stress === "very_high") {
+    recovery -= 10;
+    fatigue += 10;
+  } else if (stress === "medium") {
+    fatigue += 2;
+  }
+
+  if (energy === "high") {
+    recovery += 5;
+    fatigue -= 5;
+  } else if (energy === "low") {
+    recovery -= 5;
+    fatigue += 5;
+  }
+
+  if (hoursSinceLast != null) {
+    if (hoursSinceLast < 12) {
+      recovery -= 10;
+      fatigue += 8;
+    } else if (hoursSinceLast < 24) {
+      recovery -= 5;
+      fatigue += 5;
+    } else if (hoursSinceLast > 48) {
+      recovery += 5;
+      fatigue -= 3;
+    }
+  }
+
+  if (lastRpe != null) {
+    if (lastRpe >= 9) {
+      recovery -= 12;
+      fatigue += 10;
+    } else if (lastRpe >= 8) {
+      recovery -= 8;
+      fatigue += 6;
+    } else if (lastRpe <= 6) {
+      recovery += 4;
+      fatigue -= 3;
+    }
+  }
+
+  return {
+    recoveryScore: clampScore(recovery),
+    fatigueScore: clampScore(fatigue),
+  };
 }
 
 function summarizeHistory(rows: any[]): HistorySession[] {
@@ -889,7 +1256,7 @@ ${JSON.stringify(
 # ЗАДАЧА
 Создай структуру НЕДЕЛЬНОГО МИКРОЦИКЛА из ${profile.daysPerWeek} тренировок.
 
-Дай каждому дню короткое, понятное название (примеры: "Push", "Pull", "Legs", "Full Body A", "Upper", "Lower", "Кардио + Кор", "Активное восстановление").
+Дай каждому дню короткое, понятное название, которое отражает его фокус (разные акценты на части тела или тип нагрузки).
 
 # ФОРМАТ ОТВЕТА
 Ответ строго в JSON (response_format json_object), без пояснений, без markdown, без комментариев.
@@ -1012,7 +1379,15 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
         goalText.includes("ног") ||
         goalText.includes("попа"));
 
-    if (isFemaleLowerFocus && !isBeginner) {
+    if (goalPrimary === "athletic_body" || goalPrimary === "lose_weight") {
+      name = "Full Body Tone";
+      baseDays = ["Full Body A", "Full Body B", "Full Body C"];
+      description = "Тонизирующая 3-дневка: баланс ног, жимов и тяг без перегруза";
+    } else if (goalPrimary === "build_muscle" || goalPrimary === "strength") {
+      name = "Upper/Lower + Full Body";
+      baseDays = ["Upper", "Lower", "Full Body"];
+      description = "Сбалансированный микс для роста силы и массы";
+    } else if (isFemaleLowerFocus && !isBeginner) {
       name = "Glutes & Lower Emphasis";
       baseDays = ["Lower + Glutes Heavy", "Upper Push/Pull", "Glutes + Core Volume"];
       description = "Акцент на нижнюю часть тела";
@@ -1302,10 +1677,10 @@ const TRAINER_SYSTEM = `Ты опытный персональный трене�
 
 # ТВОИ ПРИНЦИПЫ
 
-1. Читай ВСЕ данные клиента — возраст, пол, цели, травмы, сон, стресс, историю тренировок
-2. Адаптируйся — каждый человек уникален, даже с похожими параметрами на бумаге
-3. Думай как тренер — не как алгоритм, заполняющий шаблон по чек-листу
-4. Если указаны травмы/боли/ограничения — не нагружай эти зоны: замени упражнения или упростай, никаких жимов/тягов/осевых нагрузок на травмированные области
+1. Читай ВСЕ данные клиента — возраст, пол, цели, травмы, сон, стресс, историю тренировок.
+2. Адаптируйся — каждый человек уникален, даже с похожими параметрами на бумаге.
+3. Думай как тренер — не как алгоритм, заполняющий шаблон по чек-листу.
+4. Если указаны травмы/боли/ограничения — выбирай безопасные варианты, которые не провоцируют боль и не создают чрезмерную нагрузку на проблемные области; при необходимости смещай акцент на другие группы.
 
 Ты создаёшь тренировки для конкретного человека в конкретный день, учитывая его полную картину.`;
 
@@ -1520,6 +1895,19 @@ function describeEquipment(onboarding: any) {
   return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
 }
 
+function formatBlocksForPrompt(blocks: SessionBlock[]): string {
+  return blocks
+    .map(
+      (b, idx) =>
+        `${idx + 1}. role=${b.role}; focus="${b.focus}"; мышцы=[${b.targetMuscles.join(
+          ", "
+        )}]; интенсивность=${b.intensity}; объём=${b.setsPlanned} подходов (${b.repRange}); заметки: ${
+          b.notes || "—"
+        }`
+    )
+    .join("\n");
+}
+
 function buildTrainerPrompt(params: {
   profile: Profile;
   onboarding: any;
@@ -1527,9 +1915,12 @@ function buildTrainerPrompt(params: {
   constraints: Constraints;
   targetExercises: number | null;
   sessionMinutes: number;
-  history: HistorySession[];
+  historySummaryShort: string;
+  progressionSummaryShort: string;
+  antiRepeatBlock: string;
   weekContext: WeekContext;
-  weekSessions: HistorySession[];
+  sessionStructure: SessionStructure;
+  weeklyLoadSummary: WeeklyLoadSummary;
 }): string {
   const {
     profile,
@@ -1538,22 +1929,23 @@ function buildTrainerPrompt(params: {
     constraints,
     targetExercises,
     sessionMinutes,
-    history,
+    historySummaryShort,
+    progressionSummaryShort,
+    antiRepeatBlock,
     weekContext,
-    weekSessions,
+    sessionStructure,
+    weeklyLoadSummary,
   } = params;
   const blueprint = program.blueprint_json;
   const todayFocus = blueprint.days[program.day_idx];
   const trainingStatusNotes = getTrainingStatusPrompt(profile.trainingStatus);
 
   const clientData = buildClientDataBlock(profile, onboarding, constraints, weekContext);
-  const historyBlock = buildHistoryBlock(history, weekSessions);
-  const antiRepeatBlock = buildAntiRepeatBlock(history);
   const safetyNotes = buildSafetyGuidelines(profile, onboarding, constraints);
-  const progressionContext = buildProgressionContext(
-    history,
-    weekContext.globalWeekIndex,
-    profile.trainingStatus
+  const blocksFormatted = formatBlocksForPrompt(sessionStructure.blocks);
+  const mainMinutes = Math.max(
+    0,
+    sessionStructure.totalPlannedMinutes - sessionStructure.warmupMinutes - sessionStructure.cooldownMinutes
   );
 
   return `# ТЫ — ПЕРСОНАЛЬНЫЙ ТРЕНЕР
@@ -1564,11 +1956,26 @@ function buildTrainerPrompt(params: {
 
 ${clientData}
 
-${historyBlock}
+# ИСТОРИЯ И НЕДЕЛЯ (КОРОТКО)
+${historySummaryShort}
 
+# ЧТО НЕ ПОВТОРЯТЬ (из последних тренировок)
 ${antiRepeatBlock}
 
 ${buildFocusRules(todayFocus)}
+${buildGoalAccents(onboarding?.goals?.primary || null)}
+
+# СТРУКТУРА СЕГОДНЯШНЕЙ СЕССИИ
+- День: ${sessionStructure.dayLabel}
+- Режим: ${sessionStructure.mode}${sessionStructure.hardTimeCap ? " (жёсткий таймкап по времени)" : ""}
+- Цель сессии: ${sessionStructure.goalSummary}
+- Ожидаемое число упражнений: ~${sessionStructure.expectedExercisesCount}
+- Плановый объём: ~${sessionStructure.totalPlannedSets} подходов, ~${sessionStructure.totalPlannedMinutes} минут
+- Время: разминка ~${sessionStructure.warmupMinutes} мин, основная часть ~${mainMinutes} мин, заминка ~${sessionStructure.cooldownMinutes} мин
+- Приоритеты: ${sessionStructure.priorityNotes}
+
+# БЛОКИ СЕССИИ (оставь порядок, наполни упражнениями)
+${blocksFormatted}
 
 # УРОВЕНЬ ПОДГОТОВКИ
 ${trainingStatusNotes}
@@ -1584,23 +1991,27 @@ ${targetExercises ? `- Цель по количеству упражнений: 
 - Целевая длительность: ${sessionMinutes} минут
 - Пользователь указал доступное время на эту сессию: ${sessionMinutes} минут
 
-${progressionContext}
+# НЕДЕЛЬНАЯ НАГРУЗКА (JSON)
+${JSON.stringify(weeklyLoadSummary, null, 2)}
+
+# ПРОГРЕССИЯ (КОРОТКО)
+${progressionSummaryShort}
 
 ${safetyNotes}
 
 # ТВОЯ ЗАДАЧА
 
 Создай тренировку, которая:
-- Соответствует дню "${todayFocus}" в контексте недельной программы
-- Учитывает текущее состояние клиента (восстановление, стресс, сон, травмы)
-- Обеспечивает прогрессию (если клиент готов) или восстановление (если нужно)
-- Не копирует недавние тренировки — используй вариации упражнений
-- Безопасна для здоровья клиента
-- Разминка + заминка вместе ≤ 15 минут; всё остальное время — основная часть
-- Используй доступное время максимально эффективно: при нормальном состоянии заполняй всю сессию полноценным объёмом; если состояние слабое — укажи это в timeNotes и адаптируй объём
+- Соответствует дню "${todayFocus}" и уже заданной структуре блоков (role/focus/targetMuscles/интенсивность/объём).
+- Для каждого блока подбери одно или несколько упражнений, которые логично реализуют его фокус. Не меняй порядок и не игнорируй блоки.
+- Учитывает текущее состояние клиента (восстановление, стресс, сон, травмы).
+- Обеспечивает прогрессию (если клиент готов) или восстановление (если нужно).
+- Не копирует недавние тренировки — используй вариации упражнений.
+- Безопасна для здоровья клиента.
+- Разминка + заминка вместе ≤ 15 минут; всё остальное время — основная часть.
+- Используй доступное время максимально эффективно: при нормальном состоянии заполняй всю сессию полноценным объёмом; если состояние слабое — укажи это в timeNotes и адаптируй объём.
 - Указывай рабочий вес в кг так, чтобы последние 1–2 повтора были с усилием (RPE ~8).
 - Если по упражнению нет истории весов: давай консервативный стартовый ориентир и явно подпиши, что это стартовый вес, который нужно подобрать в первом подходе без геройства. Избегай экстремальных чисел без истории.
-${targetExercises ? `- Поддерживай примерно ${targetExercises} упражнений и заполняй основную часть времени; если клиент чувствует себя плохо, можешь уменьшить число, но объясни это в timeNotes` : ""}
 
 # ФОРМАТ ОТВЕТА
 
@@ -1636,9 +2047,7 @@ JSON (response_format json_object):
 **Важно:**
 - Пиши по-русски ВСЕ поля и значения, включая title. Никаких английских слов.
 - Название делай коротким (2–4 слова), только по-русски, чтобы сразу было понятно, что за тренировка и на что акцент.
-- Ты сам решаешь, сколько упражнений, подходов и как долго разминка — исходя из состояния клиента.
-- Слишком экстремальные значения (например, 1 подход или 50 подходов, отдых 5 секунд или 10 минут) будут автоматически нормализованы системой до разумных диапазонов.
-- Твоя задача — предложить логичную структуру тренировки, а не подгонять под скрытые лимиты.
+- Подбирай реалистичные значения подходов/повторов/отдыха исходя из уровня клиента и длительности сессии.
 - Обязательно укажи, как ты посчитал время в durationBreakdown.calculation.`.trim();
 }
 
@@ -1763,22 +2172,235 @@ function buildClientDataBlock(
   return `# КЛИЕНТ\n\n${sections.join("\n\n")}`;
 }
 
-// Правила фокуса дня + баланс на неделе
+// Правила фокуса дня + баланс на неделе (мягкие направления без жёстких запретов)
 function buildFocusRules(todayFocus: string): string {
   return `## Фокус дня: "${todayFocus}"
 
 **Соблюдай фокус дня:**
-- Push → грудь, плечи (передние/средние), трицепс. БЕЗ тяг, упражнений на спину и бицепс, БЕЗ ног.
-- Pull → спина, задние дельты, бицепс, трапеции. БЕЗ жимов, упражнений на грудь и трицепс, БЕЗ ног.
-- Upper → и жимы, и тяги для верха тела в сбалансированном объёме (примерно 1:1 по подходам), с участием всех пучков плеч. БЕЗ ног.
-- Lower → квадрицепсы, ягодицы, бицепс бедра, икры. На уровне недели сохраняй сопоставимый объём для квадрицепсов и задней цепи.
-- Full Body → всё тело сбалансировано: в каждой такой тренировке должны быть как минимум упражнения на ноги, одно толкающее движение верхом и одно тянущее движение верхом.
-- Legs/Glutes/др. специализированные дни → делай акцент на указанную группу, но давай остальным крупным группам хотя бы поддерживающий объём на уровне недели.
+- Push → акцент на толкающих движениях верхней части: грудь, передние/средние дельты, трицепс. Объём ног и тягов верхом давай так, чтобы не ломать логику недели.
+- Pull → акцент на тянущих движениях: спина, задние дельты, бицепс, трапеции. Жимы могут быть вспомогательно, если это не сбивает фокус и баланс недели.
+- Upper → жимы и тяги верхом в сбалансированном объёме (примерно 1:1 по подходам), с разными углами и пучками плеч.
+- Lower → квадрицепсы, ягодицы, бицепс бедра, икры. На уровне недели держи сопоставимый объём квадрицепс ↔ задняя цепь.
+- Full Body → сбалансируй всё тело: в каждой такой тренировке должны быть ноги, толкающее движение верхом и тянущее движение верхом.
+- Legs/Glutes/специализация → акцент на указанную группу, но остальным крупным мышцам давай поддерживающий объём в течение недели.
 
 **Принципы баланса на УРОВНЕ НЕДЕЛИ:**
 - Стремись к балансу антагонистов по недельному объёму (по рабочим подходам): жимы ↔ тяги, грудь ↔ спина, квадрицепсы ↔ задняя цепь.
 - Проверяй, не перегружена ли одна группа за счёт другой на протяжении недели, если пользователь не просил сделать акцент.
 - Внутри одной тренировки чередуй углы и оборудование, избегай 3+ однотипных упражнений подряд на одну и ту же группу (например, несколько жимов подряд).`;
+}
+
+// Акценты по цели (мягко, без шаблонов)
+function buildGoalAccents(goalPrimary: string | null): string {
+  if (!goalPrimary) return "";
+  const goal = String(goalPrimary);
+  if (goal === "build_muscle" || goal === "strength") {
+    return `## Акцент по цели
+- Набор массы/сила: дай достаточный объём базовых движений, контролируй прогрессию весов, отдых 90–120 сек при необходимости.
+- Следи за техникой, избегай лишнего «пампинга» в ущерб качеству движения.`;
+  }
+  if (goal === "athletic_body" || goal === "lose_weight") {
+    return `## Акцент по цели
+- Атлетичность/рельеф: держи тренировку плотной, контролируй отдых (60–90 сек), добавляй кор/стабилизацию и вариативность углов.
+- Объём умеренный, без перегруза одной группы; качество движений важнее суммарного веса.`;
+  }
+  if (goal === "health_wellness") {
+    return `## Акцент по цели
+- Здоровье/самочувствие: умеренный объём, техника и контроль нагрузки важнее тяжёлых весов.
+- Добавь мобилити/кор, избегай избыточной осевой нагрузки, учитывай восстановление.`;
+  }
+  if (goal === "lower_body_focus") {
+  return `## Акцент по цели
+- Акцент на нижнюю часть: приоритизируй ноги/ягодицы, но сохраняй поддерживающий объём на верх в течение недели.`;
+  }
+  return "";
+}
+
+// Этап 2: генерация структуры сессии (блоки, объём, акценты — без упражнений)
+async function generateSessionStructure(params: {
+  profile: Profile;
+  onboarding: any;
+  program: ProgramRow;
+  constraints: Constraints;
+  checkIn: DailyCheckIn | null;
+  history: HistorySession[];
+  weekContext: WeekContext;
+  weekSessions: HistorySession[];
+  sessionMinutes: number;
+  exercisesTarget: ExercisesTarget;
+  weeklyLoadSummary: WeeklyLoadSummary;
+}): Promise<SessionStructure> {
+  const {
+    profile,
+    onboarding,
+    program,
+    constraints,
+    checkIn,
+    history,
+    weekContext,
+    weekSessions,
+    sessionMinutes,
+    exercisesTarget,
+    weeklyLoadSummary,
+  } = params;
+
+  const blueprint = program.blueprint_json;
+  const todayFocus = blueprint.days[program.day_idx];
+
+  // Тяжёлые блоки истории/прогрессии — считаем на этапе 2 и потом сжимаем
+  const historyBlockFull = buildHistoryBlock(history, weekSessions);
+  const progressionFull = buildProgressionContext(
+    history,
+    weekContext.globalWeekIndex,
+    profile.trainingStatus
+  );
+
+  if (process.env.DEBUG_WORKOUT_PROMPT === "1") {
+    console.log("\n=== FULL HISTORY BLOCK ===");
+    console.log(historyBlockFull);
+    console.log("\n=== FULL PROGRESSION CONTEXT ===");
+    console.log(progressionFull);
+  }
+
+  // Подготовить компактный payload, без лишнего текста
+  const payload = {
+    profile: {
+      sex: profile.sex,
+      age: profile.age,
+      trainingStatus: profile.trainingStatus,
+      goals: profile.goals,
+      daysPerWeek: profile.daysPerWeek,
+      minutesPerSession: profile.minutesPerSession,
+      trainingAgeWeeks: profile.trainingAgeWeeks,
+      weeklyTargetSessions: profile.weeklyTargetSessions,
+      recoveryScore: profile.recoveryScore,
+      fatigueScore: profile.fatigueScore,
+    },
+    today: {
+      focus: todayFocus,
+      sessionMinutes,
+      checkIn,
+    },
+    weekContext: {
+      globalWeekIndex: weekContext.globalWeekIndex,
+      sessionsThisWeek: weekContext.sessionsThisWeek,
+      todayIndexInWeek: weekContext.todayIndexInWeek,
+    },
+    historySummary: {
+      lastRpe: constraints.lastRpe,
+      hoursSinceLast: constraints.recovery.hoursSinceLast,
+      plateau: constraints.plateau,
+      deloadSuggested: constraints.deloadSuggested,
+      recentSessions: history.slice(0, 3).map((s) => ({
+        date: s.date,
+        avgRpe: s.avgRpe,
+        exercises: s.exercises.length,
+      })),
+    },
+    weeklyLoad: calculateMuscleVolume(weekSessions),
+    weeklyLoadSummary,
+    targetExercises: exercisesTarget,
+  };
+
+  const prompt = `
+Сформируй СТРУКТУРУ тренировки (без перечисления конкретных упражнений).
+
+Тебе дан клиент, его недельная программа и контекст недели. Твоя задача — разбить сегодняшнюю сессию на логичные блоки (main_lift, secondary, accessory и т.д.), распределить объём и интенсивность, учесть цели, историю и восстановление.
+
+Не перечисляй конкретные упражнения и не давай названия упражнений. Работай на уровне блоков и мышечных групп.
+
+Если клиентка и указаны цикл или симптомы, учитывай это при выборе интенсивности и распределении нагрузки, но принимай решение самостоятельно — нет жёстких правил, клиентка может тренироваться как обычно по самочувствию.
+
+Верни только JSON:
+{
+  "dayLabel": "краткое описание фокуса дня",
+  "goalSummary": "1-2 предложения, чего мы добиваемся этой сессией",
+  "blocks": [
+    {
+      "role": "main_lift" | "secondary" | "accessory" | "isolation" | "core" | "conditioning" | "mobility" | "recovery",
+      "focus": "краткое описание блока",
+      "targetMuscles": ["строки"],
+      "intensity": "easy" | "moderate" | "hard",
+      "setsPlanned": число,
+      "repRange": "строка, без примеров упражнений",
+      "notes": "зачем этот блок и как он работает в контексте недели"
+    }
+  ],
+  "warmupMinutes": число,
+  "cooldownMinutes": число,
+  "expectedExercisesCount": число,
+  "priorityNotes": "ключевые приоритеты и компромиссы по объёму/интенсивности"
+}
+`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    temperature: 0.5,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "Ты опытный персональный тренер. На этом этапе ты НЕ придумываешь упражнения, а только структуру сессии: блоки, объём, акценты.",
+      },
+      { role: "user", content: `${prompt}\n\nДанные:\n${JSON.stringify(payload, null, 2)}` },
+    ],
+  });
+
+  const raw = completion.choices[0].message.content || "{}";
+  const parsed = JSON.parse(raw);
+
+  // Минимальная валидация структуры
+  if (!Array.isArray(parsed.blocks) || parsed.blocks.length === 0) {
+    throw new AppError("AI не вернул структуру блоков сессии", 500);
+  }
+
+  const mappedBlocks = parsed.blocks.map((b: any) => ({
+    role: b.role,
+    focus: String(b.focus || ""),
+    targetMuscles: Array.isArray(b.targetMuscles) ? b.targetMuscles.map(String) : [],
+    intensity: b.intensity || "moderate",
+    setsPlanned: Number.isFinite(b.setsPlanned) ? Math.round(b.setsPlanned) : 6,
+    repRange: String(b.repRange || "6-12"),
+    notes: String(b.notes || ""),
+  }));
+
+  const totalPlannedSets = mappedBlocks.reduce((sum, b) => sum + (Number.isFinite(b.setsPlanned) ? b.setsPlanned : 0), 0);
+  const totalPlannedMinutes =
+    numberFrom(parsed.totalPlannedMinutes) ??
+    numberFrom(parsed.targetDuration) ??
+    sessionMinutes;
+  const hardTimeCap = checkIn?.availableMinutes != null;
+  const historySummaryShort = compressHistoryToShortSummary(historyBlockFull, history, weekSessions);
+  const weekLoadSummaryShort = compressWeekLoadToShortSummary(weekSessions, weeklyLoadSummary);
+  const progressionSummaryShort = compressProgressionToShortSummary(
+    progressionFull,
+    history,
+    weekContext.globalWeekIndex,
+    profile.trainingStatus
+  );
+  const lastSessionsCompact = buildLastSessionsCompact(history);
+
+  const structure: SessionStructure = {
+    dayLabel: String(parsed.dayLabel || program.blueprint_json.days[program.day_idx]),
+    goalSummary: String(parsed.goalSummary || "Структура сессии под цели клиента"),
+    mode: isSessionMode(parsed.mode) ? parsed.mode : pickSessionMode(profile, constraints),
+    blocks: mappedBlocks,
+    warmupMinutes: Number.isFinite(parsed.warmupMinutes) ? parsed.warmupMinutes : 8,
+    cooldownMinutes: Number.isFinite(parsed.cooldownMinutes) ? parsed.cooldownMinutes : 5,
+    expectedExercisesCount: numberFrom(parsed.expectedExercisesCount) ?? exercisesTarget.count,
+    totalPlannedSets,
+    totalPlannedMinutes,
+    hardTimeCap,
+    priorityNotes: String(parsed.priorityNotes || ""),
+    antiRepeatNotes: buildAntiRepeatBlock(history),
+    historySummaryShort,
+    weekLoadSummaryShort,
+    progressionSummaryShort,
+    lastSessionsCompact,
+  };
+
+  return structure;
 }
 
 // Блок истории без директив анти-повтора
@@ -2468,16 +3090,19 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       numberFrom(checkIn?.availableMinutes) ?? DEFAULT_SESSION_MINUTES;
     console.log(`✓ Session duration: ${sessionMinutes} minutes`);
 
-    const profile = buildProfile(onboarding, sessionMinutes, checkIn);
-  console.log("✓ Profile built:", {
-    age: profile.age,
-    sex: profile.sex,
-    trainingStatus: profile.trainingStatus,
-    goals: profile.goals,
-    daysPerWeek: profile.daysPerWeek,
-    minutesPerSession: profile.minutesPerSession,
-    location: profile.location,
-    energyLevel: profile.energyLevel,
+    const trainingAgeWeeksVal = await getGlobalWeekIndex(userId, tz);
+    const weeklyTargetSessions = Number(onboarding?.schedule?.daysPerWeek) || 3;
+
+    let profile = buildProfile(onboarding, sessionMinutes, checkIn, trainingAgeWeeksVal, weeklyTargetSessions);
+    console.log("✓ Profile built:", {
+      age: profile.age,
+      sex: profile.sex,
+      trainingStatus: profile.trainingStatus,
+      goals: profile.goals,
+      daysPerWeek: profile.daysPerWeek,
+      minutesPerSession: profile.minutesPerSession,
+      location: profile.location,
+      energyLevel: profile.energyLevel,
       sleepHours: profile.sleepHours,
       stressLevel: profile.stressLevel,
       painCount: profile.pain.length,
@@ -2509,14 +3134,25 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
 
     const weekSessions = summarizeHistory(await getWeekSessions(userId, tz));
     console.log(`✓ Week sessions: ${weekSessions.length}`);
+    const weeklyLoadSummary = buildWeeklyLoadSummary(weekSessions);
+    const historySummaryShort = buildHistorySummaryShort(history, weekSessions);
+    const progressionSummaryShort = buildProgressionSummaryShort(
+      history,
+      weekContext.globalWeekIndex,
+      profile.trainingStatus
+    );
 
     const constraints = buildConstraints(profile, history);
+    const recoveryFatigue = computeRecoveryFatigue(profile, constraints);
+    profile = { ...profile, ...recoveryFatigue };
     console.log("✓ Constraints built:", {
       weightGuardsCount: Object.keys(constraints.weightGuards).length,
       hoursSinceLast: constraints.recovery.hoursSinceLast,
       lastRpe: constraints.lastRpe,
       plateau: constraints.plateau,
       deloadSuggested: constraints.deloadSuggested,
+      recoveryScore: profile.recoveryScore,
+      fatigueScore: profile.fatigueScore,
     });
 
     logTiming("Context loading", tContext);
@@ -2535,6 +3171,28 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     });
     console.log("✓ Target exercises (AI):", exercisesTarget);
 
+    const sessionStructure = await generateSessionStructure({
+      profile,
+      onboarding,
+      program,
+      constraints,
+      checkIn,
+      history,
+      weekContext,
+      weekSessions,
+      sessionMinutes,
+      exercisesTarget,
+      weeklyLoadSummary,
+    });
+    console.log("✓ Session structure built:", {
+      blocks: sessionStructure.blocks.length,
+      expectedExercisesCount: sessionStructure.expectedExercisesCount,
+      warmupMinutes: sessionStructure.warmupMinutes,
+      cooldownMinutes: sessionStructure.cooldownMinutes,
+    });
+
+    const antiRepeatBlock = buildAntiRepeatBlock(history);
+
     const prompt = buildTrainerPrompt({
       profile,
       onboarding,
@@ -2542,9 +3200,12 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       constraints,
       targetExercises: exercisesTarget.count,
       sessionMinutes,
-      history,
+      historySummaryShort,
+      progressionSummaryShort,
+      antiRepeatBlock,
       weekContext,
-      weekSessions,
+      sessionStructure,
+      weeklyLoadSummary,
     });
 
     console.log("✓ Prompt built:");
@@ -2722,7 +3383,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     await setWorkoutPlanProgress(planId, "validation", 80);
 
     console.log("\n Validating plan structure...");
-  const validation = validatePlanStructure(plan, constraints, sessionMinutesFinal);
+  const validation = validatePlanStructure(plan, constraints, sessionMinutesFinal, sessionStructure);
   plan = validation.plan;
 
   if (validation.warnings.length) {
@@ -2778,7 +3439,8 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
 function validatePlanStructure(
   plan: WorkoutPlan,
   constraints: Constraints,
-  sessionMinutes: number
+  sessionMinutes: number,
+  sessionStructure?: SessionStructure
 ) {
   const normalized: WorkoutPlan = {
     title: plan.title || "Персональная тренировка",
@@ -2893,6 +3555,30 @@ function validatePlanStructure(
 
     return updated as Exercise;
   });
+
+  // Согласованность с SessionStructure
+  if (sessionStructure) {
+    const expected = sessionStructure.expectedExercisesCount;
+    if (expected != null) {
+      const diff = Math.abs(normalized.exercises.length - expected);
+      if (diff > 3) {
+        warnings.push(
+          `Количество упражнений (${normalized.exercises.length}) заметно отличается от структуры (${expected})`
+        );
+      }
+    }
+
+    const targetGroups = new Set<string>();
+    sessionStructure.blocks.forEach((b) => b.targetMuscles.forEach((m) => targetGroups.add(m.toLowerCase())));
+    const hitGroups = new Set<string>();
+    normalized.exercises.forEach((ex) =>
+      (ex.targetMuscles || []).forEach((m) => hitGroups.add(String(m).toLowerCase()))
+    );
+    const missing = Array.from(targetGroups).filter((g) => !hitGroups.has(g));
+    if (missing.length) {
+      warnings.push(`Не покрыты целевые группы из структуры: ${missing.join(", ")}`);
+    }
+  }
 
   if (!normalized.warmup.length) {
     warnings.push("AI не создал разминку — добавь 3–5 пунктов");
