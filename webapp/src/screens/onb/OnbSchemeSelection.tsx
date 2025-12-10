@@ -194,10 +194,11 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       </section>
 
       {/* Схемы */}
-      <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-        {allSchemes.map((scheme) => (
+      <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
+        {allSchemes.map((scheme, i) => (
           <SchemeCard
             key={scheme.id}
+            index={i}
             scheme={scheme}
             isSelected={selectedId === scheme.id}
             onSelect={() => setSelectedId(scheme.id)}
@@ -281,33 +282,38 @@ function SchemeCard({
   scheme,
   isSelected,
   onSelect,
+  index,
 }: {
   scheme: WorkoutScheme;
   isSelected: boolean;
   onSelect: () => void;
+  index: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const displayName = scheme.name;
 
   return (
     <div
+      className="scheme-enter"
       style={{
         ...s.schemeCard,
         ...(isSelected ? s.schemeCardSelected : {}),
+        animationDelay: `${index * 120}ms`,
       }}
       onClick={onSelect}
     >
       {/* Бейдж "Рекомендовано тренером" */}
       {scheme.isRecommended && (
         <div style={s.recommendedBadge}>
+          <div style={s.shine} />
           <span style={{ fontSize: 14 }}>⭐</span>
           <span style={s.recommendedText}>Рекомендовано тренером</span>
         </div>
       )}
 
-      {/* Радио-кнопка */}
-      <div style={s.radioCircle}>
-        {isSelected && <div style={s.radioDot} />}
+      {/* Радио-кнопка (минималистичная) */}
+      <div style={{...s.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
+        <div style={{...s.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0}} />
       </div>
 
       {/* Название */}
@@ -339,52 +345,59 @@ function SchemeCard({
         {expanded ? "Свернуть детали ▲" : "Показать детали ▼"}
       </button>
 
-      {expanded && (
-        <div style={s.detailsSection}>
-          {/* Причина рекомендации */}
-          {scheme.reason && (
+      <div style={{ 
+        display: "grid", 
+        gridTemplateRows: expanded ? "1fr" : "0fr", 
+        transition: "grid-template-rows 0.3s ease-out",
+        overflow: "hidden" 
+      }}>
+        <div style={{ minHeight: 0 }}>
+          <div style={s.detailsSection}>
+            {/* Причина рекомендации */}
+            {scheme.reason && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>💡 Почему эта схема</div>
+                <div style={s.reasonTextExpanded}>{scheme.reason}</div>
+              </div>
+            )}
+            {/* ...остальные блоки без изменений... */}
+            {/* Дни недели */}
             <div style={s.detailBlock}>
-              <div style={s.detailTitle}>💡 Почему эта схема</div>
-              <div style={s.reasonTextExpanded}>{scheme.reason}</div>
-            </div>
-          )}
-
-          {/* Дни недели */}
-          <div style={s.detailBlock}>
-            <div style={s.detailTitle}>📋 Структура недели</div>
-            <div style={s.daysList}>
-              {scheme.dayLabels.map((day, i) => (
-                <div key={i} style={s.dayItem}>
-                  <div style={s.dayLabel}>
-                    День {day.day}: {day.label}
+              <div style={s.detailTitle}>📋 Структура недели</div>
+              <div style={s.daysList}>
+                {scheme.dayLabels.map((day, i) => (
+                  <div key={i} style={s.dayItem}>
+                    <div style={s.dayLabel}>
+                      День {day.day}: {day.label}
+                    </div>
+                    <div style={s.dayFocus}>{day.focus}</div>
                   </div>
-                  <div style={s.dayFocus}>{day.focus}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Преимущества */}
-          {scheme.benefits && scheme.benefits.length > 0 && (
-            <div style={s.detailBlock}>
-              <div style={s.detailTitle}>✨ Преимущества</div>
-              <ul style={s.benefitsList}>
-                {scheme.benefits.map((benefit, i) => (
-                  <li key={i} style={s.benefitItem}>{benefit}</li>
                 ))}
-              </ul>
+              </div>
             </div>
-          )}
 
-          {/* Заметки */}
-          {scheme.notes && (
-            <div style={s.detailBlock}>
-              <div style={s.detailTitle}>💬 Примечание</div>
-              <div style={s.notesText}>{scheme.notes}</div>
-            </div>
-          )}
+            {/* Преимущества */}
+            {scheme.benefits && scheme.benefits.length > 0 && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>✨ Преимущества</div>
+                <ul style={s.benefitsList}>
+                  {scheme.benefits.map((benefit, i) => (
+                    <li key={i} style={s.benefitItem}>{benefit}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Заметки */}
+            {scheme.notes && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>💬 Примечание</div>
+                <div style={s.notesText}>{scheme.notes}</div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -419,6 +432,19 @@ function SoftGlowStyles() {
       animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
       @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
       @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
+      
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(40px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes shine {
+        0% { left: -100%; }
+        20% { left: 100%; }
+        100% { left: 100%; }
+      }
+      .scheme-enter {
+        animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      }
     `}</style>
   );
 }
@@ -462,117 +488,132 @@ const s: Record<string, React.CSSProperties> = {
 
   schemeCard: {
     position: "relative",
-    padding: 14,
-    borderRadius: 20,
-    background: "rgba(255,255,255,0.75)",
-    border: "2px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-    backdropFilter: "blur(12px)",
+    padding: 20,
+    borderRadius: 24,
+    background: "rgba(255,255,255,0.85)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 10px 40px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     cursor: "pointer",
-    transition: "all 0.25s ease",
+    transition: "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+    transform: "translateY(0)",
   },
   schemeCardSelected: {
-    background: GRAD,
-    border: "2px solid rgba(0,0,0,0.18)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-    transform: "scale(1.02)",
+    background: "#fff",
+    border: "1px solid rgba(0,0,0,0.0)",
+    boxShadow: "0 12px 48px rgba(15, 23, 42, 0.12), 0 0 0 2px #0f172a",
+    transform: "translateY(-4px) scale(1.01)",
+    zIndex: 2,
   },
-
 
   recommendedBadge: {
     position: "absolute",
-    top: -10,
-    right: 12,
+    top: -12,
+    right: 20,
     background: "#0f172a",
     color: "#fff",
-    padding: "6px 12px",
-    borderRadius: "12px",
+    padding: "6px 14px",
+    borderRadius: "100px",
     fontSize: 11,
     fontWeight: 800,
     display: "flex",
     alignItems: "center",
-    gap: 4,
-    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
-    border: "none",
+    gap: 6,
+    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.25)",
+    border: "2px solid #fff",
+    overflow: "hidden",
+    zIndex: 10,
   },
-  recommendedText: {
-    letterSpacing: 0.3,
+  shine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "50%",
+    height: "100%",
+    background: "linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent)",
+    transform: "skewX(-20deg)",
+    animation: "shine 3s infinite",
   },
-
+  
   radioCircle: {
     position: "absolute",
-    top: 16,
-    left: 16,
+    top: 20,
+    left: 20,
     width: 24,
     height: 24,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.3)",
-    background: "rgba(255,255,255,0.8)",
+    border: "2px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
+    transition: "all 0.3s ease",
   },
   radioDot: {
     width: 12,
     height: 12,
     borderRadius: "50%",
     background: "#0f172a",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
 
   schemeName: {
-    fontSize: 18,
-    fontWeight: 850,
-    color: "#0B1220",
-    marginTop: 8,
-    marginLeft: 32,
-    marginRight: 32,
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginLeft: 36,
+    marginRight: 0,
     marginBottom: 8,
-    lineHeight: 1.3,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
   },
-
+  
   schemeInfo: {
     display: "flex",
-    gap: 6,
-    marginBottom: 10,
-    marginLeft: 32,
+    gap: 8,
+    marginBottom: 16,
+    marginLeft: 36,
     flexWrap: "wrap",
   },
   infoChip: {
-    background: "rgba(255,255,255,0.95)",
-    padding: "5px 10px",
-    borderRadius: 999,
-    fontSize: 10.5,
+    background: "#f1f5f9",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 11,
     fontWeight: 700,
-    color: "#0B1220",
-    border: "1px solid rgba(0,0,0,0.08)",
+    color: "#334155",
     whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
   },
 
   schemeDescription: {
-    fontSize: 13,
-    color: "#1b1b1b",
-    lineHeight: 1.5,
-    marginBottom: 12,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+    marginBottom: 16,
     fontWeight: 500,
+    marginLeft: 4,
   },
-
-  reasonTextExpanded: {
-    fontSize: 12.5,
-    color: "#1b1b1b",
-    lineHeight: 1.5,
-    fontWeight: 500,
-  },
-
+  
   expandBtn: {
     width: "100%",
-    padding: "8px 12px",
+    padding: "12px",
     border: "none",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    color: "#0B1220",
-    fontSize: 12,
+    borderRadius: 14,
+    background: "#f8fafc",
+    color: "#0f172a",
+    fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
-    marginTop: 6,
+    marginTop: 4,
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
 
   detailsSection: {
