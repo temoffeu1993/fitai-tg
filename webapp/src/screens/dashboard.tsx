@@ -148,6 +148,11 @@ export default function Dashboard() {
   const [name, setName] = useState<string>(onbDone ? resolveOnbName() : resolveTelegramName());
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
+  
+  // Подсветка кнопки после выбора схемы
+  const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
+    () => localStorage.getItem("highlight_generate_btn") === "1"
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -168,6 +173,16 @@ export default function Dashboard() {
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
     };
   }, []);
+
+  // Убрать подсветку через 10 секунд
+  useEffect(() => {
+    if (!highlightGenerateBtn) return;
+    const timer = setTimeout(() => {
+      setHighlightGenerateBtn(false);
+      localStorage.removeItem("highlight_generate_btn");
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [highlightGenerateBtn]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -258,6 +273,15 @@ export default function Dashboard() {
         }
         @property --angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
         @keyframes spinAngle{ to{ --angle:360deg; } }
+
+        /* === Highlight pulse для подсветки кнопки === */
+        .highlight-pulse {
+          animation: highlightPulse 1.5s ease-in-out infinite !important;
+        }
+        @keyframes highlightPulse {
+          0%, 100% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.02); filter: brightness(1.1); }
+        }
 
         /* ===== Планшеты и десктопы ===== */
         @media (min-width: 421px) {
@@ -364,13 +388,21 @@ export default function Dashboard() {
           Я делаю каждую тренировку эффективной с учётом твоего состояния, цели, опыта и истории тренировок.
         </p>
         <button
-          className={onbDone ? "glow-anim" : undefined}
+          className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
           style={{
             ...s.ctaBig,
             ...(onbDone ? {} : s.disabledBtn),
-            border: "1px solid transparent",
+            border: highlightGenerateBtn ? "3px solid #FF6B6B" : "1px solid transparent",
+            boxShadow: highlightGenerateBtn 
+              ? "0 0 20px rgba(255, 107, 107, 0.6), 0 0 40px rgba(255, 107, 107, 0.4)" 
+              : s.ctaBig.boxShadow,
           }}
-          onClick={() => onbDone && navigate("/plan/one")}
+          onClick={() => {
+            if (!onbDone) return;
+            setHighlightGenerateBtn(false);
+            localStorage.removeItem("highlight_generate_btn");
+            navigate("/plan/one");
+          }}
           disabled={!onbDone}
           aria-disabled={!onbDone}
         >

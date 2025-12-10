@@ -54,28 +54,22 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         <div style={s.blockTitle}>🎓 Твой опыт тренировок</div>
         <div style={ux.row3Equal}>
           <ChipWide
-            label="Никогда не занимался в зале"
-            sub="Только начинаю свой путь"
-            active={experience === "never_trained"}
-            onClick={() => setExperience("never_trained")}
+            label="Новичок"
+            sub="0-6 месяцев опыта или перерыв"
+            active={experience === "beginner"}
+            onClick={() => setExperience("beginner")}
           />
           <ChipWide
-            label="Перерыв 3+ месяца"
-            sub="Раньше занимался, но тело отвыкло"
-            active={experience === "long_break"}
-            onClick={() => setExperience("long_break")}
+            label="Средний уровень"
+            sub="6 месяцев - 2 года регулярных тренировок"
+            active={experience === "intermediate"}
+            onClick={() => setExperience("intermediate")}
           />
           <ChipWide
-            label="Тренируюсь регулярно (< 1 года)"
-            sub="Хожу в зал, ещё учусь"
-            active={experience === "training_regularly"}
-            onClick={() => setExperience("training_regularly")}
-          />
-          <ChipWide
-            label="Тренируюсь давно (1+ год)"
-            sub="Знаю технику, тренируюсь стабильно"
-            active={experience === "training_experienced"}
-            onClick={() => setExperience("training_experienced")}
+            label="Продвинутый"
+            sub="2+ года, знаю технику и принципы"
+            active={experience === "advanced"}
+            onClick={() => setExperience("advanced")}
           />
         </div>
       </section>

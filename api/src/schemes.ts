@@ -92,10 +92,9 @@ schemes.post(
       else if (scheme.targetSex === sex) score += 15;
       
       // 4. Соответствие интенсивности опыту (вес: 15)
-      if (experience === 'never_trained' && scheme.intensity === 'low') score += 15;
-      else if (experience === 'long_break' && scheme.intensity === 'low') score += 15;
-      else if (experience === 'training_regularly' && scheme.intensity === 'moderate') score += 15;
-      else if (experience === 'training_experienced' && scheme.intensity === 'high') score += 15;
+      if (experience === 'beginner' && scheme.intensity === 'low') score += 15;
+      else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 15;
+      else if (experience === 'advanced' && scheme.intensity === 'high') score += 15;
       else if (scheme.intensity === 'moderate') score += 8; // универсальная интенсивность
       
       // 5. Бонусы за специфические комбинации
