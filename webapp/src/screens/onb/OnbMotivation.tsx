@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 export type Goal =
   | "lose_weight"
@@ -34,84 +34,8 @@ type Props = {
 export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Props) {
   // Цель
   const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "lose_weight");
-  const [accepted, setAccepted] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const canNext = useMemo(() => accepted, [accepted]);
-  useEffect(() => {
-    if (showTerms) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [showTerms]);
-  const termsSections = [
-    {
-      title: "1. О приложении",
-      body: [
-        "Moro — интеллектуальный фитнес-ассистент, создающий персонализированные программы тренировок и питания на основе ваших данных (возраст, вес, цели, опыт, оборудование и др.).",
-        "Приложение предназначено для образовательных и информационных целей и помогает структурировать тренировки на основе научных принципов фитнеса.",
-      ],
-    },
-    {
-      title: "2. Ограничения технологии",
-      body: [
-        "ИИ не заменяет очную консультацию врача и полноценное обследование.",
-        "ИИ не учитывает скрытые заболевания или состояния, о которых вы не знаете или не указали.",
-        "ИИ не заменяет индивидуальную работу с сертифицированным тренером, который наблюдает технику в реальном времени.",
-        "Приложение дополняет, но не заменяет медицинское наблюдение и тренерский контроль.",
-      ],
-    },
-    {
-      title: "3. Рекомендуем консультацию",
-      body: [
-        "Перед стартом тренировок желательно проконсультироваться с врачом, особенно если есть хронические заболевания, травмы, приём лекарств, беременность/послеродовый период, возраст 40+ без опыта тренировок или любые сомнения по здоровью.",
-      ],
-    },
-    {
-      title: "4. Ваша ответственность",
-      body: [
-        "Правдиво заполнять анкету о здоровье.",
-        "Выбирать адекватную нагрузку и соблюдать технику.",
-        "Прекращать тренировку при боли или дискомфорте.",
-        "Самостоятельное решение о старте без консультации врача принимаете вы.",
-      ],
-    },
-    {
-      title: "5. Признание рисков",
-      body: [
-        "Любые тренировки связаны с риском травм, результаты индивидуальны.",
-        "При неправильной технике или игнорировании сигналов тела возможны травмы.",
-        "При неприятных ощущениях (боль, головокружение, тошнота, одышка, учащённый пульс) — немедленно остановитесь и обратитесь к врачу.",
-      ],
-    },
-    {
-      title: "6. Ограничение ответственности",
-      body: [
-        "Разработчики FitAI не несут ответственности за травмы/ухудшение здоровья, неточности рекомендаций из-за неполных данных, тренировки без консультации врача, технические сбои.",
-      ],
-    },
-    {
-      title: "7. Не гарантия результатов",
-      body: [
-        "Нет гарантии конкретных результатов и сроков.",
-        "Возможны индивидуальные реакции организма и несоответствия скрытым особенностям здоровья.",
-      ],
-    },
-    {
-      title: "8. Актуальность информации",
-      body: [
-        "Алгоритмы обновляются, но информация может не всегда отражать самые последние исследования.",
-      ],
-    },
-    {
-      title: "9. Согласие",
-      body: [
-        "Используя приложение, вы подтверждаете, что прочитали и приняли условия, понимаете разницу между ИИ и профессиональным сопровождением и берёте ответственность на себя.",
-      ],
-    },
-  ];
+  const canNext = true; // Всегда можно перейти дальше
+  
   const goalInfo: Record<Goal, string[]> = {
     lose_weight: ["похудеть и улучшить композицию тела", "сбросить лишний вес, подтянуть фигуру"],
     build_muscle: ["набрать мышечную массу всего тела", "увеличить объём мышц равномерно"],
@@ -177,35 +101,19 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         </div>
       </section>
 
-      <div style={st.termsRow}>
-        <button
-          type="button"
-          onClick={() => setAccepted((v) => !v)}
-          style={{ ...st.circleCheck, ...(accepted ? st.circleCheckOn : {}) }}
-        >
-          {accepted ? "✓" : ""}
-        </button>
-        <span style={st.termsText}>
-          Я ознакомился и согласен с Условиями использования приложения{" "}
-          <button type="button" onClick={() => setShowTerms(true)} style={st.inlineLink}>
-            Подробнее
-          </button>
-        </span>
-      </div>
-
       {/* CTA — увеличенный размер как просили */}
       <button
         type="button"
         onClick={handleNext}
-        disabled={!canNext || !!loading}
+        disabled={!!loading}
         className="soft-glow"
         style={{
           ...st.primaryBtn,
-          opacity: !canNext || loading ? 0.6 : 1,
-          cursor: !canNext || loading ? "default" : "pointer",
+          opacity: loading ? 0.6 : 1,
+          cursor: loading ? "default" : "pointer",
         }}
       >
-        {loading ? "Сохранение…" : "Далее: выбор программы →"}
+        {loading ? "Сохранение…" : "Далее →"}
       </button>
 
       {onBack && (
@@ -215,33 +123,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       )}
 
       <div style={{ height: 76 }} />
-
-      {showTerms && (
-        <div style={st.modalOverlay}>
-          <div style={st.modalCard}>
-            <div style={st.modalHeader}>
-              <div style={st.modalTitle}>Условия использования и политика конфиденциальности</div>
-              <button style={st.modalClose} onClick={() => setShowTerms(false)}>
-                ✕
-              </button>
-            </div>
-            <div style={st.modalBody}>
-              {termsSections.map((section) => (
-                <div key={section.title} style={st.termsSection}>
-                  <div style={st.termsSectionTitle}>{section.title}</div>
-                  <ul style={st.termsSectionList}>
-                    {section.body.map((line) => (
-                      <li key={line} style={st.termsSectionItem}>
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -14,10 +14,22 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [recommended, setRecommended] = useState<WorkoutScheme | null>(null);
   const [alternatives, setAlternatives] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => {
     loadRecommendations();
   }, []);
+
+  useEffect(() => {
+    if (showTerms) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [showTerms]);
 
   async function loadRecommendations() {
     try {
@@ -35,6 +47,73 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       setLoading(false);
     }
   }
+
+  const termsSections = [
+    {
+      title: "1. О приложении",
+      body: [
+        "Moro — интеллектуальный фитнес-ассистент, создающий персонализированные программы тренировок и питания на основе ваших данных (возраст, вес, цели, опыт, оборудование и др.).",
+        "Приложение предназначено для образовательных и информационных целей и помогает структурировать тренировки на основе научных принципов фитнеса.",
+      ],
+    },
+    {
+      title: "2. Ограничения технологии",
+      body: [
+        "ИИ не заменяет очную консультацию врача и полноценное обследование.",
+        "ИИ не учитывает скрытые заболевания или состояния, о которых вы не знаете или не указали.",
+        "ИИ не заменяет индивидуальную работу с сертифицированным тренером, который наблюдает технику в реальном времени.",
+        "Приложение дополняет, но не заменяет медицинское наблюдение и тренерский контроль.",
+      ],
+    },
+    {
+      title: "3. Рекомендуем консультацию",
+      body: [
+        "Перед стартом тренировок желательно проконсультироваться с врачом, особенно если есть хронические заболевания, травмы, приём лекарств, беременность/послеродовый период, возраст 40+ без опыта тренировок или любые сомнения по здоровью.",
+      ],
+    },
+    {
+      title: "4. Ваша ответственность",
+      body: [
+        "Правдиво заполнять анкету о здоровье.",
+        "Выбирать адекватную нагрузку и соблюдать технику.",
+        "Прекращать тренировку при боли или дискомфорте.",
+        "Самостоятельное решение о старте без консультации врача принимаете вы.",
+      ],
+    },
+    {
+      title: "5. Признание рисков",
+      body: [
+        "Любые тренировки связаны с риском травм, результаты индивидуальны.",
+        "При неправильной технике или игнорировании сигналов тела возможны травмы.",
+        "При неприятных ощущениях (боль, головокружение, тошнота, одышка, учащённый пульс) — немедленно остановитесь и обратитесь к врачу.",
+      ],
+    },
+    {
+      title: "6. Ограничение ответственности",
+      body: [
+        "Разработчики FitAI не несут ответственности за травмы/ухудшение здоровья, неточности рекомендаций из-за неполных данных, тренировки без консультации врача, технические сбои.",
+      ],
+    },
+    {
+      title: "7. Не гарантия результатов",
+      body: [
+        "Нет гарантии конкретных результатов и сроков.",
+        "Возможны индивидуальные реакции организма и несоответствия скрытым особенностям здоровья.",
+      ],
+    },
+    {
+      title: "8. Актуальность информации",
+      body: [
+        "Алгоритмы обновляются, но информация может не всегда отражать самые последние исследования.",
+      ],
+    },
+    {
+      title: "9. Согласие",
+      body: [
+        "Используя приложение, вы подтверждаете, что прочитали и приняли условия, понимаете разницу между ИИ и профессиональным сопровождением и берёте ответственность на себя.",
+      ],
+    },
+  ];
 
   async function handleConfirm() {
     if (!selectedId) return;
@@ -112,13 +191,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         <div style={s.heroSubtitle}>
           Мы подобрали для тебя 3 варианта на основе твоих данных. Одна рекомендована тренером.
         </div>
-        
-        {/* Кнопка назад */}
-        {onBack && (
-          <button onClick={onBack} style={s.backBtn}>
-            ← Назад
-          </button>
-        )}
       </section>
 
       {/* Схемы */}
@@ -133,21 +205,72 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         ))}
       </div>
 
+      {/* Чекбокс условий использования */}
+      <div style={s.termsRow}>
+        <button
+          type="button"
+          onClick={() => setAccepted((v) => !v)}
+          style={{ ...s.circleCheck, ...(accepted ? s.circleCheckOn : {}) }}
+        >
+          {accepted ? "✓" : ""}
+        </button>
+        <span style={s.termsText}>
+          Я ознакомился и согласен с Условиями использования приложения{" "}
+          <button type="button" onClick={() => setShowTerms(true)} style={s.inlineLink}>
+            Подробнее
+          </button>
+        </span>
+      </div>
+
       {/* CTA */}
       <button
         onClick={handleConfirm}
-        disabled={!selectedId || saving}
+        disabled={!selectedId || !accepted || saving}
         className="soft-glow"
         style={{
           ...s.primaryBtn,
-          opacity: !selectedId || saving ? 0.6 : 1,
-          cursor: !selectedId || saving ? "default" : "pointer",
+          opacity: !selectedId || !accepted || saving ? 0.6 : 1,
+          cursor: !selectedId || !accepted || saving ? "default" : "pointer",
         }}
       >
-        {saving ? "Сохраняем..." : "Подтвердить выбор →"}
+        {saving ? "Сохраняем..." : "Перейти к тренировкам →"}
       </button>
 
+      {onBack && (
+        <button type="button" onClick={onBack} style={s.backTextBtn}>
+          Назад
+        </button>
+      )}
+
       {error && <div style={s.errorText}>{error}</div>}
+
+      {/* Модальное окно с терминами */}
+      {showTerms && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalCard}>
+            <div style={s.modalHeader}>
+              <div style={s.modalTitle}>Условия использования и политика конфиденциальности</div>
+              <button style={s.modalClose} onClick={() => setShowTerms(false)}>
+                ✕
+              </button>
+            </div>
+            <div style={s.modalBody}>
+              {termsSections.map((section) => (
+                <div key={section.title} style={s.termsSection}>
+                  <div style={s.termsSectionTitle}>{section.title}</div>
+                  <ul style={s.termsSectionList}>
+                    {section.body.map((line) => (
+                      <li key={line} style={s.termsSectionItem}>
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ height: 76 }} />
     </div>
@@ -336,20 +459,6 @@ const s: Record<string, React.CSSProperties> = {
   heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
   heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
   heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)", lineHeight: 1.4 },
-
-  backBtn: {
-    marginTop: 12,
-    padding: "8px 16px",
-    border: "1px solid rgba(255,255,255,0.2)",
-    borderRadius: 12,
-    background: "rgba(255,255,255,0.1)",
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    backdropFilter: "blur(6px)",
-    transition: "all 0.2s ease",
-  },
 
   schemeCard: {
     position: "relative",
@@ -547,5 +656,133 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     borderRadius: 10,
+  },
+
+  backTextBtn: {
+    marginTop: 10,
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: 600,
+    padding: "12px 16px",
+    cursor: "pointer",
+    textAlign: "center",
+  },
+
+  termsRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 14,
+    padding: "12px 14px",
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.06)",
+  },
+  circleCheck: {
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.2)",
+    background: "rgba(255,255,255,0.9)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    fontSize: 14,
+    color: "#fff",
+    transition: "all .15s ease",
+  },
+  circleCheckOn: {
+    background: "#0f172a",
+    border: "2px solid #0f172a",
+  },
+  termsText: {
+    fontSize: 13,
+    color: "#111827",
+    lineHeight: 1.4,
+  },
+  inlineLink: {
+    background: "none",
+    border: "none",
+    color: "#2563EB",
+    textDecoration: "underline",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    padding: 0,
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    display: "grid",
+    placeItems: "center",
+    zIndex: 999,
+    padding: 20,
+    backdropFilter: "blur(4px)",
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 540,
+    maxHeight: "90vh",
+    background: "#fff",
+    borderRadius: 20,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 20px",
+    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    background: "#f9fafb",
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#111827",
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    border: "none",
+    background: "rgba(0,0,0,0.06)",
+    fontSize: 18,
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+    color: "#111827",
+  },
+  modalBody: {
+    padding: 20,
+    overflowY: "auto",
+    flex: 1,
+  },
+  termsSection: {
+    marginBottom: 20,
+  },
+  termsSectionTitle: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#111827",
+    marginBottom: 8,
+  },
+  termsSectionList: {
+    margin: 0,
+    paddingLeft: 20,
+    lineHeight: 1.5,
+  },
+  termsSectionItem: {
+    fontSize: 13,
+    color: "#374151",
+    marginBottom: 6,
   },
 };
