@@ -1,7 +1,6 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 import { useEffect, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
-import robotImg from "@/assets/robot.png";
 
 type Props = {
   onComplete: () => void;
@@ -188,38 +187,22 @@ function SchemeCard({
         {isSelected && <div style={s.radioDot} />}
       </div>
 
-      {/* Контейнер с изображением и контентом */}
-      <div style={s.cardContent}>
-        {/* Изображение робота */}
-        <div style={s.robotImgContainer}>
-          <img src={robotImg} alt="robot" style={s.robotImg} />
-        </div>
-
-        {/* Основная информация */}
-        <div style={s.mainInfo}>
-          {/* Название */}
-          <div style={s.schemeName}>{displayName}</div>
-          
-          {/* Краткая инфо */}
-          <div style={s.schemeInfo}>
-            <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
-            <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
-            <span style={s.infoChip}>
-              {scheme.intensity === "low" ? "🟢 Лёгкая" : 
-               scheme.intensity === "moderate" ? "🟡 Средняя" : 
-               "🔴 Высокая"}
-            </span>
-          </div>
-
-          {/* Причина рекомендации */}
-          {scheme.reason && (
-            <div style={s.schemeReason}>
-              <div style={s.reasonIcon}>💡</div>
-              <div style={s.reasonText}>{scheme.reason}</div>
-            </div>
-          )}
-        </div>
+      {/* Название */}
+      <div style={s.schemeName}>{displayName}</div>
+      
+      {/* Краткая инфо */}
+      <div style={s.schemeInfo}>
+        <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
+        <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
+        <span style={s.infoChip}>
+          {scheme.intensity === "low" ? "🟢 Лёгкая" : 
+           scheme.intensity === "moderate" ? "🟡 Средняя" : 
+           "🔴 Высокая"}
+        </span>
       </div>
+
+      {/* Описание */}
+      <div style={s.schemeDescription}>{scheme.description}</div>
 
       {/* Разворачиваемая секция с деталями */}
       <button
@@ -235,11 +218,13 @@ function SchemeCard({
 
       {expanded && (
         <div style={s.detailsSection}>
-          {/* Описание */}
-          <div style={s.detailBlock}>
-            <div style={s.detailTitle}>📝 Описание</div>
-            <div style={s.schemeDescription}>{scheme.description}</div>
-          </div>
+          {/* Причина рекомендации */}
+          {scheme.reason && (
+            <div style={s.detailBlock}>
+              <div style={s.detailTitle}>💡 Почему эта схема</div>
+              <div style={s.reasonTextExpanded}>{scheme.reason}</div>
+            </div>
+          )}
 
           {/* Дни недели */}
           <div style={s.detailBlock}>
@@ -384,35 +369,6 @@ const s: Record<string, React.CSSProperties> = {
     transform: "scale(1.02)",
   },
 
-  cardContent: {
-    display: "flex",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-
-  robotImgContainer: {
-    flexShrink: 0,
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,240,255,0.9))",
-    border: "1.5px solid rgba(0,0,0,0.06)",
-    display: "grid",
-    placeItems: "center",
-    overflow: "hidden",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  },
-
-  robotImg: {
-    width: "85%",
-    height: "85%",
-    objectFit: "contain",
-  },
-
-  mainInfo: {
-    flex: 1,
-    marginTop: 4,
-  },
 
   recommendedBadge: {
     position: "absolute",
@@ -453,9 +409,11 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   schemeName: {
-    fontSize: 17,
-    fontWeight: 800,
+    fontSize: 18,
+    fontWeight: 850,
     color: "#0B1220",
+    marginTop: 8,
+    marginLeft: 32,
     marginBottom: 8,
     lineHeight: 1.3,
   },
@@ -464,6 +422,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     gap: 6,
     marginBottom: 10,
+    marginLeft: 32,
     flexWrap: "wrap",
   },
   infoChip: {
@@ -477,24 +436,19 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
 
-  schemeReason: {
-    display: "flex",
-    gap: 10,
-    padding: 12,
-    background: "rgba(255,255,255,0.85)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
-    marginBottom: 10,
+  schemeDescription: {
+    fontSize: 13,
+    color: "#1b1b1b",
+    lineHeight: 1.5,
+    marginBottom: 12,
+    fontWeight: 500,
   },
-  reasonIcon: {
-    fontSize: 18,
-    flexShrink: 0,
-  },
-  reasonText: {
+
+  reasonTextExpanded: {
     fontSize: 12.5,
     color: "#1b1b1b",
-    lineHeight: 1.4,
-    fontWeight: 600,
+    lineHeight: 1.5,
+    fontWeight: 500,
   },
 
   expandBtn: {
@@ -528,12 +482,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 800,
     color: "#0B1220",
-  },
-  schemeDescription: {
-    fontSize: 12.5,
-    color: "#1b1b1b",
-    lineHeight: 1.5,
-    fontWeight: 500,
   },
 
   daysList: {
