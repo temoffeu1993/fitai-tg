@@ -372,10 +372,10 @@ const s: Record<string, React.CSSProperties> = {
 
   recommendedBadge: {
     position: "absolute",
-    top: 12,
+    top: -10,
     right: 12,
-    background: "linear-gradient(135deg, rgba(236,227,255,.95) 0%, rgba(217,194,240,.95) 50%, rgba(255,216,194,.95) 100%)",
-    color: "#0B1220",
+    background: "#0f172a",
+    color: "#fff",
     padding: "6px 12px",
     borderRadius: "12px",
     fontSize: 11,
@@ -383,9 +383,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 4,
-    boxShadow: "0 2px 12px rgba(217, 194, 240, 0.4)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
+    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
+    border: "none",
   },
   recommendedText: {
     letterSpacing: 0.3,
