@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 import { useEffect, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
+import robotImg from "@/assets/robot.png";
 
 type Props = {
   onComplete: () => void;
@@ -187,22 +188,33 @@ function SchemeCard({
         {isSelected && <div style={s.radioDot} />}
       </div>
 
-      {/* Название */}
-      <div style={s.schemeName}>{displayName}</div>
-      
-      {/* Краткая инфо */}
-      <div style={s.schemeInfo}>
-        <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
-        <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
-        <span style={s.infoChip}>
-          {scheme.intensity === "low" ? "🟢 Лёгкая" : 
-           scheme.intensity === "moderate" ? "🟡 Средняя" : 
-           "🔴 Высокая"}
-        </span>
-      </div>
+      {/* Контент карточки с роботом */}
+      <div style={s.cardLayout}>
+        {/* Левая часть - текст */}
+        <div style={s.cardContent}>
+          {/* Название */}
+          <div style={s.schemeName}>{displayName}</div>
+          
+          {/* Краткая инфо */}
+          <div style={s.schemeInfo}>
+            <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн</span>
+            <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
+            <span style={s.infoChip}>
+              {scheme.intensity === "low" ? "🟢" : 
+               scheme.intensity === "moderate" ? "🟡" : 
+               "🔴"}
+            </span>
+          </div>
 
-      {/* Описание */}
-      <div style={s.schemeDescription}>{scheme.description}</div>
+          {/* Описание */}
+          <div style={s.schemeDescription}>{scheme.description}</div>
+        </div>
+
+        {/* Правая часть - 3D робот */}
+        <div style={s.robotContainer}>
+          <img src={robotImg} alt="AI Trainer" style={s.robotImage} />
+        </div>
+      </div>
 
       {/* Разворачиваемая секция с деталями */}
       <button
@@ -296,6 +308,7 @@ function SoftGlowStyles() {
       animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
       @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
       @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
+      @keyframes float{0%,100%{transform:rotate(-15deg) translateY(0px)}50%{transform:rotate(-15deg) translateY(-8px)}}
     `}</style>
   );
 }
@@ -353,39 +366,38 @@ const s: Record<string, React.CSSProperties> = {
 
   schemeCard: {
     position: "relative",
-    padding: 14,
-    borderRadius: 20,
-    background: "rgba(255,255,255,0.75)",
-    border: "2px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-    backdropFilter: "blur(12px)",
+    padding: 0,
+    borderRadius: 24,
+    background: "linear-gradient(135deg, #a8b5ff 0%, #c5b3ff 50%, #d4a5ff 100%)",
+    border: "none",
+    boxShadow: "0 8px 32px rgba(168, 181, 255, 0.3)",
+    overflow: "hidden",
     cursor: "pointer",
-    transition: "all 0.25s ease",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
   schemeCardSelected: {
-    background: GRAD,
-    border: "2px solid rgba(0,0,0,0.18)",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-    transform: "scale(1.02)",
+    background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #ffdab9 100%)",
+    boxShadow: "0 12px 48px rgba(255, 154, 158, 0.4)",
+    transform: "translateY(-4px) scale(1.02)",
   },
 
 
   recommendedBadge: {
     position: "absolute",
-    top: 12,
-    right: 12,
-    background: "linear-gradient(135deg, rgba(236,227,255,.95) 0%, rgba(217,194,240,.95) 50%, rgba(255,216,194,.95) 100%)",
-    color: "#0B1220",
-    padding: "6px 12px",
-    borderRadius: "12px",
+    top: 16,
+    right: 16,
+    background: "rgba(255,255,255,0.95)",
+    color: "#1b1b1b",
+    padding: "6px 14px",
+    borderRadius: "20px",
     fontSize: 11,
     fontWeight: 800,
     display: "flex",
     alignItems: "center",
     gap: 4,
-    boxShadow: "0 2px 12px rgba(217, 194, 240, 0.4)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+    backdropFilter: "blur(10px)",
+    zIndex: 2,
   },
   recommendedText: {
     letterSpacing: 0.3,
@@ -393,58 +405,95 @@ const s: Record<string, React.CSSProperties> = {
 
   radioCircle: {
     position: "absolute",
-    top: 16,
-    left: 16,
-    width: 24,
-    height: 24,
+    top: 20,
+    left: 20,
+    width: 28,
+    height: 28,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.3)",
-    background: "rgba(255,255,255,0.8)",
+    border: "3px solid rgba(255,255,255,0.9)",
+    background: "rgba(255,255,255,0.3)",
     display: "grid",
     placeItems: "center",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    backdropFilter: "blur(4px)",
+    zIndex: 2,
   },
   radioDot: {
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
     borderRadius: "50%",
-    background: "#0f172a",
+    background: "#fff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+  },
+
+  cardLayout: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    padding: "20px 16px 16px 56px",
+    minHeight: 180,
+    position: "relative",
+  },
+
+  cardContent: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    paddingRight: 12,
   },
 
   schemeName: {
-    fontSize: 18,
-    fontWeight: 850,
-    color: "#0B1220",
-    marginTop: 8,
-    marginLeft: 32,
-    marginRight: 32,
-    marginBottom: 8,
-    lineHeight: 1.3,
+    fontSize: 19,
+    fontWeight: 900,
+    color: "#1b1b1b",
+    lineHeight: 1.2,
+    textShadow: "0 1px 2px rgba(255,255,255,0.5)",
   },
 
   schemeInfo: {
     display: "flex",
-    gap: 6,
-    marginBottom: 10,
-    marginLeft: 32,
+    gap: 8,
     flexWrap: "wrap",
   },
   infoChip: {
-    background: "rgba(255,255,255,0.95)",
-    padding: "5px 10px",
-    borderRadius: 999,
-    fontSize: 10.5,
+    background: "rgba(255,255,255,0.85)",
+    padding: "6px 12px",
+    borderRadius: 16,
+    fontSize: 11,
     fontWeight: 700,
-    color: "#0B1220",
-    border: "1px solid rgba(0,0,0,0.08)",
+    color: "#1b1b1b",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    backdropFilter: "blur(4px)",
     whiteSpace: "nowrap",
   },
 
   schemeDescription: {
     fontSize: 13,
-    color: "#1b1b1b",
+    color: "rgba(0,0,0,0.75)",
     lineHeight: 1.5,
-    marginBottom: 12,
     fontWeight: 500,
+  },
+
+  robotContainer: {
+    position: "absolute",
+    right: -10,
+    bottom: -10,
+    width: 140,
+    height: 140,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+
+  robotImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.2))",
+    transform: "rotate(-15deg)",
+    animation: "float 3s ease-in-out infinite",
   },
 
   reasonTextExpanded: {
@@ -455,26 +504,30 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   expandBtn: {
-    width: "100%",
-    padding: "8px 12px",
+    width: "calc(100% - 32px)",
+    margin: "8px 16px 16px",
+    padding: "10px 16px",
     border: "none",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    color: "#0B1220",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.85)",
+    color: "#1b1b1b",
     fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",
-    marginTop: 6,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    backdropFilter: "blur(4px)",
+    transition: "all 0.2s ease",
   },
 
   detailsSection: {
-    marginTop: 12,
-    padding: 12,
-    background: "rgba(255,255,255,0.85)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
+    margin: "0 16px 16px",
+    padding: 16,
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 16,
+    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
     display: "grid",
-    gap: 12,
+    gap: 14,
   },
 
   detailBlock: {
