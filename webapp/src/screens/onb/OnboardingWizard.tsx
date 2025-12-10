@@ -4,6 +4,7 @@ import OnbAgeSex, { OnbAgeSexData } from "./OnbAgeSex";
 import OnbExperience, { OnbExperienceData } from "./OnbExperience";
 import OnbDiet, { OnbDietData } from "./OnbDiet";
 import OnbMotivation, { OnbMotivationData } from "./OnbMotivation";
+import OnbSchemeSelection from "./OnbSchemeSelection";
 // + API
 import { saveOnboarding } from "@/api/onboarding";
 
@@ -27,7 +28,7 @@ export default function OnboardingWizard() {
     localStorage.setItem("onb", JSON.stringify(merged));
   };
 
-  async function persistAndFinish() {
+  async function persistAndContinueToSchemeSelection() {
     setSaving(true);
     try {
       const payload = {
@@ -36,22 +37,33 @@ export default function OnboardingWizard() {
       };
       const summary = await saveOnboarding(payload);
       localStorage.setItem("onb_summary", JSON.stringify(summary ?? acc));
-      localStorage.setItem("onboarding_done", "1");
+      // НЕ ставим onboarding_done, так как нужен ещё выбор схемы
       try { localStorage.setItem("onb_complete", "1"); } catch {}
       try {
         const bc = new BroadcastChannel("onb");
-        bc.postMessage("onb_complete");
         bc.postMessage("onb_updated");
         bc.close();
       } catch {}
-      try { window.dispatchEvent(new Event("onb_complete")); } catch {}
       try { window.dispatchEvent(new Event("onb_updated")); } catch {}
-      window.location.pathname = "/";
+      // Переходим к выбору схемы
+      setStep(step + 1);
     } catch (e) {
       alert(`Ошибка сохранения: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
     }
+  }
+
+  function finishOnboarding() {
+    // Завершаем онбординг после выбора схемы
+    localStorage.setItem("onboarding_done", "1");
+    try {
+      const bc = new BroadcastChannel("onb");
+      bc.postMessage("onb_complete");
+      bc.close();
+    } catch {}
+    try { window.dispatchEvent(new Event("onb_complete")); } catch {}
+    window.location.pathname = "/";
   }
 
   const steps = [
@@ -81,7 +93,11 @@ export default function OnboardingWizard() {
       initial={acc as any}
       loading={saving}
       onBack={goBack}
-      onSubmit={(patch) => { saveLocal(patch); persistAndFinish(); }}
+      onSubmit={(patch) => { saveLocal(patch); persistAndContinueToSchemeSelection(); }}
+    />,
+    <OnbSchemeSelection
+      key="scheme"
+      onComplete={finishOnboarding}
     />,
   ];
 

@@ -9,7 +9,7 @@ export type Experience =
 
 export type OnbExperienceData = {
   experience: Experience;
-  schedule: { daysPerWeek: number };
+  schedule: { daysPerWeek: number; minutesPerSession: number };
 };
 
 type Props = {
@@ -25,11 +25,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
     (initial?.experience as Experience) ?? "never_trained"
   );
   const [daysPerWeek, setDaysPerWeek] = useState<number>(initial?.schedule?.daysPerWeek ?? 3);
-  const canNext = Boolean(experience && daysPerWeek);
+  const [minutesPerSession, setMinutesPerSession] = useState<number>(
+    initial?.schedule?.minutesPerSession ?? 60
+  );
+  const canNext = Boolean(experience && daysPerWeek && minutesPerSession);
 
   function handleNext() {
     if (!canNext || loading) return;
-    onSubmit({ experience, schedule: { daysPerWeek } });
+    onSubmit({ experience, schedule: { daysPerWeek, minutesPerSession } });
   }
 
   return (
@@ -37,7 +40,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
       {/* HERO — чёрный, как в OnbAgeSex/Dashboard */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
-          <span style={s.pill}>Шаг 2 из 4</span>
+          <span style={s.pill}>Шаг 2 из 5</span>
           <span style={s.pill}>Анкета</span>
         </div>
 
@@ -77,7 +80,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         </div>
       </section>
 
-      {/* Частота тренировок */}
+      {/* Частота и длительность тренировок */}
       <section style={ux.grid2Equal}>
         <div style={ux.cardMini}>
           <div style={ux.cardMiniTitle}>📅 Сколько раз в неделю?</div>
@@ -86,6 +89,20 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
               <Chip key={d} label={`${d}`} active={daysPerWeek === d} onClick={() => setDaysPerWeek(d)} />
             ))}
             <Chip label="6+" active={daysPerWeek >= 6} onClick={() => setDaysPerWeek(6)} />
+          </div>
+        </div>
+
+        <div style={ux.cardMini}>
+          <div style={ux.cardMiniTitle}>⏱️ Длительность тренировки</div>
+          <div style={ux.rowChips}>
+            {[30, 45, 60, 75, 90].map((m) => (
+              <Chip
+                key={m}
+                label={`${m}`}
+                active={minutesPerSession === m}
+                onClick={() => setMinutesPerSession(m)}
+              />
+            ))}
           </div>
         </div>
       </section>

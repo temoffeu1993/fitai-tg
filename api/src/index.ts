@@ -13,6 +13,7 @@ import { nutrition } from "./nutrition.js";
 import { schedule } from "./schedule.js";
 import { progress } from "./progress.js";
 import { profile as profileRouter } from "./profile.js";
+import { schemes } from "./schemes.js";
 import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler } from "./middleware/errorHandler.js";
 
@@ -28,6 +29,7 @@ app.get("/", (_req, res) => res.json({ ok: true }));
 app.use("/auth", authRouter);
 app.use(requireAuth, onboarding);
 app.use(requireAuth, profileRouter);
+app.use(requireAuth, schemes);
 app.use(
   "/plan",
   requireAuth,

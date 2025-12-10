@@ -149,7 +149,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       {/* HERO — чёрный, как на остальных онбординг-экранах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 4 из 4</span>
+          <span style={st.pill}>Шаг 4 из 5</span>
         <span style={st.pill}>Анкета</span>
         </div>
 
@@ -210,7 +210,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           cursor: !canNext || loading ? "default" : "pointer",
         }}
       >
-        {loading ? "Сохранение…" : "Перейти к тренировкам →"}
+        {loading ? "Сохранение…" : "Далее: выбор программы →"}
       </button>
 
       {onBack && (

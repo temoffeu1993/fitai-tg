@@ -88,7 +88,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       {/* HERO — чёрный, как на других онбординг-экранах */}
       <section style={st.heroCard}>
         <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 3 из 4</span>
+          <span style={st.pill}>Шаг 3 из 5</span>
           <span style={st.pill}>Анкета</span>
         </div>
 
