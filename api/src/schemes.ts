@@ -309,7 +309,7 @@ schemes.post(
     await q(
       `INSERT INTO user_workout_schemes (user_id, scheme_id)
        VALUES ($1, $2)
-       ON CONFLICT (user_id) DO UPDATE SET scheme_id = $2::uuid, selected_at = now()`,
+       ON CONFLICT (user_id) DO UPDATE SET scheme_id = $2, selected_at = now()`,
       [uid, schemeId]
     );
     

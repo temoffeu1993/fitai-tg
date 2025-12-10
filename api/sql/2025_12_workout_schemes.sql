@@ -1,13 +1,13 @@
 -- Таблица для хранения готовых схем тренировок
 CREATE TABLE IF NOT EXISTS workout_schemes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY, -- используем текстовые ID типа 'full_body_3x_classic'
   name TEXT NOT NULL,
   description TEXT NOT NULL,
   days_per_week INT NOT NULL,
   min_minutes INT NOT NULL, -- минимальная рекомендуемая длительность
   max_minutes INT NOT NULL, -- максимальная рекомендуемая длительность
   split_type TEXT NOT NULL, -- 'full_body', 'upper_lower', 'push_pull_legs', 'bro_split', etc.
-  experience_levels TEXT[] NOT NULL, -- ['never_trained', 'long_break', 'training_regularly', 'training_experienced']
+  experience_levels TEXT[] NOT NULL, -- ['beginner', 'intermediate', 'advanced']
   goals TEXT[] NOT NULL, -- ['lose_weight', 'build_muscle', 'athletic_body', 'lower_body_focus', 'strength', 'health_wellness']
   equipment_required TEXT[] NOT NULL, -- ['bodyweight', 'dumbbells', 'barbell', 'gym_full']
   day_labels JSONB NOT NULL, -- [{day: 1, label: 'Push', focus: '...'}]
@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_schemes_goals_gin ON workout_schemes USING GIN (g
 CREATE TABLE IF NOT EXISTS user_workout_schemes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  scheme_id UUID NOT NULL REFERENCES workout_schemes(id),
+  scheme_id TEXT NOT NULL REFERENCES workout_schemes(id), -- TEXT, не UUID!
   selected_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id)
 );
