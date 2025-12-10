@@ -44,32 +44,58 @@ schemes.post(
     const hasHealthLimits = data.health?.hasLimits || false;
     const healthLimitsText = data.health?.limitsText || "";
     
-    // Фильтруем схемы по базовым критериям
-    const candidateSchemes = workoutSchemes.filter(scheme => {
+    // Фильтруем схемы по базовым критериям (с fallback механизмом)
+    let candidateSchemes = workoutSchemes.filter(scheme => {
       // 1. Количество дней - только схемы с меньшим или равным количеством дней
-      // Пользователь может тренироваться МЕНЬШЕ, но не БОЛЬШЕ указанного
       if (scheme.daysPerWeek > daysPerWeek) return false;
-      // Но не берём схемы намного меньше (максимум -1 день)
       if (scheme.daysPerWeek < daysPerWeek - 1) return false;
       
       // 2. Опыт
       if (!scheme.experienceLevels.includes(experience)) return false;
       
-      // 3. Время тренировки должно вписываться в диапазон схемы
-      if (minutesPerSession < scheme.minMinutes || minutesPerSession > scheme.maxMinutes) {
-        // Даём небольшую погрешность ±15 минут
+      // 3. Время тренировки с погрешностью ±15 минут
+      const tolerance = 15;
+      if (minutesPerSession < scheme.minMinutes - tolerance || 
+          minutesPerSession > scheme.maxMinutes + tolerance) {
+        return false;
+      }
+      
+      // 4. Цель
+      if (!scheme.goals.includes(goal)) return false;
+      
+      return true;
+    });
+    
+    // FALLBACK: Если схем мало, смягчаем фильтры
+    if (candidateSchemes.length < 3) {
+      // Пробуем без ограничения по дням (берём ближайшие)
+      candidateSchemes = workoutSchemes.filter(scheme => {
+        if (!scheme.experienceLevels.includes(experience)) return false;
+        if (!scheme.goals.includes(goal)) return false;
         const tolerance = 15;
         if (minutesPerSession < scheme.minMinutes - tolerance || 
             minutesPerSession > scheme.maxMinutes + tolerance) {
           return false;
         }
-      }
+        return true;
+      });
+    }
+    
+    // FALLBACK 2: Если всё ещё мало, смягчаем опыт (берём соседние уровни)
+    if (candidateSchemes.length < 3) {
+      const experienceFallback = {
+        beginner: ['beginner', 'intermediate'],
+        intermediate: ['beginner', 'intermediate', 'advanced'],
+        advanced: ['intermediate', 'advanced']
+      };
       
-      // 4. Цель (хотя бы одна должна совпадать)
-      if (!scheme.goals.includes(goal)) return false;
-      
-      return true;
-    });
+      candidateSchemes = workoutSchemes.filter(scheme => {
+        const allowedLevels = experienceFallback[experience as keyof typeof experienceFallback] || [experience];
+        if (!scheme.experienceLevels.some(e => allowedLevels.includes(e))) return false;
+        if (!scheme.goals.includes(goal)) return false;
+        return true;
+      });
+    }
     
     if (candidateSchemes.length === 0) {
       throw new AppError("No suitable schemes found", 404);
@@ -83,24 +109,31 @@ schemes.post(
       
       // 1. Соответствие опыту (вес: 20)
       if (scheme.experienceLevels.includes(experience)) score += 20;
+      else score += 5; // fallback для соседних уровней
       
       // 2. Соответствие цели (вес: 25)
       if (scheme.goals.includes(goal)) score += 25;
       
-      // 3. Соответствие полу (вес: 15)
+      // 3. Точное совпадение дней (вес: 20) - НОВОЕ!
+      if (scheme.daysPerWeek === daysPerWeek) score += 20;
+      else if (scheme.daysPerWeek === daysPerWeek - 1) score += 10;
+      else score += Math.max(0, 10 - Math.abs(scheme.daysPerWeek - daysPerWeek) * 3);
+      
+      // 4. Соответствие полу (вес: 15)
       if (scheme.targetSex === 'any') score += 10;
       else if (scheme.targetSex === sex) score += 15;
       
-      // 4. Соответствие интенсивности опыту (вес: 15)
+      // 5. Соответствие интенсивности опыту (вес: 15)
       if (experience === 'beginner' && scheme.intensity === 'low') score += 15;
       else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 15;
       else if (experience === 'advanced' && scheme.intensity === 'high') score += 15;
       else if (scheme.intensity === 'moderate') score += 8; // универсальная интенсивность
       
-      // 5. Бонусы за специфические комбинации
+      // 6. Бонусы за специфические комбинации
       if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 10;
       if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.splitType.includes('strength'))) score += 10;
       if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 8;
+      if (goal === 'lose_weight' && (scheme.splitType.includes('metabolic') || scheme.name.includes('Fat Loss'))) score += 10;
       
       return score;
     }
@@ -179,22 +212,27 @@ schemes.post(
       return reasons.join(" ");
     }
     
-    // Формируем ответ
+    // Формируем ответ (с защитой от undefined)
+    // Гарантируем наличие всех 3 схем, дублируя первую если нужно
+    const scheme1 = selectedSchemes[0];
+    const scheme2 = selectedSchemes[1] || selectedSchemes[0];
+    const scheme3 = selectedSchemes[2] || selectedSchemes[1] || selectedSchemes[0];
+    
     const response = {
       recommended: {
-        ...selectedSchemes[0],
-        reason: generateReason(selectedSchemes[0], 'recommended'),
+        ...scheme1,
+        reason: generateReason(scheme1, 'recommended'),
         isRecommended: true,
       },
       alternatives: [
         {
-          ...selectedSchemes[1],
-          reason: generateReason(selectedSchemes[1], 'alt1'),
+          ...scheme2,
+          reason: selectedSchemes[1] ? generateReason(scheme2, 'alt1') : "Также подходит для ваших целей",
           isRecommended: false,
         },
         {
-          ...selectedSchemes[2],
-          reason: generateReason(selectedSchemes[2], 'alt2'),
+          ...scheme3,
+          reason: selectedSchemes[2] ? generateReason(scheme3, 'alt2') : "Хороший вариант для начала",
           isRecommended: false,
         },
       ],
