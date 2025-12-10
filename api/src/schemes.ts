@@ -73,114 +73,127 @@ schemes.post(
       throw new AppError("No suitable schemes found", 404);
     }
     
-    // Используем ИИ для выбора лучших 3 схем и генерации описаний
-    const userSexLabel = sex === "male" ? "мужской" : sex === "female" ? "женский" : "не указан";
-    const experienceLabels: Record<string, string> = {
-      never_trained: "Никогда не занимался в зале",
-      long_break: "Перерыв 3+ месяца",
-      training_regularly: "Тренируюсь регулярно (< 1 года)",
-      training_experienced: "Тренируюсь давно (1+ год)"
-    };
-    const goalLabels: Record<string, string> = {
-      lose_weight: "Похудеть",
-      build_muscle: "Набрать массу",
-      athletic_body: "Спортивное тело",
-      lower_body_focus: "Акцент на ноги и ягодицы",
-      strength: "Стать сильнее",
-      health_wellness: "Здоровье и самочувствие"
-    };
+    // Программный подбор схем на основе чётких критериев (надёжнее и быстрее чем AI)
     
-    const prompt = `
-Ты — профессиональный фитнес-тренер с 10+ летним опытом. На основе детального анализа данных пользователя выбери 3 наиболее подходящие схемы тренировок.
-
-ДАННЫЕ ПОЛЬЗОВАТЕЛЯ:
-• Возраст: ${age || "не указан"}
-• Пол: ${userSexLabel}
-• Опыт: ${experienceLabels[experience] || experience}
-• Основная цель: ${goalLabels[goal] || goal}
-• Частота: ${daysPerWeek} раз в неделю
-• Длительность: ${minutesPerSession} минут на тренировку
-${hasHealthLimits ? `• Ограничения по здоровью: ${healthLimitsText}` : ""}
-
-ДОСТУПНЫЕ СХЕМЫ (всего ${candidateSchemes.length}):
-${candidateSchemes.map((s, i) => `
-${i + 1}. "${s.name}" (${s.daysPerWeek} дней/нед, ${s.minMinutes}-${s.maxMinutes} мин)
-   Тип: ${s.splitType} | Интенсивность: ${s.intensity}
-   ${s.targetSex !== 'any' ? `Целевая аудитория: ${s.targetSex === 'female' ? 'женщины' : 'мужчины'}` : ''}
-   Описание: ${s.description}
-   Цели: ${s.goals.map(g => goalLabels[g] || g).join(", ")}
-   Уровни опыта: ${s.experienceLevels.map(e => experienceLabels[e] || e).join(", ")}
-   Структура: ${s.dayLabels.map(d => d.label).join(" → ")}
-   Преимущества:
-   ${s.benefits.map(b => `   - ${b}`).join("\n")}
-   ${s.notes ? `Примечание: ${s.notes}` : ""}
-`).join("\n")}
-
-КРИТЕРИИ ПОДБОРА:
-1. Соответствие опыту и целям пользователя
-2. Учёт пола и возраста (для женщин часто предпочтительнее схемы с акцентом на низ)
-3. Соответствие доступному времени
-4. Интенсивность должна соответствовать уровню подготовки
-5. Разнообразие предложенных вариантов (разные подходы к одной цели)
-
-ЗАДАЧА:
-Выбери 3 схемы и для каждой напиши персональное обоснование (3-4 предложения):
-1. РЕКОМЕНДОВАННАЯ — самая подходящая, объясни почему именно она идеальна
-2. АЛЬТЕРНАТИВА 1 — другой подход к той же цели, укажи её уникальные преимущества
-3. АЛЬТЕРНАТИВА 2 — ещё один вариант, покажи чем он отличается от первых двух
-
-Формат ответа (строго JSON):
-{
-  "recommended": {
-    "schemeIndex": 0,
-    "reason": "Детальное персональное обоснование почему эта схема идеально подходит этому пользователю..."
-  },
-  "alternatives": [
-    {
-      "schemeIndex": 1,
-      "reason": "Почему эта альтернатива тоже отличный выбор с другим подходом..."
-    },
-    {
-      "schemeIndex": 2,
-      "reason": "Уникальные преимущества этого варианта для пользователя..."
+    // Функция для подсчёта соответствия схемы пользователю
+    function scoreScheme(scheme: any): number {
+      let score = 0;
+      
+      // 1. Соответствие опыту (вес: 20)
+      if (scheme.experienceLevels.includes(experience)) score += 20;
+      
+      // 2. Соответствие цели (вес: 25)
+      if (scheme.goals.includes(goal)) score += 25;
+      
+      // 3. Соответствие полу (вес: 15)
+      if (scheme.targetSex === 'any') score += 10;
+      else if (scheme.targetSex === sex) score += 15;
+      
+      // 4. Соответствие интенсивности опыту (вес: 15)
+      if (experience === 'never_trained' && scheme.intensity === 'low') score += 15;
+      else if (experience === 'long_break' && scheme.intensity === 'low') score += 15;
+      else if (experience === 'training_regularly' && scheme.intensity === 'moderate') score += 15;
+      else if (experience === 'training_experienced' && scheme.intensity === 'high') score += 15;
+      else if (scheme.intensity === 'moderate') score += 8; // универсальная интенсивность
+      
+      // 5. Бонусы за специфические комбинации
+      if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 10;
+      if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.splitType.includes('strength'))) score += 10;
+      if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 8;
+      
+      return score;
     }
-  ]
-}
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "Ты профессиональный фитнес-тренер. Отвечай только в формате JSON." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 800,
-      response_format: { type: "json_object" },
-    });
-
-    const aiResponse = JSON.parse(completion.choices[0]?.message?.content || "{}");
+    
+    // Сортируем кандидатов по соответствию
+    const scoredSchemes = candidateSchemes
+      .map(s => ({ scheme: s, score: scoreScheme(s) }))
+      .sort((a, b) => b.score - a.score);
+    
+    // Выбираем топ-3 с учётом разнообразия типов сплитов
+    const selectedSchemes: any[] = [];
+    const usedSplitTypes = new Set<string>();
+    
+    // Первая схема - самая подходящая
+    if (scoredSchemes.length > 0) {
+      selectedSchemes.push(scoredSchemes[0].scheme);
+      usedSplitTypes.add(scoredSchemes[0].scheme.splitType);
+    }
+    
+    // Вторая и третья - стараемся выбрать разные типы
+    for (const item of scoredSchemes.slice(1)) {
+      if (selectedSchemes.length >= 3) break;
+      
+      // Предпочитаем разные типы сплитов
+      if (!usedSplitTypes.has(item.scheme.splitType)) {
+        selectedSchemes.push(item.scheme);
+        usedSplitTypes.add(item.scheme.splitType);
+      }
+    }
+    
+    // Если всё ещё меньше 3, добавляем просто по скору
+    for (const item of scoredSchemes.slice(1)) {
+      if (selectedSchemes.length >= 3) break;
+      if (!selectedSchemes.includes(item.scheme)) {
+        selectedSchemes.push(item.scheme);
+      }
+    }
+    
+    // Генерируем персональные обоснования
+    function generateReason(scheme: any, position: 'recommended' | 'alt1' | 'alt2'): string {
+      const reasons: string[] = [];
+      
+      // Основное обоснование в зависимости от позиции
+      if (position === 'recommended') {
+        reasons.push(`Схема "${scheme.name}" — оптимальный выбор для ваших целей.`);
+      } else if (position === 'alt1') {
+        reasons.push(`Схема "${scheme.name}" — отличная альтернатива с немного другим подходом.`);
+      } else {
+        reasons.push(`Схема "${scheme.name}" — ещё один эффективный вариант для рассмотрения.`);
+      }
+      
+      // Добавляем конкретные преимущества
+      if (scheme.goals.includes(goal)) {
+        const goalMap: Record<string, string> = {
+          lose_weight: "направлена на жиросжигание и улучшение метаболизма",
+          build_muscle: "оптимизирована для набора мышечной массы",
+          athletic_body: "формирует гармоничное спортивное телосложение",
+          lower_body_focus: "делает акцент на развитие ног и ягодиц",
+          strength: "развивает силовые показатели",
+          health_wellness: "улучшает общее самочувствие и здоровье"
+        };
+        reasons.push(`Она ${goalMap[goal] || "соответствует вашей цели"}.`);
+      }
+      
+      // Частота
+      reasons.push(`${scheme.daysPerWeek} тренировки в неделю обеспечивают оптимальный баланс нагрузки и восстановления.`);
+      
+      // Интенсивность
+      const intensityMap = {
+        low: "Мягкая интенсивность подходит для комфортного входа в тренировочный процесс",
+        moderate: "Умеренная интенсивность — золотая середина для стабильного прогресса",
+        high: "Высокая интенсивность максимизирует результаты при правильном восстановлении"
+      };
+      reasons.push(intensityMap[scheme.intensity as keyof typeof intensityMap] + ".");
+      
+      return reasons.join(" ");
+    }
     
     // Формируем ответ
-    const recommendedScheme = candidateSchemes[aiResponse.recommended?.schemeIndex || 0];
-    const alternative1 = candidateSchemes[aiResponse.alternatives?.[0]?.schemeIndex || 1 % candidateSchemes.length];
-    const alternative2 = candidateSchemes[aiResponse.alternatives?.[1]?.schemeIndex || 2 % candidateSchemes.length];
-    
     const response = {
       recommended: {
-        ...recommendedScheme,
-        reason: aiResponse.recommended?.reason || "Наиболее подходящая схема для ваших целей",
+        ...selectedSchemes[0],
+        reason: generateReason(selectedSchemes[0], 'recommended'),
         isRecommended: true,
       },
       alternatives: [
         {
-          ...alternative1,
-          reason: aiResponse.alternatives?.[0]?.reason || "Хорошая альтернатива",
+          ...selectedSchemes[1],
+          reason: generateReason(selectedSchemes[1], 'alt1'),
           isRecommended: false,
         },
         {
-          ...alternative2,
-          reason: aiResponse.alternatives?.[1]?.reason || "Ещё один вариант для рассмотрения",
+          ...selectedSchemes[2],
+          reason: generateReason(selectedSchemes[2], 'alt2'),
           isRecommended: false,
         },
       ],
