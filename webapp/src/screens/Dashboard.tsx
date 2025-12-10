@@ -392,10 +392,7 @@ export default function Dashboard() {
           style={{
             ...s.ctaBig,
             ...(onbDone ? {} : s.disabledBtn),
-            border: highlightGenerateBtn ? "3px solid #FF6B6B" : "1px solid transparent",
-            boxShadow: highlightGenerateBtn 
-              ? "0 0 20px rgba(255, 107, 107, 0.6), 0 0 40px rgba(255, 107, 107, 0.4)" 
-              : s.ctaBig.boxShadow,
+            border: "1px solid transparent",
           }}
           onClick={() => {
             if (!onbDone) return;
