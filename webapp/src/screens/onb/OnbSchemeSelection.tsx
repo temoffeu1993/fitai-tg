@@ -1,9 +1,11 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 import { useEffect, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
+import robotImg from "@/assets/robot.png";
 
 type Props = {
   onComplete: () => void;
+  onBack?: () => void;
 };
 
 export default function OnbSchemeSelection({ onComplete }: Props) {
@@ -69,7 +71,7 @@ export default function OnbSchemeSelection({ onComplete }: Props) {
             <span style={s.pill}>Анкета</span>
           </div>
           <div style={s.heroTitle}>Подбираем схему тренировок...</div>
-          <div style={s.heroSubtitle}>ИИ анализирует твои данные</div>
+          <div style={s.heroSubtitle}>Анализируем твои данные</div>
           
           <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
             <Spinner />
@@ -109,8 +111,15 @@ export default function OnbSchemeSelection({ onComplete }: Props) {
         <div style={s.heroKicker}>Схема тренировок</div>
         <div style={s.heroTitle}>Выбери программу 🏋️</div>
         <div style={s.heroSubtitle}>
-          ИИ подобрал для тебя 3 варианта на основе твоих данных. Одна рекомендована тренером.
+          Мы подобрали для тебя 3 варианта на основе твоих данных. Одна рекомендована тренером.
         </div>
+        
+        {/* Кнопка назад */}
+        {onBack && (
+          <button onClick={onBack} style={s.backBtn}>
+            ← Назад
+          </button>
+        )}
       </section>
 
       {/* Схемы */}
@@ -156,6 +165,7 @@ function SchemeCard({
   onSelect: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const displayName = (scheme as any).russianName || scheme.name;
 
   return (
     <div
@@ -178,30 +188,38 @@ function SchemeCard({
         {isSelected && <div style={s.radioDot} />}
       </div>
 
-      {/* Название */}
-      <div style={s.schemeName}>{scheme.name}</div>
-      
-      {/* Краткая инфо */}
-      <div style={s.schemeInfo}>
-        <span style={s.infoChip}>📅 {scheme.daysPerWeek} дней/нед</span>
-        <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
-        <span style={s.infoChip}>
-          {scheme.intensity === "low" ? "🟢 Лёгкая" : 
-           scheme.intensity === "moderate" ? "🟡 Средняя" : 
-           "🔴 Высокая"}
-        </span>
-      </div>
-
-      {/* Описание */}
-      <div style={s.schemeDescription}>{scheme.description}</div>
-
-      {/* Причина рекомендации */}
-      {scheme.reason && (
-        <div style={s.schemeReason}>
-          <div style={s.reasonIcon}>💡</div>
-          <div style={s.reasonText}>{scheme.reason}</div>
+      {/* Контейнер с изображением и контентом */}
+      <div style={s.cardContent}>
+        {/* Изображение робота */}
+        <div style={s.robotImgContainer}>
+          <img src={robotImg} alt="robot" style={s.robotImg} />
         </div>
-      )}
+
+        {/* Основная информация */}
+        <div style={s.mainInfo}>
+          {/* Название */}
+          <div style={s.schemeName}>{displayName}</div>
+          
+          {/* Краткая инфо */}
+          <div style={s.schemeInfo}>
+            <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
+            <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
+            <span style={s.infoChip}>
+              {scheme.intensity === "low" ? "🟢 Лёгкая" : 
+               scheme.intensity === "moderate" ? "🟡 Средняя" : 
+               "🔴 Высокая"}
+            </span>
+          </div>
+
+          {/* Причина рекомендации */}
+          {scheme.reason && (
+            <div style={s.schemeReason}>
+              <div style={s.reasonIcon}>💡</div>
+              <div style={s.reasonText}>{scheme.reason}</div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Разворачиваемая секция с деталями */}
       <button
@@ -217,6 +235,12 @@ function SchemeCard({
 
       {expanded && (
         <div style={s.detailsSection}>
+          {/* Описание */}
+          <div style={s.detailBlock}>
+            <div style={s.detailTitle}>📝 Описание</div>
+            <div style={s.schemeDescription}>{scheme.description}</div>
+          </div>
+
           {/* Дни недели */}
           <div style={s.detailBlock}>
             <div style={s.detailTitle}>📋 Структура недели</div>
@@ -247,7 +271,7 @@ function SchemeCard({
           {/* Заметки */}
           {scheme.notes && (
             <div style={s.detailBlock}>
-              <div style={s.detailTitle}>📝 Примечание</div>
+              <div style={s.detailTitle}>💬 Примечание</div>
               <div style={s.notesText}>{scheme.notes}</div>
             </div>
           )}
@@ -328,21 +352,66 @@ const s: Record<string, React.CSSProperties> = {
   heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
   heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)", lineHeight: 1.4 },
 
+  backBtn: {
+    marginTop: 12,
+    padding: "8px 16px",
+    border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.1)",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    backdropFilter: "blur(6px)",
+    transition: "all 0.2s ease",
+  },
+
   schemeCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.7)",
+    padding: 14,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.75)",
     border: "2px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(10px)",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+    backdropFilter: "blur(12px)",
     cursor: "pointer",
-    transition: "all 0.2s ease",
+    transition: "all 0.25s ease",
   },
   schemeCardSelected: {
     background: GRAD,
-    border: "2px solid rgba(0,0,0,0.15)",
-    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+    border: "2px solid rgba(0,0,0,0.18)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+    transform: "scale(1.02)",
+  },
+
+  cardContent: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+  },
+
+  robotImgContainer: {
+    flexShrink: 0,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,240,255,0.9))",
+    border: "1.5px solid rgba(0,0,0,0.06)",
+    display: "grid",
+    placeItems: "center",
+    overflow: "hidden",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  },
+
+  robotImg: {
+    width: "85%",
+    height: "85%",
+    objectFit: "contain",
+  },
+
+  mainInfo: {
+    flex: 1,
+    marginTop: 4,
   },
 
   recommendedBadge: {
@@ -384,36 +453,28 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   schemeName: {
-    fontSize: 18,
-    fontWeight: 850,
+    fontSize: 17,
+    fontWeight: 800,
     color: "#0B1220",
-    marginTop: 8,
-    marginLeft: 32,
     marginBottom: 8,
+    lineHeight: 1.3,
   },
 
   schemeInfo: {
     display: "flex",
-    gap: 8,
+    gap: 6,
     marginBottom: 10,
     flexWrap: "wrap",
   },
   infoChip: {
-    background: "rgba(255,255,255,0.9)",
-    padding: "4px 10px",
+    background: "rgba(255,255,255,0.95)",
+    padding: "5px 10px",
     borderRadius: 999,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 700,
     color: "#0B1220",
     border: "1px solid rgba(0,0,0,0.08)",
-  },
-
-  schemeDescription: {
-    fontSize: 13,
-    color: "#1b1b1b",
-    lineHeight: 1.4,
-    marginBottom: 10,
-    fontWeight: 500,
+    whiteSpace: "nowrap",
   },
 
   schemeReason: {
@@ -467,6 +528,12 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 800,
     color: "#0B1220",
+  },
+  schemeDescription: {
+    fontSize: 12.5,
+    color: "#1b1b1b",
+    lineHeight: 1.5,
+    fontWeight: 500,
   },
 
   daysList: {

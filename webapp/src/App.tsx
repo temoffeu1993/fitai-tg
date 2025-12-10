@@ -120,6 +120,7 @@ function StepSchemeSelection() {
         reset();
         nav("/"); // Редирект на дашборд
       }}
+      onBack={() => nav("/onb/motivation")}
     />
   );
 }

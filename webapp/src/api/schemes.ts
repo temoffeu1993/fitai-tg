@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/apiClient";
 export type WorkoutScheme = {
   id: string;
   name: string;
+  russianName?: string; // понятное название на русском
   description: string;
   daysPerWeek: number;
   minMinutes: number;

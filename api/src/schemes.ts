@@ -221,17 +221,20 @@ schemes.post(
     const response = {
       recommended: {
         ...scheme1,
+        russianName: (scheme1 as any).russianName,
         reason: generateReason(scheme1, 'recommended'),
         isRecommended: true,
       },
       alternatives: [
         {
           ...scheme2,
+          russianName: (scheme2 as any).russianName,
           reason: selectedSchemes[1] ? generateReason(scheme2, 'alt1') : "Также подходит для ваших целей",
           isRecommended: false,
         },
         {
           ...scheme3,
+          russianName: (scheme3 as any).russianName,
           reason: selectedSchemes[2] ? generateReason(scheme3, 'alt2') : "Хороший вариант для начала",
           isRecommended: false,
         },
