@@ -24,18 +24,6 @@ const LOCAL_RESET_KEYS = [
   "planned_workout_id",
 ];
 
-// мини-спиннер для загрузки комментария
-function MiniSpinner() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 50 50" aria-hidden>
-      <circle cx="25" cy="25" r="20" stroke="#8a64ff" strokeWidth="5" fill="none" opacity="0.25" />
-      <circle cx="25" cy="25" r="20" stroke="#6a8dff" strokeWidth="5" fill="none" strokeLinecap="round"
-        strokeDasharray="110" strokeDashoffset="80">
-        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.9s" repeatCount="indefinite"/>
-      </circle>
-    </svg>
-  );
-}
 
 export default function Profile() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -47,8 +35,6 @@ export default function Profile() {
     life: false,
     mot: false,
   });
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [tgProfile, setTgProfile] = useState<any>(null);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -63,34 +49,6 @@ export default function Profile() {
     setLoaded(true);
   }, []);
 
-  // Ленивый фетч комментария ИИ
-  useEffect(() => {
-    if (!feedback && summary) {
-      (async () => {
-        try {
-          setLoadingFeedback(true);
-          const resp = await apiFetch("/onboarding/feedback", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ data: summary }),
-          });
-          if (resp.ok) {
-            const { feedback: text } = await resp.json();
-            setFeedback(text || null);
-            if (text) {
-              localStorage.setItem("onb_feedback", text);
-              localStorage.removeItem("onb_feedback_pending");
-            }
-          }
-        } catch (e) {
-          console.error("feedback fetch error", e);
-        } finally {
-          setLoadingFeedback(false);
-        }
-      })();
-    }
-  }, [feedback, summary]);
 
   // автообновление без перезагрузки
   function readAll() {
@@ -106,36 +64,12 @@ export default function Profile() {
       setTgProfile(null);
     }
 
-    const pending = localStorage.getItem("onb_feedback_pending") === "1";
-    const fb = localStorage.getItem("onb_feedback");
-    if (pending) {
-      setFeedback(null);
-      setLoadingFeedback(true);
-    } else if (fb) {
-      setFeedback(fb);
-      setLoadingFeedback(false);
-    } else {
-      setLoadingFeedback(true);
-    }
   }
 
   useEffect(() => {
     readAll();
     setLoaded(true);
 
-    let tries = 0;
-    const t = setInterval(() => {
-      const fb = localStorage.getItem("onb_feedback");
-      if (fb) {
-        setFeedback(fb);
-        setLoadingFeedback(false);
-        localStorage.removeItem("onb_feedback_pending");
-        clearInterval(t);
-      } else if (++tries > 30) {
-        setLoadingFeedback(false);
-        clearInterval(t);
-      }
-    }, 500);
 
     const onFocus = () => readAll();
     window.addEventListener("focus", onFocus);
@@ -274,20 +208,6 @@ export default function Profile() {
         <Skeleton />
       ) : (
         <>
-          {/* Комментарий тренера — белый стеклянный блок как фирменные чипы */}
-          {(feedback || loadingFeedback) && (
-            <section style={st.glassBlock}>
-              <div style={st.blockTitle}>Комментарий тренера 🤖💬</div>
-              {loadingFeedback ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, ...st.feedbackText, fontSize: 12 }}>
-                  <MiniSpinner />
-                  <span>Готовлю комментарий…</span>
-                </div>
-              ) : (
-                <div style={{ ...st.feedbackText, fontSize: 12 }}>{feedback}</div>
-              )}
-            </section>
-          )}
 
           {/* Все нижние блоки — стеклянные. Внутри строки тоже стеклянные. */}
           <Accordion

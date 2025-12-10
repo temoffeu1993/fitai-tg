@@ -17,7 +17,7 @@ type Props = {
 };
 
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
-  const [name, setName] = useState<string>(initial?.profile?.name ?? "");
+  // Имя берётся из Telegram автоматически, не спрашиваем пользователя
   const [sex, setSex] = useState<Sex>((initial?.ageSex?.sex as Sex) ?? "male");
   const [age, setAge] = useState<string>((initial?.ageSex?.age ?? "").toString());
   const [height, setHeight] = useState<string>((initial?.body?.height ?? "").toString());
@@ -47,7 +47,6 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
   const cat = bmiCategory(bmi);
 
   const canNext =
-    name.trim().length > 1 &&
     ["male", "female"].includes(sex) &&
     Number.isFinite(num(age)) &&
     Number.isFinite(h) &&
@@ -56,7 +55,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
   function handleNext() {
     if (!canNext || loading) return;
     onSubmit({
-      profile: { name: name.trim() },
+      profile: { name: initial?.profile?.name || "Спортсмен" }, // Имя из Telegram или дефолт
       ageSex: { sex, age: Number(num(age)) },
       body: { height: h, weight: w },
     });
@@ -78,20 +77,8 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.heroSubtitle}>Укажи базу. План станет точнее.</div>
       </section>
 
-      {/* Ряд 1: Имя / Возраст / Пол — стеклянные карточки */}
-      <section style={s.grid3Equal}>
-        <div style={ux.cardMini}>
-          <div style={ux.cardMiniTitle}>🙂 Имя</div>
-          <div style={ux.center}>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Тёма"
-              style={ux.inputGlass}
-            />
-          </div>
-        </div>
-
+      {/* Ряд 1: Возраст / Пол — стеклянные карточки */}
+      <section style={s.grid2Equal}>
         <div style={ux.cardMini}>
           <div style={ux.cardMiniTitle}>🎂 Возраст</div>
           <div style={ux.center}>
@@ -259,6 +246,14 @@ const s: Record<string, React.CSSProperties> = {
 
   bmiTitle: { fontSize: 15, fontWeight: 800, color: "#0B1220", marginBottom: 6 },
   bmiHint: { fontSize: 13.5, color: "#374151" },
+
+  grid2Equal: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+    marginTop: 10,
+    alignItems: "stretch",
+  },
 
   grid3Equal: {
     display: "grid",

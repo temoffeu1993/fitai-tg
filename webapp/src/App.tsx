@@ -107,8 +107,7 @@ function StepSchemeSelection() {
       onComplete={() => {
         // Завершаем онбординг
         localStorage.setItem("onboarding_done", "1");
-        localStorage.setItem("onb_feedback", "");
-        localStorage.setItem("onb_feedback_pending", "1");
+        localStorage.setItem("highlight_generate_btn", "1"); // Флаг для подсветки кнопки
         
         try {
           const bc = new BroadcastChannel("onb");
@@ -119,26 +118,7 @@ function StepSchemeSelection() {
         try { window.dispatchEvent(new Event("onb_complete")); } catch {}
         
         reset();
-        nav("/profile");
-
-        // Фон: запрашиваем комментарий тренера
-        (async () => {
-          try {
-            const onbData = JSON.parse(localStorage.getItem("onb_summary") || "{}");
-            const resp = await apiFetch("/onboarding/feedback", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ data: onbData }),
-            });
-            if (resp.ok) {
-              const { feedback } = await resp.json();
-              if (feedback) localStorage.setItem("onb_feedback", feedback);
-            }
-          } catch (e) {
-            console.error("feedback error", e);
-          }
-        })();
+        nav("/"); // Редирект на дашборд
       }}
     />
   );
