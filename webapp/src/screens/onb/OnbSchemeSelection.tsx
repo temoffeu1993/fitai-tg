@@ -294,7 +294,7 @@ function SchemeCard({
 
   return (
     <div
-      className="scheme-enter"
+      className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
       style={{
         ...s.schemeCard,
         ...(isSelected ? s.schemeCardSelected : {}),
@@ -438,12 +438,19 @@ function SoftGlowStyles() {
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes shine {
-        0% { left: -100%; }
-        20% { left: 100%; }
-        100% { left: 100%; }
+        0% { left: -120%; }
+        35% { left: 120%; }
+        100% { left: 120%; }
       }
       .scheme-enter {
         animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      }
+      .scheme-card:hover {
+        transform: translateY(-4px) scale(1.005);
+        box-shadow: 0 16px 44px rgba(15,23,42,0.16), 0 1px 3px rgba(0,0,0,0.08);
+      }
+      .scheme-card.selected {
+        box-shadow: 0 18px 52px rgba(15,23,42,0.18), 0 0 0 2px #0f172a;
       }
     `}</style>
   );
@@ -458,7 +465,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     padding: 16,
     fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "transparent",
+    background: "radial-gradient(circle at 20% 20%, rgba(236,227,255,0.45), transparent 28%), radial-gradient(circle at 80% 10%, rgba(255,216,194,0.35), transparent 22%), #f7f9fb",
     minHeight: "100vh",
   },
 
@@ -490,9 +497,9 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     padding: 20,
     borderRadius: 24,
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+    background: "rgba(255,255,255,0.9)",
+    border: "1px solid rgba(255,255,255,0.7)",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
     backdropFilter: "blur(20px)",
     WebkitBackdropFilter: "blur(20px)",
     cursor: "pointer",
@@ -501,15 +508,15 @@ const s: Record<string, React.CSSProperties> = {
   },
   schemeCardSelected: {
     background: "#fff",
-    border: "1px solid rgba(0,0,0,0.0)",
-    boxShadow: "0 12px 48px rgba(15, 23, 42, 0.12), 0 0 0 2px #0f172a",
+    border: "1px solid rgba(0,0,0,0.02)",
+    boxShadow: "0 16px 52px rgba(15, 23, 42, 0.16), 0 0 0 2px #0f172a",
     transform: "translateY(-4px) scale(1.01)",
     zIndex: 2,
   },
 
   recommendedBadge: {
     position: "absolute",
-    top: -12,
+    top: -14,
     right: 20,
     background: "#0f172a",
     color: "#fff",
@@ -520,8 +527,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 6,
-    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.25)",
-    border: "2px solid #fff",
+    boxShadow: "0 10px 26px rgba(15, 23, 42, 0.24)",
+    border: "2px solid rgba(255,255,255,0.9)",
     overflow: "hidden",
     zIndex: 10,
   },
