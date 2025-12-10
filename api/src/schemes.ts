@@ -46,9 +46,11 @@ schemes.post(
     
     // Фильтруем схемы по базовым критериям
     const candidateSchemes = workoutSchemes.filter(scheme => {
-      // 1. Количество дней (точное совпадение или ±1)
-      const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
-      if (daysDiff > 1) return false;
+      // 1. Количество дней - только схемы с меньшим или равным количеством дней
+      // Пользователь может тренироваться МЕНЬШЕ, но не БОЛЬШЕ указанного
+      if (scheme.daysPerWeek > daysPerWeek) return false;
+      // Но не берём схемы намного меньше (максимум -1 день)
+      if (scheme.daysPerWeek < daysPerWeek - 1) return false;
       
       // 2. Опыт
       if (!scheme.experienceLevels.includes(experience)) return false;
