@@ -164,7 +164,7 @@ function SchemeCard({
   onSelect: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const displayName = (scheme as any).russianName || scheme.name;
+  const displayName = scheme.name;
 
   return (
     <div

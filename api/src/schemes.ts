@@ -186,15 +186,14 @@ schemes.post(
     // Генерируем персональные обоснования
     function generateReason(scheme: any, position: 'recommended' | 'alt1' | 'alt2'): string {
       const reasons: string[] = [];
-      const schemeName = scheme.russianName || scheme.name;
       
       // Основное обоснование в зависимости от позиции
       if (position === 'recommended') {
-        reasons.push(`Схема "${schemeName}" — оптимальный выбор для ваших целей.`);
+        reasons.push(`Схема "${scheme.name}" — оптимальный выбор для ваших целей.`);
       } else if (position === 'alt1') {
-        reasons.push(`Схема "${schemeName}" — отличная альтернатива с немного другим подходом.`);
+        reasons.push(`Схема "${scheme.name}" — отличная альтернатива с немного другим подходом.`);
       } else {
-        reasons.push(`Схема "${schemeName}" — ещё один эффективный вариант для рассмотрения.`);
+        reasons.push(`Схема "${scheme.name}" — ещё один эффективный вариант для рассмотрения.`);
       }
       
       // Добавляем конкретные преимущества
@@ -233,20 +232,17 @@ schemes.post(
     const response = {
       recommended: {
         ...scheme1,
-        russianName: (scheme1 as any).russianName,
         reason: generateReason(scheme1, 'recommended'),
         isRecommended: true,
       },
       alternatives: [
         {
           ...scheme2,
-          russianName: (scheme2 as any).russianName,
           reason: selectedSchemes[1] ? generateReason(scheme2, 'alt1') : "Также подходит для ваших целей",
           isRecommended: false,
         },
         {
           ...scheme3,
-          russianName: (scheme3 as any).russianName,
           reason: selectedSchemes[2] ? generateReason(scheme3, 'alt2') : "Хороший вариант для начала",
           isRecommended: false,
         },
