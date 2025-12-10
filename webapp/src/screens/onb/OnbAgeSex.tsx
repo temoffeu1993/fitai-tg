@@ -271,8 +271,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 18px",
     fontSize: 16,
     fontWeight: 800,
-    color: "#000",
-    background: GRAD,
+    color: "#fff",
+    background: "#0f172a",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
 
@@ -344,7 +344,7 @@ const ux: Record<string, React.CSSProperties> = {
 chipActive: {
   background: "#0f172a",
   border: "none",
-  boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   color: "#fff",
 },
   chipText: { color: "#111827", fontWeight: 800, letterSpacing: 0.4 },

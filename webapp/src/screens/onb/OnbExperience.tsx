@@ -229,10 +229,9 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 18px",
     fontSize: 16,
     fontWeight: 800,
-    color: "#000",
-    background: GRAD,
-    // тень как у чипов пола
-    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+    color: "#fff",
+    background: "#0f172a",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
 
   backTextBtn: {
@@ -301,7 +300,7 @@ const ux: Record<string, React.CSSProperties> = {
     background: "#0f172a",
     color: "#fff",
     border: "none",
-    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
   chipText: { color: "#111827", letterSpacing: 0.4 },
   chipTextActive: { color: "#fff", letterSpacing: 0.4 },
@@ -323,7 +322,7 @@ const ux: Record<string, React.CSSProperties> = {
     background: "#0f172a",
     color: "#fff",
     border: "none",
-    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
   chipWideLabel: { fontSize: 14, fontWeight: 850, color: "#111827" },
   chipWideLabelActive: { fontSize: 14, fontWeight: 900, color: "#fff" },

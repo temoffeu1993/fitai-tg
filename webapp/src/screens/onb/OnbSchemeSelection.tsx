@@ -643,9 +643,9 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 18px",
     fontSize: 16,
     fontWeight: 800,
-    color: "#000",
-    background: GRAD,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+    color: "#fff",
+    background: "#0f172a",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
 
   errorText: {
