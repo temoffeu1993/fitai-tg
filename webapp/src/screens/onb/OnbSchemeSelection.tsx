@@ -8,7 +8,7 @@ type Props = {
   onBack?: () => void;
 };
 
-export default function OnbSchemeSelection({ onComplete }: Props) {
+export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

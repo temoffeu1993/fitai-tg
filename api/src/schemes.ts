@@ -37,7 +37,18 @@ schemes.post(
     // Собираем все данные для анализа
     const daysPerWeek = data.schedule?.daysPerWeek || summary.schedule?.daysPerWeek || 3;
     const minutesPerSession = data.schedule?.minutesPerSession || 60;
-    const experience = data.experience || summary.experience || "never_trained";
+    
+    // Извлекаем опыт из разных возможных источников
+    let experience = data.experience?.level || data.experience || summary.experience?.level || summary.experience || "beginner";
+    // Маппинг старых значений на новые (если остались старые данные)
+    const expMap: Record<string, string> = {
+      never_trained: "beginner",
+      long_break: "beginner",
+      training_regularly: "intermediate",
+      training_experienced: "advanced",
+    };
+    experience = expMap[experience] || experience;
+    
     const goal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
     const age = data.ageSex?.age || summary.age || null;
     const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : null;
