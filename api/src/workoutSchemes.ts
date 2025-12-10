@@ -568,4 +568,143 @@ export const workoutSchemes: WorkoutScheme[] = [
     intensity: "low",
     targetSex: "any",
   },
+
+  // ============= ДОПОЛНИТЕЛЬНЫЕ СХЕМЫ ДЛЯ ПОЛНОГО ПОКРЫТИЯ =============
+  
+  // Новичкам на 4 дня
+  {
+    id: "full_body_4x_beginner",
+    name: "Full Body Beginner 4x",
+    description: "Четыре тренировки для новичков с комфортной нагрузкой",
+    daysPerWeek: 4,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner"],
+    goals: ["build_muscle", "athletic_body", "health_wellness"],
+    equipmentRequired: ["gym_full", "dumbbells"],
+    dayLabels: [
+      { day: 1, label: "Full Body A", focus: "Базовые движения: присед, жим, тяга" },
+      { day: 2, label: "Full Body B", focus: "Другие углы: выпады, жим под углом, тяга к поясу" },
+      { day: 3, label: "Full Body C", focus: "Лёгкая тренировка: мышцы кора и стабилизаторы" },
+      { day: 4, label: "Full Body D", focus: "Повторение базы с меньшими весами" },
+    ],
+    benefits: [
+      "Частая практика движений — быстрое освоение техники",
+      "Мягкая прогрессия нагрузки для новичков",
+      "Достаточно восстановления между тренировками",
+    ],
+    intensity: "low",
+    targetSex: "any",
+  },
+
+  // Жиросжигание для новичков на 3 дня
+  {
+    id: "fat_loss_3x_beginner",
+    name: "Fat Loss Beginner",
+    description: "Эффективная программа жиросжигания для начинающих",
+    daysPerWeek: 3,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner"],
+    goals: ["lose_weight", "health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      { day: 1, label: "Strength + Cardio", focus: "Базовые силовые + лёгкое кардио" },
+      { day: 2, label: "Circuit Training", focus: "Круговая тренировка на всё тело" },
+      { day: 3, label: "Full Body Conditioning", focus: "Функциональные движения для жиросжигания" },
+    ],
+    benefits: [
+      "Максимальное жиросжигание при комфортной интенсивности",
+      "Улучшение выносливости и метаболизма",
+      "Безопасно для новичков",
+    ],
+    intensity: "moderate",
+    targetSex: "any",
+  },
+
+  // Жиросжигание для intermediate на 5 дней
+  {
+    id: "fat_loss_5x_intermediate",
+    name: "Fat Loss Intensive",
+    description: "Интенсивная программа жиросжигания с высокой частотой",
+    daysPerWeek: 5,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["intermediate"],
+    goals: ["lose_weight", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      { day: 1, label: "HIIT Upper", focus: "Высокоинтенсивная работа на верх тела" },
+      { day: 2, label: "HIIT Lower", focus: "Высокоинтенсивная работа на низ тела" },
+      { day: 3, label: "Metabolic Circuits", focus: "Круговые тренировки для метаболизма" },
+      { day: 4, label: "Strength Endurance", focus: "Силовая выносливость" },
+      { day: 5, label: "Active Recovery", focus: "Активное восстановление и кардио" },
+    ],
+    benefits: [
+      "Максимальное жиросжигание — 5 тренировок в неделю",
+      "Разнообразие форматов тренировок",
+      "Быстрые результаты при правильном питании",
+    ],
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // PPL для intermediate на 6 дней
+  {
+    id: "push_pull_legs_6x_intermediate",
+    name: "PPL 6x Intermediate",
+    description: "Push/Pull/Legs для среднего уровня — высокая частота тренировок",
+    daysPerWeek: 6,
+    minMinutes: 45,
+    maxMinutes: 75,
+    splitType: "push_pull_legs",
+    experienceLevels: ["intermediate"],
+    goals: ["build_muscle", "strength", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      { day: 1, label: "Push A", focus: "Грудь и передние дельты, средняя интенсивность" },
+      { day: 2, label: "Pull A", focus: "Спина и бицепс, средняя интенсивность" },
+      { day: 3, label: "Legs A", focus: "Квадрицепсы и ягодицы" },
+      { day: 4, label: "Push B", focus: "Плечи и трицепс, больше изоляции" },
+      { day: 5, label: "Pull B", focus: "Спина и задние дельты, больше изоляции" },
+      { day: 6, label: "Legs B", focus: "Бицепс бедра и икры" },
+    ],
+    benefits: [
+      "Высокая частота — каждая группа 2 раза в неделю",
+      "Оптимально для набора массы среднего уровня",
+      "Разнообразие упражнений и углов работы",
+    ],
+    notes: "Требует хорошего восстановления и питания",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // Strength для новичков на 3 дня
+  {
+    id: "strength_3x_beginner",
+    name: "Strength Basics",
+    description: "Базовая силовая программа для новичков",
+    daysPerWeek: 3,
+    minMinutes: 45,
+    maxMinutes: 75,
+    splitType: "full_body",
+    experienceLevels: ["beginner"],
+    goals: ["strength", "build_muscle", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      { day: 1, label: "Squat Focus", focus: "Приседания + жимы" },
+      { day: 2, label: "Deadlift Focus", focus: "Становая тяга + подтягивания" },
+      { day: 3, label: "Bench Focus", focus: "Жим лёжа + приседания" },
+    ],
+    benefits: [
+      "Фокус на 3 базовых движениях",
+      "Развитие силы и техники",
+      "Простая и эффективная схема",
+    ],
+    intensity: "moderate",
+    targetSex: "any",
+  },
 ];
