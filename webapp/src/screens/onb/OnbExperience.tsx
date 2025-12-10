@@ -298,11 +298,13 @@ const ux: Record<string, React.CSSProperties> = {
     transition: "transform .06s ease",
   },
   chipActive: {
-    background: GRAD,
-    color: "#000",
+    background: "#0f172a",
+    color: "#fff",
+    border: "none",
+    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
   },
   chipText: { color: "#111827", letterSpacing: 0.4 },
-  chipTextActive: { color: "#000", letterSpacing: 0.4 },
+  chipTextActive: { color: "#fff", letterSpacing: 0.4 },
 
   chipWide: {
     display: "grid",
@@ -318,12 +320,13 @@ const ux: Record<string, React.CSSProperties> = {
     gap: 2,
   },
   chipWideActive: {
-    background: GRAD,
-    color: "#000",
-    border: "0px solid rgba(0,0,0,0.1)"
+    background: "#0f172a",
+    color: "#fff",
+    border: "none",
+    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
   },
   chipWideLabel: { fontSize: 14, fontWeight: 850, color: "#111827" },
-  chipWideLabelActive: { fontSize: 14, fontWeight: 900, color: "#000" },
+  chipWideLabelActive: { fontSize: 14, fontWeight: 900, color: "#fff" },
   chipWideSub: { fontSize: 11.5, color: "#6B7280" },
-  chipWideSubActive: { fontSize: 11.5, color: "#1b1b1b" },
+  chipWideSubActive: { fontSize: 11.5, color: "rgba(255,255,255,0.8)" },
 };

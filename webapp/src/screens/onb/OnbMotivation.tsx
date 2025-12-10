@@ -346,13 +346,13 @@ const st: Record<string, React.CSSProperties> = {
     transition: "transform .06s ease",
   },
   chipActive: {
-    background: GRAD,
-    color: "#000",
+    background: "#0f172a",
+    color: "#fff",
     border: "none",
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
   },
   chipText: { color: "#111827", letterSpacing: 0.3, fontSize: 13 },
-  chipTextActive: { color: "#000", fontSize: 13, fontWeight: 900 },
+  chipTextActive: { color: "#fff", fontSize: 13, fontWeight: 900 },
 
   /* Поля ввода — стекло */
   inputGlass: {

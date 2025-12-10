@@ -342,11 +342,11 @@ const ux: Record<string, React.CSSProperties> = {
   transition: "all .15s ease",
 },
 chipActive: {
-  background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-  border: "1px solid rgba(0,0,0,0.04)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  color: "#000",
+  background: "#0f172a",
+  border: "none",
+  boxShadow: "0 4px 16px rgba(15, 23, 42, 0.4)",
+  color: "#fff",
 },
   chipText: { color: "#111827", fontWeight: 800, letterSpacing: 0.4 },
-  chipTextActive: { color: "#000", fontWeight: 900, letterSpacing: 0.4 },
+  chipTextActive: { color: "#fff", fontWeight: 900, letterSpacing: 0.4 },
 };
