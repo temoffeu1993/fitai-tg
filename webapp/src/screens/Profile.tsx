@@ -70,12 +70,10 @@ export default function Profile() {
     readAll();
     setLoaded(true);
 
-
     const onFocus = () => readAll();
     window.addEventListener("focus", onFocus);
 
     return () => {
-      clearInterval(t);
       window.removeEventListener("focus", onFocus);
     };
   }, []);
@@ -128,7 +126,6 @@ export default function Profile() {
       await resetProfileRemote();
       clearLocalProfileState();
       setSummary(null);
-      setFeedback(null);
       window.location.replace("/");
     } catch (err) {
       console.error("reset profile error", err);
