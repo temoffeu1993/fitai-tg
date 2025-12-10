@@ -186,14 +186,15 @@ schemes.post(
     // Генерируем персональные обоснования
     function generateReason(scheme: any, position: 'recommended' | 'alt1' | 'alt2'): string {
       const reasons: string[] = [];
+      const schemeName = scheme.russianName || scheme.name;
       
       // Основное обоснование в зависимости от позиции
       if (position === 'recommended') {
-        reasons.push(`Схема "${scheme.name}" — оптимальный выбор для ваших целей.`);
+        reasons.push(`Схема "${schemeName}" — оптимальный выбор для ваших целей.`);
       } else if (position === 'alt1') {
-        reasons.push(`Схема "${scheme.name}" — отличная альтернатива с немного другим подходом.`);
+        reasons.push(`Схема "${schemeName}" — отличная альтернатива с немного другим подходом.`);
       } else {
-        reasons.push(`Схема "${scheme.name}" — ещё один эффективный вариант для рассмотрения.`);
+        reasons.push(`Схема "${schemeName}" — ещё один эффективный вариант для рассмотрения.`);
       }
       
       // Добавляем конкретные преимущества
@@ -276,7 +277,7 @@ schemes.post(
     // Сохраняем выбор в таблицу user_workout_schemes
     // Но сначала нужно добавить схему в таблицу workout_schemes если её там нет
     const schemeRows = await q<{ id: string }>(
-      `SELECT id FROM workout_schemes WHERE id = $1::uuid`,
+      `SELECT id FROM workout_schemes WHERE id = $1`,
       [schemeId]
     );
     
@@ -286,7 +287,7 @@ schemes.post(
         `INSERT INTO workout_schemes 
          (id, name, description, days_per_week, min_minutes, max_minutes, split_type, 
           experience_levels, goals, equipment_required, day_labels, benefits, notes, intensity, target_sex)
-         VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
          ON CONFLICT (id) DO NOTHING`,
         [
           schemeId,
@@ -311,7 +312,7 @@ schemes.post(
     // Сохраняем выбор пользователя
     await q(
       `INSERT INTO user_workout_schemes (user_id, scheme_id)
-       VALUES ($1, $2::uuid)
+       VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET scheme_id = $2::uuid, selected_at = now()`,
       [uid, schemeId]
     );

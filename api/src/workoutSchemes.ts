@@ -24,7 +24,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_2x_beginner",
     name: "Full Body Starter",
-    russianName: "Старт: Всё тело",
+    russianName: "Начинающий: Всё тело",
     description: "Две базовые тренировки на всё тело — идеальный старт для новичков",
     daysPerWeek: 2,
     minMinutes: 30,
@@ -49,7 +49,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_2x_recovery",
     name: "Full Body Recovery",
-    russianName: "Восстановление",
+    russianName: "После перерыва",
     description: "Восстановительная программа после долгого перерыва",
     daysPerWeek: 2,
     minMinutes: 30,
@@ -75,7 +75,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_3x_classic",
     name: "Full Body Classic",
-    russianName: "Классика: Всё тело",
+    russianName: "Классика на всё тело",
     description: "Классика — три полноценные тренировки на всё тело",
     daysPerWeek: 3,
     minMinutes: 45,
@@ -100,7 +100,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_3x_condensed",
     name: "Push/Pull/Legs Condensed",
-    russianName: "Push/Pull/Legs 3 дня",
+    russianName: "Жим-Тяга-Ноги 3 дня",
     description: "Адаптированный Push/Pull/Legs под 3 дня — концентрированная нагрузка",
     daysPerWeek: 3,
     minMinutes: 60,
@@ -125,7 +125,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_3x_hybrid",
     name: "Upper/Lower + Full Body",
-    russianName: "Верх/Низ + Фулбоди",
+    russianName: "Верх-Низ + Всё тело",
     description: "Гибрид: два акцента + одна полная тренировка",
     daysPerWeek: 3,
     minMinutes: 45,
@@ -177,7 +177,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_4x_classic",
     name: "Upper/Lower Classic",
-    russianName: "Классический Верх/Низ",
+    russianName: "Верх-Низ классика",
     description: "Классический верх/низ — золотой стандарт",
     daysPerWeek: 4,
     minMinutes: 45,
@@ -203,7 +203,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_4x_powerbuilding",
     name: "Powerbuilding 4x",
-    russianName: "Пауэрбилдинг",
+    russianName: "Сила + Масса",
     description: "Сила + масса — лучшее из двух миров",
     daysPerWeek: 4,
     minMinutes: 60,
@@ -229,7 +229,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_4x_advanced",
     name: "Full Body Advanced",
-    russianName: "Продвинутый фулбоди",
+    russianName: "Всё тело продвинутый",
     description: "Четыре тренировки на всё тело с разными акцентами",
     daysPerWeek: 4,
     minMinutes: 45,
@@ -255,7 +255,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_4x_glutes",
     name: "Upper/Lower + Glutes",
-    russianName: "Верх/Низ + Ягодицы",
+    russianName: "Верх-Низ + Ягодицы",
     description: "Классический верх/низ с усиленным акцентом на ягодицы",
     daysPerWeek: 4,
     minMinutes: 45,
@@ -283,7 +283,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_5x_classic",
     name: "Push/Pull/Legs",
-    russianName: "Push/Pull/Legs продвинутый",
+    russianName: "Жим-Тяга-Ноги",
     description: "Проверенная схема для серьёзного роста",
     daysPerWeek: 5,
     minMinutes: 45,
@@ -311,7 +311,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_legs_5x",
     name: "Upper/Lower/Legs Focus",
-    russianName: "Верх/Низ/Ноги",
+    russianName: "Верх-Низ-Ноги",
     description: "Верх, низ, и дополнительный день для ног и ягодиц",
     daysPerWeek: 5,
     minMinutes: 45,
@@ -338,7 +338,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_5x_strength",
     name: "PPL Strength Focus",
-    russianName: "PPL силовой",
+    russianName: "Жим-Тяга-Ноги силовой",
     description: "Push/Pull/Legs с акцентом на силовые показатели",
     daysPerWeek: 5,
     minMinutes: 60,
@@ -365,7 +365,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_5x_athlete",
     name: "Athletic Performance",
-    russianName: "Атлетическая производительность",
+    russianName: "Спортивная подготовка",
     description: "Пять тренировок для спортивной подготовки",
     daysPerWeek: 5,
     minMinutes: 45,
@@ -394,7 +394,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_6x_classic",
     name: "PPL 6x Classic",
-    russianName: "PPL Классика",
+    russianName: "Жим-Тяга-Ноги 6 дней",
     description: "Два полных цикла Push/Pull/Legs — для продвинутых",
     daysPerWeek: 6,
     minMinutes: 45,
@@ -423,7 +423,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "bro_split_6x",
     name: "Bro Split",
-    russianName: "Bro Split 5 дней",
+    russianName: "По группам мышц",
     description: "Каждый день — отдельная мышечная группа",
     daysPerWeek: 6,
     minMinutes: 45,
@@ -452,7 +452,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "upper_lower_6x_intensive",
     name: "Upper/Lower Intensive",
-    russianName: "Верх/Низ продвинутый",
+    russianName: "Верх-Низ интенсив",
     description: "Три цикла верх/низ — максимальная частота",
     daysPerWeek: 6,
     minMinutes: 45,
@@ -480,7 +480,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_6x_glutes",
     name: "PPL + Glutes Focus",
-    russianName: "PPL + Акцент ягодицы",
+    russianName: "Жим-Тяга-Ноги + Ягодицы",
     description: "Push/Pull/Legs с дополнительным днём для ягодиц",
     daysPerWeek: 6,
     minMinutes: 45,
@@ -512,7 +512,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "metabolic_conditioning_4x",
     name: "Metabolic Conditioning",
-    russianName: "Метаболизм 6 дней",
+    russianName: "Метаболизм",
     description: "Высокоинтенсивная программа для жиросжигания",
     daysPerWeek: 4,
     minMinutes: 30,
@@ -540,7 +540,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "express_4x",
     name: "Express 4x",
-    russianName: "Экспресс: 4 дня",
+    russianName: "Экспресс 4 дня",
     description: "Эффективные короткие тренировки для занятых",
     daysPerWeek: 4,
     minMinutes: 30,
@@ -568,7 +568,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "longevity_3x",
     name: "Longevity Program",
-    russianName: "Программа долголетия",
+    russianName: "Здоровье и долголетие",
     description: "Программа для здоровья, мобильности и долголетия",
     daysPerWeek: 3,
     minMinutes: 45,
@@ -597,7 +597,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_4x_beginner",
     name: "Full Body Beginner 4x",
-    russianName: "Новичок: 4 дня",
+    russianName: "Новичок 4 дня",
     description: "Четыре тренировки для новичков с комфортной нагрузкой",
     daysPerWeek: 4,
     minMinutes: 40,
@@ -625,7 +625,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "fat_loss_3x_beginner",
     name: "Fat Loss Beginner",
-    russianName: "Жиросжигание для новичков",
+    russianName: "Сжигание жира",
     description: "Эффективная программа жиросжигания для начинающих",
     daysPerWeek: 3,
     minMinutes: 40,
@@ -652,7 +652,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "fat_loss_5x_intermediate",
     name: "Fat Loss Intensive",
-    russianName: "Жиросжигание 5 дней",
+    russianName: "Интенсивное жиросжигание",
     description: "Интенсивная программа жиросжигания с высокой частотой",
     daysPerWeek: 5,
     minMinutes: 40,
@@ -681,7 +681,7 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "push_pull_legs_6x_intermediate",
     name: "PPL 6x Intermediate",
-    russianName: "PPL 6 дней средний",
+    russianName: "Жим-Тяга-Ноги 6 дней",
     description: "Push/Pull/Legs для среднего уровня — высокая частота тренировок",
     daysPerWeek: 6,
     minMinutes: 45,
