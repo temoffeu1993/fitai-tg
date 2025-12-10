@@ -37,8 +37,7 @@ export default function OnboardingWizard() {
       };
       const summary = await saveOnboarding(payload);
       localStorage.setItem("onb_summary", JSON.stringify(summary ?? acc));
-      // НЕ ставим onboarding_done, так как нужен ещё выбор схемы
-      try { localStorage.setItem("onb_complete", "1"); } catch {}
+      // НЕ ставим onboarding_done и onb_complete, так как нужен ещё выбор схемы
       try {
         const bc = new BroadcastChannel("onb");
         bc.postMessage("onb_updated");

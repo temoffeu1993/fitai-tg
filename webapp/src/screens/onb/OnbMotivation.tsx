@@ -127,11 +127,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   function handleNext() {
     if (!canNext || loading) return;
 
-    // === МГНОВЕННЫЙ ФЛАГ И ОПОВЕЩЕНИЕ ДЛЯ НАВБАРА ===
-    try { localStorage.setItem("onb_complete", "1"); } catch {}
-    try { new BroadcastChannel("onb").postMessage("onb_complete"); } catch {}
-    try { window.dispatchEvent(new Event("onb_updated")); } catch {}
-
     onSubmit({
       motivation: {
         goal,
