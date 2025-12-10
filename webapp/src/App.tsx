@@ -17,6 +17,7 @@ import OnbAgeSex from "./screens/onb/OnbAgeSex";
 import OnbExperience from "./screens/onb/OnbExperience";
 import OnbDiet from "./screens/onb/OnbDiet";
 import OnbMotivation from "./screens/onb/OnbMotivation";
+import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
@@ -68,38 +69,67 @@ function StepDiet() {
   );
 }
 
-// --- обновлённый последний шаг ---
+// --- обновлённый предпоследний шаг (мотивация) ---
 function StepMotivation() {
-  const { draft, patch, reset } = useOnboarding();
+  const { draft, patch } = useOnboarding();
   const nav = useNavigate();
   return (
     <OnbMotivation
       initial={draft}
-      onSubmit={(p) => {
+      onSubmit={async (p) => {
         const merged = { ...draft, ...p };
+        patch(p);
 
-        // мгновенно кладём полные данные и уходим на профиль
-        localStorage.setItem("onb_summary", JSON.stringify(merged));
+        // Сохраняем данные онбординга
+        try {
+          const summary = await saveOnboarding(merged);
+          localStorage.setItem("onb_summary", JSON.stringify(summary ?? merged));
+        } catch (e) {
+          console.error("saveOnboarding failed", e);
+          localStorage.setItem("onb_summary", JSON.stringify(merged));
+        }
+
+        // Переходим к выбору схемы тренировок
+        nav("/onb/scheme");
+      }}
+      onBack={() => nav("/onb/diet")}
+    />
+  );
+}
+
+// --- последний шаг: выбор схемы ---
+function StepSchemeSelection() {
+  const { reset } = useOnboarding();
+  const nav = useNavigate();
+  
+  return (
+    <OnbSchemeSelection
+      onComplete={() => {
+        // Завершаем онбординг
+        localStorage.setItem("onboarding_done", "1");
         localStorage.setItem("onb_feedback", "");
         localStorage.setItem("onb_feedback_pending", "1");
-        patch(p);
+        
+        try {
+          const bc = new BroadcastChannel("onb");
+          bc.postMessage("onb_complete");
+          bc.close();
+        } catch {}
+        
+        try { window.dispatchEvent(new Event("onb_complete")); } catch {}
+        
         reset();
         nav("/profile");
 
-        // фон: пишем в БД и запрашиваем комментарий
+        // Фон: запрашиваем комментарий тренера
         (async () => {
           try {
-            await saveOnboarding(merged); // НЕ перезаписываем onb_summary урезанным summary
-          } catch (e) {
-            console.error("saveOnboarding failed", e);
-          }
-
-          try {
+            const onbData = JSON.parse(localStorage.getItem("onb_summary") || "{}");
             const resp = await apiFetch("/onboarding/feedback", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify({ data: merged }),
+              body: JSON.stringify({ data: onbData }),
             });
             if (resp.ok) {
               const { feedback } = await resp.json();
@@ -110,7 +140,6 @@ function StepMotivation() {
           }
         })();
       }}
-      onBack={() => nav("/onb/diet")}
     />
   );
 }
@@ -135,6 +164,7 @@ export default function App() {
             <Route path="/onb/experience" element={<StepExperience />} />
             <Route path="/onb/diet" element={<StepDiet />} />
             <Route path="/onb/motivation" element={<StepMotivation />} />
+            <Route path="/onb/scheme" element={<StepSchemeSelection />} />
           </Route>
         </Routes>
       </OnboardingProvider>
