@@ -21,6 +21,7 @@ import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
+import DebugPanel from "./components/DebugPanel";
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
 function StepAgeSex() {
@@ -148,6 +149,9 @@ export default function App() {
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
           </Route>
         </Routes>
+        
+        {/* Debug Panel для отладки на телефоне */}
+        <DebugPanel />
       </OnboardingProvider>
     </BrowserRouter>
   );
