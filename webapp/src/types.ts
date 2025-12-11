@@ -1,6 +1,6 @@
 export type Onboarding = {
   age:number; sex:"m"|"f"; height:number; weight:number;
-  goal:string; experience:"novice"|"intermediate"|"advanced";
+  goal:string; experience:"beginner"|"intermediate"|"advanced";
   freq:number; duration:number; location:string;
   equipment:string[]; limitations:string[];
 };

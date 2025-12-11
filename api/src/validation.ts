@@ -11,7 +11,8 @@ export const OnboardingDataSchema = z.object({
   height: z.number().min(100).max(250).optional(),
   weight: z.number().min(30).max(300).optional(),
   goal: z.string().optional(),
-  experience: z.enum(['novice', 'intermediate', 'advanced']).optional(),
+  // Поддержка новых и старых значений для обратной совместимости
+  experience: z.enum(['beginner', 'intermediate', 'advanced', 'novice', 'never_trained', 'long_break', 'training_regularly', 'training_experienced']).optional(),
   freq: z.number().min(1).max(7).optional(),
   duration: z.number().min(15).max(180).optional(),
   location: z.string().optional(),

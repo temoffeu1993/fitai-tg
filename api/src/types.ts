@@ -14,7 +14,7 @@ export interface TelegramUser {
 }
 
 export type Sex = "m" | "f";
-export type Experience = "novice" | "intermediate" | "advanced";
+export type Experience = "beginner" | "intermediate" | "advanced";
 
 export interface OnboardingData {
   age?: number;

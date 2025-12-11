@@ -44,6 +44,7 @@ schemes.post(
     const expMap: Record<string, string> = {
       never_trained: "beginner",
       long_break: "beginner",
+      novice: "beginner",
       training_regularly: "intermediate",
       training_experienced: "advanced",
     };
