@@ -33,7 +33,7 @@ export default function DebugPanel() {
         onClick={() => setShow(true)}
         style={{
           position: "fixed",
-          bottom: 90,
+          bottom: 120, // ПОДНЯЛ ВЫШЕ! Был 90, теперь 120 - над tab-bar
           right: 10,
           width: 50,
           height: 50,
@@ -44,6 +44,7 @@ export default function DebugPanel() {
           fontSize: 24,
           zIndex: 9999,
           cursor: "pointer",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.3)", // Тень чтобы было видно
         }}
       >
         🐛

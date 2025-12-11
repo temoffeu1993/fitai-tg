@@ -61,13 +61,22 @@ button:active, a:active, [role="button"]:active {
   user-select: none !important;
   outline: none !important;
   transition: none !important;
+  /* АГРЕССИВНАЯ блокировка любых изменений */
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 .no-tap-effect:active,
 .no-tap-effect:focus,
-.no-tap-effect:hover {
+.no-tap-effect:hover,
+.no-tap-effect:focus-visible {
   background: rgba(255,255,255,0.6) !important;
   opacity: 1 !important;
   transform: none !important;
+  filter: none !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
+  /* Блокируем ВСЕ возможные изменения */
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  backdrop-filter: blur(8px) !important;
 }
 
 /* Фон всего приложения — только здесь */

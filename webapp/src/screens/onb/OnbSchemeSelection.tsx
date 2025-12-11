@@ -233,6 +233,20 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           position: "relative",
           cursor: "pointer",
           textAlign: "left",
+          // INLINE СТИЛИ для 100% гарантии
+          outline: "none",
+          transition: "none",
+          userSelect: "none",
+        }}
+        onTouchStart={(e) => {
+          // Предотвращаем любые визуальные эффекты
+          e.currentTarget.style.background = "rgba(255,255,255,0.6)";
+          e.currentTarget.style.opacity = "1";
+        }}
+        onTouchEnd={(e) => {
+          // Возвращаем оригинальный фон
+          e.currentTarget.style.background = "rgba(255,255,255,0.6)";
+          e.currentTarget.style.opacity = "1";
         }}
       >
         {/* Радио-кнопка - точно как в схемах */}
