@@ -42,6 +42,17 @@ body {
   inset: 0;
 }
 
+/* Убираем серое моргание на всех button и интерактивных элементах */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+}
+
+button:active, a:active, [role="button"]:active {
+  opacity: 1 !important;
+  background-color: inherit !important;
+}
+
 /* Фон всего приложения — только здесь */
 #root {
   min-height: 100%;

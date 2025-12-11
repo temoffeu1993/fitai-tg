@@ -118,22 +118,30 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   async function handleConfirm() {
     if (!selectedId) return;
     
+    console.log("🚀 handleConfirm: starting...");
+    
     try {
       setSaving(true);
       setError(null);
+      
+      console.log("📡 Saving scheme to API:", selectedId);
       await selectScheme(selectedId);
+      console.log("✅ Scheme saved to API");
       
       // Сохраняем флаг в localStorage
       localStorage.setItem("scheme_selected", "1");
+      console.log("💾 scheme_selected flag saved");
       
       // Оповещаем систему
       try {
         window.dispatchEvent(new Event("scheme_selected"));
+        console.log("📢 scheme_selected event dispatched");
       } catch {}
       
+      console.log("🎉 Calling onComplete()...");
       onComplete();
     } catch (err: any) {
-      console.error("Failed to select scheme:", err);
+      console.error("❌ Failed to select scheme:", err);
       setError(err.message || "Не удалось сохранить выбор");
     } finally {
       setSaving(false);

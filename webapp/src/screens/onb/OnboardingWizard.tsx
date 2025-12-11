@@ -54,17 +54,31 @@ export default function OnboardingWizard() {
   }
 
   function finishOnboarding() {
+    console.log("🎯 finishOnboarding() called");
+    
     // Завершаем онбординг после выбора схемы
     localStorage.setItem("onb_complete", "1");
     
-    console.log("✅ Onboarding complete! Flag saved:", localStorage.getItem("onb_complete"));
+    // Проверяем что сохранилось
+    const saved = localStorage.getItem("onb_complete");
+    console.log("✅ Onboarding complete! Flag saved:", saved);
+    
+    if (saved !== "1") {
+      console.error("❌ ОШИБКА: Флаг не сохранился!");
+      alert("Ошибка сохранения. Попробуйте еще раз.");
+      return;
+    }
     
     // Отправляем события
+    console.log("📢 Dispatching events...");
     try {
       const bc = new BroadcastChannel("onb");
       bc.postMessage("onb_complete");
       bc.close();
-    } catch {}
+      console.log("✅ BroadcastChannel message sent");
+    } catch (e) {
+      console.log("⚠️  BroadcastChannel failed:", e);
+    }
     
     try { 
       window.dispatchEvent(new Event("onb_complete"));
@@ -73,12 +87,17 @@ export default function OnboardingWizard() {
         newValue: "1",
         storageArea: localStorage
       }));
-    } catch {}
+      console.log("✅ Window events dispatched");
+    } catch (e) {
+      console.log("⚠️  Window events failed:", e);
+    }
     
     // Даём время событиям обработаться перед редиректом
+    console.log("⏳ Waiting 150ms before redirect...");
     setTimeout(() => {
+      console.log("🔄 Redirecting to /...");
       window.location.pathname = "/";
-    }, 100);
+    }, 150);
   }
 
   const steps = [
