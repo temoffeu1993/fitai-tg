@@ -52,15 +52,29 @@ export default function LayoutWithNav() {
   const [onbDone, setOnbDone] = useState<boolean>(hasOnbLocal());
 
   useEffect(() => {
-    const update = () => setOnbDone(hasOnbLocal());
+    const update = () => {
+      const isDone = hasOnbLocal();
+      console.log("LayoutWithNav: onboarding check", { isDone, flag: localStorage.getItem("onb_complete") });
+      setOnbDone(isDone);
+    };
     update();
 
     const onFocus = () => update();
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key === "onb_summary" || e.key === "onb_complete") update();
+      // Реагируем на любые изменения onb_complete
+      if (!e.key || e.key === "onb_complete") {
+        console.log("LayoutWithNav: storage event", e.key);
+        update();
+      }
     };
-    const onOnb = () => update();
-    const onComplete = () => update();
+    const onOnb = () => {
+      console.log("LayoutWithNav: onb_updated event");
+      update();
+    };
+    const onComplete = () => {
+      console.log("LayoutWithNav: onb_complete event");
+      update();
+    };
 
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onStorage);

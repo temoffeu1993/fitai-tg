@@ -55,14 +55,30 @@ export default function OnboardingWizard() {
 
   function finishOnboarding() {
     // Завершаем онбординг после выбора схемы
-    localStorage.setItem("onb_complete", "1"); // Исправлено: был onboarding_done
+    localStorage.setItem("onb_complete", "1");
+    
+    console.log("✅ Onboarding complete! Flag saved:", localStorage.getItem("onb_complete"));
+    
+    // Отправляем события
     try {
       const bc = new BroadcastChannel("onb");
       bc.postMessage("onb_complete");
       bc.close();
     } catch {}
-    try { window.dispatchEvent(new Event("onb_complete")); } catch {}
-    window.location.pathname = "/";
+    
+    try { 
+      window.dispatchEvent(new Event("onb_complete"));
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "onb_complete",
+        newValue: "1",
+        storageArea: localStorage
+      }));
+    } catch {}
+    
+    // Даём время событиям обработаться перед редиректом
+    setTimeout(() => {
+      window.location.pathname = "/";
+    }, 100);
   }
 
   const steps = [

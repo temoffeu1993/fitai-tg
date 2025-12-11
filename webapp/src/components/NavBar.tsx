@@ -7,20 +7,10 @@ export type NavCurrent = TabKey | "none";
 /** Локальная проверка завершения онбординга */
 function isOnboardingCompleteLocal(): boolean {
   try {
-    if (localStorage.getItem("onb_complete") === "1") return true;
-    const s = JSON.parse(localStorage.getItem("onb_summary") || "null");
-    if (!s) return false;
-    const ok =
-      s?.profile?.name &&
-      s?.ageSex?.sex &&
-      Number.isFinite(Number(s?.ageSex?.age)) &&
-      Number.isFinite(Number(s?.body?.height)) &&
-      Number.isFinite(Number(s?.body?.weight)) &&
-      s?.experience &&
-      s?.schedule?.daysPerWeek &&
-      s?.dietPrefs &&
-      s?.motivation?.goal;
-    return Boolean(ok);
+    // Проверяем ТОЛЬКО флаг завершения
+    const isComplete = localStorage.getItem("onb_complete") === "1";
+    console.log("NavBar: onboarding check", { isComplete, flag: localStorage.getItem("onb_complete") });
+    return isComplete;
   } catch {
     return false;
   }

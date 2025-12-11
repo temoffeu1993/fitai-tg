@@ -130,22 +130,10 @@ function resolveTelegramName() {
   return "Гость";
 }
 
-// имя из онбординга (если не введено, возвращает null)
-function resolveOnbName() {
-  try {
-    const onbRaw = localStorage.getItem("onb_summary");
-    if (onbRaw) {
-      const onb = JSON.parse(onbRaw);
-      const n = onb?.profile?.name;
-      if (typeof n === "string" && n.trim()) return n.trim();
-    }
-  } catch {}
-  return null; // Изменено: возвращаем null вместо "Гость"
-}
-
 function hasOnb() {
   try {
-    return !!JSON.parse(localStorage.getItem("onb_summary") || "null");
+    // Проверяем ТОЛЬКО флаг завершения онбординга
+    return localStorage.getItem("onb_complete") === "1";
   } catch {
     return false;
   }
@@ -154,15 +142,11 @@ function hasOnb() {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // Приоритет: имя из онбординга → имя из Telegram → "Гость"
+  // Всегда используем имя из Telegram (убрали поле имени из онбординга)
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
   const [name, setName] = useState<string>(() => {
-    const onbName = resolveOnbName();
     const tgName = resolveTelegramName();
-    
-    console.log("Dashboard name resolution:", { onbName, tgName });
-    
-    if (onbName) return onbName;
+    console.log("Dashboard name from Telegram:", tgName);
     return tgName;
   });
 
@@ -179,7 +163,8 @@ export default function Dashboard() {
     const updateIdentity = () => {
       const done = hasOnb();
       setOnbDone(done);
-      setName(done ? resolveOnbName() : resolveTelegramName());
+      // Всегда используем имя из Telegram
+      setName(resolveTelegramName());
     };
 
     updateIdentity();
@@ -210,9 +195,10 @@ export default function Dashboard() {
     window.addEventListener("focus", refreshHistory);
     window.addEventListener("history_updated" as any, refreshHistory);
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === HISTORY_KEY || event.key === "onb_summary") {
+      if (event.key === HISTORY_KEY || event.key === "onb_complete") {
         setOnbDone(hasOnb());
-        setName(hasOnb() ? resolveOnbName() : resolveTelegramName());
+        // Всегда используем имя из Telegram
+        setName(resolveTelegramName());
         refreshHistory();
       }
     };
