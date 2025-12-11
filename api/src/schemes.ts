@@ -196,11 +196,10 @@ schemes.post(
       return reasons.join(" ");
     }
     
-    // Формируем ответ (с защитой от undefined)
-    // Гарантируем наличие всех 3 схем, дублируя первую если нужно
-    const scheme1 = selectedSchemes[0];
-    const scheme2 = selectedSchemes[1] || selectedSchemes[0];
-    const scheme3 = selectedSchemes[2] || selectedSchemes[1] || selectedSchemes[0];
+    // Формируем ответ: стараемся 1 рекомендованная + 2 альтернативных, минимум 1+1
+    const scheme1 = selectedSchemes[0]; // Всегда есть
+    const scheme2 = selectedSchemes[1] || selectedSchemes[0]; // Минимум 2 схемы (дублируем если нужно)
+    const scheme3 = selectedSchemes[2] || selectedSchemes[1] || selectedSchemes[0]; // Стремимся к 3
     
     const response = {
       recommended: {
