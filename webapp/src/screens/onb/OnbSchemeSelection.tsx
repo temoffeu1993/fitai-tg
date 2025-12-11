@@ -151,6 +151,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         style={{
           minHeight: "var(--app-height, 100vh)",
           background: "var(--app-gradient-onb-schemes)",
+          paddingBottom: 110,
         }}
       >
         <div style={s.page}>
@@ -176,6 +177,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         style={{
           minHeight: "var(--app-height, 100vh)",
           background: "var(--app-gradient-onb-schemes)",
+          paddingBottom: 110,
         }}
       >
         <div style={s.page}>
@@ -201,6 +203,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       style={{
         minHeight: "var(--app-height, 100vh)",
         background: "var(--app-gradient-onb-schemes)",
+        paddingBottom: 110,
       }}
     >
       <div style={s.page}>
@@ -415,8 +418,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           </div>
         </div>
       )}
-
-        <div style={{ height: 72 }} />
       </div>
     </div>
   );
@@ -617,31 +618,34 @@ const s: Record<string, React.CSSProperties> = {
 
   heroSection: {
     position: "relative",
-    marginBottom: 18,
-    borderRadius: 26,
-    overflow: "hidden",
-    border: "1px solid rgba(148,163,184,0.3)",
-    background:
-      "radial-gradient(circle at 50% 0, #111827 0, #020617 60%, #020308 100%)",
+    marginBottom: 24,
+    borderRadius: 0,
+    overflow: "visible",
+    border: "none",
+    background: "transparent",
   },
   heroGlow: {
     position: "absolute",
-    inset: 0,
+    left: -40,
+    right: -40,
+    top: -80,
+    bottom: 0,
     background:
-      "radial-gradient(circle at 50% 10%, rgba(68,224,194,0.28), transparent 60%)",
+      "radial-gradient(circle at 50% 0, rgba(68,224,194,0.35), transparent 60%)",
     opacity: 0.9,
     pointerEvents: "none",
   },
   heroInner: {
     position: "relative",
-    padding: "24px 16px 16px",
+    paddingTop: 32,
+    paddingBottom: 8,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   heroRobot: {
-    height: 150,
+    height: 180,
     objectFit: "contain",
     marginBottom: 4,
     filter: "drop-shadow(0 0 32px rgba(56,189,248,0.6))",
