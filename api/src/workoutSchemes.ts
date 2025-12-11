@@ -1773,4 +1773,266 @@ export const workoutSchemes: WorkoutScheme[] = [
     intensity: "low",
     targetSex: "any",
   },
+
+  // ============= СХЕМЫ ДЛЯ ЗАКРЫТИЯ ПРОБЕЛОВ В ПОКРЫТИИ =============
+
+  // Похудение + Здоровье, 2 дня, продвинутые (вариант 1)
+  {
+    id: "hiit_fat_burn_2x",
+    name: "HIIT Fat Burn 2x",
+    russianName: "Интенсивное жиросжигание 2 дня",
+    description: "Две высокоинтенсивные тренировки в неделю для продвинутых — максимум эффекта за минимум времени.",
+    daysPerWeek: 2,
+    minMinutes: 45,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["advanced"],
+    goals: ["lose_weight", "health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "HIIT Full Body",
+        focus: "Высокоинтенсивная интервальная тренировка на всё тело — максимальный расход калорий.",
+      },
+      {
+        day: 2,
+        label: "Metabolic Strength",
+        focus: "Силовые с минимальным отдыхом — строим мышцы и сжигаем жир одновременно.",
+      },
+    ],
+    benefits: [
+      "Всего 2 дня, но с максимальной интенсивностью — эффект как от 4-5 обычных тренировок.",
+      "HIIT запускает жиросжигание на 24-48 часов после тренировки (EPOC эффект).",
+      "Подходит занятым людям с опытом — знаешь технику, можешь выложиться на 100%.",
+    ],
+    notes: "Основано на исследованиях HIIT: 2 интенсивные тренировки в неделю могут быть эффективнее 4-5 обычных для жиросжигания у тренированных людей.",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // Похудение + Здоровье, 2 дня, продвинутые (вариант 2 - минимализм)
+  {
+    id: "minimalist_training_2x",
+    name: "Minimalist Training 2x",
+    russianName: "Минимализм 2 дня",
+    description: "Только самое важное: две эффективные тренировки для здоровья и формы без лишнего.",
+    daysPerWeek: 2,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["advanced"],
+    goals: ["lose_weight", "health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Essential Strength",
+        focus: "Только база: приседания, становая, жим, подтягивания — всё, что нужно для поддержания формы.",
+      },
+      {
+        day: 2,
+        label: "Metabolic Conditioning",
+        focus: "Кардио + функциональные движения — сердце, выносливость, калории.",
+      },
+    ],
+    benefits: [
+      "Философия минимализма: меньше времени, больше эффективности — никакой воды.",
+      "Подходит очень занятым людям: 2 раза по 40-60 минут хватит для поддержания формы.",
+      "Для опытных: знаешь что работает, делаешь только это — без лишних упражнений.",
+    ],
+    notes: "Принцип Парето (80/20): 20% упражнений дают 80% результата. Для продвинутых, кто понимает эффективность.",
+    intensity: "moderate",
+    targetSex: "any",
+  },
+
+  // Сила + 4 дня, новички (альтернатива upper_lower_4x_classic)
+  {
+    id: "strength_foundations_4x_beginner",
+    name: "Strength Foundations 4x",
+    russianName: "Основы силы 4 дня (новички)",
+    description: "Четыре тренировки для новичков, чтобы научиться базовым упражнениям и начать расти в силе.",
+    daysPerWeek: 4,
+    minMinutes: 50,
+    maxMinutes: 70,
+    splitType: "upper_lower",
+    experienceLevels: ["beginner"],
+    goals: ["strength", "build_muscle", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Upper Push Basics",
+        focus: "Учимся жать: жим лёжа, жим гантелей, отжимания — базовые толкающие движения.",
+      },
+      {
+        day: 2,
+        label: "Lower Squat Focus",
+        focus: "Учимся приседать: приседания, выпады, разгибания — техника и контроль.",
+      },
+      {
+        day: 3,
+        label: "Upper Pull Basics",
+        focus: "Учимся тянуть: подтягивания, тяга блока, тяга штанги — базовые тяговые движения.",
+      },
+      {
+        day: 4,
+        label: "Lower Deadlift Focus",
+        focus: "Учимся тянуть с пола: становая тяга, румынская тяга — основа силы ног и спины.",
+      },
+    ],
+    benefits: [
+      "Разделение на толкающие и тяговые дни — проще сконцентрироваться на технике.",
+      "Каждое базовое движение отрабатывается отдельно — быстрый прогресс.",
+      "Для новичков: простая структура, понятная логика, нет перегруза.",
+    ],
+    notes: "Методика «разделение по паттернам движений» — новичкам проще учиться, когда упражнения похожи по типу движения.",
+    intensity: "moderate",
+    targetSex: "any",
+  },
+
+  // Акцент на низ + 2 дня (альтернатива glutes_legs_2x)
+  {
+    id: "lower_body_intensive_2x",
+    name: "Lower Body Intensive 2x",
+    russianName: "Интенсив для ног 2 дня",
+    description: "Две насыщенные тренировки для ног и ягодиц — разные методы стимуляции роста.",
+    daysPerWeek: 2,
+    minMinutes: 60,
+    maxMinutes: 75,
+    splitType: "lower_focus",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Heavy Strength",
+        focus: "Тяжёлые базовые: приседания, становая, выпады — строим силу и массу.",
+      },
+      {
+        day: 2,
+        label: "High Volume Sculpt",
+        focus: "Высокий объём с умеренными весами: пампинг, много повторений — форма и детализация.",
+      },
+    ],
+    benefits: [
+      "Два разных типа нагрузки: тяжесть для массы, объём для формы — комплексный эффект.",
+      "Всего 2 дня, но с полной отдачей — ноги растут, верх успевает восстановиться.",
+      "Универсальная схема: подходит и новичкам (с консервативными весами), и опытным.",
+    ],
+    notes: "Принцип DUP (Daily Undulating Periodization): разные типы нагрузки в разные дни для максимального роста.",
+    intensity: "high",
+    targetSex: "female",
+  },
+
+  // Акцент на низ + 6 дней, средние (альтернатива push_pull_legs_6x_glutes)
+  {
+    id: "glutes_every_day_6x",
+    name: "Glutes Every Day 6x",
+    russianName: "Ягодицы каждый день 6 дней",
+    description: "Шесть дней с акцентом на ягодицы — каждый день новый стимул для роста.",
+    daysPerWeek: 6,
+    minMinutes: 45,
+    maxMinutes: 60,
+    splitType: "lower_focus",
+    experienceLevels: ["intermediate", "advanced"],
+    goals: ["lower_body_focus", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Glute Activation",
+        focus: "Активация: мосты, отведения, лёгкие веса — учим ягодицы включаться.",
+      },
+      {
+        day: 2,
+        label: "Quad Dominant",
+        focus: "Передняя часть ног: приседания, выпады — ягодицы работают как стабилизаторы.",
+      },
+      {
+        day: 3,
+        label: "Hip Thrust Heavy",
+        focus: "Толчки бедром с тяжёлыми весами — максимальная нагрузка на ягодицы.",
+      },
+      {
+        day: 4,
+        label: "Hamstring Focus",
+        focus: "Задняя поверхность: румынская тяга, сгибания — ягодицы + бицепс бедра.",
+      },
+      {
+        day: 5,
+        label: "Glute Pump",
+        focus: "Пампинг ягодиц: много повторений, короткий отдых — кровь, форма, рельеф.",
+      },
+      {
+        day: 6,
+        label: "Full Lower Body",
+        focus: "Все мышцы ног: комплексная тренировка для баланса и восстановления.",
+      },
+    ],
+    benefits: [
+      "Ежедневная стимуляция ягодиц разными методами — комплексный рост.",
+      "Чередование тяжёлых и лёгких дней — не перегружаемся.",
+      "Для тех, кто хочет максимальный результат для низа за короткий срок.",
+    ],
+    notes: "Методика «высокочастотный тренинг»: мышцы могут расти от частых, но не изнуряющих тренировок.",
+    intensity: "moderate",
+    targetSex: "female",
+  },
+
+  // Акцент на низ + 6 дней, средние/продвинутые (второй вариант)
+  {
+    id: "legs_specialization_6x",
+    name: "Legs Specialization 6x",
+    russianName: "Специализация на ноги 6 дней",
+    description: "Шесть дней полной концентрации на ногах — программа для тех, кто хочет «взорвать» ноги.",
+    daysPerWeek: 6,
+    minMinutes: 50,
+    maxMinutes: 70,
+    splitType: "lower_focus",
+    experienceLevels: ["intermediate", "advanced"],
+    goals: ["lower_body_focus", "build_muscle"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Squat Day",
+        focus: "День приседаний: фронтальные, классические, гоблет — вариации для полного развития.",
+      },
+      {
+        day: 2,
+        label: "Glute Isolation",
+        focus: "Изоляция ягодиц: мосты, толчки, отведения — точечная работа.",
+      },
+      {
+        day: 3,
+        label: "Deadlift Day",
+        focus: "День тяг: классическая, румынская, сумо — задняя цепь и ягодицы.",
+      },
+      {
+        day: 4,
+        label: "Lunge Variations",
+        focus: "Выпады во всех вариациях: вперёд, назад, в сторону — баланс и форма.",
+      },
+      {
+        day: 5,
+        label: "Hamstring Focus",
+        focus: "Акцент на бицепс бедра: сгибания, румынская тяга — детализация задней поверхности.",
+      },
+      {
+        day: 6,
+        label: "Leg Volume Pump",
+        focus: "Объёмный день: много упражнений, пампинг, жжение — максимальная кровь в мышцах.",
+      },
+    ],
+    benefits: [
+      "Каждый день — своя тема: приседания, тяги, выпады, изоляция — полный спектр стимулов.",
+      "Высокая частота тренировок ног — быстрый рост для тех, кто восстанавливается хорошо.",
+      "Верх тела — минимум, вся энергия на ноги: специализация работает.",
+    ],
+    notes: "Принцип специализации: когда одна часть тела тренируется чаще и тяжелее остальных, она растёт быстрее (временная стратегия на 6-12 недель).",
+    intensity: "high",
+    targetSex: "any",
+  },
 ];
