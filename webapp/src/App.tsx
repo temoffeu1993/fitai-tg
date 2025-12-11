@@ -187,8 +187,21 @@ export default function App() {
           </Route>
         </Routes>
         
-        {/* Debug Panel для отладки на телефоне (закомментирован) */}
-        {/* <DebugPanel /> */}
+        {/* Debug Panel - только для админа */}
+        {(() => {
+          try {
+            const tgUserId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            // Твой Telegram User ID (замени на свой!)
+            const ADMIN_ID = 123456789; // TODO: заменить на реальный ID
+            
+            if (tgUserId === ADMIN_ID) {
+              return <DebugPanel />;
+            }
+          } catch (err) {
+            console.error("Failed to check admin status:", err);
+          }
+          return null;
+        })()}
       </OnboardingProvider>
     </BrowserRouter>
   );

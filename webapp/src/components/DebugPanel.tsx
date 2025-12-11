@@ -19,6 +19,14 @@ export default function DebugPanel() {
     };
   }, []);
 
+  const tgUserId = (() => {
+    try {
+      return (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id || "unknown";
+    } catch {
+      return "unknown";
+    }
+  })();
+
   if (!show) {
     return (
       <button
@@ -52,6 +60,31 @@ export default function DebugPanel() {
         </div>
         
         <div style={s.content}>
+          <div style={s.section}>
+            <div style={s.title}>Telegram User ID:</div>
+            <div style={s.code}>
+              {tgUserId}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(String(tgUserId));
+                  alert(`ID скопирован: ${tgUserId}`);
+                }}
+                style={{
+                  marginLeft: 10,
+                  padding: "4px 8px",
+                  background: "#333",
+                  border: "1px solid #555",
+                  color: "#0f0",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+              >
+                📋 Copy
+              </button>
+            </div>
+          </div>
+
           <div style={s.section}>
             <div style={s.title}>storage:</div>
             <div style={s.code}>
