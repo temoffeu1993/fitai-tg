@@ -211,9 +211,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         <button
           type="button"
           onClick={() => setAccepted((v) => !v)}
-          style={{ ...s.circleCheck, ...(accepted ? s.circleCheckOn : {}) }}
+          style={{...s.radioCircle, position: "relative", borderColor: accepted ? "#0f172a" : "rgba(0,0,0,0.2)"}}
         >
-          {accepted ? "✓" : ""}
+          <div style={{...s.radioDot, transform: accepted ? "scale(1)" : "scale(0)", opacity: accepted ? 1 : 0}} />
         </button>
         <span style={s.termsText}>
           Я ознакомился и согласен с Условиями использования приложения{" "}
@@ -705,24 +705,6 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
-  },
-  circleCheck: {
-    width: 24,
-    height: 24,
-    minWidth: 24,
-    borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.2)",
-    background: "rgba(255,255,255,0.9)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    fontSize: 14,
-    color: "#fff",
-    transition: "all .15s ease",
-  },
-  circleCheckOn: {
-    background: "#0f172a",
-    border: "2px solid #0f172a",
   },
   termsText: {
     fontSize: 13,
