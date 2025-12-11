@@ -352,14 +352,6 @@ function SchemeCard({
       }}>
         <div style={{ minHeight: 0 }}>
           <div style={s.detailsSection}>
-            {/* Причина рекомендации */}
-            {scheme.reason && (
-              <div style={s.detailBlock}>
-                <div style={s.detailTitle}>💡 Почему эта схема</div>
-                <div style={s.reasonTextExpanded}>{scheme.reason}</div>
-              </div>
-            )}
-            {/* ...остальные блоки без изменений... */}
             {/* Дни недели */}
             <div style={s.detailBlock}>
               <div style={s.detailTitle}>📋 Структура недели</div>
