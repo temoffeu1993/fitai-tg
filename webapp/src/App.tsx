@@ -187,16 +187,12 @@ export default function App() {
           </Route>
         </Routes>
         
-        {/* Debug Panel - ВРЕМЕННО для всех (узнай свой ID и подставь ниже!) */}
-        <DebugPanel />
-        
-        {/* После того как узнаешь свой ID, раскомментируй код ниже и закомментируй строку выше */}
-        {/* 
+        {/* Debug Panel - только для админа */}
         {(() => {
           try {
             const tgUserId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            // Твой Telegram User ID (замени на свой!)
-            const ADMIN_ID = 123456789; // TODO: заменить на реальный ID
+            // Артем - единственный админ
+            const ADMIN_ID = 243055515;
             
             if (tgUserId === ADMIN_ID) {
               return <DebugPanel />;
@@ -206,7 +202,6 @@ export default function App() {
           }
           return null;
         })()}
-        */}
       </OnboardingProvider>
     </BrowserRouter>
   );
