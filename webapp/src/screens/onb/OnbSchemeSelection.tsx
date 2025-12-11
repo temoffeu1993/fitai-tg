@@ -555,7 +555,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
-    transition: "border-color 0.3s ease", // transition только для цвета border, не для фона
+    transition: "all 0.3s ease", // Оставляем анимацию для кружочка как было
   },
   radioDot: {
     width: 12,
