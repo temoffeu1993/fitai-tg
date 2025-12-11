@@ -335,15 +335,15 @@ const st: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     fontWeight: 800,
   },
-  /* Активные Sm: без бордюра и без тени */
+  /* Активные Sm: темный фон как у больших чипов */
   chipSmActive: {
-    background: GRAD,
-    color: "#000",
+    background: "#0f172a",
+    color: "#fff",
     border: "none",
     boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   },
   chipSmText: { fontSize: 12, color: "#111827", fontWeight: 800 },
-  chipSmTextActive: { color: "#000" },
+  chipSmTextActive: { color: "#fff" },
 
   /* Поля ввода — стекло */
   inputGlass: {
