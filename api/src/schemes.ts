@@ -55,68 +55,32 @@ schemes.post(
     const hasHealthLimits = data.health?.hasLimits || false;
     const healthLimitsText = data.health?.limitsText || "";
     
-    // Фильтруем схемы по базовым критериям (с fallback механизмом)
-    let candidateSchemes = workoutSchemes.filter(scheme => {
-      // 1. Количество дней - точное совпадение или ±1 день
-      const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
-      if (daysDiff > 1) return false;
+    // Фильтруем схемы по строгим критериям (без fallback)
+    const candidateSchemes = workoutSchemes.filter(scheme => {
+      // 1. Точное совпадение по количеству дней
+      if (scheme.daysPerWeek !== daysPerWeek) return false;
       
-      // 2. Опыт
+      // 2. Опыт должен совпадать
       if (!scheme.experienceLevels.includes(experience)) return false;
       
-      // 3. Время тренировки с погрешностью ±15 минут
-      const tolerance = 15;
+      // 3. Время тренировки с погрешностью ±20 минут
+      const tolerance = 20;
       if (minutesPerSession < scheme.minMinutes - tolerance || 
           minutesPerSession > scheme.maxMinutes + tolerance) {
         return false;
       }
       
-      // 4. Цель
+      // 4. Цель должна совпадать
       if (!scheme.goals.includes(goal)) return false;
       
       return true;
     });
     
-    // FALLBACK: Если схем мало, смягчаем фильтры НО СОХРАНЯЕМ ПРИОРИТЕТ ПО ДНЯМ
-    if (candidateSchemes.length < 3) {
-      // Разрешаем отклонение до ±2 дней, но с сохранением цели
-      candidateSchemes = workoutSchemes.filter(scheme => {
-        const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
-        if (daysDiff > 2) return false; // Максимум ±2 дня
-        
-        if (!scheme.experienceLevels.includes(experience)) return false;
-        if (!scheme.goals.includes(goal)) return false;
-        
-        const tolerance = 20; // Увеличиваем толерантность по времени
-        if (minutesPerSession < scheme.minMinutes - tolerance || 
-            minutesPerSession > scheme.maxMinutes + tolerance) {
-          return false;
-        }
-        return true;
-      });
-    }
-    
-    // FALLBACK 2: Если всё ещё мало, смягчаем опыт НО СОХРАНЯЕМ ДНИ
-    if (candidateSchemes.length < 3) {
-      const experienceFallback = {
-        beginner: ['beginner', 'intermediate'],
-        intermediate: ['beginner', 'intermediate', 'advanced'],
-        advanced: ['intermediate', 'advanced']
-      };
-      
-      candidateSchemes = workoutSchemes.filter(scheme => {
-        const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
-        if (daysDiff > 2) return false; // Всё ещё учитываем дни!
-        
-        const allowedLevels = experienceFallback[experience as keyof typeof experienceFallback] || [experience];
-        if (!scheme.experienceLevels.some(e => allowedLevels.includes(e))) return false;
-        if (!scheme.goals.includes(goal)) return false;
-        return true;
-      });
-    }
-    
     if (candidateSchemes.length === 0) {
-      throw new AppError("No suitable schemes found", 404);
+      throw new AppError(
+        `К сожалению, не нашлось подходящей схемы для ваших параметров (${goal}, ${daysPerWeek} дн/нед, ${experience}). Попробуйте изменить количество дней в неделю или другие параметры.`,
+        404
+      );
     }
     
     // Программный подбор схем на основе чётких критериев (надёжнее и быстрее чем AI)

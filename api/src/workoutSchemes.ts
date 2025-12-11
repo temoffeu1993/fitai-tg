@@ -1164,4 +1164,221 @@ export const workoutSchemes: WorkoutScheme[] = [
     intensity: "moderate",
     targetSex: "any",
   },
+
+  // ============= ДОПОЛНИТЕЛЬНЫЕ СХЕМЫ ДЛЯ ПОЛНОГО ПОКРЫТИЯ =============
+  
+  // build_muscle + 2 дня
+  {
+    id: "heavy_full_body_2x",
+    name: "Heavy Full Body 2x",
+    russianName: "Тяжёлая база 2 дня",
+    description: "Два интенсивных дня с тяжёлыми базовыми упражнениями для набора массы.",
+    daysPerWeek: 2,
+    minMinutes: 60,
+    maxMinutes: 90,
+    splitType: "full_body",
+    experienceLevels: ["intermediate", "advanced"],
+    goals: ["build_muscle", "strength"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Full Body Heavy A",
+        focus: "Приседания, жим лёжа, тяга штанги — тяжёлые веса для максимального роста.",
+      },
+      {
+        day: 2,
+        label: "Full Body Heavy B",
+        focus: "Становая тяга, жим над головой, подтягивания — вторая тяжёлая сессия.",
+      },
+    ],
+    benefits: [
+      "Два мощных дня дают достаточный стимул для роста мышц даже при минимальной частоте.",
+      "Много времени на восстановление — мышцы растут между тренировками.",
+      "Подходит тем, кто может тренироваться только 2 раза, но хочет серьёзного прогресса.",
+    ],
+    notes: "Основано на принципах HIT (High Intensity Training) — меньше тренировок, но каждая максимально эффективна.",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // strength + 2 дня
+  {
+    id: "strength_foundation_2x",
+    name: "Strength Foundation 2x",
+    russianName: "Силовая база 2 дня",
+    description: "Два силовых дня для развития максимальной силы в базовых движениях.",
+    daysPerWeek: 2,
+    minMinutes: 60,
+    maxMinutes: 90,
+    splitType: "full_body",
+    experienceLevels: ["intermediate", "advanced"],
+    goals: ["strength", "build_muscle"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Lower Body Strength",
+        focus: "Тяжёлые приседания и становая тяга — основа для сильных ног и спины.",
+      },
+      {
+        day: 2,
+        label: "Upper Body Strength",
+        focus: "Тяжёлый жим лёжа и жим стоя — мощный верх тела.",
+      },
+    ],
+    benefits: [
+      "Фокус на главных силовых движениях — присед, тяга, жим.",
+      "Малое количество повторений с большими весами — растёт именно сила.",
+      "Подходит для тех, кто хочет стать сильнее при минимальной частоте тренировок.",
+    ],
+    notes: "Основано на методах пауэрлифтинга — акцент на нейромышечную адаптацию и рост силы.",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // lose_weight + 6 дней
+  {
+    id: "daily_burn_6x",
+    name: "Daily Burn 6x",
+    russianName: "Ежедневное жиросжигание",
+    description: "Шесть разнообразных тренировок для максимального расхода калорий и ускорения метаболизма.",
+    daysPerWeek: 6,
+    minMinutes: 30,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["intermediate", "advanced"],
+    goals: ["lose_weight", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "HIIT Full Body",
+        focus: "Высокоинтенсивные интервалы на всё тело — сжигаем максимум калорий.",
+      },
+      {
+        day: 2,
+        label: "Strength Circuits",
+        focus: "Круговая силовая тренировка — мышцы и жиросжигание одновременно.",
+      },
+      {
+        day: 3,
+        label: "Cardio + Core",
+        focus: "Кардио и мышцы кора — выносливость и рельеф.",
+      },
+      {
+        day: 4,
+        label: "Upper Body Burn",
+        focus: "Интенсивная работа на верх тела с высоким пульсом.",
+      },
+      {
+        day: 5,
+        label: "Lower Body Burn",
+        focus: "Упражнения на ноги и ягодицы — самые энергозатратные мышцы.",
+      },
+      {
+        day: 6,
+        label: "Active Recovery",
+        focus: "Лёгкая активность и растяжка — восстановление без полного отдыха.",
+      },
+    ],
+    benefits: [
+      "Ежедневная активность держит метаболизм на высоком уровне всю неделю.",
+      "Разнообразие тренировок не даёт телу адаптироваться — жир продолжает уходить.",
+      "Быстрые видимые результаты при правильном питании.",
+    ],
+    notes: "Основано на принципах NEAT (Non-Exercise Activity Thermogenesis) — постоянная активность для максимального расхода энергии.",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // health_wellness + 6 дней
+  {
+    id: "active_lifestyle_6x",
+    name: "Active Lifestyle 6x",
+    russianName: "Активный образ жизни",
+    description: "Шесть дней сбалансированной активности для здоровья, энергии и хорошего самочувствия.",
+    daysPerWeek: 6,
+    minMinutes: 30,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate"],
+    goals: ["health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Strength & Mobility",
+        focus: "Силовые упражнения + растяжка для гибкости и крепкого тела.",
+      },
+      {
+        day: 2,
+        label: "Cardio Health",
+        focus: "Кардио для сердца и лёгких — основа долголетия.",
+      },
+      {
+        day: 3,
+        label: "Balance & Core",
+        focus: "Упражнения на баланс и мышцы кора — профилактика травм.",
+      },
+      {
+        day: 4,
+        label: "Functional Fitness",
+        focus: "Функциональные движения для повседневной жизни.",
+      },
+      {
+        day: 5,
+        label: "Light Strength",
+        focus: "Лёгкая силовая работа — поддержание мышечного тонуса.",
+      },
+      {
+        day: 6,
+        label: "Yoga & Stretch",
+        focus: "Йога и растяжка — восстановление и подвижность суставов.",
+      },
+    ],
+    benefits: [
+      "Ежедневное движение улучшает настроение и уровень энергии.",
+      "Разносторонняя нагрузка развивает все аспекты здоровья.",
+      "Профилактика болезней сердца, диабета и других возрастных проблем.",
+    ],
+    notes: "Основано на рекомендациях ВОЗ и исследованиях Blue Zones — регионов с наибольшей продолжительностью жизни.",
+    intensity: "low",
+    targetSex: "any",
+  },
+
+  // lower_body_focus + 2 дня
+  {
+    id: "glutes_legs_2x",
+    name: "Glutes & Legs Focus 2x",
+    russianName: "Акцент на ягодицы и ноги 2 дня",
+    description: "Два мощных дня для развития ног и ягодиц с минимальной частотой.",
+    daysPerWeek: 2,
+    minMinutes: 60,
+    maxMinutes: 90,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate"],
+    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Glutes & Quads",
+        focus: "Приседания, выпады, ягодичный мост — передняя часть ног и ягодицы.",
+      },
+      {
+        day: 2,
+        label: "Hamstrings & Glutes",
+        focus: "Румынская тяга, сгибания ног, отведения — задняя часть и ягодицы.",
+      },
+    ],
+    benefits: [
+      "Концентрированная работа на нижнюю часть тела — максимальный эффект за минимум дней.",
+      "Достаточно времени на восстановление — ягодицам нужно 48-72 часа между нагрузками.",
+      "Подходит тем, кто хочет сильные ноги и выразительные ягодицы при минимальной частоте.",
+    ],
+    notes: "Основано на принципе Bret Contreras (\"Glute Guy\") — акцент на ягодицы требует качества, а не количества тренировок.",
+    intensity: "moderate",
+    targetSex: "female",
+  },
 ];
