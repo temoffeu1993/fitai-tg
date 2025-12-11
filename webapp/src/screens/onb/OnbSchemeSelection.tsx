@@ -211,9 +211,14 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         <button
           type="button"
           onClick={() => setAccepted((v) => !v)}
-          style={{...s.radioCircle, position: "relative", borderColor: accepted ? "#0f172a" : "rgba(0,0,0,0.2)"}}
+          style={s.termsCheckbox}
         >
-          <div style={{...s.radioDot, transform: accepted ? "scale(1)" : "scale(0)", opacity: accepted ? 1 : 0}} />
+          <div style={{
+            ...s.radioDot,
+            transform: accepted ? "scale(1)" : "scale(0)",
+            opacity: accepted ? 1 : 0,
+            background: accepted ? "#0f172a" : "transparent"
+          }} />
         </button>
         <span style={s.termsText}>
           Я ознакомился и согласен с Условиями использования приложения{" "}
@@ -705,6 +710,20 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
+  },
+
+  termsCheckbox: {
+    flexShrink: 0,
+    width: 24,
+    height: 24,
+    marginTop: 2, // Выравнивание по тексту
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.2)",
+    background: "rgba(255,255,255,0.5)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
   termsText: {
     fontSize: 13,

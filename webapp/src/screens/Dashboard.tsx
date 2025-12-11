@@ -119,7 +119,7 @@ function resolveTelegramName() {
   return "Гость";
 }
 
-// имя из онбординга
+// имя из онбординга (если не введено, возвращает null)
 function resolveOnbName() {
   try {
     const onbRaw = localStorage.getItem("onb_summary");
@@ -129,7 +129,7 @@ function resolveOnbName() {
       if (typeof n === "string" && n.trim()) return n.trim();
     }
   } catch {}
-  return "Гость";
+  return null; // Изменено: возвращаем null вместо "Гость"
 }
 
 function hasOnb() {
@@ -143,9 +143,13 @@ function hasOnb() {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // сначала приветствуем ником из Телеграма, пока анкета не заполнена
+  // Приоритет: имя из онбординга → имя из Telegram → "Гость"
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
-  const [name, setName] = useState<string>(onbDone ? resolveOnbName() : resolveTelegramName());
+  const [name, setName] = useState<string>(() => {
+    const onbName = resolveOnbName();
+    if (onbName) return onbName;
+    return resolveTelegramName();
+  });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
   
