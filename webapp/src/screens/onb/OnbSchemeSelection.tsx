@@ -215,8 +215,10 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           position: "relative",
           cursor: "pointer",
           textAlign: "left",
-          WebkitTapHighlightColor: "transparent", // Убирает серое моргание на iOS/Android
-          outline: "none", // Убирает outline при фокусе
+          WebkitTapHighlightColor: "transparent",
+          outline: "none",
+          transition: "none", // Убирает любые transition эффекты при клике
+          userSelect: "none" as any, // Убирает выделение текста
         }}
       >
         {/* Радио-кнопка - точно как в схемах */}
