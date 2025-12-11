@@ -433,13 +433,15 @@ function goalRus(g?: string) {
 function expRus(e: any) {
   const v = typeof e === "string" ? e : e?.level;
   const map: Record<string, string> = {
-    never_trained: "Никогда не занимался",
-    long_break: "Перерыв 3+ месяцев",
-    training_regularly: "Тренируется регулярно (<1 года)",
-    training_experienced: "Тренируется давно (1+ года)",
-    beginner: "новичок",
-    intermediate: "средний",
-    advanced: "продвинутый",
+    // Новые значения
+    beginner: "Новичок (0-6 мес)",
+    intermediate: "Средний уровень (6 мес - 2 года)",
+    advanced: "Продвинутый (2+ года)",
+    // Старые значения для обратной совместимости
+    never_trained: "Новичок",
+    long_break: "Новичок (после перерыва)",
+    training_regularly: "Средний уровень",
+    training_experienced: "Продвинутый",
   };
   return map[String(v || "")] || v || "—";
 }

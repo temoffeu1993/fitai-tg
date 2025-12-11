@@ -57,13 +57,13 @@ export const workoutSchemes: WorkoutScheme[] = [
   {
     id: "full_body_2x_recovery",
     name: "Full Body Recovery",
-    russianName: "Мягкое возвращение после перерыва",
-    description: "Осторожная программа, чтобы безопасно вернуться к тренировкам после паузы.",
+    russianName: "Мягкое начало 2 дня",
+    description: "Спокойная программа для новичков или после долгого перерыва — 2 раза в неделю.",
     daysPerWeek: 2,
     minMinutes: 30,
     maxMinutes: 60,
     splitType: "full_body",
-    experienceLevels: ["beginner", "intermediate", "advanced"],
+    experienceLevels: ["beginner"],
     goals: ["health_wellness", "lose_weight", "athletic_body"],
     equipmentRequired: ["gym_full", "dumbbells"],
     dayLabels: [

@@ -207,11 +207,7 @@ type OnboardingGoal =
   | "strength" // Стать сильнее
   | "health_wellness"; // Здоровье/самочувствие
 
-type TrainingStatus =
-  | "never_trained" // Никогда не занимался
-  | "long_break" // Большой перерыв (3+ месяца)
-  | "training_regularly" // Тренируюсь регулярно (<1 года)
-  | "training_experienced"; // Тренируюсь давно и регулярно
+type TrainingStatus = "beginner" | "intermediate" | "advanced";
 
 type WeightConstraint = {
   min: number;
@@ -287,15 +283,19 @@ const DEFAULT_SESSION_MINUTES = 60;
 const DEFAULT_EXERCISES_COUNT = 8;
 function mapTrainingStatus(raw: any): TrainingStatus {
   const v = String(raw || "").toLowerCase();
-  if (v.includes("never")) return "never_trained";
-  if (v.includes("break") || v.includes("перерыв")) return "long_break";
+  // Маппинг старых значений для обратной совместимости
+  if (v.includes("never") || v.includes("break") || v.includes("перерыв")) return "beginner";
+  if (v.includes("begin") || v.includes("novice") || v.includes("new")) return "beginner";
   if (v.includes("experienced") || v.includes("advanced") || v.includes("1+") || v.includes("long")) {
-    return "training_experienced";
+    return "advanced";
   }
-  if (v.includes("regular") || v.includes("регуляр")) return "training_regularly";
-  if (v.includes("begin") || v.includes("novice") || v.includes("new")) return "never_trained";
-  if (v.includes("intermediate")) return "training_regularly";
-  return "never_trained";
+  if (v.includes("regular") || v.includes("регуляр")) return "intermediate";
+  if (v.includes("intermediate")) return "intermediate";
+  // Прямые значения
+  if (v === "beginner") return "beginner";
+  if (v === "intermediate") return "intermediate";
+  if (v === "advanced") return "advanced";
+  return "beginner";
 }
 
 function clampScore(v: number): number {
@@ -753,19 +753,14 @@ function buildProgressionSummaryShort(
   const week = globalWeekIndex ?? 1;
 
   let stageNote = "";
-  if (trainingStatus === "never_trained") {
+  if (trainingStatus === "beginner") {
     stageNote =
       week <= 4
         ? `Неделя ${week} из первого месяца: фаза адаптации к нагрузкам.`
         : `Неделя ${week}: начальный период освоен, можно аккуратно повышать объём и интенсивность.`;
-  } else if (trainingStatus === "long_break") {
-    stageNote =
-      week <= 2
-        ? `Неделя ${week} после перерыва: ре-адаптация, умеренные веса.`
-        : `Неделя ${week} после перерыва: можно прогрессировать ближе к прежним весам.`;
-  } else if (trainingStatus === "training_regularly") {
+  } else if (trainingStatus === "intermediate") {
     stageNote = `Неделя ${week}: регулярные тренировки, допустима линейная прогрессия весов и/или объёма.`;
-  } else if (trainingStatus === "training_experienced") {
+  } else if (trainingStatus === "advanced") {
     stageNote = `Неделя ${week}: опытный атлет, следи за чередованием тяжёлых и более лёгких сессий.`;
   }
 
@@ -902,7 +897,7 @@ function buildProfile(
   console.log("  Check-in present:", Boolean(checkIn));
 
   const sexRaw = (onboarding?.ageSex?.sex || "").toLowerCase();
-  const experienceRaw = onboarding?.experience || "never_trained";
+  const experienceRaw = onboarding?.experience || "beginner";
   const trainingStatus = mapTrainingStatus(experienceRaw);
   const sex: Profile["sex"] =
     sexRaw === "female" ? "female" : sexRaw === "male" ? "male" : "unknown";
@@ -1343,9 +1338,9 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
   let baseDays: string[];
   let description: string;
 
-  const isExperienced = profile.trainingStatus === "training_experienced";
-  const isRegular = profile.trainingStatus === "training_regularly";
-  const isBeginner = profile.trainingStatus === "never_trained" || profile.trainingStatus === "long_break";
+  const isExperienced = profile.trainingStatus === "advanced";
+  const isRegular = profile.trainingStatus === "intermediate";
+  const isBeginner = profile.trainingStatus === "beginner";
 
   if (profile.daysPerWeek >= 5) {
     if (isExperienced && !isSenior && !hasInjuries) {
@@ -2546,10 +2541,8 @@ function buildProgressionContext(
 
   if (!history.length) {
     const firstTimeGuidance =
-      trainingStatus === "never_trained"
+      trainingStatus === "beginner"
         ? "Начни с консервативных весов и простых движений. Приоритет — обучение технике."
-        : trainingStatus === "long_break"
-        ? "Первая тренировка после перерыва — начни с умеренных нагрузок для проверки готовности."
         : "Первая тренировка в приложении — оцени текущую форму и адаптируй под неё нагрузку.";
 
     return `# КОНТЕКСТ ПРОГРЕССИИ
@@ -2561,7 +2554,7 @@ ${firstTimeGuidance}`;
   const sections: string[] = [];
 
   let stageDescription = "";
-  if (trainingStatus === "never_trained") {
+  if (trainingStatus === "beginner") {
     if (week <= 4) {
       stageDescription = `Неделя ${week} из первого месяца. Ранняя стадия: адаптация к нагрузкам, изучение техники базовых движений.`;
     } else if (week <= 8) {
@@ -2571,15 +2564,7 @@ ${firstTimeGuidance}`;
     } else {
       stageDescription = `Неделя ${week}. Клиент вышел из начального периода — продолжай стандартную линейную прогрессию.`;
     }
-  } else if (trainingStatus === "long_break") {
-    if (week <= 2) {
-      stageDescription = `Неделя ${week} возвращения. Период ре-адаптации: восстанавливаем нейромышечные связи, веса консервативные.`;
-    } else if (week <= 4) {
-      stageDescription = `Неделя ${week} возвращения. Адаптация завершена, можно активно добавлять веса (мышечная память работает).`;
-    } else {
-      stageDescription = `Неделя ${week}. Тело адаптировалось — работай как с регулярно тренирующимся.`;
-    }
-  } else if (trainingStatus === "training_regularly") {
+  } else if (trainingStatus === "intermediate") {
     if (week <= 8) {
       stageDescription = `Неделя ${week} в приложении. Продолжай линейную прогрессию весов — клиент в активной фазе роста.`;
     } else {
@@ -2698,7 +2683,7 @@ ${pains.length > 0 ? `- Текущие боли: ${pains.map((p) => p.location).
 Если болит спина/шея — без осевой нагрузки и тяжёлых тяг/жимов стоя; больше машин, изоляций, мобилити.`);
   }
 
-  if (profile.trainingStatus === "never_trained") {
+  if (profile.trainingStatus === "beginner") {
     guidelines.push(`## Новичок
 - Простые движения (машины, гантели лучше штанги)
 - Больше времени на разучивание техники

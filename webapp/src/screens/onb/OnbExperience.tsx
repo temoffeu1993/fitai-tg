@@ -1,11 +1,7 @@
 // webapp/src/screens/onb/OnbExperience.tsx
 import { useState } from "react";
 
-export type Experience =
-  | "never_trained"
-  | "long_break"
-  | "training_regularly"
-  | "training_experienced";
+export type Experience = "beginner" | "intermediate" | "advanced";
 
 export type OnbExperienceData = {
   experience: Experience;
@@ -22,7 +18,7 @@ type Props = {
 
 export default function OnbExperience({ initial, loading, onSubmit, onBack, onTabChange }: Props) {
   const [experience, setExperience] = useState<Experience>(
-    (initial?.experience as Experience) ?? "never_trained"
+    (initial?.experience as Experience) ?? "beginner"
   );
   const [daysPerWeek, setDaysPerWeek] = useState<number>(initial?.schedule?.daysPerWeek ?? 3);
   const [minutesPerSession, setMinutesPerSession] = useState<number>(
