@@ -187,8 +187,8 @@ export default function App() {
           </Route>
         </Routes>
         
-        {/* Debug Panel для отладки на телефоне */}
-        <DebugPanel />
+        {/* Debug Panel для отладки на телефоне (закомментирован) */}
+        {/* <DebugPanel /> */}
       </OnboardingProvider>
     </BrowserRouter>
   );
