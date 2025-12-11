@@ -147,35 +147,49 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   if (loading) {
     return (
-      <div style={s.page}>
-        <NeonStyles />
-        <section style={s.loadingCard}>
-          <div style={s.stepRow}>
-            <span style={s.stepPill}>Шаг 5 из 5</span>
-          </div>
-          <div style={s.loadingTitle}>Подбираем схему тренировок...</div>
-          <div style={s.loadingSubtitle}>Анализируем твои данные</div>
-          <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
-            <Spinner />
-          </div>
-        </section>
+      <div
+        style={{
+          minHeight: "var(--app-height, 100vh)",
+          background: "var(--app-gradient-onb-schemes)",
+        }}
+      >
+        <div style={s.page}>
+          <NeonStyles />
+          <section style={s.loadingCard}>
+            <div style={s.stepRow}>
+              <span style={s.stepPill}>Шаг 5 из 5</span>
+            </div>
+            <div style={s.loadingTitle}>Подбираем схему тренировок...</div>
+            <div style={s.loadingSubtitle}>Анализируем твои данные</div>
+            <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
+              <Spinner />
+            </div>
+          </section>
+        </div>
       </div>
     );
   }
 
   if (error || !recommended) {
     return (
-      <div style={s.page}>
-        <NeonStyles />
-        <section style={s.loadingCard}>
-          <div style={s.loadingTitle}>Ошибка</div>
-          <div style={s.loadingSubtitle}>
-            {error || "Не удалось загрузить рекомендации"}
-          </div>
-          <button style={s.primaryBtn} onClick={() => loadRecommendations()}>
-            Попробовать снова
-          </button>
-        </section>
+      <div
+        style={{
+          minHeight: "var(--app-height, 100vh)",
+          background: "var(--app-gradient-onb-schemes)",
+        }}
+      >
+        <div style={s.page}>
+          <NeonStyles />
+          <section style={s.loadingCard}>
+            <div style={s.loadingTitle}>Ошибка</div>
+            <div style={s.loadingSubtitle}>
+              {error || "Не удалось загрузить рекомендации"}
+            </div>
+            <button style={s.primaryBtn} onClick={() => loadRecommendations()}>
+              Попробовать снова
+            </button>
+          </section>
+        </div>
       </div>
     );
   }
@@ -183,8 +197,14 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const allSchemes = [recommended, ...alternatives];
 
   return (
-    <div style={s.page}>
-      <NeonStyles />
+    <div
+      style={{
+        minHeight: "var(--app-height, 100vh)",
+        background: "var(--app-gradient-onb-schemes)",
+      }}
+    >
+      <div style={s.page}>
+        <NeonStyles />
 
       {/* HEADER + HERO */}
       <header style={s.header}>
@@ -222,7 +242,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
               Моро уже отобрал лучшие схемы под твой режим.
             </p>
             <div style={s.heroMetaRow}>
-              <span style={s.heroMetaChip}>Цель: {recommended.goalLabel ?? "масса"}</span>
+              <span style={s.heroMetaChip}>Цель: {getGoalText(recommended)}</span>
               <span style={s.heroMetaChip}>
                 {recommended.daysPerWeek} дн/нед
               </span>
@@ -396,9 +416,18 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         </div>
       )}
 
-      <div style={{ height: 72 }} />
+        <div style={{ height: 72 }} />
+      </div>
     </div>
   );
+}
+
+function getGoalText(scheme: WorkoutScheme): string {
+  if (scheme.goals.includes("mass") || scheme.goals.includes("muscle_gain")) return "масса";
+  if (scheme.goals.includes("strength")) return "сила";
+  if (scheme.goals.includes("fat_loss") || scheme.goals.includes("weight_loss")) return "похудение";
+  if (scheme.goals.includes("endurance")) return "выносливость";
+  return "фитнес";
 }
 
 function AltSchemeCard({
@@ -510,14 +539,12 @@ const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 420,
     margin: "0 auto",
-    minHeight: "100vh",
+    minHeight: "var(--app-height, 100vh)",
     padding: "16px 16px 24px",
+    boxSizing: "border-box",
     fontFamily:
       "system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif",
     color: "#F9FAFB",
-    background:
-      "radial-gradient(circle at 0% 0%, #10121b 0%, #05060b 50%, #020308 100%)",
-    boxSizing: "border-box",
   },
 
   header: {
