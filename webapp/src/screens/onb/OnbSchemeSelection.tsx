@@ -1,15 +1,6 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 import { useEffect, useState } from "react";
-import type React from "react";
-import {
-  getSchemeRecommendations,
-  selectScheme,
-  type WorkoutScheme,
-} from "@/api/schemes";
-
-// !!! ЗАМЕНИ пути на свои !!!
-import robotHero from "@/assets/onb/robot-hero.png";
-import bodyFull from "@/assets/onb/body-full.png";
+import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 
 type Props = {
   onComplete: () => void;
@@ -47,6 +38,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       const data = await getSchemeRecommendations();
       setRecommended(data.recommended);
       setAlternatives(data.alternatives);
+      // По умолчанию выбираем рекомендованную
       setSelectedId(data.recommended.id);
     } catch (err: any) {
       console.error("Failed to load recommendations:", err);
@@ -99,7 +91,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     {
       title: "6. Ограничение ответственности",
       body: [
-        "Разработчики Moro не несут ответственности за травмы/ухудшение здоровья, неточности рекомендаций из-за неполных данных, тренировки без консультации врача, технические сбои.",
+        "Разработчики FitAI не несут ответственности за травмы/ухудшение здоровья, неточности рекомендаций из-за неполных данных, тренировки без консультации врача, технические сбои.",
       ],
     },
     {
@@ -125,17 +117,20 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   async function handleConfirm() {
     if (!selectedId) return;
-
+    
     try {
       setSaving(true);
       setError(null);
       await selectScheme(selectedId);
-
+      
+      // Сохраняем флаг в localStorage
       localStorage.setItem("scheme_selected", "1");
+      
+      // Оповещаем систему
       try {
         window.dispatchEvent(new Event("scheme_selected"));
       } catch {}
-
+      
       onComplete();
     } catch (err: any) {
       console.error("Failed to select scheme:", err);
@@ -147,51 +142,33 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "var(--app-height, 100vh)",
-          background: "var(--app-gradient-onb-schemes)",
-          paddingBottom: 110,
-        }}
-      >
-        <div style={s.page}>
-          <NeonStyles />
-          <section style={s.loadingCard}>
-            <div style={s.stepRow}>
-              <span style={s.stepPill}>Шаг 5 из 5</span>
-            </div>
-            <div style={s.loadingTitle}>Подбираем схему тренировок...</div>
-            <div style={s.loadingSubtitle}>Анализируем твои данные</div>
-            <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
-              <Spinner />
-            </div>
-          </section>
-        </div>
+      <div style={s.page}>
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>Шаг 5 из 5</span>
+            <span style={s.pill}>Анкета</span>
+          </div>
+          <div style={s.heroTitle}>Подбираем схему тренировок...</div>
+          <div style={s.heroSubtitle}>Анализируем твои данные</div>
+          
+          <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
+            <Spinner />
+          </div>
+        </section>
       </div>
     );
   }
 
   if (error || !recommended) {
     return (
-      <div
-        style={{
-          minHeight: "var(--app-height, 100vh)",
-          background: "var(--app-gradient-onb-schemes)",
-          paddingBottom: 110,
-        }}
-      >
-        <div style={s.page}>
-          <NeonStyles />
-          <section style={s.loadingCard}>
-            <div style={s.loadingTitle}>Ошибка</div>
-            <div style={s.loadingSubtitle}>
-              {error || "Не удалось загрузить рекомендации"}
-            </div>
-            <button style={s.primaryBtn} onClick={() => loadRecommendations()}>
-              Попробовать снова
-            </button>
-          </section>
-        </div>
+      <div style={s.page}>
+        <section style={s.heroCard}>
+          <div style={s.heroTitle}>Ошибка</div>
+          <div style={s.heroSubtitle}>{error || "Не удалось загрузить рекомендации"}</div>
+          <button style={s.primaryBtn} onClick={() => loadRecommendations()}>
+            Попробовать снова
+          </button>
+        </section>
       </div>
     );
   }
@@ -199,167 +176,48 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const allSchemes = [recommended, ...alternatives];
 
   return (
-    <div
-      style={{
-        minHeight: "var(--app-height, 100vh)",
-        background: "var(--app-gradient-onb-schemes)",
-        paddingBottom: 110,
-      }}
-    >
-      <div style={s.page}>
-        <NeonStyles />
-
-      {/* HEADER + HERO */}
-      <header style={s.header}>
-        <div style={s.stepRow}>
-          <span style={s.stepPill}>Шаг 5 из 5</span>
-          {onBack && (
-            <button type="button" onClick={onBack} style={s.backTopBtn}>
-              Назад
-            </button>
-          )}
+    <div style={s.page}>
+      <SoftGlowStyles />
+      
+      {/* HERO */}
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>Шаг 5 из 5</span>
+          <span style={s.pill}>Анкета</span>
         </div>
-
-        <div style={s.headerTop}>
-          <div>
-            <h1 style={s.headerTitle}>Выбери схему тренировок</h1>
-            <p style={s.headerSubtitle}>
-              Мы уже учли цель, опыт и дни. Осталось выбрать, как именно будешь
-              тренироваться.
-            </p>
-          </div>
-
-          <div style={s.recoBadge}>
-            <span style={s.recoDot} />
-            <span>Рекомендовано Моро</span>
-          </div>
-        </div>
-      </header>
-
-      <section style={s.heroSection}>
-        <div style={s.heroGlow} />
-        <div style={s.heroInner}>
-          <img src={robotHero} alt="Moro" style={s.heroRobot} />
-          <div style={s.heroTextBlock}>
-            <p style={s.heroTextMain}>
-              Моро уже отобрал лучшие схемы под твой режим.
-            </p>
-            <div style={s.heroMetaRow}>
-              <span style={s.heroMetaChip}>Цель: {getGoalText(recommended)}</span>
-              <span style={s.heroMetaChip}>
-                {recommended.daysPerWeek} дн/нед
-              </span>
-              <span style={s.heroMetaChip}>
-                {recommended.minMinutes}–{recommended.maxMinutes} мин
-              </span>
-            </div>
-          </div>
+        
+        <div style={s.heroKicker}>Схема тренировок</div>
+        <div style={s.heroTitle}>Выбери программу 🏋️</div>
+        <div style={s.heroSubtitle}>
+          Мы подобрали для тебя 3 варианта на основе твоих данных. Одна рекомендована тренером.
         </div>
       </section>
 
-      {/* SCHEMES */}
-      <section style={s.schemesSection}>
-        {/* Основная (рекомендованная) карточка — как Full Body */}
-        <article
-          style={{
-            ...s.schemeCardPrimary,
-            ...(selectedId === recommended.id ? s.schemeCardPrimarySelected : {}),
-          }}
-          className="scheme-enter"
-          onClick={() => setSelectedId(recommended.id)}
-        >
-          <div style={s.schemeCardPrimaryHeader}>
-            <div>
-              <div style={s.schemeChipPrimary}>Рекомендуется</div>
-              <div style={s.schemeTitle}>{recommended.name}</div>
-              {recommended.description && (
-                <div style={s.schemeTagline}>"{recommended.description}"</div>
-              )}
-            </div>
-
-            <div style={s.schemeFigure}>
-              <img src={bodyFull} alt="Body load" style={s.schemeFigureImg} />
-            </div>
-          </div>
-
-          <div style={s.schemeMetaRow}>
-            <span style={s.metaPill}>
-              {recommended.daysPerWeek} дн/неделю
-            </span>
-            <span style={s.metaPill}>
-              {recommended.minMinutes}–{recommended.maxMinutes} мин
-            </span>
-            {recommended.intensity && (
-              <span style={s.metaPill}>
-                Интенсивность:{" "}
-                {recommended.intensity === "low"
-                  ? "низкая"
-                  : recommended.intensity === "moderate"
-                  ? "средняя"
-                  : "высокая"}
-              </span>
-            )}
-          </div>
-
-          <div style={s.schemePrimaryBottomRow}>
-            <div style={s.loadBlock}>
-              <div style={s.loadTitle}>Нагрузка по мышцам</div>
-              <div style={s.loadRow}>
-                <span style={s.loadLabel}>Всё тело</span>
-                <div style={s.loadBars}>
-                  <span
-                    style={{ ...s.loadBar, ...s.loadBarMain }}
-                  />
-                  <span style={s.loadBar} />
-                  <span style={s.loadBar} />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              style={s.selectBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedId(recommended.id);
-              }}
-            >
-              Выбрать {recommended.name}
-            </button>
-          </div>
-        </article>
-
-        {/* Альтернативы */}
-        {alternatives.map((scheme, index) => (
-          <AltSchemeCard
+      {/* Схемы */}
+      <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
+        {allSchemes.map((scheme, i) => (
+          <SchemeCard
             key={scheme.id}
+            index={i}
             scheme={scheme}
-            index={index}
             isSelected={selectedId === scheme.id}
             onSelect={() => setSelectedId(scheme.id)}
           />
         ))}
-      </section>
+      </div>
 
-      {/* Условия */}
+      {/* Чекбокс условий использования */}
       <div style={s.termsRow}>
         <button
           type="button"
           onClick={() => setAccepted((v) => !v)}
-          style={{
-            ...s.circleCheck,
-            ...(accepted ? s.circleCheckOn : {}),
-          }}
+          style={{ ...s.circleCheck, ...(accepted ? s.circleCheckOn : {}) }}
         >
           {accepted ? "✓" : ""}
         </button>
         <span style={s.termsText}>
           Я ознакомился и согласен с Условиями использования приложения{" "}
-          <button
-            type="button"
-            onClick={() => setShowTerms(true)}
-            style={s.inlineLink}
-          >
+          <button type="button" onClick={() => setShowTerms(true)} style={s.inlineLink}>
             Подробнее
           </button>
         </span>
@@ -369,6 +227,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       <button
         onClick={handleConfirm}
         disabled={!selectedId || !accepted || saving}
+        className="soft-glow"
         style={{
           ...s.primaryBtn,
           opacity: !selectedId || !accepted || saving ? 0.6 : 1,
@@ -379,25 +238,20 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       </button>
 
       {onBack && (
-        <button type="button" onClick={onBack} style={s.backBottomBtn}>
+        <button type="button" onClick={onBack} style={s.backTextBtn}>
           Назад
         </button>
       )}
 
       {error && <div style={s.errorText}>{error}</div>}
 
-      {/* Модалка с условиями */}
+      {/* Модальное окно с терминами */}
       {showTerms && (
         <div style={s.modalOverlay}>
           <div style={s.modalCard}>
             <div style={s.modalHeader}>
-              <div style={s.modalTitle}>
-                Условия использования и политика конфиденциальности
-              </div>
-              <button
-                style={s.modalClose}
-                onClick={() => setShowTerms(false)}
-              >
+              <div style={s.modalTitle}>Условия использования и политика конфиденциальности</div>
+              <button style={s.modalClose} onClick={() => setShowTerms(false)}>
                 ✕
               </button>
             </div>
@@ -418,20 +272,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           </div>
         </div>
       )}
-      </div>
+
+      <div style={{ height: 76 }} />
     </div>
   );
 }
 
-function getGoalText(scheme: WorkoutScheme): string {
-  if (scheme.goals.includes("mass") || scheme.goals.includes("muscle_gain")) return "масса";
-  if (scheme.goals.includes("strength")) return "сила";
-  if (scheme.goals.includes("fat_loss") || scheme.goals.includes("weight_loss")) return "похудение";
-  if (scheme.goals.includes("endurance")) return "выносливость";
-  return "фитнес";
-}
-
-function AltSchemeCard({
+function SchemeCard({
   scheme,
   isSelected,
   onSelect,
@@ -442,72 +289,134 @@ function AltSchemeCard({
   onSelect: () => void;
   index: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const displayName = scheme.name;
+
   return (
-    <article
-      className="scheme-enter"
+    <div
+      className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
       style={{
-        ...s.altCard,
-        ...(isSelected ? s.altCardSelected : {}),
-        animationDelay: `${index * 90}ms`,
+        ...s.schemeCard,
+        ...(isSelected ? s.schemeCardSelected : {}),
+        animationDelay: `${index * 120}ms`,
       }}
       onClick={onSelect}
     >
-      <div style={s.altHeaderRow}>
-        <div>
-          <div style={s.altTitle}>{scheme.name}</div>
-          {scheme.description && (
-            <div style={s.altTagline}>{scheme.description}</div>
-          )}
+      {/* Бейдж "Рекомендовано тренером" */}
+      {scheme.isRecommended && (
+        <div style={s.recommendedBadge}>
+          <div style={s.shine} />
+          <span style={{ fontSize: 14 }}>⭐</span>
+          <span style={s.recommendedText}>Рекомендовано тренером</span>
         </div>
-        <div style={s.altChip}>Тоже подходит</div>
-      </div>
-
-      <div style={s.altMetaRow}>
-        <span style={s.metaPill}>
-          {scheme.daysPerWeek} дн/неделю
-        </span>
-        <span style={s.metaPill}>
-          {scheme.minMinutes}–{scheme.maxMinutes} мин
-        </span>
-      </div>
-
-      {scheme.reason && (
-        <div style={s.altFootnote}>{scheme.reason}</div>
       )}
-    </article>
+
+      {/* Радио-кнопка (минималистичная) */}
+      <div style={{...s.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
+        <div style={{...s.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0}} />
+      </div>
+
+      {/* Название */}
+      <div style={s.schemeName}>{displayName}</div>
+      
+      {/* Краткая инфо */}
+      <div style={s.schemeInfo}>
+        <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
+        <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
+        <span style={s.infoChip}>
+          {scheme.intensity === "low" ? "🟢 Лёгкая" : 
+           scheme.intensity === "moderate" ? "🟡 Средняя" : 
+           "🔴 Высокая"}
+        </span>
+      </div>
+
+      {/* Описание */}
+      <div style={s.schemeDescription}>{scheme.description}</div>
+
+      {/* Разворачиваемая секция с деталями */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(!expanded);
+        }}
+        style={s.expandBtn}
+      >
+        {expanded ? "Свернуть детали ▲" : "Показать детали ▼"}
+      </button>
+
+      <div style={{ 
+        display: "grid", 
+        gridTemplateRows: expanded ? "1fr" : "0fr", 
+        transition: "grid-template-rows 0.3s ease-out",
+        overflow: "hidden" 
+      }}>
+        <div style={{ minHeight: 0 }}>
+          <div style={s.detailsSection}>
+            {/* Причина рекомендации */}
+            {scheme.reason && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>💡 Почему эта схема</div>
+                <div style={s.reasonTextExpanded}>{scheme.reason}</div>
+              </div>
+            )}
+            {/* ...остальные блоки без изменений... */}
+            {/* Дни недели */}
+            <div style={s.detailBlock}>
+              <div style={s.detailTitle}>📋 Структура недели</div>
+              <div style={s.daysList}>
+                {scheme.dayLabels.map((day, i) => (
+                  <div key={i} style={s.dayItem}>
+                    <div style={s.dayLabel}>
+                      День {day.day}: {day.label}
+                    </div>
+                    <div style={s.dayFocus}>{day.focus}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Преимущества */}
+            {scheme.benefits && scheme.benefits.length > 0 && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>✨ Преимущества</div>
+                <ul style={s.benefitsList}>
+                  {scheme.benefits.map((benefit, i) => (
+                    <li key={i} style={s.benefitItem}>{benefit}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Заметки */}
+            {scheme.notes && (
+              <div style={s.detailBlock}>
+                <div style={s.detailTitle}>💬 Примечание</div>
+                <div style={s.notesText}>{scheme.notes}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function Spinner() {
   return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 50 50"
-      style={{ display: "block" }}
-    >
+    <svg width="48" height="48" viewBox="0 0 50 50" style={{ display: "block" }}>
+      <circle cx="25" cy="25" r="20" stroke="rgba(255,255,255,.35)" strokeWidth="6" fill="none" />
       <circle
         cx="25"
         cy="25"
         r="20"
-        stroke="rgba(148,163,184,.35)"
-        strokeWidth="6"
-        fill="none"
-      />
-      <circle
-        cx="25"
-        cy="25"
-        r="20"
-        stroke="#e5e7eb"
+        stroke="#fff"
         strokeWidth="6"
         strokeLinecap="round"
         fill="none"
         strokeDasharray="110"
         strokeDashoffset="80"
-        style={{
-          transformOrigin: "25px 25px",
-          animation: "spin 1.2s linear infinite",
-        }}
+        style={{ transformOrigin: "25px 25px", animation: "spin 1.2s linear infinite" }}
       />
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
@@ -516,501 +425,412 @@ function Spinner() {
   );
 }
 
-function NeonStyles() {
+function SoftGlowStyles() {
   return (
     <style>{`
+      .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
+      animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
+      @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+      @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
+      
       @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(32px) scale(0.98); }
+        from { opacity: 0; transform: translateY(40px) scale(0.95); }
         to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes shine {
+        0% { left: -120%; }
+        35% { left: 120%; }
+        100% { left: 120%; }
       }
       .scheme-enter {
         animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
       }
-      @keyframes cardFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
+      .scheme-card:hover {
+        transform: translateY(-4px) scale(1.005);
+        box-shadow: 0 16px 44px rgba(15,23,42,0.16), 0 1px 3px rgba(0,0,0,0.08);
+      }
+      .scheme-card.selected {
+        box-shadow: 0 18px 52px rgba(15,23,42,0.18), 0 0 0 2px #0f172a;
       }
     `}</style>
   );
 }
 
-/* ---------- inline styles ---------- */
+/* ---------- Styles ---------- */
+const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    maxWidth: 420,
+    maxWidth: 720,
     margin: "0 auto",
-    minHeight: "var(--app-height, 100vh)",
-    padding: "16px 16px 24px",
-    boxSizing: "border-box",
-    fontFamily:
-      "system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif",
-    color: "#F9FAFB",
+    padding: 16,
+    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
+    background: "radial-gradient(circle at 20% 20%, rgba(236,227,255,0.45), transparent 28%), radial-gradient(circle at 80% 10%, rgba(255,216,194,0.35), transparent 22%), #f7f9fb",
+    minHeight: "100vh",
   },
 
-  header: {
-    marginBottom: 16,
+  heroCard: {
+    position: "relative",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#0f172a",
+    color: "#fff",
+    overflow: "hidden",
+    marginBottom: 14,
   },
-  stepRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  stepPill: {
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid rgba(148,163,184,0.4)",
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    color: "#9CA3AF",
-    background: "rgba(15,23,42,0.8)",
-  },
-  backTopBtn: {
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "none",
-    fontSize: 12,
-    background: "rgba(15,23,42,0.8)",
-    color: "#E5E7EB",
-    cursor: "pointer",
-  },
-
-  headerTop: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  headerTitle: {
-    fontSize: 26,
-    margin: "0 0 6px",
-    lineHeight: 1.15,
-    fontWeight: 800,
-  },
-  headerSubtitle: {
-    margin: 0,
-    fontSize: 14,
-    lineHeight: 1.5,
-    color: "#9CA3AF",
-  },
-  recoBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
+  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  pill: {
+    background: "rgba(255,255,255,.08)",
     padding: "6px 12px",
     borderRadius: 999,
     fontSize: 12,
-    background:
-      "linear-gradient(120deg, rgba(68,224,194,0.16), rgba(122,92,255,0.18)), rgba(10,14,26,0.9)",
-    border: "1px solid rgba(165,180,252,0.4)",
-    backdropFilter: "blur(14px)",
-    whiteSpace: "nowrap",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
   },
-  recoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "999px",
-    background:
-      "radial-gradient(circle, #7a5cff 0%, #44e0c2 70%, transparent 100%)",
+  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
+  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
+  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)", lineHeight: 1.4 },
+
+  schemeCard: {
+    position: "relative",
+    padding: 20,
+    borderRadius: 24,
+    background: "rgba(255,255,255,0.9)",
+    border: "1px solid rgba(255,255,255,0.7)",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    cursor: "pointer",
+    transition: "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+    transform: "translateY(0)",
+  },
+  schemeCardSelected: {
+    background: "#fff",
+    border: "1px solid rgba(0,0,0,0.02)",
+    boxShadow: "0 16px 52px rgba(15, 23, 42, 0.16), 0 0 0 2px #0f172a",
+    transform: "translateY(-4px) scale(1.01)",
+    zIndex: 2,
   },
 
-  heroSection: {
-    position: "relative",
-    marginBottom: 24,
-    borderRadius: 0,
-    overflow: "visible",
-    border: "none",
-    background: "transparent",
-  },
-  heroGlow: {
+  recommendedBadge: {
     position: "absolute",
-    left: -40,
-    right: -40,
-    top: -80,
-    bottom: 0,
-    background:
-      "radial-gradient(circle at 50% 0, rgba(68,224,194,0.35), transparent 60%)",
-    opacity: 0.9,
-    pointerEvents: "none",
-  },
-  heroInner: {
-    position: "relative",
-    paddingTop: 32,
-    paddingBottom: 8,
+    top: -14,
+    right: 20,
+    background: "#0f172a",
+    color: "#fff",
+    padding: "6px 14px",
+    borderRadius: "100px",
+    fontSize: 11,
+    fontWeight: 800,
     display: "flex",
-    flexDirection: "column",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
+    boxShadow: "0 10px 26px rgba(15, 23, 42, 0.24)",
+    border: "2px solid rgba(255,255,255,0.9)",
+    overflow: "hidden",
+    zIndex: 10,
   },
-  heroRobot: {
-    height: 180,
-    objectFit: "contain",
-    marginBottom: 4,
-    filter: "drop-shadow(0 0 32px rgba(56,189,248,0.6))",
+  shine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "50%",
+    height: "100%",
+    background: "linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent)",
+    transform: "skewX(-20deg)",
+    animation: "shine 3s infinite",
   },
-  heroTextBlock: {
-    textAlign: "center",
-    maxWidth: 320,
+  
+  radioCircle: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.5)",
+    display: "grid",
+    placeItems: "center",
+    transition: "all 0.3s ease",
   },
-  heroTextMain: {
-    margin: 0,
-    fontSize: 14,
-    color: "#E5E7EB",
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background: "#0f172a",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
-  heroMetaRow: {
-    marginTop: 8,
+
+  schemeName: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginLeft: 36,
+    marginRight: 0,
+    marginBottom: 8,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+  },
+  
+  schemeInfo: {
     display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    marginLeft: 36,
     flexWrap: "wrap",
+  },
+  infoChip: {
+    background: "#f1f5f9",
+    padding: "6px 10px",
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#334155",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  schemeDescription: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+    marginBottom: 16,
+    fontWeight: 500,
+    marginLeft: 4,
+  },
+  
+  expandBtn: {
+    width: "100%",
+    padding: "12px",
+    border: "none",
+    borderRadius: 14,
+    background: "#f8fafc",
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    marginTop: 4,
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
     justifyContent: "center",
     gap: 6,
   },
-  heroMetaChip: {
-    padding: "4px 8px",
-    borderRadius: 999,
-    fontSize: 11,
-    background: "rgba(15,23,42,0.85)",
-    color: "#9CA3AF",
-  },
 
-  schemesSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    marginBottom: 16,
-  },
-
-  schemeCardPrimary: {
-    position: "relative",
-    padding: 14,
-    borderRadius: 24,
-    background:
-      "linear-gradient(145deg, rgba(68,224,194,0.06), rgba(122,92,255,0.14)), rgba(15,23,42,0.92)",
-    border: "1px solid rgba(148,163,184,0.5)",
-    boxShadow: "0 18px 40px rgba(0,0,0,0.65)",
-    cursor: "pointer",
-  },
-  schemeCardPrimarySelected: {
-    boxShadow:
-      "0 22px 60px rgba(34,197,235,0.4), 0 0 0 1px rgba(56,189,248,0.8)",
-  },
-  schemeCardPrimaryHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+  detailsSection: {
+    marginTop: 12,
+    padding: 12,
+    background: "rgba(255,255,255,0.85)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.06)",
+    display: "grid",
     gap: 12,
   },
-  schemeChipPrimary: {
-    display: "inline-flex",
-    padding: "4px 10px",
-    borderRadius: 999,
-    fontSize: 11,
-    background:
-      "linear-gradient(120deg, rgba(68,224,194,0.32), rgba(122,92,255,0.38))",
-    color: "#F9FAFB",
-    marginBottom: 6,
+
+  detailBlock: {
+    display: "grid",
+    gap: 6,
   },
-  schemeTitle: {
-    fontSize: 20,
+  detailTitle: {
+    fontSize: 13,
+    fontWeight: 800,
+    color: "#0B1220",
+  },
+
+  daysList: {
+    display: "grid",
+    gap: 8,
+  },
+  dayItem: {
+    padding: 8,
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 8,
+    border: "1px solid rgba(0,0,0,0.06)",
+  },
+  dayLabel: {
+    fontSize: 12,
     fontWeight: 700,
+    color: "#0B1220",
     marginBottom: 2,
   },
-  schemeTagline: {
-    fontSize: 13,
-    color: "#E5E7EB",
-    opacity: 0.85,
-  },
-  schemeFigure: {
-    flexShrink: 0,
-  },
-  schemeFigureImg: {
-    width: 80,
-    height: "auto",
-    filter: "drop-shadow(0 0 24px rgba(56,189,248,0.6))",
-  },
-
-  schemeMetaRow: {
-    marginTop: 10,
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metaPill: {
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    background: "rgba(15,23,42,0.9)",
-    color: "#CBD5F5",
-  },
-
-  schemePrimaryBottomRow: {
-    marginTop: 12,
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  loadBlock: {
+  dayFocus: {
     fontSize: 11,
-    color: "#9CA3AF",
-  },
-  loadTitle: {
-    marginBottom: 4,
-  },
-  loadRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  loadLabel: {
-    minWidth: 60,
-  },
-  loadBars: {
-    display: "flex",
-    gap: 3,
-  },
-  loadBar: {
-    width: 14,
-    height: 8,
-    borderRadius: 999,
-    background:
-      "linear-gradient(135deg, rgba(31,41,55,1), rgba(15,23,42,1))",
-  },
-  loadBarMain: {
-    background:
-      "linear-gradient(135deg, #44e0c2, #7a5cff)",
+    color: "#4a5568",
+    lineHeight: 1.3,
   },
 
-  selectBtn: {
-    border: "none",
-    borderRadius: 999,
-    padding: "10px 14px",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#020617",
-    background:
-      "linear-gradient(120deg, #44e0c2, #7a5cff)",
-    boxShadow: "0 0 18px rgba(56,189,248,0.8)",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-
-  // Альтернативные схемы
-  altCard: {
-    position: "relative",
-    padding: 14,
-    borderRadius: 22,
-    background: "rgba(15,23,42,0.9)",
-    border: "1px solid rgba(55,65,81,0.9)",
-    boxShadow: "0 14px 32px rgba(0,0,0,0.6)",
-    cursor: "pointer",
-  },
-  altCardSelected: {
-    boxShadow:
-      "0 18px 44px rgba(79,70,229,0.5), 0 0 0 1px rgba(129,140,248,0.9)",
-  },
-  altHeaderRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  altTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    marginBottom: 4,
-  },
-  altTagline: {
-    fontSize: 13,
-    color: "#E5E7EB",
-    opacity: 0.9,
-  },
-  altChip: {
-    padding: "4px 10px",
-    borderRadius: 999,
-    fontSize: 11,
-    background: "rgba(15,23,42,0.9)",
-    border: "1px solid rgba(56,189,248,0.7)",
-    color: "#A5F3FC",
-    whiteSpace: "nowrap",
-  },
-  altMetaRow: {
-    marginTop: 10,
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  altFootnote: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
-
-  // terms / CTA / modal
-  termsRow: {
-    marginTop: 16,
-    padding: "10px 12px",
-    borderRadius: 16,
-    border: "1px solid rgba(55,65,81,0.8)",
-    background: "rgba(15,23,42,0.9)",
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  circleCheck: {
-    width: 22,
-    height: 22,
-    minWidth: 22,
-    borderRadius: "50%",
-    border: "2px solid rgba(148,163,184,0.7)",
-    background: "rgba(15,23,42,0.9)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    fontSize: 12,
-    color: "#F9FAFB",
-  },
-  circleCheckOn: {
-    background:
-      "linear-gradient(135deg,#44e0c2,#7a5cff)",
-    border: "2px solid transparent",
-  },
-  termsText: {
-    fontSize: 12,
-    color: "#E5E7EB",
+  benefitsList: {
+    margin: 0,
+    paddingLeft: 18,
     lineHeight: 1.5,
   },
-  inlineLink: {
-    background: "none",
-    border: "none",
-    padding: 0,
-    margin: 0,
-    color: "#38BDF8",
-    textDecoration: "underline",
-    cursor: "pointer",
+  benefitItem: {
     fontSize: 12,
-    fontWeight: 500,
+    color: "#1b1b1b",
+    marginBottom: 4,
+  },
+
+  notesText: {
+    fontSize: 12,
+    color: "#4a5568",
+    lineHeight: 1.4,
+    fontStyle: "italic",
   },
 
   primaryBtn: {
-    marginTop: 14,
-    width: "100%",
-    borderRadius: 18,
-    border: "none",
-    padding: "13px 16px",
-    fontSize: 15,
-    fontWeight: 700,
-    background:
-      "linear-gradient(135deg,#44e0c2,#7a5cff)",
-    color: "#020617",
-    boxShadow: "0 0 26px rgba(56,189,248,0.9)",
-  },
-  backBottomBtn: {
-    marginTop: 10,
+    marginTop: 16,
     width: "100%",
     border: "none",
-    padding: 10,
-    borderRadius: 999,
-    background: "transparent",
-    color: "#9CA3AF",
-    fontSize: 14,
-    cursor: "pointer",
+    borderRadius: 16,
+    padding: "14px 18px",
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#fff",
+    background: "#0f172a",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
 
   errorText: {
     marginTop: 10,
     padding: 10,
-    borderRadius: 10,
-    background: "rgba(248,113,113,0.18)",
-    color: "#fecaca",
+    background: "rgba(255,102,102,.15)",
+    color: "#d24",
     fontSize: 13,
+    fontWeight: 600,
+    borderRadius: 10,
   },
 
-  loadingCard: {
-    marginTop: 40,
-    padding: 20,
-    borderRadius: 24,
-    background: "rgba(15,23,42,0.95)",
-    border: "1px solid rgba(55,65,81,0.9)",
-    boxShadow: "0 18px 44px rgba(0,0,0,0.7)",
-  },
-  loadingTitle: {
-    fontSize: 20,
-    fontWeight: 700,
+  backTextBtn: {
     marginTop: 10,
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: 600,
+    padding: "12px 16px",
+    cursor: "pointer",
+    textAlign: "center",
   },
-  loadingSubtitle: {
+
+  termsRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 14,
+    padding: "12px 14px",
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.06)",
+  },
+  circleCheck: {
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.2)",
+    background: "rgba(255,255,255,0.9)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
     fontSize: 14,
-    color: "#9CA3AF",
-    marginTop: 4,
+    color: "#fff",
+    transition: "all .15s ease",
+  },
+  circleCheckOn: {
+    background: "#0f172a",
+    border: "2px solid #0f172a",
+  },
+  termsText: {
+    fontSize: 13,
+    color: "#111827",
+    lineHeight: 1.4,
+  },
+  inlineLink: {
+    background: "none",
+    border: "none",
+    color: "#2563EB",
+    textDecoration: "underline",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    padding: 0,
   },
 
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15,23,42,0.8)",
+    background: "rgba(0,0,0,0.6)",
     display: "grid",
     placeItems: "center",
-    zIndex: 50,
-    padding: 16,
+    zIndex: 999,
+    padding: 20,
     backdropFilter: "blur(4px)",
   },
   modalCard: {
     width: "100%",
     maxWidth: 540,
     maxHeight: "90vh",
-    background: "#0b1120",
-    borderRadius: 22,
-    border: "1px solid rgba(148,163,184,0.8)",
-    boxShadow: "0 24px 80px rgba(0,0,0,0.9)",
+    background: "#fff",
+    borderRadius: 20,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
   },
   modalHeader: {
-    padding: "14px 18px",
-    borderBottom: "1px solid rgba(51,65,85,0.9)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,1), rgba(30,64,175,0.7))",
+    padding: "16px 20px",
+    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    background: "#f9fafb",
   },
   modalTitle: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#E5E7EB",
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#111827",
   },
   modalClose: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: "50%",
     border: "none",
-    background: "rgba(15,23,42,0.9)",
-    color: "#E5E7EB",
+    background: "rgba(0,0,0,0.06)",
+    fontSize: 18,
     cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+    color: "#111827",
   },
   modalBody: {
-    padding: 16,
+    padding: 20,
     overflowY: "auto",
-    color: "#E5E7EB",
+    flex: 1,
   },
   termsSection: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   termsSectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#111827",
+    marginBottom: 8,
   },
   termsSectionList: {
     margin: 0,
-    paddingLeft: 18,
+    paddingLeft: 20,
     lineHeight: 1.5,
   },
   termsSectionItem: {
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 13,
+    color: "#374151",
+    marginBottom: 6,
   },
 };
