@@ -53,6 +53,23 @@ button:active, a:active, [role="button"]:active {
   background-color: inherit !important;
 }
 
+/* Специальный класс для полного отключения tap эффектов */
+.no-tap-effect {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  outline: none !important;
+  transition: none !important;
+}
+.no-tap-effect:active,
+.no-tap-effect:focus,
+.no-tap-effect:hover {
+  background: rgba(255,255,255,0.6) !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 /* Фон всего приложения — только здесь */
 #root {
   min-height: 100%;

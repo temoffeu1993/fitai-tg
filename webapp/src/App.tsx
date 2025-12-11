@@ -187,7 +187,11 @@ export default function App() {
           </Route>
         </Routes>
         
-        {/* Debug Panel - только для админа */}
+        {/* Debug Panel - ВРЕМЕННО для всех (узнай свой ID и подставь ниже!) */}
+        <DebugPanel />
+        
+        {/* После того как узнаешь свой ID, раскомментируй код ниже и закомментируй строку выше */}
+        {/* 
         {(() => {
           try {
             const tgUserId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -202,6 +206,7 @@ export default function App() {
           }
           return null;
         })()}
+        */}
       </OnboardingProvider>
     </BrowserRouter>
   );

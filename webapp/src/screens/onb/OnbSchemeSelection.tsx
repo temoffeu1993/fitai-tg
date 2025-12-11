@@ -227,15 +227,12 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       <button
         type="button"
         onClick={() => setAccepted((v) => !v)}
+        className="no-tap-effect"
         style={{
           ...s.termsRow,
           position: "relative",
           cursor: "pointer",
           textAlign: "left",
-          WebkitTapHighlightColor: "transparent",
-          outline: "none",
-          transition: "none", // Убирает любые transition эффекты при клике
-          userSelect: "none" as any, // Убирает выделение текста
         }}
       >
         {/* Радио-кнопка - точно как в схемах */}
@@ -558,7 +555,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
-    transition: "all 0.3s ease",
+    transition: "border-color 0.3s ease", // transition только для цвета border, не для фона
   },
   radioDot: {
     width: 12,
