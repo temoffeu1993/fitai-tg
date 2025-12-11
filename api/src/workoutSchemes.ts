@@ -1381,4 +1381,396 @@ export const workoutSchemes: WorkoutScheme[] = [
     intensity: "moderate",
     targetSex: "female",
   },
+
+  // ============= ДОПОЛНИТЕЛЬНЫЕ СХЕМЫ ДЛЯ РАЗНООБРАЗИЯ =============
+  
+  // Похудение + 4 дня (альтернатива metabolic_conditioning)
+  {
+    id: "strength_cardio_hybrid_4x",
+    name: "Strength + Cardio Hybrid",
+    russianName: "Силовые + кардио микс",
+    description: "Четыре тренировки, где силовые упражнения чередуются с кардио для жиросжигания.",
+    daysPerWeek: 4,
+    minMinutes: 45,
+    maxMinutes: 75,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lose_weight", "athletic_body", "health_wellness"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Strength Upper",
+        focus: "Силовые упражнения на верх тела — строим мышцы, которые сжигают калории.",
+      },
+      {
+        day: 2,
+        label: "Cardio + Core",
+        focus: "Кардио и мышцы кора — высокий пульс и укрепление центра тела.",
+      },
+      {
+        day: 3,
+        label: "Strength Lower",
+        focus: "Силовые на ноги и ягодицы — самые энергозатратные мышцы.",
+      },
+      {
+        day: 4,
+        label: "HIIT Full Body",
+        focus: "Интервальная тренировка на всё тело — максимум калорий за короткое время.",
+      },
+    ],
+    benefits: [
+      "Силовые тренировки ускоряют метаболизм на сутки вперёд.",
+      "Кардио дожигает жир, а силовые сохраняют мышцы при похудении.",
+      "Разнообразие не даёт телу адаптироваться — жир продолжает уходить.",
+    ],
+    notes: "Основано на исследованиях EPOC (избыточное потребление кислорода после нагрузки) — сочетание силовых и кардио даёт максимальный эффект.",
+    intensity: "high",
+    targetSex: "any",
+  },
+
+  // Похудение + 5 дней (альтернатива fat_loss_5x)
+  {
+    id: "daily_movement_5x",
+    name: "Daily Movement 5x",
+    russianName: "Ежедневное движение 5 дней",
+    description: "Пять дней разнообразной активности для похудения без перегрузок.",
+    daysPerWeek: 5,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lose_weight", "health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Strength Full Body",
+        focus: "Силовая работа на всё тело — поддерживаем мышцы при похудении.",
+      },
+      {
+        day: 2,
+        label: "Walk + Stretch",
+        focus: "Лёгкое кардио и растяжка — восстановление без полного отдыха.",
+      },
+      {
+        day: 3,
+        label: "Circuit Training",
+        focus: "Круговая тренировка — много движений, высокий расход энергии.",
+      },
+      {
+        day: 4,
+        label: "Lower Body Focus",
+        focus: "Упор на ноги — они сжигают больше всего калорий.",
+      },
+      {
+        day: 5,
+        label: "Active Recovery",
+        focus: "Лёгкая активность, йога или плавание — движение без стресса.",
+      },
+    ],
+    benefits: [
+      "Ежедневная активность держит метаболизм высоким всю неделю.",
+      "Есть и силовые, и лёгкие дни — не перегорите.",
+      "Подходит тем, кто хочет худеть комфортно и без стресса.",
+    ],
+    notes: "Основано на концепции NEAT (термогенез нетренировочной активности) — регулярное движение важнее одной изнурительной тренировки.",
+    intensity: "moderate",
+    targetSex: "any",
+  },
+
+  // Акцент на низ + 3 дня (альтернатива full_body_3x_glutes_focus)
+  {
+    id: "glutes_builder_3x",
+    name: "Glutes Builder 3x",
+    russianName: "Строитель ягодиц 3 дня",
+    description: "Три тренировки полностью посвящены ягодицам и ногам с научным подходом.",
+    daysPerWeek: 3,
+    minMinutes: 60,
+    maxMinutes: 75,
+    splitType: "lower_focus",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Glute Activation",
+        focus: "Активация ягодиц: мосты, отведения, изоляция — учим мышцы работать правильно.",
+      },
+      {
+        day: 2,
+        label: "Heavy Compound",
+        focus: "Тяжёлые базовые: приседания, выпады, становая — строим размер и силу.",
+      },
+      {
+        day: 3,
+        label: "Volume & Shape",
+        focus: "Объёмная работа: много повторений для формы, пампинг и детализация.",
+      },
+    ],
+    benefits: [
+      "Разные типы нагрузки: активация, тяжёлая работа, объём — комплексный рост.",
+      "Научный подход: сначала учимся чувствовать мышцы, потом нагружаем их.",
+      "Результат уже через 4-6 недель — форма меняется заметно.",
+    ],
+    notes: "Основано на методике Bret Contreras: 3 типа стимула (активация, тяжесть, объём) для максимального роста ягодиц.",
+    intensity: "moderate",
+    targetSex: "female",
+  },
+
+  // Акцент на низ + 4 дня (альтернатива upper_lower_4x_glutes)
+  {
+    id: "legs_priority_4x",
+    name: "Legs Priority 4x",
+    russianName: "Ноги в приоритете 4 дня",
+    description: "Четыре дня с максимальным упором на ноги и ягодицы, верх — поддерживающий.",
+    daysPerWeek: 4,
+    minMinutes: 60,
+    maxMinutes: 75,
+    splitType: "lower_focus",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lower_body_focus", "athletic_body", "build_muscle"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Legs Heavy",
+        focus: "Тяжёлые ноги: приседы, становые — максимальная нагрузка для роста.",
+      },
+      {
+        day: 2,
+        label: "Upper Maintenance",
+        focus: "Поддержка верха: лёгкая работа, чтобы не потерять баланс фигуры.",
+      },
+      {
+        day: 3,
+        label: "Glutes & Hamstrings",
+        focus: "Ягодицы и задняя поверхность: мосты, сгибания, румынская тяга.",
+      },
+      {
+        day: 4,
+        label: "Legs Volume",
+        focus: "Объёмная работа на ноги: выпады, разгибания, много повторений для формы.",
+      },
+    ],
+    benefits: [
+      "Три дня на ноги, один на верх — ноги растут максимально быстро.",
+      "Есть и тяжёлые, и объёмные дни — разносторонний стимул.",
+      "Верх остаётся в тонусе, но не отнимает энергию у ног.",
+    ],
+    notes: "Приоритетная схема: когда одна часть тела получает больше внимания, она растёт быстрее — принцип специализации.",
+    intensity: "high",
+    targetSex: "female",
+  },
+
+  // Акцент на низ + 5 дней (альтернатива upper_lower_legs_5x)
+  {
+    id: "booty_sculpt_5x",
+    name: "Booty Sculpt 5x",
+    russianName: "Лепим ягодицы 5 дней",
+    description: "Пять тренировок с разными углами нагрузки для идеальной формы ног и ягодиц.",
+    daysPerWeek: 5,
+    minMinutes: 45,
+    maxMinutes: 60,
+    splitType: "lower_focus",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lower_body_focus", "athletic_body"],
+    equipmentRequired: ["gym_full"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Glute Focus",
+        focus: "Полностью ягодицы: мосты, толчки бедром, отведения — изоляция.",
+      },
+      {
+        day: 2,
+        label: "Quad Focus",
+        focus: "Передняя часть ног: приседания, выпады, разгибания — бёдра.",
+      },
+      {
+        day: 3,
+        label: "Upper Body",
+        focus: "Верх тела — лёгкий день для баланса фигуры.",
+      },
+      {
+        day: 4,
+        label: "Hamstrings Focus",
+        focus: "Задняя поверхность: румынская тяга, сгибания — детализация.",
+      },
+      {
+        day: 5,
+        label: "Full Legs Pump",
+        focus: "Все мышцы ног: пампинг, много повторений, лёгкие веса — форма и рельеф.",
+      },
+    ],
+    benefits: [
+      "Каждая зона ног получает отдельный день — максимальная проработка.",
+      "Разные типы нагрузки: тяжёлая, изоляция, пампинг — комплексный подход.",
+      "За 8-12 недель форма ног меняется кардинально.",
+    ],
+    notes: "Схема «скульптора»: работаем над каждой мышцей отдельно, как художник лепит детали статуи.",
+    intensity: "moderate",
+    targetSex: "female",
+  },
+
+  // Здоровье + 5 дней (альтернатива full_body_5x_athlete)
+  {
+    id: "wellness_balance_5x",
+    name: "Wellness Balance 5x",
+    russianName: "Баланс и здоровье 5 дней",
+    description: "Пять сбалансированных тренировок для здоровья, энергии и хорошего самочувствия.",
+    daysPerWeek: 5,
+    minMinutes: 40,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Strength Basics",
+        focus: "Базовые силовые — укрепляем мышцы и кости.",
+      },
+      {
+        day: 2,
+        label: "Cardio Health",
+        focus: "Кардио для сердца — здоровье сосудов и лёгких.",
+      },
+      {
+        day: 3,
+        label: "Mobility & Flexibility",
+        focus: "Растяжка и подвижность — профилактика травм и боли в спине.",
+      },
+      {
+        day: 4,
+        label: "Functional Training",
+        focus: "Функциональные движения — тренируем тело для повседневной жизни.",
+      },
+      {
+        day: 5,
+        label: "Mind-Body Connection",
+        focus: "Йога, пилатес или лёгкое кардио — баланс тела и разума.",
+      },
+    ],
+    benefits: [
+      "Развитие всех аспектов здоровья: сила, выносливость, гибкость, баланс.",
+      "Профилактика болезней: сердце, диабет, остеопороз, проблемы со спиной.",
+      "Больше энергии в повседневной жизни, лучше настроение и сон.",
+    ],
+    notes: "Основано на концепции «функциональной молодости» — быть здоровым значит двигаться легко и чувствовать себя бодро.",
+    intensity: "low",
+    targetSex: "any",
+  },
+
+  // Похудение + 6 дней (альтернатива daily_burn_6x)
+  {
+    id: "lean_body_protocol_6x",
+    name: "Lean Body Protocol 6x",
+    russianName: "Протокол стройности 6 дней",
+    description: "Шесть дней системной работы над жиросжиганием и построением стройного тела.",
+    daysPerWeek: 6,
+    minMinutes: 45,
+    maxMinutes: 60,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["lose_weight", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Strength Upper",
+        focus: "Силовые на верх — мышцы сжигают калории даже в покое.",
+      },
+      {
+        day: 2,
+        label: "Cardio Intervals",
+        focus: "Интервальное кардио — высокий расход калорий за короткое время.",
+      },
+      {
+        day: 3,
+        label: "Strength Lower",
+        focus: "Силовые на ноги — самые энергозатратные мышцы.",
+      },
+      {
+        day: 4,
+        label: "Active Recovery",
+        focus: "Лёгкая активность — движение без перегрузок.",
+      },
+      {
+        day: 5,
+        label: "Full Body Circuits",
+        focus: "Круговая тренировка на всё тело — много движений, высокий пульс.",
+      },
+      {
+        day: 6,
+        label: "Steady State Cardio",
+        focus: "Ровное кардио — жиросжигание без стресса для организма.",
+      },
+    ],
+    benefits: [
+      "Сочетание силовых и кардио — жир уходит, мышцы остаются.",
+      "Есть день восстановления — не выгорите от нагрузок.",
+      "Системный подход: разные типы тренировок для максимального эффекта.",
+    ],
+    notes: "Протокол построения стройного тела: не просто похудеть, а создать подтянутую спортивную фигуру.",
+    intensity: "moderate",
+    targetSex: "any",
+  },
+
+  // Здоровье + 6 дней (альтернатива active_lifestyle_6x)
+  {
+    id: "vitality_routine_6x",
+    name: "Vitality Routine 6x",
+    russianName: "Рутина бодрости 6 дней",
+    description: "Шесть дней разнообразной активности для энергии, здоровья и долголетия.",
+    daysPerWeek: 6,
+    minMinutes: 30,
+    maxMinutes: 50,
+    splitType: "full_body",
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    goals: ["health_wellness", "athletic_body"],
+    equipmentRequired: ["gym_full", "bodyweight"],
+    dayLabels: [
+      {
+        day: 1,
+        label: "Morning Movement",
+        focus: "Утренняя зарядка: лёгкие упражнения для пробуждения тела.",
+      },
+      {
+        day: 2,
+        label: "Strength Light",
+        focus: "Лёгкие силовые — поддерживаем мышечный тонус.",
+      },
+      {
+        day: 3,
+        label: "Walk & Breathe",
+        focus: "Прогулка или лёгкое кардио — дыхание и свежий воздух.",
+      },
+      {
+        day: 4,
+        label: "Core & Balance",
+        focus: "Мышцы кора и баланс — стабильность и координация.",
+      },
+      {
+        day: 5,
+        label: "Stretch & Flow",
+        focus: "Растяжка и потоки движений — гибкость и подвижность.",
+      },
+      {
+        day: 6,
+        label: "Nature Activity",
+        focus: "Активность на природе: велосипед, плавание, туризм — удовольствие от движения.",
+      },
+    ],
+    benefits: [
+      "Каждый день в движении — это и есть секрет долголетия.",
+      "Лёгкая нагрузка не истощает, а даёт энергию на весь день.",
+      "Разнообразие не даёт заскучать — каждый день что-то новое.",
+    ],
+    notes: "Философия Blue Zones: в регионах с наибольшей продолжительностью жизни люди двигаются каждый день, но умеренно.",
+    intensity: "low",
+    targetSex: "any",
+  },
 ];
