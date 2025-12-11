@@ -305,9 +305,8 @@ function SchemeCard({
       {/* Бейдж "Рекомендовано тренером" */}
       {scheme.isRecommended && (
         <div style={s.recommendedBadge}>
-          <div style={s.shine} />
-          <span style={{ fontSize: 14 }}>⭐</span>
-          <span style={s.recommendedText}>Рекомендовано тренером</span>
+          <span style={{ fontSize: 12 }}>⭐</span>
+          <span>Рекомендовано</span>
         </div>
       )}
 
@@ -434,23 +433,15 @@ function SoftGlowStyles() {
       @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
       
       @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(40px) scale(0.95); }
+        from { opacity: 0; transform: translateY(24px) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
-      @keyframes shine {
-        0% { left: -120%; }
-        35% { left: 120%; }
-        100% { left: 120%; }
-      }
       .scheme-enter {
-        animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
       }
       .scheme-card:hover {
-        transform: translateY(-4px) scale(1.005);
-        box-shadow: 0 16px 44px rgba(15,23,42,0.16), 0 1px 3px rgba(0,0,0,0.08);
-      }
-      .scheme-card.selected {
-        box-shadow: 0 18px 52px rgba(15,23,42,0.18), 0 0 0 2px #0f172a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(15,23,42,0.14);
       }
     `}</style>
   );
@@ -465,7 +456,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     padding: 16,
     fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "radial-gradient(circle at 20% 20%, rgba(236,227,255,0.45), transparent 28%), radial-gradient(circle at 80% 10%, rgba(255,216,194,0.35), transparent 22%), #f7f9fb",
+    background: "transparent",
     minHeight: "100vh",
   },
 
@@ -495,52 +486,39 @@ const s: Record<string, React.CSSProperties> = {
 
   schemeCard: {
     position: "relative",
-    padding: 20,
-    borderRadius: 24,
-    background: "rgba(255,255,255,0.9)",
-    border: "1px solid rgba(255,255,255,0.7)",
-    boxShadow: "0 12px 40px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
+    padding: 18,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
-    transition: "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
-    transform: "translateY(0)",
+    transition: "all 0.3s ease",
   },
   schemeCardSelected: {
-    background: "#fff",
-    border: "1px solid rgba(0,0,0,0.02)",
-    boxShadow: "0 16px 52px rgba(15, 23, 42, 0.16), 0 0 0 2px #0f172a",
-    transform: "translateY(-4px) scale(1.01)",
-    zIndex: 2,
+    background: "rgba(255,255,255,0.85)",
+    border: "1px solid rgba(15, 23, 42, 0.2)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12), 0 0 0 2px rgba(15, 23, 42, 0.15)",
+    transform: "translateY(-2px)",
   },
 
   recommendedBadge: {
     position: "absolute",
-    top: -14,
-    right: 20,
+    top: -10,
+    right: 16,
     background: "#0f172a",
     color: "#fff",
-    padding: "6px 14px",
+    padding: "5px 12px",
     borderRadius: "100px",
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: 700,
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    boxShadow: "0 10px 26px rgba(15, 23, 42, 0.24)",
-    border: "2px solid rgba(255,255,255,0.9)",
-    overflow: "hidden",
+    gap: 5,
+    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
+    border: "1.5px solid rgba(255,255,255,0.95)",
     zIndex: 10,
-  },
-  shine: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "50%",
-    height: "100%",
-    background: "linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent)",
-    transform: "skewX(-20deg)",
-    animation: "shine 3s infinite",
   },
   
   radioCircle: {
@@ -584,11 +562,11 @@ const s: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
   },
   infoChip: {
-    background: "#f1f5f9",
-    padding: "6px 10px",
+    background: "rgba(15, 23, 42, 0.08)",
+    padding: "5px 10px",
     borderRadius: 8,
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 600,
     color: "#334155",
     whiteSpace: "nowrap",
     display: "flex",
@@ -607,15 +585,15 @@ const s: Record<string, React.CSSProperties> = {
   
   expandBtn: {
     width: "100%",
-    padding: "12px",
+    padding: "10px",
     border: "none",
-    borderRadius: 14,
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontSize: 13,
-    fontWeight: 700,
+    borderRadius: 10,
+    background: "rgba(15, 23, 42, 0.06)",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 600,
     cursor: "pointer",
-    marginTop: 4,
+    marginTop: 8,
     transition: "all 0.2s",
     display: "flex",
     alignItems: "center",
@@ -625,12 +603,12 @@ const s: Record<string, React.CSSProperties> = {
 
   detailsSection: {
     marginTop: 12,
-    padding: 12,
-    background: "rgba(255,255,255,0.85)",
+    padding: 14,
+    background: "rgba(255,255,255,0.5)",
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.06)",
     display: "grid",
-    gap: 12,
+    gap: 10,
   },
 
   detailBlock: {
@@ -723,11 +701,12 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "flex-start",
     gap: 10,
-    marginTop: 14,
+    marginTop: 16,
     padding: "12px 14px",
     background: "rgba(255,255,255,0.6)",
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,0.06)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
   },
   circleCheck: {
     width: 24,
