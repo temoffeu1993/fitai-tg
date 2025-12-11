@@ -106,20 +106,57 @@ function StepSchemeSelection() {
   return (
     <OnbSchemeSelection
       onComplete={() => {
-        // Завершаем онбординг
-        localStorage.setItem("onboarding_done", "1");
-        localStorage.setItem("highlight_generate_btn", "1"); // Флаг для подсветки кнопки
+        console.log("🔥🔥🔥 App.tsx: onComplete called 🔥🔥🔥");
         
+        // СРАЗУ устанавливаем глобальную переменную
+        (window as any).__ONB_COMPLETE__ = true;
+        console.log("✅ FIRST: window.__ONB_COMPLETE__ = true");
+        
+        // Завершаем онбординг
+        try {
+          localStorage.setItem("onb_complete", "1");
+          localStorage.setItem("highlight_generate_btn", "1");
+          console.log("✅ localStorage flags set");
+        } catch (err) {
+          console.error("⚠️  localStorage failed:", err);
+        }
+        
+        try {
+          sessionStorage.setItem("onb_complete", "1");
+          console.log("✅ sessionStorage flag set");
+        } catch (err) {
+          console.error("⚠️  sessionStorage failed:", err);
+        }
+        
+        // Отправляем события
         try {
           const bc = new BroadcastChannel("onb");
           bc.postMessage("onb_complete");
           bc.close();
-        } catch {}
+          console.log("✅ BroadcastChannel sent");
+        } catch (err) {
+          console.error("⚠️  BroadcastChannel failed:", err);
+        }
         
-        try { window.dispatchEvent(new Event("onb_complete")); } catch {}
+        try { 
+          window.dispatchEvent(new Event("onb_complete"));
+          window.dispatchEvent(new StorageEvent("storage", {
+            key: "onb_complete",
+            newValue: "1",
+            storageArea: localStorage
+          }));
+          console.log("✅ Events dispatched");
+        } catch (err) {
+          console.error("⚠️  Events failed:", err);
+        }
         
+        console.log("🎯 Resetting onboarding context...");
         reset();
-        nav("/"); // Редирект на дашборд
+        
+        console.log("🔄 Redirecting to /...");
+        setTimeout(() => {
+          nav("/");
+        }, 100);
       }}
       onBack={() => nav("/onb/motivation")}
     />
