@@ -112,14 +112,25 @@ ensureRobotPreloaded(ROBOT_SRC);
 // имя из Телеграма
 function resolveTelegramName() {
   try {
-    const p = JSON.parse(localStorage.getItem("profile") || "null");
-    if (p?.first_name) return String(p.first_name);
-    if (p?.username) return String(p.username);
-  } catch {}
+    const profileData = localStorage.getItem("profile");
+    if (!profileData) return "Гость";
+    
+    const p = JSON.parse(profileData);
+    if (p && typeof p === "object") {
+      if (p.first_name && typeof p.first_name === "string" && p.first_name.trim()) {
+        return p.first_name.trim();
+      }
+      if (p.username && typeof p.username === "string" && p.username.trim()) {
+        return p.username.trim();
+      }
+    }
+  } catch (err) {
+    console.error("Error parsing Telegram profile:", err);
+  }
   return "Гость";
 }
 
-// имя из онбординга
+// имя из онбординга (если не введено, возвращает null)
 function resolveOnbName() {
   try {
     const onbRaw = localStorage.getItem("onb_summary");
@@ -129,7 +140,7 @@ function resolveOnbName() {
       if (typeof n === "string" && n.trim()) return n.trim();
     }
   } catch {}
-  return "Гость";
+  return null; // Изменено: возвращаем null вместо "Гость"
 }
 
 function hasOnb() {
@@ -143,9 +154,17 @@ function hasOnb() {
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // сначала приветствуем ником из Телеграма, пока анкета не заполнена
+  // Приоритет: имя из онбординга → имя из Telegram → "Гость"
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
-  const [name, setName] = useState<string>(onbDone ? resolveOnbName() : resolveTelegramName());
+  const [name, setName] = useState<string>(() => {
+    const onbName = resolveOnbName();
+    const tgName = resolveTelegramName();
+    
+    console.log("Dashboard name resolution:", { onbName, tgName });
+    
+    if (onbName) return onbName;
+    return tgName;
+  });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
   

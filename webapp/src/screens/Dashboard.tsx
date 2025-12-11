@@ -112,10 +112,21 @@ ensureRobotPreloaded(ROBOT_SRC);
 // имя из Телеграма
 function resolveTelegramName() {
   try {
-    const p = JSON.parse(localStorage.getItem("profile") || "null");
-    if (p?.first_name) return String(p.first_name);
-    if (p?.username) return String(p.username);
-  } catch {}
+    const profileData = localStorage.getItem("profile");
+    if (!profileData) return "Гость";
+    
+    const p = JSON.parse(profileData);
+    if (p && typeof p === "object") {
+      if (p.first_name && typeof p.first_name === "string" && p.first_name.trim()) {
+        return p.first_name.trim();
+      }
+      if (p.username && typeof p.username === "string" && p.username.trim()) {
+        return p.username.trim();
+      }
+    }
+  } catch (err) {
+    console.error("Error parsing Telegram profile:", err);
+  }
   return "Гость";
 }
 
@@ -147,8 +158,12 @@ export default function Dashboard() {
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
   const [name, setName] = useState<string>(() => {
     const onbName = resolveOnbName();
+    const tgName = resolveTelegramName();
+    
+    console.log("Dashboard name resolution:", { onbName, tgName });
+    
     if (onbName) return onbName;
-    return resolveTelegramName();
+    return tgName;
   });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());

@@ -207,26 +207,35 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       </div>
 
       {/* Чекбокс условий использования */}
-      <div style={s.termsRow}>
-        <button
-          type="button"
-          onClick={() => setAccepted((v) => !v)}
-          style={s.termsCheckbox}
-        >
-          <div style={{
-            ...s.radioDot,
-            transform: accepted ? "scale(1)" : "scale(0)",
-            opacity: accepted ? 1 : 0,
-            background: accepted ? "#0f172a" : "transparent"
-          }} />
-        </button>
+      <button
+        type="button"
+        onClick={() => setAccepted((v) => !v)}
+        style={{
+          ...s.termsRow,
+          position: "relative",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        {/* Радио-кнопка - точно как в схемах */}
+        <div style={{...s.radioCircle, borderColor: accepted ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
+          <div style={{...s.radioDot, transform: accepted ? "scale(1)" : "scale(0)", opacity: accepted ? 1 : 0}} />
+        </div>
+
         <span style={s.termsText}>
           Я ознакомился и согласен с Условиями использования приложения{" "}
-          <button type="button" onClick={() => setShowTerms(true)} style={s.inlineLink}>
+          <button 
+            type="button" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTerms(true);
+            }} 
+            style={s.inlineLink}
+          >
             Подробнее
           </button>
         </span>
-      </div>
+      </button>
 
       {/* CTA */}
       <button
@@ -701,29 +710,12 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   termsRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
     marginTop: 16,
-    padding: "12px 14px",
+    padding: "16px 20px 16px 64px", // Отступ слева под радио-кнопку
     background: "rgba(255,255,255,0.6)",
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
-  },
-
-  termsCheckbox: {
-    flexShrink: 0,
-    width: 24,
-    height: 24,
-    marginTop: 2, // Выравнивание по тексту
-    borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.2)",
-    background: "rgba(255,255,255,0.5)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
   termsText: {
     fontSize: 13,
