@@ -55,7 +55,7 @@ export default function OnboardingWizard() {
 
   function finishOnboarding() {
     // Завершаем онбординг после выбора схемы
-    localStorage.setItem("onboarding_done", "1");
+    localStorage.setItem("onb_complete", "1"); // Исправлено: был onboarding_done
     try {
       const bc = new BroadcastChannel("onb");
       bc.postMessage("onb_complete");
