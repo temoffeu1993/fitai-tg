@@ -197,29 +197,33 @@ schemes.post(
       return reasons.join(" ");
     }
     
-    // Формируем ответ: стараемся 1 рекомендованная + 2 альтернативных, минимум 1+1
-    const scheme1 = selectedSchemes[0]; // Всегда есть
-    const scheme2 = selectedSchemes[1] || selectedSchemes[0]; // Минимум 2 схемы (дублируем если нужно)
-    const scheme3 = selectedSchemes[2] || selectedSchemes[1] || selectedSchemes[0]; // Стремимся к 3
+    // Формируем ответ: 1 рекомендованная + альтернативы (только уникальные, без дублей)
+    const alternatives: any[] = [];
+    
+    // Добавляем альтернативы только если они уникальны
+    if (selectedSchemes[1] && selectedSchemes[1].id !== selectedSchemes[0].id) {
+      alternatives.push({
+        ...selectedSchemes[1],
+        reason: generateReason(selectedSchemes[1], 'alt1'),
+        isRecommended: false,
+      });
+    }
+    
+    if (selectedSchemes[2] && selectedSchemes[2].id !== selectedSchemes[0].id && selectedSchemes[2].id !== selectedSchemes[1]?.id) {
+      alternatives.push({
+        ...selectedSchemes[2],
+        reason: generateReason(selectedSchemes[2], 'alt2'),
+        isRecommended: false,
+      });
+    }
     
     const response = {
       recommended: {
-        ...scheme1,
-        reason: generateReason(scheme1, 'recommended'),
+        ...selectedSchemes[0],
+        reason: generateReason(selectedSchemes[0], 'recommended'),
         isRecommended: true,
       },
-      alternatives: [
-        {
-          ...scheme2,
-          reason: selectedSchemes[1] ? generateReason(scheme2, 'alt1') : "Также подходит для ваших целей",
-          isRecommended: false,
-        },
-        {
-          ...scheme3,
-          reason: selectedSchemes[2] ? generateReason(scheme3, 'alt2') : "Хороший вариант для начала",
-          isRecommended: false,
-        },
-      ],
+      alternatives,
     };
 
     res.json(response);
