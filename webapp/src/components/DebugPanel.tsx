@@ -53,9 +53,11 @@ export default function DebugPanel() {
         
         <div style={s.content}>
           <div style={s.section}>
-            <div style={s.title}>localStorage:</div>
+            <div style={s.title}>storage:</div>
             <div style={s.code}>
-              onb_complete: {localStorage.getItem("onb_complete") || "null"}<br/>
+              window.__ONB_COMPLETE__: {String((window as any).__ONB_COMPLETE__ || "undefined")}<br/>
+              localStorage.onb_complete: {localStorage.getItem("onb_complete") || "null"}<br/>
+              sessionStorage.onb_complete: {sessionStorage.getItem("onb_complete") || "null"}<br/>
               scheme_selected: {localStorage.getItem("scheme_selected") || "null"}<br/>
               profile: {localStorage.getItem("profile") ? "✅ есть" : "❌ нет"}
             </div>
@@ -83,8 +85,11 @@ export default function DebugPanel() {
             </button>
             <button 
               onClick={() => {
+                (window as any).__ONB_COMPLETE__ = true;
                 localStorage.setItem("onb_complete", "1");
-                alert("onb_complete установлен в 1! Перезагрузи страницу.");
+                sessionStorage.setItem("onb_complete", "1");
+                window.dispatchEvent(new Event("onb_complete"));
+                alert("✅ Все флаги установлены! Перезагрузи страницу.");
               }}
               style={s.btn}
             >

@@ -37,9 +37,30 @@ function BgGradient() {
 
 function hasOnbLocal(): boolean {
   try {
-    // Проверяем ТОЛЬКО флаг завершения, а не промежуточные данные
-    return localStorage.getItem("onb_complete") === "1";
-  } catch {
+    // Проверка 1: Глобальная переменная (самый надёжный способ)
+    if ((window as any).__ONB_COMPLETE__ === true) {
+      console.log("✅ hasOnbLocal: window.__ONB_COMPLETE__ = true");
+      return true;
+    }
+    
+    // Проверка 2: localStorage
+    const localFlag = localStorage.getItem("onb_complete");
+    if (localFlag === "1") {
+      console.log("✅ hasOnbLocal: localStorage = 1");
+      return true;
+    }
+    
+    // Проверка 3: sessionStorage (fallback)
+    const sessionFlag = sessionStorage.getItem("onb_complete");
+    if (sessionFlag === "1") {
+      console.log("✅ hasOnbLocal: sessionStorage = 1");
+      return true;
+    }
+    
+    console.log("❌ hasOnbLocal: все проверки failed");
+    return false;
+  } catch (err) {
+    console.error("❌ hasOnbLocal ERROR:", err);
     return false;
   }
 }

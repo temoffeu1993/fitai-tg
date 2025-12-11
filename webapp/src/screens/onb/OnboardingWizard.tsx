@@ -56,17 +56,37 @@ export default function OnboardingWizard() {
   function finishOnboarding() {
     console.log("🎯 finishOnboarding() called");
     
-    // Завершаем онбординг после выбора схемы
-    localStorage.setItem("onb_complete", "1");
-    
-    // Проверяем что сохранилось
-    const saved = localStorage.getItem("onb_complete");
-    console.log("✅ Onboarding complete! Flag saved:", saved);
-    
-    if (saved !== "1") {
-      console.error("❌ ОШИБКА: Флаг не сохранился!");
-      alert("Ошибка сохранения. Попробуйте еще раз.");
-      return;
+    // Попытка 1: localStorage
+    try {
+      console.log("📝 Attempting localStorage.setItem...");
+      localStorage.setItem("onb_complete", "1");
+      console.log("✅ localStorage.setItem executed");
+      
+      const saved = localStorage.getItem("onb_complete");
+      console.log("🔍 Check: localStorage.getItem('onb_complete') =", saved);
+      
+      if (saved !== "1") {
+        console.error("❌ localStorage НЕ РАБОТАЕТ! Trying sessionStorage...");
+        
+        // Fallback: sessionStorage
+        try {
+          sessionStorage.setItem("onb_complete", "1");
+          const sessionSaved = sessionStorage.getItem("onb_complete");
+          console.log("🔍 sessionStorage result:", sessionSaved);
+        } catch (err) {
+          console.error("❌ sessionStorage тоже не работает:", err);
+        }
+        
+        // Fallback: глобальная переменная
+        (window as any).__ONB_COMPLETE__ = true;
+        console.log("✅ Установлена глобальная переменная window.__ONB_COMPLETE__ = true");
+      }
+    } catch (err) {
+      console.error("❌ CRITICAL ERROR in localStorage:", err);
+      
+      // Используем только глобальную переменную
+      (window as any).__ONB_COMPLETE__ = true;
+      console.log("✅ Fallback: window.__ONB_COMPLETE__ = true");
     }
     
     // Отправляем события

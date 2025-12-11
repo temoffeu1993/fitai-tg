@@ -7,11 +7,30 @@ export type NavCurrent = TabKey | "none";
 /** Локальная проверка завершения онбординга */
 function isOnboardingCompleteLocal(): boolean {
   try {
-    // Проверяем ТОЛЬКО флаг завершения
-    const isComplete = localStorage.getItem("onb_complete") === "1";
-    console.log("NavBar: onboarding check", { isComplete, flag: localStorage.getItem("onb_complete") });
-    return isComplete;
-  } catch {
+    // Проверка 1: Глобальная переменная (самый надёжный способ)
+    if ((window as any).__ONB_COMPLETE__ === true) {
+      console.log("✅ NavBar: window.__ONB_COMPLETE__ = true");
+      return true;
+    }
+    
+    // Проверка 2: localStorage
+    const localFlag = localStorage.getItem("onb_complete");
+    if (localFlag === "1") {
+      console.log("✅ NavBar: localStorage = 1");
+      return true;
+    }
+    
+    // Проверка 3: sessionStorage (fallback)
+    const sessionFlag = sessionStorage.getItem("onb_complete");
+    if (sessionFlag === "1") {
+      console.log("✅ NavBar: sessionStorage = 1");
+      return true;
+    }
+    
+    console.log("❌ NavBar: все проверки failed");
+    return false;
+  } catch (err) {
+    console.error("❌ NavBar ERROR:", err);
     return false;
   }
 }
