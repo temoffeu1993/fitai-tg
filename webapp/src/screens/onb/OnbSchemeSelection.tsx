@@ -139,7 +139,16 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       } catch {}
       
       console.log("🎉 Calling onComplete()...");
-      onComplete();
+      console.log("🔍 onComplete type:", typeof onComplete);
+      console.log("🔍 onComplete is:", onComplete);
+      
+      try {
+        onComplete();
+        console.log("✅ onComplete() executed successfully");
+      } catch (err) {
+        console.error("❌ ERROR in onComplete():", err);
+        throw err;
+      }
     } catch (err: any) {
       console.error("❌ Failed to select scheme:", err);
       setError(err.message || "Не удалось сохранить выбор");

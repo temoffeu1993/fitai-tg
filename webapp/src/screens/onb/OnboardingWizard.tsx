@@ -54,7 +54,12 @@ export default function OnboardingWizard() {
   }
 
   function finishOnboarding() {
+    console.log("🔥🔥🔥 finishOnboarding() START 🔥🔥🔥");
     console.log("🎯 finishOnboarding() called");
+    
+    // СРАЗУ устанавливаем глобальную переменную
+    (window as any).__ONB_COMPLETE__ = true;
+    console.log("✅ FIRST THING: window.__ONB_COMPLETE__ = true");
     
     // Попытка 1: localStorage
     try {
