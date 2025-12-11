@@ -498,8 +498,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   schemeCardSelected: {
     background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(15, 23, 42, 0.2)",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12), 0 0 0 2px rgba(15, 23, 42, 0.15)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
     transform: "translateY(-2px)",
   },
 
@@ -517,7 +517,6 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 5,
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
-    border: "1.5px solid rgba(255,255,255,0.95)",
     zIndex: 10,
   },
   
@@ -562,7 +561,11 @@ const s: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
   },
   infoChip: {
-    background: "rgba(15, 23, 42, 0.08)",
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     padding: "5px 10px",
     borderRadius: 8,
     fontSize: 11,
@@ -586,9 +589,12 @@ const s: Record<string, React.CSSProperties> = {
   expandBtn: {
     width: "100%",
     padding: "10px",
-    border: "none",
+    border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 10,
-    background: "rgba(15, 23, 42, 0.06)",
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     color: "#475569",
     fontSize: 12,
     fontWeight: 600,
