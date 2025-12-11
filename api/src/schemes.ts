@@ -57,9 +57,9 @@ schemes.post(
     
     // Фильтруем схемы по базовым критериям (с fallback механизмом)
     let candidateSchemes = workoutSchemes.filter(scheme => {
-      // 1. Количество дней - только схемы с меньшим или равным количеством дней
-      if (scheme.daysPerWeek > daysPerWeek) return false;
-      if (scheme.daysPerWeek < daysPerWeek - 1) return false;
+      // 1. Количество дней - точное совпадение или ±1 день
+      const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
+      if (daysDiff > 1) return false;
       
       // 2. Опыт
       if (!scheme.experienceLevels.includes(experience)) return false;
@@ -77,13 +77,17 @@ schemes.post(
       return true;
     });
     
-    // FALLBACK: Если схем мало, смягчаем фильтры
+    // FALLBACK: Если схем мало, смягчаем фильтры НО СОХРАНЯЕМ ПРИОРИТЕТ ПО ДНЯМ
     if (candidateSchemes.length < 3) {
-      // Пробуем без ограничения по дням (берём ближайшие)
+      // Разрешаем отклонение до ±2 дней, но с сохранением цели
       candidateSchemes = workoutSchemes.filter(scheme => {
+        const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
+        if (daysDiff > 2) return false; // Максимум ±2 дня
+        
         if (!scheme.experienceLevels.includes(experience)) return false;
         if (!scheme.goals.includes(goal)) return false;
-        const tolerance = 15;
+        
+        const tolerance = 20; // Увеличиваем толерантность по времени
         if (minutesPerSession < scheme.minMinutes - tolerance || 
             minutesPerSession > scheme.maxMinutes + tolerance) {
           return false;
@@ -92,7 +96,7 @@ schemes.post(
       });
     }
     
-    // FALLBACK 2: Если всё ещё мало, смягчаем опыт (берём соседние уровни)
+    // FALLBACK 2: Если всё ещё мало, смягчаем опыт НО СОХРАНЯЕМ ДНИ
     if (candidateSchemes.length < 3) {
       const experienceFallback = {
         beginner: ['beginner', 'intermediate'],
@@ -101,6 +105,9 @@ schemes.post(
       };
       
       candidateSchemes = workoutSchemes.filter(scheme => {
+        const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
+        if (daysDiff > 2) return false; // Всё ещё учитываем дни!
+        
         const allowedLevels = experienceFallback[experience as keyof typeof experienceFallback] || [experience];
         if (!scheme.experienceLevels.some(e => allowedLevels.includes(e))) return false;
         if (!scheme.goals.includes(goal)) return false;
@@ -118,29 +125,31 @@ schemes.post(
     function scoreScheme(scheme: any): number {
       let score = 0;
       
-      // 1. Соответствие опыту (вес: 20)
-      if (scheme.experienceLevels.includes(experience)) score += 20;
+      // 1. Соответствие опыту (вес: 15)
+      if (scheme.experienceLevels.includes(experience)) score += 15;
       else score += 5; // fallback для соседних уровней
       
       // 2. Соответствие цели (вес: 25)
       if (scheme.goals.includes(goal)) score += 25;
       
-      // 3. Точное совпадение дней (вес: 20) - НОВОЕ!
-      if (scheme.daysPerWeek === daysPerWeek) score += 20;
-      else if (scheme.daysPerWeek === daysPerWeek - 1) score += 10;
-      else score += Math.max(0, 10 - Math.abs(scheme.daysPerWeek - daysPerWeek) * 3);
+      // 3. ПРИОРИТЕТ: Точное совпадение дней (вес: 30) - УВЕЛИЧЕН!
+      const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
+      if (daysDiff === 0) score += 30; // Точное совпадение - максимальный приоритет!
+      else if (daysDiff === 1) score += 15; // ±1 день - хорошо
+      else if (daysDiff === 2) score += 5; // ±2 дня - допустимо
+      // Больше 2 дней не должно попасть благодаря фильтрам
       
-      // 4. Соответствие полу (вес: 15)
-      if (scheme.targetSex === 'any') score += 10;
-      else if (scheme.targetSex === sex) score += 15;
+      // 4. Соответствие полу (вес: 12)
+      if (scheme.targetSex === 'any') score += 8;
+      else if (scheme.targetSex === sex) score += 12;
       
-      // 5. Соответствие интенсивности опыту (вес: 15)
-      if (experience === 'beginner' && scheme.intensity === 'low') score += 15;
-      else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 15;
-      else if (experience === 'advanced' && scheme.intensity === 'high') score += 15;
-      else if (scheme.intensity === 'moderate') score += 8; // универсальная интенсивность
+      // 5. Соответствие интенсивности опыту (вес: 13)
+      if (experience === 'beginner' && scheme.intensity === 'low') score += 13;
+      else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 13;
+      else if (experience === 'advanced' && scheme.intensity === 'high') score += 13;
+      else if (scheme.intensity === 'moderate') score += 7; // универсальная интенсивность
       
-      // 6. Бонусы за специфические комбинации
+      // 6. Бонусы за специфические комбинации (вес: до 10)
       if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 10;
       if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.splitType.includes('strength'))) score += 10;
       if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 8;
