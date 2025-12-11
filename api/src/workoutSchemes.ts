@@ -97,7 +97,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     minMinutes: 45,
     maxMinutes: 75,
     splitType: "full_body",
-    experienceLevels: ["beginner", "intermediate"],
+    experienceLevels: ["beginner", "intermediate", "advanced"],
     goals: ["build_muscle", "athletic_body", "lose_weight", "health_wellness"],
     equipmentRequired: ["gym_full", "dumbbells"],
     dayLabels: [
