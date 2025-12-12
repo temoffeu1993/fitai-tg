@@ -1,5 +1,13 @@
 // Готовые схемы тренировок - БОЕВАЯ ВЕРСИЯ
 
+import { DayTemplate } from "./workoutTemplates.js";
+import { 
+  PPL_PUSH_A_TEMPLATE, 
+  PPL_PULL_A_TEMPLATE, 
+  PPL_LEGS_A_TEMPLATE,
+  FULL_BODY_A_TEMPLATE
+} from "./schemeTemplates.js";
+
 export type WorkoutScheme = {
   id: string;
   name: string;
@@ -12,7 +20,12 @@ export type WorkoutScheme = {
   experienceLevels: string[];
   goals: string[];
   equipmentRequired: string[];
-  dayLabels: Array<{ day: number; label: string; focus: string }>;
+  dayLabels: Array<{ 
+    day: number; 
+    label: string; 
+    focus: string;
+    template?: DayTemplate; // 🔥 НОВОЕ: Полная структура дня с правилами
+  }>;
   benefits: string[];
   notes?: string;
   intensity: "low" | "moderate" | "high"; // интенсивность
@@ -105,16 +118,19 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Full Body A",
         focus: "Главные упражнения: приседания, жим лёжа, тяга — крепкий фундамент для всего тела.",
+        template: FULL_BODY_A_TEMPLATE
       },
       {
         day: 2,
         label: "Full Body B",
         focus: "Упор на спину и плечи: тяги, жим над головой, подтягивания и их варианты.",
+        // template: будет добавлен позже
       },
       {
         day: 3,
         label: "Full Body C",
         focus: "Выпады, наклонные жимы, тяги к поясу и дополнительные упражнения для баланса.",
+        // template: будет добавлен позже
       },
     ],
     benefits: [
@@ -425,26 +441,31 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Push A",
         focus: "Грудь, передняя часть плеч и трицепс — классические жимы.",
+        template: PPL_PUSH_A_TEMPLATE
       },
       {
         day: 2,
         label: "Pull A",
         focus: "Спина, задняя часть плеч и бицепс — базовые тяги и подтягивания.",
+        template: PPL_PULL_A_TEMPLATE
       },
       {
         day: 3,
         label: "Legs A",
         focus: "Квадрицепсы, ягодицы, икры — основные упражнения на ноги.",
+        template: PPL_LEGS_A_TEMPLATE
       },
       {
         day: 4,
         label: "Push B",
         focus: "Жимы под другими углами и дополнительные упражнения на плечи и трицепс.",
+        // template: будет добавлен позже или AI сгенерирует на основе Push A
       },
       {
         day: 5,
         label: "Pull B",
         focus: "Другие варианты тяг и упражнений на спину и бицепс.",
+        // template: будет добавлен позже или AI сгенерирует на основе Pull A
       },
     ],
     benefits: [

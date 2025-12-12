@@ -14,6 +14,7 @@ import { schedule } from "./schedule.js";
 import { progress } from "./progress.js";
 import { profile as profileRouter } from "./profile.js";
 import { schemes } from "./schemes.js";
+import { workoutTest } from "./workoutTest.js"; // 🔥 НОВОЕ: тестовый эндпоинт
 import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler } from "./middleware/errorHandler.js";
 
@@ -43,6 +44,7 @@ app.use("/workout", requireAuth, workout);
 app.use("/api/nutrition", requireAuth, nutrition);
 app.use("/api", requireAuth, schedule);
 app.use("/api/progress", requireAuth, progress);
+app.use("/api/workout-test", requireAuth, workoutTest); // 🔥 НОВОЕ: тест генерации
 
 // подписка — публичный статус
 app.get(
