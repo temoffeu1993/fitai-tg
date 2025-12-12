@@ -13,7 +13,7 @@ import { TrainingGoal, ExperienceLevel } from "./trainingRulesEngine.js";
  * Не содержит жестких цифр - все рассчитывается динамически
  */
 export type ExerciseBlockRule = {
-  priority: 1 | 2 | 3 | 4 | 5;  // Чем меньше - тем важнее
+  priority: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;  // Чем меньше - тем важнее
   role: "main_lift" | "secondary" | "accessory" | "isolation" | "optional";
   name: string;                  // Название блока (для понимания)
   movementPattern: MovementPattern; // Тип движения
@@ -422,6 +422,437 @@ export const PPL_LEGS_RULES: DayTemplateRules = {
     targetMuscleGroups: ["ноги", "ягодицы"],
     difficulty: "intermediate",
     estimatedDurationRange: [50, 95] // Ноги нужно чуть больше времени
+  }
+};
+
+/**
+ * PPL - PUSH B (вариация с другими углами)
+ */
+export const PPL_PUSH_B_RULES: DayTemplateRules = {
+  name: "Push Day B",
+  focus: "Плечи в приоритете, грудь и трицепс - вспомогательно",
+  description: "Второй Push день с акцентом на плечи и другими углами жимов.",
+  
+  warmup: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "5-10 минут легкого кардио + динамическая растяжка верха тела"
+  },
+  
+  exerciseBlocks: [
+    {
+      priority: 1,
+      role: "main_lift",
+      name: "Главное - жим на плечи",
+      movementPattern: "overhead_press",
+      targetMuscles: ["средние дельты", "передние дельты", "трицепс"],
+      notes: "Сегодня плечи в приоритете. Тяжелый жим над головой.",
+      alternatives: ["incline_press"]
+    },
+    {
+      priority: 2,
+      role: "secondary",
+      name: "Наклонный жим (другой угол)",
+      movementPattern: "incline_press",
+      targetMuscles: ["верх груди", "плечи"],
+      notes: "Грудь под другим углом чем в Push A.",
+      alternatives: ["horizontal_press"],
+      canSkipIf: {
+        timeMinutes: 50,
+        experience: ["beginner"]
+      }
+    },
+    {
+      priority: 3,
+      role: "accessory",
+      name: "Отжимания на брусьях",
+      movementPattern: "dips",
+      targetMuscles: ["грудь", "трицепс", "плечи"],
+      notes: "Многосуставное для груди и трицепса.",
+      canSkipIf: {
+        timeMinutes: 65,
+        experience: ["beginner"]
+      }
+    },
+    {
+      priority: 4,
+      role: "isolation",
+      name: "Изоляция задних дельт",
+      movementPattern: "rear_delt_fly",
+      targetMuscles: ["задние дельты"],
+      notes: "Важно для баланса плеч и осанки.",
+      canSkipIf: {
+        timeMinutes: 70,
+        goals: ["strength"]
+      },
+      supersetWith: 5
+    },
+    {
+      priority: 5,
+      role: "isolation",
+      name: "Изоляция трицепса (другой вариант)",
+      movementPattern: "triceps_extension",
+      targetMuscles: ["трицепс"],
+      notes: "Французский жим или разгибания над головой.",
+      canSkipIf: {
+        timeMinutes: 60,
+        goals: ["strength"]
+      },
+      supersetWith: 4
+    }
+  ],
+  
+  cooldown: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "Растяжка плеч, груди, трицепса"
+  },
+  
+  adaptationRules: {
+    canReduce: {
+      minExercises: 2,
+      minSets: 8,
+      minIntensity: "light"
+    },
+    skipConditions: {
+      painLevel: 7,
+      sleepHours: 4,
+      multipleIssues: true
+    },
+    fallbackFocus: "legs"
+  },
+  
+  meta: {
+    targetMuscleGroups: ["плечи", "грудь", "трицепс"],
+    difficulty: "intermediate",
+    estimatedDurationRange: [45, 90]
+  }
+};
+
+/**
+ * PPL - PULL B (другие варианты тяг)
+ */
+export const PPL_PULL_B_RULES: DayTemplateRules = {
+  name: "Pull Day B",
+  focus: "Другие варианты тяг, акцент на бицепс",
+  description: "Второй Pull день с вариациями тяг.",
+  
+  warmup: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "5-10 минут кардио + динамическая растяжка спины и рук"
+  },
+  
+  exerciseBlocks: [
+    {
+      priority: 1,
+      role: "main_lift",
+      name: "Главное - горизонтальная тяга",
+      movementPattern: "horizontal_pull",
+      targetMuscles: ["середина спины", "ромбовидные", "бицепс"],
+      notes: "Сегодня горизонтальная тяга в приоритете (в Pull A была вертикальная).",
+      alternatives: ["vertical_pull"]
+    },
+    {
+      priority: 2,
+      role: "secondary",
+      name: "Вертикальная тяга (другой хват)",
+      movementPattern: "vertical_pull",
+      targetMuscles: ["широчайшие", "бицепс"],
+      notes: "Вертикальная тяга, но другим хватом чем в Pull A.",
+      alternatives: ["row"],
+      canSkipIf: {
+        timeMinutes: 50,
+        experience: ["beginner"]
+      }
+    },
+    {
+      priority: 3,
+      role: "accessory",
+      name: "Становая или тяга с гирей",
+      movementPattern: "deadlift",
+      targetMuscles: ["спина", "задняя цепь", "кор"],
+      notes: "Становая для общей силы спины.",
+      alternatives: ["hip_hinge"],
+      canSkipIf: {
+        timeMinutes: 65,
+        experience: ["beginner"]
+      }
+    },
+    {
+      priority: 4,
+      role: "isolation",
+      name: "Изоляция бицепса (вариант 1)",
+      movementPattern: "biceps_curl",
+      targetMuscles: ["бицепс"],
+      notes: "Классические подъемы на бицепс.",
+      canSkipIf: {
+        timeMinutes: 70,
+        goals: ["strength"]
+      },
+      supersetWith: 5
+    },
+    {
+      priority: 5,
+      role: "isolation",
+      name: "Изоляция бицепса (вариант 2)",
+      movementPattern: "hammer_curl",
+      targetMuscles: ["бицепс", "брахиалис"],
+      notes: "Молотковые подъемы для полноты руки.",
+      canSkipIf: {
+        timeMinutes: 60,
+        goals: ["strength"]
+      },
+      supersetWith: 4
+    }
+  ],
+  
+  cooldown: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "Растяжка спины, бицепса, висы на турнике"
+  },
+  
+  adaptationRules: {
+    canReduce: {
+      minExercises: 2,
+      minSets: 8,
+      minIntensity: "light"
+    },
+    skipConditions: {
+      painLevel: 7,
+      sleepHours: 4,
+      multipleIssues: true
+    },
+    fallbackFocus: "legs"
+  },
+  
+  meta: {
+    targetMuscleGroups: ["спина", "бицепс"],
+    difficulty: "intermediate",
+    estimatedDurationRange: [45, 90]
+  }
+};
+
+/**
+ * UPPER BODY (для Upper/Lower сплита)
+ */
+export const UPPER_BODY_RULES: DayTemplateRules = {
+  name: "Upper Body",
+  focus: "Весь верх тела - жимы и тяги",
+  description: "Комплексная тренировка верха для Upper/Lower сплита.",
+  
+  warmup: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "5-10 минут кардио + динамическая растяжка верха тела"
+  },
+  
+  exerciseBlocks: [
+    {
+      priority: 1,
+      role: "main_lift",
+      name: "Главное базовое - горизонтальный жим",
+      movementPattern: "horizontal_press",
+      targetMuscles: ["грудь", "трицепс", "плечи"],
+      notes: "Жим лёжа или гантелями - фундамент."
+    },
+    {
+      priority: 2,
+      role: "secondary",
+      name: "Вертикальная тяга",
+      movementPattern: "vertical_pull",
+      targetMuscles: ["широчайшие", "бицепс"],
+      notes: "Подтягивания или тяга верхнего блока.",
+      alternatives: ["horizontal_pull"]
+    },
+    {
+      priority: 3,
+      role: "accessory",
+      name: "Жим на плечи",
+      movementPattern: "overhead_press",
+      targetMuscles: ["плечи", "трицепс"],
+      notes: "Вертикальный жим для плеч.",
+      canSkipIf: {
+        timeMinutes: 60
+      }
+    },
+    {
+      priority: 4,
+      role: "accessory",
+      name: "Горизонтальная тяга",
+      movementPattern: "horizontal_pull",
+      targetMuscles: ["середина спины", "бицепс"],
+      notes: "Тяга к поясу для толщины спины.",
+      canSkipIf: {
+        timeMinutes: 65
+      }
+    },
+    {
+      priority: 5,
+      role: "isolation",
+      name: "Изоляция бицепса",
+      movementPattern: "biceps_curl",
+      targetMuscles: ["бицепс"],
+      notes: "Подъемы на бицепс.",
+      canSkipIf: {
+        timeMinutes: 70,
+        goals: ["strength"]
+      }
+    },
+    {
+      priority: 6,
+      role: "isolation",
+      name: "Изоляция трицепса",
+      movementPattern: "triceps_pushdown",
+      targetMuscles: ["трицепс"],
+      notes: "Разгибания на трицепс.",
+      canSkipIf: {
+        timeMinutes: 70,
+        goals: ["strength"]
+      }
+    }
+  ],
+  
+  cooldown: {
+    durationPercent: 0.11,
+    minMinutes: 5,
+    maxMinutes: 10,
+    guidelines: "Растяжка всего верха тела"
+  },
+  
+  adaptationRules: {
+    canReduce: {
+      minExercises: 3,
+      minSets: 10,
+      minIntensity: "light"
+    },
+    skipConditions: {
+      painLevel: 7,
+      sleepHours: 4,
+      multipleIssues: true
+    },
+    fallbackFocus: "lower"
+  },
+  
+  meta: {
+    targetMuscleGroups: ["грудь", "спина", "плечи", "руки"],
+    difficulty: "intermediate",
+    estimatedDurationRange: [50, 95]
+  }
+};
+
+/**
+ * LOWER BODY (для Upper/Lower сплита)
+ */
+export const LOWER_BODY_RULES: DayTemplateRules = {
+  name: "Lower Body",
+  focus: "Весь низ тела - квадрицепсы, ягодицы, бицепс бедра",
+  description: "Комплексная тренировка низа для Upper/Lower сплита.",
+  
+  warmup: {
+    durationPercent: 0.12,
+    minMinutes: 7,
+    maxMinutes: 12,
+    guidelines: "5-10 минут кардио + динамическая разминка ног"
+  },
+  
+  exerciseBlocks: [
+    {
+      priority: 1,
+      role: "main_lift",
+      name: "Главное - приседания",
+      movementPattern: "squat_pattern",
+      targetMuscles: ["квадрицепсы", "ягодицы", "кор"],
+      notes: "Тяжелые приседания - король низа тела.",
+      alternatives: ["leg_extension"]
+    },
+    {
+      priority: 2,
+      role: "secondary",
+      name: "Тазовый шарнир",
+      movementPattern: "hip_hinge",
+      targetMuscles: ["бицепс бедра", "ягодицы", "низ спины"],
+      notes: "Румынка или становая для задней цепи."
+    },
+    {
+      priority: 3,
+      role: "accessory",
+      name: "Выпады или сплиты",
+      movementPattern: "lunge_pattern",
+      targetMuscles: ["квадрицепсы", "ягодицы"],
+      notes: "Односторонняя работа.",
+      canSkipIf: {
+        timeMinutes: 60
+      }
+    },
+    {
+      priority: 4,
+      role: "accessory",
+      name: "Ягодичный мост",
+      movementPattern: "hip_thrust",
+      targetMuscles: ["ягодицы", "бицепс бедра"],
+      notes: "Изоляция ягодиц.",
+      canSkipIf: {
+        timeMinutes: 70
+      }
+    },
+    {
+      priority: 5,
+      role: "isolation",
+      name: "Изоляция квадрицепсов",
+      movementPattern: "leg_extension",
+      targetMuscles: ["квадрицепсы"],
+      notes: "Разгибания ног.",
+      canSkipIf: {
+        timeMinutes: 75,
+        goals: ["strength"]
+      }
+    },
+    {
+      priority: 6,
+      role: "isolation",
+      name: "Изоляция бицепса бедра",
+      movementPattern: "leg_curl",
+      targetMuscles: ["бицепс бедра"],
+      notes: "Сгибания ног.",
+      canSkipIf: {
+        timeMinutes: 75,
+        goals: ["strength"]
+      }
+    }
+  ],
+  
+  cooldown: {
+    durationPercent: 0.12,
+    minMinutes: 7,
+    maxMinutes: 12,
+    guidelines: "Растяжка ног, foam roller"
+  },
+  
+  adaptationRules: {
+    canReduce: {
+      minExercises: 3,
+      minSets: 10,
+      minIntensity: "light"
+    },
+    skipConditions: {
+      painLevel: 8,
+      sleepHours: 4,
+      multipleIssues: true
+    },
+    fallbackFocus: "upper"
+  },
+  
+  meta: {
+    targetMuscleGroups: ["ноги", "ягодицы"],
+    difficulty: "intermediate",
+    estimatedDurationRange: [50, 100]
   }
 };
 

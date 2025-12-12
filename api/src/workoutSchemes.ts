@@ -7,6 +7,17 @@ import {
   PPL_LEGS_A_TEMPLATE,
   FULL_BODY_A_TEMPLATE
 } from "./schemeTemplates.js";
+import { DayTemplateRules } from "./flexibleTemplates.js";
+import {
+  PPL_PUSH_RULES,
+  PPL_PUSH_B_RULES,
+  PPL_PULL_RULES,
+  PPL_PULL_B_RULES,
+  PPL_LEGS_RULES,
+  UPPER_BODY_RULES,
+  LOWER_BODY_RULES,
+  FULL_BODY_RULES
+} from "./flexibleTemplates.js";
 
 export type WorkoutScheme = {
   id: string;
@@ -24,7 +35,8 @@ export type WorkoutScheme = {
     day: number; 
     label: string; 
     focus: string;
-    template?: DayTemplate; // 🔥 НОВОЕ: Полная структура дня с правилами
+    template?: DayTemplate; // 🔥 Старая система (будет удалена)
+    templateRules?: DayTemplateRules; // 🔥 НОВАЯ научная система
   }>;
   benefits: string[];
   notes?: string;
@@ -118,19 +130,19 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Full Body A",
         focus: "Главные упражнения: приседания, жим лёжа, тяга — крепкий фундамент для всего тела.",
-        template: FULL_BODY_A_TEMPLATE
+        templateRules: FULL_BODY_RULES // 🔥 Научная система (AI подберет разные упражнения)
       },
       {
         day: 2,
         label: "Full Body B",
         focus: "Упор на спину и плечи: тяги, жим над головой, подтягивания и их варианты.",
-        // template: будет добавлен позже
+        templateRules: FULL_BODY_RULES // 🔥 Тот же template, но AI подберет другие упражнения
       },
       {
         day: 3,
         label: "Full Body C",
         focus: "Выпады, наклонные жимы, тяги к поясу и дополнительные упражнения для баланса.",
-        // template: будет добавлен позже
+        templateRules: FULL_BODY_RULES // 🔥 Тот же template, но AI подберет другие упражнения
       },
     ],
     benefits: [
@@ -271,21 +283,25 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Upper A",
         focus: "Грудь, спина, плечи, руки — жимы от себя и тяги к себе.",
+        templateRules: UPPER_BODY_RULES // 🔥 Научная система
       },
       {
         day: 2,
         label: "Lower A",
         focus: "Приседания, наклоны, упражнения на икры — основа для сильных ног.",
+        templateRules: LOWER_BODY_RULES // 🔥 Научная система
       },
       {
         day: 3,
         label: "Upper B",
         focus: "Жимы вверх, подтягивания и упражнения на руки для других углов нагрузки.",
+        templateRules: UPPER_BODY_RULES // 🔥 Тот же template, AI подберет другие упражнения
       },
       {
         day: 4,
         label: "Lower B",
         focus: "Выпады, варианты приседаний и ягодичный мост — акцент на форме ног и ягодиц.",
+        templateRules: LOWER_BODY_RULES // 🔥 Тот же template, AI подберет другие упражнения
       },
     ],
     benefits: [
@@ -441,31 +457,31 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Push A",
         focus: "Грудь, передняя часть плеч и трицепс — классические жимы.",
-        template: PPL_PUSH_A_TEMPLATE
+        templateRules: PPL_PUSH_RULES // 🔥 Научная система
       },
       {
         day: 2,
         label: "Pull A",
         focus: "Спина, задняя часть плеч и бицепс — базовые тяги и подтягивания.",
-        template: PPL_PULL_A_TEMPLATE
+        templateRules: PPL_PULL_RULES // 🔥 Научная система
       },
       {
         day: 3,
         label: "Legs A",
         focus: "Квадрицепсы, ягодицы, икры — основные упражнения на ноги.",
-        template: PPL_LEGS_A_TEMPLATE
+        templateRules: PPL_LEGS_RULES // 🔥 Научная система
       },
       {
         day: 4,
         label: "Push B",
         focus: "Жимы под другими углами и дополнительные упражнения на плечи и трицепс.",
-        // template: будет добавлен позже или AI сгенерирует на основе Push A
+        templateRules: PPL_PUSH_B_RULES // 🔥 Научная система
       },
       {
         day: 5,
         label: "Pull B",
         focus: "Другие варианты тяг и упражнений на спину и бицепс.",
-        // template: будет добавлен позже или AI сгенерирует на основе Pull A
+        templateRules: PPL_PULL_B_RULES // 🔥 Научная система
       },
     ],
     benefits: [
