@@ -63,11 +63,13 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Full Body A",
         focus: "Простые упражнения на всё тело: приседания, жимы, тяги — базовый фундамент.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Full Body B",
         focus: "Похожий набор движений, но с другими вариантами и углами, чтобы включать больше мышц.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
     ],
     benefits: [
@@ -170,16 +172,19 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Push",
         focus: "Грудь, плечи, трицепс — все упражнения, где вы толкаете вес от себя.",
+        templateRules: PPL_PUSH_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Pull",
         focus: "Спина, задняя часть плеч, бицепс — упражнения, где вы тянете вес к себе.",
+        templateRules: PPL_PULL_RULES // 🔥 ТОП-10
       },
       {
         day: 3,
         label: "Legs",
         focus: "Бёдра, ягодицы, икры — полная тренировка ног за один раз.",
+        templateRules: PPL_LEGS_RULES // 🔥 ТОП-10
       },
     ],
     benefits: [
@@ -207,16 +212,19 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Upper Focus",
         focus: "Акцент на верх тела: грудь, спина, плечи и руки в одном дне.",
+        templateRules: UPPER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Lower Focus",
         focus: "Акцент на низ: бёдра, ягодицы, задняя поверхность бедра.",
+        templateRules: LOWER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 3,
         label: "Full Body",
         focus: "Лёгкая тренировка на всё тело или отдельные отстающие зоны.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
     ],
     benefits: [
@@ -510,26 +518,31 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Upper A",
         focus: "Жимы и тяги на верх тела — базовые упражнения.",
+        templateRules: UPPER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Lower A",
         focus: "Приседания и наклоны — основа для сильных ног.",
+        templateRules: LOWER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 3,
         label: "Upper B",
         focus: "Другие варианты жимов и тяг для верха тела.",
+        templateRules: UPPER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 4,
         label: "Lower B",
         focus: "Выпады, ягодичный мост и другие движения на нижнюю часть тела.",
+        templateRules: LOWER_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 5,
         label: "Glutes & Legs",
         focus: "День, полностью посвящённый ягодицам и ногам — фокус на форме и деталях.",
+        templateRules: LOWER_BODY_RULES // 🔥 ТОП-10 (акцент на ягодицы)
       },
     ],
     benefits: [
@@ -653,31 +666,37 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Push A",
         focus: "Тяжёлые жимы с акцентом на грудь.",
+        templateRules: PPL_PUSH_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Pull A",
         focus: "Тяжёлые тяги с акцентом на спину.",
+        templateRules: PPL_PULL_RULES // 🔥 ТОП-10
       },
       {
         day: 3,
         label: "Legs A",
         focus: "Приседания, наклоны и другие базовые упражнения на ноги.",
+        templateRules: PPL_LEGS_RULES // 🔥 ТОП-10
       },
       {
         day: 4,
         label: "Push B",
         focus: "Более объёмная работа на грудь и плечи.",
+        templateRules: PPL_PUSH_B_RULES // 🔥 ТОП-10
       },
       {
         day: 5,
         label: "Pull B",
         focus: "Больше повторений и вариаций тяг на спину.",
+        templateRules: PPL_PULL_B_RULES // 🔥 ТОП-10
       },
       {
         day: 6,
         label: "Legs B",
         focus: "Другие варианты приседаний и выпадов для ног.",
+        templateRules: PPL_LEGS_RULES // 🔥 ТОП-10
       },
     ],
     benefits: [
@@ -994,21 +1013,25 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Full Body A",
         focus: "Приседания, жим, тяга — базовый набор на всё тело.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 2,
         label: "Full Body B",
         focus: "Выпады, жим под углом, тяга к поясу — те же зоны, но под другими углами.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 3,
         label: "Full Body C",
         focus: "Более лёгкий день: пресс, спина, мышцы-стабилизаторы.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
       {
         day: 4,
         label: "Full Body D",
         focus: "Повторение базы с чуть меньшими весами и акцентом на технику.",
+        templateRules: FULL_BODY_RULES // 🔥 ТОП-10
       },
     ],
     benefits: [
