@@ -155,25 +155,76 @@ export async function buildIntelligentWorkout(params: {
   // AI генерирует тренировку
   const aiWorkout = await callAIForWorkout(context, scientificParams, mode);
   
+  console.log("\n" + "=".repeat(80));
+  console.log("🔍 ПОСТ-ФИЛЬТРАЦИЯ ДУБЛЕЙ");
+  console.log("=".repeat(80));
+  
   // 🔍 ПОСТ-ФИЛЬТРАЦИЯ ДУБЛЕЙ (гарантия, если AI не послушался)
   const usedPatterns = new Set<string>();
-  const filteredExercises = aiWorkout.exercises.filter((ex) => {
+  const filteredExercises = aiWorkout.exercises.filter((ex, index) => {
     // Определяем паттерн упражнения
     const pattern = findExercisePattern(ex.name, rules);
-    if (!pattern) return true; // Если паттерн не найден, оставляем
+    console.log(`${index + 1}. "${ex.name}" → [${pattern || 'PATTERN NOT FOUND'}]`);
+    
+    if (!pattern) {
+      console.warn(`   ⚠️ Паттерн не найден! Оставляем упражнение.`);
+      return true; // Если паттерн не найден, оставляем
+    }
     
     if (usedPatterns.has(pattern)) {
-      console.warn(`⚠️ Отфильтровано дублирование: "${ex.name}" [${pattern}] - паттерн уже использован`);
+      console.warn(`   ❌ ДУБЛЬ! Паттерн [${pattern}] уже использован. УДАЛЯЕМ.`);
       return false;
     }
     
+    console.log(`   ✅ OK, паттерн уникальный`);
     usedPatterns.add(pattern);
     return true;
   });
   
+  console.log("=".repeat(80));
   if (filteredExercises.length < aiWorkout.exercises.length) {
     console.log(`🔧 Отфильтровано дублей: ${aiWorkout.exercises.length} → ${filteredExercises.length} упражнений`);
+  } else {
+    console.log(`✅ Дублей не обнаружено`);
   }
+  console.log("=".repeat(80) + "\n");
+  
+  // 📊 ПОДСЧЁТ ОБЪЁМОВ ПО МЫШЕЧНЫМ ГРУППАМ
+  console.log("\n" + "=".repeat(80));
+  console.log("📊 ПОДСЧЁТ ОБЪЁМОВ ПО МЫШЕЧНЫМ ГРУППАМ");
+  console.log("=".repeat(80));
+  
+  const muscleVolume: Record<string, number> = {};
+  filteredExercises.forEach(ex => {
+    const primaryMuscle = findExercisePrimaryMuscle(ex.name);
+    if (primaryMuscle) {
+      muscleVolume[primaryMuscle] = (muscleVolume[primaryMuscle] || 0) + ex.sets;
+      console.log(`"${ex.name}" → [${primaryMuscle}] +${ex.sets} подходов`);
+    } else {
+      console.warn(`⚠️ Не найдена primaryMuscle для "${ex.name}"`);
+    }
+  });
+  
+  console.log("\n📈 ИТОГОВЫЕ ОБЪЁМЫ:");
+  Object.entries(muscleVolume).forEach(([muscle, sets]) => {
+    console.log(`  ${muscle}: ${sets} подходов`);
+  });
+  
+  // Проверка соответствия целевым объёмам
+  if (rules.targetMuscleVolume) {
+    const volumeTargets = calculateVolumeTargets(rules, userProfile);
+    if (volumeTargets) {
+      console.log("\n🎯 СООТВЕТСТВИЕ ЦЕЛЕВЫМ ОБЪЁМАМ:");
+      Object.entries(volumeTargets).forEach(([muscle, target]) => {
+        const actual = muscleVolume[muscle] || 0;
+        const status = actual >= target.min && actual <= target.max ? '✅' : 
+                      actual < target.min ? '❌ НЕДОБОР' : '⚠️ ПЕРЕБОР';
+        console.log(`  ${muscle}: ${actual} / ${target.min}-${target.max} ${status}`);
+      });
+    }
+  }
+  
+  console.log("=".repeat(80) + "\n");
   
   // Финальная сборка (используем отфильтрованные!)
   const totalSets = filteredExercises.reduce((sum, ex) => sum + ex.sets, 0);
@@ -218,6 +269,11 @@ async function callAIForWorkout(
   const prompt = buildProfessionalPrompt(context, scientificParams, mode);
   
   console.log("\n🤖 Вызов AI (gpt-4o-mini)...");
+  console.log("\n" + "=".repeat(80));
+  console.log("📄 FULL PROMPT SENT TO AI:");
+  console.log("=".repeat(80));
+  console.log(prompt);
+  console.log("=".repeat(80) + "\n");
   
   try {
     const response = await openai.chat.completions.create({
