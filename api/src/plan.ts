@@ -21,7 +21,7 @@ const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 
 type Blueprint = {
   name: string;
-  days: string[];
+  days: Array<{ label: string; focus: string }>;
   description: string;
   meta: {
     daysPerWeek: number;
@@ -521,13 +521,19 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function fitDaysToCount(baseDays: string[], count: number): string[] {
+function fitDaysToCount(baseDays: string[], count: number): Array<{ label: string; focus: string }> {
   if (count <= 0) return [];
-  if (!baseDays.length) return Array.from({ length: count }, (_, i) => `День ${i + 1}`);
-  const result: string[] = [];
+  if (!baseDays.length) {
+    return Array.from({ length: count }, (_, i) => {
+      const label = `День ${i + 1}`;
+      return { label, focus: label };
+    });
+  }
+  const result: Array<{ label: string; focus: string }> = [];
   let i = 0;
   while (result.length < count) {
-    result.push(baseDays[i % baseDays.length]);
+    const label = baseDays[i % baseDays.length];
+    result.push({ label, focus: label });
     i++;
   }
   return result.slice(0, count);
@@ -1294,7 +1300,12 @@ ${JSON.stringify(
 
   const blueprint: Blueprint = {
     name: String(raw.name).trim(),
-    days: raw.days.map((d: any) => String(d || "День").trim()),
+    days: raw.days.map((d: any) => {
+      const label = String(d || "День").trim();
+      // AI возвращает просто названия дней без детального focus
+      // Используем label как focus для AI-генерированных программ
+      return { label, focus: label };
+    }),
     description: String(raw.description || "Структура недели под цели клиента").trim(),
     meta: {
       daysPerWeek: profile.daysPerWeek,
@@ -1306,7 +1317,7 @@ ${JSON.stringify(
   };
 
   console.log(`[PROGRAM] AI создал blueprint: "${blueprint.name}"`);
-  console.log(`  Days: ${blueprint.days.join(" → ")}`);
+  console.log(`  Days: ${blueprint.days.map(d => d.label).join(" → ")}`);
 
   return blueprint;
 }
@@ -1920,7 +1931,8 @@ function buildTrainerPrompt(params: {
     weeklyLoadSummary,
   } = params;
   const blueprint = program.blueprint_json;
-  const todayFocus = blueprint.days[program.day_idx];
+  const todayDay = blueprint.days[program.day_idx];
+  const todayFocus = todayDay.focus || todayDay.label; // используем focus если есть, иначе label для обратной совместимости
   const trainingStatusNotes = getTrainingStatusPrompt(profile.trainingStatus);
 
   const clientData = buildClientDataBlock(profile, onboarding, constraints, weekContext);
@@ -1968,8 +1980,9 @@ ${trainingStatusNotes}
 - Описание: ${blueprint.description || "нет описания"}
 - Неделя: ${program.week}, День: ${program.day_idx + 1}/${program.microcycle_len}
 - Глобальная неделя тренировок: ${weekContext.globalWeekIndex ?? program.week}
-- Структура недели: ${blueprint.days.join(" → ")}
-- Сегодняшний фокус: **${todayFocus}**
+- Структура недели: ${blueprint.days.map(d => d.label).join(" → ")}
+- Сегодняшний день: **${todayDay.label}**
+- Фокус дня: **${todayFocus}**
 ${targetExercises ? `- Цель по количеству упражнений: ~${targetExercises}` : ""}
 - Целевая длительность: ${sessionMinutes} минут
 - Пользователь указал доступное время на эту сессию: ${sessionMinutes} минут
@@ -2228,7 +2241,8 @@ async function generateSessionStructure(params: {
   } = params;
 
   const blueprint = program.blueprint_json;
-  const todayFocus = blueprint.days[program.day_idx];
+  const todayDay = blueprint.days[program.day_idx];
+  const todayFocus = todayDay.focus || todayDay.label; // используем focus если есть, иначе label для обратной совместимости
 
   // Тяжёлые блоки истории/прогрессии — считаем на этапе 2 и потом сжимаем
   const historyBlockFull = buildHistoryBlock(history, weekSessions);

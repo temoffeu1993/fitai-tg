@@ -293,7 +293,10 @@ schemes.post(
     // Также сохраняем схему в training_programs для использования в генерации тренировок
     const blueprint = {
       name: selectedScheme.name,
-      days: selectedScheme.dayLabels.map(d => d.label),
+      days: selectedScheme.dayLabels.map(d => ({
+        label: d.label,
+        focus: d.focus
+      })),
       description: selectedScheme.description,
       meta: {
         daysPerWeek: selectedScheme.daysPerWeek,
