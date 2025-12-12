@@ -1,0 +1,396 @@
+// Умный сборщик тренировок (AI получает ПРАВИЛА, а не готовую структуру)
+// ============================================================================
+
+import OpenAI from "openai";
+import { config } from "./config.js";
+import { DayTrainingRules, WorkoutGenerationContext } from "./trainingRulesTypes.js";
+import { MOVEMENT_PATTERNS_DB } from "./workoutTemplates.js";
+import { generateWorkoutRules, TrainingGoal, ExperienceLevel } from "./trainingRulesEngine.js";
+
+const openai = new OpenAI({ apiKey: config.openaiApiKey! });
+
+export type GeneratedWorkout = {
+  title: string;
+  focus: string;
+  mode: string;
+  warmup: { duration: number; guidelines: string };
+  exercises: Array<{
+    name: string;
+    sets: number;
+    reps: string;
+    rest: number;
+    weight?: string;
+    notes?: string;
+    targetMuscles: string[];
+  }>;
+  cooldown: { duration: number; guidelines: string };
+  totalExercises: number;
+  totalSets: number;
+  estimatedDuration: number;
+  scientificNotes: string[];
+  adaptationNotes?: string[];
+  warnings?: string[];
+};
+
+/**
+ * ГЛАВНАЯ ФУНКЦИЯ: Генерирует тренировку из ПРАВИЛ (не из готовой структуры!)
+ */
+export async function buildIntelligentWorkout(params: {
+  rules: DayTrainingRules;
+  userProfile: {
+    experience: ExperienceLevel;
+    goal: TrainingGoal;
+    timeAvailable: number;
+    daysPerWeek: number;
+  };
+  checkIn?: {
+    energy?: string;
+    pain?: Array<{ location: string; level: number }>;
+    injuries?: string[];
+    mode?: string;
+  };
+  history?: {
+    recentExercises: string[];
+    weightHistory: Record<string, string>;
+  };
+}): Promise<GeneratedWorkout> {
+  
+  const { rules, userProfile, checkIn, history } = params;
+  
+  console.log("\n🧠 УМНАЯ ГЕНЕРАЦИЯ ТРЕНИРОВКИ");
+  console.log(`Template: ${rules.name}`);
+  console.log(`Профиль: ${userProfile.experience}, ${userProfile.goal}, ${userProfile.timeAvailable} мин`);
+  
+  // Научные расчёты
+  const scientificParams = generateWorkoutRules({
+    experience: userProfile.experience,
+    goal: userProfile.goal,
+    timeAvailable: userProfile.timeAvailable,
+    daysPerWeek: userProfile.daysPerWeek
+  });
+  
+  console.log(`✓ Научные параметры: ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
+  
+  // Режим тренировки из чекина
+  const mode = checkIn?.mode || "normal";
+  
+  // Строим контекст для AI
+  const context: WorkoutGenerationContext = {
+    rules,
+    userProfile,
+    checkIn: checkIn ? {
+      energy: (checkIn.energy as any) || "medium",
+      pain: checkIn.pain || [],
+      injuries: checkIn.injuries || [],
+      mode: (mode as any)
+    } : undefined,
+    history: history || { recentExercises: [], weightHistory: {} }
+  };
+  
+  // AI генерирует тренировку
+  const aiWorkout = await callAIForWorkout(context, scientificParams);
+  
+  // Финальная сборка
+  const totalSets = aiWorkout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  const estimatedDuration = rules.warmup.durationMinutes + 
+                           (aiWorkout.exercises.length * 8) + // ~8 мин на упражнение
+                           rules.cooldown.durationMinutes;
+  
+  return {
+    title: rules.name,
+    focus: rules.focus,
+    mode,
+    warmup: {
+      duration: rules.warmup.durationMinutes,
+      guidelines: rules.warmup.guidelines
+    },
+    exercises: aiWorkout.exercises,
+    cooldown: {
+      duration: rules.cooldown.durationMinutes,
+      guidelines: rules.cooldown.guidelines
+    },
+    totalExercises: aiWorkout.exercises.length,
+    totalSets,
+    estimatedDuration,
+    scientificNotes: [
+      ...rules.scientificNotes,
+      `Расчёт под ${userProfile.experience}/${userProfile.goal}: ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`
+    ],
+    adaptationNotes: aiWorkout.adaptationNotes,
+    warnings: aiWorkout.warnings
+  };
+}
+
+/**
+ * Вызов AI с профессиональным промптом
+ */
+async function callAIForWorkout(
+  context: WorkoutGenerationContext,
+  scientificParams: any
+): Promise<{ exercises: any[]; adaptationNotes?: string[]; warnings?: string[] }> {
+  
+  const prompt = buildProfessionalPrompt(context, scientificParams);
+  
+  console.log("\n🤖 Вызов AI (gpt-4o-mini)...");
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: PROFESSIONAL_SYSTEM_PROMPT
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.8,  // Больше креативности
+      response_format: { type: "json_object" }
+    });
+    
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("AI не вернул ответ");
+    }
+    
+    const result = JSON.parse(content);
+    
+    if (!result.exercises || !Array.isArray(result.exercises)) {
+      throw new Error("AI вернул некорректный формат");
+    }
+    
+    console.log(`✓ AI сгенерировал ${result.exercises.length} упражнений`);
+    result.exercises.forEach((ex: any, i: number) => {
+      console.log(`  ${i + 1}. ${ex.name} - ${ex.sets}×${ex.reps}, отдых ${ex.rest}с ${ex.weight ? `(${ex.weight})` : ''}`);
+    });
+    
+    return {
+      exercises: result.exercises.map((ex: any) => ({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest: ex.rest,
+        weight: ex.weight,
+        notes: ex.cues || ex.technique,
+        targetMuscles: ex.targetMuscles || []
+      })),
+      adaptationNotes: result.adaptationNotes,
+      warnings: result.warnings
+    };
+    
+  } catch (error) {
+    console.error("❌ Ошибка AI:", error);
+    throw error;
+  }
+}
+
+/**
+ * Системный промпт (определяет роль AI)
+ */
+const PROFESSIONAL_SYSTEM_PROMPT = `Ты элитный персональный тренер с 15+ годами опыта работы с профессиональными спортсменами.
+
+ТВОЯ ЗАДАЧА: Создать ПЕРСОНАЛЬНУЮ тренировку на основе ПРАВИЛ и КОНТЕКСТА.
+
+КЛЮЧЕВЫЕ ПРИНЦИПЫ:
+
+1. ПРОФЕССИОНАЛИЗМ
+   - Это реальная тренировка, а не щадящая зарядка
+   - Нагрузка должна быть ощутимой и эффективной
+   - Восстановительный режим ≠ бесполезная тренировка
+
+2. ПЕРСОНАЛИЗАЦИЯ
+   - Учитывай историю (НЕ ПОВТОРЯЙ последние упражнения!)
+   - Подбирай веса на основе прогресса
+   - Адаптируйся под чекин (травмы, усталость, энергия)
+
+3. РАЗНООБРАЗИЕ
+   - Не повторяй упражнения из последних 2-3 тренировок
+   - Меняй углы, оборудование, вариации
+   - Но сохраняй основные паттерны движений
+
+4. ПРОГРЕССИЯ
+   - Если есть история с весом → увеличивай на 2.5-5 кг
+   - Если нет истории → дай рекомендацию стартового веса
+   - Учитывай уровень опыта при выборе упражнений
+
+5. НАУЧНОСТЬ
+   - Следуй правилам структуры (compound → secondary → isolation)
+   - Соблюдай диапазоны подходов/повторений/отдыха
+   - Первыми ставь тяжелые базовые, потом лёгкие изоляционные
+
+6. БЕЗОПАСНОСТЬ
+   - При травмах - избегай проблемных зон
+   - При низкой энергии - снижай интенсивность, но не делай бесполезным
+   - Для новичков - проще упражнения (машины, гантели)
+
+СВОБОДА ВЫБОРА:
+- Ты САМ выбираешь упражнения из рекомендованных паттернов
+- Ты САМ решаешь точное количество в рамках диапазона
+- Ты САМ определяешь порядок (но базовые первыми!)
+
+Возвращай ТОЛЬКО валидный JSON, без markdown и пояснений.`;
+
+/**
+ * Строит промпт для AI
+ */
+function buildProfessionalPrompt(
+  context: WorkoutGenerationContext,
+  scientificParams: any
+): string {
+  
+  const { rules, userProfile, checkIn, history } = context;
+  
+  // Формируем список доступных упражнений
+  const availableExercises = {
+    compound: rules.recommendedPatterns.compound.flatMap(pattern => 
+      MOVEMENT_PATTERNS_DB[pattern] || []
+    ).slice(0, 30),
+    secondary: rules.recommendedPatterns.secondary.flatMap(pattern => 
+      MOVEMENT_PATTERNS_DB[pattern] || []
+    ).slice(0, 30),
+    isolation: rules.recommendedPatterns.isolation.flatMap(pattern => 
+      MOVEMENT_PATTERNS_DB[pattern] || []
+    ).slice(0, 30)
+  };
+  
+  return `
+# ЗАДАНИЕ: Создай персональную тренировку "${rules.name}"
+
+## ПРАВИЛА ТРЕНИРОВКИ
+
+**Фокус:** ${rules.focus}
+
+**Структура:**
+- Всего упражнений: ${scientificParams.maxExercises} (оптимум для ${userProfile.experience}/${userProfile.goal})
+- Подходов всего: ~${scientificParams.totalSets}
+
+${formatStructureRules(rules.structure)}
+
+**Формат тренировки:** ${rules.format.type}
+${rules.format.notes}
+
+---
+
+## ПРОФИЛЬ КЛИЕНТА
+
+- Уровень: **${userProfile.experience}** (beginner/intermediate/advanced)
+- Цель: **${userProfile.goal}** (strength/hypertrophy/metabolic)
+- Время: **${userProfile.timeAvailable} минут**
+- Частота: ${userProfile.daysPerWeek} раз/нед
+
+---
+
+## ИСТОРИЯ ТРЕНИРОВОК
+
+${history.recentExercises.length > 0 ? `
+**Недавние упражнения (НЕ ПОВТОРЯТЬ!):**
+${history.recentExercises.slice(0, 20).map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+` : '**История пуста** - первая тренировка, выбирай классические упражнения'}
+
+${Object.keys(history.weightHistory).length > 0 ? `
+**История весов (используй для прогрессии!):**
+${Object.entries(history.weightHistory).slice(0, 10).map(([ex, w]) => `- ${ex}: ${w}`).join('\n')}
+` : '**Весов в истории нет** - подбери стартовые рекомендации'}
+
+---
+
+${checkIn ? `
+## АДАПТАЦИЯ ПОД ЧЕКИН
+
+- Режим: **${checkIn.mode.toUpperCase()}**
+${checkIn.mode === 'recovery' ? '  ⚠️ ВОССТАНОВИТЕЛЬНЫЙ: Снижен объём, меньше интенсивность, НО тренировка должна быть эффективной!' : ''}
+${checkIn.mode === 'light' ? '  ⚠️ ОБЛЕГЧЁННЫЙ: Снижен объём на 30%, фокус на технику' : ''}
+${checkIn.mode === 'push' ? '  💪 УСИЛЕННЫЙ: Отличное состояние, можно дать больше!' : ''}
+- Энергия: ${checkIn.energy}
+${checkIn.injuries.length > 0 ? `- ⛔ ТРАВМЫ/ОГРАНИЧЕНИЯ: ${checkIn.injuries.join(', ')}` : '- Травм нет'}
+${checkIn.pain.length > 0 ? `- ⚠️ БОЛЬ: ${checkIn.pain.map(p => `${p.location} (${p.level}/10)`).join(', ')}` : ''}
+` : '**Чекин не пройден** - стандартная нагрузка'}
+
+---
+
+## ДОСТУПНЫЕ УПРАЖНЕНИЯ
+
+### БАЗОВЫЕ (Compound) - выбери ${rules.structure.compound.count[0]}-${rules.structure.compound.count[1]}:
+${availableExercises.compound.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+
+### ВТОРИЧНЫЕ (Secondary) - выбери ${rules.structure.secondary.count[0]}-${rules.structure.secondary.count[1]}:
+${availableExercises.secondary.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+
+### ИЗОЛЯЦИЯ (Isolation) - выбери ${rules.structure.isolation.count[0]}-${rules.structure.isolation.count[1]}:
+${availableExercises.isolation.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+
+---
+
+## ТВОЯ ЗАДАЧА
+
+1. Выбери ${scientificParams.maxExercises} упражнений из списков выше
+2. Начни с базовых (самые тяжелые), закончи изоляцией
+3. НЕ повторяй упражнения из истории
+4. Подбери веса на основе прогресса (или дай рекомендации)
+5. Для каждого упражнения дай 1-2 технических подсказки
+
+---
+
+## ФОРМАТ ОТВЕТА
+
+\`\`\`json
+{
+  "exercises": [
+    {
+      "name": "Жим штанги лёжа",
+      "type": "compound",
+      "sets": 4,
+      "reps": "6-8",
+      "rest": 120,
+      "weight": "62.5 кг",
+      "cues": "Лопатки сведены, ноги в пол, локти под 45°",
+      "targetMuscles": ["грудь", "трицепс", "передние дельты"]
+    },
+    ... (ещё ${scientificParams.maxExercises - 1} упражнений)
+  ],
+  "adaptationNotes": ["Заметка об адаптации под чекин если нужно"],
+  "warnings": ["Предупреждения если есть"]
+}
+\`\`\`
+
+**ВАЖНО:**
+- Количество упражнений = ${scientificParams.maxExercises}
+- Начни с compound, закончи isolation
+- НЕ повторяй недавние упражнения
+- Возвращай ТОЛЬКО JSON
+`.trim();
+}
+
+/**
+ * Форматирует правила структуры для промпта
+ */
+function formatStructureRules(structure: any): string {
+  return `
+**БАЗОВЫЕ (Compound):**
+- Количество: ${structure.compound.count[0]}-${structure.compound.count[1]} упражнений
+- Подходы: ${structure.compound.sets}
+- Повторения: ${structure.compound.reps}
+- Отдых: ${structure.compound.rest} сек
+- Приоритет: Выполняются ПЕРВЫМИ
+- Примечание: ${structure.compound.notes}
+
+**ВТОРИЧНЫЕ (Secondary):**
+- Количество: ${structure.secondary.count[0]}-${structure.secondary.count[1]} упражнений
+- Подходы: ${structure.secondary.sets}
+- Повторения: ${structure.secondary.reps}
+- Отдых: ${structure.secondary.rest} сек
+- Приоритет: После базовых
+- Примечание: ${structure.secondary.notes}
+
+**ИЗОЛЯЦИЯ (Isolation):**
+- Количество: ${structure.isolation.count[0]}-${structure.isolation.count[1]} упражнений
+- Подходы: ${structure.isolation.sets}
+- Повторения: ${structure.isolation.reps}
+- Отдых: ${structure.isolation.rest} сек
+- Приоритет: В КОНЦЕ тренировки
+- Примечание: ${structure.isolation.notes}
+  `.trim();
+}
+

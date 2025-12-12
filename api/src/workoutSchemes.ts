@@ -36,7 +36,8 @@ export type WorkoutScheme = {
     label: string; 
     focus: string;
     template?: DayTemplate; // legacy
-    templateRules?: DayTemplateRules; // научная система
+    templateRules?: DayTemplateRules; // научная система (старая)
+    templateRulesId?: string; // научная система v2 (ID правил из библиотеки)
   }>;
   benefits: string[];
   notes?: string;
@@ -172,19 +173,19 @@ export const workoutSchemes: WorkoutScheme[] = [
         day: 1,
         label: "Push",
         focus: "Грудь, плечи, трицепс — все упражнения, где вы толкаете вес от себя.",
-        templateRules: PPL_PUSH_RULES // 🔥 ТОП-10
+        templateRulesId: "Push Day" // 🔥 НОВАЯ СИСТЕМА
       },
       {
         day: 2,
         label: "Pull",
         focus: "Спина, задняя часть плеч, бицепс — упражнения, где вы тянете вес к себе.",
-        templateRules: PPL_PULL_RULES // 🔥 ТОП-10
+        templateRulesId: "Pull Day" // 🔥 НОВАЯ СИСТЕМА
       },
       {
         day: 3,
         label: "Legs",
         focus: "Бёдра, ягодицы, икры — полная тренировка ног за один раз.",
-        templateRules: PPL_LEGS_RULES // 🔥 ТОП-10
+        templateRulesId: "Legs Day" // 🔥 НОВАЯ СИСТЕМА
       },
     ],
     benefits: [

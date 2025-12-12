@@ -3294,32 +3294,19 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
 
     if (templateRulesId) {
       console.log("🧠 Scientific mode: templateRulesId =", templateRulesId);
-      const { workoutSchemes } = await import("./workoutSchemes.js");
-      const { buildWorkoutFromRules } = await import("./workoutBuilder.js");
+      const { TRAINING_RULES_LIBRARY } = await import("./trainingRulesLibrary.js");
+      const { buildIntelligentWorkout } = await import("./intelligentWorkoutBuilder.js");
 
-      const scheme = workoutSchemes.find((s) =>
-        s.dayLabels.some(
-          (d: any) =>
-            d.templateRules?.name === templateRulesId || d.templateRulesId === templateRulesId
-        )
-      );
-      const dayLabel = scheme?.dayLabels.find(
-        (d: any) =>
-          d.templateRules?.name === templateRulesId || d.templateRulesId === templateRulesId
-      );
+      const trainingRules = TRAINING_RULES_LIBRARY[templateRulesId as keyof typeof TRAINING_RULES_LIBRARY];
 
-      if (!scheme || !dayLabel || !(dayLabel as any).templateRules) {
+      if (!trainingRules) {
         console.warn("⚠️ Scientific template not found, falling back to legacy AI flow");
       } else {
-        const templateRules = (dayLabel as any).templateRules;
-
         const userProfileForRules = {
-          experience: profile.trainingStatus as any, // beginner/intermediate/advanced
+          experience: profile.trainingStatus as any,
           goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
           timeAvailable: sessionMinutes,
           daysPerWeek: profile.daysPerWeek,
-          injuries: checkIn?.injuries || [],
-          preferences: [],
         };
 
         // Подготовка истории для AI
@@ -3335,10 +3322,15 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           });
         });
 
-        const generated = await buildWorkoutFromRules({
-          templateRules,
+        const generated = await buildIntelligentWorkout({
+          rules: trainingRules,
           userProfile: userProfileForRules,
-          checkIn: checkIn || undefined,
+          checkIn: checkIn ? {
+            energy: checkIn.energyLevel || "medium",
+            pain: checkIn.pain || [],
+            injuries: checkIn.injuries || [],
+            mode: (profile.recoveryScore || 70) < 40 ? "recovery" : (profile.recoveryScore || 70) < 60 ? "light" : (profile.recoveryScore || 70) >= 80 ? "push" : "normal"
+          } : undefined,
           history: {
             recentExercises,
             weightHistory
