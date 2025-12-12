@@ -11,6 +11,7 @@ import {
 } from "./trainingRulesEngine.js";
 import { CheckInData, CheckInAnalysis, analyzeCheckIn } from "./checkInAdapter.js";
 import { DayTemplate, ExerciseBlock } from "./workoutTemplates.js";
+import { selectExerciseByPattern } from "./exerciseDatabase.js";
 
 // ============================================================================
 // ТИПЫ
@@ -172,7 +173,8 @@ export function buildWorkoutFromRules(params: {
     blocks: filteredBlocks,
     allocations: workoutRules.exerciseAllocations,
     goalParameters: workoutRules.goalParameters,
-    checkInAnalysis
+    checkInAnalysis,
+    userLevel: userProfile.experience
   });
   
   console.log(`✓ Сгенерировано упражнений: ${concreteExercises.length}`);
@@ -328,11 +330,13 @@ function distributeVolumeToBlocks(params: {
   allocations: ExerciseBlockAllocation[];
   goalParameters: any;
   checkInAnalysis: CheckInAnalysis | null;
+  userLevel: ExperienceLevel;
 }): ConcreteExercise[] {
   
-  const { blocks, allocations, goalParameters, checkInAnalysis } = params;
+  const { blocks, allocations, goalParameters, checkInAnalysis, userLevel } = params;
   
   const exercises: ConcreteExercise[] = [];
+  const usedExercises = new Set<string>();
   
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
@@ -354,10 +358,20 @@ function distributeVolumeToBlocks(params: {
       rest = Math.round(rest * checkInAnalysis.restMultiplier);
     }
     
+    // 🔥 ПОДБОР КОНКРЕТНОГО УПРАЖНЕНИЯ ПО ПАТТЕРНУ
+    const concreteName = selectExerciseByPattern(
+      block.movementPattern as any,
+      userLevel,
+      usedExercises
+    );
+    usedExercises.add(concreteName);
+    
+    console.log(`  ✓ Блок "${block.name}" → Упражнение: "${concreteName}"`);
+    
     exercises.push({
       priority: block.priority,
       role: block.role,
-      name: block.name,
+      name: concreteName,  // ← Теперь конкретное название!
       movementPattern: block.movementPattern,
       targetMuscles: block.targetMuscles,
       sets,
