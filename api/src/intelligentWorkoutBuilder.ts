@@ -148,42 +148,11 @@ export async function buildIntelligentWorkout(params: {
     history: history || { recentExercises: [], weightHistory: {} }
   };
   
-  // AI генерирует тренировку
+  // AI генерирует тренировку (доверяем его выбору!)
   const aiWorkout = await callAIForWorkout(context, scientificParams, mode);
+  const filteredExercises = aiWorkout.exercises;
   
-  console.log("\n" + "=".repeat(80));
-  console.log("🔍 ПОСТ-ФИЛЬТРАЦИЯ ДУБЛЕЙ");
-  console.log("=".repeat(80));
-  
-  // 🔍 ПОСТ-ФИЛЬТРАЦИЯ ДУБЛЕЙ (гарантия, если AI не послушался)
-  const usedPatterns = new Set<string>();
-  const filteredExercises = aiWorkout.exercises.filter((ex, index) => {
-    // Определяем паттерн упражнения
-    const pattern = findExercisePattern(ex.name, rules);
-    console.log(`${index + 1}. "${ex.name}" → [${pattern || 'PATTERN NOT FOUND'}]`);
-    
-    if (!pattern) {
-      console.warn(`   ⚠️ Паттерн не найден! Оставляем упражнение.`);
-      return true; // Если паттерн не найден, оставляем
-    }
-    
-    if (usedPatterns.has(pattern)) {
-      console.warn(`   ❌ ДУБЛЬ! Паттерн [${pattern}] уже использован. УДАЛЯЕМ.`);
-      return false;
-    }
-    
-    console.log(`   ✅ OK, паттерн уникальный`);
-    usedPatterns.add(pattern);
-    return true;
-  });
-  
-  console.log("=".repeat(80));
-  if (filteredExercises.length < aiWorkout.exercises.length) {
-    console.log(`🔧 Отфильтровано дублей: ${aiWorkout.exercises.length} → ${filteredExercises.length} упражнений`);
-  } else {
-    console.log(`✅ Дублей не обнаружено`);
-  }
-  console.log("=".repeat(80) + "\n");
+  console.log(`\n✅ AI выбрал ${filteredExercises.length} упражнений (без фильтрации - доверяем его экспертизе)\n`);
   
   // 📊 ПОДСЧЁТ ОБЪЁМОВ ПО МЫШЕЧНЫМ ГРУППАМ
   console.log("\n" + "=".repeat(80));
@@ -192,13 +161,9 @@ export async function buildIntelligentWorkout(params: {
   
   const muscleVolume: Record<string, number> = {};
   filteredExercises.forEach(ex => {
-    const primaryMuscle = findExercisePrimaryMuscle(ex.name);
-    if (primaryMuscle) {
-      muscleVolume[primaryMuscle] = (muscleVolume[primaryMuscle] || 0) + ex.sets;
-      console.log(`"${ex.name}" → [${primaryMuscle}] +${ex.sets} подходов`);
-    } else {
-      console.warn(`⚠️ Не найдена primaryMuscle для "${ex.name}"`);
-    }
+    const primaryMuscle = ex.primaryMuscle || 'unknown';
+    muscleVolume[primaryMuscle] = (muscleVolume[primaryMuscle] || 0) + ex.sets;
+    console.log(`"${ex.name}" → [${primaryMuscle}] +${ex.sets} подходов`);
   });
   
   console.log("\n📈 ИТОГОВЫЕ ОБЪЁМЫ:");
@@ -307,6 +272,7 @@ async function callAIForWorkout(
     return {
       exercises: result.exercises.map((ex: any) => ({
         name: ex.name,
+        primaryMuscle: ex.primaryMuscle || 'unknown',
         sets: ex.sets,
         reps: ex.reps,
         rest: ex.rest,
@@ -388,57 +354,10 @@ function buildProfessionalPrompt(
   
   const { rules, userProfile, checkIn, history } = context;
   
-  // Формируем ЕДИНЫЙ список доступных упражнений
-  const allExercises = rules.recommendedPatterns.flatMap(pattern => 
-    (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
-      name: ex.name, 
-      pattern, 
-      primaryMuscle: ex.primaryMuscle,
-      type: ex.type,
-      difficulty: ex.difficulty
-    }))
-  );
-  
-  console.log(`\n📊 Упражнений ДО фильтрации: ${allExercises.length}`);
-  
-  // 🎯 УМНАЯ ПРЕДФИЛЬТРАЦИЯ (экономия токенов!)
-  const recentExercisesSet = new Set(history.recentExercises.map(ex => ex.toLowerCase().trim()));
-  
-  const filterByExperience = (exercises: any[]) => {
-    // Фильтруем по уровню сложности
-    let filtered = exercises;
-    
-    if (userProfile.experience === 'beginner') {
-      // Новичкам только beginner и intermediate
-      filtered = exercises.filter(ex => ex.difficulty === 'beginner' || ex.difficulty === 'intermediate');
-    } else if (userProfile.experience === 'intermediate') {
-      // Средним только intermediate (немного beginner для разнообразия)
-      filtered = exercises.filter(ex => ex.difficulty === 'beginner' || ex.difficulty === 'intermediate' || ex.difficulty === 'advanced');
-    }
-    // advanced получают всё
-    
-    // Приоритизируем: недавно НЕ использованные идут первыми
-    const notRecent = filtered.filter(ex => !recentExercisesSet.has(ex.name.toLowerCase().trim()));
-    const recent = filtered.filter(ex => recentExercisesSet.has(ex.name.toLowerCase().trim()));
-    
-    return [...notRecent, ...recent]; // Сначала новые, потом старые
-  };
-  
-  // Группируем по типу + фильтруем + лимитируем
-  const availableExercises = {
-    compound: filterByExperience(allExercises.filter(ex => ex.type === 'compound')).slice(0, 8),
-    secondary: filterByExperience(allExercises.filter(ex => ex.type === 'secondary')).slice(0, 8),
-    isolation: filterByExperience(allExercises.filter(ex => ex.type === 'isolation')).slice(0, 10)
-  };
-  
-  const totalAfter = availableExercises.compound.length + availableExercises.secondary.length + availableExercises.isolation.length;
-  const savedPercent = Math.round((1 - totalAfter / allExercises.length) * 100);
-  
-  console.log(`📊 Упражнений ПОСЛЕ фильтрации: ${totalAfter} (compound=${availableExercises.compound.length}, secondary=${availableExercises.secondary.length}, isolation=${availableExercises.isolation.length})`);
-  console.log(`💰 Экономия токенов: ${savedPercent}% (${allExercises.length} → ${totalAfter} упражнений)\n`);
-  
   // Вычисляем целевые объёмы для мышечных групп
   const volumeTargets = calculateVolumeTargets(rules, userProfile);
+  
+  console.log(`\n💡 AI будет использовать СВОЮ базу знаний упражнений (экономия ~500 токенов!)`);
   
   return `
 # ЗАДАНИЕ: Создай персональную тренировку "${rules.name}"
@@ -497,42 +416,43 @@ ${checkIn.pain.length > 0 ? `- ⚠️ БОЛЬ: ${checkIn.pain.map(p => `${p.loc
 
 ---
 
-## ДОСТУПНЫЕ УПРАЖНЕНИЯ (С ПАТТЕРНАМИ И ЦЕЛЕВЫМИ МЫШЦАМИ)
+## ВЫБОР УПРАЖНЕНИЙ
 
-⚠️ КРИТИЧНО: Каждое упражнение имеет [паттерн] и [primaryMuscle]. НЕ выбирай два упражнения с одинаковым паттерном!
+Ты - элитный тренер с огромной базой знаний упражнений. **Используй СВОИ знания**, не ограничивайся списком!
 
-### БАЗОВЫЕ (Compound) - выбери ${rules.structure.compound.count[0]}-${rules.structure.compound.count[1]}:
-${availableExercises.compound.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
+**Целевые мышцы дня:**
+${rules.targetAreas.primary.join(', ')} (основные) + ${rules.targetAreas.secondary.join(', ')} (вторичные)
 
-### ВТОРИЧНЫЕ (Secondary) - выбери ${rules.structure.secondary.count[0]}-${rules.structure.secondary.count[1]}:
-${availableExercises.secondary.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
-
-### ИЗОЛЯЦИЯ (Isolation) - выбери ${rules.structure.isolation.count[0]}-${rules.structure.isolation.count[1]}:
-${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
+**Требования к выбору:**
+- ✅ Выбирай упражнения на ${rules.focus.toLowerCase()}
+- ✅ Используй РАЗНЫЕ упражнения (не дублируй функции!)
+  * Плохо: "Жим лёжа" + "Жим в тренажере на грудь" (оба горизонтальные жимы)
+  * Хорошо: "Жим лёжа" + "Жим на наклонной" (разные углы)
+- ✅ Для ${userProfile.experience}:
+  ${userProfile.experience === 'beginner' ? '* Простые упражнения (машины, гантели, базовые движения)' : ''}
+  ${userProfile.experience === 'intermediate' ? '* Сбалансированные упражнения (штанга, гантели, машины)' : ''}
+  ${userProfile.experience === 'advanced' ? '* Сложные упражнения (свободные веса, продвинутая техника)' : ''}
+${history.recentExercises.length > 0 ? `- ❌ НЕ повторяй недавние: ${history.recentExercises.slice(0, 10).join(', ')}` : ''}
 
 ---
 
 ## ТВОЯ ЗАДАЧА
 
-⚠️ КРИТИЧНО: Выбери упражнения ТАК, чтобы покрыть ЦЕЛЕВЫЕ ОБЪЁМЫ!
+🎯 **Составь тренировку, которая ПОКРОЕТ все целевые объёмы!**
 
-**Стратегия выбора:**
 ${volumeTargets ? generateExerciseDistribution(volumeTargets, rules.structure) : ''}
 
-**Правила выбора:**
-1. ⚠️ ОБЯЗАТЕЛЬНО: Каждое упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]
-   - Если выбрал "Армейский жим [overhead_press]", НЕ выбирай "Жим гантелей сидя [overhead_press]"
-   - Один паттерн = ОДНО упражнение!
-2. Начни с базовых (самые тяжелые), закончи изоляцией
-3. НЕ повторяй упражнения из истории
-4. Подбери веса на основе прогресса (или дай рекомендации)
-5. Для каждого упражнения дай 1-2 технических подсказки
+**Алгоритм:**
+1. Начни с **базовых (compound)**: выбери ${rules.structure.compound.count[0]}-${rules.structure.compound.count[1]} тяжёлых многосуставных упражнений
+2. Добавь **вторичные (secondary)**: выбери ${rules.structure.secondary.count[0]}-${rules.structure.secondary.count[1]} упражнений под другими углами
+3. Завершай **изоляцией**: выбери ${rules.structure.isolation.count[0]}-${rules.structure.isolation.count[1]} односуставных упражнений
+4. Подбери веса: ${history.weightHistory && Object.keys(history.weightHistory).length > 0 ? 'на основе истории увеличь на 2.5-5кг' : 'рекомендуй стартовые веса для ' + userProfile.experience}
+5. Дай технические подсказки для каждого упражнения
 
-**Проверка перед отправкой:**
-- Подсчитай: chest = ? подходов (нужно ${volumeTargets?.chest ? `${volumeTargets.chest.min}-${volumeTargets.chest.max}` : '?'})
-- Подсчитай: shoulders = ? подходов (нужно ${volumeTargets?.shoulders ? `${volumeTargets.shoulders.min}-${volumeTargets.shoulders.max}` : '?'})
-- Подсчитай: triceps = ? подходов (нужно ${volumeTargets?.triceps ? `${volumeTargets.triceps.min}-${volumeTargets.triceps.max}` : '?'})
-- Если не хватает → ДОБАВЬ ещё упражнения!
+**Критерий успеха:**
+- Каждая мышца получила свой минимум подходов ✅
+- Упражнения РАЗНЫЕ (не дублируют функции) ✅
+- Порядок: compound → secondary → isolation ✅
 
 ---
 
@@ -543,6 +463,7 @@ ${volumeTargets ? generateExerciseDistribution(volumeTargets, rules.structure) :
   "exercises": [
     {
       "name": "Жим штанги лёжа",
+      "primaryMuscle": "chest",
       "type": "compound",
       "sets": 4,
       "reps": "6-8",
@@ -551,21 +472,24 @@ ${volumeTargets ? generateExerciseDistribution(volumeTargets, rules.structure) :
       "cues": "Лопатки сведены, ноги в пол, локти под 45°",
       "targetMuscles": ["грудь", "трицепс", "передние дельты"]
     },
-    ... (ещё ${scientificParams.maxExercises - 1} упражнений)
+    ... (ещё упражнения)
   ],
-  "adaptationNotes": ["Заметка об адаптации под чекин если нужно"],
+  "adaptationNotes": ["Заметка об адаптации если нужно"],
   "warnings": ["Предупреждения если есть"]
 }
 \`\`\`
 
+**Значения primaryMuscle (основная работающая мышца):**
+- "chest" (грудь), "shoulders" (плечи), "triceps" (трицепс)
+- "back" (спина), "lats" (широчайшие), "biceps" (бицепс)
+- "quads" (квадрицепсы), "glutes" (ягодицы), "hamstrings" (бицепс бедра)
+
 **ВАЖНО:**
-- Количество упражнений = ${scientificParams.maxExercises}
-- ⚠️ КАЖДОЕ упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]!
-  * Проверь: все [паттерны] в твоём выборе РАЗНЫЕ
-  * Если два упражнения имеют одинаковый [паттерн] → выбери только ОДНО
-- Начни с compound, закончи isolation
+- Выбери **примерно ${scientificParams.maxExercises} упражнений** (можно чуть больше, если нужно покрыть объёмы)
+- ⚠️ НЕ дублируй функции упражнений (используй РАЗНЫЕ движения!)
+- Порядок: compound → secondary → isolation
 - НЕ повторяй недавние упражнения
-- Возвращай ТОЛЬКО JSON
+- Возвращай ТОЛЬКО валидный JSON
 `.trim();
 }
 
