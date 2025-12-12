@@ -116,17 +116,20 @@ export default function Profile() {
   console.log("👤 Profile: Current tgProfile state:", tgProfile);
   
   const avatarUrl = tgProfile?.photo_url;
-  const name = onb?.profile?.name || tgProfile?.first_name || "—";
+  // Поддержка старой и новой структуры
+  const name = onb?.profile?.name || onb?.name || tgProfile?.first_name || "—";
+  const sexRaw = onb?.ageSex?.sex || onb?.sex;
   const sex =
-    onb?.ageSex?.sex === "male" ? "Муж" :
-    onb?.ageSex?.sex === "female" ? "Жен" : "—";
-  const age = safeNum(onb?.ageSex?.age);
-  const height = safeNum(onb?.body?.height, "см");
-  const weight = safeNum(onb?.body?.weight, "кг");
+    sexRaw === "male" ? "Муж" :
+    sexRaw === "female" ? "Жен" : "—";
+  const age = safeNum(onb?.ageSex?.age ?? onb?.age);
+  const height = safeNum(onb?.body?.height ?? onb?.height, "см");
+  const weight = safeNum(onb?.body?.weight ?? onb?.weight, "кг");
 
   const expText = expRus(onb.experience);
-  const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek ?? onb?.daysPerWeek;
-  const minutes = onb?.schedule?.minutesPerSession ?? onb?.schedule?.minutes ?? onb?.schedule?.sessionMinutes;
+  // Поддержка старой и новой структуры для расписания
+  const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek ?? onb?.daysPerWeek ?? onb?.perWeek;
+  const minutes = onb?.schedule?.minutesPerSession ?? onb?.schedule?.minutes ?? onb?.schedule?.sessionMinutes ?? onb?.minutes ?? onb?.minutesPerSession;
   
   console.log("📈 Profile: Computed values:", {
     avatarUrl,
