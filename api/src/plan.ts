@@ -1234,10 +1234,28 @@ function normalizeList(value: any): string[] {
 async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | null> {
   const daysPerWeek = profile.daysPerWeek;
   const experience = profile.trainingStatus; // beginner/intermediate/advanced
-  const goal = profile.goals[0] || "health_wellness"; // первая цель как основная
+  
+  // Маппинг текстовых целей из онбординга на enum'ы схем
+  const rawGoal = (profile.goals[0] || "").toLowerCase();
+  let mappedGoal: OnboardingGoal = "health_wellness";
+  
+  if (rawGoal.includes("масс") || rawGoal.includes("объ") || rawGoal.includes("muscle") || rawGoal === "build_muscle") {
+    mappedGoal = "build_muscle";
+  } else if (rawGoal.includes("похуд") || rawGoal.includes("жир") || rawGoal.includes("weight") || rawGoal === "lose_weight") {
+    mappedGoal = "lose_weight";
+  } else if (rawGoal.includes("сил") || rawGoal.includes("strength") || rawGoal === "strength") {
+    mappedGoal = "strength";
+  } else if (rawGoal.includes("рельеф") || rawGoal.includes("тонус") || rawGoal.includes("athletic") || rawGoal === "athletic_body") {
+    mappedGoal = "athletic_body";
+  } else if (rawGoal.includes("ног") || rawGoal.includes("ягодиц") || rawGoal.includes("lower") || rawGoal === "lower_body_focus") {
+    mappedGoal = "lower_body_focus";
+  } else if (rawGoal.includes("здоров") || rawGoal.includes("самочув") || rawGoal.includes("wellness") || rawGoal === "health_wellness") {
+    mappedGoal = "health_wellness";
+  }
+  
   const sex = profile.sex === "male" ? "male" : profile.sex === "female" ? "female" : null;
   
-  console.log(`[SCHEME AUTO-SELECT] Подбираем схему для: ${daysPerWeek} дней, ${experience}, цель: ${goal}`);
+  console.log(`[SCHEME AUTO-SELECT] Подбираем схему для: ${daysPerWeek} дней, ${experience}, цель: ${rawGoal} → ${mappedGoal}`);
   
   // Фильтруем подходящие схемы
   const candidateSchemes = workoutSchemes.filter(scheme => {
@@ -1248,7 +1266,7 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
     if (!scheme.experienceLevels.includes(experience)) return false;
     
     // 3. Цель должна совпадать
-    if (!scheme.goals.includes(goal)) return false;
+    if (!scheme.goals.includes(mappedGoal)) return false;
     
     return true;
   });
@@ -1273,10 +1291,10 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
     else if (scheme.intensity === 'moderate') score += 10; // универсальная интенсивность
     
     // Бонусы за специфические комбинации (вес: до 15)
-    if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 15;
-    if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.name.includes('Strength'))) score += 15;
-    if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 12;
-    if (goal === 'lose_weight' && (scheme.name.includes('Fat Loss') || scheme.name.includes('Metabolic'))) score += 15;
+    if (mappedGoal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 15;
+    if (mappedGoal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.name.includes('Strength'))) score += 15;
+    if (mappedGoal === 'health_wellness' && scheme.splitType === 'full_body') score += 12;
+    if (mappedGoal === 'lose_weight' && (scheme.name.includes('Fat Loss') || scheme.name.includes('Metabolic'))) score += 15;
     
     return score;
   }
