@@ -1327,9 +1327,11 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
   // Конвертируем схему в Blueprint
   const blueprint: Blueprint = {
     name: bestScheme.russianName || bestScheme.name,
-    days: bestScheme.dayLabels.map(d => ({
+    days: bestScheme.dayLabels.map((d: any) => ({
       label: d.label,
-      focus: d.focus
+      focus: d.focus,
+      // Копируем templateRulesId для научной системы генерации
+      ...(d.templateRules ? { templateRulesId: d.templateRules.name } : {})
     })),
     description: bestScheme.description,
     meta: {
@@ -1340,6 +1342,8 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
       createdAt: new Date().toISOString(),
     },
   };
+  
+  console.log(`[SCHEME AUTO-SELECT] Blueprint days:`, blueprint.days.map((d: any) => `${d.label} (${d.templateRulesId || 'no template'})`).join(', '));
   
   return blueprint;
 }
