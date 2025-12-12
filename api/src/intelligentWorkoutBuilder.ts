@@ -36,11 +36,7 @@ export type GeneratedWorkout = {
  * Находит паттерн упражнения по его названию
  */
 function findExercisePattern(exerciseName: string, rules: DayTrainingRules): string | null {
-  const allPatterns = [
-    ...rules.recommendedPatterns.compound,
-    ...rules.recommendedPatterns.secondary,
-    ...rules.recommendedPatterns.isolation
-  ];
+  const allPatterns = rules.recommendedPatterns;
   
   for (const pattern of allPatterns) {
     const exercises = MOVEMENT_PATTERNS_DB[pattern] || [];
@@ -392,32 +388,22 @@ function buildProfessionalPrompt(
   
   const { rules, userProfile, checkIn, history } = context;
   
-  // Формируем список доступных упражнений С ПАТТЕРНАМИ и МЫШЦАМИ
+  // Формируем ЕДИНЫЙ список доступных упражнений
+  const allExercises = rules.recommendedPatterns.flatMap(pattern => 
+    (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
+      name: ex.name, 
+      pattern, 
+      primaryMuscle: ex.primaryMuscle,
+      type: ex.type,
+      difficulty: ex.difficulty
+    }))
+  );
+  
+  // Группируем по типу для удобства AI
   const availableExercises = {
-    compound: rules.recommendedPatterns.compound.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
-        name: ex.name, 
-        pattern, 
-        primaryMuscle: ex.primaryMuscle,
-        type: ex.type 
-      }))
-    ).slice(0, 30),
-    secondary: rules.recommendedPatterns.secondary.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
-        name: ex.name, 
-        pattern, 
-        primaryMuscle: ex.primaryMuscle,
-        type: ex.type 
-      }))
-    ).slice(0, 30),
-    isolation: rules.recommendedPatterns.isolation.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
-        name: ex.name, 
-        pattern, 
-        primaryMuscle: ex.primaryMuscle,
-        type: ex.type 
-      }))
-    ).slice(0, 30)
+    compound: allExercises.filter(ex => ex.type === 'compound'),
+    secondary: allExercises.filter(ex => ex.type === 'secondary'),
+    isolation: allExercises.filter(ex => ex.type === 'isolation')
   };
   
   // Вычисляем целевые объёмы для мышечных групп

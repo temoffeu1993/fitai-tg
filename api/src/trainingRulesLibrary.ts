@@ -76,28 +76,21 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     }
   },
   
-  // Все доступные паттерны (AI сам выбирает по type и difficulty)
-  recommendedPatterns: {
-    compound: [
-      "horizontal_press",  // Жим лёжа (грудь)
-      "overhead_press",    // Жим над головой (плечи)
-      "decline_press"      // Жим под углом (грудь нижняя)
-    ],
-    
-    secondary: [
-      "incline_press",     // Жим на наклонной (грудь верхняя)
-      "dips",              // Отжимания на брусьях (грудь/трицепс)
-      "chest_fly"          // Разводки (грудь изоляция)
-    ],
-    
-    isolation: [
-      "lateral_raise",     // Махи в стороны (средние дельты)
-      "front_raise",       // Махи вперёд (передние дельты)
-      "rear_delt_fly",     // Задние дельты
-      "triceps_extension", // Французский жим (трицепс)
-      "triceps_pushdown"   // Разгибания на блоке (трицепс)
-    ]
-  },
+  // Все доступные паттерны для Push Day
+  // AI сам выбирает по type, difficulty и primaryMuscle
+  recommendedPatterns: [
+    "horizontal_press",   // Жим лёжа (грудь) - compound
+    "incline_press",      // Жим на наклонной (грудь верхняя) - compound/secondary
+    "decline_press",      // Жим под углом (грудь нижняя) - compound
+    "overhead_press",     // Жим над головой (плечи) - compound
+    "dips",               // Отжимания на брусьях (грудь/трицепс) - secondary
+    "chest_fly",          // Разводки (грудь) - isolation
+    "lateral_raise",      // Махи в стороны (средние дельты) - isolation
+    "front_raise",        // Махи вперёд (передние дельты) - isolation
+    "rear_delt_fly",      // Задние дельты - isolation
+    "triceps_extension",  // Французский жим (трицепс) - isolation
+    "triceps_pushdown"    // Разгибания на блоке (трицепс) - isolation
+  ],
   
   format: {
     type: "standard",  // Упражнение → все подходы → следующее
@@ -198,26 +191,16 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
     }
   },
   
-  recommendedPatterns: {
-    compound: [
-      "vertical_pull",     // Подтягивания, тяга верхнего блока
-      "horizontal_pull",   // Тяга штанги/гантелей в наклоне
-      "row",               // Тяга к поясу
-      "deadlift"           // Становая (если позволяет опыт)
-    ],
-    
-    secondary: [
-      "horizontal_pull",
-      "row",
-      "vertical_pull"
-    ],
-    
-    isolation: [
-      "biceps_curl",       // Подъём на бицепс
-      "hammer_curl",       // Молотковые подъёмы
-      "rear_delt_fly"      // Задние дельты
-    ]
-  },
+  // Все доступные паттерны для Pull Day
+  recommendedPatterns: [
+    "vertical_pull",     // Подтягивания, тяга верхнего блока - compound
+    "horizontal_pull",   // Тяга штанги/гантелей в наклоне - compound
+    "row",               // Тяга к поясу - compound/secondary
+    "deadlift",          // Становая (если позволяет опыт) - compound
+    "biceps_curl",       // Подъём на бицепс - isolation
+    "hammer_curl",       // Молотковые подъёмы - isolation
+    "rear_delt_fly"      // Задние дельты - isolation
+  ],
   
   format: {
     type: "standard",
@@ -317,27 +300,17 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
     }
   },
   
-  recommendedPatterns: {
-    compound: [
-      "squat_pattern",     // Приседания
-      "hip_hinge",         // Румынская тяга, становая
-      "lunge_pattern",     // Выпады
-      "hip_thrust"         // Ягодичный мост
-    ],
-    
-    secondary: [
-      "lunge_pattern",
-      "squat_pattern",
-      "hip_thrust"
-    ],
-    
-    isolation: [
-      "leg_extension",     // Разгибание ног
-      "leg_curl",          // Сгибание ног
-      "calf_raise",        // Икры
-      "glute_isolation"    // Изоляция ягодиц
-    ]
-  },
+  // Все доступные паттерны для Legs Day
+  recommendedPatterns: [
+    "squat_pattern",     // Приседания - compound
+    "hip_hinge",         // Румынская тяга, становая - compound
+    "lunge_pattern",     // Выпады, сплиты - compound/secondary
+    "hip_thrust",        // Ягодичный мост - secondary
+    "leg_extension",     // Разгибание ног - isolation
+    "leg_curl",          // Сгибание ног - isolation
+    "calf_raise",        // Икры - isolation
+    "glute_isolation"    // Изоляция ягодиц - isolation
+  ],
   
   format: {
     type: "standard",

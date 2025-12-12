@@ -60,12 +60,9 @@ export type DayTrainingRules = {
     };
   };
   
-  // Рекомендуемые паттерны (AI выбирает из них)
-  recommendedPatterns: {
-    compound: MovementPattern[];     // Для базовых упражнений
-    secondary: MovementPattern[];    // Для вторичных
-    isolation: MovementPattern[];    // Для изоляции
-  };
+  // Все доступные паттерны движений для этого дня
+  // AI сам выберет нужные по type (compound/secondary/isolation) и difficulty
+  recommendedPatterns: MovementPattern[];
   
   // Формат тренировки
   format: {
