@@ -33,6 +33,29 @@ export type GeneratedWorkout = {
 };
 
 /**
+ * Находит паттерн упражнения по его названию
+ */
+function findExercisePattern(exerciseName: string, rules: DayTrainingRules): string | null {
+  const allPatterns = [
+    ...rules.recommendedPatterns.compound,
+    ...rules.recommendedPatterns.secondary,
+    ...rules.recommendedPatterns.isolation
+  ];
+  
+  for (const pattern of allPatterns) {
+    const exercises = MOVEMENT_PATTERNS_DB[pattern] || [];
+    // Нормализуем названия для сравнения (убираем регистр, лишние пробелы)
+    const normalizedName = exerciseName.toLowerCase().trim();
+    const found = exercises.some(ex => ex.toLowerCase().trim() === normalizedName);
+    if (found) {
+      return pattern;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * ГЛАВНАЯ ФУНКЦИЯ: Генерирует тренировку из ПРАВИЛ (не из готовой структуры!)
  */
 export async function buildIntelligentWorkout(params: {
@@ -117,10 +140,30 @@ export async function buildIntelligentWorkout(params: {
   // AI генерирует тренировку
   const aiWorkout = await callAIForWorkout(context, scientificParams, mode);
   
-  // Финальная сборка
-  const totalSets = aiWorkout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  // 🔍 ПОСТ-ФИЛЬТРАЦИЯ ДУБЛЕЙ (гарантия, если AI не послушался)
+  const usedPatterns = new Set<string>();
+  const filteredExercises = aiWorkout.exercises.filter((ex) => {
+    // Определяем паттерн упражнения
+    const pattern = findExercisePattern(ex.name, rules);
+    if (!pattern) return true; // Если паттерн не найден, оставляем
+    
+    if (usedPatterns.has(pattern)) {
+      console.warn(`⚠️ Отфильтровано дублирование: "${ex.name}" [${pattern}] - паттерн уже использован`);
+      return false;
+    }
+    
+    usedPatterns.add(pattern);
+    return true;
+  });
+  
+  if (filteredExercises.length < aiWorkout.exercises.length) {
+    console.log(`🔧 Отфильтровано дублей: ${aiWorkout.exercises.length} → ${filteredExercises.length} упражнений`);
+  }
+  
+  // Финальная сборка (используем отфильтрованные!)
+  const totalSets = filteredExercises.reduce((sum, ex) => sum + ex.sets, 0);
   const estimatedDuration = rules.warmup.durationMinutes + 
-                           (aiWorkout.exercises.length * 8) + // ~8 мин на упражнение
+                           (filteredExercises.length * 8) + // ~8 мин на упражнение
                            rules.cooldown.durationMinutes;
   
   return {
@@ -131,12 +174,12 @@ export async function buildIntelligentWorkout(params: {
       duration: rules.warmup.durationMinutes,
       guidelines: rules.warmup.guidelines
     },
-    exercises: aiWorkout.exercises,
+    exercises: filteredExercises,
     cooldown: {
       duration: rules.cooldown.durationMinutes,
       guidelines: rules.cooldown.guidelines
     },
-    totalExercises: aiWorkout.exercises.length,
+    totalExercises: filteredExercises.length,
     totalSets,
     estimatedDuration,
     scientificNotes: [
