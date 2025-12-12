@@ -4,20 +4,22 @@ import { DayTemplate, ExerciseBlock, MovementPattern } from "./workoutTemplates.
 
 // Типы для чекина
 export type CheckInData = {
-  sleepHours: number;              // Сколько спал (часов)
-  energyLevel: "low" | "medium" | "high"; // Уровень энергии
-  stressLevel: "low" | "medium" | "high" | "very_high"; // Уровень стресса
-  mood: "bad" | "neutral" | "good"; // Настроение
+  sleepHours: number | null;       // Сколько спал (часов)
+  energyLevel: "low" | "medium" | "high" | null; // Уровень энергии
+  stressLevel: "low" | "medium" | "high" | "very_high" | null; // Уровень стресса
+  mood: string | null;             // Настроение
   pain?: Array<{                   // Боли/дискомфорт
     location: string;              // Где болит (плечо, колено и т.п.)
     level: number;                 // Уровень боли 1-10
   }>;
   injuries?: string[];             // Активные травмы
+  limitations?: string[];          // Ограничения
+  availableMinutes?: number | null; // Доступное время на тренировку
   menstrualCycle?: {              // Для женщин
-    phase: "menstruation" | "follicular" | "ovulation" | "luteal";
+    phase: "menstruation" | "follicular" | "ovulation" | "luteal" | null;
     symptoms: string[];            // Симптомы (cramps, fatigue и т.п.)
-  };
-  notes?: string;                  // Дополнительные заметки
+  } | null;
+  notes?: string | null;           // Дополнительные заметки
 };
 
 // Режим тренировки
@@ -118,9 +120,11 @@ export function analyzeCheckIn(
   
   // ========== 2. АНАЛИЗ СНА И ЭНЕРГИИ ==========
   
-  const sleepScore = Math.min(100, (checkIn.sleepHours / 7) * 100);
+  const sleepHours = checkIn.sleepHours ?? 7; // По умолчанию считаем 7 часов
+  const sleepScore = Math.min(100, (sleepHours / 7) * 100);
   const energyScores = { low: 30, medium: 70, high: 100 };
-  const energyScore = energyScores[checkIn.energyLevel];
+  const energyLevel = checkIn.energyLevel ?? "medium"; // По умолчанию средний
+  const energyScore = energyScores[energyLevel];
   const recoveryScore = (sleepScore + energyScore) / 2;
   
   // Критически плохое восстановление (< 30) → пропуск
@@ -135,7 +139,7 @@ export function analyzeCheckIn(
       maxExercises: 0,
       excludedZones,
       avoidExercises,
-      recommendation: `😴 Вы спали всего ${checkIn.sleepHours}ч и энергия на нуле. Высокий риск травм и перетренированности. Сегодня лучше отдохнуть или сделать лёгкую прогулку 20-30 минут.`,
+      recommendation: `😴 Вы спали всего ${sleepHours}ч и энергия на нуле. Высокий риск травм и перетренированности. Сегодня лучше отдохнуть или сделать лёгкую прогулку 20-30 минут.`,
       warnings: [...warnings, "Критически низкое восстановление"]
     };
   }
@@ -143,7 +147,8 @@ export function analyzeCheckIn(
   // ========== 3. АНАЛИЗ СТРЕССА ==========
   
   const stressScores = { low: 100, medium: 70, high: 40, very_high: 20 };
-  const stressScore = stressScores[checkIn.stressLevel];
+  const stressLevel = checkIn.stressLevel ?? "medium"; // По умолчанию средний
+  const stressScore = stressScores[stressLevel];
   
   if (stressScore < 50 && recoveryScore < 60) {
     warnings.push("Высокий стресс + плохое восстановление - риск перетренированности");
@@ -151,7 +156,7 @@ export function analyzeCheckIn(
   
   // ========== 4. МЕНСТРУАЛЬНЫЙ ЦИКЛ ==========
   
-  if (checkIn.menstrualCycle) {
+  if (checkIn.menstrualCycle && checkIn.menstrualCycle.phase) {
     if (checkIn.menstrualCycle.phase === "menstruation" 
         && checkIn.menstrualCycle.symptoms.length > 0) {
       // Месячные с симптомами

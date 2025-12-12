@@ -20,9 +20,10 @@ const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 // TYPES
 // ============================================================================
 
+// Расширенный Blueprint: хранит ID правил шаблона (templateRulesId) для научной системы
 type Blueprint = {
   name: string;
-  days: Array<{ label: string; focus: string }>;
+  days: Array<{ label: string; focus: string; templateRulesId?: string }>;
   description: string;
   meta: {
     daysPerWeek: number;
@@ -3246,6 +3247,82 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     await setWorkoutPlanProgress(planId, "prompt", 30);
     const tPrompt = Date.now();
     console.log("\n📝 Building prompt...");
+
+    // ----------------------------------------------------------------------------
+    // НАУЧНАЯ СИСТЕМА: если у дня есть templateRulesId — используем новые правила
+    // ----------------------------------------------------------------------------
+    const todayDay = program.blueprint_json.days[program.day_idx];
+    const templateRulesId = (todayDay as any)?.templateRulesId;
+
+    if (templateRulesId) {
+      console.log("🧠 Scientific mode: templateRulesId =", templateRulesId);
+      const { workoutSchemes } = await import("./workoutSchemes.js");
+      const { buildWorkoutFromRules } = await import("./workoutBuilder.js");
+
+      const scheme = workoutSchemes.find((s) =>
+        s.dayLabels.some(
+          (d: any) =>
+            d.templateRules?.name === templateRulesId || d.templateRulesId === templateRulesId
+        )
+      );
+      const dayLabel = scheme?.dayLabels.find(
+        (d: any) =>
+          d.templateRules?.name === templateRulesId || d.templateRulesId === templateRulesId
+      );
+
+      if (!scheme || !dayLabel || !(dayLabel as any).templateRules) {
+        console.warn("⚠️ Scientific template not found, falling back to legacy AI flow");
+      } else {
+        const templateRules = (dayLabel as any).templateRules;
+
+        const userProfileForRules = {
+          experience: profile.trainingStatus as any, // beginner/intermediate/advanced
+          goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
+          timeAvailable: sessionMinutes,
+          daysPerWeek: profile.daysPerWeek,
+          injuries: checkIn?.injuries || [],
+          preferences: [],
+        };
+
+        const generated = await buildWorkoutFromRules({
+          templateRules,
+          userProfile: userProfileForRules,
+          checkIn: checkIn || undefined,
+        });
+
+        const planned = {
+          title: generated.title,
+          focus: generated.focus,
+          mode: generated.mode,
+          warmup: generated.warmup,
+          cooldown: generated.cooldown,
+          exercises: generated.exercises,
+          totalSets: generated.totalSets,
+          totalExercises: generated.totalExercises,
+          estimatedDuration: generated.estimatedDuration,
+          notes: generated.scientificNotes,
+          adaptationNotes: generated.adaptationNotes,
+          warnings: generated.warnings,
+        };
+
+        await q(
+          `UPDATE planned_workouts
+             SET plan = $2::jsonb,
+                 status = 'ready',
+                 updated_at = NOW()
+           WHERE id = $1 AND user_id = $3`,
+          [planId, planned, userId]
+        );
+
+        await setWorkoutPlanProgress(planId, "done", 100);
+        console.log("✅ Scientific workout generated and saved");
+        return;
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // LEGACY FLOW (fallback): старая система генерации с LLM prompt
+    // ----------------------------------------------------------------------------
 
     const exercisesTarget = await recommendExercisesCount({
       profile,

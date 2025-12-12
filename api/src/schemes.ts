@@ -295,7 +295,9 @@ schemes.post(
       name: selectedScheme.name,
       days: selectedScheme.dayLabels.map(d => ({
         label: d.label,
-        focus: d.focus
+        focus: d.focus,
+        // Добавляем templateRulesId для научной системы генерации
+        ...(d.templateRules ? { templateRulesId: d.templateRules.name } : {})
       })),
       description: selectedScheme.description,
       meta: {

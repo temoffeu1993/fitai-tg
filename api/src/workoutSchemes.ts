@@ -35,8 +35,8 @@ export type WorkoutScheme = {
     day: number; 
     label: string; 
     focus: string;
-    template?: DayTemplate; // 🔥 Старая система (будет удалена)
-    templateRules?: DayTemplateRules; // 🔥 НОВАЯ научная система
+    template?: DayTemplate; // legacy
+    templateRules?: DayTemplateRules; // научная система
   }>;
   benefits: string[];
   notes?: string;
