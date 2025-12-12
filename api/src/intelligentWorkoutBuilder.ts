@@ -62,17 +62,44 @@ export async function buildIntelligentWorkout(params: {
   console.log(`Профиль: ${userProfile.experience}, ${userProfile.goal}, ${userProfile.timeAvailable} мин`);
   
   // Научные расчёты
-  const scientificParams = generateWorkoutRules({
+  let scientificParams = generateWorkoutRules({
     experience: userProfile.experience,
     goal: userProfile.goal,
     timeAvailable: userProfile.timeAvailable,
     daysPerWeek: userProfile.daysPerWeek
   });
   
-  console.log(`✓ Научные параметры: ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
-  
   // Режим тренировки из чекина
   const mode = checkIn?.mode || "normal";
+  
+  // АДАПТАЦИЯ ПАРАМЕТРОВ ПОД РЕЖИМ
+  if (mode === "recovery") {
+    // Восстановительный: -50% объём, -40% интенсивность
+    scientificParams = {
+      ...scientificParams,
+      maxExercises: Math.max(3, Math.round(scientificParams.maxExercises * 0.5)),
+      totalSets: Math.round(scientificParams.totalSets * 0.5)
+    };
+    console.log(`⚠️ RECOVERY MODE: Снижено до ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
+  } else if (mode === "light") {
+    // Облегчённый: -30% объём, -20% интенсивность
+    scientificParams = {
+      ...scientificParams,
+      maxExercises: Math.max(4, Math.round(scientificParams.maxExercises * 0.7)),
+      totalSets: Math.round(scientificParams.totalSets * 0.7)
+    };
+    console.log(`⚠️ LIGHT MODE: Снижено до ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
+  } else if (mode === "push") {
+    // Усиленный: +15% объём
+    scientificParams = {
+      ...scientificParams,
+      maxExercises: Math.min(9, Math.round(scientificParams.maxExercises * 1.15)),
+      totalSets: Math.round(scientificParams.totalSets * 1.15)
+    };
+    console.log(`💪 PUSH MODE: Увеличено до ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
+  } else {
+    console.log(`✓ NORMAL MODE: ${scientificParams.maxExercises} упражнений, ${scientificParams.totalSets} подходов`);
+  }
   
   // Строим контекст для AI
   const context: WorkoutGenerationContext = {
@@ -88,7 +115,7 @@ export async function buildIntelligentWorkout(params: {
   };
   
   // AI генерирует тренировку
-  const aiWorkout = await callAIForWorkout(context, scientificParams);
+  const aiWorkout = await callAIForWorkout(context, scientificParams, mode);
   
   // Финальная сборка
   const totalSets = aiWorkout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
@@ -126,10 +153,11 @@ export async function buildIntelligentWorkout(params: {
  */
 async function callAIForWorkout(
   context: WorkoutGenerationContext,
-  scientificParams: any
+  scientificParams: any,
+  mode: string
 ): Promise<{ exercises: any[]; adaptationNotes?: string[]; warnings?: string[] }> {
   
-  const prompt = buildProfessionalPrompt(context, scientificParams);
+  const prompt = buildProfessionalPrompt(context, scientificParams, mode);
   
   console.log("\n🤖 Вызов AI (gpt-4o-mini)...");
   
@@ -237,7 +265,8 @@ const PROFESSIONAL_SYSTEM_PROMPT = `Ты элитный персональный
  */
 function buildProfessionalPrompt(
   context: WorkoutGenerationContext,
-  scientificParams: any
+  scientificParams: any,
+  mode: string
 ): string {
   
   const { rules, userProfile, checkIn, history } = context;
@@ -263,10 +292,10 @@ function buildProfessionalPrompt(
 **Фокус:** ${rules.focus}
 
 **Структура:**
-- Всего упражнений: ${scientificParams.maxExercises} (оптимум для ${userProfile.experience}/${userProfile.goal})
-- Подходов всего: ~${scientificParams.totalSets}
+- Всего упражнений: **${scientificParams.maxExercises}** (адаптировано под ${mode} режим)
+- Подходов всего: **~${scientificParams.totalSets}**
 
-${formatStructureRules(rules.structure)}
+${formatStructureRules(rules.structure, mode)}
 
 **Формат тренировки:** ${rules.format.type}
 ${rules.format.notes}
@@ -364,31 +393,59 @@ ${availableExercises.isolation.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 }
 
 /**
- * Форматирует правила структуры для промпта
+ * Форматирует правила структуры для промпта (с адаптацией под режим)
  */
-function formatStructureRules(structure: any): string {
+function formatStructureRules(structure: any, mode: string): string {
+  // Адаптация подходов под режим
+  const setsMultiplier = mode === "recovery" ? 0.75 : mode === "light" ? 0.85 : mode === "push" ? 1.1 : 1.0;
+  const restMultiplier = mode === "recovery" ? 1.3 : mode === "light" ? 1.15 : mode === "push" ? 0.9 : 1.0;
+  
+  const compoundSets = Math.max(2, Math.round(structure.compound.sets * setsMultiplier));
+  const secondarySets = Math.max(2, Math.round(structure.secondary.sets * setsMultiplier));
+  const isolationSets = Math.max(2, Math.round(structure.isolation.sets * setsMultiplier));
+  
+  const compoundRest = Math.round(structure.compound.rest * restMultiplier);
+  const secondaryRest = Math.round(structure.secondary.rest * restMultiplier);
+  const isolationRest = Math.round(structure.isolation.rest * restMultiplier);
+  
+  // Адаптация количества упражнений каждого типа
+  const getAdaptedCount = (baseCount: [number, number]): [number, number] => {
+    if (mode === "recovery") {
+      return [Math.max(1, baseCount[0] - 1), Math.max(2, baseCount[1] - 1)];
+    } else if (mode === "light") {
+      return [Math.max(1, baseCount[0]), Math.max(2, baseCount[1] - 1)];
+    } else if (mode === "push") {
+      return [baseCount[0], Math.min(4, baseCount[1] + 1)];
+    }
+    return baseCount;
+  };
+  
+  const compoundCount = getAdaptedCount(structure.compound.count);
+  const secondaryCount = getAdaptedCount(structure.secondary.count);
+  const isolationCount = getAdaptedCount(structure.isolation.count);
+  
   return `
 **БАЗОВЫЕ (Compound):**
-- Количество: ${structure.compound.count[0]}-${structure.compound.count[1]} упражнений
-- Подходы: ${structure.compound.sets}
+- Количество: ${compoundCount[0]}-${compoundCount[1]} упражнений ${mode !== "normal" ? `(адаптировано под ${mode})` : ''}
+- Подходы: ${compoundSets} ${setsMultiplier !== 1.0 ? `(адаптировано: ${structure.compound.sets} → ${compoundSets})` : ''}
 - Повторения: ${structure.compound.reps}
-- Отдых: ${structure.compound.rest} сек
+- Отдых: ${compoundRest} сек ${restMultiplier !== 1.0 ? `(адаптировано: ${structure.compound.rest} → ${compoundRest})` : ''}
 - Приоритет: Выполняются ПЕРВЫМИ
 - Примечание: ${structure.compound.notes}
 
 **ВТОРИЧНЫЕ (Secondary):**
-- Количество: ${structure.secondary.count[0]}-${structure.secondary.count[1]} упражнений
-- Подходы: ${structure.secondary.sets}
+- Количество: ${secondaryCount[0]}-${secondaryCount[1]} упражнений ${mode !== "normal" ? `(адаптировано)` : ''}
+- Подходы: ${secondarySets}
 - Повторения: ${structure.secondary.reps}
-- Отдых: ${structure.secondary.rest} сек
+- Отдых: ${secondaryRest} сек
 - Приоритет: После базовых
 - Примечание: ${structure.secondary.notes}
 
 **ИЗОЛЯЦИЯ (Isolation):**
-- Количество: ${structure.isolation.count[0]}-${structure.isolation.count[1]} упражнений
-- Подходы: ${structure.isolation.sets}
+- Количество: ${isolationCount[0]}-${isolationCount[1]} упражнений ${mode !== "normal" ? `(адаптировано)` : ''}
+- Подходы: ${isolationSets}
 - Повторения: ${structure.isolation.reps}
-- Отдых: ${structure.isolation.rest} сек
+- Отдых: ${isolationRest} сек
 - Приоритет: В КОНЦЕ тренировки
 - Примечание: ${structure.isolation.notes}
   `.trim();

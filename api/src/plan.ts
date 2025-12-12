@@ -1330,8 +1330,9 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
     days: bestScheme.dayLabels.map((d: any) => ({
       label: d.label,
       focus: d.focus,
-      // Копируем templateRulesId для научной системы генерации
-      ...(d.templateRules ? { templateRulesId: d.templateRules.name } : {})
+      // Копируем templateRulesId для научной системы v2
+      ...(d.templateRulesId ? { templateRulesId: d.templateRulesId } : 
+          d.templateRules ? { templateRulesId: d.templateRules.name } : {})
     })),
     description: bestScheme.description,
     meta: {
