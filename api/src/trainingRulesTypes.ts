@@ -51,6 +51,15 @@ export type DayTrainingRules = {
     secondary: string[];  // ["трицепс", "средние дельты"] - вторичный
   };
   
+  // Целевые объёмы по мышечным группам (минимум/максимум подходов)
+  targetMuscleVolume?: {
+    [muscleGroup: string]: {
+      beginner: { 60: { min: number; max: number }; 75: { min: number; max: number }; 90: { min: number; max: number } };
+      intermediate: { 60: { min: number; max: number }; 75: { min: number; max: number }; 90: { min: number; max: number } };
+      advanced: { 60: { min: number; max: number }; 75: { min: number; max: number }; 90: { min: number; max: number } };
+    };
+  };
+  
   // Рекомендуемые паттерны (AI выбирает из них)
   recommendedPatterns: {
     compound: MovementPattern[];     // Для базовых упражнений

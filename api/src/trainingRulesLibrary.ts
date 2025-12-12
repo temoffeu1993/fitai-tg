@@ -57,6 +57,25 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     secondary: ["трицепс", "средние дельты"]
   },
   
+  // Научные целевые объёмы (MEV-MAV-MRV)
+  targetMuscleVolume: {
+    chest: {
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
+      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+    },
+    shoulders: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+    },
+    triceps: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+    }
+  },
+  
   recommendedPatterns: {
     // БАЗОВЫЕ: горизонтальные, наклонные, жимы вверх
     compound: [
@@ -161,6 +180,30 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
     secondary: ["бицепс", "задние дельты", "трапеции"]
   },
   
+  // Научные целевые объёмы (MEV-MAV-MRV)
+  targetMuscleVolume: {
+    lats: {
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
+      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+    },
+    mid_back: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+    },
+    biceps: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+    },
+    rear_delts: {
+      beginner: { 60: { min: 4, max: 6 }, 75: { min: 6, max: 8 }, 90: { min: 8, max: 10 } },
+      intermediate: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      advanced: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } }
+    }
+  },
+  
   recommendedPatterns: {
     compound: [
       "vertical_pull",     // Подтягивания, тяга верхнего блока
@@ -254,6 +297,30 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
   targetAreas: {
     primary: ["квадрицепсы", "ягодицы", "бицепс бедра"],
     secondary: ["икры", "приводящие"]
+  },
+  
+  // Научные целевые объёмы (MEV-MAV-MRV)
+  targetMuscleVolume: {
+    quads: {
+      beginner: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
+      intermediate: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } },
+      advanced: { 60: { min: 14, max: 16 }, 75: { min: 16, max: 18 }, 90: { min: 18, max: 20 } }
+    },
+    glutes: {
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
+      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+    },
+    hamstrings: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+    },
+    calves: {
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+    }
   },
   
   recommendedPatterns: {

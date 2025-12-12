@@ -356,18 +356,18 @@ function selectExercisesFallback(
     const availableExercises = MOVEMENT_PATTERNS_DB[block.movementPattern] || [];
     
     // Выбираем первое упражнение, которого не было недавно
-    let selectedName = availableExercises[0];
+    let selectedExercise = availableExercises[0];
     for (const ex of availableExercises) {
-      if (!recentSet.has(ex.toLowerCase())) {
-        selectedName = ex;
+      if (!recentSet.has(ex.name.toLowerCase())) {
+        selectedExercise = ex;
         break;
       }
     }
     
-    const historicalWeight = history.weightHistory[selectedName];
+    const historicalWeight = history.weightHistory[selectedExercise.name];
     
     return {
-      name: selectedName,
+      name: selectedExercise.name,
       movementPattern: block.movementPattern,
       sets: block.sets,
       reps: block.reps,

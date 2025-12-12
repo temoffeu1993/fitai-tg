@@ -50,9 +50,41 @@ export type MovementPattern =
   | "cardio_intervals"     // Интервальное кардио
   | "metabolic_circuit";   // Метаболические круги
 
-export type ExerciseType = "compound" | "isolation" | "cardio";
+export type ExerciseType = "compound" | "secondary" | "isolation" | "cardio";
 export type IntensityLevel = "light" | "moderate" | "heavy";
 export type TrainingTempo = "controlled" | "explosive" | "slow" | "mixed";
+
+// Целевые группы мышц для подсчёта объёма
+export type MuscleGroup = 
+  | "chest"           // Грудь
+  | "shoulders"       // Плечи (все пучки)
+  | "front_delts"     // Передние дельты
+  | "side_delts"      // Средние дельты
+  | "rear_delts"      // Задние дельты
+  | "triceps"         // Трицепс
+  | "back"            // Спина (общее)
+  | "lats"            // Широчайшие
+  | "mid_back"        // Середина спины
+  | "lower_back"      // Поясница
+  | "traps"           // Трапеции
+  | "biceps"          // Бицепс
+  | "forearms"        // Предплечья
+  | "quads"           // Квадрицепсы
+  | "hamstrings"      // Бицепс бедра
+  | "glutes"          // Ягодицы
+  | "calves"          // Икры
+  | "abs"             // Пресс
+  | "obliques"        // Косые мышцы
+  | "core";           // Кор (общее)
+
+// Упражнение с полными метаданными
+export type Exercise = {
+  name: string;                    // Название упражнения
+  pattern: MovementPattern;        // Паттерн движения
+  primaryMuscle: MuscleGroup;      // ОСНОВНАЯ целевая группа (для подсчёта объёма)
+  type: ExerciseType;              // Тип: compound/secondary/isolation
+  difficulty?: "beginner" | "intermediate" | "advanced";  // Уровень сложности
+};
 
 // Структура одного блока упражнений в тренировке
 export type ExerciseBlock = {
@@ -114,209 +146,241 @@ export type DayTemplate = {
   adaptationRules: AdaptationRules;
 };
 
-// База упражнений по типам движений
-export const MOVEMENT_PATTERNS_DB: Record<MovementPattern, string[]> = {
-  // ТОЛКАЮЩИЕ
+// База упражнений по типам движений (с метаданными)
+export const MOVEMENT_PATTERNS_DB: Record<MovementPattern, Exercise[]> = {
+  // ========== ТОЛКАЮЩИЕ (PUSH) ==========
+  
   horizontal_press: [
-    "Жим лёжа",
-    "Жим гантелей горизонтально",
-    "Жим в машине Смита горизонтально",
-    "Отжимания с весом",
-    "Жим в тренажере на грудь"
+    { name: "Жим штанги лёжа", pattern: "horizontal_press", primaryMuscle: "chest", type: "compound", difficulty: "intermediate" },
+    { name: "Жим гантелей горизонтально", pattern: "horizontal_press", primaryMuscle: "chest", type: "compound", difficulty: "beginner" },
+    { name: "Жим в машине Смита горизонтально", pattern: "horizontal_press", primaryMuscle: "chest", type: "secondary", difficulty: "beginner" },
+    { name: "Отжимания с весом", pattern: "horizontal_press", primaryMuscle: "chest", type: "compound", difficulty: "advanced" },
+    { name: "Жим в тренажере на грудь", pattern: "horizontal_press", primaryMuscle: "chest", type: "secondary", difficulty: "beginner" }
   ],
+  
   incline_press: [
-    "Жим на наклонной 30°",
-    "Жим гантелей на наклонной",
-    "Жим в машине Смита на наклонной",
-    "Жим в тренажере наклон"
+    { name: "Жим штанги на наклонной 30°", pattern: "incline_press", primaryMuscle: "chest", type: "compound", difficulty: "intermediate" },
+    { name: "Жим гантелей на наклонной", pattern: "incline_press", primaryMuscle: "chest", type: "compound", difficulty: "beginner" },
+    { name: "Жим в машине Смита на наклонной", pattern: "incline_press", primaryMuscle: "chest", type: "secondary", difficulty: "beginner" },
+    { name: "Жим в тренажере наклон", pattern: "incline_press", primaryMuscle: "chest", type: "secondary", difficulty: "beginner" }
   ],
+  
   decline_press: [
-    "Жим на отрицательном наклоне",
-    "Жим гантелей на отрицательном наклоне"
+    { name: "Жим штанги на отрицательном наклоне", pattern: "decline_press", primaryMuscle: "chest", type: "compound", difficulty: "intermediate" },
+    { name: "Жим гантелей на отрицательном наклоне", pattern: "decline_press", primaryMuscle: "chest", type: "compound", difficulty: "beginner" }
   ],
+  
   overhead_press: [
-    "Жим стоя",
-    "Жим сидя",
-    "Жим гантелей вверх",
-    "Армейский жим",
-    "Жим в машине Смита вертикально"
+    { name: "Армейский жим стоя", pattern: "overhead_press", primaryMuscle: "shoulders", type: "compound", difficulty: "intermediate" },
+    { name: "Жим штанги сидя", pattern: "overhead_press", primaryMuscle: "shoulders", type: "compound", difficulty: "beginner" },
+    { name: "Жим гантелей вверх", pattern: "overhead_press", primaryMuscle: "shoulders", type: "compound", difficulty: "beginner" },
+    { name: "Жим в машине Смита вертикально", pattern: "overhead_press", primaryMuscle: "shoulders", type: "secondary", difficulty: "beginner" }
   ],
+  
   dips: [
-    "Отжимания на брусьях",
-    "Отжимания на брусьях в тренажере",
-    "Отжимания от скамьи"
+    { name: "Отжимания на брусьях", pattern: "dips", primaryMuscle: "chest", type: "secondary", difficulty: "intermediate" },
+    { name: "Отжимания на брусьях в тренажере", pattern: "dips", primaryMuscle: "chest", type: "secondary", difficulty: "beginner" },
+    { name: "Отжимания от скамьи на трицепс", pattern: "dips", primaryMuscle: "triceps", type: "secondary", difficulty: "beginner" }
   ],
   
-  // ТЯНУЩИЕ
+  // ========== ТЯНУЩИЕ (PULL) ==========
+  
   horizontal_pull: [
-    "Тяга штанги к поясу",
-    "Тяга гантелей к поясу",
-    "Тяга блока к поясу сидя",
-    "Тяга Т-грифа",
-    "Тяга в тренажере"
+    { name: "Тяга штанги к поясу", pattern: "horizontal_pull", primaryMuscle: "mid_back", type: "compound", difficulty: "intermediate" },
+    { name: "Тяга гантелей к поясу", pattern: "horizontal_pull", primaryMuscle: "mid_back", type: "compound", difficulty: "beginner" },
+    { name: "Тяга блока к поясу сидя", pattern: "horizontal_pull", primaryMuscle: "mid_back", type: "compound", difficulty: "beginner" },
+    { name: "Тяга Т-грифа", pattern: "horizontal_pull", primaryMuscle: "mid_back", type: "compound", difficulty: "intermediate" },
+    { name: "Тяга в тренажере Хаммер", pattern: "horizontal_pull", primaryMuscle: "mid_back", type: "secondary", difficulty: "beginner" }
   ],
+  
   vertical_pull: [
-    "Подтягивания",
-    "Подтягивания широким хватом",
-    "Тяга верхнего блока",
-    "Подтягивания с резинкой",
-    "Тяга верхнего блока узким хватом"
+    { name: "Подтягивания широким хватом", pattern: "vertical_pull", primaryMuscle: "lats", type: "compound", difficulty: "intermediate" },
+    { name: "Подтягивания нейтральным хватом", pattern: "vertical_pull", primaryMuscle: "lats", type: "compound", difficulty: "intermediate" },
+    { name: "Тяга верхнего блока широким хватом", pattern: "vertical_pull", primaryMuscle: "lats", type: "compound", difficulty: "beginner" },
+    { name: "Подтягивания с резинкой", pattern: "vertical_pull", primaryMuscle: "lats", type: "compound", difficulty: "beginner" },
+    { name: "Тяга верхнего блока узким хватом", pattern: "vertical_pull", primaryMuscle: "lats", type: "compound", difficulty: "beginner" }
   ],
+  
   deadlift: [
-    "Становая тяга классическая",
-    "Становая тяга сумо",
-    "Становая тяга с плинтов"
+    { name: "Становая тяга классическая", pattern: "deadlift", primaryMuscle: "lower_back", type: "compound", difficulty: "advanced" },
+    { name: "Становая тяга сумо", pattern: "deadlift", primaryMuscle: "lower_back", type: "compound", difficulty: "advanced" },
+    { name: "Становая тяга с плинтов", pattern: "deadlift", primaryMuscle: "lower_back", type: "compound", difficulty: "intermediate" }
   ],
+  
   row: [
-    "Тяга штанги в наклоне",
-    "Тяга гантелей в наклоне",
-    "Тяга блока к поясу"
+    { name: "Тяга штанги в наклоне", pattern: "row", primaryMuscle: "mid_back", type: "compound", difficulty: "intermediate" },
+    { name: "Тяга гантелей в наклоне", pattern: "row", primaryMuscle: "mid_back", type: "compound", difficulty: "beginner" },
+    { name: "Тяга блока к поясу сидя", pattern: "row", primaryMuscle: "mid_back", type: "compound", difficulty: "beginner" }
   ],
   
-  // НОГИ
+  // ========== НОГИ (LEGS) ==========
+  
   squat_pattern: [
-    "Приседания со штангой на спине",
-    "Фронтальные приседания",
-    "Приседания с гантелями",
-    "Приседания в машине Смита",
-    "Гоблет-приседания",
-    "Приседания в тренажере"
+    { name: "Приседания со штангой на спине", pattern: "squat_pattern", primaryMuscle: "quads", type: "compound", difficulty: "intermediate" },
+    { name: "Фронтальные приседания", pattern: "squat_pattern", primaryMuscle: "quads", type: "compound", difficulty: "advanced" },
+    { name: "Приседания с гантелями", pattern: "squat_pattern", primaryMuscle: "quads", type: "compound", difficulty: "beginner" },
+    { name: "Приседания в машине Смита", pattern: "squat_pattern", primaryMuscle: "quads", type: "secondary", difficulty: "beginner" },
+    { name: "Гоблет-приседания", pattern: "squat_pattern", primaryMuscle: "quads", type: "compound", difficulty: "beginner" },
+    { name: "Жим ногами", pattern: "squat_pattern", primaryMuscle: "quads", type: "secondary", difficulty: "beginner" }
   ],
+  
   hip_hinge: [
-    "Румынская тяга",
-    "Румынская тяга с гантелями",
-    "Гудморнинг",
-    "Тяга с гирей",
-    "Наклоны со штангой"
+    { name: "Румынская тяга со штангой", pattern: "hip_hinge", primaryMuscle: "hamstrings", type: "compound", difficulty: "intermediate" },
+    { name: "Румынская тяга с гантелями", pattern: "hip_hinge", primaryMuscle: "hamstrings", type: "compound", difficulty: "beginner" },
+    { name: "Гудморнинг", pattern: "hip_hinge", primaryMuscle: "hamstrings", type: "compound", difficulty: "advanced" },
+    { name: "Тяга с гирей", pattern: "hip_hinge", primaryMuscle: "hamstrings", type: "compound", difficulty: "beginner" },
+    { name: "Наклоны со штангой", pattern: "hip_hinge", primaryMuscle: "lower_back", type: "compound", difficulty: "intermediate" }
   ],
+  
   lunge_pattern: [
-    "Выпады вперед",
-    "Болгарские сплит-приседания",
-    "Обратные выпады",
-    "Выпады в ходьбе",
-    "Выпады на месте с гантелями"
+    { name: "Выпады вперед со штангой", pattern: "lunge_pattern", primaryMuscle: "quads", type: "compound", difficulty: "intermediate" },
+    { name: "Болгарские сплит-приседания", pattern: "lunge_pattern", primaryMuscle: "quads", type: "compound", difficulty: "intermediate" },
+    { name: "Обратные выпады", pattern: "lunge_pattern", primaryMuscle: "quads", type: "compound", difficulty: "beginner" },
+    { name: "Выпады в ходьбе", pattern: "lunge_pattern", primaryMuscle: "quads", type: "compound", difficulty: "intermediate" },
+    { name: "Выпады с гантелями", pattern: "lunge_pattern", primaryMuscle: "quads", type: "compound", difficulty: "beginner" }
   ],
+  
   hip_thrust: [
-    "Ягодичный мост со штангой",
-    "Толчки бедром в тренажере",
-    "Ягодичный мост с гантелей",
-    "Ягодичный мост одной ногой"
+    { name: "Ягодичный мост со штангой", pattern: "hip_thrust", primaryMuscle: "glutes", type: "compound", difficulty: "beginner" },
+    { name: "Толчки бедром в тренажере", pattern: "hip_thrust", primaryMuscle: "glutes", type: "secondary", difficulty: "beginner" },
+    { name: "Ягодичный мост с гантелей", pattern: "hip_thrust", primaryMuscle: "glutes", type: "compound", difficulty: "beginner" },
+    { name: "Ягодичный мост одной ногой", pattern: "hip_thrust", primaryMuscle: "glutes", type: "compound", difficulty: "intermediate" }
   ],
+  
   leg_extension: [
-    "Разгибание ног в тренажере",
-    "Разгибание одной ноги в тренажере"
+    { name: "Разгибание ног в тренажере", pattern: "leg_extension", primaryMuscle: "quads", type: "isolation", difficulty: "beginner" },
+    { name: "Разгибание одной ноги", pattern: "leg_extension", primaryMuscle: "quads", type: "isolation", difficulty: "beginner" }
   ],
+  
   leg_curl: [
-    "Сгибание ног лежа",
-    "Сгибание ног сидя",
-    "Сгибание одной ноги стоя"
+    { name: "Сгибание ног лежа", pattern: "leg_curl", primaryMuscle: "hamstrings", type: "isolation", difficulty: "beginner" },
+    { name: "Сгибание ног сидя", pattern: "leg_curl", primaryMuscle: "hamstrings", type: "isolation", difficulty: "beginner" },
+    { name: "Сгибание одной ноги стоя", pattern: "leg_curl", primaryMuscle: "hamstrings", type: "isolation", difficulty: "beginner" }
   ],
+  
   calf_raise: [
-    "Подъем на носки стоя",
-    "Подъем на носки сидя",
-    "Подъем на носки в тренажере"
+    { name: "Подъем на носки стоя", pattern: "calf_raise", primaryMuscle: "calves", type: "isolation", difficulty: "beginner" },
+    { name: "Подъем на носки сидя", pattern: "calf_raise", primaryMuscle: "calves", type: "isolation", difficulty: "beginner" },
+    { name: "Подъем на носки в тренажере", pattern: "calf_raise", primaryMuscle: "calves", type: "isolation", difficulty: "beginner" }
   ],
   
-  // ИЗОЛЯЦИЯ ВЕРХ
+  // ========== ИЗОЛЯЦИЯ ВЕРХ ==========
+  
   lateral_raise: [
-    "Махи гантелями в стороны",
-    "Махи в кроссовере в стороны",
-    "Махи с резиной в стороны",
-    "Махи на заднюю дельту в тренажере"
+    { name: "Махи гантелями в стороны", pattern: "lateral_raise", primaryMuscle: "side_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Махи в кроссовере в стороны", pattern: "lateral_raise", primaryMuscle: "side_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Махи с резиной в стороны", pattern: "lateral_raise", primaryMuscle: "side_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Махи на тренажере для дельт", pattern: "lateral_raise", primaryMuscle: "side_delts", type: "isolation", difficulty: "beginner" }
   ],
+  
   front_raise: [
-    "Махи гантелями вперед",
-    "Махи штангой вперед",
-    "Махи в кроссовере вперед"
+    { name: "Махи гантелями вперед", pattern: "front_raise", primaryMuscle: "front_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Махи штангой вперед", pattern: "front_raise", primaryMuscle: "front_delts", type: "isolation", difficulty: "intermediate" },
+    { name: "Махи в кроссовере вперед", pattern: "front_raise", primaryMuscle: "front_delts", type: "isolation", difficulty: "beginner" }
   ],
+  
   rear_delt_fly: [
-    "Разводки на заднюю дельту",
-    "Обратные разводки в тренажере",
-    "Тяга канатной рукояти к лицу"
+    { name: "Разводки на заднюю дельту с гантелями", pattern: "rear_delt_fly", primaryMuscle: "rear_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Обратные разводки в тренажере", pattern: "rear_delt_fly", primaryMuscle: "rear_delts", type: "isolation", difficulty: "beginner" },
+    { name: "Тяга канатной рукояти к лицу", pattern: "rear_delt_fly", primaryMuscle: "rear_delts", type: "isolation", difficulty: "intermediate" }
   ],
+  
   chest_fly: [
-    "Разводки гантелей лежа",
-    "Разводки в кроссовере",
-    "Разводки в тренажере бабочка"
+    { name: "Разводки гантелей лежа", pattern: "chest_fly", primaryMuscle: "chest", type: "isolation", difficulty: "beginner" },
+    { name: "Разводки в кроссовере", pattern: "chest_fly", primaryMuscle: "chest", type: "isolation", difficulty: "beginner" },
+    { name: "Разводки в тренажере бабочка", pattern: "chest_fly", primaryMuscle: "chest", type: "isolation", difficulty: "beginner" }
   ],
+  
   triceps_extension: [
-    "Французский жим",
-    "Французский жим с гантелей",
-    "Разгибания над головой"
+    { name: "Французский жим лежа", pattern: "triceps_extension", primaryMuscle: "triceps", type: "isolation", difficulty: "intermediate" },
+    { name: "Французский жим с гантелей", pattern: "triceps_extension", primaryMuscle: "triceps", type: "isolation", difficulty: "beginner" },
+    { name: "Разгибания над головой с гантелей", pattern: "triceps_extension", primaryMuscle: "triceps", type: "isolation", difficulty: "beginner" }
   ],
+  
   triceps_pushdown: [
-    "Разгибания на блоке",
-    "Разгибания с канатом",
-    "Разгибания обратным хватом"
+    { name: "Разгибания на блоке прямой рукоятью", pattern: "triceps_pushdown", primaryMuscle: "triceps", type: "isolation", difficulty: "beginner" },
+    { name: "Разгибания с канатом", pattern: "triceps_pushdown", primaryMuscle: "triceps", type: "isolation", difficulty: "beginner" },
+    { name: "Разгибания обратным хватом", pattern: "triceps_pushdown", primaryMuscle: "triceps", type: "isolation", difficulty: "intermediate" }
   ],
+  
   biceps_curl: [
-    "Подъем штанги на бицепс",
-    "Подъем гантелей на бицепс",
-    "Подъем на бицепс в тренажере",
-    "Концентрированные подъемы"
+    { name: "Подъем штанги на бицепс", pattern: "biceps_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "beginner" },
+    { name: "Подъем гантелей на бицепс", pattern: "biceps_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "beginner" },
+    { name: "Подъем на бицепс в тренажере", pattern: "biceps_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "beginner" },
+    { name: "Концентрированные подъемы", pattern: "biceps_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "intermediate" }
   ],
+  
   hammer_curl: [
-    "Молотковые подъемы",
-    "Молотковые подъемы с канатом",
-    "Перекрестные молотковые подъемы"
+    { name: "Молотковые подъемы с гантелями", pattern: "hammer_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "beginner" },
+    { name: "Молотковые подъемы с канатом", pattern: "hammer_curl", primaryMuscle: "biceps", type: "isolation", difficulty: "beginner" }
   ],
   
-  // ИЗОЛЯЦИЯ НИЗ
+  // ========== ИЗОЛЯЦИЯ НИЗ ==========
+  
   glute_isolation: [
-    "Отведения в тренажере",
-    "Ягодичные отведения стоя",
-    "Пожарный гидрант",
-    "Kick-backs на блоке"
+    { name: "Отведения в тренажере", pattern: "glute_isolation", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" },
+    { name: "Ягодичные отведения стоя на блоке", pattern: "glute_isolation", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" },
+    { name: "Пожарный гидрант", pattern: "glute_isolation", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" },
+    { name: "Kick-backs на блоке", pattern: "glute_isolation", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" }
   ],
+  
   adductor: [
-    "Приведение в тренажере",
-    "Приседания с резиной между ног"
+    { name: "Приведение бедра в тренажере", pattern: "adductor", primaryMuscle: "quads", type: "isolation", difficulty: "beginner" },
+    { name: "Приседания с резиной между ног", pattern: "adductor", primaryMuscle: "quads", type: "isolation", difficulty: "beginner" }
   ],
+  
   abductor: [
-    "Отведение в тренажере",
-    "Отведения с резиной"
+    { name: "Отведение бедра в тренажере", pattern: "abductor", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" },
+    { name: "Отведения с резиной", pattern: "abductor", primaryMuscle: "glutes", type: "isolation", difficulty: "beginner" }
   ],
   
-  // КОР
+  // ========== КОР ==========
+  
   core_anti_extension: [
-    "Планка",
-    "Планка на предплечьях",
-    "Rollout с роликом",
-    "Планка на фитболе"
-  ],
-  core_anti_rotation: [
-    "Боковая планка",
-    "Паллоф-пресс",
-    "Дровосек"
-  ],
-  core_flexion: [
-    "Скручивания",
-    "Скручивания на блоке",
-    "Подъемы ног"
-  ],
-  carry: [
-    "Прогулка фермера",
-    "Прогулка с гантелями",
-    "Прогулка с одной гантелей"
+    { name: "Планка классическая", pattern: "core_anti_extension", primaryMuscle: "abs", type: "isolation", difficulty: "beginner" },
+    { name: "Планка на предплечьях", pattern: "core_anti_extension", primaryMuscle: "abs", type: "isolation", difficulty: "beginner" },
+    { name: "Rollout с роликом", pattern: "core_anti_extension", primaryMuscle: "abs", type: "isolation", difficulty: "advanced" },
+    { name: "Планка на фитболе", pattern: "core_anti_extension", primaryMuscle: "abs", type: "isolation", difficulty: "intermediate" }
   ],
   
-  // КАРДИО
+  core_anti_rotation: [
+    { name: "Боковая планка", pattern: "core_anti_rotation", primaryMuscle: "obliques", type: "isolation", difficulty: "beginner" },
+    { name: "Паллоф-пресс", pattern: "core_anti_rotation", primaryMuscle: "obliques", type: "isolation", difficulty: "intermediate" },
+    { name: "Дровосек на блоке", pattern: "core_anti_rotation", primaryMuscle: "obliques", type: "isolation", difficulty: "intermediate" }
+  ],
+  
+  core_flexion: [
+    { name: "Скручивания на полу", pattern: "core_flexion", primaryMuscle: "abs", type: "isolation", difficulty: "beginner" },
+    { name: "Скручивания на блоке", pattern: "core_flexion", primaryMuscle: "abs", type: "isolation", difficulty: "beginner" },
+    { name: "Подъемы ног в висе", pattern: "core_flexion", primaryMuscle: "abs", type: "isolation", difficulty: "intermediate" }
+  ],
+  
+  carry: [
+    { name: "Прогулка фермера с гантелями", pattern: "carry", primaryMuscle: "core", type: "compound", difficulty: "beginner" },
+    { name: "Прогулка с гирями", pattern: "carry", primaryMuscle: "core", type: "compound", difficulty: "beginner" },
+    { name: "Прогулка с одной гантелей (офсет)", pattern: "carry", primaryMuscle: "core", type: "compound", difficulty: "intermediate" }
+  ],
+  
+  // ========== КАРДИО ==========
+  
   cardio_steady: [
-    "Беговая дорожка",
-    "Велотренажер",
-    "Эллипс",
-    "Гребной тренажер"
+    { name: "Беговая дорожка ровный темп", pattern: "cardio_steady", primaryMuscle: "quads", type: "cardio", difficulty: "beginner" },
+    { name: "Велотренажер", pattern: "cardio_steady", primaryMuscle: "quads", type: "cardio", difficulty: "beginner" },
+    { name: "Эллиптический тренажер", pattern: "cardio_steady", primaryMuscle: "quads", type: "cardio", difficulty: "beginner" },
+    { name: "Гребной тренажер", pattern: "cardio_steady", primaryMuscle: "back", type: "cardio", difficulty: "intermediate" }
   ],
+  
   cardio_intervals: [
-    "Спринты на дорожке",
-    "Интервалы на велотренажере",
-    "Интервалы на эллипсе"
+    { name: "Спринты на беговой дорожке", pattern: "cardio_intervals", primaryMuscle: "quads", type: "cardio", difficulty: "intermediate" },
+    { name: "Интервалы на велотренажере", pattern: "cardio_intervals", primaryMuscle: "quads", type: "cardio", difficulty: "beginner" },
+    { name: "Интервалы на эллипсе", pattern: "cardio_intervals", primaryMuscle: "quads", type: "cardio", difficulty: "beginner" }
   ],
+  
   metabolic_circuit: [
-    "Бёрпи",
-    "Jumping jacks",
-    "Маунтин-клаймберы",
-    "Прыжки на скакалке"
+    { name: "Бёрпи", pattern: "metabolic_circuit", primaryMuscle: "core", type: "cardio", difficulty: "intermediate" },
+    { name: "Jumping jacks", pattern: "metabolic_circuit", primaryMuscle: "core", type: "cardio", difficulty: "beginner" },
+    { name: "Маунтин-клаймберы", pattern: "metabolic_circuit", primaryMuscle: "core", type: "cardio", difficulty: "intermediate" },
+    { name: "Прыжки на скакалке", pattern: "metabolic_circuit", primaryMuscle: "calves", type: "cardio", difficulty: "beginner" }
   ]
 };
 

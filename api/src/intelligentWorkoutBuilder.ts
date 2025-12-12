@@ -46,12 +46,27 @@ function findExercisePattern(exerciseName: string, rules: DayTrainingRules): str
     const exercises = MOVEMENT_PATTERNS_DB[pattern] || [];
     // Нормализуем названия для сравнения (убираем регистр, лишние пробелы)
     const normalizedName = exerciseName.toLowerCase().trim();
-    const found = exercises.some(ex => ex.toLowerCase().trim() === normalizedName);
+    const found = exercises.some(ex => ex.name.toLowerCase().trim() === normalizedName);
     if (found) {
       return pattern;
     }
   }
   
+  return null;
+}
+
+/**
+ * Находит основную мышцу упражнения по его названию
+ */
+function findExercisePrimaryMuscle(exerciseName: string): string | null {
+  for (const pattern in MOVEMENT_PATTERNS_DB) {
+    const exercises = MOVEMENT_PATTERNS_DB[pattern as keyof typeof MOVEMENT_PATTERNS_DB];
+    const normalizedName = exerciseName.toLowerCase().trim();
+    const found = exercises.find(ex => ex.name.toLowerCase().trim() === normalizedName);
+    if (found) {
+      return found.primaryMuscle;
+    }
+  }
   return null;
 }
 
@@ -321,18 +336,36 @@ function buildProfessionalPrompt(
   
   const { rules, userProfile, checkIn, history } = context;
   
-  // Формируем список доступных упражнений С ПАТТЕРНАМИ (чтобы избежать дублирования)
+  // Формируем список доступных упражнений С ПАТТЕРНАМИ и МЫШЦАМИ
   const availableExercises = {
     compound: rules.recommendedPatterns.compound.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
+        name: ex.name, 
+        pattern, 
+        primaryMuscle: ex.primaryMuscle,
+        type: ex.type 
+      }))
     ).slice(0, 30),
     secondary: rules.recommendedPatterns.secondary.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
+        name: ex.name, 
+        pattern, 
+        primaryMuscle: ex.primaryMuscle,
+        type: ex.type 
+      }))
     ).slice(0, 30),
     isolation: rules.recommendedPatterns.isolation.flatMap(pattern => 
-      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(ex => ({ 
+        name: ex.name, 
+        pattern, 
+        primaryMuscle: ex.primaryMuscle,
+        type: ex.type 
+      }))
     ).slice(0, 30)
   };
+  
+  // Вычисляем целевые объёмы для мышечных групп
+  const volumeTargets = calculateVolumeTargets(rules, userProfile);
   
   return `
 # ЗАДАНИЕ: Создай персональную тренировку "${rules.name}"
@@ -346,6 +379,8 @@ function buildProfessionalPrompt(
 - Подходов всего: **~${scientificParams.totalSets}**
 
 ${formatStructureRules(rules.structure, mode)}
+
+${volumeTargets ? formatVolumeTargets(volumeTargets) : ''}
 
 **Формат тренировки:** ${rules.format.type}
 ${rules.format.notes}
@@ -389,18 +424,18 @@ ${checkIn.pain.length > 0 ? `- ⚠️ БОЛЬ: ${checkIn.pain.map(p => `${p.loc
 
 ---
 
-## ДОСТУПНЫЕ УПРАЖНЕНИЯ (С ПАТТЕРНАМИ)
+## ДОСТУПНЫЕ УПРАЖНЕНИЯ (С ПАТТЕРНАМИ И ЦЕЛЕВЫМИ МЫШЦАМИ)
 
-⚠️ КРИТИЧНО: Каждое упражнение имеет [паттерн]. НЕ выбирай два упражнения с одинаковым паттерном!
+⚠️ КРИТИЧНО: Каждое упражнение имеет [паттерн] и [primaryMuscle]. НЕ выбирай два упражнения с одинаковым паттерном!
 
 ### БАЗОВЫЕ (Compound) - выбери ${rules.structure.compound.count[0]}-${rules.structure.compound.count[1]}:
-${availableExercises.compound.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
+${availableExercises.compound.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
 
 ### ВТОРИЧНЫЕ (Secondary) - выбери ${rules.structure.secondary.count[0]}-${rules.structure.secondary.count[1]}:
-${availableExercises.secondary.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
+${availableExercises.secondary.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
 
 ### ИЗОЛЯЦИЯ (Isolation) - выбери ${rules.structure.isolation.count[0]}-${rules.structure.isolation.count[1]}:
-${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
+${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}, ${ex.primaryMuscle}]`).join('\n')}
 
 ---
 
@@ -448,6 +483,49 @@ ${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.p
 - Начни с compound, закончи isolation
 - НЕ повторяй недавние упражнения
 - Возвращай ТОЛЬКО JSON
+`.trim();
+}
+
+/**
+ * Вычисляет целевые объёмы для мышечных групп
+ */
+function calculateVolumeTargets(
+  rules: DayTrainingRules,
+  userProfile: { experience: ExperienceLevel; timeAvailable: number }
+): Record<string, { min: number; max: number }> | null {
+  if (!rules.targetMuscleVolume) return null;
+  
+  const { experience, timeAvailable } = userProfile;
+  const timeKey = timeAvailable >= 90 ? 90 : timeAvailable >= 75 ? 75 : 60;
+  
+  const targets: Record<string, { min: number; max: number }> = {};
+  
+  for (const [muscle, levels] of Object.entries(rules.targetMuscleVolume)) {
+    const levelData = levels[experience];
+    if (levelData && levelData[timeKey]) {
+      targets[muscle] = levelData[timeKey];
+    }
+  }
+  
+  return Object.keys(targets).length > 0 ? targets : null;
+}
+
+/**
+ * Форматирует целевые объёмы для промпта
+ */
+function formatVolumeTargets(targets: Record<string, { min: number; max: number }>): string {
+  const lines = Object.entries(targets).map(([muscle, range]) => 
+    `- **${muscle}**: ${range.min}-${range.max} подходов`
+  );
+  
+  return `
+**ЦЕЛЕВЫЕ ОБЪЁМЫ ПО МЫШЕЧНЫМ ГРУППАМ (научные минимумы):**
+${lines.join('\n')}
+
+⚠️ ВАЖНО: Убедись, что твой выбор упражнений покрывает эти минимумы!
+- Каждое упражнение имеет [primaryMuscle] - это основная мышца для подсчёта объёма
+- Подсчитай: сколько подходов получает каждая мышца
+- Если не хватает - добавь изоляцию на эту мышцу
 `.trim();
 }
 
