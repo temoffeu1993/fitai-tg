@@ -278,16 +278,16 @@ function buildProfessionalPrompt(
   
   const { rules, userProfile, checkIn, history } = context;
   
-  // Формируем список доступных упражнений
+  // Формируем список доступных упражнений С ПАТТЕРНАМИ (чтобы избежать дублирования)
   const availableExercises = {
     compound: rules.recommendedPatterns.compound.flatMap(pattern => 
-      MOVEMENT_PATTERNS_DB[pattern] || []
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
     ).slice(0, 30),
     secondary: rules.recommendedPatterns.secondary.flatMap(pattern => 
-      MOVEMENT_PATTERNS_DB[pattern] || []
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
     ).slice(0, 30),
     isolation: rules.recommendedPatterns.isolation.flatMap(pattern => 
-      MOVEMENT_PATTERNS_DB[pattern] || []
+      (MOVEMENT_PATTERNS_DB[pattern] || []).map(name => ({ name, pattern }))
     ).slice(0, 30)
   };
   
@@ -346,26 +346,32 @@ ${checkIn.pain.length > 0 ? `- ⚠️ БОЛЬ: ${checkIn.pain.map(p => `${p.loc
 
 ---
 
-## ДОСТУПНЫЕ УПРАЖНЕНИЯ
+## ДОСТУПНЫЕ УПРАЖНЕНИЯ (С ПАТТЕРНАМИ)
+
+⚠️ КРИТИЧНО: Каждое упражнение имеет [паттерн]. НЕ выбирай два упражнения с одинаковым паттерном!
 
 ### БАЗОВЫЕ (Compound) - выбери ${rules.structure.compound.count[0]}-${rules.structure.compound.count[1]}:
-${availableExercises.compound.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+${availableExercises.compound.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
 
 ### ВТОРИЧНЫЕ (Secondary) - выбери ${rules.structure.secondary.count[0]}-${rules.structure.secondary.count[1]}:
-${availableExercises.secondary.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+${availableExercises.secondary.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
 
 ### ИЗОЛЯЦИЯ (Isolation) - выбери ${rules.structure.isolation.count[0]}-${rules.structure.isolation.count[1]}:
-${availableExercises.isolation.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.pattern}]`).join('\n')}
 
 ---
 
 ## ТВОЯ ЗАДАЧА
 
 1. Выбери ${scientificParams.maxExercises} упражнений из списков выше
-2. Начни с базовых (самые тяжелые), закончи изоляцией
-3. НЕ повторяй упражнения из истории
-4. Подбери веса на основе прогресса (или дай рекомендации)
-5. Для каждого упражнения дай 1-2 технических подсказки
+2. ⚠️ ОБЯЗАТЕЛЬНО: Каждое упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]
+   - Если выбрал "Армейский жим [overhead_press]", НЕ выбирай "Жим гантелей сидя [overhead_press]"
+   - Если выбрал "Разводки гантелей [pec_fly]", НЕ выбирай "Разводки в тренажере [pec_fly]"
+   - AI должен гарантировать: все паттерны РАЗНЫЕ!
+3. Начни с базовых (самые тяжелые), закончи изоляцией
+4. НЕ повторяй упражнения из истории
+5. Подбери веса на основе прогресса (или дай рекомендации)
+6. Для каждого упражнения дай 1-2 технических подсказки
 
 ---
 
@@ -393,14 +399,11 @@ ${availableExercises.isolation.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
 **ВАЖНО:**
 - Количество упражнений = ${scientificParams.maxExercises}
+- ⚠️ КАЖДОЕ упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]!
+  * Проверь: все [паттерны] в твоём выборе РАЗНЫЕ
+  * Если два упражнения имеют одинаковый [паттерн] → выбери только ОДНО
 - Начни с compound, закончи isolation
 - НЕ повторяй недавние упражнения
-- ⚠️ НЕ ДУБЛИРУЙ функции движений! 
-  Примеры недопустимого дублирования:
-  * "Армейский жим" + "Жим гантелей вверх" (оба overhead press)
-  * "Разводки гантелей" + "Разводки в тренажере" (один pec fly)
-  * "Тяга штанги" + "Тяга гантелей" (одна horizontal row)
-  → Выбирай ОДНО упражнение на функцию!
 - Возвращай ТОЛЬКО JSON
 `.trim();
 }
