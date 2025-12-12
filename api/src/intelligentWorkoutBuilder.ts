@@ -288,7 +288,7 @@ async function callAIForWorkout(
           content: prompt
         }
       ],
-      temperature: 0.8,  // Больше креативности
+      temperature: 0.5,  // Баланс между креативностью и следованием правилам
       response_format: { type: "json_object" }
     });
     
@@ -497,15 +497,25 @@ ${availableExercises.isolation.map((ex: any, i) => `${i + 1}. ${ex.name} [${ex.p
 
 ## ТВОЯ ЗАДАЧА
 
-1. Выбери ${scientificParams.maxExercises} упражнений из списков выше
-2. ⚠️ ОБЯЗАТЕЛЬНО: Каждое упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]
+⚠️ КРИТИЧНО: Выбери упражнения ТАК, чтобы покрыть ЦЕЛЕВЫЕ ОБЪЁМЫ!
+
+**Стратегия выбора:**
+${volumeTargets ? generateExerciseDistribution(volumeTargets, rules.structure) : ''}
+
+**Правила выбора:**
+1. ⚠️ ОБЯЗАТЕЛЬНО: Каждое упражнение должно иметь УНИКАЛЬНЫЙ [паттерн]
    - Если выбрал "Армейский жим [overhead_press]", НЕ выбирай "Жим гантелей сидя [overhead_press]"
-   - Если выбрал "Разводки гантелей [pec_fly]", НЕ выбирай "Разводки в тренажере [pec_fly]"
-   - AI должен гарантировать: все паттерны РАЗНЫЕ!
-3. Начни с базовых (самые тяжелые), закончи изоляцией
-4. НЕ повторяй упражнения из истории
-5. Подбери веса на основе прогресса (или дай рекомендации)
-6. Для каждого упражнения дай 1-2 технических подсказки
+   - Один паттерн = ОДНО упражнение!
+2. Начни с базовых (самые тяжелые), закончи изоляцией
+3. НЕ повторяй упражнения из истории
+4. Подбери веса на основе прогресса (или дай рекомендации)
+5. Для каждого упражнения дай 1-2 технических подсказки
+
+**Проверка перед отправкой:**
+- Подсчитай: chest = ? подходов (нужно ${volumeTargets?.chest ? `${volumeTargets.chest.min}-${volumeTargets.chest.max}` : '?'})
+- Подсчитай: shoulders = ? подходов (нужно ${volumeTargets?.shoulders ? `${volumeTargets.shoulders.min}-${volumeTargets.shoulders.max}` : '?'})
+- Подсчитай: triceps = ? подходов (нужно ${volumeTargets?.triceps ? `${volumeTargets.triceps.min}-${volumeTargets.triceps.max}` : '?'})
+- Если не хватает → ДОБАВЬ ещё упражнения!
 
 ---
 
@@ -582,6 +592,30 @@ ${lines.join('\n')}
 - Каждое упражнение имеет [primaryMuscle] - это основная мышца для подсчёта объёма
 - Подсчитай: сколько подходов получает каждая мышца
 - Если не хватает - добавь изоляцию на эту мышцу
+`.trim();
+}
+
+/**
+ * Генерирует конкретный план распределения упражнений для покрытия объёмов
+ */
+function generateExerciseDistribution(
+  targets: Record<string, { min: number; max: number }>,
+  structure: any
+): string {
+  const lines: string[] = [];
+  
+  for (const [muscle, range] of Object.entries(targets)) {
+    // Рассчитываем сколько упражнений нужно (по 4 подхода на compound, 3 на остальные)
+    const avgSets = 3.5;
+    const neededExercises = Math.ceil(range.min / avgSets);
+    lines.push(`- **${muscle}**: нужно ${range.min}-${range.max} подходов → выбери ~${neededExercises} упражнений на эту мышцу`);
+  }
+  
+  return `
+**Конкретный план:**
+${lines.join('\n')}
+
+Итого: выбери ${structure.compound.count[0]}-${structure.compound.count[1]} compound + ${structure.secondary.count[0]}-${structure.secondary.count[1]} secondary + ${structure.isolation.count[0]}-${structure.isolation.count[1]} isolation
 `.trim();
 }
 

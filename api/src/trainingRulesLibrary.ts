@@ -18,12 +18,12 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
   description: "Классический Push день. Начинаем с тяжелых базовых жимов, заканчиваем изоляцией. Объём зависит от уровня и времени.",
   
   structure: {
-    // Для advanced + hypertrophy + 90 минут = 6-9 упражнений
-    totalExercisesRange: [5, 9],
+    // Гибкий диапазон упражнений для покрытия целевых объёмов
+    totalExercisesRange: [6, 12],
     
     // БАЗОВЫЕ (compound) - тяжелые многосуставные
     compound: {
-      count: [2, 3],  // 2-3 базовых упражнения
+      count: [2, 4],  // 2-4 базовых упражнения (гибкость!)
       sets: 4,
       reps: "6-8",
       rest: 120,      // 2 минуты
@@ -33,7 +33,7 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     
     // ВТОРИЧНЫЕ (secondary) - среднетяжелые
     secondary: {
-      count: [2, 3],  // 2-3 вторичных
+      count: [2, 4],  // 2-4 вторичных (гибкость!)
       sets: 3,
       reps: "8-12",
       rest: 90,       // 1.5 минуты
@@ -43,7 +43,7 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     
     // ИЗОЛЯЦИЯ (isolation) - лёгкие односуставные
     isolation: {
-      count: [2, 3],  // 2-3 изоляции
+      count: [2, 4],  // 2-4 изоляции (гибкость!)
       sets: 3,
       reps: "12-15",
       rest: 60,       // 1 минута
@@ -76,32 +76,26 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     }
   },
   
+  // Все доступные паттерны (AI сам выбирает по type и difficulty)
   recommendedPatterns: {
-    // БАЗОВЫЕ: горизонтальные, наклонные, жимы вверх
     compound: [
-      "horizontal_press",  // Жим лёжа, жим гантелей
-      "incline_press",     // Жим на наклонной
-      "overhead_press",    // Жим над головой
-      "decline_press",     // Жим под отрицательным углом
-      "dips"               // Отжимания на брусьях
+      "horizontal_press",  // Жим лёжа (грудь)
+      "overhead_press",    // Жим над головой (плечи)
+      "decline_press"      // Жим под углом (грудь нижняя)
     ],
     
-    // ВТОРИЧНЫЕ: жимы под углами, разводки
     secondary: [
-      "incline_press",
-      "overhead_press",
-      "chest_fly",         // Разводки на грудь
-      "dips"
+      "incline_press",     // Жим на наклонной (грудь верхняя)
+      "dips",              // Отжимания на брусьях (грудь/трицепс)
+      "chest_fly"          // Разводки (грудь изоляция)
     ],
     
-    // ИЗОЛЯЦИЯ: махи, разгибания, разводки
     isolation: [
-      "lateral_raise",     // Махи в стороны
-      "front_raise",       // Махи вперёд
-      "triceps_extension", // Французский жим
-      "triceps_pushdown",  // Разгибания вниз
-      "chest_fly",
-      "rear_delt_fly"      // Задние дельты
+      "lateral_raise",     // Махи в стороны (средние дельты)
+      "front_raise",       // Махи вперёд (передние дельты)
+      "rear_delt_fly",     // Задние дельты
+      "triceps_extension", // Французский жим (трицепс)
+      "triceps_pushdown"   // Разгибания на блоке (трицепс)
     ]
   },
   
@@ -145,10 +139,10 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
   description: "Классический Pull день. Подтягивания/тяги для широчайших, тяги к поясу для толщины спины, изоляция бицепса.",
   
   structure: {
-    totalExercisesRange: [5, 9],
+    totalExercisesRange: [6, 12],
     
     compound: {
-      count: [2, 3],
+      count: [2, 4],
       sets: 4,
       reps: "6-8",
       rest: 120,
@@ -157,7 +151,7 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
     },
     
     secondary: {
-      count: [2, 3],
+      count: [2, 4],
       sets: 3,
       reps: "8-12",
       rest: 90,
@@ -166,7 +160,7 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
     },
     
     isolation: {
-      count: [2, 3],
+      count: [2, 4],
       sets: 3,
       reps: "12-15",
       rest: 60,
@@ -264,10 +258,10 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
   description: "Полная тренировка ног. Приседания для квадрицепсов, тазовый шарнир для задней цепи, изоляция икр.",
   
   structure: {
-    totalExercisesRange: [5, 8],  // Ноги восстанавливаются дольше
+    totalExercisesRange: [6, 12],
     
     compound: {
-      count: [2, 3],
+      count: [2, 4],
       sets: 4,
       reps: "6-10",  // Чуть больше повторений для ног
       rest: 150,     // 2.5 минуты (ноги требуют больше отдыха)
@@ -276,7 +270,7 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
     },
     
     secondary: {
-      count: [2, 3],
+      count: [2, 4],
       sets: 3,
       reps: "10-15",
       rest: 90,
@@ -285,7 +279,7 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
     },
     
     isolation: {
-      count: [1, 2],  // Меньше изоляции на ногах
+      count: [2, 4],
       sets: 3,
       reps: "12-20",  // Икры любят больше повторений
       rest: 60,
