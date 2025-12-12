@@ -52,25 +52,47 @@ export default function Profile() {
 
   // автообновление без перезагрузки
   function readAll() {
+    console.log("🔍 Profile: readAll() called");
+    
     try {
       const raw = localStorage.getItem("onb_summary");
-      setSummary(raw ? JSON.parse(raw) : null);
-    } catch { setSummary(null); }
+      console.log("📦 Profile: onb_summary raw:", raw ? raw.substring(0, 200) + "..." : "NULL");
+      
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        console.log("📊 Profile: onb_summary parsed:", parsed);
+        setSummary(parsed);
+      } else {
+        console.log("⚠️  Profile: onb_summary is NULL");
+        setSummary(null);
+      }
+    } catch (err) {
+      console.error("❌ Profile: Failed to parse onb_summary:", err);
+      setSummary(null);
+    }
 
     // Получаем данные из Telegram WebApp
     try {
       const tg = (window as any).Telegram?.WebApp;
+      console.log("📱 Profile: Telegram.WebApp:", tg ? "EXISTS" : "NULL");
+      console.log("👤 Profile: Telegram user:", tg?.initDataUnsafe?.user);
+      
       if (tg?.initDataUnsafe?.user) {
-        setTgProfile({
+        const profile = {
           id: tg.initDataUnsafe.user.id,
           first_name: tg.initDataUnsafe.user.first_name,
           last_name: tg.initDataUnsafe.user.last_name,
           username: tg.initDataUnsafe.user.username,
           photo_url: tg.initDataUnsafe.user.photo_url,
-        });
+        };
+        console.log("✅ Profile: Setting Telegram profile:", profile);
+        setTgProfile(profile);
+      } else {
+        console.log("⚠️  Profile: Telegram user is NULL");
+        setTgProfile(null);
       }
     } catch (err) {
-      console.error("Failed to get Telegram profile:", err);
+      console.error("❌ Profile: Failed to get Telegram profile:", err);
       setTgProfile(null);
     }
 
@@ -89,6 +111,10 @@ export default function Profile() {
   }, []);
 
   const onb = summary || {};
+  
+  console.log("📊 Profile: Current summary state:", summary);
+  console.log("👤 Profile: Current tgProfile state:", tgProfile);
+  
   const avatarUrl = tgProfile?.photo_url;
   const name = onb?.profile?.name || tgProfile?.first_name || "—";
   const sex =
@@ -101,6 +127,18 @@ export default function Profile() {
   const expText = expRus(onb.experience);
   const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek ?? onb?.daysPerWeek;
   const minutes = onb?.schedule?.minutesPerSession ?? onb?.schedule?.minutes ?? onb?.schedule?.sessionMinutes;
+  
+  console.log("📈 Profile: Computed values:", {
+    avatarUrl,
+    name,
+    sex,
+    age,
+    height,
+    weight,
+    expText,
+    perWeek,
+    minutes
+  });
 
   const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
