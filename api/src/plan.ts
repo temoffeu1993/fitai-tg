@@ -3342,13 +3342,20 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           title: generated.title,
           focus: generated.focus,
           mode: generated.mode,
-          warmup: generated.warmup,
-          cooldown: generated.cooldown,
+          // Конвертируем warmup/cooldown в массив строк для совместимости с фронтендом
+          warmup: [
+            `${generated.warmup.duration} минут`,
+            generated.warmup.guidelines
+          ],
+          cooldown: [
+            `${generated.cooldown.duration} минут`,
+            generated.cooldown.guidelines
+          ],
           exercises: generated.exercises,
           totalSets: generated.totalSets,
           totalExercises: generated.totalExercises,
           estimatedDuration: generated.estimatedDuration,
-          notes: generated.scientificNotes,
+          notes: generated.scientificNotes?.join('\n') || '',
           adaptationNotes: generated.adaptationNotes,
           warnings: generated.warnings,
         };
