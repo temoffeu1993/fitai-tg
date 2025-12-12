@@ -37,18 +37,33 @@ onboarding.post(
 
     const experience = d?.experience?.level ?? d?.experience ?? null;
 
+    // Сохраняем данные в той же структуре, что и ожидает фронтенд
     const summary = {
-      name: d?.profile?.name ?? null,
-      sex: d?.ageSex?.sex ?? null,
-      age: d?.ageSex?.age ?? null,
-      height: d?.body?.height ?? null,
-      weight: d?.body?.weight ?? null,
+      profile: {
+        name: d?.profile?.name ?? null,
+      },
+      ageSex: {
+        sex: d?.ageSex?.sex ?? null,
+        age: d?.ageSex?.age ?? null,
+      },
+      body: {
+        height: d?.body?.height ?? null,
+        weight: d?.body?.weight ?? null,
+      },
+      schedule: {
+        daysPerWeek: d?.schedule?.daysPerWeek ?? d?.schedule?.perWeek ?? null,
+        perWeek: d?.schedule?.perWeek ?? d?.schedule?.daysPerWeek ?? null,
+        minutesPerSession: d?.schedule?.minutesPerSession ?? d?.schedule?.minutes ?? null,
+        minutes: d?.schedule?.minutes ?? d?.schedule?.minutesPerSession ?? null,
+      },
       experience,
       equipment,
-      lifestyle: null,
+      equipmentItems: equipment,
+      environment: d?.environment ?? { location: "gym", bodyweightOnly: false },
+      health: d?.health ?? null,
+      lifestyle: d?.lifestyle ?? null,
       dietPrefs: d?.dietPrefs ?? null,
       motivation: d?.motivation ?? null,
-      environment: { location: "gym", bodyweightOnly: false },
       goals: d?.goals ?? null,
     };
 
