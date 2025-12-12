@@ -1236,22 +1236,38 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
   const experience = profile.trainingStatus; // beginner/intermediate/advanced
   
   // Маппинг текстовых целей из онбординга на enum'ы схем
+  // Приоритет: точное совпадение enum → текстовые описания → ключевые слова
   const rawGoal = (profile.goals[0] || "").toLowerCase();
   let mappedGoal: OnboardingGoal = "health_wellness";
   
-  if (rawGoal.includes("масс") || rawGoal.includes("объ") || rawGoal.includes("muscle") || rawGoal === "build_muscle") {
+  // Прямые enum значения
+  if (rawGoal === "build_muscle") mappedGoal = "build_muscle";
+  else if (rawGoal === "lose_weight") mappedGoal = "lose_weight";
+  else if (rawGoal === "strength") mappedGoal = "strength";
+  else if (rawGoal === "athletic_body") mappedGoal = "athletic_body";
+  else if (rawGoal === "lower_body_focus") mappedGoal = "lower_body_focus";
+  else if (rawGoal === "health_wellness") mappedGoal = "health_wellness";
+  // Текстовые описания из goalDescriptions (точные фразы)
+  else if (rawGoal.includes("набрать мышечную массу") || rawGoal.includes("увеличить объём мышц")) {
     mappedGoal = "build_muscle";
-  } else if (rawGoal.includes("похуд") || rawGoal.includes("жир") || rawGoal.includes("weight") || rawGoal === "lose_weight") {
+  } else if (rawGoal.includes("похудеть и улучшить композицию") || rawGoal.includes("сбросить лишний вес")) {
     mappedGoal = "lose_weight";
-  } else if (rawGoal.includes("сил") || rawGoal.includes("strength") || rawGoal === "strength") {
-    mappedGoal = "strength";
-  } else if (rawGoal.includes("рельеф") || rawGoal.includes("тонус") || rawGoal.includes("athletic") || rawGoal === "athletic_body") {
+  } else if (rawGoal.includes("спортивное подтянутое тело") || rawGoal.includes("улучшить рельеф и тонус")) {
     mappedGoal = "athletic_body";
-  } else if (rawGoal.includes("ног") || rawGoal.includes("ягодиц") || rawGoal.includes("lower") || rawGoal === "lower_body_focus") {
+  } else if (rawGoal.includes("акцент на развитие ног и ягодиц") || rawGoal.includes("сильная и красивая нижняя часть тела")) {
     mappedGoal = "lower_body_focus";
-  } else if (rawGoal.includes("здоров") || rawGoal.includes("самочув") || rawGoal.includes("wellness") || rawGoal === "health_wellness") {
+  } else if (rawGoal.includes("стать сильнее и выносливее") || rawGoal.includes("повысить силовые показатели")) {
+    mappedGoal = "strength";
+  } else if (rawGoal.includes("улучшить здоровье и самочувствие") || rawGoal.includes("больше энергии, здоровые суставы")) {
     mappedGoal = "health_wellness";
   }
+  // Fallback: ключевые слова
+  else if (rawGoal.includes("масс") || rawGoal.includes("объ")) mappedGoal = "build_muscle";
+  else if (rawGoal.includes("похуд") || rawGoal.includes("вес")) mappedGoal = "lose_weight";
+  else if (rawGoal.includes("рельеф") || rawGoal.includes("тонус") || rawGoal.includes("спортивн")) mappedGoal = "athletic_body";
+  else if (rawGoal.includes("ног") || rawGoal.includes("ягодиц")) mappedGoal = "lower_body_focus";
+  else if (rawGoal.includes("сил") || rawGoal.includes("выносл")) mappedGoal = "strength";
+  else if (rawGoal.includes("здоров") || rawGoal.includes("самочув")) mappedGoal = "health_wellness";
   
   const sex = profile.sex === "male" ? "male" : profile.sex === "female" ? "female" : null;
   
