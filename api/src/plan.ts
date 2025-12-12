@@ -3322,10 +3322,27 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           preferences: [],
         };
 
+        // Подготовка истории для AI
+        const recentExercises = history.slice(0, 3).flatMap(s => 
+          s.exercises.map(e => e.name)
+        );
+        const weightHistory: Record<string, string> = {};
+        history.forEach(session => {
+          session.exercises.forEach(ex => {
+            if (ex.weight && !weightHistory[ex.name]) {
+              weightHistory[ex.name] = String(ex.weight);
+            }
+          });
+        });
+
         const generated = await buildWorkoutFromRules({
           templateRules,
           userProfile: userProfileForRules,
           checkIn: checkIn || undefined,
+          history: {
+            recentExercises,
+            weightHistory
+          }
         });
 
         const planned = {

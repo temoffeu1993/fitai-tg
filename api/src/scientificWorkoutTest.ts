@@ -65,7 +65,7 @@ scientificWorkoutTest.post(
     // Генерация
     const templateRules = TEMPLATES[template as keyof typeof TEMPLATES];
     
-    const workout = buildWorkoutFromRules({
+    const workout = await buildWorkoutFromRules({
       templateRules,
       userProfile: profile as UserProfile,
       checkIn: checkIn as CheckInData | undefined
@@ -149,8 +149,8 @@ scientificWorkoutTest.post(
       }
     ];
     
-    const results = profiles.map(profile => {
-      const workout = buildWorkoutFromRules({
+    const results = await Promise.all(profiles.map(async (profile) => {
+      const workout = await buildWorkoutFromRules({
         templateRules,
         userProfile: profile
       });
@@ -162,7 +162,7 @@ scientificWorkoutTest.post(
         duration: workout.estimatedDuration,
         notes: workout.scientificNotes
       };
-    });
+    }));
     
     return res.json({
       template: {
@@ -198,8 +198,8 @@ scientificWorkoutTest.post(
     
     const goals: TrainingGoal[] = ["strength", "hypertrophy", "metabolic", "athletic"];
     
-    const results = goals.map(goal => {
-      const workout = buildWorkoutFromRules({
+    const results = await Promise.all(goals.map(async (goal) => {
+      const workout = await buildWorkoutFromRules({
         templateRules,
         userProfile: {
           experience: experience as ExperienceLevel,
@@ -214,14 +214,14 @@ scientificWorkoutTest.post(
         exercises: workout.totalExercises,
         sets: workout.totalSets,
         duration: workout.estimatedDuration,
-        exerciseDetails: workout.exercises.map(ex => ({
+        exerciseDetails: workout.exercises.map((ex: any) => ({
           name: ex.name,
           sets: ex.sets,
           reps: ex.reps,
           rest: ex.rest
         }))
       };
-    });
+    }));
     
     return res.json({
       template: {
@@ -257,8 +257,8 @@ scientificWorkoutTest.post(
     
     const timeOptions = [45, 60, 75, 90];
     
-    const results = timeOptions.map(timeAvailable => {
-      const workout = buildWorkoutFromRules({
+    const results = await Promise.all(timeOptions.map(async (timeAvailable) => {
+      const workout = await buildWorkoutFromRules({
         templateRules,
         userProfile: {
           experience: experience as ExperienceLevel,
@@ -273,9 +273,9 @@ scientificWorkoutTest.post(
         exercises: workout.totalExercises,
         sets: workout.totalSets,
         actualDuration: workout.estimatedDuration,
-        exerciseNames: workout.exercises.map(ex => ex.name)
+        exerciseNames: workout.exercises.map((ex: any) => ex.name)
       };
-    });
+    }));
     
     return res.json({
       template: {

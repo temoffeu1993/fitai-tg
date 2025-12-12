@@ -1,6 +1,8 @@
 // Сборка конкретной тренировки из гибких правил + профиль пользователя
 // ============================================================================
 
+import OpenAI from "openai";
+import { config } from "./config.js";
 import { DayTemplateRules, ExerciseBlockRule } from "./flexibleTemplates.js";
 import { 
   generateWorkoutRules, 
@@ -10,8 +12,9 @@ import {
   ExerciseBlockAllocation
 } from "./trainingRulesEngine.js";
 import { CheckInData, CheckInAnalysis, analyzeCheckIn } from "./checkInAdapter.js";
-import { DayTemplate, ExerciseBlock } from "./workoutTemplates.js";
-import { selectExerciseByPattern } from "./exerciseDatabase.js";
+import { DayTemplate, ExerciseBlock, MOVEMENT_PATTERNS_DB } from "./workoutTemplates.js";
+
+const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 
 // ============================================================================
 // ТИПЫ
@@ -55,13 +58,14 @@ export type ConcreteWorkoutPlan = {
 export type ConcreteExercise = {
   priority: number;
   role: string;
-  name: string;                 // Название блока (будет заменено AI на конкретное упражнение)
+  name: string;                 // Конкретное упражнение (подобрано AI)
   movementPattern: string;
   targetMuscles: string[];
   sets: number;
   reps: string;
   rest: number;
   notes?: string;
+  weight?: string;              // Рекомендуемый вес (подобран AI на основе истории)
 };
 
 // ============================================================================
@@ -75,16 +79,20 @@ export type ConcreteExercise = {
  * 1. Анализирует чекин (если есть) → режим тренировки
  * 2. Применяет научные формулы → целевой объем
  * 3. Фильтрует блоки по приоритетам → подходящие упражнения
- * 4. Распределяет объем → конкретные подходы/повторения
+ * 4. AI подбирает конкретные упражнения (с учётом истории, травм, прогресса)
  * 5. Возвращает готовый план
  */
-export function buildWorkoutFromRules(params: {
+export async function buildWorkoutFromRules(params: {
   templateRules: DayTemplateRules;
   userProfile: UserProfile;
   checkIn?: CheckInData;
-}): ConcreteWorkoutPlan {
+  history?: {
+    recentExercises: string[];
+    weightHistory: Record<string, string>;
+  };
+}): Promise<ConcreteWorkoutPlan> {
   
-  const { templateRules, userProfile, checkIn } = params;
+  const { templateRules, userProfile, checkIn, history } = params;
   
   console.log("\n🏗️  СБОРКА ТРЕНИРОВКИ ИЗ НАУЧНЫХ ПРАВИЛ");
   console.log(`Template: ${templateRules.name}`);
@@ -169,12 +177,13 @@ export function buildWorkoutFromRules(params: {
   
   console.log("\n📊 Распределение объема между упражнениями...");
   
-  const concreteExercises = distributeVolumeToBlocks({
+  const concreteExercises = await selectExercisesWithAI({
     blocks: filteredBlocks,
     allocations: workoutRules.exerciseAllocations,
     goalParameters: workoutRules.goalParameters,
     checkInAnalysis,
-    userLevel: userProfile.experience
+    userProfile,
+    history: history || { recentExercises: [], weightHistory: {} }
   });
   
   console.log(`✓ Сгенерировано упражнений: ${concreteExercises.length}`);
@@ -323,65 +332,291 @@ function filterExerciseBlocks(params: {
 }
 
 /**
- * Распределяет объем (подходы, повторения, отдых) между блоками
+ * AI подбирает конкретные упражнения с учётом истории, травм и научных параметров
  */
-function distributeVolumeToBlocks(params: {
+async function selectExercisesWithAI(params: {
   blocks: ExerciseBlockRule[];
   allocations: ExerciseBlockAllocation[];
   goalParameters: any;
   checkInAnalysis: CheckInAnalysis | null;
-  userLevel: ExperienceLevel;
-}): ConcreteExercise[] {
+  userProfile: UserProfile;
+  history: {
+    recentExercises: string[];
+    weightHistory: Record<string, string>;
+  };
+}): Promise<ConcreteExercise[]> {
   
-  const { blocks, allocations, goalParameters, checkInAnalysis, userLevel } = params;
+  const { blocks, allocations, goalParameters, checkInAnalysis, userProfile, history } = params;
   
-  const exercises: ConcreteExercise[] = [];
-  const usedExercises = new Set<string>();
+  console.log("\n🤖 AI подбор упражнений (профессиональный подход)...");
   
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    const allocation = allocations[i];
+  // Собираем информацию для каждого блока
+  const blocksInfo = blocks.map((block, idx) => {
+    const allocation = allocations[idx];
+    if (!allocation) return null;
     
-    if (!allocation) {
-      console.warn(`  ⚠️  Нет allocation для блока ${i}`);
-      continue;
-    }
-    
-    // Базовые параметры из allocation
+    // Применяем адаптацию чекина
     let sets = allocation.sets;
     let reps = allocation.reps;
     let rest = allocation.rest;
     
-    // Корректировка под чекин
     if (checkInAnalysis && checkInAnalysis.mode !== "normal") {
       sets = Math.max(1, Math.round(sets * checkInAnalysis.volumeMultiplier));
       rest = Math.round(rest * checkInAnalysis.restMultiplier);
     }
     
-    // 🔥 ПОДБОР КОНКРЕТНОГО УПРАЖНЕНИЯ ПО ПАТТЕРНУ
-    const concreteName = selectExerciseByPattern(
-      block.movementPattern as any,
-      userLevel,
-      usedExercises
-    );
-    usedExercises.add(concreteName);
+    // Список доступных упражнений из базы движений
+    const availableExercises = MOVEMENT_PATTERNS_DB[block.movementPattern] || [];
     
-    console.log(`  ✓ Блок "${block.name}" → Упражнение: "${concreteName}"`);
-    
-    exercises.push({
-      priority: block.priority,
+    return {
+      blockIndex: idx + 1,
       role: block.role,
-      name: concreteName,  // ← Теперь конкретное название!
+      name: block.name,
       movementPattern: block.movementPattern,
       targetMuscles: block.targetMuscles,
       sets,
       reps,
       rest,
-      notes: block.notes
-    });
-  }
+      notes: block.notes,
+      availableExercises: availableExercises.slice(0, 15), // Ограничим для промпта
+      priority: block.priority
+    };
+  }).filter(Boolean);
   
-  return exercises;
+  // Строим промпт
+  const prompt = buildProfessionalPrompt(blocksInfo, userProfile, history, checkInAnalysis);
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Ты элитный персональный тренер с 15+ годами опыта работы с профессиональными спортсменами и обычными людьми.
+
+ТВОЯ ЗАДАЧА: Подобрать конкретные упражнения для научно обоснованной тренировки.
+
+ПРИНЦИПЫ РАБОТЫ:
+1. ПРОФЕССИОНАЛИЗМ: Это реальная тренировка, а не щадящая зарядка. Нагрузка должна быть адекватной целям.
+2. ПЕРСОНАЛИЗАЦИЯ: Учитывай историю, прогресс, травмы, текущее состояние.
+3. РАЗНООБРАЗИЕ: Не повторяй упражнения из последних 2-3 тренировок.
+4. ПРОГРЕССИЯ: Постепенно усложняй нагрузку (больше вес, сложнее упражнения).
+5. БЕЗОПАСНОСТЬ: Учитывай травмы и ограничения, но не делай тренировку бесполезной.
+6. НАУЧНОСТЬ: Подбирай веса на основе истории, давай конкретные технические указания.
+
+ВАЖНО:
+- Выбирай упражнения ТОЛЬКО из предоставленного списка доступных
+- Для каждого упражнения дай 1-2 ключевых технических момента (cues)
+- Подбери вес на основе истории (если есть) или дай рекомендацию
+- Не бойся давать нагрузку - люди приходят за результатом, а не за имитацией
+
+Возвращай ТОЛЬКО валидный JSON, без markdown и пояснений.`
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+    
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("AI не вернул ответ");
+    }
+    
+    const result = JSON.parse(content);
+    
+    if (!result.exercises || !Array.isArray(result.exercises)) {
+      throw new Error("AI вернул некорректный формат");
+    }
+    
+    // Преобразуем в наш формат
+    const exercises: ConcreteExercise[] = result.exercises.map((ex: any) => {
+      const blockInfo = blocksInfo.find((b: any) => b.blockIndex === ex.blockIndex);
+      if (!blockInfo) {
+        throw new Error(`AI вернул блок ${ex.blockIndex}, которого нет в списке`);
+      }
+      
+      console.log(`  ✓ Блок ${ex.blockIndex} "${blockInfo.name}" → "${ex.name}" (${ex.weight || 'без веса'})`);
+      
+      return {
+        priority: blockInfo.priority,
+        role: blockInfo.role,
+        name: ex.name,
+        movementPattern: blockInfo.movementPattern,
+        targetMuscles: blockInfo.targetMuscles,
+        sets: blockInfo.sets,
+        reps: blockInfo.reps,
+        rest: blockInfo.rest,
+        notes: ex.cues || ex.technique || blockInfo.notes,
+        weight: ex.weight
+      };
+    });
+    
+    return exercises;
+    
+  } catch (error) {
+    console.error("❌ Ошибка AI подбора:", error);
+    console.log("⚠️  Используем fallback - простой подбор");
+    
+    // Fallback: простой подбор первых доступных упражнений
+    return blocksInfo.map((blockInfo: any) => ({
+      priority: blockInfo.priority,
+      role: blockInfo.role,
+      name: blockInfo.availableExercises[0] || `Упражнение на ${blockInfo.movementPattern}`,
+      movementPattern: blockInfo.movementPattern,
+      targetMuscles: blockInfo.targetMuscles,
+      sets: blockInfo.sets,
+      reps: blockInfo.reps,
+      rest: blockInfo.rest,
+      notes: blockInfo.notes
+    }));
+  }
+}
+
+/**
+ * Строит профессиональный промпт для AI с учётом всех данных
+ */
+function buildProfessionalPrompt(
+  blocksInfo: any[],
+  userProfile: UserProfile,
+  history: { recentExercises: string[]; weightHistory: Record<string, string> },
+  checkInAnalysis: CheckInAnalysis | null
+): string {
+  
+  return `
+# СТРУКТУРА ТРЕНИРОВКИ
+
+${blocksInfo.map(b => `
+## БЛОК ${b.blockIndex}: ${b.name}
+- Роль: ${b.role} (приоритет ${b.priority})
+- Паттерн движения: ${b.movementPattern}
+- Целевые мышцы: ${b.targetMuscles.join(", ")}
+- Параметры: ${b.sets} подходов × ${b.reps} повторений, отдых ${b.rest} сек
+- Заметки тренера: ${b.notes || "нет"}
+
+ДОСТУПНЫЕ УПРАЖНЕНИЯ:
+${b.availableExercises.map((ex: string, idx: number) => `${idx + 1}. ${ex}`).join("\n")}
+`).join("\n")}
+
+---
+
+# ПРОФИЛЬ КЛИЕНТА
+
+- Уровень: ${userProfile.experience} (beginner/intermediate/advanced)
+- Цель: ${userProfile.goal}
+- Время на тренировку: ${userProfile.timeAvailable} минут
+- Частота тренировок: ${userProfile.daysPerWeek} раз/нед
+${userProfile.injuries?.length ? `- ⚠️ ТРАВМЫ/ОГРАНИЧЕНИЯ: ${userProfile.injuries.join(", ")}` : "- Травм нет"}
+${userProfile.preferences?.length ? `- Предпочтения: ${userProfile.preferences.join(", ")}` : ""}
+
+---
+
+# ИСТОРИЯ ТРЕНИРОВОК
+
+## Недавние упражнения (НЕ ПОВТОРЯТЬ!):
+${history.recentExercises.length > 0 
+  ? history.recentExercises.slice(0, 15).map((ex, i) => `${i + 1}. ${ex}`).join("\n")
+  : "История пуста - первая тренировка"
+}
+
+## История весов:
+${Object.keys(history.weightHistory).length > 0
+  ? Object.entries(history.weightHistory)
+      .slice(0, 10)
+      .map(([ex, weight]) => `- ${ex}: ${weight}`)
+      .join("\n")
+  : "Весов в истории нет - подбери стартовые рекомендации"
+}
+
+---
+
+${checkInAnalysis ? `
+# АДАПТАЦИЯ ПОД ЧЕКИН
+
+- Режим: ${checkInAnalysis.mode.toUpperCase()} (normal/light/recovery/push)
+${checkInAnalysis.mode === "recovery" ? `
+  ⚠️ ВОССТАНОВИТЕЛЬНЫЙ РЕЖИМ:
+  - Снижен объём на 50%
+  - Снижена интенсивность
+  - Увеличен отдых
+  - ВАЖНО: Тренировка должна быть ЛЁГКОЙ, но не бесполезной
+` : checkInAnalysis.mode === "light" ? `
+  ⚠️ ОБЛЕГЧЁННЫЙ РЕЖИМ:
+  - Снижен объём на 30%
+  - Немного снижена интенсивность
+  - Фокус на технику и контроль
+` : checkInAnalysis.mode === "push" ? `
+  💪 УСИЛЕННЫЙ РЕЖИМ:
+  - Отличное состояние клиента
+  - Можно дать немного больше нагрузки
+  - Время попробовать что-то новое или увеличить вес
+` : ""}
+
+${checkInAnalysis.excludedZones.length > 0 ? `- ⛔ ИСКЛЮЧИТЬ ЗОНЫ: ${checkInAnalysis.excludedZones.join(", ")}` : ""}
+${checkInAnalysis.avoidExercises.length > 0 ? `- ⛔ ИЗБЕГАТЬ ДВИЖЕНИЙ: ${checkInAnalysis.avoidExercises.join(", ")}` : ""}
+${checkInAnalysis.warnings.length > 0 ? `- ⚠️ ПРЕДУПРЕЖДЕНИЯ:\n${checkInAnalysis.warnings.map(w => `  - ${w}`).join("\n")}` : ""}
+
+Рекомендация: ${checkInAnalysis.recommendation}
+` : "Чекин не пройден - стандартная нагрузка"}
+
+---
+
+# ЗАДАЧА
+
+Для КАЖДОГО блока подбери ОДНО конкретное упражнение из списка доступных.
+
+## ПРАВИЛА ПОДБОРА:
+
+1. **РАЗНООБРАЗИЕ**: Не повторяй упражнения из последних 2-3 тренировок
+2. **ПРОГРЕССИЯ**: 
+   - Если есть история с весом → предложи тот же вес или чуть больше (+2.5-5кг)
+   - Если истории нет → дай рекомендацию стартового веса
+3. **БЕЗОПАСНОСТЬ**: 
+   - Учитывай травмы и исключенные зоны
+   - Для новичков (beginner): проще упражнения (машины, гантели)
+   - Для intermediate/advanced: свободные веса приветствуются
+4. **ПРОФЕССИОНАЛИЗМ**: 
+   - Это не щадящая зарядка - нагрузка должна быть ощутимой
+   - Восстановительный режим ≠ бесполезная тренировка
+   - Даже в light режиме упражнения должны быть эффективными
+5. **ТЕХНИКА**: 
+   - Для каждого упражнения дай 1-2 ключевых технических момента
+   - Будь конкретным: "лопатки сведены", "локти под 45°", а не "следи за техникой"
+
+---
+
+# ФОРМАТ ОТВЕТА
+
+Верни JSON в точно таком формате:
+
+{
+  "exercises": [
+    {
+      "blockIndex": 1,
+      "name": "Жим штанги лёжа",
+      "weight": "60 кг",
+      "cues": "Лопатки сведены и прижаты, ноги упираются в пол, локти под 45° к корпусу",
+      "reasoning": "Есть история 57.5 кг → можно +2.5 кг"
+    },
+    {
+      "blockIndex": 2,
+      "name": "Жим гантелей на наклонной 30°",
+      "weight": "2×20 кг",
+      "cues": "Полная амплитуда, контролируй негативную фазу (3 сек вниз)",
+      "reasoning": "Верх груди, не было в последних тренировках"
+    }
+  ]
+}
+
+**ВАЖНО**: 
+- Возвращай ТОЛЬКО JSON
+- Количество exercises = ${blocksInfo.length} (по одному на каждый блок)
+- blockIndex должен совпадать с номерами блоков выше
+- НЕ добавляй markdown форматирование
+`.trim();
 }
 
 /**
