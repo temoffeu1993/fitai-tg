@@ -399,12 +399,43 @@ function buildProfessionalPrompt(
     }))
   );
   
-  // Группируем по типу для удобства AI
-  const availableExercises = {
-    compound: allExercises.filter(ex => ex.type === 'compound'),
-    secondary: allExercises.filter(ex => ex.type === 'secondary'),
-    isolation: allExercises.filter(ex => ex.type === 'isolation')
+  console.log(`\n📊 Упражнений ДО фильтрации: ${allExercises.length}`);
+  
+  // 🎯 УМНАЯ ПРЕДФИЛЬТРАЦИЯ (экономия токенов!)
+  const recentExercisesSet = new Set(history.recentExercises.map(ex => ex.toLowerCase().trim()));
+  
+  const filterByExperience = (exercises: any[]) => {
+    // Фильтруем по уровню сложности
+    let filtered = exercises;
+    
+    if (userProfile.experience === 'beginner') {
+      // Новичкам только beginner и intermediate
+      filtered = exercises.filter(ex => ex.difficulty === 'beginner' || ex.difficulty === 'intermediate');
+    } else if (userProfile.experience === 'intermediate') {
+      // Средним только intermediate (немного beginner для разнообразия)
+      filtered = exercises.filter(ex => ex.difficulty === 'beginner' || ex.difficulty === 'intermediate' || ex.difficulty === 'advanced');
+    }
+    // advanced получают всё
+    
+    // Приоритизируем: недавно НЕ использованные идут первыми
+    const notRecent = filtered.filter(ex => !recentExercisesSet.has(ex.name.toLowerCase().trim()));
+    const recent = filtered.filter(ex => recentExercisesSet.has(ex.name.toLowerCase().trim()));
+    
+    return [...notRecent, ...recent]; // Сначала новые, потом старые
   };
+  
+  // Группируем по типу + фильтруем + лимитируем
+  const availableExercises = {
+    compound: filterByExperience(allExercises.filter(ex => ex.type === 'compound')).slice(0, 8),
+    secondary: filterByExperience(allExercises.filter(ex => ex.type === 'secondary')).slice(0, 8),
+    isolation: filterByExperience(allExercises.filter(ex => ex.type === 'isolation')).slice(0, 10)
+  };
+  
+  const totalAfter = availableExercises.compound.length + availableExercises.secondary.length + availableExercises.isolation.length;
+  const savedPercent = Math.round((1 - totalAfter / allExercises.length) * 100);
+  
+  console.log(`📊 Упражнений ПОСЛЕ фильтрации: ${totalAfter} (compound=${availableExercises.compound.length}, secondary=${availableExercises.secondary.length}, isolation=${availableExercises.isolation.length})`);
+  console.log(`💰 Экономия токенов: ${savedPercent}% (${allExercises.length} → ${totalAfter} упражнений)\n`);
   
   // Вычисляем целевые объёмы для мышечных групп
   const volumeTargets = calculateVolumeTargets(rules, userProfile);
