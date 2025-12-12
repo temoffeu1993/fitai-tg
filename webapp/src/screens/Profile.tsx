@@ -57,10 +57,20 @@ export default function Profile() {
       setSummary(raw ? JSON.parse(raw) : null);
     } catch { setSummary(null); }
 
+    // Получаем данные из Telegram WebApp
     try {
-      const rawProfile = localStorage.getItem("profile");
-      setTgProfile(rawProfile ? JSON.parse(rawProfile) : null);
-    } catch {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.initDataUnsafe?.user) {
+        setTgProfile({
+          id: tg.initDataUnsafe.user.id,
+          first_name: tg.initDataUnsafe.user.first_name,
+          last_name: tg.initDataUnsafe.user.last_name,
+          username: tg.initDataUnsafe.user.username,
+          photo_url: tg.initDataUnsafe.user.photo_url,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to get Telegram profile:", err);
       setTgProfile(null);
     }
 
@@ -89,8 +99,8 @@ export default function Profile() {
   const weight = safeNum(onb?.body?.weight, "кг");
 
   const expText = expRus(onb.experience);
-  const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek;
-  const minutes = undefined;
+  const perWeek = onb?.schedule?.perWeek ?? onb?.schedule?.daysPerWeek ?? onb?.daysPerWeek;
+  const minutes = onb?.schedule?.minutesPerSession ?? onb?.schedule?.minutes ?? onb?.schedule?.sessionMinutes;
 
   const equipmentText = equipmentSummary(onb.environment, onb.equipmentItems ?? onb.equipment);
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
