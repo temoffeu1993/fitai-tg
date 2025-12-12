@@ -10,6 +10,7 @@ import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
 import { ensureSubscription } from "./subscription.js";
+import { workoutSchemes } from "./workoutSchemes.js";
 
 export const plan = Router();
 
@@ -1228,6 +1229,86 @@ function normalizeList(value: any): string[] {
   return [];
 }
 
+// Автоматический подбор схемы из профессиональных схем
+async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | null> {
+  const daysPerWeek = profile.daysPerWeek;
+  const experience = profile.trainingStatus; // beginner/intermediate/advanced
+  const goal = profile.goals[0] || "health_wellness"; // первая цель как основная
+  const sex = profile.sex === "male" ? "male" : profile.sex === "female" ? "female" : null;
+  
+  console.log(`[SCHEME AUTO-SELECT] Подбираем схему для: ${daysPerWeek} дней, ${experience}, цель: ${goal}`);
+  
+  // Фильтруем подходящие схемы
+  const candidateSchemes = workoutSchemes.filter(scheme => {
+    // 1. Точное совпадение по количеству дней
+    if (scheme.daysPerWeek !== daysPerWeek) return false;
+    
+    // 2. Опыт должен совпадать
+    if (!scheme.experienceLevels.includes(experience)) return false;
+    
+    // 3. Цель должна совпадать
+    if (!scheme.goals.includes(goal)) return false;
+    
+    return true;
+  });
+  
+  if (candidateSchemes.length === 0) {
+    console.log(`[SCHEME AUTO-SELECT] ❌ Подходящих схем не найдено`);
+    return null;
+  }
+  
+  // Скоринг схем для выбора лучшей
+  function scoreScheme(scheme: any): number {
+    let score = 0;
+    
+    // Соответствие полу (вес: 15)
+    if (scheme.targetSex === 'any') score += 10;
+    else if (scheme.targetSex === sex) score += 15;
+    
+    // Соответствие интенсивности опыту (вес: 20)
+    if (experience === 'beginner' && scheme.intensity === 'low') score += 20;
+    else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 20;
+    else if (experience === 'advanced' && scheme.intensity === 'high') score += 20;
+    else if (scheme.intensity === 'moderate') score += 10; // универсальная интенсивность
+    
+    // Бонусы за специфические комбинации (вес: до 15)
+    if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 15;
+    if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.name.includes('Strength'))) score += 15;
+    if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 12;
+    if (goal === 'lose_weight' && (scheme.name.includes('Fat Loss') || scheme.name.includes('Metabolic'))) score += 15;
+    
+    return score;
+  }
+  
+  // Сортируем и выбираем лучшую
+  const scoredSchemes = candidateSchemes
+    .map(s => ({ scheme: s, score: scoreScheme(s) }))
+    .sort((a, b) => b.score - a.score);
+  
+  const bestScheme = scoredSchemes[0].scheme;
+  
+  console.log(`[SCHEME AUTO-SELECT] ✅ Выбрана схема: "${bestScheme.name}" (score: ${scoredSchemes[0].score})`);
+  
+  // Конвертируем схему в Blueprint
+  const blueprint: Blueprint = {
+    name: bestScheme.russianName || bestScheme.name,
+    days: bestScheme.dayLabels.map(d => ({
+      label: d.label,
+      focus: d.focus
+    })),
+    description: bestScheme.description,
+    meta: {
+      daysPerWeek: bestScheme.daysPerWeek,
+      goals: bestScheme.goals,
+      location: "gym",
+      trainingStatus: experience,
+      createdAt: new Date().toISOString(),
+    },
+  };
+  
+  return blueprint;
+}
+
 // AI генерация blueprint + fallback
 async function generateBlueprintWithAI(profile: Profile, onboarding: any): Promise<Blueprint> {
   const limitations = profile.chronicLimitations || [];
@@ -1462,13 +1543,26 @@ async function getOrCreateProgram(
     console.log(`  Новые: ${profile.daysPerWeek} дней, цели: ${profile.goals.join(", ")}`);
   }
 
-  // Генерация blueprint через AI с fallback
-  let blueprint: Blueprint;
+  // ПРИОРИТЕТ 1: Пытаемся автоматически подобрать схему из профессиональных
+  let blueprint: Blueprint | null = null;
   try {
-    blueprint = await generateBlueprintWithAI(profile, onboarding);
+    blueprint = await findBestSchemeForProfile(profile);
+    if (blueprint) {
+      console.log(`[PROGRAM] 🎯 Автоматически подобрана схема: "${blueprint.name}"`);
+    }
   } catch (err) {
-    console.error("[PROGRAM] ❌ AI blueprint generation failed, using rule-based fallback:", err);
-    blueprint = createBlueprintRuleBased(profile, onboarding);
+    console.error("[PROGRAM] ❌ Scheme auto-selection failed:", err);
+  }
+
+  // ПРИОРИТЕТ 2: Если схема не найдена - генерируем через AI
+  if (!blueprint) {
+    console.log("[PROGRAM] 🤖 Схема не найдена, генерируем через AI...");
+    try {
+      blueprint = await generateBlueprintWithAI(profile, onboarding);
+    } catch (err) {
+      console.error("[PROGRAM] ❌ AI blueprint generation failed, using rule-based fallback:", err);
+      blueprint = createBlueprintRuleBased(profile, onboarding);
+    }
   }
 
   if (existing && existing[0]) {
