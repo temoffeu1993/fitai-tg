@@ -210,9 +210,9 @@ async function callAIForWorkout(context: WorkoutGenerationContext): Promise<{
       name: ex.name,
       sets: ex.sets,
       reps: ex.reps,
-      rest: ex.rest,
+      restSec: ex.rest, // Фронтенд ожидает restSec, а не rest
       weight: ex.weight,
-      notes: ex.cues || ex.technique || ex.notes || "",
+      cues: ex.cues || ex.technique || ex.notes || "", // Фронтенд ожидает cues, а не notes
       targetMuscles: ex.targetMuscles || []
     }));
     
