@@ -79,17 +79,130 @@ export const LOWER_BODY_RULES: DayTrainingRules = {
 };
 
 // ============================================================================
+// ВАРИАЦИИ ДЛЯ СХЕМ С ПОВТОРЯЮЩИМИСЯ ДНЯМИ (A/B)
+// ============================================================================
+
+/**
+ * UPPER A - Акцент на грудь и горизонтальные жимы
+ */
+export const UPPER_A_RULES: DayTrainingRules = {
+  name: "Upper A",
+  focus: "Верх тела с акцентом на грудь и горизонтальные движения",
+  description: "Начинаем с горизонтальных жимов для груди, затем горизонтальные тяги для спины, жимы на плечи, работа на руки. Баланс push/pull."
+};
+
+/**
+ * UPPER B - Акцент на спину и вертикальные движения
+ */
+export const UPPER_B_RULES: DayTrainingRules = {
+  name: "Upper B",
+  focus: "Верх тела с акцентом на спину и вертикальные движения",
+  description: "Начинаем с вертикальных тяг для спины, затем вертикальные жимы для плеч, наклонные жимы для груди, работа на руки. Другие углы нагрузки."
+};
+
+/**
+ * LOWER A - Акцент на квадрицепсы (коленодоминантные)
+ */
+export const LOWER_A_RULES: DayTrainingRules = {
+  name: "Lower A",
+  focus: "Низ тела с акцентом на квадрицепсы и коленодоминантные движения",
+  description: "Приседания, фронтальные приседания, жим ногами, разгибания ног. Икры. Упор на переднюю поверхность бедра."
+};
+
+/**
+ * LOWER B - Акцент на ягодицы и заднюю цепь (тазодоминантные)
+ */
+export const LOWER_B_RULES: DayTrainingRules = {
+  name: "Lower B",
+  focus: "Низ тела с акцентом на ягодицы и заднюю поверхность бедра",
+  description: "Румынская становая, ягодичный мост, выпады, сгибания ног. Упор на заднюю цепь и ягодицы."
+};
+
+/**
+ * PUSH A - Акцент на грудь и тяжелые жимы
+ */
+export const PUSH_A_RULES: DayTrainingRules = {
+  name: "Push A",
+  focus: "Толкающие движения с акцентом на грудь и силовые жимы",
+  description: "Тяжелые жимы лёжа, наклонные жимы, базовые жимы для плеч, трицепс. Акцент на силу и базовые движения."
+};
+
+/**
+ * PUSH B - Акцент на плечи и объемная работа
+ */
+export const PUSH_B_RULES: DayTrainingRules = {
+  name: "Push B",
+  focus: "Толкающие движения с акцентом на плечи и объемную работу",
+  description: "Жимы для плеч под разными углами, вспомогательные жимы для груди, больше изоляции на дельты и трицепс. Акцент на объём и детализацию."
+};
+
+/**
+ * PULL A - Акцент на ширину спины (вертикальные тяги)
+ */
+export const PULL_A_RULES: DayTrainingRules = {
+  name: "Pull A",
+  focus: "Тянущие движения с акцентом на ширину спины",
+  description: "Подтягивания, вертикальные тяги для широчайших, горизонтальные тяги для средней спины, задние дельты, бицепс. Акцент на V-образную форму."
+};
+
+/**
+ * PULL B - Акцент на толщину спины (горизонтальные тяги)
+ */
+export const PULL_B_RULES: DayTrainingRules = {
+  name: "Pull B",
+  focus: "Тянущие движения с акцентом на толщину спины",
+  description: "Тяги в наклоне, Т-грифы, горизонтальные тяги для толщины спины, верх спины, задние дельты, бицепс. Акцент на массу и глубину."
+};
+
+/**
+ * LEGS A - Акцент на квадрицепсы и силу
+ */
+export const LEGS_A_RULES: DayTrainingRules = {
+  name: "Legs A",
+  focus: "Ноги с акцентом на квадрицепсы и силовые приседания",
+  description: "Тяжёлые приседания, фронтальные приседания, жим ногами, выпады. Икры. Упор на переднюю часть ног."
+};
+
+/**
+ * LEGS B - Акцент на ягодицы и заднюю поверхность
+ */
+export const LEGS_B_RULES: DayTrainingRules = {
+  name: "Legs B",
+  focus: "Ноги с акцентом на ягодицы и заднюю цепь",
+  description: "Румынская становая, ягодичный мост, болгарские выпады, сгибания ног. Упор на ягодицы и бицепс бедра."
+};
+
+// ============================================================================
 // БИБЛИОТЕКА: маппинг templateRulesId → правила
 // ============================================================================
 
 export const TRAINING_RULES_LIBRARY = {
+  // Базовые PPL правила
   "Push Day": PPL_PUSH_DAY_RULES,
   "Pull Day": PPL_PULL_DAY_RULES,
   "Legs Day": PPL_LEGS_DAY_RULES,
+  
+  // Full Body правила
   "Full Body": FULL_BODY_A_RULES,  // Fallback для общего Full Body
   "Full Body A": FULL_BODY_A_RULES,
   "Full Body B": FULL_BODY_B_RULES,
   "Full Body C": FULL_BODY_C_RULES,
+  
+  // Базовые Upper/Lower правила
   "Upper Body": UPPER_BODY_RULES,
-  "Lower Body": LOWER_BODY_RULES
+  "Lower Body": LOWER_BODY_RULES,
+  
+  // Вариации A/B для Upper/Lower
+  "Upper A": UPPER_A_RULES,
+  "Upper B": UPPER_B_RULES,
+  "Lower A": LOWER_A_RULES,
+  "Lower B": LOWER_B_RULES,
+  
+  // Вариации A/B для PPL
+  "Push A": PUSH_A_RULES,
+  "Push B": PUSH_B_RULES,
+  "Pull A": PULL_A_RULES,
+  "Pull B": PULL_B_RULES,
+  "Legs A": LEGS_A_RULES,
+  "Legs B": LEGS_B_RULES
 };
