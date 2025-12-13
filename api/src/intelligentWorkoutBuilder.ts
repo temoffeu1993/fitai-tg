@@ -24,6 +24,7 @@ export type UserProfile = {
   goal: TrainingGoal;
   timeAvailable: number; // минуты
   daysPerWeek: number;
+  programName?: string; // Название схемы (PPL, Upper/Lower, Full Body)
   age?: number;
   sex?: "male" | "female";
   location?: string;
@@ -277,7 +278,7 @@ function buildSimplePrompt(context: WorkoutGenerationContext): string {
 
 ## 🎯 СХЕМА ТРЕНИРОВКИ
 
-**Программа:** ${userProfile.daysPerWeek} тренировки/неделю (сплит)
+**Программа:** ${userProfile.programName || 'Сплит'} — ${userProfile.daysPerWeek} тренировки/неделю
 **Сегодняшний день:** ${rules.name}
 **Фокус:** ${rules.focus}
 **Описание:** ${rules.description}

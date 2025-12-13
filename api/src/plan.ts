@@ -3322,6 +3322,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
           timeAvailable: sessionMinutes,
           daysPerWeek: profile.daysPerWeek,
+          programName: program.blueprint_json.name, // Название схемы (PPL, Upper/Lower, etc)
         };
 
         // Подготовка истории для AI
