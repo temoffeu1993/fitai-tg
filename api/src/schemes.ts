@@ -297,7 +297,7 @@ schemes.post(
         label: d.label,
         focus: d.focus,
         // Добавляем templateRulesId для научной системы генерации
-        ...(d.templateRules ? { templateRulesId: d.templateRules.name } : {})
+        ...(d.templateRulesId ? { templateRulesId: d.templateRulesId } : {})
       })),
       description: selectedScheme.description,
       meta: {

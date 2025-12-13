@@ -1424,8 +1424,7 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
       label: d.label,
       focus: d.focus,
       // Копируем templateRulesId для научной системы v2
-      ...(d.templateRulesId ? { templateRulesId: d.templateRulesId } : 
-          d.templateRules ? { templateRulesId: d.templateRules.name } : {})
+      ...(d.templateRulesId ? { templateRulesId: d.templateRulesId } : {})
     })),
     description: bestScheme.description,
     meta: {
