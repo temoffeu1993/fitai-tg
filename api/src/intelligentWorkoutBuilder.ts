@@ -565,9 +565,24 @@ ${daysRules.map((day, i) => `
 
 **ВАЖНО:**
 - Используй ВСЁ доступное время (${userProfile.timeAvailable} минут)
-- Для advanced, hypertrophy, 90 мин — это должно быть **7-8 упражнений, 25-30 подходов**
 - Распредели недельный MAV объём правильно
 - Учти что это ${daysRules.length} дня в неделю
+
+**Ориентиры по объёму (на основе научных данных):**
+${
+  userProfile.experience === 'advanced' && userProfile.timeAvailable >= 90
+    ? '- Advanced, 90+ минут: 7-8 упражнений, 25-30 подходов за тренировку'
+    : userProfile.experience === 'advanced' && userProfile.timeAvailable >= 60
+    ? '- Advanced, 60-75 минут: 5-7 упражнений, 18-24 подходов за тренировку'
+    : userProfile.experience === 'intermediate' && userProfile.timeAvailable >= 90
+    ? '- Intermediate, 90 минут: 6-7 упражнений, 20-25 подходов за тренировку'
+    : userProfile.experience === 'intermediate' && userProfile.timeAvailable >= 60
+    ? '- Intermediate, 60-75 минут: 5-6 упражнений, 16-20 подходов за тренировку'
+    : userProfile.experience === 'beginner' && userProfile.timeAvailable >= 90
+    ? '- Beginner, 90 минут: 5-6 упражнений, 15-18 подходов за тренировку'
+    : '- Beginner, 60 минут: 4-5 упражнений, 12-15 подходов за тренировку'
+}
+*Это ориентир для достижения MAV объёма, не жёсткое правило*
 
 **Типы упражнений:**
 - **compound** (базовые многосуставные) — 3-5 подходов по 4-8 повторений, отдых 120-180 сек
