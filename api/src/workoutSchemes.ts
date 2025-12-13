@@ -27,7 +27,6 @@ export type WorkoutScheme = {
     label: string; 
     focus: string;
     template?: DayTemplate; // legacy
-    templateRules?: DayTemplateRules; // научная система (старая)
     templateRulesId?: string; // научная система v2 (ID правил из библиотеки)
   }>;
   benefits: string[];
