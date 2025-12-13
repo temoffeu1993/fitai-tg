@@ -57,22 +57,23 @@ export const PPL_PUSH_DAY_RULES: DayTrainingRules = {
     secondary: ["трицепс", "средние дельты"]
   },
   
-  // Научные целевые объёмы (MEV-MAV-MRV)
+  // Научные целевые объёмы (MEV-MAV для 1 тренировки/неделю)
+  // Источник: Research-based MAV (Maximum Adaptive Volume) с учётом синергистов
   targetMuscleVolume: {
     chest: {
-      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
-      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 9, max: 11 }, 75: { min: 10, max: 12 }, 90: { min: 11, max: 13 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 11, max: 13 }, 90: { min: 12, max: 14 } }
     },
     shoulders: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } },
+      intermediate: { 60: { min: 7, max: 9 }, 75: { min: 8, max: 10 }, 90: { min: 9, max: 11 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } }
     },
     triceps: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+      beginner: { 60: { min: 4, max: 6 }, 75: { min: 5, max: 7 }, 90: { min: 6, max: 8 } },
+      intermediate: { 60: { min: 5, max: 7 }, 75: { min: 6, max: 8 }, 90: { min: 7, max: 9 } },
+      advanced: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } }
     }
   },
   
@@ -167,27 +168,27 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
     secondary: ["бицепс", "задние дельты", "трапеции"]
   },
   
-  // Научные целевые объёмы (MEV-MAV-MRV)
+  // Научные целевые объёмы (MEV-MAV для 1 тренировки/неделю)
   targetMuscleVolume: {
     lats: {
-      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
-      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 9, max: 11 }, 75: { min: 10, max: 12 }, 90: { min: 11, max: 13 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 11, max: 13 }, 90: { min: 12, max: 14 } }
     },
     mid_back: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } },
+      intermediate: { 60: { min: 7, max: 9 }, 75: { min: 8, max: 10 }, 90: { min: 9, max: 11 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } }
     },
     biceps: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+      beginner: { 60: { min: 4, max: 6 }, 75: { min: 5, max: 7 }, 90: { min: 6, max: 8 } },
+      intermediate: { 60: { min: 5, max: 7 }, 75: { min: 6, max: 8 }, 90: { min: 7, max: 9 } },
+      advanced: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } }
     },
     rear_delts: {
-      beginner: { 60: { min: 4, max: 6 }, 75: { min: 6, max: 8 }, 90: { min: 8, max: 10 } },
-      intermediate: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      advanced: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } }
+      beginner: { 60: { min: 3, max: 5 }, 75: { min: 4, max: 6 }, 90: { min: 5, max: 7 } },
+      intermediate: { 60: { min: 4, max: 6 }, 75: { min: 5, max: 7 }, 90: { min: 6, max: 8 } },
+      advanced: { 60: { min: 5, max: 7 }, 75: { min: 6, max: 8 }, 90: { min: 7, max: 9 } }
     }
   },
   
@@ -276,27 +277,28 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
     secondary: ["икры", "приводящие"]
   },
   
-  // Научные целевые объёмы (MEV-MAV-MRV)
+  // Научные целевые объёмы (MEV-MAV для 1 тренировки/неделю)
+  // Ноги - самая большая группа, переносят больший объём
   targetMuscleVolume: {
     quads: {
-      beginner: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
-      intermediate: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } },
-      advanced: { 60: { min: 14, max: 16 }, 75: { min: 16, max: 18 }, 90: { min: 18, max: 20 } }
+      beginner: { 60: { min: 10, max: 12 }, 75: { min: 11, max: 13 }, 90: { min: 12, max: 14 } },
+      intermediate: { 60: { min: 11, max: 13 }, 75: { min: 12, max: 14 }, 90: { min: 13, max: 15 } },
+      advanced: { 60: { min: 12, max: 14 }, 75: { min: 13, max: 15 }, 90: { min: 14, max: 16 } }
     },
     glutes: {
-      beginner: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      intermediate: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } },
-      advanced: { 60: { min: 12, max: 14 }, 75: { min: 14, max: 16 }, 90: { min: 16, max: 18 } }
+      beginner: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } },
+      intermediate: { 60: { min: 9, max: 11 }, 75: { min: 10, max: 12 }, 90: { min: 11, max: 13 } },
+      advanced: { 60: { min: 10, max: 12 }, 75: { min: 11, max: 13 }, 90: { min: 12, max: 14 } }
     },
     hamstrings: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 10, max: 12 }, 75: { min: 12, max: 14 }, 90: { min: 14, max: 16 } }
+      beginner: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } },
+      intermediate: { 60: { min: 7, max: 9 }, 75: { min: 8, max: 10 }, 90: { min: 9, max: 11 } },
+      advanced: { 60: { min: 8, max: 10 }, 75: { min: 9, max: 11 }, 90: { min: 10, max: 12 } }
     },
     calves: {
-      beginner: { 60: { min: 6, max: 8 }, 75: { min: 8, max: 10 }, 90: { min: 10, max: 12 } },
-      intermediate: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } },
-      advanced: { 60: { min: 8, max: 10 }, 75: { min: 10, max: 12 }, 90: { min: 12, max: 14 } }
+      beginner: { 60: { min: 4, max: 6 }, 75: { min: 5, max: 7 }, 90: { min: 6, max: 8 } },
+      intermediate: { 60: { min: 5, max: 7 }, 75: { min: 6, max: 8 }, 90: { min: 7, max: 9 } },
+      advanced: { 60: { min: 6, max: 8 }, 75: { min: 7, max: 9 }, 90: { min: 8, max: 10 } }
     }
   },
   
