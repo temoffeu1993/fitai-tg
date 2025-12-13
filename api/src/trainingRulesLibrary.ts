@@ -30,16 +30,34 @@ export const PPL_PULL_DAY_RULES: DayTrainingRules = {
 export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
   name: "Legs Day",
   focus: "Квадрицепсы, ягодицы, бицепс бедра, икры — полная тренировка ног",
-  description: "Начинаем с тяжелых приседаний или становой, затем выпады и жим ногами, заканчиваем изоляцией квадрицепсов, бицепса бедра и икр. Ноги требуют больше отдыха между подходами."
+  description: "Начинаем с тяжелых многосуставных движений для ног, затем односторонние и вспомогательные упражнения, заканчиваем изоляцией для каждой группы. Учитываем необходимость достаточного отдыха для крупных мышечных групп."
 };
 
 /**
- * FULL BODY - Тренировка всего тела
+ * FULL BODY A - Акцент на переднюю цепь
  */
-export const FULL_BODY_RULES: DayTrainingRules = {
-  name: "Full Body",
-  focus: "Всё тело — база для всех основных мышечных групп",
-  description: "Комплексная тренировка всего тела. Приседания, становая, жимы, тяги. Проработка всех основных групп мышц за одну тренировку."
+export const FULL_BODY_A_RULES: DayTrainingRules = {
+  name: "Full Body A",
+  focus: "Всё тело с акцентом на переднюю цепь: квадрицепсы, грудь, передние дельты",
+  description: "Начинаем с тяжелых упражнений для передней части ног, затем горизонтальные жимовые движения для груди, тяговые для спины. Заканчиваем вспомогательными упражнениями."
+};
+
+/**
+ * FULL BODY B - Акцент на заднюю цепь
+ */
+export const FULL_BODY_B_RULES: DayTrainingRules = {
+  name: "Full Body B",
+  focus: "Всё тело с акцентом на заднюю цепь: ягодицы, спина, задняя поверхность бедра",
+  description: "Начинаем с тазодоминантных движений для задней цепи, затем вертикальные жимы для плеч, вертикальные тяги для спины. Заканчиваем функциональными упражнениями."
+};
+
+/**
+ * FULL BODY C - Сбалансированная проработка
+ */
+export const FULL_BODY_C_RULES: DayTrainingRules = {
+  name: "Full Body C",
+  focus: "Всё тело со сбалансированным распределением нагрузки между всеми группами",
+  description: "Равномерная проработка верха и низа тела. Комбинация коленодоминантных, тазодоминантных, жимовых и тяговых движений под разными углами. Акцент на технику и нейромышечную связь."
 };
 
 /**
@@ -68,7 +86,10 @@ export const TRAINING_RULES_LIBRARY = {
   "Push Day": PPL_PUSH_DAY_RULES,
   "Pull Day": PPL_PULL_DAY_RULES,
   "Legs Day": PPL_LEGS_DAY_RULES,
-  "Full Body": FULL_BODY_RULES,
+  "Full Body": FULL_BODY_A_RULES,  // Fallback для общего Full Body
+  "Full Body A": FULL_BODY_A_RULES,
+  "Full Body B": FULL_BODY_B_RULES,
+  "Full Body C": FULL_BODY_C_RULES,
   "Upper Body": UPPER_BODY_RULES,
   "Lower Body": LOWER_BODY_RULES
 };
