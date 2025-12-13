@@ -345,9 +345,234 @@ export const PPL_LEGS_DAY_RULES: DayTrainingRules = {
 };
 
 // Экспорт всех правил
+/**
+ * FULL BODY - Правила для тренировки всего тела
+ * (AI САМ определяет детали на основе Volume Landmarks)
+ */
+export const FULL_BODY_RULES: DayTrainingRules = {
+  name: "Full Body",
+  focus: "Всё тело — база для всех основных мышечных групп",
+  description: "Комплексная тренировка всего тела. Приседания, становая, жимы, тяги. Проработка всех основных групп мышц за одну тренировку.",
+  
+  structure: {
+    totalExercisesRange: [6, 12],
+    compound: {
+      count: [3, 5],
+      sets: 4,
+      reps: "6-8",
+      rest: 120,
+      priority: 1,
+      notes: "База для всего тела"
+    },
+    secondary: {
+      count: [2, 4],
+      sets: 3,
+      reps: "8-12",
+      rest: 90,
+      priority: 2,
+      notes: "Дополнительная проработка"
+    },
+    isolation: {
+      count: [1, 3],
+      sets: 3,
+      reps: "12-15",
+      rest: 60,
+      priority: 3,
+      notes: "Изоляция слабых мест"
+    }
+  },
+  
+  targetAreas: {
+    primary: ["квадрицепсы", "грудь", "спина"],
+    secondary: ["бицепс бедра", "плечи", "руки"]
+  },
+  
+  recommendedPatterns: [
+    "squat_pattern", "deadlift", "horizontal_press", "vertical_pull", "horizontal_pull",
+    "overhead_press", "hip_hinge", "lunge_pattern"
+  ],
+  
+  format: {
+    type: "standard",
+    notes: "Стандартный формат, база первой"
+  },
+  
+  warmup: {
+    durationMinutes: 5,
+    guidelines: "Общая разминка всего тела"
+  },
+  
+  cooldown: {
+    durationMinutes: 5,
+    guidelines: "Растяжка всех групп"
+  },
+  
+  adaptationRules: {
+    canReduce: true,
+    minExercises: 4,
+    avoidIfInjured: []
+  },
+  
+  scientificNotes: [
+    "Full Body позволяет тренировать каждую группу 2-3 раза в неделю",
+    "Оптимально для beginners и intermediate"
+  ]
+};
+
+/**
+ * UPPER BODY - Правила для верха тела
+ * (AI САМ определяет детали на основе Volume Landmarks)
+ */
+export const UPPER_BODY_RULES: DayTrainingRules = {
+  name: "Upper Body",
+  focus: "Верх тела — грудь, спина, плечи, руки",
+  description: "Комплексная тренировка верха тела. Жимы для груди, тяги для спины, плечи и руки. Баланс push/pull движений.",
+  
+  structure: {
+    totalExercisesRange: [6, 12],
+    compound: {
+      count: [3, 5],
+      sets: 4,
+      reps: "6-8",
+      rest: 120,
+      priority: 1,
+      notes: "Жимы + тяги"
+    },
+    secondary: {
+      count: [2, 4],
+      sets: 3,
+      reps: "8-12",
+      rest: 90,
+      priority: 2,
+      notes: "Дополнительная проработка"
+    },
+    isolation: {
+      count: [2, 3],
+      sets: 3,
+      reps: "12-15",
+      rest: 60,
+      priority: 3,
+      notes: "Изоляция рук и дельт"
+    }
+  },
+  
+  targetAreas: {
+    primary: ["грудь", "спина", "плечи"],
+    secondary: ["бицепс", "трицепс"]
+  },
+  
+  recommendedPatterns: [
+    "horizontal_press", "incline_press", "vertical_pull", "horizontal_pull",
+    "overhead_press", "row", "biceps_curl", "triceps_extension", "lateral_raise"
+  ],
+  
+  format: {
+    type: "standard",
+    notes: "Баланс push и pull"
+  },
+  
+  warmup: {
+    durationMinutes: 5,
+    guidelines: "Разминка верха тела"
+  },
+  
+  cooldown: {
+    durationMinutes: 5,
+    guidelines: "Растяжка груди, спины, плеч"
+  },
+  
+  adaptationRules: {
+    canReduce: true,
+    minExercises: 4,
+    avoidIfInjured: ["плечи", "грудь", "спина"]
+  },
+  
+  scientificNotes: [
+    "Балансируем push и pull движения",
+    "Оптимально для Upper/Lower сплита"
+  ]
+};
+
+/**
+ * LOWER BODY - Правила для низа тела
+ * (AI САМ определяет детали на основе Volume Landmarks)
+ */
+export const LOWER_BODY_RULES: DayTrainingRules = {
+  name: "Lower Body",
+  focus: "Низ тела — квадрицепсы, ягодицы, бицепс бедра, икры",
+  description: "Комплексная тренировка ног. Приседания, становая, выпады, изоляция на квадрицепсы и бицепс бедра.",
+  
+  structure: {
+    totalExercisesRange: [6, 12],
+    compound: {
+      count: [2, 4],
+      sets: 4,
+      reps: "6-8",
+      rest: 150,
+      priority: 1,
+      notes: "Тяжелые приседы, становые"
+    },
+    secondary: {
+      count: [2, 4],
+      sets: 3,
+      reps: "8-12",
+      rest: 120,
+      priority: 2,
+      notes: "Выпады, румынская тяга"
+    },
+    isolation: {
+      count: [2, 3],
+      sets: 3,
+      reps: "12-15",
+      rest: 75,
+      priority: 3,
+      notes: "Изоляция ног и икр"
+    }
+  },
+  
+  targetAreas: {
+    primary: ["квадрицепсы", "ягодицы", "бицепс бедра"],
+    secondary: ["икры", "пресс"]
+  },
+  
+  recommendedPatterns: [
+    "squat_pattern", "deadlift", "hip_hinge", "lunge_pattern", "leg_extension",
+    "leg_curl", "calf_raise"
+  ],
+  
+  format: {
+    type: "standard",
+    notes: "Тяжелая база первой"
+  },
+  
+  warmup: {
+    durationMinutes: 5,
+    guidelines: "Разминка ног и поясницы"
+  },
+  
+  cooldown: {
+    durationMinutes: 5,
+    guidelines: "Растяжка ног"
+  },
+  
+  adaptationRules: {
+    canReduce: true,
+    minExercises: 4,
+    avoidIfInjured: ["колени", "поясница", "спина"]
+  },
+  
+  scientificNotes: [
+    "Ноги требуют больше отдыха между подходами",
+    "Оптимально для Upper/Lower сплита"
+  ]
+};
+
 export const TRAINING_RULES_LIBRARY = {
   "Push Day": PPL_PUSH_DAY_RULES,
   "Pull Day": PPL_PULL_DAY_RULES,
-  "Legs Day": PPL_LEGS_DAY_RULES
+  "Legs Day": PPL_LEGS_DAY_RULES,
+  "Full Body": FULL_BODY_RULES,
+  "Upper Body": UPPER_BODY_RULES,
+  "Lower Body": LOWER_BODY_RULES
 };
 
