@@ -3360,6 +3360,15 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           warnings: generated.warnings,
         };
 
+        console.log(`\n💾 Сохраняем в БД:`);
+        console.log(`  - Упражнений: ${planned.exercises?.length || 0}`);
+        console.log(`  - Подходов: ${planned.totalSets}`);
+        console.log(`  - Длительность: ${planned.estimatedDuration} мин`);
+        if (planned.exercises && planned.exercises.length > 0) {
+          console.log(`\n  📋 Первое упражнение:`);
+          console.log(`     ${JSON.stringify(planned.exercises[0], null, 2)}`);
+        }
+
         await q(
           `UPDATE planned_workouts
              SET plan = $2::jsonb,
@@ -3370,7 +3379,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
         );
 
         await setWorkoutPlanProgress(planId, "done", 100);
-        console.log("✅ Scientific workout generated and saved");
+        console.log("\n✅ Scientific workout generated and saved\n");
         return;
       }
     }

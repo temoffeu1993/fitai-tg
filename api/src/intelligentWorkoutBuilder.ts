@@ -121,12 +121,19 @@ export async function buildIntelligentWorkout(params: {
   const aiWorkout = await callAIForWorkout(context);
   
   const totalSets = aiWorkout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
-  console.log(`\n✅ AI сгенерировал тренировку: ${aiWorkout.exercises.length} упражнений, ${totalSets} подходов\n`);
+  console.log(`\n✅ AI сгенерировал тренировку: ${aiWorkout.exercises.length} упражнений, ${totalSets} подходов`);
+  
+  // Логируем каждое упражнение
+  console.log("\n📋 УПРАЖНЕНИЯ:");
+  aiWorkout.exercises.forEach((ex, idx) => {
+    console.log(`  ${idx + 1}. ${ex.name} - ${ex.sets}×${ex.reps}, отдых ${ex.rest}с (${ex.weight})`);
+  });
+  console.log("");
   
   // Формируем финальную тренировку
   const estimatedDuration = calculateDuration(aiWorkout.exercises);
   
-  return {
+  const result = {
     title: `${rules.name} — ${userProfile.experience}`,
     focus: rules.focus,
     mode: checkIn?.mode || "normal",
@@ -146,6 +153,10 @@ export async function buildIntelligentWorkout(params: {
     adaptationNotes: aiWorkout.adaptationNotes,
     warnings: aiWorkout.warnings
   };
+  
+  console.log(`\n📦 Возвращаем тренировку: ${result.exercises.length} упражнений, duration: ${result.estimatedDuration} мин\n`);
+  
+  return result;
 }
 
 // ============================================================================
@@ -189,18 +200,26 @@ async function callAIForWorkout(context: WorkoutGenerationContext): Promise<{
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("AI не вернул ответ");
     
+    console.log(`\n📥 AI ответил (${content.length} символов)\n`);
+    
     const result = JSON.parse(content);
     
+    console.log(`✓ JSON распарсен: ${result.exercises?.length || 0} упражнений`);
+    
+    const mappedExercises = result.exercises.map((ex: any) => ({
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      rest: ex.rest,
+      weight: ex.weight,
+      notes: ex.cues || ex.technique || ex.notes || "",
+      targetMuscles: ex.targetMuscles || []
+    }));
+    
+    console.log(`✓ Упражнения замаплены: ${mappedExercises.length}`);
+    
     return {
-      exercises: result.exercises.map((ex: any) => ({
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        rest: ex.rest,
-        weight: ex.weight,
-        notes: ex.cues || ex.technique || ex.notes || "",
-        targetMuscles: ex.targetMuscles || []
-      })),
+      exercises: mappedExercises,
       adaptationNotes: result.adaptationNotes || [],
       warnings: result.warnings || []
     };
