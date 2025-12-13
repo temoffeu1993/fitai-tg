@@ -3143,6 +3143,83 @@ plan.get(
   })
 );
 
+// ============================================================================
+// WEEKLY PLAN ENDPOINT
+// ============================================================================
+
+plan.get(
+  "/weekly-plan",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = ensureUser(req);
+    
+    console.log(`\n📅 GET /weekly-plan for user: ${userId}`);
+    
+    // Получаем активный недельный план
+    const activeWeekly = await getActiveWeeklyPlan(userId);
+    
+    if (!activeWeekly || !activeWeekly.weekly_plan_json) {
+      return res.status(404).json({ 
+        found: false,
+        message: "no_active_weekly_plan",
+        hint: "Make a check-in to generate a new weekly plan"
+      });
+    }
+    
+    const weeklyPlan = activeWeekly.weekly_plan_json;
+    
+    // Получаем прогресс выполнения
+    const progress = await getWeeklyPlanProgress(userId, activeWeekly.week_id);
+    
+    // Получаем текущую программу для информации о дне
+    const programRows = await q<ProgramRow>(
+      `SELECT * FROM training_programs WHERE user_id = $1 LIMIT 1`,
+      [userId]
+    );
+    const currentDayIndex = programRows[0]?.day_idx ?? 0;
+    
+    console.log(`✓ Found weekly plan: ${activeWeekly.week_id}`);
+    console.log(`  Days: ${weeklyPlan.days?.length || 0}`);
+    console.log(`  Progress: ${progress.completedDays}/${progress.totalDays} completed`);
+    console.log(`  Current day: ${currentDayIndex}`);
+    
+    // Форматируем ответ
+    const response = {
+      found: true,
+      weekId: activeWeekly.week_id,
+      scheme: weeklyPlan.scheme || "Custom",
+      createdAt: activeWeekly.created_at,
+      currentDayIndex,
+      progress: {
+        total: progress.totalDays,
+        completed: progress.completedDays,
+        completedDayIndexes: progress.completedDayIndexes
+      },
+      days: (weeklyPlan.days || []).map((day: any) => ({
+        dayIndex: day.dayIndex,
+        dayLabel: day.dayLabel,
+        focus: day.focus,
+        exercisesCount: day.exercises?.length || 0,
+        totalSets: day.totalSets || 0,
+        estimatedDuration: day.estimatedDuration || 0,
+        status: progress.completedDayIndexes.includes(day.dayIndex) 
+          ? 'completed' 
+          : day.dayIndex === currentDayIndex 
+          ? 'current' 
+          : 'pending',
+        // Можно добавить полный список упражнений если нужно
+        exercises: day.exercises || []
+      })),
+      weeklyVolume: weeklyPlan.weeklyVolume || {
+        totalExercises: 0,
+        totalSets: 0,
+        totalMinutes: 0
+      }
+    };
+    
+    res.json(response);
+  })
+);
+
 // ============================================================================ 
 // CHECK-IN ENDPOINTS
 // ============================================================================
