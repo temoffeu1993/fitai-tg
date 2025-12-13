@@ -746,10 +746,39 @@ async function callAIForWeeklyWorkout(
     };
 
     console.log(`\n✅ НЕДЕЛЬНАЯ ПРОГРАММА СГЕНЕРИРОВАНА:`);
+    console.log(`${"=".repeat(80)}\n`);
+    
     days.forEach((day, i) => {
-      console.log(`  День ${i + 1}: ${day.dayLabel} — ${day.exercises.length} упражнений, ${day.totalSets} подходов, ${day.estimatedDuration} мин`);
+      console.log(`📋 ДЕНЬ ${i + 1}: ${day.dayLabel}`);
+      console.log(`   Фокус: ${day.focus}`);
+      console.log(`   Итого: ${day.exercises.length} упражнений, ${day.totalSets} подходов, ${day.estimatedDuration} мин\n`);
+      
+      console.log(`   УПРАЖНЕНИЯ:`);
+      day.exercises.forEach((ex: any, idx: number) => {
+        console.log(`   ${idx + 1}. ${ex.name}`);
+        console.log(`      ${ex.sets} × ${ex.reps} повторений, отдых ${ex.restSec}с`);
+        console.log(`      Вес: ${ex.weight}`);
+        if (ex.targetMuscles && ex.targetMuscles.length > 0) {
+          console.log(`      Мышцы: ${ex.targetMuscles.join(", ")}`);
+        }
+        if (ex.cues) {
+          console.log(`      Техника: ${ex.cues.substring(0, 60)}${ex.cues.length > 60 ? '...' : ''}`);
+        }
+        console.log();
+      });
+      
+      if (day.notes) {
+        console.log(`   📝 Заметки: ${day.notes}\n`);
+      }
+      
+      console.log(`${"-".repeat(80)}\n`);
     });
-    console.log(`📊 Итого: ${weeklyVolume.totalExercises} упражнений, ${weeklyVolume.totalSets} подходов, ${weeklyVolume.totalMinutes} минут\n`);
+    
+    console.log(`📊 НЕДЕЛЬНЫЙ ИТОГ:`);
+    console.log(`   Всего упражнений: ${weeklyVolume.totalExercises}`);
+    console.log(`   Всего подходов: ${weeklyVolume.totalSets}`);
+    console.log(`   Общее время: ${weeklyVolume.totalMinutes} минут (~${Math.round(weeklyVolume.totalMinutes / 60)} часов)\n`);
+    console.log(`${"=".repeat(80)}\n`);
 
     return {
       weekId: `week_${Date.now()}`,
