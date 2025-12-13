@@ -82,6 +82,30 @@ export type WeeklyWorkoutPlan = {
   };
 };
 
+// Структура дня (без конкретных упражнений)
+export type DayStructure = {
+  dayIndex: number;
+  dayLabel: string;
+  focus: string;
+  totalExercises: number;
+  totalSets: number;
+  estimatedDuration: number;
+  blocks: Array<{
+    type: 'compound' | 'secondary' | 'isolation';
+    count: number; // сколько упражнений этого типа
+    setsPerExercise: number;
+    repsRange: string;
+    restSec: number;
+  }>;
+};
+
+// Структура недели
+export type WeeklyStructure = {
+  scheme: string;
+  daysPerWeek: number;
+  days: DayStructure[];
+};
+
 export type GeneratedWorkout = {
   title: string;
   focus: string;
@@ -473,22 +497,381 @@ export async function buildWeeklyProgram(params: {
   
   const { daysRules, userProfile, checkIn, history } = params;
   
-  console.log("\n📅 WEEKLY PROGRAM GENERATION");
+  console.log("\n📅 WEEKLY PROGRAM GENERATION (TWO-STAGE)");
   console.log(`📋 Схема: ${userProfile.programName || 'Custom'}`);
   console.log(`🗓️ Дней в неделе: ${daysRules.length}`);
   console.log(`👤 Профиль: ${userProfile.experience}, ${userProfile.goal}, ${userProfile.timeAvailable} мин`);
-  console.log(`🧠 Модель: GPT-4O (генерация ВСЕЙ недели)\n`);
+  console.log(`🧠 Модель: GPT-4O (двухэтапная генерация)\n`);
   
-  // Строим промпт для ВСЕЙ недели
-  const prompt = buildWeeklyPrompt(daysRules, userProfile, checkIn, history);
+  // ============================================================================
+  // ЭТАП 1: ГЕНЕРАЦИЯ СТРУКТУРЫ НЕДЕЛИ
+  // ============================================================================
+  console.log("🏗️ ЭТАП 1: Генерация структуры недели (сколько упражнений, подходов)...\n");
   
-  console.log("📤 Отправляем промпт AI для генерации недельной программы...\n");
+  const weeklyStructure = await generateWeeklyStructure(daysRules, userProfile, checkIn);
   
-  // Вызываем AI
-  const weeklyPlan = await callAIForWeeklyWorkout(prompt, daysRules);
+  console.log("✅ Структура недели сгенерирована:");
+  weeklyStructure.days.forEach((day, i) => {
+    console.log(`  День ${i + 1}: ${day.dayLabel} — ${day.totalExercises} упражнений, ${day.totalSets} подходов`);
+  });
+  console.log();
+  
+  // ============================================================================
+  // ЭТАП 2: ЗАПОЛНЕНИЕ КОНКРЕТНЫМИ УПРАЖНЕНИЯМИ
+  // ============================================================================
+  console.log("💪 ЭТАП 2: Заполнение конкретными упражнениями...\n");
+  
+  const weeklyPlan = await fillWeeklyExercises(weeklyStructure, daysRules, userProfile, checkIn, history);
   
   // Возвращаем готовый план
   return weeklyPlan;
+}
+
+// ============================================================================
+// ЭТАП 1: ГЕНЕРАЦИЯ СТРУКТУРЫ НЕДЕЛИ
+// ============================================================================
+
+async function generateWeeklyStructure(
+  daysRules: DayTrainingRules[],
+  userProfile: UserProfile,
+  checkIn?: any
+): Promise<WeeklyStructure> {
+  
+  const prompt = `# ЗАДАНИЕ: Создай СТРУКТУРУ недельной программы тренировок
+
+Ты — эксперт по тренировочному планированию. Твоя задача — создать СТРУКТУРУ недельной программы БЕЗ конкретных упражнений.
+
+## 📊 ИНФОРМАЦИЯ:
+
+**Программа:** ${userProfile.programName || 'Custom'} — ${daysRules.length} тренировки/неделю
+**Уровень:** ${userProfile.experience}
+**Цель:** ${userProfile.goal}
+**Время на тренировку:** ${userProfile.timeAvailable} минут
+
+**Дни недели:**
+${daysRules.map((day, i) => `
+День ${i + 1}: ${day.name}
+- Фокус: ${day.focus}
+- Описание: ${day.description}
+`).join('\n')}
+
+## 🎯 ТВОЯ ЗАДАЧА:
+
+Для КАЖДОГО дня определи:
+1. **Сколько упражнений** нужно (compound, secondary, isolation)
+2. **Сколько подходов** для каждого типа
+3. **Диапазон повторений** для каждого типа
+4. **Отдых** между подходами
+
+**ВАЖНО:**
+- Используй ВСЁ доступное время (${userProfile.timeAvailable} минут)
+- Для advanced, hypertrophy, 90 мин — это должно быть **7-8 упражнений, 25-30 подходов**
+- Распредели недельный MAV объём правильно
+- Учти что это ${daysRules.length} дня в неделю
+
+**Типы упражнений:**
+- **compound** (базовые многосуставные) — 3-5 подходов по 4-8 повторений, отдых 120-180 сек
+- **secondary** (вспомогательные) — 3-4 подхода по 8-12 повторений, отдых 90-120 сек
+- **isolation** (изолирующие) — 2-3 подхода по 10-15 повторений, отдых 60-90 сек
+
+## 📋 Формат ответа:
+
+Верни **ТОЛЬКО** валидный JSON:
+
+\`\`\`
+{
+  "days": [
+    {
+      "dayIndex": number,      // 0, 1, 2
+      "dayLabel": string,      // "Push", "Pull", "Legs"
+      "focus": string,         // "Грудь, плечи, трицепс"
+      "blocks": [
+        {
+          "type": "compound",        // compound | secondary | isolation
+          "count": number,           // сколько упражнений этого типа
+          "setsPerExercise": number, // сколько подходов на упражнение
+          "repsRange": string,       // "6-8" или "10-12"
+          "restSec": number          // отдых в секундах
+        }
+        // ... остальные блоки
+      ]
+    }
+    // ... все ${daysRules.length} дня
+  ]
+}
+\`\`\`
+
+Верни ТОЛЬКО JSON, без markdown!`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Ты — эксперт по тренировочному планированию с глубокими знаниями Volume Landmarks (MEV/MAV/MRV). Создаёшь оптимальные структуры тренировок."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7, // Меньше креативности для структуры
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("AI не вернул ответ");
+    }
+
+    const parsed = JSON.parse(content);
+    
+    if (!parsed.days || !Array.isArray(parsed.days)) {
+      throw new Error("AI не вернул массив 'days'");
+    }
+
+    // Мапим в нашу структуру
+    const days: DayStructure[] = parsed.days.map((day: any) => {
+      const totalExercises = (day.blocks || []).reduce((sum: number, b: any) => sum + (b.count || 0), 0);
+      const totalSets = (day.blocks || []).reduce((sum: number, b: any) => sum + (b.count || 0) * (b.setsPerExercise || 0), 0);
+      
+      // Примерный расчёт времени
+      const estimatedDuration = (day.blocks || []).reduce((sum: number, b: any) => {
+        const setTime = 60; // ~60 сек на подход
+        const totalTimePerExercise = (setTime + (b.restSec || 90)) * (b.setsPerExercise || 3);
+        return sum + totalTimePerExercise * (b.count || 1) / 60;
+      }, 10); // +10 мин на разминку/заминку
+
+      return {
+        dayIndex: day.dayIndex,
+        dayLabel: day.dayLabel || daysRules[day.dayIndex]?.name || `День ${day.dayIndex + 1}`,
+        focus: day.focus || daysRules[day.dayIndex]?.focus || "",
+        totalExercises,
+        totalSets,
+        estimatedDuration: Math.ceil(estimatedDuration),
+        blocks: day.blocks || []
+      };
+    });
+
+    return {
+      scheme: userProfile.programName || "Custom",
+      daysPerWeek: daysRules.length,
+      days
+    };
+
+  } catch (error: any) {
+    console.error("❌ Ошибка генерации структуры:", error.message);
+    throw error;
+  }
+}
+
+// ============================================================================
+// ЭТАП 2: ЗАПОЛНЕНИЕ КОНКРЕТНЫМИ УПРАЖНЕНИЯМИ
+// ============================================================================
+
+async function fillWeeklyExercises(
+  structure: WeeklyStructure,
+  daysRules: DayTrainingRules[],
+  userProfile: UserProfile,
+  checkIn?: any,
+  history?: any
+): Promise<WeeklyWorkoutPlan> {
+  
+  const days: DayWorkoutPlan[] = [];
+  
+  // Для каждого дня генерируем упражнения
+  for (let i = 0; i < structure.days.length; i++) {
+    const dayStructure = structure.days[i];
+    const dayRules = daysRules[i];
+    
+    console.log(`  Генерирую упражнения для: ${dayStructure.dayLabel}...`);
+    
+    const dayWorkout = await generateDayExercises(dayStructure, dayRules, userProfile, checkIn, history);
+    days.push(dayWorkout);
+  }
+  
+  const weeklyVolume = {
+    totalExercises: days.reduce((sum, d) => sum + d.exercises.length, 0),
+    totalSets: days.reduce((sum, d) => sum + d.totalSets, 0),
+    totalMinutes: days.reduce((sum, d) => sum + d.estimatedDuration, 0)
+  };
+
+  console.log(`\n✅ НЕДЕЛЬНАЯ ПРОГРАММА СГЕНЕРИРОВАНА:`);
+  console.log(`${"=".repeat(80)}\n`);
+  
+  days.forEach((day, i) => {
+    console.log(`📋 ДЕНЬ ${i + 1}: ${day.dayLabel}`);
+    console.log(`   Фокус: ${day.focus}`);
+    console.log(`   Итого: ${day.exercises.length} упражнений, ${day.totalSets} подходов, ${day.estimatedDuration} мин\n`);
+    
+    console.log(`   УПРАЖНЕНИЯ:`);
+    day.exercises.forEach((ex: any, idx: number) => {
+      console.log(`   ${idx + 1}. ${ex.name}`);
+      console.log(`      ${ex.sets} × ${ex.reps} повторений, отдых ${ex.restSec}с`);
+      console.log(`      Вес: ${ex.weight}`);
+      if (ex.targetMuscles && ex.targetMuscles.length > 0) {
+        console.log(`      Мышцы: ${ex.targetMuscles.join(", ")}`);
+      }
+      if (ex.cues) {
+        console.log(`      Техника: ${ex.cues.substring(0, 60)}${ex.cues.length > 60 ? '...' : ''}`);
+      }
+      console.log();
+    });
+    
+    if (day.notes) {
+      console.log(`   📝 Заметки: ${day.notes}\n`);
+    }
+    
+    console.log(`${"-".repeat(80)}\n`);
+  });
+  
+  console.log(`📊 НЕДЕЛЬНЫЙ ИТОГ:`);
+  console.log(`   Всего упражнений: ${weeklyVolume.totalExercises}`);
+  console.log(`   Всего подходов: ${weeklyVolume.totalSets}`);
+  console.log(`   Общее время: ${weeklyVolume.totalMinutes} минут (~${Math.round(weeklyVolume.totalMinutes / 60)} часов)\n`);
+  console.log(`${"=".repeat(80)}\n`);
+
+  return {
+    weekId: `week_${Date.now()}`,
+    generatedAt: new Date(),
+    scheme: structure.scheme,
+    daysPerWeek: structure.daysPerWeek,
+    days,
+    weeklyVolume
+  };
+}
+
+async function generateDayExercises(
+  dayStructure: DayStructure,
+  dayRules: DayTrainingRules,
+  userProfile: UserProfile,
+  checkIn?: any,
+  history?: any
+): Promise<DayWorkoutPlan> {
+  
+  const recentExercisesText = history?.recentExercises && history.recentExercises.length > 0
+    ? `НЕ используй эти упражнения (были недавно): ${history.recentExercises.join(", ")}`
+    : "Первая тренировка — выбирай классические упражнения";
+
+  const blocksDescription = dayStructure.blocks.map((block, idx) => `
+Блок ${idx + 1}: ${block.type}
+- Количество упражнений: ${block.count}
+- Подходов на упражнение: ${block.setsPerExercise}
+- Повторения: ${block.repsRange}
+- Отдых: ${block.restSec} секунд
+`).join('\n');
+
+  const prompt = `# ЗАДАНИЕ: Подбери конкретные упражнения
+
+Ты — элитный тренер. У тебя есть ГОТОВАЯ СТРУКТУРА тренировки. Твоя задача — заполнить её КОНКРЕТНЫМИ упражнениями.
+
+## 📊 ИНФОРМАЦИЯ:
+
+**День:** ${dayStructure.dayLabel}
+**Фокус:** ${dayStructure.focus}
+**Описание:** ${dayRules.description}
+
+**Уровень клиента:** ${userProfile.experience}
+**Цель:** ${userProfile.goal}
+
+## 🏗️ СТРУКТУРА (УЖЕ ГОТОВА):
+
+${blocksDescription}
+
+**Всего:** ${dayStructure.totalExercises} упражнений, ${dayStructure.totalSets} подходов, ~${dayStructure.estimatedDuration} минут
+
+## 📜 ИСТОРИЯ:
+${recentExercisesText}
+
+## 🎯 ТВОЯ ЗАДАЧА:
+
+Для КАЖДОГО блока подбери КОНКРЕТНЫЕ упражнения:
+- НА РУССКОМ ЯЗЫКЕ!
+- Разнообразные (разные углы, паттерны)
+- Без дублей функций
+- С учетом истории
+- Укажи рекомендуемый вес
+
+## 📋 Формат ответа:
+
+Верни **ТОЛЬКО** валидный JSON:
+
+\`\`\`
+{
+  "exercises": [
+    {
+      "name": string,           // НА РУССКОМ! "Жим штанги лёжа"
+      "sets": number,           // из структуры
+      "reps": string,           // из структуры
+      "rest": number,           // из структуры (в секундах)
+      "weight": string,         // "80 кг", "2×30 кг", "собственный вес"
+      "cues": string,           // НА РУССКОМ! Технические подсказки
+      "targetMuscles": string[] // НА РУССКОМ! ["грудь", "трицепс"]
+    }
+    // ... все ${dayStructure.totalExercises} упражнений
+  ],
+  "warmup": [string],  // НА РУССКОМ! Рекомендации по разминке
+  "cooldown": [string], // НА РУССКОМ! Рекомендации по заминке
+  "notes": string      // НА РУССКОМ! Общие заметки
+}
+\`\`\`
+
+**КРИТИЧНО:** ВСЁ НА РУССКОМ ЯЗЫКЕ! Верни ТОЛЬКО JSON!`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Ты — элитный персональный тренер. Подбираешь идеальные упражнения для клиента. ВСЁ НА РУССКОМ ЯЗЫКЕ!"
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.9, // Больше разнообразия для упражнений
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("AI не вернул ответ");
+    }
+
+    const parsed = JSON.parse(content);
+    
+    const exercises = (parsed.exercises || []).map((ex: any) => ({
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      restSec: ex.rest || ex.restSec || 90,
+      weight: ex.weight || "подобрать",
+      cues: ex.cues || "",
+      targetMuscles: ex.targetMuscles || []
+    }));
+
+    const totalSets = exercises.reduce((sum: number, ex: any) => sum + ex.sets, 0);
+    const estimatedDuration = calculateDuration(exercises);
+
+    return {
+      dayIndex: dayStructure.dayIndex,
+      dayLabel: dayStructure.dayLabel,
+      focus: dayStructure.focus,
+      exercises,
+      warmup: parsed.warmup || ["Общая разминка 5-7 минут"],
+      cooldown: parsed.cooldown || ["Растяжка 3-5 минут"],
+      notes: parsed.notes || "",
+      estimatedDuration,
+      totalSets
+    };
+
+  } catch (error: any) {
+    console.error(`❌ Ошибка генерации упражнений для ${dayStructure.dayLabel}:`, error.message);
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -509,9 +892,14 @@ function calculateDuration(exercises: any[]): number {
 }
 
 // ============================================================================
-// ПРОМПТ ДЛЯ НЕДЕЛЬНОЙ ГЕНЕРАЦИИ
+// СТАРАЯ СИСТЕМА: ОДНОЭТАПНАЯ ГЕНЕРАЦИЯ (DEPRECATED, НЕ ИСПОЛЬЗУЕТСЯ)
+// ============================================================================
+// Эти функции заменены на двухэтапную генерацию:
+// 1. generateWeeklyStructure() - генерирует структуру
+// 2. fillWeeklyExercises() - заполняет упражнениями
 // ============================================================================
 
+/*
 function buildWeeklyPrompt(
   daysRules: DayTrainingRules[],
   userProfile: UserProfile,
@@ -794,3 +1182,4 @@ async function callAIForWeeklyWorkout(
     throw error;
   }
 }
+*/
