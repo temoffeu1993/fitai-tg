@@ -206,6 +206,15 @@ async function callAIForWorkout(context: WorkoutGenerationContext): Promise<{
     
     console.log(`✓ JSON распарсен: ${result.exercises?.length || 0} упражнений`);
     
+    // DEBUG: логируем что AI реально вернул
+    if (result.exercises && result.exercises.length > 0) {
+      console.log(`\n🔍 DEBUG - что AI вернул для упражнений:`);
+      result.exercises.forEach((ex: any, idx: number) => {
+        console.log(`  ${idx + 1}. ${ex.name}: rest=${ex.rest}, restSec=${ex.restSec}`);
+      });
+      console.log('');
+    }
+    
     const mappedExercises = result.exercises.map((ex: any) => {
       // Fallback для rest (AI может вернуть rest, restSec, или вообще не вернуть)
       const restSec = ex.restSec || ex.rest || 90; // Default 90 сек если не указано
@@ -370,6 +379,15 @@ ${history?.recentExercises && history.recentExercises.length > 0 ? `- НЕ по�
       "weight": "62.5 кг",
       "cues": "Технические подсказки",
       "targetMuscles": ["грудь", "трицепс"]
+    },
+    {
+      "name": "Следующее упражнение",
+      "sets": 3,
+      "reps": "8-12",
+      "rest": 90,
+      "weight": "25 кг",
+      "cues": "Техника выполнения",
+      "targetMuscles": ["плечи"]
     }
   ],
   "adaptationNotes": ["Заметки об адаптации если нужно"],
@@ -386,6 +404,7 @@ ${history?.recentExercises && history.recentExercises.length > 0 ? `- НЕ по�
 - **УЛОЖИСЬ В ${userProfile.timeAvailable} МИНУТ** (рабочее время ~${userProfile.timeAvailable - 10} мин после разминки/заминки)
 - НЕ дублируй функции упражнений
 - Давай конкретные веса (с учетом уровня)
+- **"rest"** - ОБЯЗАТЕЛЬНО для КАЖДОГО упражнения (число в секундах: 60, 90, 120, 180)
 - Возвращай ТОЛЬКО JSON, без markdown
 
 **ДОВЕРЯЮ твоей экспертизе! Создай идеальную тренировку! 🔥**`;
