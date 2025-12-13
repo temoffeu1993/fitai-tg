@@ -49,6 +49,39 @@ export type WorkoutGenerationContext = {
   history?: TrainingHistory;
 };
 
+export type DayWorkoutPlan = {
+  dayIndex: number; // 0, 1, 2 для PPL 3 дня
+  dayLabel: string; // "Push", "Pull", "Legs"
+  focus: string; // "Грудь, плечи, трицепс"
+  exercises: Array<{
+    name: string;
+    sets: number;
+    reps: string;
+    restSec: number;
+    weight: string;
+    cues: string;
+    targetMuscles: string[];
+  }>;
+  warmup: string[];
+  cooldown: string[];
+  notes: string;
+  estimatedDuration: number;
+  totalSets: number;
+};
+
+export type WeeklyWorkoutPlan = {
+  weekId: string; // UUID для недели
+  generatedAt: Date;
+  scheme: string; // "Push/Pull/Legs", "Upper/Lower"
+  daysPerWeek: number;
+  days: DayWorkoutPlan[];
+  weeklyVolume: {
+    totalExercises: number;
+    totalSets: number;
+    totalMinutes: number;
+  };
+};
+
 export type GeneratedWorkout = {
   title: string;
   focus: string;
@@ -420,6 +453,45 @@ ${userProfile.experience === 'advanced' && userProfile.timeAvailable >= 90
 }
 
 // ============================================================================
+// НЕДЕЛЬНАЯ ГЕНЕРАЦИЯ (НОВАЯ СИСТЕМА)
+// ============================================================================
+
+export async function buildWeeklyProgram(params: {
+  daysRules: DayTrainingRules[]; // Массив правил для каждого дня недели
+  userProfile: UserProfile;
+  checkIn?: {
+    mode?: string;
+    energy?: string;
+    pain?: Array<{ location: string; level: number }> | string[];
+    injuries?: string[];
+  };
+  history?: {
+    recentExercises: string[];
+    weightHistory: Record<string, string>;
+  };
+}): Promise<WeeklyWorkoutPlan> {
+  
+  const { daysRules, userProfile, checkIn, history } = params;
+  
+  console.log("\n📅 WEEKLY PROGRAM GENERATION");
+  console.log(`📋 Схема: ${userProfile.programName || 'Custom'}`);
+  console.log(`🗓️ Дней в неделе: ${daysRules.length}`);
+  console.log(`👤 Профиль: ${userProfile.experience}, ${userProfile.goal}, ${userProfile.timeAvailable} мин`);
+  console.log(`🧠 Модель: GPT-4O (генерация ВСЕЙ недели)\n`);
+  
+  // Строим промпт для ВСЕЙ недели
+  const prompt = buildWeeklyPrompt(daysRules, userProfile, checkIn, history);
+  
+  console.log("📤 Отправляем промпт AI для генерации недельной программы...\n");
+  
+  // Вызываем AI
+  const weeklyPlan = await callAIForWeeklyWorkout(prompt, daysRules);
+  
+  // Возвращаем готовый план
+  return weeklyPlan;
+}
+
+// ============================================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================================
 
@@ -434,4 +506,262 @@ function calculateDuration(exercises: any[]): number {
   });
   
   return Math.ceil(totalMinutes);
+}
+
+// ============================================================================
+// ПРОМПТ ДЛЯ НЕДЕЛЬНОЙ ГЕНЕРАЦИИ
+// ============================================================================
+
+function buildWeeklyPrompt(
+  daysRules: DayTrainingRules[],
+  userProfile: UserProfile,
+  checkIn?: any,
+  history?: any
+): string {
+  
+  // Описание каждого дня недели
+  const daysDescription = daysRules.map((day, index) => `
+**День ${index + 1}: ${day.name}**
+- Фокус: ${day.focus}
+- Описание: ${day.description}
+`).join('\n');
+
+  // Состояние пользователя
+  const modeText = checkIn?.mode === "recovery" ? "Восстановительный режим"
+    : checkIn?.mode === "light" ? "Облегчённый режим"
+    : checkIn?.mode === "push" ? "Усиленный режим"
+    : "Нормальный режим";
+  
+  const energyText = `Энергия: ${checkIn?.energy || "medium"}`;
+  
+  const injuriesText = checkIn?.injuries && checkIn.injuries.length > 0
+    ? `⚠️ Травмы: ${checkIn.injuries.join(", ")}`
+    : "Нет травм";
+  
+  const painText = checkIn?.pain && checkIn.pain.length > 0
+    ? `⚠️ Болезненные зоны: ${checkIn.pain.join(", ")}`
+    : "";
+  
+  const historyText = history?.recentExercises && history.recentExercises.length > 0
+    ? `📜 Недавние упражнения (избегай повторов): ${history.recentExercises.join(", ")}`
+    : "📜 История пуста — первая программа";
+
+  // Ориентиры по объёму (реалистичные на основе научных данных)
+  const volumeGuideline = userProfile.experience === 'advanced' && userProfile.timeAvailable >= 90
+    ? '- Advanced, 90 минут: 7-8 упражнений, 25-30 подходов за тренировку'
+    : userProfile.experience === 'advanced' && userProfile.timeAvailable >= 60
+    ? '- Advanced, 60 минут: 5-6 упражнений, 16-20 подходов за тренировку'
+    : userProfile.experience === 'intermediate'
+    ? '- Intermediate: 5-7 упражнений, 20-25 подходов за тренировку'
+    : '- Beginner: 4-6 упражнений, 15-18 подходов за тренировку';
+
+  return `# ЗАДАНИЕ: Создай НЕДЕЛЬНУЮ программу тренировок
+
+## 🎯 СХЕМА ТРЕНИРОВКИ
+
+**Программа:** ${userProfile.programName || 'Сплит'} — ${daysRules.length} тренировки/неделю
+**Доступное время:** ${userProfile.timeAvailable} минут на каждую тренировку
+
+${daysDescription}
+
+*Это сплит-программа: каждый день тренирует определённые группы мышц.*
+
+## 👤 ПРОФИЛЬ КЛИЕНТА
+- **Уровень:** ${userProfile.experience}
+- **Цель:** ${userProfile.goal}
+- **Частота:** ${daysRules.length} тренировки/неделю
+- **Время на тренировку:** ${userProfile.timeAvailable} минут доступно для РАБОЧЕЙ части
+${userProfile.age ? `- **Возраст:** ${userProfile.age} лет` : ''}
+${userProfile.sex ? `- **Пол:** ${userProfile.sex}` : ''}
+${userProfile.location ? `- **Место:** ${userProfile.location}` : ''}
+
+## 📊 ТЕКУЩЕЕ СОСТОЯНИЕ (ЧЕК-ИН)
+- ${modeText}
+- ${energyText}
+- ${injuriesText}
+${painText ? `- ${painText}` : ''}
+
+## 📜 ИСТОРИЯ
+${historyText}
+
+---
+
+## 🔬 НАУЧНЫЙ ПОДХОД
+
+Опирайся на **научные данные Volume Landmarks (MEV/MAV/MRV)**:
+- Исследования: Schoenfeld et al., Dr. Mike Israetel (Renaissance Periodization)
+- **Недельный объём (MAV)** для каждой мышечной группы:
+  - Крупные группы (грудь, спина, квадрицепсы): 12-20 подходов/неделю
+  - Средние группы (плечи, бицепс, трицепс, задняя поверхность): 10-16 подходов/неделю
+  - Малые группы (икры, пресс): 8-12 подходов/неделю
+
+**ВАЖНО:** Распредели недельный MAV объём по тренировкам недели!
+
+Например, для ${userProfile.programName || 'сплита'}:
+- Если группа тренируется 1 раз/неделю → весь MAV за одну тренировку
+- Если группа тренируется 2 раза/неделю → раздели MAV на 2 тренировки
+
+---
+
+## 🎯 ТВОЯ ЗАДАЧА
+
+Создай **ПОЛНУЮ НЕДЕЛЬНУЮ ПРОГРАММУ** из ${daysRules.length} тренировок.
+
+**Для каждой тренировки:**
+- Используй ВСЁ доступное время (${userProfile.timeAvailable} минут)
+- Подбери упражнения для достижения MAV объёма
+- Распредели нагрузку с учётом недельного плана
+- Создавай РАЗНООБРАЗИЕ между днями (разные упражнения, углы, паттерны)
+
+**Ориентир по объёму за одну тренировку:**
+${volumeGuideline}
+
+**Принципы:**
+- Начинай с тяжелых многосуставных движений
+- Заканчивай изоляцией
+- Не дублируй функции упражнений в РАЗНЫХ днях (вариативность!)
+- Учитывай работу синергистов
+- Балансируй нагрузку между днями недели
+
+---
+
+## 📋 Формат ответа:
+
+Верни **ТОЛЬКО** валидный JSON со следующей структурой:
+
+\`\`\`
+{
+  "week": [
+    {
+      "day": number,              // Номер дня (1, 2, 3...)
+      "dayLabel": string,         // НА РУССКОМ! "Push", "Pull", "Legs"
+      "focus": string,            // НА РУССКОМ! "Грудь, плечи, трицепс"
+      "exercises": [
+        {
+          "name": string,         // НА РУССКОМ! "Жим штанги лёжа"
+          "sets": number,         // Количество подходов
+          "reps": string,         // Диапазон повторений "6-8"
+          "rest": number,         // ОБЯЗАТЕЛЬНО! Отдых в секундах (60/90/120/180)
+          "weight": string,       // "80 кг", "2×30 кг", "собственный вес"
+          "cues": string,         // НА РУССКОМ! Технические подсказки
+          "targetMuscles": string[] // НА РУССКОМ! ["грудь", "трицепс"]
+        }
+        // ... все упражнения дня
+      ],
+      "warmup": [string],         // НА РУССКОМ! Рекомендации по разминке
+      "cooldown": [string],       // НА РУССКОМ! Рекомендации по заминке
+      "notes": string             // НА РУССКОМ! Заметки по тренировке
+    }
+    // ... повторить для каждого дня недели (${daysRules.length} дней)
+  ],
+  "weeklyNotes": string[]        // Опционально: общие заметки на неделю (НА РУССКОМ!)
+}
+\`\`\`
+
+## 🚀 КРИТИЧЕСКИ ВАЖНО:
+
+- ВСЁ НА РУССКОМ ЯЗЫКЕ! (названия, мышцы, подсказки, заметки)
+- Каждое упражнение ДОЛЖНО содержать "rest" (число в секундах)
+- Генерируй ВСЕ ${daysRules.length} дня за раз
+- Распредели недельный MAV объём правильно
+- Создавай РАЗНООБРАЗИЕ между днями
+- Возвращай ТОЛЬКО JSON, без markdown
+
+**ДОВЕРЯЮ твоей экспертизе! Создай идеальную недельную программу! 🔥**`;
+}
+
+// ============================================================================
+// ВЫЗОВ AI ДЛЯ НЕДЕЛЬНОЙ ГЕНЕРАЦИИ
+// ============================================================================
+
+async function callAIForWeeklyWorkout(
+  prompt: string,
+  daysRules: DayTrainingRules[]
+): Promise<WeeklyWorkoutPlan> {
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Ты элитный тренер по фитнесу и бодибилдингу с глубокими знаниями научных принципов тренировок. Создаёшь персональные недельные программы тренировок, основанные на Volume Landmarks, исследованиях Schoenfeld и методиках Dr. Mike Israetel."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 1.0,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("AI вернул пустой ответ");
+    }
+
+    console.log(`📥 AI ответил (${content.length} символов)`);
+    
+    // Парсим JSON
+    const parsed = JSON.parse(content);
+    console.log(`✓ JSON распарсен: ${parsed.week?.length || 0} дней`);
+
+    if (!parsed.week || !Array.isArray(parsed.week)) {
+      throw new Error("AI не вернул массив 'week'");
+    }
+
+    // Мапим дни в наш формат
+    const days: DayWorkoutPlan[] = parsed.week.map((dayData: any, index: number) => {
+      const exercises = (dayData.exercises || []).map((ex: any) => ({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        restSec: ex.rest || ex.restSec || 90,
+        weight: ex.weight || "подобрать",
+        cues: ex.cues || ex.technique || ex.notes || "",
+        targetMuscles: ex.targetMuscles || []
+      }));
+
+      const totalSets = exercises.reduce((sum: number, ex: any) => sum + ex.sets, 0);
+      const estimatedDuration = calculateDuration(exercises);
+
+      return {
+        dayIndex: index,
+        dayLabel: dayData.dayLabel || daysRules[index]?.name || `День ${index + 1}`,
+        focus: dayData.focus || daysRules[index]?.focus || "",
+        exercises,
+        warmup: Array.isArray(dayData.warmup) ? dayData.warmup : ["Общая разминка 5-7 минут"],
+        cooldown: Array.isArray(dayData.cooldown) ? dayData.cooldown : ["Растяжка 3-5 минут"],
+        notes: dayData.notes || "",
+        estimatedDuration,
+        totalSets
+      };
+    });
+
+    const weeklyVolume = {
+      totalExercises: days.reduce((sum, d) => sum + d.exercises.length, 0),
+      totalSets: days.reduce((sum, d) => sum + d.totalSets, 0),
+      totalMinutes: days.reduce((sum, d) => sum + d.estimatedDuration, 0)
+    };
+
+    console.log(`\n✅ НЕДЕЛЬНАЯ ПРОГРАММА СГЕНЕРИРОВАНА:`);
+    days.forEach((day, i) => {
+      console.log(`  День ${i + 1}: ${day.dayLabel} — ${day.exercises.length} упражнений, ${day.totalSets} подходов, ${day.estimatedDuration} мин`);
+    });
+    console.log(`📊 Итого: ${weeklyVolume.totalExercises} упражнений, ${weeklyVolume.totalSets} подходов, ${weeklyVolume.totalMinutes} минут\n`);
+
+    return {
+      weekId: `week_${Date.now()}`,
+      generatedAt: new Date(),
+      scheme: daysRules[0]?.name || "Custom",
+      daysPerWeek: daysRules.length,
+      days,
+      weeklyVolume
+    };
+
+  } catch (error: any) {
+    console.error("❌ Ошибка вызова AI для недельной программы:", error.message);
+    throw error;
+  }
 }

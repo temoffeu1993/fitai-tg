@@ -483,6 +483,99 @@ async function markWorkoutPlanFailed(planId: string, message: string | null) {
   );
 }
 
+// ============================================================================
+// ФУНКЦИИ ДЛЯ НЕДЕЛЬНЫХ ПЛАНОВ
+// ============================================================================
+
+/**
+ * Получить активный недельный план пользователя
+ */
+async function getActiveWeeklyPlan(userId: string): Promise<any | null> {
+  const rows = await q(
+    `SELECT id, week_id, weekly_plan_json, created_at
+     FROM workout_plans
+     WHERE user_id = $1
+       AND is_weekly_plan = true
+       AND status = 'ready'
+       AND weekly_plan_json IS NOT NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+  
+  return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * Сохранить недельный план в БД
+ */
+async function saveWeeklyPlan(
+  userId: string,
+  weekId: string,
+  weeklyPlan: any
+): Promise<string> {
+  const rows = await q(
+    `INSERT INTO workout_plans (
+      user_id,
+      status,
+      is_weekly_plan,
+      week_id,
+      weekly_plan_json,
+      progress_stage,
+      progress_percent
+    ) VALUES ($1, 'ready', true, $2, $3::jsonb, 'ready', 100)
+    RETURNING id`,
+    [userId, weekId, weeklyPlan]
+  );
+  
+  return rows[0].id;
+}
+
+/**
+ * Получить прогресс недельного плана (сколько тренировок выполнено)
+ */
+async function getWeeklyPlanProgress(userId: string, weekId: string): Promise<{
+  totalDays: number;
+  completedDays: number;
+  completedDayIndexes: number[];
+}> {
+  // Получаем недельный план
+  const planRows = await q(
+    `SELECT weekly_plan_json
+     FROM workout_plans
+     WHERE user_id = $1 AND week_id = $2 AND is_weekly_plan = true
+     LIMIT 1`,
+    [userId, weekId]
+  );
+  
+  if (planRows.length === 0) {
+    return { totalDays: 0, completedDays: 0, completedDayIndexes: [] };
+  }
+  
+  const weeklyPlan = planRows[0].weekly_plan_json;
+  const totalDays = weeklyPlan?.days?.length || 0;
+  
+  // Получаем выполненные тренировки этой недели
+  const completedRows = await q(
+    `SELECT day_index
+     FROM workout_plans
+     WHERE user_id = $1
+       AND week_id = $2
+       AND day_index IS NOT NULL
+       AND status = 'completed'
+     ORDER BY day_index`,
+    [userId, weekId]
+  );
+  
+  const completedDayIndexes = completedRows.map((r: any) => r.day_index);
+  
+  return {
+    totalDays,
+    completedDays: completedDayIndexes.length,
+    completedDayIndexes
+  };
+}
+
 function buildWorkoutPlanResponse(row: WorkoutPlanRow | null) {
   if (!row) {
     return {
@@ -3302,11 +3395,157 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
     console.log("\n📝 Building prompt...");
 
     // ----------------------------------------------------------------------------
-    // НАУЧНАЯ СИСТЕМА: если у дня есть templateRulesId — используем новые правила
+    // НЕДЕЛЬНАЯ ГЕНЕРАЦИЯ: проверяем активный недельный план
     // ----------------------------------------------------------------------------
     const todayDay = program.blueprint_json.days[program.day_idx];
     const templateRulesId = (todayDay as any)?.templateRulesId;
 
+    // Если у схемы есть templateRulesId — это научная система с недельной генерацией
+    if (templateRulesId) {
+      console.log("\n🗓️ WEEKLY PROGRAM MODE");
+      
+      // Проверяем есть ли активный недельный план
+      const activeWeekly = await getActiveWeeklyPlan(userId);
+      
+      if (activeWeekly && activeWeekly.weekly_plan_json) {
+        console.log("✓ Found active weekly plan:", activeWeekly.week_id);
+        console.log(`  Created: ${new Date(activeWeekly.created_at).toLocaleString()}`);
+        
+        const weeklyPlan = activeWeekly.weekly_plan_json;
+        const currentDayIndex = program.day_idx;
+        
+        // Получаем тренировку для сегодняшнего дня
+        const todayWorkout = weeklyPlan.days?.find((d: any) => d.dayIndex === currentDayIndex);
+        
+        if (todayWorkout) {
+          console.log(`✓ Returning workout from weekly plan: Day ${currentDayIndex + 1} - ${todayWorkout.dayLabel}`);
+          
+          // Формируем ответ из недельного плана
+          const planned = {
+            title: `${todayWorkout.dayLabel} — ${program.blueprint_json.name}`,
+            focus: todayWorkout.focus,
+            mode: "normal",
+            duration: todayWorkout.estimatedDuration || 60,
+            estimatedDuration: todayWorkout.estimatedDuration || 60,
+            warmup: todayWorkout.warmup || ["Общая разминка 5-7 минут"],
+            cooldown: todayWorkout.cooldown || ["Растяжка 3-5 минут"],
+            exercises: todayWorkout.exercises || [],
+            totalSets: todayWorkout.totalSets || 0,
+            totalExercises: (todayWorkout.exercises || []).length,
+            notes: todayWorkout.notes || "",
+          };
+          
+          await markWorkoutPlanReady(planId, planned as WorkoutPlan, {});
+          logSection("✅ WEEKLY WORKOUT RETURNED");
+          logTiming("Total generation", tTotal);
+          return;
+        } else {
+          console.warn(`⚠️ Day ${currentDayIndex} not found in weekly plan, regenerating...`);
+        }
+      } else {
+        console.log("📅 No active weekly plan found, generating new week...");
+      }
+      
+      // Если нет активного плана или не нашли день — генерируем новую неделю
+      console.log("\n🚀 GENERATING NEW WEEKLY PROGRAM");
+      
+      const { TRAINING_RULES_LIBRARY } = await import("./trainingRulesLibrary.js");
+      const { buildWeeklyProgram } = await import("./intelligentWorkoutBuilder.js");
+      
+      // Собираем правила для всех дней недели
+      const daysRules = program.blueprint_json.days.map((day: any) => {
+        const dayRulesId = day.templateRulesId;
+        if (!dayRulesId) {
+          throw new Error(`Day ${day.label} has no templateRulesId`);
+        }
+        
+        const rules = TRAINING_RULES_LIBRARY[dayRulesId as keyof typeof TRAINING_RULES_LIBRARY];
+        if (!rules) {
+          throw new Error(`Training rules not found for ${dayRulesId}`);
+        }
+        
+        return rules;
+      });
+      
+      console.log(`✓ Loaded rules for ${daysRules.length} days`);
+      
+      // Профиль пользователя для генерации
+      const userProfileForRules = {
+        experience: profile.trainingStatus as any,
+        goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
+        timeAvailable: sessionMinutes,
+        daysPerWeek: profile.daysPerWeek,
+        programName: program.blueprint_json.name,
+      };
+      
+      // Подготовка истории
+      const recentExercises = history.slice(0, 5).flatMap(s => 
+        s.exercises.map(e => e.name)
+      );
+      const weightHistory: Record<string, string> = {};
+      history.forEach(session => {
+        session.exercises.forEach(ex => {
+          if (ex.weight && !weightHistory[ex.name]) {
+            weightHistory[ex.name] = String(ex.weight);
+          }
+        });
+      });
+      
+      // Генерируем недельный план
+      const weeklyPlan = await buildWeeklyProgram({
+        daysRules,
+        userProfile: userProfileForRules,
+        checkIn: checkIn ? {
+          energy: checkIn.energyLevel || "medium",
+          pain: checkIn.pain || [],
+          injuries: checkIn.injuries || [],
+          mode: (profile.recoveryScore || 70) < 40 ? "recovery" : (profile.recoveryScore || 70) < 60 ? "light" : (profile.recoveryScore || 70) >= 80 ? "push" : "normal"
+        } : undefined,
+        history: {
+          recentExercises,
+          weightHistory
+        }
+      });
+      
+      // Сохраняем недельный план в БД
+      await saveWeeklyPlan(userId, weeklyPlan.weekId, weeklyPlan);
+      console.log(`✅ Saved weekly plan to DB: ${weeklyPlan.weekId}`);
+      
+      // Возвращаем тренировку для сегодняшнего дня
+      const currentDayIndex = program.day_idx;
+      const todayWorkout = weeklyPlan.days.find(d => d.dayIndex === currentDayIndex);
+      
+      if (!todayWorkout) {
+        throw new Error(`Day ${currentDayIndex} not found in generated weekly plan`);
+      }
+      
+      const planned = {
+        title: `${todayWorkout.dayLabel} — ${program.blueprint_json.name}`,
+        focus: todayWorkout.focus,
+        mode: "normal",
+        duration: todayWorkout.estimatedDuration,
+        estimatedDuration: todayWorkout.estimatedDuration,
+        warmup: todayWorkout.warmup,
+        cooldown: todayWorkout.cooldown,
+        exercises: todayWorkout.exercises,
+        totalSets: todayWorkout.totalSets,
+        totalExercises: todayWorkout.exercises.length,
+        notes: todayWorkout.notes,
+      };
+      
+      await markWorkoutPlanReady(planId, planned as WorkoutPlan, {});
+      logSection("✅ WEEKLY PROGRAM GENERATED & SAVED");
+      logTiming("Total generation", tTotal);
+      return;
+    }
+
+    // ----------------------------------------------------------------------------
+    // LEGACY СИСТЕМА: старая логика (для схем без templateRulesId)
+    // ----------------------------------------------------------------------------
+
+    // УДАЛЕНО: старая логика с buildIntelligentWorkout (для одной тренировки)
+    // Теперь используется недельная генерация выше
+    /*
     if (templateRulesId) {
       console.log("🧠 Scientific mode: templateRulesId =", templateRulesId);
       const { TRAINING_RULES_LIBRARY } = await import("./trainingRulesLibrary.js");
@@ -3391,6 +3630,7 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
         return;
       }
     }
+    */
 
     // ----------------------------------------------------------------------------
     // LEGACY FLOW (fallback): старая система генерации с LLM prompt
