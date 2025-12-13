@@ -3383,16 +3383,9 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
           console.log(`     ${JSON.stringify(planned.exercises[0], null, 2)}`);
         }
 
-        await q(
-          `UPDATE planned_workouts
-             SET plan = $2::jsonb,
-                 status = 'ready',
-                 updated_at = NOW()
-           WHERE id = $1 AND user_id = $3`,
-          [planId, planned, userId]
-        );
-
-        await setWorkoutPlanProgress(planId, "done", 100);
+        // Сохраняем в workout_plans (для /status endpoint)
+        await markWorkoutPlanReady(planId, planned as any, null);
+        
         console.log("\n✅ Scientific workout generated and saved\n");
         return;
       }
