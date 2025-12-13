@@ -3032,7 +3032,21 @@ plan.get(
     if (!row || row.user_id !== userId) {
       return res.status(404).json({ error: "workout_plan_not_found" });
     }
-    res.json(buildWorkoutPlanResponse(row));
+    
+    const response = buildWorkoutPlanResponse(row);
+    
+    // DEBUG: логируем что возвращаем фронтенду
+    console.log(`\n🔍 GET /status/${planId}:`);
+    console.log(`  Status: ${response.meta.status}`);
+    console.log(`  Plan exists: ${!!response.plan}`);
+    if (response.plan && typeof response.plan === 'object') {
+      console.log(`  Plan exercises: ${response.plan.exercises?.length || 0}`);
+      if (response.plan.exercises && response.plan.exercises.length > 0) {
+        console.log(`  First exercise: ${response.plan.exercises[0]?.name || 'N/A'}`);
+      }
+    }
+    
+    res.json(response);
   })
 );
 
