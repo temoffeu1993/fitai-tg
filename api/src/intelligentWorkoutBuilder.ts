@@ -206,15 +206,20 @@ async function callAIForWorkout(context: WorkoutGenerationContext): Promise<{
     
     console.log(`✓ JSON распарсен: ${result.exercises?.length || 0} упражнений`);
     
-    const mappedExercises = result.exercises.map((ex: any) => ({
-      name: ex.name,
-      sets: ex.sets,
-      reps: ex.reps,
-      restSec: ex.rest, // Фронтенд ожидает restSec, а не rest
-      weight: ex.weight,
-      cues: ex.cues || ex.technique || ex.notes || "", // Фронтенд ожидает cues, а не notes
-      targetMuscles: ex.targetMuscles || []
-    }));
+    const mappedExercises = result.exercises.map((ex: any) => {
+      // Fallback для rest (AI может вернуть rest, restSec, или вообще не вернуть)
+      const restSec = ex.restSec || ex.rest || 90; // Default 90 сек если не указано
+      
+      return {
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        restSec,
+        weight: ex.weight,
+        cues: ex.cues || ex.technique || ex.notes || "",
+        targetMuscles: ex.targetMuscles || []
+      };
+    });
     
     console.log(`✓ Упражнения замаплены: ${mappedExercises.length}`);
     
@@ -394,7 +399,8 @@ function calculateDuration(exercises: any[]): number {
   
   exercises.forEach(ex => {
     const setTime = 60; // ~60 секунд на подход (выполнение)
-    const totalTime = (setTime + ex.rest) * ex.sets;
+    const restSec = ex.restSec || ex.rest || 90; // Fallback на 90 сек
+    const totalTime = (setTime + restSec) * ex.sets;
     totalMinutes += Math.ceil(totalTime / 60);
   });
   
