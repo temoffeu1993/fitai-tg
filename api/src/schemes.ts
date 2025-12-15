@@ -1,29 +1,99 @@
 // api/src/schemes.ts
+// ============================================================================
+// SCHEMES API - UPDATED TO USE NEW NORMALIZED SCHEMES
+// ============================================================================
+
 import { Router, Response } from "express";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
-import OpenAI from "openai";
-import { config } from "./config.js";
-import { workoutSchemes, WorkoutScheme } from "./workoutSchemes.js";
+import { 
+  NORMALIZED_SCHEMES, 
+  getCandidateSchemes, 
+  rankSchemes,
+  type NormalizedWorkoutScheme,
+  type SchemeUser,
+  type ExperienceLevel,
+  type Goal,
+  type Equipment,
+  type TimeBucket,
+  type ConstraintTag,
+} from "./normalizedSchemes.js";
 
 export const schemes = Router();
-
-const openai = new OpenAI({ apiKey: config.openaiApiKey! });
 
 function getUid(req: any): string {
   if (req.user?.uid) return req.user.uid;
   throw new AppError("Unauthorized", 401);
 }
 
-/** Получить рекомендованные схемы на основе онбординга */
+// ============================================================================
+// HELPER: Map old goal format to new format
+// ============================================================================
+
+function mapGoalToNew(oldGoal: string): Goal {
+  const goalMap: Record<string, Goal> = {
+    lose_weight: "lose_weight",
+    build_muscle: "build_muscle",
+    athletic_body: "athletic_body",
+    lower_body_focus: "lower_body_focus",
+    strength: "strength",
+    health_wellness: "health_wellness",
+    // Old mappings
+    fat_loss: "lose_weight",
+    hypertrophy: "build_muscle",
+    general_fitness: "athletic_body",
+    powerlifting: "strength",
+  };
+  
+  return goalMap[oldGoal] || "health_wellness";
+}
+
+// ============================================================================
+// HELPER: Map equipment to new format
+// ============================================================================
+
+function mapEquipmentToNew(location?: string, equipmentList?: string[]): Equipment {
+  // If gym location or has barbell/machines
+  if (location === "gym" || equipmentList?.includes("barbell") || equipmentList?.includes("machines")) {
+    return "gym_full";
+  }
+  
+  // If has dumbbells
+  if (equipmentList?.includes("dumbbells")) {
+    return "dumbbells";
+  }
+  
+  // If bodyweight only
+  if (equipmentList?.includes("bodyweight") || location === "home") {
+    return "bodyweight";
+  }
+  
+  // Default to gym_full
+  return "gym_full";
+}
+
+// ============================================================================
+// HELPER: Calculate time bucket from minutes
+// ============================================================================
+
+function calculateTimeBucket(minutes: number): TimeBucket {
+  if (minutes <= 50) return 45;
+  if (minutes <= 75) return 60;
+  return 90;
+}
+
+// ============================================================================
+// POST /schemes/recommend - Get recommended schemes based on onboarding
+// ============================================================================
+
 schemes.post(
   "/schemes/recommend",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
     
-    // Получаем данные онбординга
+    // Get onboarding data
     const onboardingRows = await q<{ summary: any, data: any }>(
-      `select summary, data from onboardings where user_id = $1`,
+      `SELECT summary, data FROM onboardings WHERE user_id = $1`,
       [uid]
     );
     
@@ -34,14 +104,13 @@ schemes.post(
     const summary = onboardingRows[0].summary;
     const data = onboardingRows[0].data;
     
-    // Собираем все данные для анализа
+    // Extract user parameters
     const daysPerWeek = data.schedule?.daysPerWeek || summary.schedule?.daysPerWeek || 3;
     const minutesPerSession = data.schedule?.minutesPerSession || 60;
     
-    // Извлекаем опыт из разных возможных источников
+    // Map experience
     let experience = data.experience?.level || data.experience || summary.experience?.level || summary.experience || "beginner";
-    // Маппинг старых значений на новые (если остались старые данные)
-    const expMap: Record<string, string> = {
+    const expMap: Record<string, ExperienceLevel> = {
       never_trained: "beginner",
       long_break: "beginner",
       novice: "beginner",
@@ -50,187 +119,156 @@ schemes.post(
     };
     experience = expMap[experience] || experience;
     
-    const goal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
-    const age = data.ageSex?.age || summary.age || null;
-    const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : null;
-    const hasHealthLimits = data.health?.hasLimits || false;
-    const healthLimitsText = data.health?.limitsText || "";
+    // Map goal
+    const oldGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
+    const goal = mapGoalToNew(oldGoal);
     
-    // Фильтруем схемы по строгим критериям (без fallback)
-    const candidateSchemes = workoutSchemes.filter(scheme => {
-      // 1. Точное совпадение по количеству дней
-      if (scheme.daysPerWeek !== daysPerWeek) return false;
-      
-      // 2. Опыт должен совпадать
-      if (!scheme.experienceLevels.includes(experience)) return false;
-      
-      // 3. Время тренировки с погрешностью ±20 минут
-      const tolerance = 20;
-      if (minutesPerSession < scheme.minMinutes - tolerance || 
-          minutesPerSession > scheme.maxMinutes + tolerance) {
-        return false;
-      }
-      
-      // 4. Цель должна совпадать
-      if (!scheme.goals.includes(goal)) return false;
-      
-      return true;
+    // Extract other params
+    const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;
+    const location = data.location?.type || summary.location || "gym";
+    const equipmentList = data.equipment?.available || [];
+    
+    // Extract age and body metrics
+    const age = data.ageSex?.age || summary.ageSex?.age || 30;
+    const height = data.body?.height || summary.body?.height || 170;
+    const weight = data.body?.weight || summary.body?.weight || 70;
+    
+    // Calculate BMI
+    const heightM = height / 100;
+    const bmi = weight / (heightM * heightM);
+    
+    // Map to new format
+    const equipment = mapEquipmentToNew(location, equipmentList);
+    const timeBucket = calculateTimeBucket(minutesPerSession);
+    
+    // Build constraints based on age and BMI
+    const constraints: ConstraintTag[] = [];
+    
+    // Age-based constraints
+    if (age >= 50) {
+      constraints.push("avoid_high_impact");
+      constraints.push("avoid_heavy_spinal_loading");
+    } else if (age >= 35) {
+      // 35-50: moderate approach, no specific constraints but will influence scoring
+    }
+    
+    // BMI-based constraints
+    if (bmi >= 30) {
+      constraints.push("avoid_high_impact");
+    }
+    
+    // Build user profile for new system
+    const userProfile: SchemeUser = {
+      experience: experience as ExperienceLevel,
+      goal,
+      daysPerWeek,
+      timeBucket,
+      equipment,
+      sex: sex as "male" | "female" | undefined,
+      constraints,
+      age, // added for ranking logic
+      bmi, // added for ranking logic
+    };
+    
+    console.log("🔍 User profile for scheme recommendation:", {
+      ...userProfile,
+      ageCategory: age >= 50 ? "50+" : age >= 35 ? "35-50" : "18-35",
+      bmiCategory: bmi >= 30 ? "≥30 (high)" : bmi >= 25 ? "25-30 (overweight)" : "<25 (normal)",
+      appliedConstraints: constraints.length ? constraints : "none",
     });
     
-    if (candidateSchemes.length === 0) {
+    // Use new recommendation system
+    const candidates = getCandidateSchemes(userProfile);
+    
+    if (candidates.length === 0) {
       throw new AppError(
         `К сожалению, не нашлось подходящей схемы для ваших параметров (${goal}, ${daysPerWeek} дн/нед, ${experience}). Попробуйте изменить количество дней в неделю или другие параметры.`,
         404
       );
     }
     
-    // Программный подбор схем на основе чётких критериев (надёжнее и быстрее чем AI)
+    // Rank schemes
+    const ranked = rankSchemes(userProfile, candidates);
     
-    // Функция для подсчёта соответствия схемы пользователю
-    function scoreScheme(scheme: any): number {
-      let score = 0;
-      
-      // 1. Соответствие опыту (вес: 15)
-      if (scheme.experienceLevels.includes(experience)) score += 15;
-      else score += 5; // fallback для соседних уровней
-      
-      // 2. Соответствие цели (вес: 25)
-      if (scheme.goals.includes(goal)) score += 25;
-      
-      // 3. ПРИОРИТЕТ: Точное совпадение дней (вес: 30) - УВЕЛИЧЕН!
-      const daysDiff = Math.abs(scheme.daysPerWeek - daysPerWeek);
-      if (daysDiff === 0) score += 30; // Точное совпадение - максимальный приоритет!
-      else if (daysDiff === 1) score += 15; // ±1 день - хорошо
-      else if (daysDiff === 2) score += 5; // ±2 дня - допустимо
-      // Больше 2 дней не должно попасть благодаря фильтрам
-      
-      // 4. Соответствие полу (вес: 12)
-      if (scheme.targetSex === 'any') score += 8;
-      else if (scheme.targetSex === sex) score += 12;
-      
-      // 5. Соответствие интенсивности опыту (вес: 13)
-      if (experience === 'beginner' && scheme.intensity === 'low') score += 13;
-      else if (experience === 'intermediate' && scheme.intensity === 'moderate') score += 13;
-      else if (experience === 'advanced' && scheme.intensity === 'high') score += 13;
-      else if (scheme.intensity === 'moderate') score += 7; // универсальная интенсивность
-      
-      // 6. Бонусы за специфические комбинации (вес: до 10)
-      if (goal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 10;
-      if (goal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.splitType.includes('strength'))) score += 10;
-      if (goal === 'health_wellness' && scheme.splitType === 'full_body') score += 8;
-      if (goal === 'lose_weight' && (scheme.splitType.includes('metabolic') || scheme.name.includes('Fat Loss'))) score += 10;
-      
-      return score;
-    }
+    console.log(`✅ Found ${ranked.length} candidates, recommending top 3`);
     
-    // Сортируем кандидатов по соответствию
-    const scoredSchemes = candidateSchemes
-      .map(s => ({ scheme: s, score: scoreScheme(s) }))
-      .sort((a, b) => b.score - a.score);
-    
-    // Выбираем топ-3 с учётом разнообразия типов сплитов
-    const selectedSchemes: any[] = [];
-    const usedSplitTypes = new Set<string>();
-    
-    // Первая схема - самая подходящая
-    if (scoredSchemes.length > 0) {
-      selectedSchemes.push(scoredSchemes[0].scheme);
-      usedSplitTypes.add(scoredSchemes[0].scheme.splitType);
-    }
-    
-    // Вторая и третья - стараемся выбрать разные типы
-    for (const item of scoredSchemes.slice(1)) {
-      if (selectedSchemes.length >= 3) break;
-      
-      // Предпочитаем разные типы сплитов
-      if (!usedSplitTypes.has(item.scheme.splitType)) {
-        selectedSchemes.push(item.scheme);
-        usedSplitTypes.add(item.scheme.splitType);
-      }
-    }
-    
-    // Если всё ещё меньше 3, добавляем просто по скору
-    for (const item of scoredSchemes.slice(1)) {
-      if (selectedSchemes.length >= 3) break;
-      if (!selectedSchemes.includes(item.scheme)) {
-        selectedSchemes.push(item.scheme);
-      }
-    }
-    
-    // Генерируем персональные обоснования
-    function generateReason(scheme: any, position: 'recommended' | 'alt1' | 'alt2'): string {
+    // Generate personalized reasons
+    function generateReason(scheme: NormalizedWorkoutScheme, position: 'recommended' | 'alt1' | 'alt2'): string {
       const reasons: string[] = [];
       
-      // Основное обоснование в зависимости от позиции
       if (position === 'recommended') {
-        reasons.push(`Схема "${scheme.name}" — оптимальный выбор для ваших целей.`);
+        reasons.push(`Схема "${scheme.russianName}" — оптимальный выбор для ваших целей.`);
       } else if (position === 'alt1') {
-        reasons.push(`Схема "${scheme.name}" — отличная альтернатива с немного другим подходом.`);
+        reasons.push(`Схема "${scheme.russianName}" — отличная альтернатива с немного другим подходом.`);
       } else {
-        reasons.push(`Схема "${scheme.name}" — ещё один эффективный вариант для рассмотрения.`);
+        reasons.push(`Схема "${scheme.russianName}" — ещё один эффективный вариант для рассмотрения.`);
       }
       
-      // Добавляем конкретные преимущества
-      if (scheme.goals.includes(goal)) {
-        const goalMap: Record<string, string> = {
-          lose_weight: "направлена на жиросжигание и улучшение метаболизма",
-          build_muscle: "оптимизирована для набора мышечной массы",
-          athletic_body: "формирует гармоничное спортивное телосложение",
-          lower_body_focus: "делает акцент на развитие ног и ягодиц",
-          strength: "развивает силовые показатели",
-          health_wellness: "улучшает общее самочувствие и здоровье"
-        };
-        reasons.push(`Она ${goalMap[goal] || "соответствует вашей цели"}.`);
-      }
+      reasons.push(scheme.description);
       
-      // Частота
+      // Frequency
       reasons.push(`${scheme.daysPerWeek} тренировки в неделю обеспечивают оптимальный баланс нагрузки и восстановления.`);
       
-      // Интенсивность
+      // Intensity
       const intensityMap = {
         low: "Мягкая интенсивность подходит для комфортного входа в тренировочный процесс",
         moderate: "Умеренная интенсивность — золотая середина для стабильного прогресса",
         high: "Высокая интенсивность максимизирует результаты при правильном восстановлении"
       };
-      reasons.push(intensityMap[scheme.intensity as keyof typeof intensityMap] + ".");
+      reasons.push(intensityMap[scheme.intensity] + ".");
       
       return reasons.join(" ");
     }
     
-    // Формируем ответ: 1 рекомендованная + альтернативы (только уникальные, без дублей)
-    const alternatives: any[] = [];
-    
-    // Добавляем альтернативы только если они уникальны
-    if (selectedSchemes[1] && selectedSchemes[1].id !== selectedSchemes[0].id) {
-      alternatives.push({
-        ...selectedSchemes[1],
-        reason: generateReason(selectedSchemes[1], 'alt1'),
-        isRecommended: false,
-      });
+    // Convert to old format for API compatibility
+    function convertToOldFormat(scheme: NormalizedWorkoutScheme) {
+      return {
+        id: scheme.id,
+        name: scheme.name,
+        russianName: scheme.russianName,
+        description: scheme.description,
+        daysPerWeek: scheme.daysPerWeek,
+        minMinutes: scheme.timeBuckets[0], // Approximate
+        maxMinutes: scheme.timeBuckets[scheme.timeBuckets.length - 1],
+        splitType: scheme.splitType,
+        experienceLevels: scheme.experienceLevels,
+        goals: scheme.goals,
+        equipmentRequired: scheme.equipment,
+        dayLabels: scheme.days.map(d => ({
+          day: d.day,
+          label: d.label,
+          focus: d.focus,
+          templateRulesId: d.templateRulesId,
+        })),
+        benefits: scheme.benefits,
+        notes: scheme.notes,
+        intensity: scheme.intensity,
+        targetSex: scheme.targetSex || 'any',
+      };
     }
     
-    if (selectedSchemes[2] && selectedSchemes[2].id !== selectedSchemes[0].id && selectedSchemes[2].id !== selectedSchemes[1]?.id) {
-      alternatives.push({
-        ...selectedSchemes[2],
-        reason: generateReason(selectedSchemes[2], 'alt2'),
-        isRecommended: false,
-      });
-    }
-    
+    // Build response
     const response = {
       recommended: {
-        ...selectedSchemes[0],
-        reason: generateReason(selectedSchemes[0], 'recommended'),
+        ...convertToOldFormat(ranked[0]),
+        reason: generateReason(ranked[0], 'recommended'),
         isRecommended: true,
       },
-      alternatives,
+      alternatives: ranked.slice(1, 3).map((scheme, idx) => ({
+        ...convertToOldFormat(scheme),
+        reason: generateReason(scheme, idx === 0 ? 'alt1' : 'alt2'),
+        isRecommended: false,
+      })),
     };
 
     res.json(response);
   })
 );
 
-/** Сохранить выбранную схему */
+// ============================================================================
+// POST /schemes/select - Save selected scheme
+// ============================================================================
+
 schemes.post(
   "/schemes/select",
   asyncHandler(async (req: any, res: Response) => {
@@ -241,21 +279,22 @@ schemes.post(
       throw new AppError("Scheme ID is required", 400);
     }
     
-    // Находим схему
-    const selectedScheme = workoutSchemes.find(s => s.id === schemeId);
+    // Find scheme in new system
+    const selectedScheme = NORMALIZED_SCHEMES.find(s => s.id === schemeId);
     if (!selectedScheme) {
       throw new AppError("Scheme not found", 404);
     }
     
-    // Сохраняем выбор в таблицу user_workout_schemes
-    // Но сначала нужно добавить схему в таблицу workout_schemes если её там нет
+    console.log(`✅ User ${uid} selected scheme: ${selectedScheme.russianName}`);
+    
+    // Check if scheme exists in DB
     const schemeRows = await q<{ id: string }>(
       `SELECT id FROM workout_schemes WHERE id = $1`,
       [schemeId]
     );
     
     if (schemeRows.length === 0) {
-      // Добавляем схему в базу
+      // Add scheme to database
       await q(
         `INSERT INTO workout_schemes 
          (id, name, description, days_per_week, min_minutes, max_minutes, split_type, 
@@ -267,13 +306,18 @@ schemes.post(
           selectedScheme.name,
           selectedScheme.description,
           selectedScheme.daysPerWeek,
-          selectedScheme.minMinutes,
-          selectedScheme.maxMinutes,
+          selectedScheme.timeBuckets[0],
+          selectedScheme.timeBuckets[selectedScheme.timeBuckets.length - 1],
           selectedScheme.splitType,
           selectedScheme.experienceLevels,
           selectedScheme.goals,
-          selectedScheme.equipmentRequired,
-          JSON.stringify(selectedScheme.dayLabels),
+          selectedScheme.equipment,
+          JSON.stringify(selectedScheme.days.map(d => ({
+            day: d.day,
+            label: d.label,
+            focus: d.focus,
+            templateRulesId: d.templateRulesId,
+          }))),
           selectedScheme.benefits,
           selectedScheme.notes || null,
           selectedScheme.intensity,
@@ -282,7 +326,7 @@ schemes.post(
       );
     }
     
-    // Сохраняем выбор пользователя
+    // Save user selection
     await q(
       `INSERT INTO user_workout_schemes (user_id, scheme_id)
        VALUES ($1, $2)
@@ -290,14 +334,13 @@ schemes.post(
       [uid, schemeId]
     );
     
-    // Также сохраняем схему в training_programs для использования в генерации тренировок
+    // Save to training_programs for workout generation
     const blueprint = {
       name: selectedScheme.name,
-      days: selectedScheme.dayLabels.map(d => ({
+      days: selectedScheme.days.map(d => ({
         label: d.label,
         focus: d.focus,
-        // Добавляем templateRulesId для научной системы генерации
-        ...(d.templateRulesId ? { templateRulesId: d.templateRulesId } : {})
+        templateRulesId: d.templateRulesId,
       })),
       description: selectedScheme.description,
       meta: {
@@ -317,11 +360,20 @@ schemes.post(
       [uid, blueprint, selectedScheme.daysPerWeek]
     );
     
-    res.json({ ok: true, scheme: selectedScheme });
+    res.json({ 
+      ok: true, 
+      scheme: {
+        ...selectedScheme,
+        dayLabels: selectedScheme.days,
+      } 
+    });
   })
 );
 
-/** Получить выбранную схему пользователя */
+// ============================================================================
+// GET /schemes/selected - Get user's selected scheme
+// ============================================================================
+
 schemes.get(
   "/schemes/selected",
   asyncHandler(async (req: any, res: Response) => {
@@ -336,8 +388,35 @@ schemes.get(
       return res.json({ scheme: null });
     }
     
-    const selectedScheme = workoutSchemes.find(s => s.id === rows[0].scheme_id);
-    res.json({ scheme: selectedScheme || null });
+    const selectedScheme = NORMALIZED_SCHEMES.find(s => s.id === rows[0].scheme_id);
+    
+    if (!selectedScheme) {
+      return res.json({ scheme: null });
+    }
+    
+    res.json({ 
+      scheme: {
+        ...selectedScheme,
+        dayLabels: selectedScheme.days,
+      } 
+    });
+  })
+);
+
+// ============================================================================
+// GET /schemes/all - Get all available schemes (for debugging/admin)
+// ============================================================================
+
+schemes.get(
+  "/schemes/all",
+  asyncHandler(async (req: any, res: Response) => {
+    res.json({ 
+      schemes: NORMALIZED_SCHEMES.map(s => ({
+        ...s,
+        dayLabels: s.days,
+      })),
+      total: NORMALIZED_SCHEMES.length,
+    });
   })
 );
 

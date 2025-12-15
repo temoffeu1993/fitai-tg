@@ -10,7 +10,7 @@ import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { config } from "./config.js";
 import { ensureSubscription } from "./subscription.js";
-import { workoutSchemes } from "./workoutSchemes.js";
+import { NORMALIZED_SCHEMES as workoutSchemes } from "./normalizedSchemes.js";
 
 export const plan = Router();
 
@@ -1420,7 +1420,7 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
   // Конвертируем схему в Blueprint
   const blueprint: Blueprint = {
     name: bestScheme.russianName || bestScheme.name,
-    days: bestScheme.dayLabels.map((d: any) => ({
+    days: bestScheme.days.map((d: any) => ({
       label: d.label,
       focus: d.focus,
       // Копируем templateRulesId для научной системы v2

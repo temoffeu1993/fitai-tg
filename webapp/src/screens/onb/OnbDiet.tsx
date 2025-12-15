@@ -7,7 +7,6 @@ const RESTRICTIONS = ["Лактоза", "Глютен", "Орехи", "Свин�
 const STYLES = ["Всеядный", "Вегетарианец", "Веган", "Халяль", "Кошер", "Другое"] as const;
 
 export type OnbDietData = {
-  health: { hasLimits: boolean; limitsText: string };
   preferences: { dislike: string[] };
   dietPrefs: {
     restrictions: string[];
@@ -27,9 +26,6 @@ type Props = {
 };
 
 export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
-  const [hasLimits, setHasLimits] = useState<boolean>(!!initial?.health?.hasLimits);
-  const [limitsText, setLimitsText] = useState<string>(initial?.health?.limitsText ?? "");
-
   const [restrictions, setRestrictions] = useState<string[]>(
     initial?.dietPrefs?.restrictions ?? initial?.preferences?.dislike ?? []
   );
@@ -41,11 +37,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [budget, setBudget] = useState<Budget>(initial?.dietPrefs?.budgetLevel ?? "medium");
 
   const canNext = useMemo(() => {
-    if (hasLimits && !limitsText.trim()) return false;
     if (restrictions.includes("Другое") && !restrictionOther.trim()) return false;
     if (stylesSel.includes("Другое") && !styleOther.trim()) return false;
     return true;
-  }, [hasLimits, limitsText, restrictions, restrictionOther, stylesSel, styleOther]);
+  }, [restrictions, restrictionOther, stylesSel, styleOther]);
 
   function toggle(list: string[], value: string, setter: (v: string[]) => void) {
     setter(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -71,7 +66,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     })();
 
     onSubmit({
-      health: { hasLimits, limitsText: hasLimits ? limitsText.trim() : "" },
       preferences: { dislike: outRestrictions },
       dietPrefs: {
         restrictions: outRestrictions,
@@ -97,32 +91,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div style={st.heroSubtitle}>Учту ограничения и предпочтения. План будет комфортным.</div>
       </section>
 
-      {/* Ряд 1: Ограничения + Бюджет */}
-      <section style={st.grid2Cols}>
-        <div style={st.cardGlass}>
-          <div style={st.blockTitle}>🩺 Хронические травмы/ограничения</div>
-          <div style={st.row2Equal}>
-            <Chip label="Нет"  active={!hasLimits} onClick={() => setHasLimits(false)} />
-            <Chip label="Есть" active={hasLimits}  onClick={() => setHasLimits(true)} />
-          </div>
-
-          {hasLimits && (
-            <textarea
-              value={limitsText}
-              onChange={(e) => setLimitsText(e.target.value)}
-              placeholder="Опиши постоянные проблемы: спина, колени, хронические болезни…"
-              style={{ ...st.inputGlass, marginTop: 12, minHeight: 88, resize: "vertical" as const }}
-            />
-          )}
-        </div>
-
-        <div style={st.cardGlass}>
-          <div style={st.blockTitle}>💸 Ваш бюджет на продукты</div>
-          <div style={st.row3Equal}>
-            <Chip label="Низкий"  active={budget === "low"}    onClick={() => setBudget("low")} />
-            <Chip label="Средний" active={budget === "medium"} onClick={() => setBudget("medium")} />
-            <Chip label="Высокий" active={budget === "high"}   onClick={() => setBudget("high")} />
-          </div>
+      {/* Ряд 1: Бюджет */}
+      <section style={st.cardGlass}>
+        <div style={st.blockTitle}>💸 Ваш бюджет на продукты</div>
+        <div style={st.row3Equal}>
+          <Chip label="Низкий"  active={budget === "low"}    onClick={() => setBudget("low")} />
+          <Chip label="Средний" active={budget === "medium"} onClick={() => setBudget("medium")} />
+          <Chip label="Высокий" active={budget === "high"}   onClick={() => setBudget("high")} />
         </div>
       </section>
 
