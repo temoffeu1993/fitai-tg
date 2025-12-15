@@ -920,38 +920,45 @@ function ExercisesList({
 
   // Styles for technique section
   const techBtn: React.CSSProperties = {
-    marginTop: 12,
-    padding: "8px 14px",
+    width: "100%",
+    padding: "10px",
     border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 10,
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    color: "#475569",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
+    marginTop: 8,
     transition: "all 0.2s",
-    width: "100%",
-    textAlign: "left",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   };
 
   const techDetails: React.CSSProperties = {
     marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
     background: "rgba(255,255,255,0.5)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.06)",
+    display: "grid",
+    gap: 10,
   };
 
   const techBlock: React.CSSProperties = {
-    marginBottom: 12,
+    display: "grid",
+    gap: 6,
   };
 
   const techTitle: React.CSSProperties = {
     fontSize: 13,
-    fontWeight: 750,
-    color: "#0f172a",
-    marginBottom: 6,
-    letterSpacing: "-0.01em",
+    fontWeight: 800,
+    color: "#0B1220",
   };
 
   const techText: React.CSSProperties = {
@@ -961,11 +968,13 @@ function ExercisesList({
   };
 
   const techList: React.CSSProperties = {
-    margin: "6px 0 0 0",
+    margin: 0,
     paddingLeft: 20,
     fontSize: 13,
     color: "#475569",
     lineHeight: 1.6,
+    display: "grid",
+    gap: 4,
   };
 
   return (
@@ -1005,112 +1014,84 @@ function ExercisesList({
               }
             }}
           >
-            <div style={row.left}>
-              <div style={row.name}>
-                {name || `Шаг ${i + 1}`}
-                {unilateral && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>👥 на каждую сторону</span>}
-              </div>
-              {cues ? <div style={row.cues}>{cues}</div> : null}
-              
-              {/* Target muscles */}
-              {isMain && targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
-                <div style={{ 
-                  fontSize: 12, 
-                  color: "#64748b", 
-                  marginTop: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}>
-                  <span>🎯</span>
-                  <span>{targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).join(", ")}</span>
-                </div>
-              )}
-              
-              {/* Equipment & Difficulty */}
-              {isMain && (equipment || difficulty) && (
-                <div style={{ 
-                  display: "flex", 
-                  gap: 12, 
-                  marginTop: 6, 
-                  fontSize: 12, 
-                  color: "#64748b",
-                  flexWrap: "wrap",
-                }}>
-                  {equipment && Array.isArray(equipment) && equipment.length > 0 && (
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>🏋️</span>
-                      <span>{equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).join(", ")}</span>
-                    </span>
-                  )}
-                  {typeof difficulty === 'number' && difficulty > 0 && (
-                    <span>{"⭐".repeat(Math.min(difficulty, 5))}</span>
-                  )}
-                </div>
-              )}
-              
-              {/* Technique button */}
-              {isMain && technique && typeof technique === 'object' && (
-                <button
-                  style={{
-                    ...techBtn,
-                    background: showTechnique ? "rgba(106,141,255,0.1)" : "rgba(0,0,0,0.04)",
-                    color: showTechnique ? "#6a8dff" : "#666",
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleTechnique(i);
-                  }}
-                >
-                  {showTechnique ? "▼" : "▶"} Техника выполнения
-                </button>
-              )}
-              
-              {/* Technique details (expandable) */}
-              {isMain && showTechnique && technique && typeof technique === 'object' && (
-                <div style={techDetails}>
-                  {technique.setup && typeof technique.setup === 'string' && (
-                    <div style={techBlock}>
-                      <div style={techTitle}>🔧 Подготовка:</div>
-                      <div style={techText}>{technique.setup}</div>
-                    </div>
-                  )}
-                  {technique.execution && typeof technique.execution === 'string' && (
-                    <div style={techBlock}>
-                      <div style={techTitle}>💪 Выполнение:</div>
-                      <div style={techText}>{technique.execution}</div>
-                    </div>
-                  )}
-                  {technique.commonMistakes && Array.isArray(technique.commonMistakes) && technique.commonMistakes.length > 0 && (
-                    <div style={techBlock}>
-                      <div style={techTitle}>⚠️ Частые ошибки:</div>
-                      <ul style={techList}>
-                        {technique.commonMistakes.filter(Boolean).map((mistake: string, idx: number) => (
-                          <li key={idx}>{mistake}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Название упражнения */}
+            <div style={row.name}>
+              {name || `Шаг ${i + 1}`}
+              {unilateral && <span style={{ marginLeft: 6, fontSize: 14, opacity: 0.7 }}> 👥 каждая сторона</span>}
             </div>
-
-            {isMain && typeof sets === "number" && typeof restSec === "number" ? (
-              <div style={row.metrics}>
-                <div style={caps.wrap} title="Подходы и отдых">
-                  <div style={caps.box}>
-                    <span style={caps.num}>
-                      {sets}×{formatReps(reps)}
-                    </span>
-                  </div>
-                  <div style={caps.box}>
-                    <span style={caps.label}>Отдых</span>
-                    <span style={caps.num}>{formatSec(restSec)}</span>
-                  </div>
-                </div>
+            
+            {/* Чипы с инфо (сеты, отдых, мышцы) */}
+            {isMain && typeof sets === 'number' && typeof restSec === 'number' && (
+              <div style={caps.wrap}>
+                <span style={caps.box}>
+                  💪 {sets}×{formatReps(reps)}
+                </span>
+                <span style={caps.box}>
+                  ⏱️ {formatSec(restSec)}
+                </span>
+                {targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
+                  <span style={caps.box}>
+                    🎯 {targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ")}
+                  </span>
+                )}
+                {equipment && Array.isArray(equipment) && equipment.length > 0 && (
+                  <span style={caps.box}>
+                    🏋️ {equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).slice(0, 1).join(", ")}
+                  </span>
+                )}
+                {typeof difficulty === 'number' && difficulty > 0 && (
+                  <span style={caps.box}>
+                    {"⭐".repeat(Math.min(difficulty, 5))}
+                  </span>
+                )}
               </div>
-            ) : null}
+            )}
+            
+            {/* Подсказки по технике */}
+            {cues ? <div style={row.cues}>{cues}</div> : null}
+              
+            {/* Technique button */}
+            {isMain && technique && typeof technique === 'object' && (
+              <button
+                type="button"
+                style={techBtn}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleTechnique(i);
+                }}
+              >
+                {showTechnique ? "Свернуть технику ▲" : "Показать технику ▼"}
+              </button>
+            )}
+              
+            {/* Technique details (expandable) */}
+            {isMain && showTechnique && technique && typeof technique === 'object' && (
+              <div style={techDetails}>
+                {technique.setup && typeof technique.setup === 'string' && (
+                  <div style={techBlock}>
+                    <div style={techTitle}>🔧 Подготовка</div>
+                    <div style={techText}>{technique.setup}</div>
+                  </div>
+                )}
+                {technique.execution && typeof technique.execution === 'string' && (
+                  <div style={techBlock}>
+                    <div style={techTitle}>💪 Выполнение</div>
+                    <div style={techText}>{technique.execution}</div>
+                  </div>
+                )}
+                {technique.commonMistakes && Array.isArray(technique.commonMistakes) && technique.commonMistakes.length > 0 && (
+                  <div style={techBlock}>
+                    <div style={techTitle}>⚠️ Частые ошибки</div>
+                    <ul style={techList}>
+                      {technique.commonMistakes.filter(Boolean).map((mistake: string, idx: number) => (
+                        <li key={idx}>{mistake}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -1705,53 +1686,46 @@ const ux: Record<string, any> = {
   },
 };
 
-/* ----------------- Строки упражнений (как карточки схем) ----------------- */
+/* ----------------- Строки упражнений (ТОЧНО как карточки схем) ----------------- */
 const row: Record<string, React.CSSProperties> = {
   wrap: {
     position: "relative",
-    display: "flex",
-    alignItems: "stretch",
-    gap: 12,
     padding: 18,
-    background: "rgba(255,255,255,0.6)",
     borderRadius: 16,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.6)",
     border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
-    flexWrap: "nowrap",
-    transition: "all 0.3s ease",
     cursor: "default",
+    transition: "all 0.3s ease",
   },
   left: {
     display: "grid",
-    gap: 6,
-    minWidth: 0,
-    flex: "1 1 auto",
-    marginRight: 8,
+    gap: 8,
+    flex: 1,
   },
   name: { 
-    fontSize: 15, 
-    fontWeight: 750, 
-    color: "#0f172a", 
-    lineHeight: 1.2, 
-    whiteSpace: "normal",
-    letterSpacing: "-0.01em",
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginBottom: 8,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
   },
   cues: { 
-    fontSize: 12, 
-    color: "#64748b",
-    lineHeight: 1.4,
-    marginTop: 2,
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+    marginBottom: 12,
+    fontWeight: 500,
   },
   metrics: {
     display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    alignItems: "flex-end",
-    justifyContent: "center",
-    flex: "0 0 auto",
-    minWidth: 120,
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: "wrap",
   },
 };
 
