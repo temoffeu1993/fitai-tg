@@ -241,7 +241,7 @@ workoutGeneration.post(
       await q(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, status)
-         VALUES ($1, CURRENT_DATE + $2, $3::jsonb, 'pending')
+         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, 'pending')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET data = $3::jsonb, status = 'pending', created_at = now()`,
         [uid, i, workoutData]
@@ -666,7 +666,7 @@ workoutGeneration.post(
       await q(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, status)
-         VALUES ($1, CURRENT_DATE + $2, $3::jsonb, 'pending')
+         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, 'pending')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET data = $3::jsonb, status = 'pending', created_at = now()`,
         [uid, i, workoutData]
