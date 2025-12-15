@@ -1142,6 +1142,10 @@ function ExercisesList({
         const reps = !isString ? item.reps : null;
         const restSec = !isString ? item.restSec : null;
         const targetMuscles = !isString ? (item as any).targetMuscles : null;
+        const equipment = !isString ? (item as any).equipment : null;
+        const difficulty = !isString ? (item as any).difficulty : null;
+        const technique = !isString ? (item as any).technique : null;
+        const showTechnique = expandedTechnique.has(i);
 
         // Формируем краткую инфо-строку (как dayFocus в схемах)
         const infoLine = (() => {
