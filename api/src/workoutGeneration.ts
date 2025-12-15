@@ -41,6 +41,20 @@ function getUid(req: any): string {
 }
 
 // ============================================================================
+// POST /generate - Алиас для совместимости со старым фронтендом
+// ============================================================================
+
+workoutGeneration.post(
+  "/generate",
+  asyncHandler(async (req: any, res: Response) => {
+    console.log("🔄 /generate called (redirecting to generate-week)");
+    // Перенаправляем на generate-week
+    req.url = "/generate-week";
+    return workoutGeneration.handle(req, res);
+  })
+);
+
+// ============================================================================
 // HELPER: Build user profile from database
 // ============================================================================
 

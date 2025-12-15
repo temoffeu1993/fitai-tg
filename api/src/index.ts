@@ -7,7 +7,7 @@ import cors from "cors";
 
 import authRouter, { requireAuth } from "./auth.js";
 import { onboarding } from "./onboarding.js";
-import planRouter from "./plan.js";
+// import planRouter from "./plan.js"; // ❌ СТАРАЯ ИИ-СИСТЕМА ОТКЛЮЧЕНА
 import { workout } from "./workout.js";
 import { nutrition } from "./nutrition.js";
 import { schedule } from "./schedule.js";
@@ -33,14 +33,16 @@ app.use("/auth", authRouter);
 app.use(requireAuth, onboarding);
 app.use(requireAuth, profileRouter);
 app.use(requireAuth, schemes);
+// ❌ СТАРЫЙ /plan ОТКЛЮЧЕН - используем детерминированную систему
+// app.use("/plan", requireAuth, planRouter);
 app.use(
   "/plan",
   requireAuth,
   (req, res, next) => {
-    console.log("HIT /plan", req.method, req.url);
+    console.log("HIT /plan", req.method, req.url, "→ REDIRECT TO /api/workout");
     next();
   },
-  planRouter
+  workoutGeneration // 🔥 ИСПОЛЬЗУЕМ НОВУЮ СИСТЕМУ вместо старой
 );
 app.use("/workout", requireAuth, workout);
 app.use("/api/workout", requireAuth, workoutGeneration); // 🔥 НОВАЯ детерминированная генерация
