@@ -905,6 +905,13 @@ function ExercisesList({
   if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
 
+  // Debug: log exercise data structure
+  React.useEffect(() => {
+    if (isMain && items.length > 0 && typeof items[0] !== 'string') {
+      console.log('📋 Exercise data sample:', items[0]);
+    }
+  }, [items, isMain]);
+
   const toggleTechnique = (index: number) => {
     setExpandedTechnique(prev => {
       const next = new Set(prev);
@@ -1009,14 +1016,18 @@ function ExercisesList({
               )}
               
               {/* Technique button */}
-              {isMain && technique && (
+              {isMain && technique && typeof technique === 'object' && (
                 <button
                   style={{
                     ...techBtn,
                     background: showTechnique ? "rgba(106,141,255,0.1)" : "rgba(0,0,0,0.04)",
                     color: showTechnique ? "#6a8dff" : "#666",
                   }}
-                  onClick={() => toggleTechnique(i)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleTechnique(i);
+                  }}
                 >
                   {showTechnique ? "▼" : "▶"} Техника выполнения
                 </button>
