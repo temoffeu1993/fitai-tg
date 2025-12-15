@@ -240,10 +240,15 @@ workoutGeneration.post(
       
       await q(
         `INSERT INTO planned_workouts 
-         (user_id, workout_date, data, status)
-         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, 'pending')
+         (user_id, workout_date, data, plan, scheduled_for, status)
+         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
          ON CONFLICT (user_id, workout_date) 
-         DO UPDATE SET data = $3::jsonb, status = 'pending', created_at = now()`,
+         DO UPDATE SET 
+           data = $3::jsonb,
+           plan = $3::jsonb,
+           status = 'pending', 
+           created_at = now()`,
         [uid, i, workoutData]
       );
     }
@@ -547,10 +552,14 @@ workoutGeneration.post(
     
     await q(
       `INSERT INTO planned_workouts 
-       (user_id, workout_date, data, status)
-       VALUES ($1, CURRENT_DATE, $2::jsonb, 'pending')
+       (user_id, workout_date, data, plan, scheduled_for, status)
+       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
        ON CONFLICT (user_id, workout_date) 
-       DO UPDATE SET data = $2::jsonb, status = 'pending', created_at = now()`,
+       DO UPDATE SET 
+         data = $2::jsonb,
+         plan = $2::jsonb,
+         status = 'pending', 
+         created_at = now()`,
       [uid, workoutData]
     );
     
@@ -665,10 +674,15 @@ workoutGeneration.post(
       // Use different dates for each workout
       await q(
         `INSERT INTO planned_workouts 
-         (user_id, workout_date, data, status)
-         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, 'pending')
+         (user_id, workout_date, data, plan, scheduled_for, status)
+         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
          ON CONFLICT (user_id, workout_date) 
-         DO UPDATE SET data = $3::jsonb, status = 'pending', created_at = now()`,
+         DO UPDATE SET 
+           data = $3::jsonb,
+           plan = $3::jsonb,
+           status = 'pending', 
+           created_at = now()`,
         [uid, i, workoutData]
       );
     }
