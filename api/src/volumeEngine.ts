@@ -280,6 +280,28 @@ export const REST_MODIFIERS_BY_EXPERIENCE: Record<ExperienceLevel, number> = {
 // 11. GET REST TIME (с учётом experience!)
 // ============================================================================
 
+/**
+ * Round rest time to human-friendly values
+ * Nobody sets timer to 1:48 or 0:54! Round to: 30, 45, 60, 90, 120, 150, 180
+ */
+function roundRestTime(seconds: number): number {
+  const humanValues = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+  
+  // Find closest human-friendly value
+  let closest = humanValues[0];
+  let minDiff = Math.abs(seconds - closest);
+  
+  for (const val of humanValues) {
+    const diff = Math.abs(seconds - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+  
+  return closest;
+}
+
 export function getRestTime(args: {
   role: SlotRole;
   goal: Goal;
@@ -312,7 +334,8 @@ export function getRestTime(args: {
     rest = Math.floor(rest * 0.95); // Немного короче при light
   }
 
-  return rest;
+  // Round to human-friendly values (30, 45, 60, 90, 120, etc.)
+  return roundRestTime(rest);
 }
 
 // ============================================================================
