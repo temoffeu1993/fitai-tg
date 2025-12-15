@@ -42,7 +42,7 @@ function getUid(req: any): string {
 
 // ============================================================================
 // POST /generate - Алиас для совместимости со старым фронтендом
-// Генерирует недельный план (аналог /generate-week)
+// Генерирует недельный план и возвращает первый день
 // ============================================================================
 
 workoutGeneration.post(
@@ -69,6 +69,8 @@ workoutGeneration.post(
     if (!scheme) {
       throw new AppError("Scheme not found", 404);
     }
+    
+    console.log(`📋 Selected scheme: ${scheme.russianName} (${scheme.id})`);
     
     // Get or create mesocycle
     let mesocycle = await getMesocycle(uid);
@@ -114,6 +116,43 @@ workoutGeneration.post(
       schemeId: scheme.id,
       workouts: weekPlan,
     });
+    
+    // Save all workouts to planned_workouts
+    for (let i = 0; i < weekPlan.length; i++) {
+      const workout = weekPlan[i];
+      
+      const workoutData = {
+        schemeId: scheme.id,
+        schemeName: workout.schemeName,
+        dayIndex: workout.dayIndex,
+        dayLabel: workout.dayLabel,
+        dayFocus: workout.dayFocus,
+        intent: workout.intent,
+        exercises: workout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          exerciseName: ex.exercise.name,
+          sets: ex.sets,
+          repsRange: ex.repsRange,
+          restSec: ex.restSec,
+          notes: ex.notes,
+          targetMuscles: ex.exercise.primaryMuscles,
+        })),
+        totalExercises: workout.totalExercises,
+        totalSets: workout.totalSets,
+        estimatedDuration: workout.estimatedDuration,
+        adaptationNotes: workout.adaptationNotes,
+        warnings: workout.warnings,
+      };
+      
+      await q(
+        `INSERT INTO planned_workouts 
+         (user_id, workout_date, data, status)
+         VALUES ($1, CURRENT_DATE + $2, $3::jsonb, 'pending')
+         ON CONFLICT (user_id, workout_date) 
+         DO UPDATE SET data = $3::jsonb, status = 'pending', created_at = now()`,
+        [uid, i, workoutData]
+      );
+    }
     
     // Return TODAY's workout (day 0) for compatibility with old frontend
     const todayWorkout = weekPlan[0];
