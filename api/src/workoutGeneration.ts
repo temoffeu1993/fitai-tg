@@ -262,8 +262,9 @@ workoutGeneration.post(
     const todayWorkout = weekPlan[0];
     
     console.log(`📤 Sending response to client...`);
+    
+    // Format response for old frontend (WorkoutPlanResponse)
     return res.json({
-      success: true,
       plan: {
         id: `week_${Date.now()}`,
         exercises: todayWorkout.exercises.map(ex => ({
@@ -280,19 +281,28 @@ workoutGeneration.post(
         focus: todayWorkout.dayFocus,
         estimatedDuration: todayWorkout.estimatedDuration,
         notes: todayWorkout.adaptationNotes,
+        // Дополнительные данные для нового фронтенда (если нужны)
+        weekPlan: weekPlan.map((day, idx) => ({
+          day: idx + 1,
+          label: day.dayLabel,
+          focus: day.dayFocus,
+          totalExercises: day.totalExercises,
+          totalSets: day.totalSets,
+          estimatedDuration: day.estimatedDuration,
+        })),
+        mesocycle: {
+          week: mesocycle.currentWeek,
+          totalWeeks: mesocycle.totalWeeks,
+          phase: mesocycle.currentPhase,
+        },
       },
-      weekPlan: weekPlan.map((day, idx) => ({
-        day: idx + 1,
-        label: day.dayLabel,
-        focus: day.dayFocus,
-        totalExercises: day.totalExercises,
-        totalSets: day.totalSets,
-        estimatedDuration: day.estimatedDuration,
-      })),
-      mesocycle: {
-        week: mesocycle.currentWeek,
-        totalWeeks: mesocycle.totalWeeks,
-        phase: mesocycle.currentPhase,
+      analysis: null,
+      meta: {
+        status: 'ready',
+        planId: `week_${Date.now()}`,
+        error: null,
+        progress: 100,
+        progressStage: 'complete',
       },
     });
   })
