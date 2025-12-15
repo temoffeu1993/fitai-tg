@@ -609,8 +609,9 @@ function djb2(str: string) {
   return String(h >>> 0);
 }
 
-function formatReps(r?: number | string) {
+function formatReps(r?: number | string | [number, number]) {
   if (r == null || r === "") return "—";
+  if (Array.isArray(r)) return r.join("-"); // [4, 6] → "4-6"
   return typeof r === "number" ? String(r) : String(r);
 }
 
