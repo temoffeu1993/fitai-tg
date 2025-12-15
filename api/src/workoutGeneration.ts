@@ -148,7 +148,7 @@ workoutGeneration.post(
       mesocycle: {
         week: mesocycle.currentWeek,
         totalWeeks: mesocycle.totalWeeks,
-        phase: mesocycle.phase,
+        phase: mesocycle.currentPhase,
       },
     });
   })
