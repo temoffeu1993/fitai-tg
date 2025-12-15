@@ -915,6 +915,53 @@ function ExercisesList({
     });
   };
 
+  // Styles for technique section
+  const techBtn: React.CSSProperties = {
+    marginTop: 8,
+    padding: "6px 10px",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.2s",
+    width: "100%",
+    textAlign: "left",
+  };
+
+  const techDetails: React.CSSProperties = {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    background: "rgba(106,141,255,0.05)",
+    border: "1px solid rgba(106,141,255,0.15)",
+  };
+
+  const techBlock: React.CSSProperties = {
+    marginBottom: 10,
+  };
+
+  const techTitle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#333",
+    marginBottom: 4,
+  };
+
+  const techText: React.CSSProperties = {
+    fontSize: 12,
+    color: "#555",
+    lineHeight: 1.5,
+  };
+
+  const techList: React.CSSProperties = {
+    margin: "4px 0 0 0",
+    paddingLeft: 18,
+    fontSize: 12,
+    color: "#555",
+    lineHeight: 1.5,
+  };
+
   return (
     <div style={{ display: "grid", gap: 6 }}>
       {items.map((item, i) => {
