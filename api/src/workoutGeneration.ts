@@ -277,6 +277,11 @@ workoutGeneration.post(
           weight: 0, // Будет заполнено из progressionDb
           targetMuscles: ex.exercise.primaryMuscles,
           cues: ex.notes,
+          // NEW: Detailed fields
+          technique: ex.exercise.technique,
+          equipment: ex.exercise.equipment,
+          difficulty: ex.exercise.difficulty,
+          unilateral: ex.exercise.unilateral,
         })),
         cooldown: todayWorkout.cooldown,
         dayLabel: todayWorkout.dayLabel,

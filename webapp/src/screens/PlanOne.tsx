@@ -18,6 +18,15 @@ export type Exercise = {
   name: string; sets: number;
   reps?: number|string; restSec?: number; cues?: string;
   pattern?: string; targetMuscles?: string[]; tempo?: string; guideUrl?: string; weight?: string;
+  // NEW: detailed fields
+  technique?: {
+    setup: string;
+    execution: string;
+    commonMistakes: string[];
+  };
+  equipment?: string[];
+  difficulty?: number;
+  unilateral?: boolean;
 };
 
 /**
@@ -615,6 +624,48 @@ function formatReps(r?: number | string | [number, number]) {
   return typeof r === "number" ? String(r) : String(r);
 }
 
+function muscleNameRU(muscle: string): string {
+  const map: Record<string, string> = {
+    quads: "Квадрицепсы",
+    glutes: "Ягодицы",
+    hamstrings: "Бицепс бедра",
+    calves: "Икры",
+    chest: "Грудь",
+    lats: "Широчайшие",
+    upper_back: "Верх спины",
+    traps: "Трапеции",
+    rear_delts: "Задние дельты",
+    front_delts: "Передние дельты",
+    side_delts: "Средние дельты",
+    triceps: "Трицепс",
+    biceps: "Бицепс",
+    forearms: "Предплечья",
+    core: "Кор",
+    lower_back: "Поясница",
+  };
+  return map[muscle] || muscle;
+}
+
+function equipmentNameRU(equipment: string): string {
+  const map: Record<string, string> = {
+    barbell: "Штанга",
+    dumbbell: "Гантели",
+    machine: "Тренажер",
+    cable: "Кабель",
+    smith: "Смит",
+    bodyweight: "Свой вес",
+    kettlebell: "Гиря",
+    bands: "Резинки",
+    bench: "Скамья",
+    pullup_bar: "Турник",
+    trx: "TRX",
+    sled: "Сани",
+    cardio_machine: "Кардио",
+    landmine: "Мина",
+  };
+  return map[equipment] || equipment;
+}
+
 function formatSec(s?: number) {
   if (s == null) return "—";
   const m = Math.floor((s as number) / 60);
@@ -847,8 +898,22 @@ function ExercisesList({
   variant: "warmup" | "main" | "cooldown";
   isOpen: boolean;
 }) {
+  const [expandedTechnique, setExpandedTechnique] = React.useState<Set<number>>(new Set());
+  
   if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
+
+  const toggleTechnique = (index: number) => {
+    setExpandedTechnique(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
 
   return (
     <div style={{ display: "grid", gap: 6 }}>
@@ -859,12 +924,82 @@ function ExercisesList({
         const sets = !isString ? item.sets : null;
         const reps = !isString ? item.reps : null;
         const restSec = !isString ? item.restSec : null;
+        const technique = !isString ? (item as any).technique : null;
+        const equipment = !isString ? (item as any).equipment : null;
+        const difficulty = !isString ? (item as any).difficulty : null;
+        const unilateral = !isString ? (item as any).unilateral : null;
+        const targetMuscles = !isString ? (item as any).targetMuscles : null;
+        const showTechnique = expandedTechnique.has(i);
 
         return (
           <div key={`${variant}-${i}-${name ?? "step"}`} style={row.wrap}>
             <div style={row.left}>
-              <div style={row.name}>{name || `Шаг ${i + 1}`}</div>
+              <div style={row.name}>
+                {name || `Шаг ${i + 1}`}
+                {unilateral && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>👥 на каждую сторону</span>}
+              </div>
               {cues ? <div style={row.cues}>{cues}</div> : null}
+              
+              {/* Target muscles */}
+              {isMain && targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
+                <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+                  🎯 {targetMuscles.map(m => muscleNameRU(m)).join(", ")}
+                </div>
+              )}
+              
+              {/* Equipment & Difficulty */}
+              {isMain && (equipment || difficulty) && (
+                <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, color: "#888" }}>
+                  {equipment && Array.isArray(equipment) && equipment.length > 0 && (
+                    <span>🏋️ {equipment.map(eq => equipmentNameRU(eq)).join(", ")}</span>
+                  )}
+                  {difficulty && (
+                    <span>{"⭐".repeat(difficulty)}</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Technique button */}
+              {isMain && technique && (
+                <button
+                  style={{
+                    ...techBtn,
+                    background: showTechnique ? "rgba(106,141,255,0.1)" : "rgba(0,0,0,0.04)",
+                    color: showTechnique ? "#6a8dff" : "#666",
+                  }}
+                  onClick={() => toggleTechnique(i)}
+                >
+                  {showTechnique ? "▼" : "▶"} Техника выполнения
+                </button>
+              )}
+              
+              {/* Technique details (expandable) */}
+              {isMain && showTechnique && technique && (
+                <div style={techDetails}>
+                  {technique.setup && (
+                    <div style={techBlock}>
+                      <div style={techTitle}>🔧 Подготовка:</div>
+                      <div style={techText}>{technique.setup}</div>
+                    </div>
+                  )}
+                  {technique.execution && (
+                    <div style={techBlock}>
+                      <div style={techTitle}>💪 Выполнение:</div>
+                      <div style={techText}>{technique.execution}</div>
+                    </div>
+                  )}
+                  {technique.commonMistakes && Array.isArray(technique.commonMistakes) && technique.commonMistakes.length > 0 && (
+                    <div style={techBlock}>
+                      <div style={techTitle}>⚠️ Частые ошибки:</div>
+                      <ul style={techList}>
+                        {technique.commonMistakes.map((mistake, idx) => (
+                          <li key={idx}>{mistake}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {isMain && typeof sets === "number" && typeof restSec === "number" ? (
