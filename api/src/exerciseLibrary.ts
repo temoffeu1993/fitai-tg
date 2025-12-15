@@ -179,7 +179,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Колени по носкам", "Не округляй поясницу", "Дави всей стопой"],
 },
-,
 {
   id: "sq_front_squat",
   name: "Приседания со штангой на груди",
@@ -210,7 +209,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Дави всей стопой", "Корпус собран", "Колени по носкам"],
 },
-,
 {
   id: "sq_goblet_squat",
   name: "Приседания с гантелей у груди",
@@ -241,7 +239,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Корпус собран", "Колени по носкам", "Дави всей стопой"],
 },
-,
 {
   id: "sq_leg_press",
   name: "Жим ногами",
@@ -272,7 +269,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не округляй поясницу", "Колени по носкам", "Дави всей стопой"],
 },
-,
 {
   id: "sq_hack_squat",
   name: "Приседания в Хак-машине",
@@ -303,7 +299,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль вниз", "Колени по носкам", "Не округляй поясницу"],
 },
-,
 {
   id: "sq_smith_squat",
   name: "Приседания в тренажере Смита",
@@ -334,7 +329,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Колени по носкам", "Корпус собран", "Не округляй поясницу"],
 },
-,
 {
   id: "sq_sissy_squat_machine",
   name: "Сисси-приседания в тренажере",
@@ -365,7 +359,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не округляй поясницу", "Колени по носкам", "Дави всей стопой"],
 },
-,
 {
   id: "sq_single_leg_press",
   name: "Жим ногами одной ногой",
@@ -397,7 +390,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Корпус собран", "Контроль вниз", "Колени по носкам"],
 },
-,
 {
   id: "sq_smith_squat_heels_elevated",
   name: "Приседания в Смите с подставкой под пятки",
@@ -428,7 +420,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль вниз", "Дави всей стопой", "Колени по носкам"],
 },
-,
 {
   id: "sq_leg_press_narrow",
   name: "Жим ногами узкой постановкой",
@@ -452,7 +443,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Корпус собран", "Контроль вниз", "Не округляй поясницу"],
 },
-,
 {
   id: "hi_barbell_rdl",
   name: "Румынская тяга со штангой",
@@ -483,7 +473,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Таз назад", "Спина нейтрально", "Снаряд близко"],
 },
-,
 {
   id: "hi_db_rdl",
   name: "Румынская тяга с гантелями",
@@ -514,7 +503,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Снаряд близко", "Спина нейтрально", "Не рви движение"],
 },
-,
 {
   id: "hi_conventional_deadlift",
   name: "Становая тяга классическая",
@@ -545,7 +533,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Не рви движение", "Снаряд близко"],
 },
-,
 {
   id: "hi_sumo_deadlift",
   name: "Тяга штанги сумо",
@@ -576,7 +563,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Спина нейтрально", "Не рви движение"],
 },
-,
 {
   id: "hi_back_extension",
   name: "Гиперэкстензия",
@@ -607,7 +593,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Спина нейтрально", "Не рви движение", "Снаряд близко"],
 },
-,
 {
   id: "hi_cable_pull_through",
   name: "Протяжка через ноги на блоке",
@@ -638,7 +623,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не рви движение", "Снаряд близко", "Натяжение в бицепсе бедра"],
 },
-,
 {
   id: "hi_smith_rdl",
   name: "Румынская тяга в Смите",
@@ -669,7 +653,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не рви движение", "Натяжение в бицепсе бедра", "Снаряд близко"],
 },
-,
 {
   id: "hi_good_morning",
   name: "Наклоны со штангой на плечах",
@@ -700,7 +683,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Снаряд близко", "Таз назад"],
 },
-,
 {
   id: "hi_leg_curl_lying",
   name: "Сгибания ног лёжа",
@@ -723,7 +705,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Спина нейтрально", "Натяжение в бицепсе бедра", "Таз назад"],
 },
-,
 {
   id: "hi_leg_curl_seated",
   name: "Сгибания ног сидя",
@@ -745,7 +726,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Таз назад", "Не рви движение", "Натяжение в бицепсе бедра"],
 },
-,
 {
   id: "lu_bulgarian_split_squat",
   name: "Болгарские сплит-приседания",
@@ -777,7 +757,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль шага", "Опорная стопа стабильна", "Не заваливайся"],
 },
-,
 {
   id: "lu_db_reverse_lunge",
   name: "Выпады назад с гантелями",
@@ -809,7 +788,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль шага", "Опорная стопа стабильна", "Не заваливайся"],
 },
-,
 {
   id: "lu_step_up",
   name: "Зашагивания на тумбу",
@@ -841,7 +819,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Опорная стопа стабильна", "Корпус ровно", "Не заваливайся"],
 },
-,
 {
   id: "lu_walking_lunge",
   name: "Выпады в ходьбе",
@@ -873,7 +850,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Колено стабильно", "Корпус ровно", "Не заваливайся"],
 },
-,
 {
   id: "lu_forward_lunge",
   name: "Выпады вперёд",
@@ -905,7 +881,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Корпус ровно", "Колено стабильно", "Контроль шага"],
 },
-,
 {
   id: "lu_lateral_lunge",
   name: "Выпады в сторону",
@@ -937,7 +912,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "frontal",
   cues: ["Колено стабильно", "Корпус ровно", "Опорная стопа стабильна"],
 },
-,
 {
   id: "lu_cable_lunge",
   name: "Выпады на блоке",
@@ -969,7 +943,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Корпус ровно", "Колено стабильно", "Не заваливайся"],
 },
-,
 {
   id: "hi_barbell_hip_thrust",
   name: "Ягодичный мост со штангой",
@@ -1000,7 +973,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Подбородок чуть вниз", "Сожми ягодицы", "Пауза вверху"],
 },
-,
 {
   id: "hi_machine_hip_thrust",
   name: "Ягодичный мост в тренажёре",
@@ -1031,7 +1003,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Сожми ягодицы", "Подбородок чуть вниз", "Не прогибай поясницу"],
 },
-,
 {
   id: "hi_glute_bridge",
   name: "Ягодичный мост на полу",
@@ -1061,7 +1032,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не прогибай поясницу", "Подбородок чуть вниз", "Рёбра вниз"],
 },
-,
 {
   id: "hi_smith_hip_thrust",
   name: "Ягодичный мост в Смите",
@@ -1092,7 +1062,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Пауза вверху", "Сожми ягодицы", "Рёбра вниз"],
 },
-,
 {
   id: "hi_cable_glute_kickback",
   name: "Отведение ноги назад на блоке",
@@ -1124,7 +1093,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Рёбра вниз", "Не прогибай поясницу", "Сожми ягодицы"],
 },
-,
 {
   id: "ho_barbell_bench_press",
   name: "Жим штанги лёжа",
@@ -1155,7 +1123,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Лопатки собраны", "Контроль эксцентрики", "Запястья ровно"],
 },
-,
 {
   id: "ho_db_bench_press",
   name: "Жим гантелей лёжа",
@@ -1185,7 +1152,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Лопатки собраны", "Контроль эксцентрики"],
 },
-,
 {
   id: "ho_machine_chest_press",
   name: "Жим в тренажере для груди",
@@ -1216,7 +1182,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Локти ~45°", "Запястья ровно"],
 },
-,
 {
   id: "ho_cable_chest_press",
   name: "Жим на блоках стоя",
@@ -1247,7 +1212,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
 },
-,
 {
   id: "ho_push_up",
   name: "Отжимания",
@@ -1278,7 +1242,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Лопатки собраны", "Локти ~45°", "Контроль эксцентрики"],
 },
-,
 {
   id: "ho_smith_bench_press",
   name: "Жим в Смите лёжа",
@@ -1309,7 +1272,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
 },
-,
 {
   id: "ho_pec_deck_fly",
   name: "Сведения рук в тренажере",
@@ -1333,7 +1295,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Не выталкивай плечи вперёд", "Запястья ровно", "Контроль эксцентрики"],
 },
-,
 {
   id: "in_incline_db_press",
   name: "Жим гантелей на наклонной",
@@ -1363,7 +1324,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Запястья ровно", "Не выталкивай плечи вперёд", "Лопатки собраны"],
 },
-,
 {
   id: "in_incline_barbell_press",
   name: "Жим штанги на наклонной",
@@ -1393,7 +1353,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти ~45°", "Лопатки собраны", "Запястья ровно"],
 },
-,
 {
   id: "in_incline_machine_press",
   name: "Наклонный жим в тренажёре",
@@ -1424,7 +1383,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти ~45°", "Контроль эксцентрики", "Не выталкивай плечи вперёд"],
 },
-,
 {
   id: "in_low_to_high_cable_fly",
   name: "Кроссовер снизу вверх",
@@ -1455,7 +1413,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Запястья ровно", "Лопатки собраны", "Локти ~45°"],
 },
-,
 {
   id: "ve_seated_db_shoulder_press",
   name: "Жим гантелей сидя",
@@ -1486,7 +1443,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль эксцентрики", "Не выталкивай плечи вперёд", "Запястья ровно"],
 },
-,
 {
   id: "ve_standing_overhead_press",
   name: "Жим штанги стоя",
@@ -1517,7 +1473,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти ~45°", "Запястья ровно", "Не выталкивай плечи вперёд"],
 },
-,
 {
   id: "ve_machine_shoulder_press",
   name: "Жим в тренажере для плеч",
@@ -1548,7 +1503,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Лопатки собраны", "Локти ~45°"],
 },
-,
 {
   id: "ve_landmine_press",
   name: "Жим одной рукой с упором штанги",
@@ -1580,7 +1534,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
 },
-,
 {
   id: "ve_arnold_press",
   name: "Жим Арнольда",
@@ -1611,7 +1564,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "mixed",
   cues: ["Не выталкивай плечи вперёд", "Запястья ровно", "Локти ~45°"],
 },
-,
 {
   id: "ho_seated_cable_row",
   name: "Тяга горизонтального блока",
@@ -1642,7 +1594,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Пауза в конце", "Контроль возврата", "Плечи вниз"],
 },
-,
 {
   id: "ho_one_arm_db_row",
   name: "Тяга гантели одной рукой",
@@ -1674,7 +1625,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль возврата", "Тяни локтями", "Не раскачивайся"],
 },
-,
 {
   id: "ho_chest_supported_row",
   name: "Тяга с упором грудью",
@@ -1705,7 +1655,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Плечи вниз", "Контроль возврата", "Не раскачивайся"],
 },
-,
 {
   id: "ho_machine_row",
   name: "Тяга в рычажном тренажере",
@@ -1735,7 +1684,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Плечи вниз", "Контроль возврата", "Тяни локтями"],
 },
-,
 {
   id: "ho_barbell_row",
   name: "Тяга штанги в наклоне",
@@ -1766,7 +1714,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не раскачивайся", "Контроль возврата", "Плечи вниз"],
 },
-,
 {
   id: "ho_t_bar_row",
   name: "Тяга Т-грифа",
@@ -1797,7 +1744,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль возврата", "Не раскачивайся", "Плечи вниз"],
 },
-,
 {
   id: "ho_smith_row",
   name: "Тяга в Смите в наклоне",
@@ -1828,7 +1774,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Тяни локтями", "Плечи вниз", "Не раскачивайся"],
 },
-,
 {
   id: "ve_lat_pulldown",
   name: "Тяга верхнего блока к груди",
@@ -1858,7 +1803,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
 },
-,
 {
   id: "ve_assisted_pull_up",
   name: "Подтягивания в гравитроне",
@@ -1888,7 +1832,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
 },
-,
 {
   id: "ve_pull_up",
   name: "Подтягивания",
@@ -1918,7 +1861,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Пауза в конце", "Тяни локтями", "Контроль возврата"],
 },
-,
 {
   id: "ve_close_grip_pulldown",
   name: "Тяга верхнего блока узким хватом",
@@ -1948,7 +1890,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Тяни локтями", "Пауза в конце", "Не раскачивайся"],
 },
-,
 {
   id: "ve_underhand_pulldown",
   name: "Тяга верхнего блока обратным хватом",
@@ -1978,7 +1919,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не раскачивайся", "Пауза в конце", "Тяни локтями"],
 },
-,
 {
   id: "re_face_pull",
   name: "Протяжка к лицу на блоке",
@@ -2009,7 +1949,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Постоянное натяжение", "Не махай", "Локоть чуть выше кисти"],
 },
-,
 {
   id: "re_reverse_pec_deck",
   name: "Разведения в тренажере на задние дельты",
@@ -2039,7 +1978,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Не махай", "Локоть чуть выше кисти", "Плечи вниз"],
 },
-,
 {
   id: "re_db_reverse_fly",
   name: "Разведения гантелей в наклоне",
@@ -2070,7 +2008,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локоть чуть выше кисти", "Не махай", "Плечи вниз"],
 },
-,
 {
   id: "re_seated_rope_face_pull",
   name: "Тяга каната к лицу сидя",
@@ -2093,7 +2030,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Контроль амплитуды", "Локоть чуть выше кисти", "Плечи вниз"],
 },
-,
 {
   id: "de_db_lateral_raise",
   name: "Подъёмы гантелей в стороны",
@@ -2124,7 +2060,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "frontal",
   cues: ["Плечи вниз", "Не махай", "Локоть чуть выше кисти"],
 },
-,
 {
   id: "de_cable_lateral_raise",
   name: "Подъём руки в сторону на блоке",
@@ -2153,7 +2088,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "frontal",
   cues: ["Плечи вниз", "Контроль амплитуды", "Локоть чуть выше кисти"],
 },
-,
 {
   id: "de_machine_lateral_raise",
   name: "Подъёмы в стороны в тренажере",
@@ -2182,7 +2116,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "frontal",
   cues: ["Постоянное натяжение", "Плечи вниз", "Не махай"],
 },
-,
 {
   id: "de_front_raise",
   name: "Подъёмы гантелей перед собой",
@@ -2212,7 +2145,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Плечи вниз", "Локоть чуть выше кисти", "Контроль амплитуды"],
 },
-,
 {
   id: "ar_triceps_pushdown",
   name: "Разгибания на трицепс на блоке",
@@ -2242,7 +2174,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти фиксированы", "Полная амплитуда", "Без раскачки"],
 },
-,
 {
   id: "ar_db_curl",
   name: "Сгибания рук с гантелями",
@@ -2273,7 +2204,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Сожми в конце", "Полная амплитуда", "Без раскачки"],
 },
-,
 {
   id: "ar_incline_db_curl",
   name: "Сгибания рук с гантелями на наклонной скамье",
@@ -2303,7 +2233,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти фиксированы", "Без раскачки", "Полная амплитуда"],
 },
-,
 {
   id: "ar_overhead_cable_triceps_ext",
   name: "Французский жим на блоке стоя",
@@ -2333,7 +2262,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль вниз", "Полная амплитуда", "Локти фиксированы"],
 },
-,
 {
   id: "ar_cable_curl",
   name: "Сгибания на блоке",
@@ -2364,7 +2292,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Без раскачки", "Контроль вниз", "Полная амплитуда"],
 },
-,
 {
   id: "ar_ez_skullcrusher",
   name: "Французский жим EZ-штанги лёжа",
@@ -2394,7 +2321,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Сожми в конце", "Без раскачки", "Полная амплитуда"],
 },
-,
 {
   id: "ar_ez_bar_curl",
   name: "Сгибания рук с EZ-штангой",
@@ -2425,7 +2351,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Локти фиксированы", "Без раскачки", "Контроль вниз"],
 },
-,
 {
   id: "ca_standing_calf_raise",
   name: "Подъёмы на носки стоя",
@@ -2454,7 +2379,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не пружинь", "Пауза вверху", "Растяжение внизу"],
 },
-,
 {
   id: "ca_seated_calf_raise",
   name: "Подъёмы на носки сидя",
@@ -2483,7 +2407,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Пауза вверху", "Контроль", "Растяжение внизу"],
 },
-,
 {
   id: "ca_calf_press_on_leg_press",
   name: "Подъёмы на носки в жиме ногами",
@@ -2512,7 +2435,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль", "Пауза вверху", "Растяжение внизу"],
 },
-,
 {
   id: "co_plank",
   name: "Планка",
@@ -2541,7 +2463,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Таз нейтрально", "Контроль", "Дыши"],
 },
-,
 {
   id: "co_dead_bug",
   name: "Мёртвый жук",
@@ -2570,7 +2491,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Дыши", "Не прогибайся", "Таз нейтрально"],
 },
-,
 {
   id: "co_cable_crunch",
   name: "Скручивания на блоке",
@@ -2599,7 +2519,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль", "Не прогибайся", "Рёбра вниз"],
 },
-,
 {
   id: "co_hanging_knee_raise",
   name: "Подъём коленей в висе",
@@ -2629,7 +2548,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль", "Таз нейтрально", "Не прогибайся"],
 },
-,
 {
   id: "co_pallof_press",
   name: "Паллоф-пресс",
@@ -2658,7 +2576,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "transverse",
   cues: ["Таз нейтрально", "Не прогибайся", "Рёбра вниз"],
 },
-,
 {
   id: "ca_farmer_s_walk",
   name: "Прогулка фермера",
@@ -2688,7 +2605,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "mixed",
   cues: ["Не заваливайся", "Шаг ровный", "Плечи вниз"],
 },
-,
 {
   id: "ca_suitcase_carry",
   name: "Переноска чемодана",
@@ -2719,7 +2635,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "mixed",
   cues: ["Дыши", "Плечи вниз", "Шаг ровный"],
 },
-,
 {
   id: "ca_front_rack_carry",
   name: "Переноска в положении фронтального приседа",
@@ -2742,7 +2657,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "mixed",
   cues: ["Дыши", "Плечи вниз", "Шаг ровный"],
 },
-,
 {
   id: "co_incline_treadmill_walk",
   name: "Ходьба на дорожке в горку",
@@ -2772,7 +2686,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Следи за пульсом", "Ровный темп", "Не теряй технику"],
 },
-,
 {
   id: "co_bike_easy",
   name: "Велотренажёр лёгкий темп",
@@ -2801,7 +2714,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Ровный темп", "Контроль дыхания", "Не теряй технику"],
 },
-,
 {
   id: "co_elliptical_easy",
   name: "Эллипсоид лёгкий темп",
@@ -2831,7 +2743,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не теряй технику", "Контроль дыхания", "Держи ритм"],
 },
-,
 {
   id: "co_bike_intervals",
   name: "Интервалы на велотренажёре",
@@ -2860,7 +2771,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Не теряй технику", "Следи за пульсом", "Ровный темп"],
 },
-,
 {
   id: "co_row_erg_intervals",
   name: "Интервалы на гребле",
@@ -2891,7 +2801,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   plane: "sagittal",
   cues: ["Контроль дыхания", "Следи за пульсом", "Не теряй технику"],
 },
-,
 {
   id: "co_treadmill_run_walk_intervals",
   name: "Интервалы на дорожке (бег/ходьба)",
