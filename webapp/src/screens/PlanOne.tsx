@@ -905,12 +905,6 @@ function ExercisesList({
   if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
 
-  // Debug: log exercise data structure
-  React.useEffect(() => {
-    if (isMain && items.length > 0 && typeof items[0] !== 'string') {
-      console.log('📋 Exercise data sample:', items[0]);
-    }
-  }, [items, isMain]);
 
   const toggleTechnique = (index: number) => {
     setExpandedTechnique(prev => {

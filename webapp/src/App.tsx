@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import LayoutWithNav from "./app/LayoutWithNav";
 import OnboardingProvider, { useOnboarding } from "./app/OnboardingProvider";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 import Dashboard from "./screens/Dashboard";
 import PlanOne from "./screens/PlanOne";
@@ -165,9 +166,10 @@ function StepSchemeSelection() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <OnboardingProvider>
-        <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <OnboardingProvider>
+          <Routes>
           <Route element={<LayoutWithNav />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/plan/one" element={<PlanOne />} />
@@ -204,5 +206,6 @@ export default function App() {
         })()}
       </OnboardingProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
