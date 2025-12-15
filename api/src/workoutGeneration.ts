@@ -422,16 +422,15 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
 
 async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
   const rows = await q<{ 
-    energy: string, 
-    sleep: string, 
-    stress: string,
-    pain: string[],
-    soreness: string[],
+    energy_level: string, 
+    sleep_hours: string, 
+    stress_level: string,
+    pain: any,
   }>(
-    `SELECT energy, sleep, stress, pain, soreness
+    `SELECT energy_level, sleep_hours, stress_level, pain
      FROM daily_check_ins 
      WHERE user_id = $1 
-     ORDER BY date DESC 
+     ORDER BY created_at DESC 
      LIMIT 1`,
     [uid]
   );
@@ -442,12 +441,27 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
   
   const row = rows[0];
   
+  // Parse pain from JSONB to array
+  let painArray: string[] = [];
+  if (row.pain) {
+    if (Array.isArray(row.pain)) {
+      painArray = row.pain.map((p: any) => typeof p === 'string' ? p : p.location || '');
+    } else if (typeof row.pain === 'string') {
+      try {
+        const parsed = JSON.parse(row.pain);
+        painArray = Array.isArray(parsed) ? parsed.map((p: any) => p.location || p) : [];
+      } catch {
+        painArray = [];
+      }
+    }
+  }
+  
   return {
-    energy: row.energy as "low" | "medium" | "high",
-    sleep: row.sleep as "poor" | "ok" | "good",
-    stress: row.stress as "high" | "medium" | "low",
-    pain: row.pain || [],
-    soreness: row.soreness || [],
+    energy: row.energy_level as "low" | "medium" | "high",
+    sleep: row.sleep_hours as "poor" | "ok" | "good",
+    stress: row.stress_level as "high" | "medium" | "low",
+    pain: painArray,
+    soreness: [], // Not tracked separately in new schema
   };
 }
 
