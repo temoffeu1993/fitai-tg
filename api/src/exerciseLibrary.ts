@@ -113,6 +113,12 @@ export type Exercise = {
     execution: string;
     commonMistakes: string[];
   };
+
+  // CNS (Central Nervous System) fatigue load
+  // 1 = Low (isolation, machines) - minimal neural fatigue
+  // 2 = Moderate (dumbbell compounds) - moderate neural demand
+  // 3 = High (heavy barbell compounds) - significant neural fatigue
+  cnsLoad?: 1 | 2 | 3;
 };
 
 function lvRank(lv: Experience) {
@@ -161,7 +167,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 4,
   stabilityDemand: 4,
-  tags: ["strength_bias", "barbell_skill", "not_for_circuit"],
+  tags: ["strength_bias", "barbell_skill", "not_for_circuit", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 4,
@@ -178,6 +184,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive", "low_back_sensitive"],
   plane: "sagittal",
   cues: ["Колени по носкам", "Не округляй поясницу", "Дави всей стопой"],
+  cnsLoad: 3,
 },
 {
   id: "sq_front_squat",
@@ -191,7 +198,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 4,
   stabilityDemand: 5,
-  tags: ["strength_bias", "quad_bias", "barbell_skill"],
+  tags: ["strength_bias", "quad_bias", "barbell_skill", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 3,
@@ -208,6 +215,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive", "wrist_sensitive"],
   plane: "sagittal",
   cues: ["Дави всей стопой", "Корпус собран", "Колени по носкам"],
+  cnsLoad: 3,
 },
 {
   id: "sq_goblet_squat",
@@ -238,6 +246,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Корпус собран", "Колени по носкам", "Дави всей стопой"],
+  cnsLoad: 2,
 },
 {
   id: "sq_leg_press",
@@ -251,7 +260,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "quad_bias", "knee_careful"],
+  tags: ["stable_choice", "quad_bias", "knee_careful", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -268,6 +277,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Не округляй поясницу", "Колени по носкам", "Дави всей стопой"],
+  cnsLoad: 2,
 },
 {
   id: "sq_hack_squat",
@@ -281,7 +291,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "quad_bias"],
+  tags: ["stable_choice", "quad_bias", "spine_safe", "good_opener", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -298,6 +308,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Контроль вниз", "Колени по носкам", "Не округляй поясницу"],
+  cnsLoad: 2,
 },
 {
   id: "sq_smith_squat",
@@ -328,6 +339,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Колени по носкам", "Корпус собран", "Не округляй поясницу"],
+  cnsLoad: 2,
 },
 {
   id: "sq_sissy_squat_machine",
@@ -341,7 +353,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["quad_bias", "hypertrophy_bias"],
+  tags: ["quad_bias", "hypertrophy_bias", "spine_safe", "good_opener", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -358,6 +370,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Не округляй поясницу", "Колени по носкам", "Дави всей стопой"],
+  cnsLoad: 2,
 },
 {
   id: "sq_single_leg_press",
@@ -371,7 +384,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["unilateral", "hypertrophy_bias"],
+  tags: ["unilateral", "hypertrophy_bias", "spine_safe", "good_opener", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -389,6 +402,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Корпус собран", "Контроль вниз", "Колени по носкам"],
+  cnsLoad: 2,
 },
 {
   id: "sq_smith_squat_heels_elevated",
@@ -402,7 +416,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 3,
   stabilityDemand: 2,
-  tags: ["quad_bias"],
+  tags: ["quad_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -419,6 +433,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Контроль вниз", "Дави всей стопой", "Колени по носкам"],
+  cnsLoad: 2,
 },
 {
   id: "sq_leg_press_narrow",
@@ -432,7 +447,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["quad_bias", "easy_superset"],
+  tags: ["quad_bias", "easy_superset", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 12,
@@ -442,6 +457,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Корпус собран", "Контроль вниз", "Не округляй поясницу"],
+  cnsLoad: 2,
 },
 {
   id: "hi_barbell_rdl",
@@ -455,7 +471,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 3,
   stabilityDemand: 4,
-  tags: ["hamstring_bias", "strength_bias"],
+  tags: ["hamstring_bias", "strength_bias", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 6,
@@ -472,6 +488,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Таз назад", "Спина нейтрально", "Снаряд близко"],
+  cnsLoad: 3,
 },
 {
   id: "hi_db_rdl",
@@ -485,7 +502,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 1,
   stabilityDemand: 3,
-  tags: ["hamstring_bias", "good_for_circuit"],
+  tags: ["hamstring_bias", "good_for_circuit", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -502,6 +519,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Снаряд близко", "Спина нейтрально", "Не рви движение"],
+  cnsLoad: 2,
 },
 {
   id: "hi_conventional_deadlift",
@@ -515,7 +533,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 4,
   stabilityDemand: 5,
-  tags: ["strength_bias", "barbell_skill", "not_for_circuit"],
+  tags: ["strength_bias", "barbell_skill", "not_for_circuit", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 3,
@@ -532,6 +550,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Не рви движение", "Снаряд близко"],
+  cnsLoad: 3,
 },
 {
   id: "hi_sumo_deadlift",
@@ -545,7 +564,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 4,
   stabilityDemand: 4,
-  tags: ["strength_bias", "glute_bias", "barbell_skill"],
+  tags: ["strength_bias", "glute_bias", "barbell_skill", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 3,
@@ -562,6 +581,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["hip_sensitive"],
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Спина нейтрально", "Не рви движение"],
+  cnsLoad: 3,
 },
 {
   id: "hi_back_extension",
@@ -575,7 +595,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["low_setup", "good_for_circuit", "easy_superset"],
+  tags: ["low_setup", "good_for_circuit", "easy_superset", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -592,6 +612,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Спина нейтрально", "Не рви движение", "Снаряд близко"],
+  cnsLoad: 2,
 },
 {
   id: "hi_cable_pull_through",
@@ -622,6 +643,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Не рви движение", "Снаряд близко", "Натяжение в бицепсе бедра"],
+  cnsLoad: 2,
 },
 {
   id: "hi_smith_rdl",
@@ -635,7 +657,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 3,
   stabilityDemand: 3,
-  tags: ["hamstring_bias"],
+  tags: ["hamstring_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -652,6 +674,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Не рви движение", "Натяжение в бицепсе бедра", "Снаряд близко"],
+  cnsLoad: 2,
 },
 {
   id: "hi_good_morning",
@@ -665,7 +688,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 3,
   stabilityDemand: 5,
-  tags: ["posterior_chain", "barbell_skill"],
+  tags: ["posterior_chain", "barbell_skill", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 6,
@@ -682,6 +705,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Натяжение в бицепсе бедра", "Снаряд близко", "Таз назад"],
+  cnsLoad: 3,
 },
 {
   id: "hi_leg_curl_lying",
@@ -695,7 +719,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["hamstring_bias", "hypertrophy_bias", "easy_superset"],
+  tags: ["hamstring_bias", "hypertrophy_bias", "easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -704,6 +728,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 75,
   plane: "sagittal",
   cues: ["Спина нейтрально", "Натяжение в бицепсе бедра", "Таз назад"],
+  cnsLoad: 1,
 },
 {
   id: "hi_leg_curl_seated",
@@ -716,7 +741,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["hamstring_bias", "hypertrophy_bias", "easy_superset"],
+  tags: ["hamstring_bias", "hypertrophy_bias", "easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -725,6 +750,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 75,
   plane: "sagittal",
   cues: ["Таз назад", "Не рви движение", "Натяжение в бицепсе бедра"],
+  cnsLoad: 1,
 },
 {
   id: "lu_bulgarian_split_squat",
@@ -738,7 +764,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 2,
   stabilityDemand: 4,
-  tags: ["unilateral", "hypertrophy_bias"],
+  tags: ["unilateral", "hypertrophy_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -756,6 +782,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Контроль шага", "Опорная стопа стабильна", "Не заваливайся"],
+  cnsLoad: 2,
 },
 {
   id: "lu_db_reverse_lunge",
@@ -787,6 +814,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Контроль шага", "Опорная стопа стабильна", "Не заваливайся"],
+  cnsLoad: 2,
 },
 {
   id: "lu_step_up",
@@ -800,7 +828,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["good_for_circuit", "unilateral"],
+  tags: ["good_for_circuit", "unilateral", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -818,6 +846,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Опорная стопа стабильна", "Корпус ровно", "Не заваливайся"],
+  cnsLoad: 2,
 },
 {
   id: "lu_walking_lunge",
@@ -831,7 +860,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 1,
   stabilityDemand: 4,
-  tags: ["conditioning_like", "good_for_circuit", "unilateral"],
+  tags: ["conditioning_like", "good_for_circuit", "unilateral", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -849,6 +878,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Колено стабильно", "Корпус ровно", "Не заваливайся"],
+  cnsLoad: 2,
 },
 {
   id: "lu_forward_lunge",
@@ -862,7 +892,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 1,
   stabilityDemand: 3,
-  tags: ["unilateral"],
+  tags: ["unilateral", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -880,6 +910,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Корпус ровно", "Колено стабильно", "Контроль шага"],
+  cnsLoad: 2,
 },
 {
   id: "lu_lateral_lunge",
@@ -893,7 +924,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 1,
   stabilityDemand: 4,
-  tags: ["frontal_plane", "unilateral"],
+  tags: ["frontal_plane", "unilateral", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -911,6 +942,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "frontal",
   cues: ["Колено стабильно", "Корпус ровно", "Опорная стопа стабильна"],
+  cnsLoad: 2,
 },
 {
   id: "lu_cable_lunge",
@@ -924,7 +956,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["good_for_circuit", "unilateral"],
+  tags: ["good_for_circuit", "unilateral", "spine_safe"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -942,6 +974,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Корпус ровно", "Колено стабильно", "Не заваливайся"],
+  cnsLoad: 2,
 },
 {
   id: "hi_barbell_hip_thrust",
@@ -955,7 +988,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 4,
   stabilityDemand: 2,
-  tags: ["glute_bias", "hypertrophy_bias"],
+  tags: ["glute_bias", "hypertrophy_bias", "good_opener", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -972,6 +1005,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["hip_sensitive", "low_back_sensitive"],
   plane: "sagittal",
   cues: ["Подбородок чуть вниз", "Сожми ягодицы", "Пауза вверху"],
+  cnsLoad: 2,
 },
 {
   id: "hi_machine_hip_thrust",
@@ -985,7 +1019,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["glute_bias", "stable_choice"],
+  tags: ["glute_bias", "stable_choice", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1002,6 +1036,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["hip_sensitive"],
   plane: "sagittal",
   cues: ["Сожми ягодицы", "Подбородок чуть вниз", "Не прогибай поясницу"],
+  cnsLoad: 2,
 },
 {
   id: "hi_glute_bridge",
@@ -1031,6 +1066,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "sagittal",
   cues: ["Не прогибай поясницу", "Подбородок чуть вниз", "Рёбра вниз"],
+  cnsLoad: 2,
 },
 {
   id: "hi_smith_hip_thrust",
@@ -1061,6 +1097,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["hip_sensitive"],
   plane: "sagittal",
   cues: ["Пауза вверху", "Сожми ягодицы", "Рёбра вниз"],
+  cnsLoad: 2,
 },
 {
   id: "hi_cable_glute_kickback",
@@ -1074,7 +1111,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["glute_bias", "easy_superset", "good_for_circuit"],
+  tags: ["glute_bias", "easy_superset", "good_for_circuit", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -1092,6 +1129,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Рёбра вниз", "Не прогибай поясницу", "Сожми ягодицы"],
+  cnsLoad: 1,
 },
 {
   id: "ho_barbell_bench_press",
@@ -1105,7 +1143,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 4,
   stabilityDemand: 3,
-  tags: ["strength_bias", "not_for_circuit"],
+  tags: ["strength_bias", "not_for_circuit", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 5,
@@ -1122,6 +1160,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive", "wrist_sensitive"],
   plane: "sagittal",
   cues: ["Лопатки собраны", "Контроль эксцентрики", "Запястья ровно"],
+  cnsLoad: 3,
 },
 {
   id: "ho_db_bench_press",
@@ -1134,7 +1173,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["hypertrophy_bias", "easy_superset"],
+  tags: ["hypertrophy_bias", "easy_superset", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1151,6 +1190,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Лопатки собраны", "Контроль эксцентрики"],
+  cnsLoad: 2,
 },
 {
   id: "ho_machine_chest_press",
@@ -1164,7 +1204,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "good_for_circuit"],
+  tags: ["stable_choice", "good_for_circuit", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1181,6 +1221,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Локти ~45°", "Запястья ровно"],
+  cnsLoad: 2,
 },
 {
   id: "ho_cable_chest_press",
@@ -1194,7 +1235,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["good_for_circuit", "constant_tension"],
+  tags: ["good_for_circuit", "constant_tension", "spine_safe", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1211,6 +1252,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
+  cnsLoad: 2,
 },
 {
   id: "ho_push_up",
@@ -1241,6 +1283,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["wrist_sensitive", "shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Лопатки собраны", "Локти ~45°", "Контроль эксцентрики"],
+  cnsLoad: 2,
 },
 {
   id: "ho_smith_bench_press",
@@ -1271,6 +1314,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive", "wrist_sensitive"],
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
+  cnsLoad: 2,
 },
 {
   id: "ho_pec_deck_fly",
@@ -1284,7 +1328,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["hypertrophy_bias", "easy_superset"],
+  tags: ["hypertrophy_bias", "easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -1294,6 +1338,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "transverse",
   cues: ["Не выталкивай плечи вперёд", "Запястья ровно", "Контроль эксцентрики"],
+  cnsLoad: 1,
 },
 {
   id: "in_incline_db_press",
@@ -1306,7 +1351,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["upper_chest_bias", "hypertrophy_bias"],
+  tags: ["upper_chest_bias", "hypertrophy_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1323,6 +1368,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Запястья ровно", "Не выталкивай плечи вперёд", "Лопатки собраны"],
+  cnsLoad: 2,
 },
 {
   id: "in_incline_barbell_press",
@@ -1335,7 +1381,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 4,
   stabilityDemand: 3,
-  tags: ["strength_bias", "upper_chest_bias"],
+  tags: ["strength_bias", "upper_chest_bias", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 6,
@@ -1352,6 +1398,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive", "wrist_sensitive"],
   plane: "sagittal",
   cues: ["Локти ~45°", "Лопатки собраны", "Запястья ровно"],
+  cnsLoad: 3,
 },
 {
   id: "in_incline_machine_press",
@@ -1365,7 +1412,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "upper_chest_bias", "good_for_circuit"],
+  tags: ["stable_choice", "upper_chest_bias", "good_for_circuit", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1382,6 +1429,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Локти ~45°", "Контроль эксцентрики", "Не выталкивай плечи вперёд"],
+  cnsLoad: 2,
 },
 {
   id: "in_low_to_high_cable_fly",
@@ -1395,7 +1443,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["upper_chest_bias", "constant_tension", "easy_superset"],
+  tags: ["upper_chest_bias", "constant_tension", "easy_superset", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -1412,6 +1460,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "transverse",
   cues: ["Запястья ровно", "Лопатки собраны", "Локти ~45°"],
+  cnsLoad: 1,
 },
 {
   id: "ve_seated_db_shoulder_press",
@@ -1425,7 +1474,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["shoulder_bias", "hypertrophy_bias"],
+  tags: ["shoulder_bias", "hypertrophy_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1442,6 +1491,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Контроль эксцентрики", "Не выталкивай плечи вперёд", "Запястья ровно"],
+  cnsLoad: 2,
 },
 {
   id: "ve_standing_overhead_press",
@@ -1455,7 +1505,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 4,
   stabilityDemand: 5,
-  tags: ["strength_bias", "barbell_skill", "not_for_circuit"],
+  tags: ["strength_bias", "barbell_skill", "not_for_circuit", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 4,
@@ -1472,6 +1522,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive", "low_back_sensitive"],
   plane: "sagittal",
   cues: ["Локти ~45°", "Запястья ровно", "Не выталкивай плечи вперёд"],
+  cnsLoad: 3,
 },
 {
   id: "ve_machine_shoulder_press",
@@ -1485,7 +1536,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "good_for_circuit"],
+  tags: ["stable_choice", "good_for_circuit", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1502,6 +1553,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Не выталкивай плечи вперёд", "Лопатки собраны", "Локти ~45°"],
+  cnsLoad: 2,
 },
 {
   id: "ve_landmine_press",
@@ -1515,7 +1567,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 3,
   stabilityDemand: 3,
-  tags: ["shoulder_friendly", "good_for_circuit", "unilateral"],
+  tags: ["shoulder_friendly", "good_for_circuit", "unilateral", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1533,6 +1585,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Запястья ровно", "Локти ~45°", "Контроль эксцентрики"],
+  cnsLoad: 2,
 },
 {
   id: "ve_arnold_press",
@@ -1546,7 +1599,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 2,
   stabilityDemand: 4,
-  tags: ["hypertrophy_bias"],
+  tags: ["hypertrophy_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1563,6 +1616,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "mixed",
   cues: ["Не выталкивай плечи вперёд", "Запястья ровно", "Локти ~45°"],
+  cnsLoad: 2,
 },
 {
   id: "ho_seated_cable_row",
@@ -1593,6 +1647,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Пауза в конце", "Контроль возврата", "Плечи вниз"],
+  cnsLoad: 2,
 },
 {
   id: "ho_one_arm_db_row",
@@ -1606,7 +1661,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 3,
-  tags: ["lat_bias", "unilateral", "easy_superset"],
+  tags: ["lat_bias", "unilateral", "easy_superset", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1624,6 +1679,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "sagittal",
   cues: ["Контроль возврата", "Тяни локтями", "Не раскачивайся"],
+  cnsLoad: 2,
 },
 {
   id: "ho_chest_supported_row",
@@ -1637,7 +1693,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["low_back_friendly", "upper_back_bias", "stable_choice"],
+  tags: ["low_back_friendly", "upper_back_bias", "stable_choice", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1654,6 +1710,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Плечи вниз", "Контроль возврата", "Не раскачивайся"],
+  cnsLoad: 2,
 },
 {
   id: "ho_machine_row",
@@ -1667,7 +1724,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "good_for_circuit"],
+  tags: ["stable_choice", "good_for_circuit", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1683,6 +1740,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 75,
   plane: "sagittal",
   cues: ["Плечи вниз", "Контроль возврата", "Тяни локтями"],
+  cnsLoad: 2,
 },
 {
   id: "ho_barbell_row",
@@ -1696,7 +1754,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 5,
   setupCost: 3,
   stabilityDemand: 5,
-  tags: ["strength_bias", "barbell_skill"],
+  tags: ["strength_bias", "barbell_skill", "high_cns", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 6,
@@ -1713,6 +1771,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Не раскачивайся", "Контроль возврата", "Плечи вниз"],
+  cnsLoad: 3,
 },
 {
   id: "ho_t_bar_row",
@@ -1726,7 +1785,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 3,
   stabilityDemand: 4,
-  tags: ["upper_back_bias", "hypertrophy_bias"],
+  tags: ["upper_back_bias", "hypertrophy_bias", "high_cns", "good_opener", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1743,6 +1802,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Контроль возврата", "Не раскачивайся", "Плечи вниз"],
+  cnsLoad: 3,
 },
 {
   id: "ho_smith_row",
@@ -1756,7 +1816,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 3,
   stabilityDemand: 3,
-  tags: ["stable_choice"],
+  tags: ["stable_choice", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1773,6 +1833,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Тяни локтями", "Плечи вниз", "Не раскачивайся"],
+  cnsLoad: 2,
 },
 {
   id: "ve_lat_pulldown",
@@ -1786,7 +1847,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["lat_bias", "stable_choice", "good_for_circuit"],
+  tags: ["lat_bias", "stable_choice", "good_for_circuit", "spine_safe"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1802,6 +1863,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 90,
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
+  cnsLoad: 2,
 },
 {
   id: "ve_assisted_pull_up",
@@ -1815,7 +1877,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["lat_bias", "progression_ready"],
+  tags: ["lat_bias", "progression_ready", "spine_safe", "easy_to_progress"],
   kind: "compound",
   repRangeDefault: {
     min: 6,
@@ -1831,6 +1893,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 90,
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
+  cnsLoad: 2,
 },
 {
   id: "ve_pull_up",
@@ -1844,7 +1907,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 4,
   setupCost: 1,
   stabilityDemand: 4,
-  tags: ["strength_bias", "lat_bias"],
+  tags: ["strength_bias", "lat_bias", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 5,
@@ -1860,6 +1923,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 120,
   plane: "sagittal",
   cues: ["Пауза в конце", "Тяни локтями", "Контроль возврата"],
+  cnsLoad: 2,
 },
 {
   id: "ve_close_grip_pulldown",
@@ -1873,7 +1937,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["lat_bias", "easy_superset"],
+  tags: ["lat_bias", "easy_superset", "spine_safe"],
   kind: "compound",
   repRangeDefault: {
     min: 10,
@@ -1889,6 +1953,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 90,
   plane: "sagittal",
   cues: ["Тяни локтями", "Пауза в конце", "Не раскачивайся"],
+  cnsLoad: 2,
 },
 {
   id: "ve_underhand_pulldown",
@@ -1902,7 +1967,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["lat_bias", "biceps_bias"],
+  tags: ["lat_bias", "biceps_bias", "spine_safe", "good_opener"],
   kind: "compound",
   repRangeDefault: {
     min: 8,
@@ -1918,6 +1983,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 90,
   plane: "sagittal",
   cues: ["Не раскачивайся", "Пауза в конце", "Тяни локтями"],
+  cnsLoad: 2,
 },
 {
   id: "re_face_pull",
@@ -1931,7 +1997,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["upper_back_bias", "easy_superset", "good_for_circuit", "shoulder_health"],
+  tags: ["upper_back_bias", "easy_superset", "good_for_circuit", "shoulder_health", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -1948,6 +2014,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "transverse",
   cues: ["Постоянное натяжение", "Не махай", "Локоть чуть выше кисти"],
+  cnsLoad: 1,
 },
 {
   id: "re_reverse_pec_deck",
@@ -1961,7 +2028,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "easy_superset"],
+  tags: ["stable_choice", "easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -1977,6 +2044,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "transverse",
   cues: ["Не махай", "Локоть чуть выше кисти", "Плечи вниз"],
+  cnsLoad: 1,
 },
 {
   id: "re_db_reverse_fly",
@@ -1990,7 +2058,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 1,
   stabilityDemand: 3,
-  tags: ["good_for_circuit", "easy_superset"],
+  tags: ["good_for_circuit", "easy_superset", "low_cns", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2007,6 +2075,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Локоть чуть выше кисти", "Не махай", "Плечи вниз"],
+  cnsLoad: 1,
 },
 {
   id: "re_seated_rope_face_pull",
@@ -2020,7 +2089,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["shoulder_health", "constant_tension"],
+  tags: ["shoulder_health", "constant_tension", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2029,6 +2098,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "transverse",
   cues: ["Контроль амплитуды", "Локоть чуть выше кисти", "Плечи вниз"],
+  cnsLoad: 1,
 },
 {
   id: "de_db_lateral_raise",
@@ -2042,7 +2112,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 1,
   stabilityDemand: 2,
-  tags: ["easy_superset", "good_for_circuit", "shoulder_bias"],
+  tags: ["easy_superset", "good_for_circuit", "shoulder_bias", "low_cns", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2059,6 +2129,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "frontal",
   cues: ["Плечи вниз", "Не махай", "Локоть чуть выше кисти"],
+  cnsLoad: 1,
 },
 {
   id: "de_cable_lateral_raise",
@@ -2071,7 +2142,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["constant_tension", "easy_superset"],
+  tags: ["constant_tension", "easy_superset", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2087,6 +2158,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "frontal",
   cues: ["Плечи вниз", "Контроль амплитуды", "Локоть чуть выше кисти"],
+  cnsLoad: 1,
 },
 {
   id: "de_machine_lateral_raise",
@@ -2099,7 +2171,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["stable_choice", "easy_superset"],
+  tags: ["stable_choice", "easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2115,6 +2187,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "frontal",
   cues: ["Постоянное натяжение", "Плечи вниз", "Не махай"],
+  cnsLoad: 1,
 },
 {
   id: "de_front_raise",
@@ -2127,7 +2200,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 1,
   stabilityDemand: 2,
-  tags: ["easy_superset"],
+  tags: ["easy_superset", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2144,6 +2217,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Плечи вниз", "Локоть чуть выше кисти", "Контроль амплитуды"],
+  cnsLoad: 1,
 },
 {
   id: "ar_triceps_pushdown",
@@ -2156,7 +2230,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["easy_superset", "good_for_circuit"],
+  tags: ["easy_superset", "good_for_circuit", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2173,6 +2247,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["wrist_sensitive", "elbow_sensitive"],
   plane: "sagittal",
   cues: ["Локти фиксированы", "Полная амплитуда", "Без раскачки"],
+  cnsLoad: 1,
 },
 {
   id: "ar_db_curl",
@@ -2186,7 +2261,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 1,
   stabilityDemand: 2,
-  tags: ["easy_superset", "good_for_circuit"],
+  tags: ["easy_superset", "good_for_circuit", "low_cns", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2203,6 +2278,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["wrist_sensitive", "elbow_sensitive"],
   plane: "sagittal",
   cues: ["Сожми в конце", "Полная амплитуда", "Без раскачки"],
+  cnsLoad: 1,
 },
 {
   id: "ar_incline_db_curl",
@@ -2215,7 +2291,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["hypertrophy_bias", "easy_superset"],
+  tags: ["hypertrophy_bias", "easy_superset", "low_cns", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2232,6 +2308,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["elbow_sensitive"],
   plane: "sagittal",
   cues: ["Локти фиксированы", "Без раскачки", "Полная амплитуда"],
+  cnsLoad: 1,
 },
 {
   id: "ar_overhead_cable_triceps_ext",
@@ -2244,7 +2321,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["long_head_bias", "easy_superset"],
+  tags: ["long_head_bias", "easy_superset", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2261,6 +2338,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["shoulder_sensitive", "elbow_sensitive"],
   plane: "sagittal",
   cues: ["Контроль вниз", "Полная амплитуда", "Локти фиксированы"],
+  cnsLoad: 1,
 },
 {
   id: "ar_cable_curl",
@@ -2274,7 +2352,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["constant_tension", "easy_superset"],
+  tags: ["constant_tension", "easy_superset", "low_cns", "spine_safe", "good_finisher"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2291,6 +2369,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["elbow_sensitive"],
   plane: "sagittal",
   cues: ["Без раскачки", "Контроль вниз", "Полная амплитуда"],
+  cnsLoad: 1,
 },
 {
   id: "ar_ez_skullcrusher",
@@ -2303,7 +2382,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 3,
   stabilityDemand: 2,
-  tags: ["strength_bias", "hypertrophy_bias"],
+  tags: ["strength_bias", "hypertrophy_bias", "low_cns", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 8,
@@ -2320,6 +2399,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["elbow_sensitive", "wrist_sensitive"],
   plane: "sagittal",
   cues: ["Сожми в конце", "Без раскачки", "Полная амплитуда"],
+  cnsLoad: 1,
 },
 {
   id: "ar_ez_bar_curl",
@@ -2333,7 +2413,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["strength_bias"],
+  tags: ["strength_bias", "low_cns", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 8,
@@ -2350,6 +2430,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["wrist_sensitive", "elbow_sensitive"],
   plane: "sagittal",
   cues: ["Локти фиксированы", "Без раскачки", "Контроль вниз"],
+  cnsLoad: 1,
 },
 {
   id: "ca_standing_calf_raise",
@@ -2362,7 +2443,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["easy_superset", "good_for_circuit"],
+  tags: ["easy_superset", "good_for_circuit", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 10,
@@ -2378,6 +2459,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "sagittal",
   cues: ["Не пружинь", "Пауза вверху", "Растяжение внизу"],
+  cnsLoad: 1,
 },
 {
   id: "ca_seated_calf_raise",
@@ -2390,7 +2472,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["easy_superset", "stable_choice"],
+  tags: ["easy_superset", "stable_choice", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2406,6 +2488,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "sagittal",
   cues: ["Пауза вверху", "Контроль", "Растяжение внизу"],
+  cnsLoad: 1,
 },
 {
   id: "ca_calf_press_on_leg_press",
@@ -2418,7 +2501,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 2,
   stabilityDemand: 1,
-  tags: ["easy_superset"],
+  tags: ["easy_superset", "low_cns", "spine_safe", "good_finisher", "easy_to_progress"],
   kind: "isolation",
   repRangeDefault: {
     min: 12,
@@ -2434,6 +2517,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "sagittal",
   cues: ["Контроль", "Пауза вверху", "Растяжение внизу"],
+  cnsLoad: 1,
 },
 {
   id: "co_plank",
@@ -2462,6 +2546,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 45,
   plane: "sagittal",
   cues: ["Таз нейтрально", "Контроль", "Дыши"],
+  cnsLoad: 2,
 },
 {
   id: "co_dead_bug",
@@ -2490,6 +2575,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 45,
   plane: "sagittal",
   cues: ["Дыши", "Не прогибайся", "Таз нейтрально"],
+  cnsLoad: 2,
 },
 {
   id: "co_cable_crunch",
@@ -2502,7 +2588,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["hypertrophy_bias", "easy_superset"],
+  tags: ["hypertrophy_bias", "easy_superset", "spine_safe"],
   kind: "core",
   repRangeDefault: {
     min: 10,
@@ -2518,6 +2604,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "sagittal",
   cues: ["Контроль", "Не прогибайся", "Рёбра вниз"],
+  cnsLoad: 2,
 },
 {
   id: "co_hanging_knee_raise",
@@ -2547,6 +2634,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 75,
   plane: "sagittal",
   cues: ["Контроль", "Таз нейтрально", "Не прогибайся"],
+  cnsLoad: 2,
 },
 {
   id: "co_pallof_press",
@@ -2559,7 +2647,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 2,
   stabilityDemand: 2,
-  tags: ["anti_rotation", "spine_friendly", "easy_superset"],
+  tags: ["anti_rotation", "spine_friendly", "easy_superset", "spine_safe"],
   kind: "core",
   repRangeDefault: {
     min: 10,
@@ -2575,6 +2663,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 45,
   plane: "transverse",
   cues: ["Таз нейтрально", "Не прогибайся", "Рёбра вниз"],
+  cnsLoad: 2,
 },
 {
   id: "ca_farmer_s_walk",
@@ -2604,6 +2693,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "mixed",
   cues: ["Не заваливайся", "Шаг ровный", "Плечи вниз"],
+  cnsLoad: 2,
 },
 {
   id: "ca_suitcase_carry",
@@ -2634,6 +2724,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   unilateral: true,
   plane: "mixed",
   cues: ["Дыши", "Плечи вниз", "Шаг ровный"],
+  cnsLoad: 2,
 },
 {
   id: "ca_front_rack_carry",
@@ -2656,6 +2747,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 60,
   plane: "mixed",
   cues: ["Дыши", "Плечи вниз", "Шаг ровный"],
+  cnsLoad: 2,
 },
 {
   id: "co_incline_treadmill_walk",
@@ -2669,7 +2761,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 1,
   stabilityDemand: 1,
-  tags: ["zone2", "recovery_friendly", "fat_loss_friendly"],
+  tags: ["zone2", "recovery_friendly", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 8,
@@ -2685,6 +2777,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 0,
   plane: "sagittal",
   cues: ["Следи за пульсом", "Ровный темп", "Не теряй технику"],
+  cnsLoad: 1,
 },
 {
   id: "co_bike_easy",
@@ -2697,7 +2790,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 1,
   stabilityDemand: 1,
-  tags: ["zone2", "knee_friendly", "fat_loss_friendly"],
+  tags: ["zone2", "knee_friendly", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 8,
@@ -2713,6 +2806,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 0,
   plane: "sagittal",
   cues: ["Ровный темп", "Контроль дыхания", "Не теряй технику"],
+  cnsLoad: 1,
 },
 {
   id: "co_elliptical_easy",
@@ -2726,7 +2820,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 1,
   setupCost: 1,
   stabilityDemand: 1,
-  tags: ["zone2", "low_impact", "fat_loss_friendly"],
+  tags: ["zone2", "low_impact", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 8,
@@ -2742,6 +2836,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 0,
   plane: "sagittal",
   cues: ["Не теряй технику", "Контроль дыхания", "Держи ритм"],
+  cnsLoad: 1,
 },
 {
   id: "co_bike_intervals",
@@ -2754,7 +2849,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 2,
   setupCost: 1,
   stabilityDemand: 1,
-  tags: ["intervals", "fat_loss_friendly"],
+  tags: ["intervals", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 8,
@@ -2770,6 +2865,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   restSecDefault: 0,
   plane: "sagittal",
   cues: ["Не теряй технику", "Следи за пульсом", "Ровный темп"],
+  cnsLoad: 1,
 },
 {
   id: "co_row_erg_intervals",
@@ -2783,7 +2879,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 1,
   stabilityDemand: 2,
-  tags: ["intervals", "full_body_cardio", "fat_loss_friendly"],
+  tags: ["intervals", "full_body_cardio", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 8,
@@ -2800,6 +2896,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["low_back_sensitive"],
   plane: "sagittal",
   cues: ["Контроль дыхания", "Следи за пульсом", "Не теряй технику"],
+  cnsLoad: 1,
 },
 {
   id: "co_treadmill_run_walk_intervals",
@@ -2813,7 +2910,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   difficulty: 3,
   setupCost: 1,
   stabilityDemand: 2,
-  tags: ["intervals", "fat_loss_friendly"],
+  tags: ["intervals", "fat_loss_friendly", "low_cns"],
   kind: "conditioning",
   repRangeDefault: {
     min: 10,
@@ -2823,5 +2920,6 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   jointFlags: ["knee_sensitive"],
   plane: "sagittal",
   cues: ["Контроль дыхания", "Держи ритм", "Ровный темп"],
+  cnsLoad: 1,
 }
 ];

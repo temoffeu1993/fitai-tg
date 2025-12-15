@@ -327,10 +327,59 @@ export function scoreExerciseAdvanced(args: {
   if (ctx.goal === "athletic_body" && ex.plane === "mixed") s += 2;
 
   // Progression-ready bonus
-  if (hasAnyTag(ex, ["progression_ready"])) s += 2;
+  if (hasAnyTag(ex, ["progression_ready", "easy_to_progress"])) s += 2;
 
   // Slight bonus for safe choices
   if (ctx.intent === "light" && hasAnyTag(ex, ["stable_choice"])) s += 2;
+
+  // -------------------------------------------------------------------------
+  // K) CNS LOAD MANAGEMENT (NEW)
+  // -------------------------------------------------------------------------
+  
+  // Calculate accumulated CNS fatigue from already selected exercises
+  const accumulatedCNS = Array.from(usedIds || [])
+    .map(id => {
+      const usedEx = EXERCISE_LIBRARY.find(e => e.id === id);
+      return usedEx?.cnsLoad || 0;
+    })
+    .reduce((sum: number, load) => sum + load, 0);
+  
+  // If CNS is already fatigued, penalize high CNS load exercises
+  if (accumulatedCNS > 6) {
+    s -= (ex.cnsLoad || 0) * 5;
+  }
+  
+  // For light days, strongly prefer low CNS exercises
+  if (ctx.intent === "light") {
+    if (ex.cnsLoad === 1 || hasAnyTag(ex, ["low_cns"])) s += 6;
+    if (ex.cnsLoad === 3 || hasAnyTag(ex, ["high_cns"])) s -= 10;
+  }
+  
+  // For hard days, allow high CNS load
+  if (ctx.intent === "hard" && ex.cnsLoad === 3) {
+    s += 3;
+  }
+
+  // -------------------------------------------------------------------------
+  // L) POSITION IN WORKOUT (NEW)
+  // -------------------------------------------------------------------------
+  
+  const exerciseCount = usedIds?.size || 0;
+  
+  // First exercise: prefer good openers (heavy compounds)
+  if (exerciseCount === 0 && hasAnyTag(ex, ["good_opener"])) {
+    s += 8;
+  }
+  
+  // Last exercises: prefer good finishers (isolation)
+  if (exerciseCount >= 5 && hasAnyTag(ex, ["good_finisher"])) {
+    s += 6;
+  }
+  
+  // Spine-safe bonus for exercises after heavy spinal loading
+  if (accumulatedCNS > 4 && hasAnyTag(ex, ["spine_safe"])) {
+    s += 5;
+  }
 
   return s;
 }
