@@ -203,6 +203,7 @@ workoutGeneration.post(
     console.log(`✅ Generated week plan: ${weekPlan.length} days (meso week ${mesocycle.currentWeek})`);
     
     // Save weekly plan
+    console.log(`💾 Saving weekly plan to DB...`);
     await saveWeeklyPlan({
       userId: uid,
       weekStartDate: weekStart,
@@ -210,8 +211,10 @@ workoutGeneration.post(
       schemeId: scheme.id,
       workouts: weekPlan,
     });
+    console.log(`✅ Weekly plan saved`);
     
     // Save all workouts to planned_workouts
+    console.log(`💾 Saving ${weekPlan.length} workouts to planned_workouts...`);
     for (let i = 0; i < weekPlan.length; i++) {
       const workout = weekPlan[i];
       
@@ -251,11 +254,14 @@ workoutGeneration.post(
            created_at = now()`,
         [uid, i, workoutData]
       );
+      console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
     }
+    console.log(`✅ All workouts saved to planned_workouts`);
     
     // Return TODAY's workout (day 0) for compatibility with old frontend
     const todayWorkout = weekPlan[0];
     
+    console.log(`📤 Sending response to client...`);
     return res.json({
       success: true,
       plan: {
