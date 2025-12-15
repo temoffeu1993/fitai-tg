@@ -1001,9 +1001,9 @@ function SectionCard({
         {/* Описание */}
         {hint && <div style={schemeDescriptionStyle}>{hint}</div>}
 
-        {/* Кнопка показать детали */}
+        {/* Кнопка упражнения */}
         <button type="button" onClick={onToggle} style={expandBtnStyle}>
-          {isOpen ? "Свернуть детали ▲" : "Показать детали ▼"}
+          {isOpen ? "Свернуть упражнения ▲" : "Упражнения ▼"}
         </button>
 
         {/* Раздел с упражнениями (анимированный) */}
@@ -1158,11 +1158,10 @@ function ExercisesList({
     marginBottom: 4,
   };
 
-  // Для warmup/cooldown показываем как список преимуществ
+  // Для warmup/cooldown показываем как список преимуществ БЕЗ заголовка
   if (variant === "warmup" || variant === "cooldown") {
     return (
       <div style={detailsSection}>
-        <div style={benefitsTitle}>Упражнения</div>
         <ul style={benefitsList}>
           {items.map((item, i) => {
             const name = typeof item === "string" ? item : item.name;
@@ -1177,20 +1176,48 @@ function ExercisesList({
     );
   }
 
-  // Для main показываем так же как warmup/cooldown - простой список
+  // Для main показываем каждое упражнение отдельным блоком с чипами
   return (
     <div style={detailsSection}>
-      <div style={benefitsTitle}>Упражнения</div>
-      <ul style={benefitsList}>
+      <div style={{ display: "grid", gap: 8 }}>
         {items.map((item, i) => {
-          const name = typeof item === "string" ? item : item.name;
+          const isString = typeof item === "string";
+          const name = isString ? item : item.name;
+          const cues = isString ? null : item.cues;
+          const sets = !isString ? item.sets : null;
+          const reps = !isString ? item.reps : null;
+          const restSec = !isString ? item.restSec : null;
+
           return (
-            <li key={`${variant}-${i}`} style={benefitItem}>
-              {name}
-            </li>
+            <div 
+              key={`${variant}-${i}-${name ?? "step"}`}
+              style={dayItem}
+            >
+              {/* Название упражнения */}
+              <div style={dayLabel}>
+                {name || `Упражнение ${i + 1}`}
+              </div>
+              
+              {/* Описание (cues) */}
+              {cues && <div style={dayFocus}>{cues}</div>}
+              
+              {/* Чипы с сетами и отдыхом */}
+              {typeof sets === 'number' && (
+                <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                  <span style={infoChipStyle}>
+                    💪 {sets}×{formatReps(reps)}
+                  </span>
+                  {typeof restSec === 'number' && (
+                    <span style={infoChipStyle}>
+                      ⏱️ {formatSec(restSec)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }
