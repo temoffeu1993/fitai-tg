@@ -41,6 +41,100 @@ function getUid(req: any): string {
 }
 
 // ============================================================================
+// POST /check-in - Save daily check-in
+// ============================================================================
+
+workoutGeneration.post(
+  "/check-in",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const data = req.body || {};
+    
+    console.log(`💾 CHECK-IN for user ${uid}:`, data);
+    
+    // Validation
+    if (data.sleepHours != null && (data.sleepHours < 0 || data.sleepHours > 24)) {
+      throw new AppError("sleepHours must be between 0 and 24", 400);
+    }
+    
+    if (data.availableMinutes != null) {
+      const av = Number(data.availableMinutes);
+      if (!Number.isFinite(av) || av < 10 || av > 240) {
+        throw new AppError("availableMinutes must be between 10 and 240", 400);
+      }
+    }
+    
+    const validEnergy = ["low", "medium", "high"];
+    if (data.energyLevel && !validEnergy.includes(data.energyLevel)) {
+      throw new AppError(`energyLevel must be one of: ${validEnergy.join(", ")}`, 400);
+    }
+    
+    const validStress = ["low", "medium", "high", "very_high"];
+    if (data.stressLevel && !validStress.includes(data.stressLevel)) {
+      throw new AppError(`stressLevel must be one of: ${validStress.join(", ")}`, 400);
+    }
+    
+    // Save to DB
+    const result = await q(
+      `INSERT INTO daily_check_ins (
+        user_id,
+        injuries, limitations, pain,
+        sleep_hours, sleep_quality, stress_level, energy_level,
+        motivation, mood,
+        menstrual_phase, menstrual_symptoms,
+        hydration, last_meal, notes,
+        available_minutes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
+      DO UPDATE SET
+        injuries = EXCLUDED.injuries,
+        limitations = EXCLUDED.limitations,
+        pain = EXCLUDED.pain,
+        sleep_hours = EXCLUDED.sleep_hours,
+        sleep_quality = EXCLUDED.sleep_quality,
+        stress_level = EXCLUDED.stress_level,
+        energy_level = EXCLUDED.energy_level,
+        motivation = EXCLUDED.motivation,
+        mood = EXCLUDED.mood,
+        menstrual_phase = EXCLUDED.menstrual_phase,
+        menstrual_symptoms = EXCLUDED.menstrual_symptoms,
+        hydration = EXCLUDED.hydration,
+        last_meal = EXCLUDED.last_meal,
+        notes = EXCLUDED.notes,
+        available_minutes = EXCLUDED.available_minutes,
+        updated_at = NOW()
+      RETURNING id, created_at`,
+      [
+        uid,
+        data.injuries || null,
+        data.limitations || null,
+        data.pain || null,
+        data.sleepHours || null,
+        data.sleepQuality || null,
+        data.stressLevel || null,
+        data.energyLevel || null,
+        data.motivation || null,
+        data.mood || null,
+        data.menstrualPhase || null,
+        data.menstrualSymptoms || null,
+        data.hydration || null,
+        data.lastMeal || null,
+        data.notes || null,
+        data.availableMinutes || null,
+      ]
+    );
+    
+    console.log(`✅ Check-in saved: ${result[0].id}`);
+    
+    res.json({
+      success: true,
+      checkInId: result[0].id,
+      createdAt: result[0].created_at,
+    });
+  })
+);
+
+// ============================================================================
 // POST /generate - Алиас для совместимости со старым фронтендом
 // Генерирует недельный план и возвращает первый день
 // ============================================================================

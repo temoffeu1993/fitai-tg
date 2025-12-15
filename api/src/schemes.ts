@@ -241,7 +241,7 @@ schemes.post(
           templateRulesId: d.templateRulesId,
         })),
         benefits: scheme.benefits,
-        notes: scheme.notes,
+        // notes: scheme.notes, // ❌ СКРЫТО - это для разработчиков, не для клиента
         intensity: scheme.intensity,
         targetSex: scheme.targetSex || 'any',
       };
