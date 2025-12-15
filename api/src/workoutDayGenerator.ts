@@ -68,7 +68,7 @@ export type GeneratedWorkoutDay = {
   dayLabel: string;
   dayFocus: string;
   intent: Intent;
-  warmup?: { title: string; items: string[] };
+  warmup?: string[];
   exercises: Array<{
     exercise: Exercise;
     sets: number;
@@ -76,7 +76,7 @@ export type GeneratedWorkoutDay = {
     restSec: number;
     notes: string;
   }>;
-  cooldown?: { title: string; items: string[] };
+  cooldown?: string[];
   totalExercises: number;
   totalSets: number;
   estimatedDuration: number;
@@ -441,7 +441,7 @@ export function generateWorkoutDay(args: {
 // HELPER: Generate warmup
 // ============================================================================
 
-function generateWarmup(exercises: Exercise[], dayFocus: string): { title: string; items: string[] } {
+function generateWarmup(exercises: Exercise[], dayFocus: string): string[] {
   const warmupItems: string[] = [];
   
   // Базовая разминка (всегда)
@@ -470,17 +470,14 @@ function generateWarmup(exercises: Exercise[], dayFocus: string): { title: strin
   
   warmupItems.push("Лёгкие подходы первого упражнения (50% веса × 12, 70% веса × 8)");
   
-  return {
-    title: "Разминка (~7-10 минут)",
-    items: warmupItems.slice(0, 6), // Max 6 items
-  };
+  return warmupItems.slice(0, 6); // Max 6 items
 }
 
 // ============================================================================
 // HELPER: Generate cooldown
 // ============================================================================
 
-function generateCooldown(exercises: Exercise[], dayFocus: string): { title: string; items: string[] } {
+function generateCooldown(exercises: Exercise[], dayFocus: string): string[] {
   const cooldownItems: string[] = [];
   
   // Растяжка по группам мышц
@@ -504,10 +501,7 @@ function generateCooldown(exercises: Exercise[], dayFocus: string): { title: str
   
   cooldownItems.push("Глубокое дыхание 5-10 циклов (вдох 4 сек, выдох 6 сек)");
   
-  return {
-    title: "Заминка (~5-7 минут)",
-    items: cooldownItems.slice(0, 6), // Max 6 items
-  };
+  return cooldownItems.slice(0, 6); // Max 6 items
 }
 
 // ============================================================================
