@@ -136,7 +136,6 @@ export default function PlanOne() {
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const [paywall, setPaywall] = useState(false);
   const effectivePlan = needsCheckIn ? null : plan;
-  const planTitle = useMemo(() => effectivePlan?.title?.trim() || "Тренировка дня", [effectivePlan]);
 
   useEffect(() => {
     if (plan) {
