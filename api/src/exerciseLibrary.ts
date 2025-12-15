@@ -43,7 +43,9 @@ export type Pattern =
   | "vertical_pull"
   | "rear_delts"
   | "delts_iso"
-  | "arms_iso"
+  | "triceps_iso"
+  | "biceps_iso"
+  | "arms_iso" // Deprecated: use triceps_iso or biceps_iso
   | "calves"
   | "core"
   | "carry"
@@ -2223,7 +2225,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_triceps_pushdown",
   name: "Разгибания на трицепс на блоке",
   nameEn: "Triceps Pushdown",
-  patterns: ["arms_iso"],
+  patterns: ["triceps_iso"],
   primaryMuscles: ["triceps"],
   equipment: ["cable"],
   minLevel: "beginner",
@@ -2253,7 +2255,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_db_curl",
   name: "Сгибания рук с гантелями",
   nameEn: "DB Curl",
-  patterns: ["arms_iso"],
+  patterns: ["biceps_iso"],
   primaryMuscles: ["biceps"],
   secondaryMuscles: ["forearms"],
   equipment: ["dumbbell"],
@@ -2284,7 +2286,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_incline_db_curl",
   name: "Сгибания рук с гантелями на наклонной скамье",
   nameEn: "Incline DB Curl",
-  patterns: ["arms_iso"],
+  patterns: ["biceps_iso"],
   primaryMuscles: ["biceps"],
   equipment: ["dumbbell", "bench"],
   minLevel: "intermediate",
@@ -2314,7 +2316,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_overhead_cable_triceps_ext",
   name: "Французский жим на блоке стоя",
   nameEn: "Overhead Cable Triceps Ext",
-  patterns: ["arms_iso"],
+  patterns: ["triceps_iso"],
   primaryMuscles: ["triceps"],
   equipment: ["cable"],
   minLevel: "intermediate",
@@ -2344,7 +2346,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_cable_curl",
   name: "Сгибания на блоке",
   nameEn: "Cable Curl",
-  patterns: ["arms_iso"],
+  patterns: ["biceps_iso"],
   primaryMuscles: ["biceps"],
   secondaryMuscles: ["forearms"],
   equipment: ["cable"],
@@ -2375,7 +2377,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_ez_skullcrusher",
   name: "Французский жим EZ-штанги лёжа",
   nameEn: "EZ Skullcrusher",
-  patterns: ["arms_iso"],
+  patterns: ["triceps_iso"],
   primaryMuscles: ["triceps"],
   equipment: ["barbell", "bench"],
   minLevel: "intermediate",
@@ -2405,7 +2407,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   id: "ar_ez_bar_curl",
   name: "Сгибания рук с EZ-штангой",
   nameEn: "EZ Bar Curl",
-  patterns: ["arms_iso"],
+  patterns: ["biceps_iso"],
   primaryMuscles: ["biceps"],
   secondaryMuscles: ["forearms"],
   equipment: ["barbell"],
