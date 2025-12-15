@@ -1193,48 +1193,52 @@ function ExercisesList({
     );
   }
 
-  // Для main показываем каждое упражнение отдельным блоком с чипами
+  // Для main показываем каждое упражнение отдельным блоком БЕЗ общего контейнера
   return (
-    <div style={detailsSection}>
-      <div style={{ display: "grid", gap: 8 }}>
-        {items.map((item, i) => {
-          const isString = typeof item === "string";
-          const name = isString ? item : item.name;
-          const cues = isString ? null : item.cues;
-          const sets = !isString ? item.sets : null;
-          const reps = !isString ? item.reps : null;
-          const restSec = !isString ? item.restSec : null;
+    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+      {items.map((item, i) => {
+        const isString = typeof item === "string";
+        const name = isString ? item : item.name;
+        const cues = isString ? null : item.cues;
+        const sets = !isString ? item.sets : null;
+        const reps = !isString ? item.reps : null;
+        const restSec = !isString ? item.restSec : null;
 
-          return (
-            <div 
-              key={`${variant}-${i}-${name ?? "step"}`}
-              style={dayItem}
-            >
-              {/* Название упражнения */}
+        return (
+          <div 
+            key={`${variant}-${i}-${name ?? "step"}`}
+            style={{
+              ...dayItem,
+              display: "flex",
+              gap: 12,
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+            }}
+          >
+            {/* Левая часть: название и описание */}
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={dayLabel}>
                 {name || `Упражнение ${i + 1}`}
               </div>
-              
-              {/* Описание (cues) */}
               {cues && <div style={dayFocus}>{cues}</div>}
-              
-              {/* Чипы с сетами и отдыхом */}
-              {typeof sets === 'number' && (
-                <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-                  <span style={infoChipStyle}>
-                    💪 {sets}×{formatReps(reps)}
-                  </span>
-                  {typeof restSec === 'number' && (
-                    <span style={infoChipStyle}>
-                      ⏱️ {formatSec(restSec)}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
-          );
-        })}
-      </div>
+            
+            {/* Правая часть: чипы */}
+            {typeof sets === 'number' && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+                <span style={infoChipStyle}>
+                  💪 {sets}×{formatReps(reps)}
+                </span>
+                {typeof restSec === 'number' && (
+                  <span style={infoChipStyle}>
+                    ⏱️ {formatSec(restSec)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
