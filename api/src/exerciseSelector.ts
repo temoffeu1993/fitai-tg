@@ -505,6 +505,14 @@ export function pickExercisesForPattern(args: {
     else top.shift();
   }
 
+  // SAFETY: If we couldn't fill the slot, try without scoring penalties
+  if (out.length < n && pool.length >= n) {
+    console.warn(`⚠️ Could not fill ${n} exercises for ${pattern}, trying fallback (pool: ${pool.length})`);
+    // Just take top N from pool without complex scoring
+    const remaining = pool.filter(ex => !usedIds.has(ex.id)).slice(0, n - out.length);
+    out.push(...remaining);
+  }
+
   return out;
 }
 
