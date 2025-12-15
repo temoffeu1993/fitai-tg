@@ -1158,6 +1158,23 @@ function ExercisesList({
     marginBottom: 4,
   };
 
+  const infoChipStyle: React.CSSProperties = {
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    padding: "5px 10px",
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#334155",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  };
+
   // Для warmup/cooldown показываем как список преимуществ БЕЗ заголовка
   if (variant === "warmup" || variant === "cooldown") {
     return (
