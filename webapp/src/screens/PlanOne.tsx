@@ -900,7 +900,7 @@ function ExercisesList({
   variant: "warmup" | "main" | "cooldown";
   isOpen: boolean;
 }) {
-  const [expandedTechnique, setExpandedTechnique] = React.useState<Set<number>>(new Set());
+  const [expandedTechnique, setExpandedTechnique] = useState<Set<number>>(new Set());
   
   if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
