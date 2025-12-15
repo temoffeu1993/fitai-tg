@@ -370,6 +370,49 @@ export default function PlanOne() {
   const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
   const regenButtonDisabled = sub.locked || regenPending;
   const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
+  
+  // Формируем понятное название тренировки на русском
+  const getWorkoutTitle = () => {
+    const label = plan.dayLabel || "";
+    const focus = plan.dayFocus || "";
+    
+    // Если есть dayLabel, используем его как базу
+    if (label.toLowerCase().includes("push")) {
+      return "Грудь, Плечи, Трицепс";
+    }
+    if (label.toLowerCase().includes("pull")) {
+      return "Спина, Бицепс";
+    }
+    if (label.toLowerCase().includes("leg")) {
+      return "Ноги и Ягодицы";
+    }
+    if (label.toLowerCase().includes("upper")) {
+      return "Верх тела";
+    }
+    if (label.toLowerCase().includes("lower")) {
+      return "Низ тела";
+    }
+    if (label.toLowerCase().includes("full body")) {
+      return "Всё тело";
+    }
+    
+    // Если в dayLabel есть русское название - используем его
+    if (label && /[а-яА-Я]/.test(label)) {
+      return label;
+    }
+    
+    // Иначе пытаемся вытащить из focus
+    if (focus && /[а-яА-Я]/.test(focus)) {
+      // Берем первое предложение до точки/запятой
+      const firstPart = focus.split(/[.,:—]/)[0].trim();
+      if (firstPart.length < 50) return firstPart;
+    }
+    
+    // Fallback
+    return label || "Тренировка дня";
+  };
+  
+  const planTitle = getWorkoutTitle();
 
   return (
     <div style={s.page}>
