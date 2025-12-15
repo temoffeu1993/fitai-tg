@@ -68,6 +68,7 @@ export type GeneratedWorkoutDay = {
   dayLabel: string;
   dayFocus: string;
   intent: Intent;
+  warmup?: { title: string; items: string[] };
   exercises: Array<{
     exercise: Exercise;
     sets: number;
@@ -75,6 +76,7 @@ export type GeneratedWorkoutDay = {
     restSec: number;
     notes: string;
   }>;
+  cooldown?: { title: string; items: string[] };
   totalExercises: number;
   totalSets: number;
   estimatedDuration: number;
@@ -302,14 +304,15 @@ export function generateWorkoutDay(args: {
       sets = Math.max(1, Math.round(sets * weekPlanData.volumeMultiplier));
     }
 
-    // НОВОЕ: Применить DUP reps ranges
-    if (dupIntensity) {
+    // НОВОЕ: Применить DUP reps ranges ТОЛЬКО для main/secondary упражнений
+    // accessory/pump/conditioning остаются со своими диапазонами (гипертрофия)
+    if (dupIntensity && (role === "main" || role === "secondary")) {
       const dupReps: Record<DUPIntensity, [number, number]> = {
-        heavy: [4, 6],
-        medium: [6, 10],
-        light: [10, 15],
+        heavy: [4, 6],     // Силовой день
+        medium: [6, 10],   // Средний день  
+        light: [10, 15],   // Лёгкий день (пампинг)
       };
-      repsRange = dupReps[dupIntensity] || repsRange;
+      repsRange = dupReps[dupIntensity];
     }
 
     return {
@@ -409,6 +412,13 @@ export function generateWorkoutDay(args: {
     warnings.push(`Боль в: ${checkin.pain.join(", ")}. Избегай дискомфорта, снижай веса при необходимости.`);
   }
 
+  // -------------------------------------------------------------------------
+  // STEP 6: Generate warmup and cooldown
+  // -------------------------------------------------------------------------
+  
+  const warmup = generateWarmup(selectedExercises, dayBlueprint.focus);
+  const cooldown = generateCooldown(selectedExercises, dayBlueprint.focus);
+
   return {
     schemeId: scheme.id,
     schemeName: scheme.russianName,
@@ -416,12 +426,87 @@ export function generateWorkoutDay(args: {
     dayLabel: dayBlueprint.label,
     dayFocus: dayBlueprint.focus,
     intent,
+    warmup,
     exercises,
+    cooldown,
     totalExercises,
     totalSets,
     estimatedDuration,
     adaptationNotes: adaptationNotes.length > 0 ? adaptationNotes : undefined,
     warnings: warnings.length > 0 ? warnings : undefined,
+  };
+}
+
+// ============================================================================
+// HELPER: Generate warmup
+// ============================================================================
+
+function generateWarmup(exercises: Exercise[], dayFocus: string): { title: string; items: string[] } {
+  const warmupItems: string[] = [];
+  
+  // Базовая разминка (всегда)
+  warmupItems.push("5 минут лёгкого кардио (велотренажёр, эллипс или ходьба)");
+  
+  // Специфическая разминка по паттернам
+  const patterns = [...new Set(exercises.flatMap(ex => ex.patterns))];
+  
+  if (patterns.some(p => ["squat", "hinge", "lunge"].includes(p))) {
+    warmupItems.push("Приседания с собственным весом × 15");
+    warmupItems.push("Выпады назад × 10 на каждую ногу");
+    warmupItems.push("Ягодичный мост × 15");
+  }
+  
+  if (patterns.some(p => ["horizontal_push", "incline_push", "vertical_push"].includes(p))) {
+    warmupItems.push("Вращения рук × 10 вперёд и назад");
+    warmupItems.push("Отжимания от стены × 10");
+    warmupItems.push("Разведения рук в стороны × 15");
+  }
+  
+  if (patterns.some(p => ["horizontal_pull", "vertical_pull"].includes(p))) {
+    warmupItems.push("Вращения плечами × 15");
+    warmupItems.push("Подтягивание лопаток на турнике (висы) × 10 сек");
+    warmupItems.push("Тяга резинки к груди × 15");
+  }
+  
+  warmupItems.push("Лёгкие подходы первого упражнения (50% веса × 12, 70% веса × 8)");
+  
+  return {
+    title: "Разминка (~7-10 минут)",
+    items: warmupItems.slice(0, 6), // Max 6 items
+  };
+}
+
+// ============================================================================
+// HELPER: Generate cooldown
+// ============================================================================
+
+function generateCooldown(exercises: Exercise[], dayFocus: string): { title: string; items: string[] } {
+  const cooldownItems: string[] = [];
+  
+  // Растяжка по группам мышц
+  const muscles = [...new Set(exercises.flatMap(ex => ex.primaryMuscles))];
+  
+  if (muscles.some(m => ["quads", "glutes", "hamstrings"].includes(m))) {
+    cooldownItems.push("Растяжка квадрицепса (стоя на одной ноге) — 30 сек каждая");
+    cooldownItems.push("Растяжка задней поверхности бедра (наклон к ногам) — 30 сек");
+    cooldownItems.push("Растяжка ягодиц (лёжа на спине, колено к груди) — 30 сек каждая");
+  }
+  
+  if (muscles.some(m => ["chest", "front_delts"].includes(m))) {
+    cooldownItems.push("Растяжка грудных (руки за спину в дверном проёме) — 30 сек");
+    cooldownItems.push("Растяжка передних дельт (рука за спину) — 30 сек каждая");
+  }
+  
+  if (muscles.some(m => ["lats", "traps", "rear_delts"].includes(m))) {
+    cooldownItems.push("Растяжка широчайших (вис на турнике) — 20 сек");
+    cooldownItems.push("Растяжка задних дельт (рука через грудь) — 30 сек каждая");
+  }
+  
+  cooldownItems.push("Глубокое дыхание 5-10 циклов (вдох 4 сек, выдох 6 сек)");
+  
+  return {
+    title: "Заминка (~5-7 минут)",
+    items: cooldownItems.slice(0, 6), // Max 6 items
   };
 }
 

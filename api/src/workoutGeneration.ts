@@ -267,6 +267,7 @@ workoutGeneration.post(
     return res.json({
       plan: {
         id: `week_${Date.now()}`,
+        warmup: todayWorkout.warmup,
         exercises: todayWorkout.exercises.map(ex => ({
           exerciseId: ex.exercise.id,
           name: ex.exercise.name,
@@ -277,6 +278,7 @@ workoutGeneration.post(
           targetMuscles: ex.exercise.primaryMuscles,
           cues: ex.notes,
         })),
+        cooldown: todayWorkout.cooldown,
         dayLabel: todayWorkout.dayLabel,
         focus: todayWorkout.dayFocus,
         estimatedDuration: todayWorkout.estimatedDuration,
