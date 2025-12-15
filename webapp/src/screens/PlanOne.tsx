@@ -428,6 +428,15 @@ export default function PlanOne() {
       ) : null}
       </section>
 
+      {/* Чипы в фирменном стиле под верхним блоком */}
+      {chips && (
+        <section style={s.statsRow}>
+          <ChipStatSquare emoji="🎯" label="Тренировка" value={`#${workoutNumber}`} />
+          <ChipStatSquare emoji="🕒" label="Время" value={`${chips.minutes} мин`} />
+          <ChipStatSquare emoji="💪" label="Упражнения" value={`${totalExercises}`} />
+        </section>
+      )}
+
       {/* Разминка */}
       {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
         <SectionCard
@@ -446,11 +455,6 @@ export default function PlanOne() {
         icon="💪"
         title="Основная часть"
         hint={plan.dayFocus || `${plan.dayLabel}: Основной тренировочный блок с прогрессией нагрузки. Следи за техникой выполнения.`}
-        chips={[
-          { emoji: "🎯", text: `Тренировка #${workoutNumber}` },
-          { emoji: "💪", text: `${totalExercises} упр` },
-          { emoji: "⏱️", text: chips?.minutes ? `~${chips.minutes} мин` : `~${Math.round((plan.totalSets || 20) * 2.5)} мин` },
-        ]}
         isOpen={openMain}
         onToggle={() => setOpenMain((v) => !v)}
       >
