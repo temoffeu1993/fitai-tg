@@ -42,15 +42,115 @@ function getUid(req: any): string {
 
 // ============================================================================
 // POST /generate - Алиас для совместимости со старым фронтендом
+// Генерирует недельный план (аналог /generate-week)
 // ============================================================================
 
 workoutGeneration.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
-    console.log("🔄 /generate called (redirecting to generate-week)");
-    // Перенаправляем на generate-week
-    req.url = "/generate-week";
-    return workoutGeneration.handle(req, res);
+    const uid = getUid(req);
+    
+    console.log(`🔄 /generate called for user ${uid} (legacy endpoint → deterministic system)`);
+    
+    // Get user profile
+    const userProfile = await buildUserProfile(uid);
+    
+    // Get selected scheme
+    const schemeRows = await q<{ scheme_id: string }>(
+      `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
+      [uid]
+    );
+    
+    if (!schemeRows.length) {
+      throw new AppError("No scheme selected", 404);
+    }
+    
+    const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
+    if (!scheme) {
+      throw new AppError("Scheme not found", 404);
+    }
+    
+    // Get or create mesocycle
+    let mesocycle = await getMesocycle(uid);
+    if (!mesocycle || shouldStartNewMesocycle(mesocycle)) {
+      mesocycle = createMesocycle({ userId: uid, goal: userProfile.goal });
+      await saveMesocycle(uid, mesocycle);
+      console.log(`🆕 Created new mesocycle: week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
+    }
+    
+    // Check if we need to advance week
+    const weekStart = await getCurrentWeekStart();
+    const existingPlan = await getWeeklyPlan(uid, weekStart);
+    if (existingPlan && existingPlan.mesoWeek !== mesocycle.currentWeek) {
+      mesocycle = advanceMesocycle(mesocycle);
+      await saveMesocycle(uid, mesocycle);
+      console.log(`⏩ Advanced to week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
+    }
+    
+    // Get check-in
+    const checkin = await getLatestCheckIn(uid);
+    
+    // Get history
+    const history = await getWorkoutHistory(uid);
+    
+    // Generate week plan
+    const checkins = checkin ? Array(scheme.daysPerWeek).fill(checkin) : undefined;
+    
+    const weekPlan = generateWeekPlan({
+      scheme,
+      userProfile,
+      mesocycle,
+      checkins,
+      history,
+    });
+    
+    console.log(`✅ Generated week plan: ${weekPlan.length} days (meso week ${mesocycle.currentWeek})`);
+    
+    // Save weekly plan
+    await saveWeeklyPlan({
+      userId: uid,
+      weekStartDate: weekStart,
+      mesoWeek: mesocycle.currentWeek,
+      schemeId: scheme.id,
+      workouts: weekPlan,
+    });
+    
+    // Return TODAY's workout (day 0) for compatibility with old frontend
+    const todayWorkout = weekPlan[0];
+    
+    return res.json({
+      success: true,
+      plan: {
+        id: `week_${Date.now()}`,
+        exercises: todayWorkout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          name: ex.exercise.name,
+          sets: ex.sets,
+          reps: ex.repsRange,
+          restSec: ex.restSec,
+          weight: 0, // Будет заполнено из progressionDb
+          targetMuscles: ex.exercise.primaryMuscles,
+          cues: ex.notes,
+        })),
+        dayLabel: todayWorkout.dayLabel,
+        focus: todayWorkout.dayFocus,
+        estimatedDuration: todayWorkout.estimatedDuration,
+        notes: todayWorkout.adaptationNotes,
+      },
+      weekPlan: weekPlan.map((day, idx) => ({
+        day: idx + 1,
+        label: day.dayLabel,
+        focus: day.dayFocus,
+        totalExercises: day.totalExercises,
+        totalSets: day.totalSets,
+        estimatedDuration: day.estimatedDuration,
+      })),
+      mesocycle: {
+        week: mesocycle.currentWeek,
+        totalWeeks: mesocycle.totalWeeks,
+        phase: mesocycle.phase,
+      },
+    });
   })
 );
 
