@@ -440,9 +440,13 @@ export default function PlanOne() {
       {/* Разминка */}
       {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
         <SectionCard
-          icon="🧘‍♀️"
+          icon="🔥"
           title="Разминка"
-          hint="Мягкая активация. Двигайся без спешки."
+          hint="Мягкая активация. Подготовь суставы и мышцы к работе, двигайся плавно без рывков."
+          chips={[
+            { emoji: "⏱️", text: "5 мин" },
+            { emoji: "📋", text: `${plan.warmup.length} упражнений` },
+          ]}
           isOpen={openWarmup}
           onToggle={() => setOpenWarmup((v) => !v)}
         >
@@ -452,9 +456,14 @@ export default function PlanOne() {
 
       {/* Основная часть */}
       <SectionCard
-        icon="⚡"
+        icon="💪"
         title="Основная часть"
-        hint="Техника приоритетнее веса. Держи темп и отдых по самочувствию."
+        hint={plan.dayFocus || `${plan.dayLabel}: Основной тренировочный блок с прогрессией нагрузки. Следи за техникой выполнения.`}
+        chips={[
+          { emoji: "🎯", text: `Тренировка #${workoutNumber}` },
+          { emoji: "💪", text: `${totalExercises} упр` },
+          { emoji: "⏱️", text: chips?.minutes ? `~${chips.minutes} мин` : `~${Math.round((plan.totalSets || 20) * 2.5)} мин` },
+        ]}
         isOpen={openMain}
         onToggle={() => setOpenMain((v) => !v)}
       >
@@ -464,9 +473,13 @@ export default function PlanOne() {
       {/* Заминка */}
       {Array.isArray(plan.cooldown) && plan.cooldown.length > 0 && (
         <SectionCard
-          icon="🧘‍♂️"
+          icon="🧘"
           title="Заминка"
-          hint="Снижаем пульс. Растяжка без боли. Ровное дыхание."
+          hint="Восстановление после нагрузки. Снизь пульс, растянь основные группы мышц, восстанови дыхание."
+          chips={[
+            { emoji: "⏱️", text: "5 мин" },
+            { emoji: "📋", text: `${plan.cooldown.length} упражнений` },
+          ]}
           isOpen={openCooldown}
           onToggle={() => setOpenCooldown((v) => !v)}
         >
@@ -845,6 +858,7 @@ function SectionCard({
   children,
   isOpen,
   onToggle,
+  chips,
 }: {
   icon: string;
   title: string;
@@ -852,40 +866,128 @@ function SectionCard({
   children: any;
   isOpen: boolean;
   onToggle: () => void;
+  chips?: Array<{ emoji: string; text: string }>;
 }) {
-  return (
-    <section style={s.block}>
-      <div style={{ ...ux.card, boxShadow: ux.card.boxShadow }}>
-        {/* Шапка секции */}
-        <button
-          style={{
-            ...ux.cardHeader,
-            width: "100%",
-            border: "none",
-            textAlign: "left",
-            cursor: "pointer",
-            position: "relative",
-          }}
-          onClick={onToggle}
-        >
-          <div style={{ ...ux.iconInline }}>{icon}</div>
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <div style={ux.cardTitleRow}>
-              <div style={ux.cardTitle}>{title}</div>
+  // Стиль карточки схемы
+  const schemeCardStyle: React.CSSProperties = {
+    position: "relative",
+    padding: 18,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    cursor: "default",
+    transition: "all 0.3s ease",
+    marginBottom: 16,
+  };
 
-              {/* Новый caret */}
-              <div style={{
-                ...ux.caretWrap,
-                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-              }}>
-                <div style={ux.caretInner} />
-              </div>
-            </div>
-            {hint && <div style={ux.cardHint}>{hint}</div>}
+  const schemeName: React.CSSProperties = {
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginBottom: 8,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  };
+
+  const schemeInfoStyle: React.CSSProperties = {
+    display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: "wrap",
+  };
+
+  const infoChipStyle: React.CSSProperties = {
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    padding: "5px 10px",
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#334155",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  };
+
+  const schemeDescriptionStyle: React.CSSProperties = {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+    marginBottom: 16,
+    fontWeight: 500,
+  };
+
+  const expandBtnStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px",
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    marginTop: 8,
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  };
+
+  return (
+    <section style={{ ...s.block, padding: "0 16px" }}>
+      <div style={schemeCardStyle}>
+        {/* Название */}
+        <div style={schemeName}>
+          <span style={{ fontSize: 24 }}>{icon}</span>
+          <span>{title}</span>
+        </div>
+
+        {/* Чипы с инфо */}
+        {chips && chips.length > 0 && (
+          <div style={schemeInfoStyle}>
+            {chips.map((chip, i) => (
+              <span key={i} style={infoChipStyle}>
+                {chip.emoji} {chip.text}
+              </span>
+            ))}
           </div>
+        )}
+
+        {/* Описание */}
+        {hint && <div style={schemeDescriptionStyle}>{hint}</div>}
+
+        {/* Кнопка показать детали */}
+        <button type="button" onClick={onToggle} style={expandBtnStyle}>
+          {isOpen ? "Свернуть детали ▲" : "Показать детали ▼"}
         </button>
 
-        {isOpen && <div style={ux.cardBody}>{children}</div>}
+        {/* Раздел с упражнениями (анимированный) */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateRows: isOpen ? "1fr" : "0fr",
+            transition: "grid-template-rows 0.3s ease-out",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ minHeight: 0 }}>{children}</div>
+        </div>
       </div>
     </section>
   );
@@ -977,8 +1079,39 @@ function ExercisesList({
     gap: 4,
   };
 
+  // Стиль в формате daysList/dayItem из карточек схем
+  const detailsSection: React.CSSProperties = {
+    marginTop: 12,
+    padding: 14,
+    background: "rgba(255,255,255,0.5)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.06)",
+    display: "grid",
+    gap: 10,
+  };
+
+  const dayItem: React.CSSProperties = {
+    padding: 8,
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 8,
+    border: "1px solid rgba(0,0,0,0.06)",
+  };
+
+  const dayLabel: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#0B1220",
+    marginBottom: 2,
+  };
+
+  const dayFocus: React.CSSProperties = {
+    fontSize: 11,
+    color: "#4a5568",
+    lineHeight: 1.3,
+  };
+
   return (
-    <div style={{ display: "grid", gap: 10 }}>
+    <div style={detailsSection}>
       {items.map((item, i) => {
         const isString = typeof item === "string";
         const name = isString ? item : item.name;
@@ -986,38 +1119,35 @@ function ExercisesList({
         const sets = !isString ? item.sets : null;
         const reps = !isString ? item.reps : null;
         const restSec = !isString ? item.restSec : null;
-        const technique = !isString ? (item as any).technique : null;
-        const equipment = !isString ? (item as any).equipment : null;
-        const difficulty = !isString ? (item as any).difficulty : null;
-        const unilateral = !isString ? (item as any).unilateral : null;
         const targetMuscles = !isString ? (item as any).targetMuscles : null;
-        const showTechnique = expandedTechnique.has(i);
+
+        // Формируем краткую инфо-строку (как dayFocus в схемах)
+        const infoLine = (() => {
+          const parts: string[] = [];
+          if (typeof sets === 'number' && reps) {
+            parts.push(`${sets}×${formatReps(reps)}`);
+          }
+          if (typeof restSec === 'number') {
+            parts.push(`${formatSec(restSec)} отдых`);
+          }
+          if (targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0) {
+            const muscles = targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ");
+            if (muscles) parts.push(muscles);
+          }
+          if (cues) {
+            parts.push(cues);
+          }
+          return parts.join(" • ");
+        })();
 
         return (
           <div 
-            key={`${variant}-${i}-${name ?? "step"}`} 
-            className="exercise-card-enter"
-            style={{
-              ...row.wrap,
-              animationDelay: `${i * 80}ms`,
-            }}
-            onMouseEnter={(e) => {
-              if (isMain) {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(15,23,42,0.14)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isMain) {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.08)";
-              }
-            }}
+            key={`${variant}-${i}-${name ?? "step"}`}
+            style={dayItem}
           >
-            {/* Название упражнения */}
-            <div style={row.name}>
-              {name || `Шаг ${i + 1}`}
-              {unilateral && <span style={{ marginLeft: 6, fontSize: 14, opacity: 0.7 }}> 👥 каждая сторона</span>}
+            {/* Название (как dayLabel) */}
+            <div style={dayLabel}>
+              {i + 1}. {name || `Шаг ${i + 1}`}
             </div>
             
             {/* Чипы с инфо (сеты, отдых, мышцы) */}

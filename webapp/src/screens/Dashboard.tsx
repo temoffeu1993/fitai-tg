@@ -410,21 +410,6 @@ export default function Dashboard() {
         >
           Сгенерировать тренировку
         </button>
-        
-        {/* TEMPORARY: Test new design */}
-        {onbDone && (
-          <button
-            style={{
-              ...s.ctaBig,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              marginTop: 12,
-              border: "none",
-            }}
-            onClick={() => navigate("/plan/new")}
-          >
-            🎨 Новый дизайн (тест)
-          </button>
-        )}
       </section>
 
       {/* Быстрые действия */}
