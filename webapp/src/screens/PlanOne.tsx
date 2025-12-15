@@ -920,53 +920,56 @@ function ExercisesList({
 
   // Styles for technique section
   const techBtn: React.CSSProperties = {
-    marginTop: 8,
-    padding: "6px 10px",
-    border: "none",
-    borderRadius: 8,
+    marginTop: 12,
+    padding: "8px 14px",
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 10,
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
     transition: "all 0.2s",
     width: "100%",
     textAlign: "left",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
   };
 
   const techDetails: React.CSSProperties = {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 10,
-    background: "rgba(106,141,255,0.05)",
-    border: "1px solid rgba(106,141,255,0.15)",
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.5)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
   };
 
   const techBlock: React.CSSProperties = {
-    marginBottom: 10,
+    marginBottom: 12,
   };
 
   const techTitle: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#333",
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: 750,
+    color: "#0f172a",
+    marginBottom: 6,
+    letterSpacing: "-0.01em",
   };
 
   const techText: React.CSSProperties = {
-    fontSize: 12,
-    color: "#555",
-    lineHeight: 1.5,
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 1.6,
   };
 
   const techList: React.CSSProperties = {
-    margin: "4px 0 0 0",
-    paddingLeft: 18,
-    fontSize: 12,
-    color: "#555",
-    lineHeight: 1.5,
+    margin: "6px 0 0 0",
+    paddingLeft: 20,
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 1.6,
   };
 
   return (
-    <div style={{ display: "grid", gap: 6 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       {items.map((item, i) => {
         const isString = typeof item === "string";
         const name = isString ? item : item.name;
@@ -982,7 +985,26 @@ function ExercisesList({
         const showTechnique = expandedTechnique.has(i);
 
         return (
-          <div key={`${variant}-${i}-${name ?? "step"}`} style={row.wrap}>
+          <div 
+            key={`${variant}-${i}-${name ?? "step"}`} 
+            className="exercise-card-enter"
+            style={{
+              ...row.wrap,
+              animationDelay: `${i * 80}ms`,
+            }}
+            onMouseEnter={(e) => {
+              if (isMain) {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(15,23,42,0.14)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (isMain) {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.08)";
+              }
+            }}
+          >
             <div style={row.left}>
               <div style={row.name}>
                 {name || `Шаг ${i + 1}`}
@@ -992,16 +1014,34 @@ function ExercisesList({
               
               {/* Target muscles */}
               {isMain && targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
-                <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
-                  🎯 {targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).join(", ")}
+                <div style={{ 
+                  fontSize: 12, 
+                  color: "#64748b", 
+                  marginTop: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}>
+                  <span>🎯</span>
+                  <span>{targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).join(", ")}</span>
                 </div>
               )}
               
               {/* Equipment & Difficulty */}
               {isMain && (equipment || difficulty) && (
-                <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, color: "#888" }}>
+                <div style={{ 
+                  display: "flex", 
+                  gap: 12, 
+                  marginTop: 6, 
+                  fontSize: 12, 
+                  color: "#64748b",
+                  flexWrap: "wrap",
+                }}>
                   {equipment && Array.isArray(equipment) && equipment.length > 0 && (
-                    <span>🏋️ {equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).join(", ")}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>🏋️</span>
+                      <span>{equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).join(", ")}</span>
+                    </span>
                   )}
                   {typeof difficulty === 'number' && difficulty > 0 && (
                     <span>{"⭐".repeat(Math.min(difficulty, 5))}</span>
@@ -1175,6 +1215,14 @@ function SoftGlowStyles() {
       @keyframes glowShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
       @keyframes pulseSoft { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1) } 50% { filter: brightness(1.15) saturate(1.1); transform: scale(1.01) } }
       @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
+      
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .exercise-card-enter {
+        animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      }
     `}</style>
   );
 }
@@ -1657,29 +1705,45 @@ const ux: Record<string, any> = {
   },
 };
 
-/* ----------------- Строки упражнений ----------------- */
+/* ----------------- Строки упражнений (как карточки схем) ----------------- */
 const row: Record<string, React.CSSProperties> = {
   wrap: {
+    position: "relative",
     display: "flex",
     alignItems: "stretch",
     gap: 12,
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.7)",
-    borderRadius: 14,
-    boxShadow: "0 8px 18px rgba(0,0,0,.06)",
-    border: "1px solid rgba(0,0,0,.04)",
-    backdropFilter: "blur(12px)",
+    padding: 18,
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 16,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     flexWrap: "nowrap",
+    transition: "all 0.3s ease",
+    cursor: "default",
   },
   left: {
     display: "grid",
-    gap: 4,
+    gap: 6,
     minWidth: 0,
     flex: "1 1 auto",
     marginRight: 8,
   },
-  name: { fontSize: 13.5, fontWeight: 650, color: "#111", lineHeight: 1.15, whiteSpace: "normal" },
-  cues: { fontSize: 11, color: "#666" },
+  name: { 
+    fontSize: 15, 
+    fontWeight: 750, 
+    color: "#0f172a", 
+    lineHeight: 1.2, 
+    whiteSpace: "normal",
+    letterSpacing: "-0.01em",
+  },
+  cues: { 
+    fontSize: 12, 
+    color: "#64748b",
+    lineHeight: 1.4,
+    marginTop: 2,
+  },
   metrics: {
     display: "flex",
     flexDirection: "column",
