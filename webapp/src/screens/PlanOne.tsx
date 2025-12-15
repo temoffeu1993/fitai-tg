@@ -1135,126 +1135,58 @@ function ExercisesList({
     );
   }
 
-  // Для main показываем как раньше (с dayItem)
+  // Для main показываем как в схемах (без номеров, название + описание)
   return (
     <div style={detailsSection}>
-      {items.map((item, i) => {
-        const isString = typeof item === "string";
-        const name = isString ? item : item.name;
-        const cues = isString ? null : item.cues;
-        const sets = !isString ? item.sets : null;
-        const reps = !isString ? item.reps : null;
-        const restSec = !isString ? item.restSec : null;
-        const targetMuscles = !isString ? (item as any).targetMuscles : null;
-        const equipment = !isString ? (item as any).equipment : null;
-        const difficulty = !isString ? (item as any).difficulty : null;
-        const technique = !isString ? (item as any).technique : null;
-        const showTechnique = expandedTechnique.has(i);
+      {/* Заголовок "Упражнения" (как "Структура недели") */}
+      <div style={benefitsTitle}>Упражнения</div>
+      
+      {/* Список упражнений (как daysList) */}
+      <div style={{ display: "grid", gap: 8 }}>
+        {items.map((item, i) => {
+          const isString = typeof item === "string";
+          const name = isString ? item : item.name;
+          const cues = isString ? null : item.cues;
+          const sets = !isString ? item.sets : null;
+          const reps = !isString ? item.reps : null;
+          const restSec = !isString ? item.restSec : null;
+          const targetMuscles = !isString ? (item as any).targetMuscles : null;
 
-        // Формируем краткую инфо-строку (как dayFocus в схемах)
-        const infoLine = (() => {
-          const parts: string[] = [];
-          if (typeof sets === 'number' && reps) {
-            parts.push(`${sets}×${formatReps(reps)}`);
-          }
-          if (typeof restSec === 'number') {
-            parts.push(`${formatSec(restSec)} отдых`);
-          }
-          if (targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0) {
-            const muscles = targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ");
-            if (muscles) parts.push(muscles);
-          }
-          if (cues) {
-            parts.push(cues);
-          }
-          return parts.join(" • ");
-        })();
+          // Формируем краткую инфо-строку (как dayFocus в схемах)
+          const infoLine = (() => {
+            const parts: string[] = [];
+            if (typeof sets === 'number' && reps) {
+              parts.push(`${sets}×${formatReps(reps)}`);
+            }
+            if (typeof restSec === 'number') {
+              parts.push(`${formatSec(restSec)} отдых`);
+            }
+            if (targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0) {
+              const muscles = targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ");
+              if (muscles) parts.push(muscles);
+            }
+            if (cues) {
+              parts.push(cues);
+            }
+            return parts.join(" • ");
+          })();
 
-        return (
-          <div 
-            key={`${variant}-${i}-${name ?? "step"}`}
-            style={dayItem}
-          >
-            {/* Название (как dayLabel) */}
-            <div style={dayLabel}>
-              {i + 1}. {name || `Шаг ${i + 1}`}
+          return (
+            <div 
+              key={`${variant}-${i}-${name ?? "step"}`}
+              style={dayItem}
+            >
+              {/* Название (как dayLabel) - БЕЗ НОМЕРА */}
+              <div style={dayLabel}>
+                {name || `Упражнение ${i + 1}`}
+              </div>
+              
+              {/* Инфо-строка (как dayFocus) */}
+              {infoLine && <div style={dayFocus}>{infoLine}</div>}
             </div>
-            
-            {/* Чипы с инфо (сеты, отдых, мышцы) */}
-            {isMain && typeof sets === 'number' && typeof restSec === 'number' && (
-              <div style={caps.wrap}>
-                <span style={caps.box}>
-                  💪 {sets}×{formatReps(reps)}
-                </span>
-                <span style={caps.box}>
-                  ⏱️ {formatSec(restSec)}
-                </span>
-                {targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
-                  <span style={caps.box}>
-                    🎯 {targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ")}
-                  </span>
-                )}
-                {equipment && Array.isArray(equipment) && equipment.length > 0 && (
-                  <span style={caps.box}>
-                    🏋️ {equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).slice(0, 1).join(", ")}
-                  </span>
-                )}
-                {typeof difficulty === 'number' && difficulty > 0 && (
-                  <span style={caps.box}>
-                    {"⭐".repeat(Math.min(difficulty, 5))}
-                  </span>
-                )}
-              </div>
-            )}
-            
-            {/* Подсказки по технике */}
-            {cues ? <div style={row.cues}>{cues}</div> : null}
-              
-            {/* Technique button */}
-            {isMain && technique && typeof technique === 'object' && (
-              <button
-                type="button"
-                style={techBtn}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleTechnique(i);
-                }}
-              >
-                {showTechnique ? "Свернуть технику ▲" : "Показать технику ▼"}
-              </button>
-            )}
-              
-            {/* Technique details (expandable) */}
-            {isMain && showTechnique && technique && typeof technique === 'object' && (
-              <div style={techDetails}>
-                {technique.setup && typeof technique.setup === 'string' && (
-                  <div style={techBlock}>
-                    <div style={techTitle}>🔧 Подготовка</div>
-                    <div style={techText}>{technique.setup}</div>
-                  </div>
-                )}
-                {technique.execution && typeof technique.execution === 'string' && (
-                  <div style={techBlock}>
-                    <div style={techTitle}>💪 Выполнение</div>
-                    <div style={techText}>{technique.execution}</div>
-                  </div>
-                )}
-                {technique.commonMistakes && Array.isArray(technique.commonMistakes) && technique.commonMistakes.length > 0 && (
-                  <div style={techBlock}>
-                    <div style={techTitle}>⚠️ Частые ошибки</div>
-                    <ul style={techList}>
-                      {technique.commonMistakes.filter(Boolean).map((mistake: string, idx: number) => (
-                        <li key={idx}>{mistake}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
