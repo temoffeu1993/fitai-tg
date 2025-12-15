@@ -1135,58 +1135,20 @@ function ExercisesList({
     );
   }
 
-  // Для main показываем как в схемах (без номеров, название + описание)
+  // Для main показываем так же как warmup/cooldown - простой список
   return (
     <div style={detailsSection}>
-      {/* Заголовок "Упражнения" (как "Структура недели") */}
       <div style={benefitsTitle}>Упражнения</div>
-      
-      {/* Список упражнений (как daysList) */}
-      <div style={{ display: "grid", gap: 8 }}>
+      <ul style={benefitsList}>
         {items.map((item, i) => {
-          const isString = typeof item === "string";
-          const name = isString ? item : item.name;
-          const cues = isString ? null : item.cues;
-          const sets = !isString ? item.sets : null;
-          const reps = !isString ? item.reps : null;
-          const restSec = !isString ? item.restSec : null;
-          const targetMuscles = !isString ? (item as any).targetMuscles : null;
-
-          // Формируем краткую инфо-строку (как dayFocus в схемах)
-          const infoLine = (() => {
-            const parts: string[] = [];
-            if (typeof sets === 'number' && reps) {
-              parts.push(`${sets}×${formatReps(reps)}`);
-            }
-            if (typeof restSec === 'number') {
-              parts.push(`${formatSec(restSec)} отдых`);
-            }
-            if (targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0) {
-              const muscles = targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).slice(0, 2).join(", ");
-              if (muscles) parts.push(muscles);
-            }
-            if (cues) {
-              parts.push(cues);
-            }
-            return parts.join(" • ");
-          })();
-
+          const name = typeof item === "string" ? item : item.name;
           return (
-            <div 
-              key={`${variant}-${i}-${name ?? "step"}`}
-              style={dayItem}
-            >
-              {/* Название (как dayLabel) - БЕЗ НОМЕРА */}
-              <div style={dayLabel}>
-                {name || `Упражнение ${i + 1}`}
-              </div>
-              
-              {/* Инфо-строка (как dayFocus) */}
-              {infoLine && <div style={dayFocus}>{infoLine}</div>}
-            </div>
+            <li key={`${variant}-${i}`} style={benefitItem}>
+              {name}
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }
