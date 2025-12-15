@@ -491,7 +491,13 @@ export default function WorkoutSession() {
                     <div style={setrow.inputs} className="sets-grid">
                       <NumInput
                         value={s.reps}
-                        placeholder={String(it.targetReps ?? "повт./сек")}
+                        placeholder={
+                          it.targetReps
+                            ? Array.isArray(it.targetReps)
+                              ? it.targetReps.join("-")
+                              : String(it.targetReps)
+                            : "повт./сек"
+                        }
                         onChange={(v) => setValue(ei, si, "reps", v)}
                         disabled={it.done}
                       />

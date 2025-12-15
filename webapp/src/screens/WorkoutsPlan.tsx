@@ -48,7 +48,7 @@ export default function WorkoutsPlan({ onBack, onStart }: { onBack: () => void; 
       <ul style={{ paddingLeft: 18 }}>
         {plan.items.map((it, i) => (
           <li key={i} style={{ marginBottom: 8 }}>
-            <b>{it.name}</b> — {it.sets}×{it.reps}
+            <b>{it.name}</b> — {it.sets}×{Array.isArray(it.reps) ? it.reps.join("-") : it.reps}
           </li>
         ))}
       </ul>
