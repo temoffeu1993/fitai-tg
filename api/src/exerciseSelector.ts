@@ -344,15 +344,16 @@ export function scoreExerciseAdvanced(args: {
     })
     .reduce((sum: number, load) => sum + load, 0);
   
-  // If CNS is already fatigued, penalize high CNS load exercises
-  if (accumulatedCNS > 6) {
-    s -= (ex.cnsLoad || 0) * 5;
+  // If CNS is already fatigued, SOFTLY penalize high CNS load exercises
+  // МЯГКИЙ штраф - не блокируем, только снижаем приоритет
+  if (accumulatedCNS > 8) {
+    s -= (ex.cnsLoad || 0) * 3;  // Было *5, стало *3 - мягче
   }
   
-  // For light days, strongly prefer low CNS exercises
+  // For light days, prefer low CNS but don't kill high CNS completely
   if (ctx.intent === "light") {
     if (ex.cnsLoad === 1 || hasAnyTag(ex, ["low_cns"])) s += 6;
-    if (ex.cnsLoad === 3 || hasAnyTag(ex, ["high_cns"])) s -= 10;
+    if (ex.cnsLoad === 3 || hasAnyTag(ex, ["high_cns"])) s -= 5;  // Было -10, стало -5 - мягче
   }
   
   // For hard days, allow high CNS load
