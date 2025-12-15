@@ -625,6 +625,7 @@ function formatReps(r?: number | string | [number, number]) {
 }
 
 function muscleNameRU(muscle: string): string {
+  if (!muscle || typeof muscle !== 'string') return '';
   const map: Record<string, string> = {
     quads: "Квадрицепсы",
     glutes: "Ягодицы",
@@ -647,6 +648,7 @@ function muscleNameRU(muscle: string): string {
 }
 
 function equipmentNameRU(equipment: string): string {
+  if (!equipment || typeof equipment !== 'string') return '';
   const map: Record<string, string> = {
     barbell: "Штанга",
     dumbbell: "Гантели",
@@ -990,7 +992,7 @@ function ExercisesList({
               {/* Target muscles */}
               {isMain && targetMuscles && Array.isArray(targetMuscles) && targetMuscles.length > 0 && (
                 <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
-                  🎯 {targetMuscles.map(m => muscleNameRU(m)).join(", ")}
+                  🎯 {targetMuscles.filter(Boolean).map((m: string) => muscleNameRU(m)).join(", ")}
                 </div>
               )}
               
@@ -998,10 +1000,10 @@ function ExercisesList({
               {isMain && (equipment || difficulty) && (
                 <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 11, color: "#888" }}>
                   {equipment && Array.isArray(equipment) && equipment.length > 0 && (
-                    <span>🏋️ {equipment.map(eq => equipmentNameRU(eq)).join(", ")}</span>
+                    <span>🏋️ {equipment.filter(Boolean).map((eq: string) => equipmentNameRU(eq)).join(", ")}</span>
                   )}
-                  {difficulty && (
-                    <span>{"⭐".repeat(difficulty)}</span>
+                  {typeof difficulty === 'number' && difficulty > 0 && (
+                    <span>{"⭐".repeat(Math.min(difficulty, 5))}</span>
                   )}
                 </div>
               )}
@@ -1021,15 +1023,15 @@ function ExercisesList({
               )}
               
               {/* Technique details (expandable) */}
-              {isMain && showTechnique && technique && (
+              {isMain && showTechnique && technique && typeof technique === 'object' && (
                 <div style={techDetails}>
-                  {technique.setup && (
+                  {technique.setup && typeof technique.setup === 'string' && (
                     <div style={techBlock}>
                       <div style={techTitle}>🔧 Подготовка:</div>
                       <div style={techText}>{technique.setup}</div>
                     </div>
                   )}
-                  {technique.execution && (
+                  {technique.execution && typeof technique.execution === 'string' && (
                     <div style={techBlock}>
                       <div style={techTitle}>💪 Выполнение:</div>
                       <div style={techText}>{technique.execution}</div>
@@ -1039,7 +1041,7 @@ function ExercisesList({
                     <div style={techBlock}>
                       <div style={techTitle}>⚠️ Частые ошибки:</div>
                       <ul style={techList}>
-                        {technique.commonMistakes.map((mistake, idx) => (
+                        {technique.commonMistakes.filter(Boolean).map((mistake: string, idx: number) => (
                           <li key={idx}>{mistake}</li>
                         ))}
                       </ul>
