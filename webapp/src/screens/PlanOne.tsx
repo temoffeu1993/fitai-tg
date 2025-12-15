@@ -443,10 +443,6 @@ export default function PlanOne() {
           icon="🔥"
           title="Разминка"
           hint="Мягкая активация. Подготовь суставы и мышцы к работе, двигайся плавно без рывков."
-          chips={[
-            { emoji: "⏱️", text: "5 мин" },
-            { emoji: "📋", text: `${plan.warmup.length} упражнений` },
-          ]}
           isOpen={openWarmup}
           onToggle={() => setOpenWarmup((v) => !v)}
         >
@@ -476,10 +472,6 @@ export default function PlanOne() {
           icon="🧘"
           title="Заминка"
           hint="Восстановление после нагрузки. Снизь пульс, растянь основные группы мышц, восстанови дыхание."
-          chips={[
-            { emoji: "⏱️", text: "5 мин" },
-            { emoji: "📋", text: `${plan.cooldown.length} упражнений` },
-          ]}
           isOpen={openCooldown}
           onToggle={() => setOpenCooldown((v) => !v)}
         >
@@ -873,7 +865,7 @@ function SectionCard({
     position: "relative",
     padding: 18,
     borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
+    background: "rgba(255,255,255,0.85)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
@@ -950,7 +942,7 @@ function SectionCard({
   };
 
   return (
-    <section style={{ ...s.block, padding: "0 16px" }}>
+    <section style={s.block}>
       <div style={schemeCardStyle}>
         {/* Название */}
         <div style={schemeName}>
@@ -1110,6 +1102,45 @@ function ExercisesList({
     lineHeight: 1.3,
   };
 
+  const benefitsTitle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 800,
+    color: "#0B1220",
+    marginBottom: 6,
+  };
+
+  const benefitsList: React.CSSProperties = {
+    margin: 0,
+    paddingLeft: 18,
+    lineHeight: 1.5,
+  };
+
+  const benefitItem: React.CSSProperties = {
+    fontSize: 12,
+    color: "#1b1b1b",
+    marginBottom: 4,
+  };
+
+  // Для warmup/cooldown показываем как список преимуществ
+  if (variant === "warmup" || variant === "cooldown") {
+    return (
+      <div style={detailsSection}>
+        <div style={benefitsTitle}>Упражнения</div>
+        <ul style={benefitsList}>
+          {items.map((item, i) => {
+            const name = typeof item === "string" ? item : item.name;
+            return (
+              <li key={`${variant}-${i}`} style={benefitItem}>
+                {name}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+
+  // Для main показываем как раньше (с dayItem)
   return (
     <div style={detailsSection}>
       {items.map((item, i) => {
