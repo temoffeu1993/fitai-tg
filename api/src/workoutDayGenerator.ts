@@ -77,6 +77,7 @@ export type GeneratedWorkoutDay = {
     repsRange: [number, number];
     restSec: number;
     notes: string;
+    role: SlotRole; // КРИТИЧНО: добавлен для type safety
   }>;
   cooldown?: string[];
   totalExercises: number;
@@ -236,11 +237,12 @@ export function generateWorkoutDay(args: {
   }
 
   // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
+  // ВАЖНО: строки должны совпадать с Equipment в exerciseLibrary.ts
   function mapEquipmentToAvailable(equipment: string): any[] {
     if (equipment === "gym_full") return ["gym_full"];
     if (equipment === "dumbbells") return ["dumbbell", "bench", "bodyweight"];
-    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "resistance_band"];
-    if (equipment === "limited") return ["dumbbell", "kettlebell", "resistance_band", "bodyweight", "bench"];
+    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "bands"]; // ИСПРАВЛЕНО: bands, не resistance_band
+    if (equipment === "limited") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"]; // ИСПРАВЛЕНО: bands
     // Fallback: если не распознали, считаем gym_full
     return ["gym_full"];
   }
@@ -426,7 +428,7 @@ export function generateWorkoutDay(args: {
   }
 
   if (intent === "hard") {
-    adaptationNotes.push("Высокая готовность — немного увеличен диапазон повторений.");
+    adaptationNotes.push("Высокая готовность — целимся в верхний диапазон повторений.");
   }
 
   if (dupIntensity) {
