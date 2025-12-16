@@ -86,13 +86,13 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   },
   "Upper A": {
     required: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // Оба могут попасть
-    preferredDoubles: ["horizontal_push", "horizontal_pull"], // Doubles только для базы
+    optional: ["incline_push", "delts_iso", "triceps_iso", "rear_delts", "core"], // ТОЛЬКО triceps_iso (день жимов)
+    preferredDoubles: ["horizontal_push", "horizontal_pull"],
   },
   "Upper B": {
     required: ["vertical_pull", "horizontal_pull", "incline_push"],
-    optional: ["horizontal_push", "rear_delts", "biceps_iso", "triceps_iso", "delts_iso", "core"], // Оба могут попасть
-    preferredDoubles: ["vertical_pull"], // УБРАНО: biceps_iso из doubles (doubles только для базы)
+    optional: ["horizontal_push", "rear_delts", "biceps_iso", "delts_iso", "core"], // ТОЛЬКО biceps_iso (день тяг)
+    preferredDoubles: ["vertical_pull"],
   },
 
   // --------------------------------------------------------------------------
