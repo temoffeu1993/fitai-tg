@@ -188,6 +188,7 @@ function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): Slot
     "hinge",
     "horizontal_push",
     "incline_push",
+    "vertical_push", // ИСПРАВЛЕНО: добавлен (был в isCompoundPattern, но не здесь)
     "horizontal_pull",
     "vertical_pull",
   ];
@@ -200,8 +201,12 @@ function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): Slot
     "calves",
   ];
 
-  const coreConditioningPatterns: Pattern[] = [
-    "core",
+  // ИСПРАВЛЕНО: core отдельно (не conditioning), conditioning = кардио
+  if (pattern === "core") {
+    return "accessory"; // Кор - это вспомогательное, не кардио
+  }
+
+  const conditioningPatterns: Pattern[] = [
     "carry",
     "conditioning_low_impact",
     "conditioning_intervals",
@@ -213,14 +218,14 @@ function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): Slot
   }
 
   if (isolationPatterns.includes(pattern)) {
-    return isDouble ? "accessory" : "accessory";
+    return "accessory"; // ИСПРАВЛЕНО: убран бессмысленный isDouble
   }
 
   if (pattern === "lunge" || pattern === "hip_thrust") {
     return isFirst ? "secondary" : "accessory";
   }
 
-  if (coreConditioningPatterns.includes(pattern)) {
+  if (conditioningPatterns.includes(pattern)) {
     return "conditioning";
   }
 
@@ -309,17 +314,23 @@ export function buildDaySlots(args: {
   // STEP 3: Adjust for light intent (reduce volume)
   // -------------------------------------------------------------------------
   
-  if (intent === "light" && usedBudget > range.min) { // ИСПРАВЛЕНО: usedBudget
-    // Remove last accessory/isolation slots
-    while (usedBudget > range.min) {
+  if (intent === "light" && usedBudget > range.min) {
+    // ИСПРАВЛЕНО: мягко режем doubles поштучно (не целиком)
+    while (usedBudget > range.min && slots.length > 0) {
       const lastSlot = slots[slots.length - 1];
+      
       if (lastSlot.role === "accessory" || lastSlot.role === "pump" || lastSlot.role === "conditioning") {
-        const removed = slots.pop();
-        if (removed) {
-          usedBudget -= removed.count; // ИСПРАВЛЕНО: уменьшаем на count
+        if (lastSlot.count > 1) {
+          // Если double-slot, сначала уменьшаем count
+          lastSlot.count -= 1;
+          usedBudget -= 1;
+        } else {
+          // Если single-slot, удаляем целиком
+          slots.pop();
+          usedBudget -= 1;
         }
       } else {
-        break;
+        break; // Не трогаем main/secondary
       }
     }
   }
