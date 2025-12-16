@@ -530,15 +530,45 @@ export function selectExercisesForDay(args: {
   const usedPatterns = new Map<Pattern, number>();
   const usedPrimaryMuscles = new Map<MuscleGroup, number>();
 
+  // НОВАЯ ЛОГИКА: Разворачиваем слоты с count > 1 в отдельные слоты
+  // и ЧЕРЕДУЕМ их, чтобы избежать дублей паттернов подряд
+  const expandedSlots: Array<{ pattern: Pattern; role: SlotRole }> = [];
+  
+  for (const slot of args.slots) {
+    for (let i = 0; i < slot.count; i++) {
+      expandedSlots.push({
+        pattern: slot.pattern,
+        role: slot.role ?? "secondary",
+      });
+    }
+  }
+
+  // Сортируем так, чтобы одинаковые паттерны НЕ шли подряд
+  // Простая эвристика: группируем по паттернам и чередуем группы
+  const grouped = new Map<Pattern, Array<{ pattern: Pattern; role: SlotRole }>>();
+  for (const slot of expandedSlots) {
+    if (!grouped.has(slot.pattern)) grouped.set(slot.pattern, []);
+    grouped.get(slot.pattern)!.push(slot);
+  }
+
+  const interleaved: Array<{ pattern: Pattern; role: SlotRole }> = [];
+  const groups = Array.from(grouped.values());
+  
+  let maxLen = Math.max(...groups.map(g => g.length));
+  for (let i = 0; i < maxLen; i++) {
+    for (const group of groups) {
+      if (group[i]) interleaved.push(group[i]);
+    }
+  }
+
+  // Теперь выбираем упражнения по интерливному порядку
   const out: Exercise[] = [];
 
-  for (const slot of args.slots) {
-    const role = slot.role ?? "secondary";
-    
+  for (const slot of interleaved) {
     const picked = pickExercisesForPattern({
       pattern: slot.pattern,
-      n: slot.count,
-      role,
+      n: 1, // Теперь всегда берём по 1 упражнению
+      role: slot.role,
       ctx: args.ctx,
       constraints: args.constraints,
       usedIds,
