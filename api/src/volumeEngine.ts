@@ -48,23 +48,23 @@ export const MAX_RECOVERABLE_VOLUME = {
 export const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> = {
   main: {
     beginner: 2,
-    intermediate: 3,
-    advanced: 4,
+    intermediate: 4,  // Было 3 → увеличено для достаточного объема
+    advanced: 5,      // Было 4 → увеличено для профи
   },
   secondary: {
     beginner: 2,
     intermediate: 3,
-    advanced: 3,
+    advanced: 4,      // Было 3 → увеличено для профи
   },
   accessory: {
     beginner: 1,
-    intermediate: 2,
-    advanced: 3,
+    intermediate: 3,  // Было 2 → увеличено для достаточного объема
+    advanced: 4,      // Было 3 → увеличено для профи
   },
   pump: {
     beginner: 1,
     intermediate: 2,
-    advanced: 2,
+    advanced: 3,      // Было 2 → увеличено для профи
   },
   conditioning: {
     beginner: 1,

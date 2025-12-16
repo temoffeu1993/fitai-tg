@@ -572,6 +572,10 @@ export function generateWeekPlan(args: {
   }
 
   const weekPlan: GeneratedWorkoutDay[] = [];
+  
+  // НОВОЕ: Собираем все использованные упражнения за неделю
+  // чтобы избежать дублей между днями
+  const usedExerciseIds: string[] = [];
 
   for (let dayIndex = 0; dayIndex < scheme.daysPerWeek; dayIndex++) {
     const checkin = checkins?.[dayIndex];
@@ -579,17 +583,30 @@ export function generateWeekPlan(args: {
     // НОВОЕ: Получить DUP интенсивность для этого дня
     const dupIntensity = weekPlanData?.dupPattern?.[dayIndex];
     
+    // НОВОЕ: Передаем историю с учётом упражнений из предыдущих дней недели
+    const historyWithWeekExclusions = history ? {
+      ...history,
+      recentExerciseIds: [...(history.recentExerciseIds || []), ...usedExerciseIds],
+    } : {
+      recentExerciseIds: usedExerciseIds,
+    };
+    
     const dayPlan = generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,
       checkin,
-      history,
-      dupIntensity, // НОВОЕ: передаём DUP
-      weekPlanData, // НОВОЕ: передаём план недели
+      history: historyWithWeekExclusions, // ИЗМЕНЕНО: передаём обновлённую историю
+      dupIntensity,
+      weekPlanData,
     });
 
     weekPlan.push(dayPlan);
+    
+    // НОВОЕ: Собираем ID упражнений этого дня
+    dayPlan.exercises.forEach(ex => {
+      usedExerciseIds.push(ex.exercise.id);
+    });
   }
 
   return weekPlan;
