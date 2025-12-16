@@ -11,13 +11,12 @@
 // NO AI INVOLVED - Pure code logic
 // ============================================================================
 
-import type { Exercise, JointFlag, Pattern } from "./exerciseLibrary.js";
+import type { Exercise, JointFlag, Equipment as LibraryEquipment } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Equipment, TimeBucket } from "./normalizedSchemes.js";
-import { NORMALIZED_SCHEMES, getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
-import { buildDaySlots, type Slot } from "./dayPatternMap.js";
+import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
+import { buildDaySlots } from "./dayPatternMap.js";
 import {
   selectExercisesForDay,
-  type SelectedExercise,
   type UserConstraints,
   type CheckinContext,
   type Intent,
@@ -31,7 +30,6 @@ import {
 } from "./volumeEngine.js";
 import {
   getWeekPlan,
-  getTodayIntensity,
   type Mesocycle,
   type DUPIntensity,
 } from "./mesocycleEngine.js";
@@ -237,14 +235,14 @@ export function generateWorkoutDay(args: {
   }
 
   // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
-  // ВАЖНО: строки должны совпадать с Equipment в exerciseLibrary.ts
-  function mapEquipmentToAvailable(equipment: string): any[] {
-    if (equipment === "gym_full") return ["gym_full"];
+  // ВАЖНО: строки типизированы Equipment → LibraryEquipment[], TypeScript проверит совпадение
+  function mapEquipmentToAvailable(equipment: Equipment): LibraryEquipment[] {
+    if (equipment === "gym_full") return ["gym_full" as LibraryEquipment];
     if (equipment === "dumbbells") return ["dumbbell", "bench", "bodyweight"];
-    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "bands"]; // ИСПРАВЛЕНО: bands, не resistance_band
-    if (equipment === "limited") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"]; // ИСПРАВЛЕНО: bands
+    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "bands"];
+    if (equipment === "limited") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"];
     // Fallback: если не распознали, считаем gym_full
-    return ["gym_full"];
+    return ["gym_full" as LibraryEquipment];
   }
 
   // Build constraints
