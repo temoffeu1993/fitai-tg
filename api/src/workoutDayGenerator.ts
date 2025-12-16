@@ -17,6 +17,7 @@ import { NORMALIZED_SCHEMES, getCandidateSchemes, rankSchemes } from "./normaliz
 import { buildDaySlots, type Slot } from "./dayPatternMap.js";
 import {
   selectExercisesForDay,
+  type SelectedExercise,
   type UserConstraints,
   type CheckinContext,
   type Intent,
@@ -291,31 +292,8 @@ export function generateWorkoutDay(args: {
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
-  // КРИТИЧНО: Разворачиваем слоты с count > 1 в отдельные записи
-  // чтобы индексы совпадали с selectedExercises
-  // ВАЖНО: для preferredDoubles первое упражнение = исходная роль, второе = downgrade
-  const expandedSlots: Array<{ pattern: Pattern; role: SlotRole }> = [];
-  for (const slot of slots) {
-    for (let i = 0; i < slot.count; i++) {
-      const role = slot.role ?? "secondary";
-      
-      // Если это второе+ упражнение в double-слоте, понизить роль
-      let adjustedRole: SlotRole = role;
-      if (i > 0) {
-        if (role === "main") adjustedRole = "secondary";
-        if (role === "secondary") adjustedRole = "accessory";
-      }
-      
-      expandedSlots.push({
-        pattern: slot.pattern,
-        role: adjustedRole,
-      });
-    }
-  }
-  
-  const exercises = selectedExercises.map((ex, idx) => {
-    const slot = expandedSlots[idx];
-    const role = slot?.role ?? "secondary";
+  const exercises = selectedExercises.map(({ ex, pattern, role }, idx) => {
+    // КРИТИЧНО: используем role из селектора (он уже правильно рассчитан с downgrade)
 
     let { sets, repsRange, restSec } = calculateSetsReps({
       role,
@@ -346,12 +324,12 @@ export function generateWorkoutDay(args: {
     }
 
     return {
-      exercise: ex,
+      exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)
       sets,
       repsRange,
       restSec,
       notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
-      role, // КРИТИЧНО: возвращаем role для проверки и логики
+      role, // Role из селектора (правильно downgraded для doubles)
     };
   });
 
@@ -424,9 +402,7 @@ export function generateWorkoutDay(args: {
   const warnings: string[] = [];
 
   // Track if volume was reduced
-  const originalSetCount = selectedExercises.reduce((sum, ex, idx) => {
-    const slot = expandedSlots[idx];
-    const role = slot?.role ?? "secondary";
+  const originalSetCount = selectedExercises.reduce((sum: number, { role }, idx: number) => {
     const { sets } = calculateSetsReps({
       role,
       experience: userProfile.experience,
@@ -466,8 +442,8 @@ export function generateWorkoutDay(args: {
   // STEP 6: Generate warmup and cooldown
   // -------------------------------------------------------------------------
   
-  const warmup = generateWarmup(selectedExercises, dayBlueprint.focus);
-  const cooldown = generateCooldown(selectedExercises, dayBlueprint.focus);
+  const warmup = generateWarmup(exercises.map(e => e.exercise), dayBlueprint.focus);
+  const cooldown = generateCooldown(exercises.map(e => e.exercise), dayBlueprint.focus);
 
   return {
     schemeId: scheme.id,

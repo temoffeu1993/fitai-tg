@@ -109,15 +109,7 @@ export function filterExercisesForPattern(args: {
         );
         
         if (!allEquipmentAvailable) {
-          // Для "limited" разрешаем базовое оборудование
-          if (constraints.equipmentAvailable.includes("limited" as any)) {
-            const hasOnlyBasicEquipment = ex.equipment.every(eq => 
-              ["dumbbell", "kettlebell", "resistance_band", "bodyweight", "bench"].includes(eq)
-            );
-            if (!hasOnlyBasicEquipment) return false;
-          } else {
-            return false;
-          }
+          return false;
         }
       }
       // If gym_full, all exercises pass equipment check
@@ -534,25 +526,40 @@ export function pickExercisesForPattern(args: {
 // 4) FILL DAY SLOTS -> CONCRETE EXERCISE LIST
 // ============================================================================
 
+// КРИТИЧНО: возвращаем упражнение + его pattern + role, чтобы генератор не делал remap
+export type SelectedExercise = {
+  ex: Exercise;
+  pattern: Pattern;
+  role: SlotRole;
+};
+
 export function selectExercisesForDay(args: {
   slots: Slot[];
   ctx: CheckinContext;
   constraints: UserConstraints;
   excludeIds?: string[];
-}): Exercise[] {
+}): SelectedExercise[] {
   const usedIds = new Set<string>(args.excludeIds ?? []);
   const usedPatterns = new Map<Pattern, number>();
   const usedPrimaryMuscles = new Map<MuscleGroup, number>();
 
-  // НОВАЯ ЛОГИКА: Разворачиваем слоты с count > 1 в отдельные слоты
-  // и ЧЕРЕДУЕМ их, чтобы избежать дублей паттернов подряд
+  // КРИТИЧНО: Разворачиваем слоты с count > 1 и ПОНИЖАЕМ РОЛЬ для второго упражнения
   const expandedSlots: Array<{ pattern: Pattern; role: SlotRole }> = [];
   
   for (const slot of args.slots) {
     for (let i = 0; i < slot.count; i++) {
+      let role = slot.role ?? "secondary";
+      
+      // КРИТИЧНО: для preferredDoubles понижаем роль на втором упражнении
+      if (i > 0) {
+        if (role === "main") role = "secondary";
+        else if (role === "secondary") role = "accessory";
+        // pump/conditioning остаются как есть
+      }
+      
       expandedSlots.push({
         pattern: slot.pattern,
-        role: slot.role ?? "secondary",
+        role,
       });
     }
   }
@@ -575,8 +582,8 @@ export function selectExercisesForDay(args: {
     }
   }
 
-  // Теперь выбираем упражнения по интерливному порядку
-  const out: Exercise[] = [];
+  // КРИТИЧНО: возвращаем упражнения + pattern + role
+  const out: SelectedExercise[] = [];
 
   for (const slot of interleaved) {
     const picked = pickExercisesForPattern({
@@ -591,7 +598,14 @@ export function selectExercisesForDay(args: {
       excludeIds: args.excludeIds,
     });
 
-    out.push(...picked);
+    // КРИТИЧНО: возвращаем вместе с pattern и role
+    for (const pickedEx of picked) {
+      out.push({
+        ex: pickedEx,
+        pattern: slot.pattern,
+        role: slot.role,
+      });
+    }
   }
 
   return out;
