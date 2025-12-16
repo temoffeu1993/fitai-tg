@@ -46,7 +46,7 @@ export type Pattern =
   | "delts_iso"
   | "triceps_iso"
   | "biceps_iso"
-  | "arms_iso" // Deprecated: use triceps_iso or biceps_iso
+  // "arms_iso" УДАЛЁН - используй triceps_iso или biceps_iso
   | "calves"
   | "core"
   | "carry"
