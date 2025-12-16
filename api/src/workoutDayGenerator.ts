@@ -11,15 +11,16 @@
 // NO AI INVOLVED - Pure code logic
 // ============================================================================
 
-import type { Exercise, JointFlag } from "./exerciseLibrary.js";
+import type { Exercise, JointFlag, Pattern } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Equipment, TimeBucket } from "./normalizedSchemes.js";
 import { NORMALIZED_SCHEMES, getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
-import { buildDaySlots } from "./dayPatternMap.js";
+import { buildDaySlots, type Slot } from "./dayPatternMap.js";
 import {
   selectExercisesForDay,
   type UserConstraints,
   type CheckinContext,
   type Intent,
+  type SlotRole,
 } from "./exerciseSelector.js";
 import {
   calculateSetsForSlot,
@@ -287,8 +288,30 @@ export function generateWorkoutDay(args: {
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
+  // КРИТИЧНО: Разворачиваем слоты с count > 1 в отдельные записи
+  // чтобы индексы совпадали с selectedExercises
+  // ВАЖНО: для preferredDoubles первое упражнение = исходная роль, второе = downgrade
+  const expandedSlots: Array<{ pattern: Pattern; role: SlotRole }> = [];
+  for (const slot of slots) {
+    for (let i = 0; i < slot.count; i++) {
+      const role = slot.role ?? "secondary";
+      
+      // Если это второе+ упражнение в double-слоте, понизить роль
+      let adjustedRole: SlotRole = role;
+      if (i > 0) {
+        if (role === "main") adjustedRole = "secondary";
+        if (role === "secondary") adjustedRole = "accessory";
+      }
+      
+      expandedSlots.push({
+        pattern: slot.pattern,
+        role: adjustedRole,
+      });
+    }
+  }
+  
   const exercises = selectedExercises.map((ex, idx) => {
-    const slot = slots[idx];
+    const slot = expandedSlots[idx];
     const role = slot?.role ?? "secondary";
 
     let { sets, repsRange, restSec } = calculateSetsReps({
@@ -325,6 +348,7 @@ export function generateWorkoutDay(args: {
       repsRange,
       restSec,
       notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
+      role, // КРИТИЧНО: возвращаем role для проверки и логики
     };
   });
 
@@ -378,8 +402,8 @@ export function generateWorkoutDay(args: {
   const warnings: string[] = [];
 
   // Track if volume was reduced
-  const originalSetCount = selectedExercises.reduce((sum, ex) => {
-    const slot = slots[selectedExercises.indexOf(ex)];
+  const originalSetCount = selectedExercises.reduce((sum, ex, idx) => {
+    const slot = expandedSlots[idx];
     const role = slot?.role ?? "secondary";
     const { sets } = calculateSetsReps({
       role,

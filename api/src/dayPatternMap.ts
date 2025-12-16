@@ -180,7 +180,8 @@ function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): Slot
   ];
 
   const isolationPatterns: Pattern[] = [
-    "arms_iso",
+    "triceps_iso",
+    "biceps_iso",
     "delts_iso",
     "rear_delts",
     "calves",
