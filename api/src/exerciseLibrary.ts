@@ -27,7 +27,8 @@ export type Equipment =
   | "trx"
   | "sled"
   | "cardio_machine"
-  | "landmine";
+  | "landmine"
+  | "gym_full"; // Служебное значение: все оборудование доступно
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 

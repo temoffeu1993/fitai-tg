@@ -236,13 +236,14 @@ export function generateWorkoutDay(args: {
 
   // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
   // ВАЖНО: строки типизированы Equipment → LibraryEquipment[], TypeScript проверит совпадение
+  // Без as - если имя не совпадёт, TypeScript упадёт на компиляции
   function mapEquipmentToAvailable(equipment: Equipment): LibraryEquipment[] {
-    if (equipment === "gym_full") return ["gym_full" as LibraryEquipment];
+    if (equipment === "gym_full") return ["gym_full"];
     if (equipment === "dumbbells") return ["dumbbell", "bench", "bodyweight"];
     if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "bands"];
     if (equipment === "limited") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"];
     // Fallback: если не распознали, считаем gym_full
-    return ["gym_full" as LibraryEquipment];
+    return ["gym_full"];
   }
 
   // Build constraints
@@ -292,7 +293,7 @@ export function generateWorkoutDay(args: {
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
-  const exercises = selectedExercises.map(({ ex, pattern, role }, idx) => {
+  const exercises = selectedExercises.map(({ ex, role }) => {
     // КРИТИЧНО: используем role из селектора (он уже правильно рассчитан с downgrade)
 
     let { sets, repsRange, restSec } = calculateSetsReps({
@@ -402,7 +403,7 @@ export function generateWorkoutDay(args: {
   const warnings: string[] = [];
 
   // Track if volume was reduced
-  const originalSetCount = selectedExercises.reduce((sum: number, { role }, idx: number) => {
+  const originalSetCount = selectedExercises.reduce((sum: number, { role }) => {
     const { sets } = calculateSetsReps({
       role,
       experience: userProfile.experience,
