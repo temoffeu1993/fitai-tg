@@ -795,7 +795,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Объём: плечи + добивка груди/трицепса.",
         templateRulesId: "Push B",
         requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"],
-        optionalPatterns: ["horizontal_push", "vertical_push"],
+        optionalPatterns: ["horizontal_push", "vertical_push", "rear_delts"], // ДОБАВЛЕНО: rear_delts для баланса
       },
       {
         day: 5,
@@ -961,9 +961,9 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     contraindications: ["medical_clearance_required"],
     days: [
       { day: 1, label: "Push A", focus: "Грудь/силовые жимы.", templateRulesId: "Push A", requiredPatterns: ["horizontal_push", "incline_push", "triceps_iso"], optionalPatterns: ["delts_iso"] },
-      { day: 2, label: "Pull A", focus: "Ширина спины.", templateRulesId: "Pull A", requiredPatterns: ["vertical_pull", "horizontal_pull", "biceps_iso", "rear_delts"], optionalPatterns: ["vertical_pull"] }, // ИЗМЕНЕНО: horizontal_pull теперь required
+      { day: 2, label: "Pull A", focus: "Ширина спины.", templateRulesId: "Pull A", requiredPatterns: ["vertical_pull", "horizontal_pull", "biceps_iso", "rear_delts"], optionalPatterns: ["vertical_pull", "horizontal_pull"] }, // ИЗМЕНЕНО: добавлен horizontal_pull для баланса
       { day: 3, label: "Legs A", focus: "Квадрицепсы/приседы.", templateRulesId: "Legs A", requiredPatterns: ["squat", "lunge", "core"], optionalPatterns: ["calves"] },
-      { day: 4, label: "Push B", focus: "Плечи/объём.", templateRulesId: "Push B", requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"], optionalPatterns: ["horizontal_push"] },
+      { day: 4, label: "Push B", focus: "Плечи/объём.", templateRulesId: "Push B", requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"], optionalPatterns: ["horizontal_push", "rear_delts"] }, // ДОБАВЛЕНО: rear_delts для баланса
       { day: 5, label: "Pull B", focus: "Толщина спины.", templateRulesId: "Pull B", requiredPatterns: ["horizontal_pull", "vertical_pull", "rear_delts", "biceps_iso"], optionalPatterns: ["horizontal_pull", "core"] }, // ИЗМЕНЕНО: добавлен horizontal_pull в optional для большего объема
       { day: 6, label: "Legs B", focus: "Ягодицы/задняя цепь.", templateRulesId: "Legs B", requiredPatterns: ["hinge", "hip_thrust", "lunge", "core"], optionalPatterns: ["calves"] },
     ],
