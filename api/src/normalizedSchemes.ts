@@ -795,7 +795,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Объём: плечи + добивка груди/трицепса.",
         templateRulesId: "Push B",
         requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"],
-        optionalPatterns: ["horizontal_push", "vertical_push", "rear_delts"], // ДОБАВЛЕНО: rear_delts для баланса
+        optionalPatterns: ["horizontal_push", "vertical_push"], // УБРАНО: rear_delts (это Pull движение!)
       },
       {
         day: 5,
@@ -963,7 +963,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       { day: 1, label: "Push A", focus: "Грудь/силовые жимы.", templateRulesId: "Push A", requiredPatterns: ["horizontal_push", "incline_push", "triceps_iso"], optionalPatterns: ["delts_iso"] },
       { day: 2, label: "Pull A", focus: "Ширина спины.", templateRulesId: "Pull A", requiredPatterns: ["vertical_pull", "horizontal_pull", "biceps_iso", "rear_delts"], optionalPatterns: ["vertical_pull", "horizontal_pull"] }, // ИЗМЕНЕНО: добавлен horizontal_pull для баланса
       { day: 3, label: "Legs A", focus: "Квадрицепсы/приседы.", templateRulesId: "Legs A", requiredPatterns: ["squat", "lunge", "core"], optionalPatterns: ["calves"] },
-      { day: 4, label: "Push B", focus: "Плечи/объём.", templateRulesId: "Push B", requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"], optionalPatterns: ["horizontal_push", "rear_delts"] }, // ДОБАВЛЕНО: rear_delts для баланса
+      { day: 4, label: "Push B", focus: "Плечи/объём.", templateRulesId: "Push B", requiredPatterns: ["delts_iso", "incline_push", "triceps_iso"], optionalPatterns: ["horizontal_push"] }, // УБРАНО: rear_delts (это Pull движение!)
       { day: 5, label: "Pull B", focus: "Толщина спины.", templateRulesId: "Pull B", requiredPatterns: ["horizontal_pull", "vertical_pull", "rear_delts", "biceps_iso"], optionalPatterns: ["horizontal_pull", "core"] }, // ИЗМЕНЕНО: добавлен horizontal_pull в optional для большего объема
       { day: 6, label: "Legs B", focus: "Ягодицы/задняя цепь.", templateRulesId: "Legs B", requiredPatterns: ["hinge", "hip_thrust", "lunge", "core"], optionalPatterns: ["calves"] },
     ],
@@ -1022,7 +1022,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     days: [
       { day: 1, label: "Chest", focus: "Грудь: жимы под разными углами + изоляция.", templateRulesId: "Push A", requiredPatterns: ["horizontal_push", "incline_push"], optionalPatterns: ["triceps_iso"] },
       { day: 2, label: "Back", focus: "Спина: вертикаль + горизонталь.", templateRulesId: "Pull Day", requiredPatterns: ["vertical_pull", "horizontal_pull"], optionalPatterns: ["rear_delts", "biceps_iso"] },
-      { day: 3, label: "Shoulders", focus: "Плечи: дельты + задняя дельта.", templateRulesId: "Push B", requiredPatterns: ["delts_iso", "rear_delts"], optionalPatterns: ["vertical_push"] },
+      { day: 3, label: "Shoulders", focus: "Плечи: дельты + задняя дельта.", templateRulesId: "Shoulders Day", requiredPatterns: ["delts_iso", "rear_delts"], optionalPatterns: ["vertical_push"] }, // ИЗМЕНЕНО: templateRulesId (rear_delts допустимы в день плеч bro-split)
       { day: 4, label: "Legs", focus: "Ноги: квадры + задняя + икры.", templateRulesId: "Legs Day", requiredPatterns: ["squat", "hinge", "calves"], optionalPatterns: ["lunge", "core"] },
       { day: 5, label: "Arms", focus: "Руки: бицепс/трицепс — объём.", templateRulesId: "Upper Body", requiredPatterns: ["arms_iso"], optionalPatterns: ["horizontal_push", "horizontal_pull"] },
       { day: 6, label: "Accessories", focus: "Слабые места + кор/икры.", templateRulesId: "Full Body C", requiredPatterns: ["core"], optionalPatterns: ["calves", "rear_delts", "arms_iso", "conditioning_low_impact"] },
