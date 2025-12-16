@@ -165,9 +165,9 @@ export const REST_BY_GOAL: Record<Goal, { main: number; secondary: number; acces
     accessory: 60,
   },
   lose_weight: {
-    main: 60,      // Shorter rest for metabolic effect
-    secondary: 45,
-    accessory: 30,
+    main: 90,      // Достаточно для compound, но короче чем для массы
+    secondary: 60, // Минимум 60с для восстановления
+    accessory: 45, // Короткий для изоляции (метаболический эффект)
   },
   athletic_body: {
     main: 90,
