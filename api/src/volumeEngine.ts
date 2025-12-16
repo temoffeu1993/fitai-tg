@@ -93,10 +93,10 @@ export const GOAL_VOLUME_MULTIPLIER: Record<Goal, number> = {
 // More days = volume spreads out, less per session
 // Fewer days = more volume per session to hit weekly targets
 export const DAYS_FREQUENCY_MODIFIER: Record<number, number> = {
-  2: 1.6,    // УВЕЛИЧЕНО: 1.5 → 1.6 (для advanced 2 дня нужно ещё +2 подхода)
+  2: 1.65,   // УВЕЛИЧЕНО: 1.6 → 1.65 (для advanced 2 дня нужно ещё +2 подхода)
   3: 1.1,    // Slightly more
   4: 1.0,    // Optimal balance
-  5: 0.85,   // СНИЖЕНО: 0.95 → 0.85 (слишком много при 5 днях)
+  5: 0.84,   // СНИЖЕНО: 0.85 → 0.84 (intermediate lower_body 5 дней превышает на 1)
   6: 0.72,   // СНИЖЕНО: 0.75 → 0.72 (intermediate 6 дней ещё превышает на 7)
 };
 
