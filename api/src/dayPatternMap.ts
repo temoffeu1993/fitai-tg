@@ -62,17 +62,17 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   // --------------------------------------------------------------------------
   "Full Body A": {
     required: ["squat", "horizontal_push", "horizontal_pull", "core"],
-    optional: ["biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
-    preferredDoubles: ["horizontal_pull"], // Can do 2 different pulling exercises
+    optional: ["biceps_iso", "calves", "carry"], // Только бицепс (трицепс в других днях)
+    preferredDoubles: ["horizontal_pull"],
   },
   "Full Body B": {
     required: ["hinge", "vertical_pull", "incline_push", "core"],
-    optional: ["rear_delts", "biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
+    optional: ["rear_delts", "triceps_iso", "calves", "carry"], // Только трицепс (бицепс в других днях)
     preferredDoubles: ["vertical_pull"],
   },
   "Full Body C": {
     required: ["lunge", "horizontal_pull", "horizontal_push", "core"],
-    optional: ["delts_iso", "biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
+    optional: ["delts_iso", "biceps_iso", "calves", "carry"], // Только бицепс для баланса
     preferredDoubles: ["lunge"],
   },
 
@@ -81,18 +81,18 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   // --------------------------------------------------------------------------
   "Upper Body": {
     required: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
-    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // Оба могут попасть при большом бюджете
+    preferredDoubles: ["horizontal_pull"], // УБРАНО: biceps_iso из doubles (doubles только для базы)
   },
   "Upper A": {
     required: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
-    preferredDoubles: ["horizontal_push", "horizontal_pull"],
+    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // Оба могут попасть
+    preferredDoubles: ["horizontal_push", "horizontal_pull"], // Doubles только для базы
   },
   "Upper B": {
     required: ["vertical_pull", "horizontal_pull", "incline_push"],
-    optional: ["horizontal_push", "rear_delts", "biceps_iso", "triceps_iso", "delts_iso", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
-    preferredDoubles: ["vertical_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    optional: ["horizontal_push", "rear_delts", "biceps_iso", "triceps_iso", "delts_iso", "core"], // Оба могут попасть
+    preferredDoubles: ["vertical_pull"], // УБРАНО: biceps_iso из doubles (doubles только для базы)
   },
 
   // --------------------------------------------------------------------------
@@ -133,19 +133,19 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
     preferredDoubles: ["delts_iso", "triceps_iso"],
   },
   "Pull Day": {
-    required: ["vertical_pull", "horizontal_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso (Pull = бицепс!)
+    required: ["vertical_pull", "horizontal_pull", "rear_delts", "biceps_iso"], // Pull = бицепс
     optional: ["core"],
-    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    preferredDoubles: ["horizontal_pull"], // УБРАНО: biceps_iso из doubles (doubles только для базы)
   },
   "Pull A": {
-    required: ["vertical_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    required: ["vertical_pull", "rear_delts", "biceps_iso"],
     optional: ["horizontal_pull", "core"],
-    preferredDoubles: ["vertical_pull"],
+    preferredDoubles: ["vertical_pull"], // Doubles только для базы
   },
   "Pull B": {
-    required: ["horizontal_pull", "vertical_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    required: ["horizontal_pull", "vertical_pull", "rear_delts", "biceps_iso"],
     optional: ["core"],
-    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
+    preferredDoubles: ["horizontal_pull"], // УБРАНО: biceps_iso из doubles (doubles только для базы)
   },
   "Legs Day": {
     required: ["squat", "hinge", "lunge", "calves", "core"],
