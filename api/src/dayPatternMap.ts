@@ -62,17 +62,17 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   // --------------------------------------------------------------------------
   "Full Body A": {
     required: ["squat", "horizontal_push", "horizontal_pull", "core"],
-    optional: ["arms_iso", "calves", "carry"],
+    optional: ["biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
     preferredDoubles: ["horizontal_pull"], // Can do 2 different pulling exercises
   },
   "Full Body B": {
     required: ["hinge", "vertical_pull", "incline_push", "core"],
-    optional: ["rear_delts", "arms_iso", "calves", "carry"],
+    optional: ["rear_delts", "biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
     preferredDoubles: ["vertical_pull"],
   },
   "Full Body C": {
     required: ["lunge", "horizontal_pull", "horizontal_push", "core"],
-    optional: ["delts_iso", "arms_iso", "calves", "carry"],
+    optional: ["delts_iso", "biceps_iso", "triceps_iso", "calves", "carry"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
     preferredDoubles: ["lunge"],
   },
 
@@ -81,18 +81,18 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   // --------------------------------------------------------------------------
   "Upper Body": {
     required: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-    optional: ["incline_push", "delts_iso", "arms_iso", "rear_delts", "core"],
-    preferredDoubles: ["horizontal_pull", "arms_iso"],
+    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
+    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
   },
   "Upper A": {
     required: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-    optional: ["incline_push", "delts_iso", "arms_iso", "rear_delts", "core"],
+    optional: ["incline_push", "delts_iso", "biceps_iso", "triceps_iso", "rear_delts", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
     preferredDoubles: ["horizontal_push", "horizontal_pull"],
   },
   "Upper B": {
     required: ["vertical_pull", "horizontal_pull", "incline_push"],
-    optional: ["horizontal_push", "rear_delts", "arms_iso", "delts_iso", "core"],
-    preferredDoubles: ["vertical_pull", "arms_iso"],
+    optional: ["horizontal_push", "rear_delts", "biceps_iso", "triceps_iso", "delts_iso", "core"], // ЗАМЕНЕНО: arms_iso → biceps_iso + triceps_iso
+    preferredDoubles: ["vertical_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
   },
 
   // --------------------------------------------------------------------------
@@ -133,19 +133,19 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
     preferredDoubles: ["delts_iso", "triceps_iso"],
   },
   "Pull Day": {
-    required: ["vertical_pull", "horizontal_pull", "rear_delts", "arms_iso"],
+    required: ["vertical_pull", "horizontal_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso (Pull = бицепс!)
     optional: ["core"],
-    preferredDoubles: ["horizontal_pull", "arms_iso"],
+    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
   },
   "Pull A": {
-    required: ["vertical_pull", "rear_delts", "arms_iso"],
+    required: ["vertical_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
     optional: ["horizontal_pull", "core"],
     preferredDoubles: ["vertical_pull"],
   },
   "Pull B": {
-    required: ["horizontal_pull", "vertical_pull", "rear_delts", "arms_iso"],
+    required: ["horizontal_pull", "vertical_pull", "rear_delts", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
     optional: ["core"],
-    preferredDoubles: ["horizontal_pull", "arms_iso"],
+    preferredDoubles: ["horizontal_pull", "biceps_iso"], // ЗАМЕНЕНО: arms_iso → biceps_iso
   },
   "Legs Day": {
     required: ["squat", "hinge", "lunge", "calves", "core"],
