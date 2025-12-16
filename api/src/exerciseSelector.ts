@@ -97,14 +97,28 @@ export function filterExercisesForPattern(args: {
     if (lvRank(ex.minLevel) > lvRank(constraints.experience)) return false;
 
     // Equipment gate
+    // КРИТИЧНО: упражнение требует ВСЁ своё оборудование (every, не some)
     if (constraints.equipmentAvailable?.length) {
       // "gym_full" means all equipment is available
       const hasGymFull = constraints.equipmentAvailable.some((eq: any) => eq === "gym_full");
       
       if (!hasGymFull) {
-        // Only specific equipment - check if exercise matches
-        const ok = ex.equipment.some(eq => constraints.equipmentAvailable!.includes(eq as any));
-        if (!ok) return false;
+        // Проверяем что ВСЁ оборудование упражнения доступно
+        const allEquipmentAvailable = ex.equipment.every(eq => 
+          constraints.equipmentAvailable!.includes(eq as any) || eq === "bodyweight"
+        );
+        
+        if (!allEquipmentAvailable) {
+          // Для "limited" разрешаем базовое оборудование
+          if (constraints.equipmentAvailable.includes("limited" as any)) {
+            const hasOnlyBasicEquipment = ex.equipment.every(eq => 
+              ["dumbbell", "kettlebell", "resistance_band", "bodyweight", "bench"].includes(eq)
+            );
+            if (!hasOnlyBasicEquipment) return false;
+          } else {
+            return false;
+          }
+        }
       }
       // If gym_full, all exercises pass equipment check
     }

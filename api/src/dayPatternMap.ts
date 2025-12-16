@@ -168,6 +168,19 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
 // ROLE ASSIGNMENT LOGIC
 // ============================================================================
 
+// HELPER: Check if pattern is compound
+function isCompoundPattern(pattern: Pattern): boolean {
+  return [
+    "squat",
+    "hinge",
+    "horizontal_push",
+    "incline_push",
+    "vertical_push",
+    "horizontal_pull",
+    "vertical_pull",
+  ].includes(pattern);
+}
+
 function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): SlotRole {
   // First compound exercises are typically "main"
   const compoundPatterns: Pattern[] = [
@@ -247,6 +260,7 @@ export function buildDaySlots(args: {
 
   const slots: Slot[] = [];
   const usedPatterns = new Set<Pattern>();
+  let usedBudget = 0; // КРИТИЧНО: считаем сумму count, а не slots.length
 
   // -------------------------------------------------------------------------
   // STEP 1: Fill required patterns
@@ -255,22 +269,19 @@ export function buildDaySlots(args: {
   let isFirstCompound = true;
 
   for (const pattern of rules.required) {
-    if (slots.length >= slotBudget) break;
+    if (usedBudget >= slotBudget) break; // ИСПРАВЛЕНО: usedBudget вместо slots.length
 
-    const isDouble =
-      (rules.preferredDoubles?.includes(pattern) && slots.length < slotBudget - 1) ?? false;
+    const canDouble =
+      !!rules.preferredDoubles?.includes(pattern) && (usedBudget <= slotBudget - 2); // ИСПРАВЛЕНО: проверяем достаточно ли места для double
 
-    const count = isDouble ? 2 : 1;
-    const role = assignRole(pattern, isFirstCompound, isDouble);
+    const count = canDouble ? 2 : 1;
+    const role = assignRole(pattern, isFirstCompound, canDouble);
 
     slots.push({ pattern, count, role });
     usedPatterns.add(pattern);
+    usedBudget += count; // ИСПРАВЛЕНО: увеличиваем на count
 
-    if (
-      ["squat", "hinge", "horizontal_push", "incline_push", "horizontal_pull", "vertical_pull"].includes(
-        pattern
-      )
-    ) {
+    if (isCompoundPattern(pattern)) {
       isFirstCompound = false;
     }
   }
@@ -279,18 +290,18 @@ export function buildDaySlots(args: {
   // STEP 2: Fill optional patterns (if budget allows)
   // -------------------------------------------------------------------------
   
-  if (rules.optional && slots.length < slotBudget) {
-    const remainingBudget = slotBudget - slots.length;
+  if (rules.optional && usedBudget < slotBudget) { // ИСПРАВЛЕНО: usedBudget
 
     // Prioritize optionals that fill gaps
     const priorityOptionals = rules.optional.filter(p => !usedPatterns.has(p));
 
     for (const pattern of priorityOptionals) {
-      if (slots.length >= slotBudget) break;
+      if (usedBudget >= slotBudget) break; // ИСПРАВЛЕНО: usedBudget
 
       const role = assignRole(pattern, false, false);
       slots.push({ pattern, count: 1, role });
       usedPatterns.add(pattern);
+      usedBudget += 1; // ИСПРАВЛЕНО: увеличиваем usedBudget
     }
   }
 
@@ -298,12 +309,15 @@ export function buildDaySlots(args: {
   // STEP 3: Adjust for light intent (reduce volume)
   // -------------------------------------------------------------------------
   
-  if (intent === "light" && slots.length > range.min) {
+  if (intent === "light" && usedBudget > range.min) { // ИСПРАВЛЕНО: usedBudget
     // Remove last accessory/isolation slots
-    while (slots.length > range.min) {
+    while (usedBudget > range.min) {
       const lastSlot = slots[slots.length - 1];
-      if (lastSlot.role === "accessory" || lastSlot.pattern === "arms_iso" || lastSlot.pattern === "calves") {
-        slots.pop();
+      if (lastSlot.role === "accessory" || lastSlot.role === "pump" || lastSlot.role === "conditioning") {
+        const removed = slots.pop();
+        if (removed) {
+          usedBudget -= removed.count; // ИСПРАВЛЕНО: уменьшаем на count
+        }
       } else {
         break;
       }

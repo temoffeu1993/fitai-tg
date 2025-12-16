@@ -89,7 +89,9 @@ export type GeneratedWorkoutDay = {
 // HELPER: Map pain/injuries to JointFlag avoidances
 // ============================================================================
 
-function buildAvoidFlags(checkin?: CheckInData, constraints?: string[]): JointFlag[] {
+// ИСПРАВЛЕНО: buildAvoidFlags теперь работает ТОЛЬКО с JointFlag из checkin.pain
+// ConstraintTag (например avoid_overhead_press) НЕ должны попадать сюда
+function buildAvoidFlags(checkin?: CheckInData): JointFlag[] {
   const avoid: JointFlag[] = [];
 
   // Map from pain body parts to jointFlags
@@ -132,15 +134,6 @@ function buildAvoidFlags(checkin?: CheckInData, constraints?: string[]): JointFl
       const flag = painMap[normalized];
       if (flag && !avoid.includes(flag)) {
         avoid.push(flag);
-      }
-    }
-  }
-
-  // Add from user profile constraints (if any)
-  if (constraints) {
-    for (const constraint of constraints) {
-      if (!avoid.includes(constraint as JointFlag)) {
-        avoid.push(constraint as JointFlag);
       }
     }
   }
@@ -241,11 +234,21 @@ export function generateWorkoutDay(args: {
     intent = "light";
   }
 
+  // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
+  function mapEquipmentToAvailable(equipment: string): any[] {
+    if (equipment === "gym_full") return ["gym_full"];
+    if (equipment === "dumbbells") return ["dumbbell", "bench", "bodyweight"];
+    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "resistance_band"];
+    if (equipment === "limited") return ["dumbbell", "kettlebell", "resistance_band", "bodyweight", "bench"];
+    // Fallback: если не распознали, считаем gym_full
+    return ["gym_full"];
+  }
+
   // Build constraints
   const constraints: UserConstraints = {
     experience: userProfile.experience,
-    equipmentAvailable: [userProfile.equipment as any], // Type mapping handled at runtime
-    avoid: buildAvoidFlags(checkin, userProfile.constraints),
+    equipmentAvailable: mapEquipmentToAvailable(userProfile.equipment),
+    avoid: buildAvoidFlags(checkin), // ИСПРАВЛЕНО: убрал userProfile.constraints (это не JointFlag[])
   };
 
   // Build checkin context
@@ -367,12 +370,29 @@ export function generateWorkoutDay(args: {
   });
 
   // If volume is too high, reduce from the end (accessories first)
+  // ИСПРАВЛЕНО: удаляем упражнения по приоритету роли (не слепо с конца)
+  // conditioning/pump → accessory → secondary → main (в последнюю очередь)
   if (!validation.valid) {
+    const rolePriority: Record<SlotRole, number> = {
+      conditioning: 0,
+      pump: 1,
+      accessory: 2,
+      secondary: 3,
+      main: 4,
+    };
+
     while (
       exercises.length > 0 &&
       (totalSets > validation.maxSets || exercises.length > validation.maxExercises)
     ) {
-      const removed = exercises.pop();
+      // Найти упражнение с самым низким приоритетом
+      const idx = exercises
+        .map((e, i) => ({ i, p: rolePriority[e.role] ?? 99 }))
+        .sort((a, b) => a.p - b.p)[0]?.i;
+      
+      if (idx == null) break;
+      
+      const [removed] = exercises.splice(idx, 1);
       if (removed) {
         totalSets -= removed.sets;
         totalExercises--;
@@ -386,9 +406,11 @@ export function generateWorkoutDay(args: {
 
   // Estimate duration: warmup (10) + exercises + cooldown (5)
   const exerciseDuration = exercises.reduce((sum, e) => {
-    // Assume 30 sec per rep on average, plus rest
-    const repTime = (e.repsRange[0] + e.repsRange[1]) / 2 * 3; // seconds per set
-    const setTime = repTime + e.restSec;
+    // ИСПРАВЛЕНО: 3-4 сек/повтор (темп) + rest + setup между подходами
+    const avgReps = (e.repsRange[0] + e.repsRange[1]) / 2;
+    const repTime = avgReps * 3.5; // секунды на подход (темп)
+    const setupTime = 20; // секунды на подготовку/смену веса между подходами
+    const setTime = repTime + e.restSec + setupTime;
     return sum + setTime * e.sets;
   }, 0);
   
