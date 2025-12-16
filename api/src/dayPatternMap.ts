@@ -119,7 +119,7 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   // --------------------------------------------------------------------------
   "Push Day": {
     required: ["horizontal_push", "incline_push", "delts_iso", "triceps_iso"],
-    optional: ["vertical_push", "rear_delts"],
+    optional: ["vertical_push"], // УБРАНО: rear_delts (это Pull движение!)
     preferredDoubles: ["horizontal_push", "triceps_iso"],
   },
   "Push A": {
@@ -129,7 +129,7 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
   },
   "Push B": {
     required: ["delts_iso", "incline_push", "triceps_iso"],
-    optional: ["horizontal_push", "vertical_push", "rear_delts"],
+    optional: ["horizontal_push", "vertical_push"], // УБРАНО: rear_delts (это Pull движение!)
     preferredDoubles: ["delts_iso", "triceps_iso"],
   },
   "Pull Day": {
