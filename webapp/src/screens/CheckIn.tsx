@@ -67,7 +67,7 @@ export default function CheckIn() {
   };
 
   const handleSkip = () => {
-    // Вернуться назад без чек-ина (начать тренировку как есть)
+    // Вернуться назад без чек-ина
     nav(returnTo || "/plan/one");
   };
 
@@ -86,11 +86,10 @@ export default function CheckIn() {
       {/* Форма чек-ина */}
       <CheckInForm
         onSubmit={handleSubmit}
-        onSkip={handleSkip}
+        onBack={handleSkip}
         loading={loading}
         error={error}
         inline={true}
-        showSkip={true}
         submitLabel="Начать тренировку"
         title="Как ты сегодня? 💬"
       />

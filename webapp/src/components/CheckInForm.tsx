@@ -9,13 +9,14 @@ type Props = {
   error?: string | null;
   onClose?: () => void;
   inline?: boolean;
-  showSkip?: boolean;
   title?: string;
   submitLabel?: string;
+  onBack?: () => void;
+  backLabel?: string;
 };
 
 const chipStyle: React.CSSProperties = {
-  padding: "10px 14px",
+  padding: "12px 14px",
   borderRadius: 12,
   border: "1px solid rgba(0,0,0,0.06)",
   background: "rgba(255,255,255,0.6)",
@@ -24,8 +25,18 @@ const chipStyle: React.CSSProperties = {
   WebkitBackdropFilter: "blur(8px)",
   cursor: "pointer",
   fontSize: 14,
+  fontWeight: 700,
+  color: "#111827",
   transition: "all .15s ease",
-  whiteSpace: "nowrap",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  lineHeight: 1.15,
+  textAlign: "center",
+  minHeight: 56,
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const chipActive: React.CSSProperties = {
@@ -99,9 +110,10 @@ export function CheckInForm({
   error,
   onClose,
   inline = false,
-  showSkip = true,
   title,
   submitLabel,
+  onBack,
+  backLabel,
 }: Props) {
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
@@ -110,6 +122,35 @@ export function CheckInForm({
   const [hasPain, setHasPain] = useState(false);
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
+
+  const sleepOptions = [
+    { key: "poor" as const, label: "Плохо", desc: "Сон был прерывистым или коротким — восстановление слабое." },
+    { key: "fair" as const, label: "Так себе", desc: "В целом спал, но бодрости меньше обычного." },
+    { key: "ok" as const, label: "Нормально", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
+    { key: "good" as const, label: "Хорошо", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
+    { key: "excellent" as const, label: "Отлично", desc: "Полностью восстановился — максимум энергии и готовности." },
+  ];
+  const energyOptions = [
+    { key: "low" as const, label: "Низкая", desc: "Сил мало — лучше держать умеренный темп и не форсировать." },
+    { key: "medium" as const, label: "Средняя", desc: "Обычный уровень — стандартная тренировка должна зайти." },
+    { key: "high" as const, label: "Высокая", desc: "Много сил — можно работать увереннее, сохраняя технику." },
+  ];
+  const stressOptions = [
+    { key: "low" as const, label: "Низкий", desc: "Спокойно — нервная система не перегружена." },
+    { key: "medium" as const, label: "Средний", desc: "Есть напряжение, но оно контролируемое." },
+    { key: "high" as const, label: "Высокий", desc: "Сильно напряжён — лучше снизить интенсивность и объем." },
+    { key: "very_high" as const, label: "Очень высокий", desc: "На пределе — бережёмся, фокус на восстановлении." },
+  ];
+  const sleepIndex = Math.max(0, sleepOptions.findIndex((o) => o.key === sleepQuality));
+  const sleepOpt = sleepOptions[sleepIndex] || sleepOptions[2];
+
+  const energyKey = energyLevel || "medium";
+  const energyIndex = Math.max(0, energyOptions.findIndex((o) => o.key === energyKey));
+  const energyOpt = energyOptions[energyIndex] || energyOptions[1];
+
+  const stressKey = stressLevel || "medium";
+  const stressIndex = Math.max(0, stressOptions.findIndex((o) => o.key === stressKey));
+  const stressOpt = stressOptions[stressIndex] || stressOptions[1];
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
@@ -147,9 +188,7 @@ export function CheckInForm({
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const cardStyle = inline ? modal.inlineCard : modal.card;
-  const footerStyle = inline
-    ? { ...modal.footerInline, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr" }
-    : modal.footer;
+  const footerStyle = inline ? modal.footerInline : modal.footer;
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
@@ -170,89 +209,73 @@ export function CheckInForm({
           {/* 1. СОН (ползунок, 5 значений) */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
+            <div style={modal.value}>
+              <div style={modal.valueTitle}>{sleepOpt.label}</div>
+              <div style={modal.valueDesc}>{sleepOpt.desc}</div>
+            </div>
             <input
               type="range"
               min={0}
               max={4}
               step={1}
-              value={["poor", "fair", "ok", "good", "excellent"].indexOf(sleepQuality)}
+              value={sleepIndex}
               onChange={(e) => {
                 const idx = Number(e.target.value);
-                setSleepQuality((["poor", "fair", "ok", "good", "excellent"] as const)[idx] || "ok");
+                setSleepQuality(sleepOptions[idx]?.key || "ok");
               }}
               style={{
-                ...sliderStyle(0, 4, ["poor", "fair", "ok", "good", "excellent"].indexOf(sleepQuality), [0, 25, 50, 75, 100]),
-                marginTop: 4,
+                ...sliderStyle(0, 4, sleepIndex, [0, 25, 50, 75, 100]),
               }}
               className="checkin-slider"
             />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {{
-                poor: "Плохо",
-                fair: "Так себе",
-                ok: "Нормально",
-                good: "Хорошо",
-                excellent: "Отлично",
-              }[sleepQuality]}
-            </div>
           </div>
 
           {/* 2. ЭНЕРГИЯ */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>⚡ Энергия</div>
+            <div style={modal.value}>
+              <div style={modal.valueTitle}>{energyOpt.label}</div>
+              <div style={modal.valueDesc}>{energyOpt.desc}</div>
+            </div>
             <input
               type="range"
               min={0}
               max={2}
               step={1}
-              value={["low", "medium", "high"].indexOf(energyLevel || "medium")}
+              value={energyIndex}
               onChange={(e) => {
                 const idx = Number(e.target.value);
-                setEnergyLevel((["low", "medium", "high"] as const)[idx] || "medium");
+                setEnergyLevel(energyOptions[idx]?.key || "medium");
               }}
               style={{
-                ...sliderStyle(0, 2, ["low", "medium", "high"].indexOf(energyLevel || "medium"), [0, 50, 100]),
-                marginTop: 4,
+                ...sliderStyle(0, 2, energyIndex, [0, 50, 100]),
               }}
               className="checkin-slider"
             />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {energyLevel === "low" ? "Низкая" : energyLevel === "medium" ? "Средняя" : "Высокая"}
-            </div>
           </div>
 
           {/* 3. СТРЕСС */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>😰 Стресс</div>
+            <div style={modal.value}>
+              <div style={modal.valueTitle}>{stressOpt.label}</div>
+              <div style={modal.valueDesc}>{stressOpt.desc}</div>
+            </div>
             <input
               type="range"
               min={0}
               max={3}
               step={1}
-              value={["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium")}
+              value={stressIndex}
               onChange={(e) => {
                 const idx = Number(e.target.value);
-                setStressLevel((["low", "medium", "high", "very_high"] as const)[idx] || "medium");
+                setStressLevel(stressOptions[idx]?.key || "medium");
               }}
               style={{
-                ...sliderStyle(
-                  0,
-                  3,
-                  ["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium"),
-                  [0, 33.333, 66.666, 100]
-                ),
-                marginTop: 4,
+                ...sliderStyle(0, 3, stressIndex, [0, 33.333, 66.666, 100]),
               }}
               className="checkin-slider"
             />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {{
-                low: "Низкий",
-                medium: "Средний",
-                high: "Высокий",
-                very_high: "Очень высокий",
-              }[stressLevel || "medium"]}
-            </div>
           </div>
 
           {/* 4. ВРЕМЯ НА ТРЕНИРОВКУ */}
@@ -355,14 +378,14 @@ export function CheckInForm({
         </div>
 
         <div style={footerStyle}>
-          {showSkip && onSkip ? (
-            <button style={modal.ghostBtn} onClick={onSkip} type="button" disabled={loading}>
-              Пропустить
-            </button>
-          ) : null}
           <button style={modal.save} onClick={handleSubmit} type="button" disabled={loading}>
             {loading ? "Сохраняем..." : submitLabel || "Сгенерировать тренировку"}
           </button>
+          {onBack ? (
+            <button style={modal.backTextBtn} onClick={onBack} type="button" disabled={loading}>
+              {backLabel || "Назад"}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -441,6 +464,14 @@ const modal: Record<string, React.CSSProperties> = {
   },
   bodyInline: { padding: "0", display: "grid", gap: 12 },
   subLabel: { fontSize: 13, opacity: 0.8, marginTop: 1 },
+  value: {
+    display: "grid",
+    gap: 2,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  valueTitle: { fontSize: 13, fontWeight: 800, color: "#111827" },
+  valueDesc: { fontSize: 12, color: "rgba(17,24,39,0.72)", lineHeight: 1.35 },
   cardMini: {
     padding: 10,
     borderRadius: 14,
@@ -449,7 +480,6 @@ const modal: Record<string, React.CSSProperties> = {
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
     gap: 4,
-    minHeight: 82,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
@@ -471,11 +501,11 @@ const modal: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(10px)",
   },
   groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
-  chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))" },
+  chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" },
   footer: {
     padding: "12px 18px 16px",
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "1fr",
     gap: 10,
     borderTop: "1px solid rgba(0,0,0,0.06)",
   },
@@ -497,6 +527,7 @@ const modal: Record<string, React.CSSProperties> = {
   save: {
     borderRadius: 16,
     padding: "14px 18px",
+    width: "100%",
     border: "1px solid #0f172a",
     background: "#0f172a",
     color: "#fff",
@@ -504,6 +535,17 @@ const modal: Record<string, React.CSSProperties> = {
     fontSize: 16,
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+  },
+  backTextBtn: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: 600,
+    padding: "12px 16px",
+    cursor: "pointer",
+    textAlign: "center",
   },
   error: {
     background: "rgba(255,0,0,0.07)",

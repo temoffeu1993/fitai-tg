@@ -405,7 +405,6 @@ export default function PlanOne() {
               loading={checkInLoading}
               error={checkInError}
               onSubmit={handleCheckInSubmit}
-              showSkip={false}
               submitLabel={checkInLoading ? "Сохраняем..." : "Сгенерировать тренировку"}
               title="Как ты сегодня? 💬"
             />
