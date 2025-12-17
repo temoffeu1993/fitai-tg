@@ -105,7 +105,7 @@ export default function OnbLifestyle({ initial, loading, onSubmit, onBack }: Pro
         type="button"
         onClick={handleNext}
         disabled={!canNext || !!loading}
-        className="soft-glow"
+        className="soft-glow tap-primary"
         style={{
           ...st.primaryBtn,
           opacity: !canNext || loading ? 0.6 : 1,

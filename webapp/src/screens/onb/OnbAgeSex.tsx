@@ -161,7 +161,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       <button
         onClick={handleNext}
         disabled={!canNext || !!loading}
-        className="soft-glow"
+        className="soft-glow tap-primary"
         style={{
           ...s.primaryBtn,
           opacity: !canNext || loading ? 0.6 : 1,

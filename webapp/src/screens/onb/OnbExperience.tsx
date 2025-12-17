@@ -101,6 +101,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
       <button
         onClick={handleNext}
         disabled={!canNext || !!loading}
+        className="tap-primary"
         style={{
           ...s.primaryBtn,
           opacity: !canNext || loading ? 0.6 : 1,

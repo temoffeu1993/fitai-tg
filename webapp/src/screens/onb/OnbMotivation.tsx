@@ -106,7 +106,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         type="button"
         onClick={handleNext}
         disabled={!!loading}
-        className="soft-glow"
+        className="soft-glow tap-primary"
         style={{
           ...st.primaryBtn,
           opacity: loading ? 0.6 : 1,

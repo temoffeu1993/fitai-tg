@@ -48,7 +48,7 @@ export default function OnbEquipment({ loading, onSubmit, onBack }: Props) {
         type="button"
         onClick={submit}
         disabled={!!loading}
-        className="soft-glow"
+        className="soft-glow tap-primary"
         style={{ ...st.primaryBtn, opacity: loading ? 0.6 : 1, cursor: loading ? "default" : "pointer" }}
       >
         {loading ? "Сохранение…" : "Далее →"}

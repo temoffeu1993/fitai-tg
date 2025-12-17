@@ -53,6 +53,28 @@ button:active, a:active, [role="button"]:active {
   background-color: inherit !important;
 }
 
+/* Мягкий tap-feedback для основных CTA (на мобильных) */
+.tap-primary {
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+.tap-primary:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99) !important;
+  filter: brightness(0.99) !important;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+}
+@media (hover: hover) {
+  .tap-primary:hover:not(:disabled) {
+    filter: brightness(1.03);
+  }
+}
+.tap-primary:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+
 /* Специальный класс для полного отключения tap эффектов */
 .no-tap-effect {
   -webkit-tap-highlight-color: transparent !important;

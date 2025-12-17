@@ -90,12 +90,12 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 720ms cubic-bezier(.2,.8,.2,1) both;
+  animation: checkinStepIn 920ms cubic-bezier(.18,1,.32,1) both;
   will-change: transform, opacity;
   transform-origin: 50% 50%;
 }
 @keyframes checkinStepIn {
-  0% { opacity: 0; transform: translateY(16px) scale(0.985); }
+  0% { opacity: 0; transform: translateY(12px) scale(0.992); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -299,7 +299,6 @@ export function CheckInForm({
   const footerStyle = inline ? modal.footerInline : modal.footer;
 
   const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее →";
-  const baselineDescMinHeight = Math.max(descMinHeightByStep[0] || 0, descMinHeightByStep[1] || 0, descMinHeightByStep[2] || 0);
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
@@ -430,9 +429,6 @@ export function CheckInForm({
               <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{availableMinutes} мин</div>
-                <div aria-hidden style={{ ...modal.valueDesc, minHeight: baselineDescMinHeight || undefined, color: "transparent" }}>
-                  {"—"}
-                </div>
               </div>
               <input
                 type="range"

@@ -155,6 +155,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       <button
         onClick={handleNext}
         disabled={!canNext || !!loading}
+        className="tap-primary"
         style={{
           ...st.primaryBtn,
           opacity: !canNext || loading ? 0.6 : 1,
