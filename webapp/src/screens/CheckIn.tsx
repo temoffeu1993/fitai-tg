@@ -3,6 +3,29 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
 
+function toSessionPlan(workout: any) {
+  const w = workout && typeof workout === "object" ? workout : {};
+  const exercises = Array.isArray(w.exercises) ? w.exercises : [];
+  const sets = exercises.reduce((acc: number, ex: any) => acc + Number(ex?.sets || 0), 0);
+  const duration = Number(w.estimatedDuration) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
+  const title = String(w.dayLabel || w.schemeName || w.title || "Тренировка");
+  const location = String(w.schemeName || "Тренировка");
+
+  return {
+    title,
+    location,
+    duration,
+    exercises: exercises.map((ex: any) => ({
+      name: String(ex?.name || ex?.exerciseName || "Упражнение"),
+      sets: Number(ex?.sets) || 1,
+      reps: ex?.reps || ex?.repsRange || "",
+      restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
+      pattern: ex?.pattern,
+      weight: ex?.weight ?? null,
+    })),
+  };
+}
+
 export default function CheckIn() {
   const nav = useNavigate();
   const location = useLocation();
@@ -10,9 +33,10 @@ export default function CheckIn() {
   const [error, setError] = useState<string | null>(null);
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
-  const { workoutDate, returnTo } = (location.state || {}) as {
+  const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
     workoutDate?: string;
     returnTo?: string;
+    plannedWorkoutId?: string;
   };
 
   const handleSubmit = async (payload: CheckInPayload) => {
@@ -35,7 +59,8 @@ export default function CheckIn() {
         // Recovery session
         nav("/workout/session", {
           state: {
-            workout: response.workout,
+            plan: toSessionPlan(response.workout),
+            plannedWorkoutId,
             isRecovery: true,
             notes: response.notes,
           },
@@ -44,7 +69,8 @@ export default function CheckIn() {
         // Swapped day
         nav("/workout/session", {
           state: {
-            workout: response.workout,
+            plan: toSessionPlan(response.workout),
+            plannedWorkoutId,
             swapInfo: response.swapInfo,
             notes: response.notes,
           },
@@ -53,7 +79,8 @@ export default function CheckIn() {
         // Keep day (обычная тренировка)
         nav("/workout/session", {
           state: {
-            workout: response.workout,
+            plan: toSessionPlan(response.workout),
+            plannedWorkoutId,
             notes: response.notes,
           },
         });

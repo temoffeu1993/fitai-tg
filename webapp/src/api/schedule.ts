@@ -17,7 +17,7 @@ export type PlannedWorkout = {
   id: string;
   plan: any;
   scheduledFor: string;
-  status: "scheduled" | "completed" | "cancelled";
+  status: "scheduled" | "pending" | "completed" | "cancelled";
   createdAt?: string | null;
   updatedAt?: string | null;
   resultSessionId?: string | null;
@@ -34,6 +34,13 @@ export async function getScheduleOverview(): Promise<{
     schedule: (data?.schedule ?? {}) as WorkoutSchedule,
     plannedWorkouts: Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [],
   };
+}
+
+export async function getPlannedWorkouts(): Promise<PlannedWorkout[]> {
+  const r = await apiFetch("/api/planned-workouts", { credentials: "include" });
+  if (!r.ok) throw new Error("failed_to_load_planned_workouts");
+  const data = await r.json();
+  return Array.isArray(data?.plannedWorkouts) ? (data.plannedWorkouts as PlannedWorkout[]) : [];
 }
 
 export async function createPlannedWorkout(input: {

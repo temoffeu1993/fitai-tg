@@ -40,6 +40,9 @@ function getUid(req: any): string {
   throw new AppError("Unauthorized", 401);
 }
 
+const isUUID = (s: unknown) =>
+  typeof s === "string" && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+
 // ============================================================================
 // POST /check-in - Save daily check-in
 // ============================================================================
@@ -270,13 +273,13 @@ workoutGeneration.post(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, plan, scheduled_for, status)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'scheduled')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET 
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'pending', 
-           created_at = now()`,
+           status = 'scheduled', 
+           updated_at = now()`,
         [uid, i, workoutData]
       );
       console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
@@ -649,13 +652,13 @@ workoutGeneration.post(
     await q(
       `INSERT INTO planned_workouts 
        (user_id, workout_date, data, plan, scheduled_for, status)
-       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
+       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'scheduled')
        ON CONFLICT (user_id, workout_date) 
        DO UPDATE SET 
          data = $2::jsonb,
          plan = $2::jsonb,
-         status = 'pending', 
-         created_at = now()`,
+         status = 'scheduled', 
+         updated_at = now()`,
       [uid, workoutData]
     );
     
@@ -766,13 +769,13 @@ workoutGeneration.post(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, plan, scheduled_for, status)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'scheduled')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET 
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'pending', 
-           created_at = now()`,
+           status = 'scheduled', 
+           updated_at = now()`,
         [uid, i, workoutData]
       );
     }
@@ -1098,6 +1101,83 @@ workoutGeneration.post(
       workout: workoutData,
       swapInfo,
     });
+  })
+);
+
+// ============================================================================
+// POST /save-session - Save completed workout (compatibility with webapp)
+// ============================================================================
+
+workoutGeneration.post(
+  "/save-session",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const payload = req.body?.payload;
+
+    if (!payload || !Array.isArray(payload.exercises) || payload.exercises.length === 0) {
+      throw new AppError("Invalid payload: exercises array required", 400);
+    }
+
+    const plannedRaw = req.body?.plannedWorkoutId;
+    const plannedWorkoutId = isUUID(plannedRaw) ? (plannedRaw as string) : null;
+
+    const startedAtInput = req.body?.startedAt;
+    const durationMinInput = req.body?.durationMin;
+
+    const now = new Date();
+    let startedAt = now;
+    if (typeof startedAtInput === "string" && startedAtInput.trim()) {
+      const dt = new Date(startedAtInput);
+      if (Number.isFinite(dt.getTime())) startedAt = dt;
+    }
+
+    let durationMin = Number(durationMinInput);
+    if (!Number.isFinite(durationMin) || durationMin <= 0) durationMin = 40;
+    durationMin = Math.max(10, Math.min(300, Math.round(durationMin)));
+    const finishedAt = new Date(startedAt.getTime() + durationMin * 60_000);
+
+    await q("BEGIN");
+    try {
+      const result = await q<{ id: string }>(
+        `INSERT INTO workout_sessions (user_id, payload, finished_at)
+         VALUES ($1, $2::jsonb, $3)
+         RETURNING id`,
+        [uid, payload, finishedAt.toISOString()]
+      );
+
+      const sessionId = result[0]?.id;
+      if (!sessionId) throw new AppError("Failed to save session", 500);
+
+      await q(
+        `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, false)`,
+        [uid, payload, payload, finishedAt.toISOString(), startedAt.toISOString(), finishedAt.toISOString()]
+      );
+
+      if (plannedWorkoutId) {
+        await q(
+          `UPDATE planned_workouts
+              SET status = 'completed',
+                  result_session_id = $3,
+                  completed_at = $4,
+                  updated_at = NOW()
+            WHERE id = $1 AND user_id = $2`,
+          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString()]
+        );
+      } else {
+        await q(
+          `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id, workout_date, data, completed_at)
+           VALUES ($1, $2::jsonb, $3, 'completed', $4, $5, $2::jsonb, $3)`,
+          [uid, payload, finishedAt.toISOString(), sessionId, finishedAt.toISOString().slice(0, 10)]
+        );
+      }
+
+      await q("COMMIT");
+      res.json({ ok: true, sessionId });
+    } catch (err) {
+      await q("ROLLBACK");
+      throw err;
+    }
   })
 );
 

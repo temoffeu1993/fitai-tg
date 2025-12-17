@@ -957,7 +957,7 @@ function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] 
     .filter((item) => item && item.id && item.scheduledFor && item.status !== "cancelled")
     .map((item) => ({
       ...item,
-      status: item.status || "scheduled",
+      status: item.status === "pending" ? "scheduled" : item.status || "scheduled",
     }))
     .sort(
       (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()

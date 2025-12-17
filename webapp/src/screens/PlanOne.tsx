@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadHistory } from "@/lib/history";
-import { createPlannedWorkout } from "@/api/schedule";
+import { createPlannedWorkout, getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
 import { submitCheckIn, type CheckInPayload } from "@/api/plan";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
@@ -56,6 +56,12 @@ export default function PlanOne() {
   const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
+  const [plannedLoading, setPlannedLoading] = useState(true);
+  const [plannedError, setPlannedError] = useState<string | null>(null);
+  const [selectedPlannedId, setSelectedPlannedId] = useState<string | null>(null);
+  const [expandedPlannedIds, setExpandedPlannedIds] = useState<Record<string, boolean>>({});
+  const [weekGenerating, setWeekGenerating] = useState(false);
 
   // collapsible state
   const [openWarmup, setOpenWarmup] = useState(false);
@@ -101,6 +107,60 @@ export default function PlanOne() {
       return false;
     }
   }, []);
+
+  const loadPlanned = useCallback(async () => {
+    setPlannedLoading(true);
+    setPlannedError(null);
+    try {
+      const list = await getPlannedWorkouts();
+      setPlannedWorkouts(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to load planned workouts", err);
+      setPlannedError("Не удалось загрузить тренировки недели");
+    } finally {
+      setPlannedLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlanned().catch(() => {});
+    const onScheduleUpdated = () => loadPlanned().catch(() => {});
+    window.addEventListener("schedule_updated" as any, onScheduleUpdated);
+    window.addEventListener("plan_completed" as any, onScheduleUpdated);
+    return () => {
+      window.removeEventListener("schedule_updated" as any, onScheduleUpdated);
+      window.removeEventListener("plan_completed" as any, onScheduleUpdated);
+    };
+  }, [loadPlanned]);
+
+  const remainingPlanned = useMemo(() => {
+    return (plannedWorkouts || [])
+      .filter((w) => w && w.id && w.scheduledFor)
+      .filter((w) => w.status !== "cancelled" && w.status !== "completed");
+  }, [plannedWorkouts]);
+
+  const recommendedPlannedId = useMemo(() => {
+    if (!remainingPlanned.length) return null;
+    const byIndex = remainingPlanned
+      .map((w) => ({ id: w.id, idx: Number((w.plan as any)?.dayIndex) }))
+      .filter((x) => Number.isFinite(x.idx));
+    if (byIndex.length) {
+      byIndex.sort((a, b) => a.idx - b.idx);
+      return byIndex[0].id;
+    }
+    return remainingPlanned
+      .slice()
+      .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())[0].id;
+  }, [remainingPlanned]);
+
+  useEffect(() => {
+    if (!remainingPlanned.length) {
+      setSelectedPlannedId(null);
+      return;
+    }
+    if (selectedPlannedId && remainingPlanned.some((w) => w.id === selectedPlannedId)) return;
+    setSelectedPlannedId(recommendedPlannedId || remainingPlanned[0].id);
+  }, [remainingPlanned, recommendedPlannedId, selectedPlannedId]);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -187,14 +247,23 @@ export default function PlanOne() {
     }
   }, [plan]);
 
-  // NEW: Auto-generate week plan on first load (without check-in)
+  // Auto-generate week workouts only when there is nothing planned/remaining
   useEffect(() => {
-    if (!plan && !loading && !initialPlanRequested && !needsCheckIn) {
-      console.log("🚀 First load: generating week plan without check-in");
-      setInitialPlanRequested(true);
-      refresh({ force: false }).catch(() => {});
-    }
-  }, [plan, loading, initialPlanRequested, needsCheckIn, refresh]);
+    if (plannedLoading) return;
+    if (remainingPlanned.length > 0) return;
+    if (weekGenerating) return;
+    if (sub.locked) return;
+    if (initialPlanRequested) return;
+
+    console.log("🚀 No workouts left: generating new week plan");
+    setInitialPlanRequested(true);
+    setWeekGenerating(true);
+    kickProgress();
+    refresh({ force: true })
+      .then(() => loadPlanned())
+      .catch(() => {})
+      .finally(() => setWeekGenerating(false));
+  }, [plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialPlanRequested, kickProgress, refresh, loadPlanned]);
 
   useEffect(() => {
     const onPlanCompleted = () => {
@@ -302,7 +371,7 @@ export default function PlanOne() {
     }
   };
 
-  if (showLoader) {
+  if (plannedLoading || weekGenerating || showLoader) {
     return (
       <WorkoutLoader
         steps={steps}
@@ -356,64 +425,200 @@ export default function PlanOne() {
     );
   }
 
-  if (!effectivePlan) {
+  if (plannedError) {
     return (
       <div style={s.page}>
         <SoftGlowStyles />
         <TypingDotsStyles />
-        <section style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span style={s.pill}>{heroDateChip}</span>
-          </div>
-          <div style={s.heroTitle}>Твоё состояние перед тренировкой</div>
-          <div style={s.heroSubtitle}>Укажи самочувствие и время — тренировка подстроится под тебя.</div>
-          {(regenInlineError || regenNotice) && (
-            <div style={{ marginTop: 10 }}>
-              {regenInlineError ? <div style={s.inlineError}>{regenInlineError}</div> : null}
-              {regenNotice ? <div style={s.buttonNote}>{regenNotice}</div> : null}
-            </div>
-          )}
+        <section style={s.blockWhite}>
+          <h3 style={{ marginTop: 0 }}>{plannedError}</h3>
+          <p style={{ marginTop: 6, color: "#555" }}>Попробуй обновить список тренировок.</p>
+          <button style={s.rowBtn} onClick={() => loadPlanned()}>
+            Обновить
+          </button>
         </section>
-
-        <section style={s.checkInCard}>
-          {showLoader || regenPending ? (
-            <div style={{ ...s.loaderBox, marginTop: 4 }}>
-              <div style={s.loaderTitle}>Готовим план…</div>
-              <div style={s.loaderSteps}>
-                {steps.map((step, idx) => (
-                  <div key={step} style={s.loaderStep}>
-                    <div
-                      style={{
-                        ...s.loaderDot,
-                        background: idx <= loaderStepIndex ? "#4ade80" : "rgba(0,0,0,0.1)",
-                      }}
-                    />
-                    <span
-                      style={{
-                        color: idx <= loaderStepIndex ? "#0f172a" : "rgba(15,23,42,0.6)",
-                      }}
-                    >
-                      {step}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <CheckInForm
-              inline
-              loading={checkInLoading}
-              error={checkInError}
-              onSubmit={handleCheckInSubmit}
-              submitLabel={checkInLoading ? "Сохраняем..." : "Сгенерировать тренировку"}
-              title="Как ты сегодня? 💬"
-            />
-          )}
-        </section>
-        <div style={{ height: 16 }} />
       </div>
     );
   }
+
+  // New UI: show all generated workouts (remaining ones) as selectable cards
+  const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
+  const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
+  const startWorkoutDate = selectedPlanned?.scheduledFor ? new Date(selectedPlanned.scheduledFor).toISOString().slice(0, 10) : null;
+
+  const dayLabelRU = (label: string) => {
+    const v = String(label || "").toLowerCase();
+    if (v.includes("push")) return "Пуш";
+    if (v.includes("pull")) return "Пул";
+    if (v.includes("leg")) return "Ноги";
+    if (v.includes("upper")) return "Верх";
+    if (v.includes("lower")) return "Низ";
+    if (v.includes("full")) return "Фулл бади";
+    return label || "Тренировка";
+  };
+
+  const workoutChips = (p: any) => {
+    const totalExercises = Number(p?.totalExercises) || (Array.isArray(p?.exercises) ? p.exercises.length : 0);
+    const minutes = Number(p?.estimatedDuration) || null;
+    return { totalExercises, minutes };
+  };
+
+  const handleGenerateWeek = async () => {
+    if (sub.locked) {
+      setPaywall(true);
+      return;
+    }
+    setWeekGenerating(true);
+    kickProgress();
+    try {
+      await refresh({ force: true });
+      await loadPlanned();
+    } catch (err: any) {
+      setPlannedError(humanizePlanError(err));
+    } finally {
+      setWeekGenerating(false);
+    }
+  };
+
+  const handleStartSelected = () => {
+    if (!selectedPlanned || !startWorkoutDate) return;
+    nav("/check-in", {
+      state: {
+        workoutDate: startWorkoutDate,
+        plannedWorkoutId: selectedPlanned.id,
+        returnTo: "/plan/one",
+      },
+    });
+  };
+
+  return (
+    <div style={s.page}>
+      <SoftGlowStyles />
+      <TypingDotsStyles />
+      <style>{pickStyles}</style>
+
+      <section style={s.heroCard}>
+        <div style={s.heroHeader}>
+          <span style={s.pill}>{heroDateChip}</span>
+          <span style={s.credits}>Неделя</span>
+        </div>
+        <div style={s.heroTitle}>Твои тренировки</div>
+        <div style={s.heroSubtitle}>
+          Выбери, с какой тренировки начать. Выполненные исчезнут из списка.
+        </div>
+      </section>
+
+      {remainingPlanned.length ? (
+        <section style={s.blockWhite}>
+          <div style={pick.header}>
+            <div style={pick.headerTitle}>Список тренировок</div>
+            <div style={pick.headerHint}>Осталось: {remainingPlanned.length}</div>
+          </div>
+
+          <div style={{ display: "grid", gap: 12 }}>
+            {remainingPlanned.map((w, index) => {
+              const p: any = w.plan || {};
+              const isSelected = w.id === selectedPlannedId;
+              const isRecommended = w.id === recommendedPlannedId;
+              const { totalExercises, minutes } = workoutChips(p);
+              const label = dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
+              const focus = String(p.dayFocus || p.focus || p.description || "").trim();
+              const key = w.id;
+              const expanded = Boolean(expandedPlannedIds[key]);
+
+              return (
+                <div
+                  key={w.id}
+                  className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
+                  style={{
+                    ...pick.card,
+                    ...(isSelected ? pick.cardSelected : null),
+                    animationDelay: `${index * 90}ms`,
+                  }}
+                  onClick={() => setSelectedPlannedId(w.id)}
+                >
+                  {isRecommended ? (
+                    <div style={pick.badge}>
+                      <span style={{ fontSize: 12 }}>⭐</span>
+                      <span>Начни с этой</span>
+                    </div>
+                  ) : null}
+
+                  <div style={pick.radioCircle}>
+                    <div style={{ ...pick.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0 }} />
+                  </div>
+
+                  <div style={pick.title}>{label}</div>
+
+                  <div style={pick.infoRow}>
+                    <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
+                    {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                  </div>
+
+                  {focus ? <div style={pick.desc}>{focus}</div> : null}
+
+                  <button
+                    type="button"
+                    style={pick.toggleBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
+                    }}
+                  >
+                    {expanded ? "Скрыть упражнения" : "Показать упражнения"}
+                  </button>
+
+                  {expanded ? (
+                    <div style={pick.exerciseList}>
+                      {(Array.isArray(p.exercises) ? p.exercises : []).map((ex: any, i: number) => {
+                        const name = String(ex?.name || ex?.exerciseName || "Упражнение");
+                        const sets = Number(ex?.sets) || 1;
+                        const reps = String(ex?.reps || ex?.repsRange || "");
+                        const rest = ex?.restSec != null ? `${Math.round(Number(ex.restSec))}с` : null;
+                        const notes = String(ex?.notes || ex?.cues || "").trim();
+                        return (
+                          <div key={`${w.id}_${i}`} style={pick.exerciseRow}>
+                            <div style={pick.exerciseName}>{name}</div>
+                            <div style={pick.exerciseMeta}>
+                              <span style={pick.exerciseChip}>{sets}×{reps || "—"}</span>
+                              {rest ? <span style={pick.exerciseChip}>⏳ {rest}</span> : null}
+                            </div>
+                            {notes ? <div style={pick.exerciseNotes}>{notes}</div> : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            className="tap-primary"
+            style={{ ...s.primaryBtn, marginTop: 14, opacity: canStart ? 1 : 0.6 }}
+            onClick={handleStartSelected}
+            disabled={!canStart}
+          >
+            Начать тренировку
+          </button>
+        </section>
+      ) : (
+        <section style={s.blockWhite}>
+          <h3 style={{ marginTop: 0 }}>Тренировок на неделю пока нет</h3>
+          <p style={{ marginTop: 6, color: "#555" }}>
+            Сгенерируем набор тренировок под твою схему. После выполнения они будут исчезать из списка.
+          </p>
+          <button type="button" className="tap-primary" style={{ ...s.primaryBtn, marginTop: 10 }} onClick={handleGenerateWeek}>
+            Сгенерировать тренировки
+          </button>
+        </section>
+      )}
+
+      <div style={{ height: 16 }} />
+    </div>
+  );
 
   // вычисления для верхнего блока (кнопки и метрики)
   const workoutNumber = (() => {
@@ -1937,6 +2142,99 @@ const metricNumStyle: React.CSSProperties = {
   letterSpacing: 0.2,
   fontFamily:
     "'Inter Tight', 'Roboto Condensed', 'SF Compact', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif",
+};
+
+const pickStyles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(18px) scale(0.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .scheme-enter {
+    animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+`;
+
+const pick: Record<string, React.CSSProperties> = {
+  header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
+  headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
+  headerHint: { fontSize: 13, color: "rgba(0,0,0,0.6)" },
+  card: {
+    position: "relative",
+    padding: 16,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.75)",
+    border: "1px solid rgba(0,0,0,0.06)",
+    boxShadow: "0 10px 26px rgba(15,23,42,0.08)",
+    cursor: "pointer",
+  },
+  cardSelected: { border: "1px solid rgba(15,23,42,0.22)" },
+  badge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    background: "rgba(15,23,42,0.9)",
+    color: "#fff",
+    fontSize: 12.5,
+    padding: "6px 10px",
+    borderRadius: 999,
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontWeight: 800,
+  },
+  radioCircle: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    border: "2px solid rgba(0,0,0,0.12)",
+    display: "grid",
+    placeItems: "center",
+  },
+  radioDot: { width: 10, height: 10, borderRadius: 999, background: "#0f172a", transition: "all .15s ease" },
+  title: { fontSize: 18, fontWeight: 900, color: "#0f172a", marginTop: 8 },
+  infoRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  infoChip: {
+    fontSize: 12.5,
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.06)",
+    color: "rgba(15,23,42,0.85)",
+    fontWeight: 800,
+  },
+  desc: { marginTop: 10, fontSize: 13.5, lineHeight: 1.35, color: "rgba(15,23,42,0.72)" },
+  toggleBtn: {
+    marginTop: 12,
+    width: "100%",
+    border: "1px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.7)",
+    borderRadius: 14,
+    padding: "10px 12px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  exerciseList: {
+    marginTop: 12,
+    borderTop: "1px solid rgba(0,0,0,0.06)",
+    paddingTop: 12,
+    display: "grid",
+    gap: 10,
+  },
+  exerciseRow: { display: "grid", gap: 6, padding: 12, borderRadius: 16, background: "rgba(15,23,42,0.04)" },
+  exerciseName: { fontSize: 14, fontWeight: 900, color: "#0f172a" },
+  exerciseMeta: { display: "flex", flexWrap: "wrap", gap: 8 },
+  exerciseChip: {
+    fontSize: 12.5,
+    padding: "5px 10px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.75)",
+    border: "1px solid rgba(0,0,0,0.06)",
+    color: "rgba(15,23,42,0.85)",
+    fontWeight: 800,
+  },
+  exerciseNotes: { fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.35 },
 };
 
 /* ----------------- Комментарий тренера styles ----------------- */
