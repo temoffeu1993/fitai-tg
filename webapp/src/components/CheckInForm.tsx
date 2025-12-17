@@ -525,6 +525,12 @@ export function CheckInForm({
                           {active ? (
                             <div style={modal.painInline}>
                               <div style={modal.painInlineTitle}>Как сильно болит?</div>
+                              <div style={modal.painInlineValue}>
+                                <span style={modal.painInlineValueTitle}>
+                                  {level}/10 — {impact.title}
+                                </span>
+                                <span style={modal.painInlineValueDesc}>{impact.desc}</span>
+                              </div>
                               <input
                                 type="range"
                                 min={1}
@@ -538,12 +544,6 @@ export function CheckInForm({
                                 style={{ ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]) }}
                                 className="checkin-slider"
                               />
-                              <div style={modal.painInlineValue}>
-                                <span style={modal.painInlineValueTitle}>
-                                  {level}/10 — {impact.title}
-                                </span>
-                                <span style={modal.painInlineValueDesc}>{impact.desc}</span>
-                              </div>
                             </div>
                           ) : null}
                         </div>
