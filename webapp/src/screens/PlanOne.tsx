@@ -477,6 +477,12 @@ export default function PlanOne() {
     return label || "Тренировка";
   };
 
+  const decapitalizeRU = (text: string) => {
+    const s = String(text || "").trim();
+    if (!s) return s;
+    return s.charAt(0).toLowerCase() + s.slice(1);
+  };
+
   const dayDescriptionRU = (label: string) => {
     const v = String(label || "").toLowerCase();
     if (v.includes("push") || v.includes("пуш") || v.includes("жим")) {
@@ -508,6 +514,17 @@ export default function PlanOne() {
     const minutes = Number(p?.estimatedDuration) || null;
     return { totalExercises, minutes };
   };
+
+  const selectedDayLabel = (() => {
+    if (!selectedPlanned) return null;
+    const p: any = selectedPlanned.plan || {};
+    const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+    return dayLabelRU(rawLabel);
+  })();
+
+  const startCtaLabel = canStart && selectedDayLabel
+    ? `Начать ${decapitalizeRU(selectedDayLabel)}`
+    : "Начать тренировку";
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
@@ -549,12 +566,9 @@ export default function PlanOne() {
           <span style={s.credits}>{weekChip}</span>
         </div>
         <div style={s.heroKicker}>Неделя тренировок</div>
-        <div style={s.heroTitle}>Выбери тренировку</div>
+        <div style={s.heroTitle}>{schemeTitle}</div>
         <div style={s.heroSubtitle}>
-          Сгенерировал для тебя недельный план тренировок.
-        </div>
-        <div style={{ marginTop: 10, fontSize: 13, opacity: 0.9, color: "rgba(255,255,255,.9)" }}>
-          Схема: {schemeTitle}
+          План на неделю готов, выбери тренировку из списка ниже и приступай к выполнению
         </div>
 
         <div style={s.heroCtas}>
@@ -568,7 +582,7 @@ export default function PlanOne() {
             onClick={handleStartSelected}
             disabled={!canStart}
           >
-            Начать тренировку
+            {startCtaLabel}
           </button>
           <button type="button" style={s.secondaryBtn} onClick={() => nav("/schedule")}>
             Запланировать
