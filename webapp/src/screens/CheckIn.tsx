@@ -73,6 +73,17 @@ export default function CheckIn() {
 
   return (
     <div style={styles.page}>
+      {/* Верхний блок с заголовком */}
+      <section style={styles.heroCard}>
+        <div style={styles.heroTitle}>Чек-ин перед тренировкой</div>
+        <div style={styles.heroSubtitle}>
+          Расскажи как ты себя чувствуешь, и мы адаптируем тренировку под тебя
+        </div>
+      </section>
+
+      <div style={{ height: 16 }} />
+
+      {/* Форма чек-ина */}
       <CheckInForm
         onSubmit={handleSubmit}
         onSkip={handleSkip}
@@ -96,5 +107,27 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
     background: "transparent",
     minHeight: "100vh",
+  },
+  heroCard: {
+    position: "relative",
+    padding: 20,
+    borderRadius: 24,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#0f172a",
+    color: "#fff",
+    overflow: "hidden",
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: 800,
+    marginTop: 0,
+    color: "#fff",
+  },
+  heroSubtitle: {
+    opacity: 0.85,
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 1.5,
+    color: "rgba(255,255,255,.85)",
   },
 };
