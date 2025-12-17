@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadHistory } from "@/lib/history";
 import { createPlannedWorkout, getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
-import { submitCheckIn, type CheckInPayload } from "@/api/plan";
+import { getMesocycleCurrent, submitCheckIn, type CheckInPayload } from "@/api/plan";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
@@ -62,6 +62,7 @@ export default function PlanOne() {
   const [selectedPlannedId, setSelectedPlannedId] = useState<string | null>(null);
   const [expandedPlannedIds, setExpandedPlannedIds] = useState<Record<string, boolean>>({});
   const [weekGenerating, setWeekGenerating] = useState(false);
+  const [mesoWeek, setMesoWeek] = useState<number | null>(null);
 
   // collapsible state
   const [openWarmup, setOpenWarmup] = useState(false);
@@ -132,6 +133,15 @@ export default function PlanOne() {
       window.removeEventListener("plan_completed" as any, onScheduleUpdated);
     };
   }, [loadPlanned]);
+
+  useEffect(() => {
+    getMesocycleCurrent()
+      .then((r) => {
+        const w = Number((r as any)?.mesocycle?.currentWeek);
+        setMesoWeek(Number.isFinite(w) ? w : null);
+      })
+      .catch(() => {});
+  }, []);
 
   const remainingPlanned = useMemo(() => {
     return (plannedWorkouts || [])
@@ -453,6 +463,7 @@ export default function PlanOne() {
     }
     return "Тренировки";
   })();
+  const weekChip = mesoWeek ? `Неделя ${mesoWeek}` : "Неделя";
 
   const dayLabelRU = (label: string) => {
     const v = String(label || "").toLowerCase();
@@ -508,17 +519,53 @@ export default function PlanOne() {
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>{heroDateChip}</span>
-          <span style={s.credits}>{schemeTitle}</span>
+          <span style={s.credits}>{weekChip}</span>
         </div>
         <div style={s.heroKicker}>Неделя тренировок</div>
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>
           Сгенерировал для тебя недельный план тренировок.
         </div>
+        <div style={{ marginTop: 10, fontSize: 13, opacity: 0.9, color: "rgba(255,255,255,.9)" }}>
+          Схема: {schemeTitle}
+        </div>
+
+        <div style={s.heroCtas}>
+          <button
+            type="button"
+            style={{
+              ...s.primaryBtn,
+              opacity: canStart ? 1 : 0.6,
+              cursor: canStart ? "pointer" : "not-allowed",
+            }}
+            onClick={handleStartSelected}
+            disabled={!canStart}
+          >
+            Начать тренировку
+          </button>
+          <button type="button" style={s.secondaryBtn} onClick={() => nav("/schedule")}>
+            Запланировать
+          </button>
+        </div>
+
+        <button
+          type="button"
+          style={{
+            ...s.ghostBtn,
+            opacity: weekGenerating ? 0.6 : 1,
+            cursor: weekGenerating ? "not-allowed" : "pointer",
+          }}
+          disabled={weekGenerating}
+          onClick={handleGenerateWeek}
+        >
+          Сгенерировать заново
+        </button>
       </section>
 
       {remainingPlanned.length ? (
-        <section style={{ display: "grid", gap: 12, marginTop: 14 }}>
+        <>
+          <div style={{ height: 18 }} />
+          <section style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "grid", gap: 12 }}>
             {remainingPlanned.map((w, index) => {
               const p: any = w.plan || {};
@@ -596,17 +643,8 @@ export default function PlanOne() {
               );
             })}
           </div>
-
-          <button
-            type="button"
-            className="tap-primary"
-            style={{ ...s.primaryBtn, marginTop: 14, opacity: canStart ? 1 : 0.6 }}
-            onClick={handleStartSelected}
-            disabled={!canStart}
-          >
-            Начать тренировку
-          </button>
-        </section>
+          </section>
+        </>
       ) : (
         <section style={s.blockWhite}>
           <h3 style={{ marginTop: 0 }}>Тренировок на неделю пока нет</h3>

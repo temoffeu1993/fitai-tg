@@ -113,6 +113,11 @@ export async function startWorkout(payload: {
   }>(res, "start_workout");
 }
 
+export async function getMesocycleCurrent() {
+  const res = await apiFetch("/plan/mesocycle/current");
+  return parseJson<{ success: boolean; mesocycle: any }>(res, "mesocycle_current");
+}
+
 export async function saveSession(
   payload: any,
   opts: { plannedWorkoutId?: string; startedAt?: string; durationMin?: number } = {}
