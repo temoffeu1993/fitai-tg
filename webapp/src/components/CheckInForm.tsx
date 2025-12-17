@@ -90,13 +90,12 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 860ms cubic-bezier(.22,1,.36,1) both;
+  animation: checkinStepIn 720ms cubic-bezier(.2,.8,.2,1) both;
   will-change: transform, opacity;
   transform-origin: 50% 50%;
 }
 @keyframes checkinStepIn {
-  0% { opacity: 0; transform: translateY(40px) scale(0.95); }
-  60% { opacity: 1; }
+  0% { opacity: 0; transform: translateY(16px) scale(0.985); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -110,12 +109,13 @@ const sliderCss = `
   user-select: none;
 }
 .checkin-primary-btn {
-  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
 }
 .checkin-primary-btn:active:not(:disabled) {
-  transform: translateY(1px);
-  opacity: 0.9;
-  filter: brightness(0.99);
+  transform: translateY(1px) scale(0.99) !important;
+  background-color: #0b1220 !important;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+  filter: brightness(0.99) !important;
 }
 @media (hover: hover) {
   .checkin-primary-btn:hover:not(:disabled) {
@@ -127,11 +127,12 @@ const sliderCss = `
   outline-offset: 2px;
 }
 .checkin-text-btn {
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition: color 160ms ease, transform 160ms ease;
 }
 .checkin-text-btn:active:not(:disabled) {
-  opacity: 0.72;
-  transform: translateY(1px);
+  transform: translateY(1px) !important;
+  color: rgba(17,24,39,0.72) !important;
+  background-color: transparent !important;
 }
 .checkin-text-btn:focus-visible {
   outline: 3px solid rgba(15, 23, 42, 0.12);
@@ -681,6 +682,8 @@ const modal: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "1fr",
     gap: 10,
     borderTop: "1px solid rgba(0,0,0,0.06)",
+    position: "relative",
+    zIndex: 2,
   },
   footerInline: {
     padding: "0",
@@ -688,6 +691,8 @@ const modal: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 12,
+    position: "relative",
+    zIndex: 2,
   },
   ghostBtn: {
     borderRadius: 12,
