@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
 
 type Props = {
@@ -89,6 +89,17 @@ const sliderCss = `
   box-shadow: 0 3px 10px rgba(0,0,0,0.16);
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
+.checkin-step-animate {
+  animation: checkinStepIn 260ms cubic-bezier(.2,.9,.2,1) both;
+  will-change: transform, opacity;
+}
+@keyframes checkinStepIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkin-step-animate { animation: none !important; }
+}
 `;
 
 const PAIN_ZONES: Array<{ key: PainLocation; label: string }> = [
@@ -123,6 +134,9 @@ export function CheckInForm({
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
+  const stepCardRef = useRef<HTMLDivElement | null>(null);
+  const measureRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
 
   const sleepOptions = [
     { key: "poor" as const, label: "Плохо", desc: "Сон был прерывистым или коротким — восстановление слабое." },
@@ -156,6 +170,36 @@ export function CheckInForm({
   const totalSteps = 5;
   const lastStep = totalSteps - 1;
   const isLastStep = step >= lastStep;
+
+  const measureCount = step === 0 ? sleepOptions.length : step === 1 ? energyOptions.length : step === 2 ? stressOptions.length : 0;
+  measureRefs.current.length = measureCount;
+
+  useLayoutEffect(() => {
+    if (measureCount === 0) return;
+
+    const measure = () => {
+      const heights = measureRefs.current.slice(0, measureCount).map((el) => (el ? el.offsetHeight : 0));
+      const max = Math.max(0, ...heights);
+      if (max <= 0) return;
+      setDescMinHeightByStep((prev) => {
+        const prevVal = prev[step] || 0;
+        if (Math.abs(prevVal - max) < 1) return prev;
+        return { ...prev, [step]: max };
+      });
+    };
+
+    measure();
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && stepCardRef.current) {
+      ro = new ResizeObserver(() => window.requestAnimationFrame(measure));
+      ro.observe(stepCardRef.current);
+    }
+    return () => {
+      ro?.disconnect();
+    };
+  }, [measureCount, step]);
+
+  const descMinHeight = descMinHeightByStep[step] || 0;
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
@@ -234,11 +278,24 @@ export function CheckInForm({
 
         <div style={modal.bodyInline}>
           {step === 0 ? (
-            <div style={modal.cardMini}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{sleepOpt.label}</div>
-                <div style={modal.valueDesc}>{sleepOpt.desc}</div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
+              </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {sleepOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
               </div>
               <input
                 type="range"
@@ -257,11 +314,24 @@ export function CheckInForm({
           ) : null}
 
           {step === 1 ? (
-            <div style={modal.cardMini}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               <div style={modal.cardMiniTitle}>⚡ Энергия</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{energyOpt.label}</div>
-                <div style={modal.valueDesc}>{energyOpt.desc}</div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{energyOpt.desc}</div>
+              </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {energyOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
               </div>
               <input
                 type="range"
@@ -280,11 +350,24 @@ export function CheckInForm({
           ) : null}
 
           {step === 2 ? (
-            <div style={modal.cardMini}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               <div style={modal.cardMiniTitle}>😰 Стресс</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{stressOpt.label}</div>
-                <div style={modal.valueDesc}>{stressOpt.desc}</div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{stressOpt.desc}</div>
+              </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {stressOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
               </div>
               <input
                 type="range"
@@ -303,7 +386,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 3 ? (
-            <div style={modal.cardMini}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{availableMinutes} мин</div>
@@ -322,7 +405,7 @@ export function CheckInForm({
           ) : null}
 
           {step >= 4 ? (
-            <div style={modal.cardWide}>
+            <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
               <div style={modal.groupTitle}>🩹 Есть боль/дискомфорт сегодня?</div>
 
               <div style={modal.binaryRow}>
@@ -495,6 +578,14 @@ const modal: Record<string, React.CSSProperties> = {
   },
   valueTitle: { fontSize: 17, fontWeight: 900, color: "#111827" },
   valueDesc: { fontSize: 14, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
+  measureWrap: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: "100%",
+    visibility: "hidden",
+    pointerEvents: "none",
+  },
   cardMini: {
     padding: 16,
     borderRadius: 18,
@@ -503,6 +594,7 @@ const modal: Record<string, React.CSSProperties> = {
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
     gap: 10,
+    position: "relative",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
@@ -520,6 +612,7 @@ const modal: Record<string, React.CSSProperties> = {
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
     gap: 12,
+    position: "relative",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
