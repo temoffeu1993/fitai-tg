@@ -455,11 +455,58 @@ export default function PlanOne() {
   const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
   const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
   const startWorkoutDate = selectedPlanned?.scheduledFor ? new Date(selectedPlanned.scheduledFor).toISOString().slice(0, 10) : null;
+  const normalizeSchemeTitleRU = (raw: string) => {
+    let s = String(raw || "").trim();
+    if (!s) return "Схема тренировок";
+
+    // remove emojis
+    s = s.replace(/[\u{1F300}-\u{1FAFF}]/gu, "").trim();
+    // remove bracketed qualifiers
+    s = s.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s*\[[^\]]*]\s*/g, " ").trim();
+    // remove trailing qualifiers after dash
+    s = s.replace(/\s*[-—–].*$/g, "").trim();
+    s = s.replace(/\s{2,}/g, " ").trim();
+
+    const v = s.toLowerCase();
+
+    const hasUpper = /(upper|верх)/.test(v);
+    const hasLower = /(lower|низ)/.test(v);
+    const hasFull = /(full\s*body|fullbody|full|всё\s*тело|все\s*тело)/.test(v);
+    const hasPPL = /(ppl|push|pull|legs?|пуш|пул|ног)/.test(v);
+
+    if (hasUpper && hasLower && hasFull) return "Верх/Низ/Всё тело";
+    if (hasUpper && hasLower) return "Верх/Низ";
+    if (hasFull) return "Всё тело";
+    if (hasPPL) return "Пуш/Пул/Ноги";
+    if (hasUpper) return "Верх";
+    if (hasLower) return "Низ";
+
+    // light translation for common english words + cleanup
+    s = s
+      .replace(/full\s*body|fullbody/gi, "Всё тело")
+      .replace(/upper/gi, "Верх")
+      .replace(/lower/gi, "Низ")
+      .replace(/push/gi, "Пуш")
+      .replace(/pull/gi, "Пул")
+      .replace(/legs?/gi, "Ноги");
+
+    s = s
+      .replace(/\s*[|]\s*/g, "/")
+      .replace(/\s*\/\s*/g, "/")
+      .replace(/\s*-\s*/g, "/")
+      .replace(/\s{2,}/g, " ")
+      .replace(/[,:;.!]+$/g, "")
+      .trim();
+
+    if (!s) return "Схема тренировок";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
   const schemeTitle = (() => {
     const pool = [selectedPlanned, ...remainingPlanned].filter(Boolean) as PlannedWorkout[];
     for (const w of pool) {
       const name = String((w.plan as any)?.schemeName || "").trim();
-      if (name) return name;
+      if (name) return normalizeSchemeTitleRU(name);
     }
     return "Тренировки";
   })();
@@ -565,7 +612,7 @@ export default function PlanOne() {
           <span style={s.pill}>{heroDateChip}</span>
           <span style={s.credits}>{weekChip}</span>
         </div>
-        <div style={s.heroKicker}>Неделя тренировок</div>
+        <div style={s.heroKicker}>Название схемы тренировок</div>
         <div style={s.heroTitle}>{schemeTitle}</div>
         <div style={s.heroSubtitle}>
           План на неделю готов, выбери тренировку из списка ниже и приступай к выполнению
