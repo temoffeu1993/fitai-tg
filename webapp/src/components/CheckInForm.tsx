@@ -90,13 +90,14 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 920ms cubic-bezier(.18,1,.32,1) both;
+  animation: checkinStepIn 840ms cubic-bezier(.4,0,.2,1) both;
   will-change: transform, opacity;
   transform-origin: 50% 50%;
 }
 @keyframes checkinStepIn {
-  0% { opacity: 0; transform: translateY(12px) scale(0.992); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(10px); }
+  55% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-step-animate { animation: none !important; }
