@@ -445,14 +445,14 @@ export default function PlanOne() {
   const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
   const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
   const startWorkoutDate = selectedPlanned?.scheduledFor ? new Date(selectedPlanned.scheduledFor).toISOString().slice(0, 10) : null;
-  const schemeTitle = useMemo(() => {
+  const schemeTitle = (() => {
     const pool = [selectedPlanned, ...remainingPlanned].filter(Boolean) as PlannedWorkout[];
     for (const w of pool) {
       const name = String((w.plan as any)?.schemeName || "").trim();
       if (name) return name;
     }
     return "Тренировки";
-  }, [selectedPlanned, remainingPlanned]);
+  })();
 
   const dayLabelRU = (label: string) => {
     const v = String(label || "").toLowerCase();
