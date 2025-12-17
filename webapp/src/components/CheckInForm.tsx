@@ -16,7 +16,7 @@ type Props = {
 };
 
 const chipStyle: React.CSSProperties = {
-  padding: "12px 14px",
+  padding: "14px 14px",
   borderRadius: 12,
   border: "1px solid rgba(0,0,0,0.06)",
   background: "rgba(255,255,255,0.6)",
@@ -24,15 +24,15 @@ const chipStyle: React.CSSProperties = {
   backdropFilter: "blur(8px)",
   WebkitBackdropFilter: "blur(8px)",
   cursor: "pointer",
-  fontSize: 14,
+  fontSize: 15,
   fontWeight: 700,
   color: "#111827",
   transition: "all .15s ease",
   whiteSpace: "normal",
   wordBreak: "break-word",
-  lineHeight: 1.15,
+  lineHeight: 1.2,
   textAlign: "center",
-  minHeight: 56,
+  minHeight: 62,
   width: "100%",
   display: "flex",
   alignItems: "center",
@@ -122,6 +122,7 @@ export function CheckInForm({
   const [hasPain, setHasPain] = useState(false);
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   const sleepOptions = [
     { key: "poor" as const, label: "Плохо", desc: "Сон был прерывистым или коротким — восстановление слабое." },
@@ -152,12 +153,36 @@ export function CheckInForm({
   const stressIndex = Math.max(0, stressOptions.findIndex((o) => o.key === stressKey));
   const stressOpt = stressOptions[stressIndex] || stressOptions[1];
 
+  const totalSteps = 5;
+  const lastStep = totalSteps - 1;
+  const isLastStep = step >= lastStep;
+
   const shouldRender = inline || open;
   if (!shouldRender) return null;
 
+  const handlePrimary = () => {
+    if (loading) return;
+    if (isLastStep) {
+      void handleSubmit();
+      return;
+    }
+    setStep((s) => Math.max(0, Math.min(lastStep, s + 1)));
+  };
+
+  const handleBackClick = () => {
+    if (loading) return;
+    if (step > 0) {
+      setStep((s) => Math.max(0, s - 1));
+      return;
+    }
+    const cb = onBack || onClose || onSkip;
+    if (cb) cb();
+    else window.history.back();
+  };
+
   const handleSubmit = async () => {
     setFormError(null);
-    
+
     const pain = hasPain
       ? Object.entries(painMap)
           .map(([location, level]) => ({
@@ -190,6 +215,8 @@ export function CheckInForm({
   const cardStyle = inline ? modal.inlineCard : modal.card;
   const footerStyle = inline ? modal.footerInline : modal.footer;
 
+  const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее →";
+
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
       <style>{sliderCss}</style>
@@ -206,186 +233,182 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
-          {/* 1. СОН (ползунок, 5 значений) */}
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
-            <div style={modal.value}>
-              <div style={modal.valueTitle}>{sleepOpt.label}</div>
-              <div style={modal.valueDesc}>{sleepOpt.desc}</div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={4}
-              step={1}
-              value={sleepIndex}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setSleepQuality(sleepOptions[idx]?.key || "ok");
-              }}
-              style={{
-                ...sliderStyle(0, 4, sleepIndex, [0, 25, 50, 75, 100]),
-              }}
-              className="checkin-slider"
-            />
-          </div>
-
-          {/* 2. ЭНЕРГИЯ */}
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>⚡ Энергия</div>
-            <div style={modal.value}>
-              <div style={modal.valueTitle}>{energyOpt.label}</div>
-              <div style={modal.valueDesc}>{energyOpt.desc}</div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={2}
-              step={1}
-              value={energyIndex}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setEnergyLevel(energyOptions[idx]?.key || "medium");
-              }}
-              style={{
-                ...sliderStyle(0, 2, energyIndex, [0, 50, 100]),
-              }}
-              className="checkin-slider"
-            />
-          </div>
-
-          {/* 3. СТРЕСС */}
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>😰 Стресс</div>
-            <div style={modal.value}>
-              <div style={modal.valueTitle}>{stressOpt.label}</div>
-              <div style={modal.valueDesc}>{stressOpt.desc}</div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={3}
-              step={1}
-              value={stressIndex}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setStressLevel(stressOptions[idx]?.key || "medium");
-              }}
-              style={{
-                ...sliderStyle(0, 3, stressIndex, [0, 33.333, 66.666, 100]),
-              }}
-              className="checkin-slider"
-            />
-          </div>
-
-          {/* 4. ВРЕМЯ НА ТРЕНИРОВКУ */}
-          <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
-            <input
-              type="range"
-              min={40}
-              max={90}
-              step={10}
-              value={availableMinutes}
-              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-              style={{ ...sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]), marginTop: 4 }}
-              className="checkin-slider"
-            />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>{availableMinutes} мин</div>
-          </div>
-
-          {/* 5. БОЛЬ/ДИСКОМФОРТ (структурированная) */}
-          <div style={modal.cardWide}>
-            <div style={modal.groupTitle}>🩹 Есть боль/дискомфорт сегодня?</div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                type="button"
-                style={!hasPain ? chipActive : chipStyle}
-                onClick={() => {
-                  setHasPain(false);
-                  setPainMap({});
+          {step === 0 ? (
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
+              <div style={modal.value}>
+                <div style={modal.valueTitle}>{sleepOpt.label}</div>
+                <div style={modal.valueDesc}>{sleepOpt.desc}</div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={sleepIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSleepQuality(sleepOptions[idx]?.key || "ok");
                 }}
-              >
-                Нет
-              </button>
-              <button type="button" style={hasPain ? chipActive : chipStyle} onClick={() => setHasPain(true)}>
-                Да
-              </button>
+                style={{ ...sliderStyle(0, 4, sleepIndex, [0, 25, 50, 75, 100]) }}
+                className="checkin-slider"
+              />
             </div>
+          ) : null}
 
-            {hasPain && (
-              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                <div style={modal.chips}>
-                  {PAIN_ZONES.map((z) => {
-                    const active = painMap[z.key] != null;
+          {step === 1 ? (
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>⚡ Энергия</div>
+              <div style={modal.value}>
+                <div style={modal.valueTitle}>{energyOpt.label}</div>
+                <div style={modal.valueDesc}>{energyOpt.desc}</div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={1}
+                value={energyIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setEnergyLevel(energyOptions[idx]?.key || "medium");
+                }}
+                style={{ ...sliderStyle(0, 2, energyIndex, [0, 50, 100]) }}
+                className="checkin-slider"
+              />
+            </div>
+          ) : null}
+
+          {step === 2 ? (
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>😰 Стресс</div>
+              <div style={modal.value}>
+                <div style={modal.valueTitle}>{stressOpt.label}</div>
+                <div style={modal.valueDesc}>{stressOpt.desc}</div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={stressIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setStressLevel(stressOptions[idx]?.key || "medium");
+                }}
+                style={{ ...sliderStyle(0, 3, stressIndex, [0, 33.333, 66.666, 100]) }}
+                className="checkin-slider"
+              />
+            </div>
+          ) : null}
+
+          {step === 3 ? (
+            <div style={modal.cardMini}>
+              <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
+              <div style={modal.value}>
+                <div style={modal.valueTitle}>{availableMinutes} мин</div>
+              </div>
+              <input
+                type="range"
+                min={40}
+                max={90}
+                step={10}
+                value={availableMinutes}
+                onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+                style={{ ...sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]) }}
+                className="checkin-slider"
+              />
+            </div>
+          ) : null}
+
+          {step >= 4 ? (
+            <div style={modal.cardWide}>
+              <div style={modal.groupTitle}>🩹 Есть боль/дискомфорт сегодня?</div>
+
+              <div style={modal.binaryRow}>
+                <button
+                  type="button"
+                  style={!hasPain ? chipActive : chipStyle}
+                  onClick={() => {
+                    setHasPain(false);
+                    setPainMap({});
+                  }}
+                >
+                  Нет
+                </button>
+                <button type="button" style={hasPain ? chipActive : chipStyle} onClick={() => setHasPain(true)}>
+                  Да
+                </button>
+              </div>
+
+              {hasPain && (
+                <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+                  <div style={modal.chips}>
+                    {PAIN_ZONES.map((z) => {
+                      const active = painMap[z.key] != null;
+                      return (
+                        <button
+                          key={z.key}
+                          type="button"
+                          style={active ? chipActive : chipStyle}
+                          onClick={() => {
+                            setPainMap((prev) => {
+                              const next = { ...prev };
+                              if (next[z.key] == null) next[z.key] = 5;
+                              else delete next[z.key];
+                              return next;
+                            });
+                          }}
+                        >
+                          {z.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {Object.entries(painMap).map(([loc, level]) => {
+                    const zone = PAIN_ZONES.find((z) => z.key === loc);
                     return (
-                      <button
-                        key={z.key}
-                        type="button"
-                        style={active ? chipActive : chipStyle}
-                        onClick={() => {
-                          setPainMap((prev) => {
-                            const next = { ...prev };
-                            if (next[z.key] == null) next[z.key] = 5;
-                            else delete next[z.key];
-                            return next;
-                          });
-                        }}
-                      >
-                        {z.label}
-                      </button>
+                      <div key={loc} style={modal.cardMini}>
+                        <div style={modal.cardMiniTitle}>{zone?.label || loc}</div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          step={1}
+                          value={level}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setPainMap((prev) => ({ ...prev, [loc]: v }));
+                          }}
+                          style={{ ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]) }}
+                          className="checkin-slider"
+                        />
+                        <div style={modal.subLabel}>
+                          {level}/10 {level >= 4 ? "— адаптируем упражнения" : ""}
+                        </div>
+                      </div>
                     );
                   })}
-                </div>
 
-                {Object.entries(painMap).map(([loc, level]) => {
-                  const zone = PAIN_ZONES.find((z) => z.key === loc);
-                  return (
-                    <div key={loc} style={modal.cardMini}>
-                      <div style={modal.cardMiniTitle}>{zone?.label || loc}</div>
-                      <input
-                        type="range"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={level}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setPainMap((prev) => ({ ...prev, [loc]: v }));
-                        }}
-                        style={{
-                          ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]),
-                          marginTop: 4,
-                        }}
-                        className="checkin-slider"
-                      />
-                      <div style={{ ...modal.subLabel, marginTop: 2 }}>
-                        {level}/10 {level >= 4 ? "— адаптируем упражнения" : ""}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div style={{ ...modal.subLabel, opacity: 0.7, fontSize: 12 }}>
-                  💡 Если уровень ≥ 4 — уберём упражнения, которые могут раздражать эти зоны
+                  <div style={{ ...modal.subLabel, opacity: 0.7 }}>
+                    💡 Если уровень ≥ 4 — уберём упражнения, которые могут раздражать эти зоны
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
 
           {(error || formError) && <div style={modal.error}>{error || formError}</div>}
         </div>
 
         <div style={footerStyle}>
-          <button style={modal.save} onClick={handleSubmit} type="button" disabled={loading}>
-            {loading ? "Сохраняем..." : submitLabel || "Сгенерировать тренировку"}
+          <button style={modal.save} onClick={handlePrimary} type="button" disabled={loading}>
+            {loading && isLastStep ? "Сохраняем..." : primaryLabel}
           </button>
-          {onBack ? (
-            <button style={modal.backTextBtn} onClick={onBack} type="button" disabled={loading}>
-              {backLabel || "Назад"}
-            </button>
-          ) : null}
+          <button style={modal.backTextBtn} onClick={handleBackClick} type="button" disabled={loading}>
+            {backLabel || "Назад"}
+          </button>
         </div>
       </div>
     </div>
@@ -462,46 +485,47 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     lineHeight: 1,
   },
-  bodyInline: { padding: "0", display: "grid", gap: 12 },
-  subLabel: { fontSize: 13, opacity: 0.8, marginTop: 1 },
+  bodyInline: { padding: "0", display: "grid", gap: 16 },
+  subLabel: { fontSize: 14, opacity: 0.82, marginTop: 2, lineHeight: 1.35 },
   value: {
     display: "grid",
-    gap: 2,
-    marginTop: 2,
-    marginBottom: 2,
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 8,
   },
-  valueTitle: { fontSize: 13, fontWeight: 800, color: "#111827" },
-  valueDesc: { fontSize: 12, color: "rgba(17,24,39,0.72)", lineHeight: 1.35 },
+  valueTitle: { fontSize: 17, fontWeight: 900, color: "#111827" },
+  valueDesc: { fontSize: 14, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
   cardMini: {
-    padding: 10,
-    borderRadius: 14,
+    padding: 16,
+    borderRadius: 18,
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(0,0,0,0.05)",
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
-    gap: 4,
+    gap: 10,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
   cardMiniTitle: {
-    fontSize: 13,
-    opacity: 0.8,
+    fontSize: 18,
+    opacity: 0.92,
     marginBottom: 0,
-    fontWeight: 700,
+    fontWeight: 900,
   },
   cardWide: {
-    padding: 10,
-    borderRadius: 14,
+    padding: 16,
+    borderRadius: 18,
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(0,0,0,0.05)",
     boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
     display: "grid",
-    gap: 6,
+    gap: 12,
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
-  groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
-  chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" },
+  groupTitle: { fontSize: 18, fontWeight: 900, marginBottom: 4, opacity: 0.92 },
+  binaryRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" },
+  chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" },
   footer: {
     padding: "12px 18px 16px",
     display: "grid",
@@ -511,10 +535,10 @@ const modal: Record<string, React.CSSProperties> = {
   },
   footerInline: {
     padding: "0",
-    marginTop: 12,
+    marginTop: 16,
     display: "grid",
     gridTemplateColumns: "1fr",
-    gap: 10,
+    gap: 12,
   },
   ghostBtn: {
     borderRadius: 12,
@@ -526,13 +550,13 @@ const modal: Record<string, React.CSSProperties> = {
   },
   save: {
     borderRadius: 16,
-    padding: "14px 18px",
+    padding: "16px 18px",
     width: "100%",
     border: "1px solid #0f172a",
     background: "#0f172a",
     color: "#fff",
     fontWeight: 800,
-    fontSize: 16,
+    fontSize: 17,
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
   },
@@ -541,9 +565,9 @@ const modal: Record<string, React.CSSProperties> = {
     border: "none",
     background: "transparent",
     color: "#111827",
-    fontSize: 15,
-    fontWeight: 600,
-    padding: "12px 16px",
+    fontSize: 16,
+    fontWeight: 700,
+    padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
   },

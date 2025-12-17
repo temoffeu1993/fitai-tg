@@ -365,7 +365,7 @@ export default function PlanOne() {
           <div style={s.heroHeader}>
             <span style={s.pill}>{heroDateChip}</span>
           </div>
-          <div style={s.heroTitle}>Чек-ин перед тренировкой</div>
+          <div style={s.heroTitle}>Твоё состояние перед тренировкой</div>
           <div style={s.heroSubtitle}>Укажи самочувствие и время — тренировка подстроится под тебя.</div>
           {(regenInlineError || regenNotice) && (
             <div style={{ marginTop: 10 }}>

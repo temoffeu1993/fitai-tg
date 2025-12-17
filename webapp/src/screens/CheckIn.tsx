@@ -75,7 +75,7 @@ export default function CheckIn() {
     <div style={styles.page}>
       {/* Верхний блок с заголовком */}
       <section style={styles.heroCard}>
-        <div style={styles.heroTitle}>Чек-ин перед тренировкой</div>
+        <div style={styles.heroTitle}>Твоё состояние перед тренировкой</div>
         <div style={styles.heroSubtitle}>
           Расскажи как ты себя чувствуешь, и мы адаптируем тренировку под тебя
         </div>
