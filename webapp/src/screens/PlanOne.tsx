@@ -612,10 +612,9 @@ export default function PlanOne() {
           <span style={s.pill}>{heroDateChip}</span>
           <span style={s.credits}>{weekChip}</span>
         </div>
-        <div style={s.heroKicker}>Название схемы тренировок</div>
-        <div style={s.heroTitle}>{schemeTitle}</div>
+        <div style={s.heroTitle}>План на неделю готов</div>
         <div style={s.heroSubtitle}>
-          План на неделю готов, выбери тренировку из списка ниже и приступай к выполнению
+          Выбери тренировку из списка ниже и приступай к выполнению
         </div>
 
         <div style={s.heroCtas}>
