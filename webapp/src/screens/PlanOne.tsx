@@ -525,68 +525,67 @@ export default function PlanOne() {
               const focus = String(p.dayFocus || p.focus || p.description || "").trim();
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
+              const mappedExercises: Exercise[] = (Array.isArray(p.exercises) ? p.exercises : []).map((ex: any) => ({
+                name: String(ex?.name || ex?.exerciseName || "Упражнение"),
+                sets: Number(ex?.sets) || 1,
+                reps: ex?.reps || ex?.repsRange || "",
+                restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
+                cues: String(ex?.notes || ex?.cues || "").trim() || undefined,
+              }));
 
               return (
                 <div
                   key={w.id}
                   className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
                   style={{
-                    ...pick.card,
-                    ...(isSelected ? pick.cardSelected : null),
-                    animationDelay: `${index * 90}ms`,
+                    ...pick.schemeCard,
+                    ...(isSelected ? pick.schemeCardSelected : null),
+                    animationDelay: `${index * 120}ms`,
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
                   {isRecommended ? (
-                    <div style={pick.badge}>
+                    <div style={pick.recommendedBadge}>
                       <span style={{ fontSize: 12 }}>⭐</span>
                       <span>Начни с этой</span>
                     </div>
                   ) : null}
 
-                  <div style={pick.radioCircle}>
-                    <div style={{ ...pick.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0 }} />
+                  <div style={{ ...pick.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)" }}>
+                    <div
+                      style={{
+                        ...pick.radioDot,
+                        transform: isSelected ? "scale(1)" : "scale(0)",
+                        opacity: isSelected ? 1 : 0,
+                      }}
+                    />
                   </div>
 
-                  <div style={pick.title}>{label}</div>
+                  <div style={pick.schemeName}>{label}</div>
 
-                  <div style={pick.infoRow}>
+                  <div style={pick.schemeInfo}>
                     <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
                     {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
                   </div>
 
-                  {focus ? <div style={pick.desc}>{focus}</div> : null}
+                  {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
 
                   <button
                     type="button"
-                    style={pick.toggleBtn}
+                    style={pick.expandBtn}
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                     }}
                   >
-                    {expanded ? "Скрыть упражнения" : "Показать упражнения"}
+                    {expanded ? "Скрыть упражнения" : "Показать упражнения"}{" "}
+                    <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
                   </button>
 
                   {expanded ? (
-                    <div style={pick.exerciseList}>
-                      {(Array.isArray(p.exercises) ? p.exercises : []).map((ex: any, i: number) => {
-                        const name = String(ex?.name || ex?.exerciseName || "Упражнение");
-                        const sets = Number(ex?.sets) || 1;
-                        const reps = String(ex?.reps || ex?.repsRange || "");
-                        const rest = ex?.restSec != null ? `${Math.round(Number(ex.restSec))}с` : null;
-                        const notes = String(ex?.notes || ex?.cues || "").trim();
-                        return (
-                          <div key={`${w.id}_${i}`} style={pick.exerciseRow}>
-                            <div style={pick.exerciseName}>{name}</div>
-                            <div style={pick.exerciseMeta}>
-                              <span style={pick.exerciseChip}>{sets}×{reps || "—"}</span>
-                              {rest ? <span style={pick.exerciseChip}>⏳ {rest}</span> : null}
-                            </div>
-                            {notes ? <div style={pick.exerciseNotes}>{notes}</div> : null}
-                          </div>
-                        );
-                      })}
+                    <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
+                      <div style={pick.detailTitle}>Упражнения</div>
+                      <ExercisesList items={mappedExercises} variant="main" isOpen={true} />
                     </div>
                   ) : null}
                 </div>
@@ -2146,11 +2145,15 @@ const metricNumStyle: React.CSSProperties = {
 
 const pickStyles = `
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(18px) scale(0.99); }
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   .scheme-enter {
-    animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .scheme-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15,23,42,0.14);
   }
 `;
 
@@ -2158,83 +2161,137 @@ const pick: Record<string, React.CSSProperties> = {
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
   headerHint: { fontSize: 13, color: "rgba(0,0,0,0.6)" },
-  card: {
+
+  schemeCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 20,
-    background: "rgba(255,255,255,0.75)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    boxShadow: "0 10px 26px rgba(15,23,42,0.08)",
+    padding: 18,
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
+    transition: "all 0.3s ease",
   },
-  cardSelected: { border: "1px solid rgba(15,23,42,0.22)" },
-  badge: {
+  schemeCardSelected: {
+    background: "rgba(255,255,255,0.85)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
+    transform: "translateY(-2px)",
+  },
+  recommendedBadge: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    background: "rgba(15,23,42,0.9)",
+    top: -10,
+    right: 16,
+    background: "#0f172a",
     color: "#fff",
-    fontSize: 12.5,
-    padding: "6px 10px",
-    borderRadius: 999,
+    padding: "5px 12px",
+    borderRadius: "100px",
+    fontSize: 11,
+    fontWeight: 700,
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    fontWeight: 800,
+    gap: 5,
+    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
+    zIndex: 10,
   },
   radioCircle: {
     position: "absolute",
-    top: 14,
-    right: 14,
-    width: 18,
-    height: 18,
-    borderRadius: 999,
-    border: "2px solid rgba(0,0,0,0.12)",
+    top: 20,
+    left: 20,
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
+    transition: "all 0.3s ease",
   },
-  radioDot: { width: 10, height: 10, borderRadius: 999, background: "#0f172a", transition: "all .15s ease" },
-  title: { fontSize: 18, fontWeight: 900, color: "#0f172a", marginTop: 8 },
-  infoRow: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background: "#0f172a",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+  },
+  schemeName: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginLeft: 36,
+    marginRight: 0,
+    marginBottom: 8,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+  },
+  schemeInfo: {
+    display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    marginLeft: 36,
+    flexWrap: "wrap",
+  },
   infoChip: {
-    fontSize: 12.5,
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.06)",
-    color: "rgba(15,23,42,0.85)",
-    fontWeight: 800,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    padding: "5px 10px",
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#334155",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
   },
-  desc: { marginTop: 10, fontSize: 13.5, lineHeight: 1.35, color: "rgba(15,23,42,0.72)" },
-  toggleBtn: {
-    marginTop: 12,
+  schemeDescription: {
+    fontSize: 14,
+    color: "#475569",
+    lineHeight: 1.6,
+    marginBottom: 16,
+    fontWeight: 500,
+    marginLeft: 4,
+  },
+  expandBtn: {
     width: "100%",
-    border: "1px solid rgba(0,0,0,0.1)",
-    background: "rgba(255,255,255,0.7)",
-    borderRadius: 14,
-    padding: "10px 12px",
-    fontWeight: 800,
+    padding: "10px",
+    border: "1px solid rgba(0,0,0,0.08)",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 600,
     cursor: "pointer",
+    marginTop: 8,
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
-  exerciseList: {
+  detailsSection: {
     marginTop: 12,
-    borderTop: "1px solid rgba(0,0,0,0.06)",
-    paddingTop: 12,
+    padding: 14,
+    background: "rgba(255,255,255,0.5)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.06)",
     display: "grid",
     gap: 10,
   },
-  exerciseRow: { display: "grid", gap: 6, padding: 12, borderRadius: 16, background: "rgba(15,23,42,0.04)" },
-  exerciseName: { fontSize: 14, fontWeight: 900, color: "#0f172a" },
-  exerciseMeta: { display: "flex", flexWrap: "wrap", gap: 8 },
-  exerciseChip: {
-    fontSize: 12.5,
-    padding: "5px 10px",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.75)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    color: "rgba(15,23,42,0.85)",
+  detailTitle: {
+    fontSize: 13,
     fontWeight: 800,
+    color: "#0B1220",
   },
-  exerciseNotes: { fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.35 },
 };
 
 /* ----------------- Комментарий тренера styles ----------------- */
