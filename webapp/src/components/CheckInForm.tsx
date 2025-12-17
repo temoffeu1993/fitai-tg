@@ -153,6 +153,40 @@ const PAIN_ZONES: Array<{ key: PainLocation; label: string }> = [
   { key: "ankle", label: "Голеностоп / стопа" },
 ];
 
+function painImpact(level: number): { title: string; desc: string } {
+  const v = Math.max(1, Math.min(10, Math.round(level)));
+  // Эти пороги совпадают с текущей логикой в генерации:
+  // 4+ → адаптация упражнений, 5-6 → облегчение, 7 → recovery, 8+ → skip.
+  if (v >= 8) {
+    return {
+      title: "Очень сильная боль",
+      desc: "Тренировка может быть небезопасна — скорее всего предложим отдых вместо занятия. Если боль острая/резкая — лучше не тренироваться.",
+    };
+  }
+  if (v >= 7) {
+    return {
+      title: "Сильная боль",
+      desc: "Переведём тренировку в восстановительный режим: меньше объёма и нагрузки, больше отдыха, только безопасные движения.",
+    };
+  }
+  if (v >= 5) {
+    return {
+      title: "Боль заметная",
+      desc: "Сделаем тренировку легче: меньше объёма и интенсивности, больше контроля и аккуратности в движениях.",
+    };
+  }
+  if (v >= 4) {
+    return {
+      title: "Умеренная боль",
+      desc: "Адаптируем упражнения: уберём движения, которые могут раздражать эту зону, и подберём более комфортные варианты.",
+    };
+  }
+  return {
+    title: "Лёгкий дискомфорт",
+    desc: "Обычно оставляем тренировку как есть, но работаем в комфортной амплитуде и без нарастания боли.",
+  };
+}
+
 export function CheckInForm({
   onSubmit,
   onSkip,
@@ -469,53 +503,52 @@ export function CheckInForm({
                   <div style={modal.chips}>
                     {PAIN_ZONES.map((z) => {
                       const active = painMap[z.key] != null;
+                      const level = Number(painMap[z.key] ?? 5);
+                      const impact = painImpact(level);
                       return (
-                        <button
-                          key={z.key}
-                          type="button"
-                          style={active ? chipActive : chipStyle}
-                          onClick={() => {
-                            setPainMap((prev) => {
-                              const next = { ...prev };
-                              if (next[z.key] == null) next[z.key] = 5;
-                              else delete next[z.key];
-                              return next;
-                            });
-                          }}
-                        >
-                          {z.label}
-                        </button>
+                        <div key={z.key} style={modal.painZoneCell}>
+                          <button
+                            type="button"
+                            style={active ? chipActive : chipStyle}
+                            onClick={() => {
+                              setPainMap((prev) => {
+                                const next = { ...prev };
+                                if (next[z.key] == null) next[z.key] = 5;
+                                else delete next[z.key];
+                                return next;
+                              });
+                            }}
+                          >
+                            {z.label}
+                          </button>
+
+                          {active ? (
+                            <div style={modal.painInline}>
+                              <div style={modal.painInlineTitle}>Как сильно болит?</div>
+                              <input
+                                type="range"
+                                min={1}
+                                max={10}
+                                step={1}
+                                value={level}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setPainMap((prev) => ({ ...prev, [z.key]: v }));
+                                }}
+                                style={{ ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]) }}
+                                className="checkin-slider"
+                              />
+                              <div style={modal.painInlineValue}>
+                                <span style={modal.painInlineValueTitle}>
+                                  {level}/10 — {impact.title}
+                                </span>
+                                <span style={modal.painInlineValueDesc}>{impact.desc}</span>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       );
                     })}
-                  </div>
-
-                  {Object.entries(painMap).map(([loc, level]) => {
-                    const zone = PAIN_ZONES.find((z) => z.key === loc);
-                    return (
-                      <div key={loc} style={modal.cardMini}>
-                        <div style={modal.cardMiniTitle}>{zone?.label || loc}</div>
-                        <input
-                          type="range"
-                          min={1}
-                          max={10}
-                          step={1}
-                          value={level}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setPainMap((prev) => ({ ...prev, [loc]: v }));
-                          }}
-                          style={{ ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]) }}
-                          className="checkin-slider"
-                        />
-                        <div style={modal.subLabel}>
-                          {level}/10 {level >= 4 ? "— адаптируем упражнения" : ""}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div style={{ ...modal.subLabel, opacity: 0.7 }}>
-                    💡 Если уровень ≥ 4 — уберём упражнения, которые могут раздражать эти зоны
                   </div>
                 </div>
               )}
@@ -673,6 +706,20 @@ const modal: Record<string, React.CSSProperties> = {
   groupTitle: { fontSize: 18, fontWeight: 900, marginBottom: 4, opacity: 0.92 },
   binaryRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" },
   chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" },
+  painZoneCell: { display: "grid", gap: 10, alignItems: "start" },
+  painInline: {
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.06)",
+    borderRadius: 16,
+    padding: 12,
+    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
+    display: "grid",
+    gap: 10,
+  },
+  painInlineTitle: { fontSize: 14, fontWeight: 900, opacity: 0.9 },
+  painInlineValue: { display: "grid", gap: 6 },
+  painInlineValueTitle: { fontSize: 14, fontWeight: 900, color: "#111827" },
+  painInlineValueDesc: { fontSize: 13.5, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
   footer: {
     padding: "12px 18px 16px",
     display: "grid",
