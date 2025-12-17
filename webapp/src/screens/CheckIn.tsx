@@ -72,14 +72,7 @@ export default function CheckIn() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => nav(-1)} style={styles.backBtn}>
-          ← Назад
-        </button>
-        <h1 style={styles.title}>Чек-ин перед тренировкой</h1>
-      </div>
-
+    <div style={styles.page}>
       <CheckInForm
         onSubmit={handleSubmit}
         onSkip={handleSkip}
@@ -88,39 +81,20 @@ export default function CheckIn() {
         inline={true}
         showSkip={true}
         submitLabel="Начать тренировку"
+        title="Как ты сегодня? 💬"
       />
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
+  page: {
+    maxWidth: 720,
+    margin: "0 auto",
+    padding: "16px",
+    paddingBottom: "100px",
+    fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
+    background: "transparent",
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    padding: "20px",
-    paddingBottom: "40px",
-  },
-  header: {
-    marginBottom: "20px",
-  },
-  backBtn: {
-    background: "rgba(255,255,255,0.2)",
-    border: "1px solid rgba(255,255,255,0.3)",
-    color: "#fff",
-    padding: "10px 16px",
-    borderRadius: "12px",
-    fontSize: "15px",
-    fontWeight: "500",
-    cursor: "pointer",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    marginBottom: "12px",
-  },
-  title: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#fff",
-    margin: 0,
-    textShadow: "0 2px 8px rgba(0,0,0,0.15)",
   },
 };
