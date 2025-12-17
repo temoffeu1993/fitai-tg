@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadHistory } from "@/lib/history";
 import { createPlannedWorkout } from "@/api/schedule";
-import { submitCheckIn, type CheckInPayload } from "@/api/plan";
+import { submitCheckIn, startWorkout, type CheckInPayload } from "@/api/plan";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
@@ -71,6 +71,12 @@ export default function PlanOne() {
   const [checkInError, setCheckInError] = useState<string | null>(null);
   const [initialPlanRequested, setInitialPlanRequested] = useState(false);
   const [needsCheckIn, setNeedsCheckIn] = useState(false);
+  
+  // NEW: Pre-workout check-in states
+  const [showPreWorkoutCheckIn, setShowPreWorkoutCheckIn] = useState(false);
+  const [preWorkoutCheckInLoading, setPreWorkoutCheckInLoading] = useState(false);
+  const [preWorkoutCheckInError, setPreWorkoutCheckInError] = useState<string | null>(null);
+  const [adaptedWorkout, setAdaptedWorkout] = useState<any>(null);
 
   const isAdmin = useMemo(() => {
     try {
@@ -187,6 +193,15 @@ export default function PlanOne() {
     }
   }, [plan]);
 
+  // NEW: Auto-generate week plan on first load (without check-in)
+  useEffect(() => {
+    if (!plan && !loading && !initialPlanRequested && !needsCheckIn) {
+      console.log("🚀 First load: generating week plan without check-in");
+      setInitialPlanRequested(true);
+      refresh({ force: false }).catch(() => {});
+    }
+  }, [plan, loading, initialPlanRequested, needsCheckIn, refresh]);
+
   useEffect(() => {
     const onPlanCompleted = () => {
       try {
@@ -252,6 +267,64 @@ export default function PlanOne() {
     } finally {
       setRegenPending(false);
       setCheckInLoading(false);
+    }
+  };
+
+  // NEW: Handle pre-workout check-in (before starting workout)
+  const handlePreWorkoutCheckInSubmit = async (data: CheckInPayload) => {
+    setPreWorkoutCheckInLoading(true);
+    setPreWorkoutCheckInError(null);
+    try {
+      console.log("🏁 Starting workout with check-in:", data);
+      
+      // Call /workout/start with checkin
+      const result = await startWorkout({
+        date: new Date().toISOString().split('T')[0],
+        checkin: data,
+      });
+      
+      console.log("✅ Workout start result:", result);
+      
+      // Handle different actions
+      if (result.action === "skip") {
+        alert("❌ " + (result.notes?.join("\n") || "Сегодня лучше пропустить тренировку"));
+        setShowPreWorkoutCheckIn(false);
+        return;
+      }
+      
+      if (result.action === "recovery") {
+        alert("🛌 " + (result.notes?.join("\n") || "Сегодня рекомендуем восстановительную сессию"));
+        setShowPreWorkoutCheckIn(false);
+        return;
+      }
+      
+      // If swap or keep_day - use adapted workout
+      const workoutToUse = result.workout || plan;
+      
+      // Show notes if any
+      if (result.notes && result.notes.length > 0) {
+        console.log("📝 Adaptation notes:", result.notes);
+      }
+      
+      // Save and navigate to workout session
+      try {
+        localStorage.setItem("current_plan", JSON.stringify(workoutToUse));
+        nav("/workout/session", { state: { plan: workoutToUse } });
+      } catch (err) {
+        console.error("Navigation error:", err);
+        alert("Не удалось открыть тренировку");
+      }
+      
+    } catch (err: any) {
+      const message =
+        err?.body?.error ||
+        err?.body?.message ||
+        err?.message ||
+        "Не удалось адаптировать тренировку";
+      setPreWorkoutCheckInError(String(message));
+      console.error("Pre-workout check-in error:", err);
+    } finally {
+      setPreWorkoutCheckInLoading(false);
     }
   };
 
@@ -430,13 +503,9 @@ export default function PlanOne() {
           <button
             style={s.primaryBtn}
             onClick={() => {
-              try {
-                localStorage.setItem("current_plan", JSON.stringify(plan));
-                nav("/workout/session", { state: { plan } });
-              } catch (err) {
-                console.error("open session error", err);
-                alert("Не удалось открыть тренировку");
-              }
+              // NEW: Show pre-workout check-in instead of direct navigation
+              setShowPreWorkoutCheckIn(true);
+              setPreWorkoutCheckInError(null);
             }}
           >
             Начать тренировку
@@ -571,6 +640,30 @@ export default function PlanOne() {
             </div>
           </div>
         </>
+      )}
+
+      {/* NEW: Pre-workout check-in modal */}
+      {showPreWorkoutCheckIn && (
+        <CheckInForm
+          open={showPreWorkoutCheckIn}
+          loading={preWorkoutCheckInLoading}
+          error={preWorkoutCheckInError}
+          onSubmit={handlePreWorkoutCheckInSubmit}
+          onClose={() => setShowPreWorkoutCheckIn(false)}
+          onSkip={() => {
+            // Skip check-in and start workout with base plan
+            try {
+              localStorage.setItem("current_plan", JSON.stringify(plan));
+              nav("/workout/session", { state: { plan } });
+            } catch (err) {
+              console.error("Navigation error:", err);
+              alert("Не удалось открыть тренировку");
+            }
+          }}
+          showSkip={true}
+          submitLabel="Начать тренировку"
+          title="Как ты сегодня? 💬"
+        />
       )}
 
     </div>

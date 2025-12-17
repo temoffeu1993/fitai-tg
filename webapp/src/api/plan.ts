@@ -52,21 +52,34 @@ export async function checkPlanStatus<T = any>(planId: string): Promise<WorkoutP
   return parseJson(res, "plan_status");
 }
 
+// НОВЫЙ чек-ин: структурированный, без лишних полей
+export type SleepQuality = "poor" | "fair" | "ok" | "good" | "excellent";
+
+export type PainLocation =
+  | "shoulder"
+  | "elbow"
+  | "wrist"
+  | "neck"
+  | "lower_back"
+  | "hip"
+  | "knee"
+  | "ankle";
+
+export type PainEntry = {
+  location: PainLocation;
+  level: number; // 1-10
+};
+
 export type CheckInPayload = {
-  sleepHours?: number;
-  availableMinutes?: number;
+  sleepQuality?: SleepQuality;           // НОВОЕ: один вопрос вместо sleepHours + sleepQuality
   energyLevel?: "low" | "medium" | "high";
   stressLevel?: "low" | "medium" | "high" | "very_high";
-  sleepQuality?: "poor" | "fair" | "good" | "excellent";
-  injuries?: string[];
-  limitations?: string[];
-  motivation?: "low" | "medium" | "high";
-  mood?: string;
-  menstrualPhase?: "follicular" | "ovulation" | "luteal" | "menstruation";
-  menstrualSymptoms?: string[];
-  hydration?: "poor" | "adequate" | "good";
-  lastMeal?: string;
-  notes?: string;
+  availableMinutes?: number;              // 40-90
+  pain?: PainEntry[];                     // НОВОЕ: структурированная боль вместо injuries
+  notes?: string;                         // опционально
+  
+  // УДАЛЕНО: sleepHours, injuries, limitations, motivation, mood, 
+  // menstrualPhase, menstrualSymptoms, hydration, lastMeal
 };
 
 export async function submitCheckIn(payload: CheckInPayload) {
@@ -75,12 +88,29 @@ export async function submitCheckIn(payload: CheckInPayload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return parseJson<{ ok: boolean; checkInId: string; createdAt: string }>(res, "check_in");
+  return parseJson<{ success: boolean; checkInId: string; createdAt: string }>(res, "check_in");
 }
 
 export async function getLatestCheckIn() {
   const res = await apiFetch("/plan/check-in/latest");
   return parseJson(res, "latest_check_in");
+}
+
+export async function startWorkout(payload: {
+  date?: string;
+  checkin?: CheckInPayload;
+}) {
+  const res = await apiFetch("/plan/workout/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<{
+    action: "keep_day" | "swap_day" | "recovery" | "skip";
+    notes?: string[];
+    workout?: any;
+    swapInfo?: { from: string; to: string; reason: string[] };
+  }>(res, "start_workout");
 }
 
 export async function saveSession(

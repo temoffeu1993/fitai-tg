@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import type { CheckInPayload } from "@/api/plan";
+import React, { useState } from "react";
+import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
 
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
@@ -25,6 +25,7 @@ const chipStyle: React.CSSProperties = {
   cursor: "pointer",
   fontSize: 14,
   transition: "all .15s ease",
+  whiteSpace: "nowrap",
 };
 
 const chipActive: React.CSSProperties = {
@@ -79,6 +80,17 @@ const sliderCss = `
 }
 `;
 
+const PAIN_ZONES: Array<{ key: PainLocation; label: string }> = [
+  { key: "shoulder", label: "Плечо" },
+  { key: "elbow", label: "Локоть" },
+  { key: "wrist", label: "Запястье / кисть" },
+  { key: "neck", label: "Шея" },
+  { key: "lower_back", label: "Поясница" },
+  { key: "hip", label: "Тазобедренный сустав" },
+  { key: "knee", label: "Колено" },
+  { key: "ankle", label: "Голеностоп / стопа" },
+];
+
 export function CheckInForm({
   onSubmit,
   onSkip,
@@ -91,45 +103,35 @@ export function CheckInForm({
   title,
   submitLabel,
 }: Props) {
-  const [sleepHours, setSleepHours] = useState<number>(7);
+  const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
   const [stressLevel, setStressLevel] = useState<CheckInPayload["stressLevel"]>("medium");
-  const sleepQualityScale: CheckInPayload["sleepQuality"][] = ["poor", "fair", "good", "excellent"];
-  const [sleepQuality, setSleepQuality] = useState<CheckInPayload["sleepQuality"]>("good");
-  const sleepQualityIndex = sleepQualityScale.indexOf(sleepQuality);
-  const [motivation, setMotivation] = useState<CheckInPayload["motivation"]>("medium");
-  const [injuries, setInjuries] = useState<string[]>([]);
-  const [newInjury, setNewInjury] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
   const [availableMinutes, setAvailableMinutes] = useState<number>(60);
-
-  const sliderLabel = useMemo(() => {
-    if (sleepHours >= 8) return "Выспался";
-    if (sleepHours < 6) return "Мало сна";
-    return "Нормально";
-  }, [sleepHours]);
+  const [hasPain, setHasPain] = useState(false);
+  const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
 
-  const handleAddInjury = () => {
-    const v = newInjury.trim();
-    if (!v) return;
-    if (injuries.includes(v)) return;
-    setInjuries([...injuries, v]);
-    setNewInjury("");
-  };
-
   const handleSubmit = async () => {
     setFormError(null);
+    
+    const pain = hasPain
+      ? Object.entries(painMap)
+          .map(([location, level]) => ({
+            location: location as PainLocation,
+            level: Number(level),
+          }))
+          .filter(p => Number.isFinite(p.level) && p.level >= 1 && p.level <= 10)
+      : undefined;
+
     const payload: CheckInPayload = {
-      sleepHours,
-      availableMinutes,
+      sleepQuality,
       energyLevel,
       stressLevel,
-      sleepQuality,
-      motivation,
-      injuries: injuries.length ? injuries : undefined,
+      availableMinutes,
+      pain: pain?.length ? pain : undefined,
     };
 
     try {
@@ -144,9 +146,7 @@ export function CheckInForm({
   };
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
-  const cardStyle = inline
-    ? modal.inlineCard
-    : modal.card;
+  const cardStyle = inline ? modal.inlineCard : modal.card;
   const footerStyle = inline
     ? { ...modal.footerInline, gridTemplateColumns: showSkip ? "1fr 1fr" : "1fr" }
     : modal.footer;
@@ -167,81 +167,32 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
-            <div style={modal.cardMini}>
-              <div style={modal.cardMiniTitle}>😴 Сон</div>
-              <input
-                type="range"
-                min={5}
-                max={9}
-              step={0.5}
-              value={sleepHours}
-              onChange={(e) => setSleepHours(Number(e.target.value))}
-              style={{ ...modal.sliderStyle(5, 9, sleepHours, [0, 25, 50, 75, 100]), marginTop: 4 }}
-              className="checkin-slider"
-              list="sleepTicks"
-              />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {sleepHours} ч · {sliderLabel}
-            </div>
-            <datalist id="sleepTicks">
-              <option value="5" />
-              <option value="6" />
-              <option value="7" />
-              <option value="8" />
-              <option value="9" />
-            </datalist>
-          </div>
-
-            <div style={modal.cardMini}>
-              <div style={modal.cardMiniTitle}>🌙 Качество сна</div>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={1}
-                value={sleepQualityIndex < 0 ? 2 : sleepQualityIndex}
-                onChange={(e) => {
-                  const idx = Number(e.target.value);
-                  setSleepQuality(sleepQualityScale[idx] || "good");
-                }}
-                style={{
-                  ...modal.sliderStyle(0, 3, sleepQualityIndex < 0 ? 2 : sleepQualityIndex, [0, 33.333, 66.666, 100]),
-                  marginTop: 4,
-                }}
-                className="checkin-slider"
-                list="sleepQualityTicks"
-              />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {{
-                0: "Плохое",
-                1: "Так себе",
-                2: "Хорошее",
-                3: "Отличное",
-              }[String(sleepQualityIndex < 0 ? 2 : sleepQualityIndex) as "0" | "1" | "2" | "3"]}
-            </div>
-            <datalist id="sleepQualityTicks">
-              <option value="0" label="Плохое" />
-              <option value="1" label="Так себе" />
-              <option value="2" label="Хорошее" />
-              <option value="3" label="Отличное" />
-            </datalist>
-          </div>
-
+          {/* 1. СОН (один вопрос, 5 чипов) */}
           <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
-            <input
-              type="range"
-              min={40}
-              max={90}
-              step={10}
-              value={availableMinutes}
-              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-              style={{ ...modal.sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]), marginTop: 4 }}
-              className="checkin-slider"
-            />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>{availableMinutes} мин</div>
+            <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              {(["poor", "fair", "ok", "good", "excellent"] as const).map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  style={sleepQuality === val ? chipActive : chipStyle}
+                  onClick={() => setSleepQuality(val)}
+                >
+                  {val === "poor"
+                    ? "Плохо"
+                    : val === "fair"
+                    ? "Так себе"
+                    : val === "ok"
+                    ? "Нормально"
+                    : val === "good"
+                    ? "Хорошо"
+                    : "Отлично"}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* 2. ЭНЕРГИЯ */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>⚡ Энергия</div>
             <input
@@ -254,7 +205,10 @@ export function CheckInForm({
                 const idx = Number(e.target.value);
                 setEnergyLevel((["low", "medium", "high"] as const)[idx] || "medium");
               }}
-              style={{ ...modal.sliderStyle(0, 2, ["low", "medium", "high"].indexOf(energyLevel || "medium"), [0, 50, 100]), marginTop: 4 }}
+              style={{
+                ...sliderStyle(0, 2, ["low", "medium", "high"].indexOf(energyLevel || "medium"), [0, 50, 100]),
+                marginTop: 4,
+              }}
               className="checkin-slider"
             />
             <div style={{ ...modal.subLabel, marginTop: 2 }}>
@@ -262,6 +216,7 @@ export function CheckInForm({
             </div>
           </div>
 
+          {/* 3. СТРЕСС */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>😰 Стресс</div>
             <input
@@ -274,7 +229,15 @@ export function CheckInForm({
                 const idx = Number(e.target.value);
                 setStressLevel((["low", "medium", "high", "very_high"] as const)[idx] || "medium");
               }}
-              style={{ ...modal.sliderStyle(0, 3, ["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium"), [0, 33.333, 66.666, 100]), marginTop: 4 }}
+              style={{
+                ...sliderStyle(
+                  0,
+                  3,
+                  ["low", "medium", "high", "very_high"].indexOf(stressLevel || "medium"),
+                  [0, 33.333, 66.666, 100]
+                ),
+                marginTop: 4,
+              }}
               className="checkin-slider"
             />
             <div style={{ ...modal.subLabel, marginTop: 2 }}>
@@ -287,60 +250,103 @@ export function CheckInForm({
             </div>
           </div>
 
+          {/* 4. ВРЕМЯ НА ТРЕНИРОВКУ */}
           <div style={modal.cardMini}>
-            <div style={modal.cardMiniTitle}>🚀 Мотивация</div>
+            <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
             <input
               type="range"
-              min={0}
-              max={2}
-              step={1}
-              value={["low", "medium", "high"].indexOf(motivation || "medium")}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                setMotivation((["low", "medium", "high"] as const)[idx] || "medium");
-              }}
-              style={{ ...modal.sliderStyle(0, 2, ["low", "medium", "high"].indexOf(motivation || "medium"), [0, 50, 100]), marginTop: 4 }}
+              min={40}
+              max={90}
+              step={10}
+              value={availableMinutes}
+              onChange={(e) => setAvailableMinutes(Number(e.target.value))}
+              style={{ ...sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]), marginTop: 4 }}
               className="checkin-slider"
             />
-            <div style={{ ...modal.subLabel, marginTop: 2 }}>
-              {motivation === "low" ? "Низкая" : motivation === "medium" ? "Средняя" : "Высокая"}
-            </div>
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>{availableMinutes} мин</div>
           </div>
 
+          {/* 5. БОЛЬ/ДИСКОМФОРТ (структурированная) */}
           <div style={modal.cardWide}>
-            <div style={modal.groupTitle}>Травмы/боли</div>
-            {injuries.length > 0 && (
-              <div style={modal.tagRow}>
-                {injuries.map((item) => (
-                  <span key={item} style={modal.tag}>
-                    {item}
-                    <button
-                      type="button"
-                      style={modal.tagClose}
-                      onClick={() => setInjuries(injuries.filter((x) => x !== item))}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-              <input
-                style={modal.inputGlass}
-                placeholder="Например: боль в колене"
-                value={newInjury}
-                onChange={(e) => setNewInjury(e.target.value)}
-              />
-              <button type="button" style={modal.smallBtn} onClick={handleAddInjury}>
-                + добавить
+            <div style={modal.groupTitle}>🩹 Есть боль/дискомфорт сегодня?</div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                style={!hasPain ? chipActive : chipStyle}
+                onClick={() => {
+                  setHasPain(false);
+                  setPainMap({});
+                }}
+              >
+                Нет
+              </button>
+              <button type="button" style={hasPain ? chipActive : chipStyle} onClick={() => setHasPain(true)}>
+                Да
               </button>
             </div>
+
+            {hasPain && (
+              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                <div style={modal.chips}>
+                  {PAIN_ZONES.map((z) => {
+                    const active = painMap[z.key] != null;
+                    return (
+                      <button
+                        key={z.key}
+                        type="button"
+                        style={active ? chipActive : chipStyle}
+                        onClick={() => {
+                          setPainMap((prev) => {
+                            const next = { ...prev };
+                            if (next[z.key] == null) next[z.key] = 5;
+                            else delete next[z.key];
+                            return next;
+                          });
+                        }}
+                      >
+                        {z.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {Object.entries(painMap).map(([loc, level]) => {
+                  const zone = PAIN_ZONES.find((z) => z.key === loc);
+                  return (
+                    <div key={loc} style={modal.cardMini}>
+                      <div style={modal.cardMiniTitle}>{zone?.label || loc}</div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={level}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setPainMap((prev) => ({ ...prev, [loc]: v }));
+                        }}
+                        style={{
+                          ...sliderStyle(1, 10, level, [0, 33.333, 66.666, 100]),
+                          marginTop: 4,
+                        }}
+                        className="checkin-slider"
+                      />
+                      <div style={{ ...modal.subLabel, marginTop: 2 }}>
+                        {level}/10 {level >= 4 ? "— адаптируем упражнения" : ""}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div style={{ ...modal.subLabel, opacity: 0.7, fontSize: 12 }}>
+                  💡 Если уровень ≥ 4 — уберём упражнения, которые могут раздражать эти зоны
+                </div>
+              </div>
+            )}
           </div>
 
-          {(error || formError) && (
-            <div style={modal.error}>{error || formError}</div>
-          )}
+          {(error || formError) && <div style={modal.error}>{error || formError}</div>}
         </div>
 
         <div style={footerStyle}>
@@ -356,6 +362,32 @@ export function CheckInForm({
       </div>
     </div>
   );
+}
+
+// Helper function for slider styles
+function sliderStyle(min: number, max: number, value: number, ticks: number[]): React.CSSProperties {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  const tickImgs = ticks.map(() => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`);
+  const bgImages = [
+    `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
+    ...tickImgs,
+  ].join(", ");
+  const bgSizes = ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", ");
+  const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
+  return {
+    width: "100%",
+    height: 28,
+    backgroundImage: bgImages,
+    backgroundSize: bgSizes,
+    backgroundPosition: bgPositions,
+    backgroundRepeat: "no-repeat",
+    borderRadius: 999,
+    cursor: "pointer",
+    appearance: "none" as const,
+    WebkitAppearance: "none" as const,
+    padding: 0,
+    margin: 0,
+  };
 }
 
 const modal: Record<string, React.CSSProperties> = {
@@ -403,46 +435,7 @@ const modal: Record<string, React.CSSProperties> = {
     lineHeight: 1,
   },
   bodyInline: { padding: "0", display: "grid", gap: 12 },
-  label: { display: "grid", gap: 6 },
-  labelText: { fontSize: 13, opacity: 0.7 },
   subLabel: { fontSize: 13, opacity: 0.8, marginTop: 1 },
-  inputGlass: {
-    width: "100%",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    padding: "10px 10px",
-    fontSize: 14.5,
-    background: "rgba(255,255,255,0.55)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-  },
-  sliderStyle: (min: number, max: number, value: number, ticks: number[]) => {
-    const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
-    const tickImgs = ticks.map(
-      (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
-    );
-    const bgImages = [
-      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
-      ...tickImgs,
-    ].join(", ");
-    const bgSizes = ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", ");
-    const bgPositions = ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", ");
-    return {
-      width: "100%",
-      height: 28,
-      backgroundImage: bgImages,
-      backgroundSize: bgSizes,
-      backgroundPosition: bgPositions,
-      backgroundRepeat: "no-repeat",
-      borderRadius: 999,
-      cursor: "pointer",
-      appearance: "none" as const,
-      WebkitAppearance: "none" as const,
-      padding: 0,
-      margin: 0,
-    };
-  },
   cardMini: {
     padding: 10,
     borderRadius: 14,
@@ -472,56 +465,8 @@ const modal: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
   },
-  sliderBase: {
-    width: "100%",
-    accentColor: "#0f172a",
-    background: "transparent",
-    height: 32,
-    padding: 0,
-    margin: 0,
-  },
-  sliderTicks5: {
-    backgroundImage:
-      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
-    backgroundSize: "25% 60%, 100% 4px",
-    backgroundPosition: "0 50%, 0 50%",
-    backgroundRepeat: "repeat-x, no-repeat",
-    borderRadius: 999,
-  },
-  sliderTicks4: {
-    backgroundImage:
-      "radial-gradient(circle, rgba(15,23,42,0.9) 0, rgba(15,23,42,0.9) 40%, transparent 45%), linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55))",
-    backgroundSize: "33.333% 60%, 100% 4px",
-    backgroundPosition: "0 50%, 0 50%",
-    backgroundRepeat: "repeat-x, no-repeat",
-    borderRadius: 999,
-  },
   groupTitle: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
-  chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" },
-  advancedToggle: {
-    border: "none",
-    background: "rgba(0,0,0,0.04)",
-    padding: "10px 12px",
-    borderRadius: 12,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  tagRow: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 },
-  tag: {
-    padding: "6px 10px",
-    background: "rgba(0,0,0,0.05)",
-    borderRadius: 999,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  tagClose: {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    fontSize: 14,
-    lineHeight: 1,
-  },
+  chips: { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))" },
   footer: {
     padding: "12px 18px 16px",
     display: "grid",
@@ -554,14 +499,6 @@ const modal: Record<string, React.CSSProperties> = {
     fontSize: 16,
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
-  },
-  smallBtn: {
-    borderRadius: 10,
-    padding: "10px 12px",
-    border: "1px solid rgba(0,0,0,0.1)",
-    background: "#fff",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
   },
   error: {
     background: "rgba(255,0,0,0.07)",

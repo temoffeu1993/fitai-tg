@@ -53,8 +53,9 @@ workoutGeneration.post(
     console.log(`💾 CHECK-IN for user ${uid}:`, data);
     
     // Validation
-    if (data.sleepHours != null && (data.sleepHours < 0 || data.sleepHours > 24)) {
-      throw new AppError("sleepHours must be between 0 and 24", 400);
+    const validSleep = ["poor", "fair", "ok", "good", "excellent"];
+    if (data.sleepQuality && !validSleep.includes(data.sleepQuality)) {
+      throw new AppError(`sleepQuality must be one of: ${validSleep.join(", ")}`, 400);
     }
     
     if (data.availableMinutes != null) {
@@ -74,51 +75,58 @@ workoutGeneration.post(
       throw new AppError(`stressLevel must be one of: ${validStress.join(", ")}`, 400);
     }
     
-    // Save to DB
+    // Validate pain (structured format)
+    const PAIN_LOCATIONS = ["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"];
+    let pain = null;
+    if (data.pain) {
+      if (!Array.isArray(data.pain)) {
+        throw new AppError("pain must be an array", 400);
+      }
+      const validatedPain = [];
+      for (const p of data.pain) {
+        if (!p || typeof p !== "object") continue;
+        const location = String(p.location || "").trim();
+        const level = Number(p.level);
+        
+        if (!PAIN_LOCATIONS.includes(location)) {
+          throw new AppError(`Invalid pain location: ${location}. Must be one of: ${PAIN_LOCATIONS.join(", ")}`, 400);
+        }
+        if (!Number.isFinite(level) || level < 1 || level > 10) {
+          throw new AppError("pain.level must be 1-10", 400);
+        }
+        
+        validatedPain.push({ location, level });
+      }
+      pain = validatedPain.length > 0 ? validatedPain : null;
+    }
+    
+    // Save to DB (упрощенная схема - только нужные поля)
     const result = await q(
       `INSERT INTO daily_check_ins (
         user_id,
-        injuries, limitations, pain,
-        sleep_hours, sleep_quality, stress_level, energy_level,
-        motivation, mood,
-        menstrual_phase, menstrual_symptoms,
-        hydration, last_meal, notes,
+        pain,
+        sleep_quality, 
+        stress_level, 
+        energy_level,
+        notes,
         available_minutes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7)
       ON CONFLICT (user_id, (DATE(created_at AT TIME ZONE 'UTC')))
       DO UPDATE SET
-        injuries = EXCLUDED.injuries,
-        limitations = EXCLUDED.limitations,
         pain = EXCLUDED.pain,
-        sleep_hours = EXCLUDED.sleep_hours,
         sleep_quality = EXCLUDED.sleep_quality,
         stress_level = EXCLUDED.stress_level,
         energy_level = EXCLUDED.energy_level,
-        motivation = EXCLUDED.motivation,
-        mood = EXCLUDED.mood,
-        menstrual_phase = EXCLUDED.menstrual_phase,
-        menstrual_symptoms = EXCLUDED.menstrual_symptoms,
-        hydration = EXCLUDED.hydration,
-        last_meal = EXCLUDED.last_meal,
         notes = EXCLUDED.notes,
         available_minutes = EXCLUDED.available_minutes,
         updated_at = NOW()
       RETURNING id, created_at`,
       [
         uid,
-        data.injuries || null,
-        data.limitations || null,
-        data.pain || null,
-        data.sleepHours || null,
+        pain, // передаем как есть, БД сама преобразует в JSONB
         data.sleepQuality || null,
         data.stressLevel || null,
         data.energyLevel || null,
-        data.motivation || null,
-        data.mood || null,
-        data.menstrualPhase || null,
-        data.menstrualSymptoms || null,
-        data.hydration || null,
-        data.lastMeal || null,
         data.notes || null,
         data.availableMinutes || null,
       ]
@@ -130,6 +138,27 @@ workoutGeneration.post(
       success: true,
       checkInId: result[0].id,
       createdAt: result[0].created_at,
+    });
+  })
+);
+
+// ============================================================================
+// GET /check-in/latest - Get latest check-in
+// ============================================================================
+
+workoutGeneration.get(
+  "/check-in/latest",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    
+    const checkin = await getLatestCheckIn(uid);
+    
+    if (!checkin) {
+      return res.json({ checkIn: null });
+    }
+    
+    res.json({
+      checkIn: checkin,
     });
   })
 );
@@ -183,21 +212,17 @@ workoutGeneration.post(
       console.log(`⏩ Advanced to week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
     
-    // Get check-in
-    const checkin = await getLatestCheckIn(uid);
-    
     // Get history
     const history = await getWorkoutHistory(uid);
-    
-    // Generate week plan
-    const checkins = checkin ? Array(scheme.daysPerWeek).fill(checkin) : undefined;
-    
+
+    // НОВОЕ: Generate week plan БЕЗ чек-ина (базовая структура недели)
+    // Чек-ин будет применяться только при старте конкретного дня
     const weekPlan = generateWeekPlan({
       scheme,
       userProfile,
       mesocycle,
-      checkins,
       history,
+      // НЕ передаём checkins - неделя генерируется как базовый план
     });
     
     console.log(`✅ Generated week plan: ${weekPlan.length} days (meso week ${mesocycle.currentWeek})`);
@@ -450,12 +475,13 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
 
 async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
   const rows = await q<{ 
-    energy_level: string, 
-    sleep_hours: string, 
-    stress_level: string,
+    energy_level: "low" | "medium" | "high" | null,
+    sleep_quality: "poor" | "fair" | "ok" | "good" | "excellent" | null,
+    stress_level: "low" | "medium" | "high" | "very_high" | null,
     pain: any,
+    available_minutes: number | null,
   }>(
-    `SELECT energy_level, sleep_hours, stress_level, pain
+    `SELECT energy_level, sleep_quality, stress_level, pain, available_minutes
      FROM daily_check_ins 
      WHERE user_id = $1 
      ORDER BY created_at DESC 
@@ -469,27 +495,74 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
   
   const row = rows[0];
   
-  // Parse pain from JSONB to array
-  let painArray: string[] = [];
+  // Parse pain from JSONB to PainEntry[] с валидацией
+  const PAIN_LOCATIONS = new Set(["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"]);
+  const painArray: import("./workoutDayGenerator.js").PainEntry[] = [];
+  
   if (row.pain) {
-    if (Array.isArray(row.pain)) {
-      painArray = row.pain.map((p: any) => typeof p === 'string' ? p : p.location || '');
-    } else if (typeof row.pain === 'string') {
+    let painData = row.pain;
+    
+    // Если пришло как строка JSON, парсим
+    if (typeof painData === 'string') {
       try {
-        const parsed = JSON.parse(row.pain);
-        painArray = Array.isArray(parsed) ? parsed.map((p: any) => p.location || p) : [];
+        painData = JSON.parse(painData);
       } catch {
-        painArray = [];
+        painData = [];
+      }
+    }
+    
+    if (Array.isArray(painData)) {
+      for (const p of painData) {
+        if (!p || typeof p !== 'object') continue;
+        
+        const location = String(p.location || '');
+        const lvl = Number(p.level);
+        
+        // Валидация: только известные локации и корректный level
+        if (!PAIN_LOCATIONS.has(location)) continue;
+        if (!Number.isFinite(lvl)) continue;
+        
+        // Клампинг 1-10
+        const level = Math.max(1, Math.min(10, Math.round(lvl)));
+        
+        painArray.push({ location, level });
       }
     }
   }
   
+  // Map sleep_quality (5 вариантов) напрямую
+  const sleep = row.sleep_quality || "ok";
+  
+  // Нормализация stress
+  const stress = mapStress(row.stress_level);
+  
   return {
-    energy: row.energy_level as "low" | "medium" | "high",
-    sleep: row.sleep_hours as "poor" | "ok" | "good",
-    stress: row.stress_level as "high" | "medium" | "low",
-    pain: painArray,
+    energy: row.energy_level ?? "medium",
+    sleep,
+    stress,
+    pain: painArray.length > 0 ? painArray : undefined,
     soreness: [], // Not tracked separately in new schema
+    availableMinutes: row.available_minutes ?? undefined,
+  };
+}
+
+// Helper для нормализации stress
+function mapStress(v: any): "high" | "medium" | "low" | "very_high" {
+  if (v === "very_high" || v === "high" || v === "medium" || v === "low") return v;
+  return "medium";
+}
+
+// Helper: маппер CheckInPayload (из фронта) → CheckInData (для генератора)
+function mapPayloadToCheckInData(payload: any): CheckInData | undefined {
+  if (!payload) return undefined;
+  
+  return {
+    sleep: payload.sleepQuality || "ok",
+    energy: payload.energyLevel || "medium",
+    stress: mapStress(payload.stressLevel),
+    pain: Array.isArray(payload.pain) ? payload.pain : undefined,
+    soreness: [],
+    availableMinutes: payload.availableMinutes ?? undefined, // ИСПРАВЛЕНО: добавлено
   };
 }
 
@@ -618,12 +691,9 @@ workoutGeneration.post(
       throw new AppError("Scheme not found", 404);
     }
     
-    // Get check-in
-    const checkin = await getLatestCheckIn(uid);
-    
     // Get history
     const history = await getWorkoutHistory(uid);
-    
+
     // НОВОЕ: Get or create mesocycle
     let mesocycle = await getMesocycle(uid);
     if (!mesocycle || shouldStartNewMesocycle(mesocycle)) {
@@ -634,7 +704,7 @@ workoutGeneration.post(
       await saveMesocycle(uid, mesocycle);
       console.log(`🆕 Created new mesocycle: week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
-    
+
     // НОВОЕ: Check if we need to advance week
     const weekStart = await getCurrentWeekStart();
     const existingPlan = await getWeeklyPlan(uid, weekStart);
@@ -644,15 +714,12 @@ workoutGeneration.post(
       await saveMesocycle(uid, mesocycle);
       console.log(`⏩ Advanced to week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
-    
-    // Generate week plan (same check-in for all days for simplicity)
-    const checkins = checkin ? Array(scheme.daysPerWeek).fill(checkin) : undefined;
-    
+
+    // Generate week plan
     const weekPlan = generateWeekPlan({
       scheme,
       userProfile,
       mesocycle, // НОВОЕ: передаём мезоцикл
-      checkins,
       history,
     });
     
@@ -753,12 +820,17 @@ workoutGeneration.get(
       mesocycle = createMesocycle({ userId: uid, goal: userProfile.goal });
       await saveMesocycle(uid, mesocycle);
     }
-    
-    const checkin = await getLatestCheckIn(uid);
+
     const history = await getWorkoutHistory(uid);
-    const checkins = checkin ? Array(scheme.daysPerWeek).fill(checkin) : undefined;
-    
-    const weekPlan = generateWeekPlan({ scheme, userProfile, mesocycle, checkins, history });
+
+    // НОВОЕ: Generate week plan БЕЗ чек-ина (базовая структура недели)
+    const weekPlan = generateWeekPlan({ 
+      scheme, 
+      userProfile, 
+      mesocycle, 
+      history,
+      // НЕ передаём checkins - неделя генерируется как базовый план
+    });
     
     await saveWeeklyPlan({
       userId: uid,
@@ -769,6 +841,263 @@ workoutGeneration.get(
     });
     
     return res.json({ success: true, weekPlan, mesoWeek: mesocycle.currentWeek, cached: false });
+  })
+);
+
+// ============================================================================
+// POST /workout/start - Start a workout with check-in adaptation
+// ============================================================================
+
+workoutGeneration.post(
+  "/workout/start",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const { date, checkin: checkinFromBody } = req.body;
+    
+    const workoutDate = date || new Date().toISOString().split('T')[0];
+    
+    console.log(`🏁 Starting workout for user ${uid} on ${workoutDate}`);
+    
+    // 1. Get base planned workout for this date
+    const plannedRows = await q<{ 
+      data: any, 
+      status: string,
+      workout_date: string,
+    }>(
+      `SELECT data, status, workout_date FROM planned_workouts 
+       WHERE user_id = $1 AND workout_date = $2
+       LIMIT 1`,
+      [uid, workoutDate]
+    );
+    
+    if (!plannedRows.length) {
+      throw new AppError("No planned workout found for this date. Please generate a week plan first.", 404);
+    }
+    
+    const basePlan = plannedRows[0].data;
+    const originalDayIndex = basePlan.dayIndex;
+    
+    // 2. Get or use check-in
+    let checkin: CheckInData | undefined;
+    if (checkinFromBody) {
+      // Map frontend payload to CheckInData format
+      checkin = mapPayloadToCheckInData(checkinFromBody);
+    } else {
+      // Get latest check-in from DB
+      checkin = await getLatestCheckIn(uid);
+    }
+    
+    console.log(`   Check-in:`, checkin || 'none');
+    
+    // 3. Get user profile and scheme
+    const userProfile = await buildUserProfile(uid);
+    const schemeRows = await q<{ scheme_id: string }>(
+      `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
+      [uid]
+    );
+    const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
+    if (!scheme) {
+      throw new AppError("Scheme not found", 404);
+    }
+    
+    // 4. Decide action using policy
+    const { decideStartAction } = await import("./checkinPolicy.js");
+    const decision = decideStartAction({
+      scheme,
+      dayIndex: originalDayIndex,
+      checkin,
+    });
+    
+    console.log(`   Decision:`, decision.action, decision.notes);
+    
+    // 5. Handle decision
+    if (decision.action === "skip") {
+      // Skip workout - return recovery info
+      return res.json({
+        action: "skip",
+        notes: decision.notes,
+        originalDay: basePlan.dayLabel,
+      });
+    }
+    
+    if (decision.action === "recovery") {
+      // Generate recovery session
+      const { generateRecoverySession } = await import("./workoutDayGenerator.js");
+      const painAreas = checkin?.pain?.map(p => p.location) || [];
+      const recoveryWorkout = generateRecoverySession({
+        userProfile,
+        painAreas,
+        availableMinutes: checkin?.availableMinutes || 30,
+      });
+      
+      // Convert to workout format
+      const workoutData = {
+        schemeId: "recovery",
+        schemeName: "Восстановительная сессия",
+        dayIndex: 0,
+        dayLabel: "Recovery",
+        dayFocus: "Мобильность и растяжка",
+        intent: "light",
+        exercises: recoveryWorkout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          exerciseName: ex.exercise.name,
+          sets: ex.sets,
+          repsRange: ex.repsRange,
+          restSec: ex.restSec,
+          notes: ex.notes,
+          targetMuscles: ex.exercise.primaryMuscles,
+        })),
+        totalExercises: recoveryWorkout.totalExercises,
+        totalSets: recoveryWorkout.totalSets,
+        estimatedDuration: recoveryWorkout.estimatedDuration,
+        adaptationNotes: recoveryWorkout.adaptationNotes,
+        warnings: recoveryWorkout.warnings,
+        meta: {
+          adaptedAt: new Date().toISOString(),
+          originalDayIndex,
+          action: "recovery",
+          checkinApplied: !!checkin,
+        },
+      };
+      
+      // Save recovery workout to DB
+      await q(
+        `UPDATE planned_workouts 
+         SET data = $2::jsonb, 
+             plan = $2::jsonb,
+             updated_at = NOW()
+         WHERE user_id = $1 AND workout_date = $3`,
+        [uid, workoutData, workoutDate]
+      );
+      
+      return res.json({
+        action: "recovery",
+        notes: decision.notes,
+        workout: workoutData,
+      });
+    }
+    
+    let finalDayIndex = originalDayIndex;
+    let swapInfo = null;
+    
+    if (decision.action === "swap_day") {
+      finalDayIndex = decision.targetDayIndex;
+      swapInfo = {
+        from: basePlan.dayLabel,
+        to: decision.targetDayLabel,
+        reason: decision.notes,
+      };
+    }
+    
+    // 6. Generate adapted workout for finalDayIndex
+    const history = await getWorkoutHistory(uid);
+    const mesocycle = await getMesocycle(uid);
+    
+    // Get week plan data for periodization
+    let weekPlanData = null;
+    if (mesocycle) {
+      const { getWeekPlan } = await import("./mesocycleEngine.js");
+      weekPlanData = getWeekPlan({
+        mesocycle,
+        weekNumber: mesocycle.currentWeek,
+        daysPerWeek: scheme.daysPerWeek,
+      });
+    }
+    
+    const adaptedWorkout = generateWorkoutDay({
+      scheme,
+      dayIndex: finalDayIndex,
+      userProfile,
+      checkin, // ВАЖНО: применяем чек-ин здесь
+      history,
+      dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
+      weekPlanData,
+    });
+    
+    console.log(`✅ Adapted workout: ${adaptedWorkout.totalExercises} exercises, ${adaptedWorkout.totalSets} sets`);
+    
+    // 7. Save adapted workout with metadata
+    const workoutData = {
+      schemeId: scheme.id,
+      schemeName: adaptedWorkout.schemeName,
+      dayIndex: adaptedWorkout.dayIndex,
+      dayLabel: adaptedWorkout.dayLabel,
+      dayFocus: adaptedWorkout.dayFocus,
+      intent: adaptedWorkout.intent,
+      exercises: adaptedWorkout.exercises.map(ex => ({
+        exerciseId: ex.exercise.id,
+        exerciseName: ex.exercise.name,
+        sets: ex.sets,
+        repsRange: ex.repsRange,
+        restSec: ex.restSec,
+        notes: ex.notes,
+        targetMuscles: ex.exercise.primaryMuscles,
+      })),
+      totalExercises: adaptedWorkout.totalExercises,
+      totalSets: adaptedWorkout.totalSets,
+      estimatedDuration: adaptedWorkout.estimatedDuration,
+      adaptationNotes: adaptedWorkout.adaptationNotes,
+      warnings: adaptedWorkout.warnings,
+      // НОВОЕ: метаданные адаптации
+      meta: {
+        adaptedAt: new Date().toISOString(),
+        originalDayIndex,
+        finalDayIndex,
+        action: decision.action,
+        wasSwapped: decision.action === "swap_day",
+        swapInfo: swapInfo || undefined,
+        checkinApplied: !!checkin,
+      },
+    };
+    
+    // Update planned_workouts
+    // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
+    // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
+    // Meta info preserves the swap history for tracking and future adjustments.
+    await q(
+      `UPDATE planned_workouts 
+       SET data = $2::jsonb, 
+           plan = $2::jsonb,
+           updated_at = NOW()
+       WHERE user_id = $1 AND workout_date = $3`,
+      [uid, workoutData, workoutDate]
+    );
+    
+    // If swapped, mark future occurrence of finalDayIndex as "already done today"
+    if (decision.action === "swap_day") {
+      // Calculate when finalDayIndex was originally scheduled
+      const daysSinceWeekStart = new Date(workoutDate).getDay();
+      const daysUntilTarget = (finalDayIndex - originalDayIndex + scheme.daysPerWeek) % scheme.daysPerWeek;
+      const targetDate = new Date(workoutDate);
+      targetDate.setDate(targetDate.getDate() + daysUntilTarget);
+      
+      // Mark that day as swapped (using separate metadata field)
+      await q(
+        `UPDATE planned_workouts
+         SET metadata = jsonb_set(
+           COALESCE(metadata, '{}'::jsonb),
+           '{wasSwappedEarlier}',
+           'true'::jsonb
+         ),
+         updated_at = NOW()
+         WHERE user_id = $1
+           AND workout_date = $2
+           AND workout_date > $3`,
+        [uid, targetDate.toISOString().split('T')[0], workoutDate]
+      );
+      
+      console.log(`🔄 Marked future day ${finalDayIndex} (${targetDate.toISOString().split('T')[0]}) as swapped earlier`);
+    }
+    
+    console.log(`💾 Saved adapted workout to DB`);
+    
+    // 8. Return adapted workout
+    res.json({
+      action: decision.action,
+      notes: decision.notes,
+      workout: workoutData,
+      swapInfo,
+    });
   })
 );
 

@@ -7,11 +7,12 @@
 // - dayPatternMap.ts (day structure)
 // - exerciseSelector.ts (exercise selection)
 // - exerciseLibrary.ts (200 exercises)
+// - readiness.ts (НОВОЕ: единая оценка готовности)
 // 
 // NO AI INVOLVED - Pure code logic
 // ============================================================================
 
-import type { Exercise, JointFlag, Equipment as LibraryEquipment } from "./exerciseLibrary.js";
+import type { Exercise, JointFlag, Equipment as LibraryEquipment, Experience, ExerciseKind, Pattern, MuscleGroup } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Equipment, TimeBucket } from "./normalizedSchemes.js";
 import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
 import { buildDaySlots } from "./dayPatternMap.js";
@@ -19,7 +20,6 @@ import {
   selectExercisesForDay,
   type UserConstraints,
   type CheckinContext,
-  type Intent,
   type SlotRole,
 } from "./exerciseSelector.js";
 import {
@@ -33,6 +33,7 @@ import {
   type Mesocycle,
   type DUPIntensity,
 } from "./mesocycleEngine.js";
+import { computeReadiness, type Intent } from "./readiness.js";
 
 // ============================================================================
 // TYPES
@@ -48,12 +49,18 @@ export type UserProfile = {
   constraints?: string[]; // constraint tags from user
 };
 
+export type PainEntry = {
+  location: string;      // e.g. "shoulder", "knee", "low_back"
+  level: number;         // 1-10 intensity (required)
+};
+
 export type CheckInData = {
   energy: "low" | "medium" | "high";
-  sleep: "poor" | "ok" | "good";
-  stress: "high" | "medium" | "low";
-  pain?: string[]; // body parts with pain
-  soreness?: string[]; // muscles that are sore
+  sleep: "poor" | "fair" | "ok" | "good" | "excellent"; // 5 вариантов
+  stress: "high" | "medium" | "low" | "very_high";
+  pain?: PainEntry[];    // структурированная боль
+  soreness?: string[];   // muscles that are sore (не используется пока)
+  availableMinutes?: number; // доступное время для тренировки
 };
 
 export type WorkoutHistory = {
@@ -85,93 +92,8 @@ export type GeneratedWorkoutDay = {
   warnings?: string[];
 };
 
-// ============================================================================
-// HELPER: Map pain/injuries to JointFlag avoidances
-// ============================================================================
-
-// ИСПРАВЛЕНО: buildAvoidFlags теперь работает ТОЛЬКО с JointFlag из checkin.pain
-// ConstraintTag (например avoid_overhead_press) НЕ должны попадать сюда
-function buildAvoidFlags(checkin?: CheckInData): JointFlag[] {
-  const avoid: JointFlag[] = [];
-
-  // Map from pain body parts to jointFlags
-  const painMap: Record<string, JointFlag> = {
-    knee: "knee_sensitive",
-    knees: "knee_sensitive",
-    колено: "knee_sensitive",
-    колени: "knee_sensitive",
-    
-    back: "low_back_sensitive",
-    "lower back": "low_back_sensitive",
-    спина: "low_back_sensitive",
-    поясница: "low_back_sensitive",
-    
-    shoulder: "shoulder_sensitive",
-    shoulders: "shoulder_sensitive",
-    плечо: "shoulder_sensitive",
-    плечи: "shoulder_sensitive",
-    
-    wrist: "wrist_sensitive",
-    wrists: "wrist_sensitive",
-    запястье: "wrist_sensitive",
-    кисть: "wrist_sensitive",
-    
-    hip: "hip_sensitive",
-    hips: "hip_sensitive",
-    таз: "hip_sensitive",
-    бедро: "hip_sensitive",
-    
-    elbow: "elbow_sensitive",
-    elbows: "elbow_sensitive",
-    локоть: "elbow_sensitive",
-    локти: "elbow_sensitive",
-  };
-
-  // Add from checkin pain
-  if (checkin?.pain) {
-    for (const painArea of checkin.pain) {
-      const normalized = painArea.toLowerCase().trim();
-      const flag = painMap[normalized];
-      if (flag && !avoid.includes(flag)) {
-        avoid.push(flag);
-      }
-    }
-  }
-
-  return avoid;
-}
-
-// ============================================================================
-// HELPER: Map checkin to intent
-// ============================================================================
-
-function calculateIntent(checkin?: CheckInData): Intent {
-  if (!checkin) return "normal";
-
-  let score = 0;
-
-  // Energy
-  if (checkin.energy === "low") score -= 2;
-  if (checkin.energy === "high") score += 2;
-
-  // Sleep
-  if (checkin.sleep === "poor") score -= 2;
-  if (checkin.sleep === "good") score += 1;
-
-  // Stress
-  if (checkin.stress === "high") score -= 1;
-  if (checkin.stress === "low") score += 1;
-
-  // Pain
-  if (checkin.pain && checkin.pain.length > 0) score -= 2;
-
-  // Soreness
-  if (checkin.soreness && checkin.soreness.length > 2) score -= 1;
-
-  if (score <= -3) return "light";
-  if (score >= 2) return "hard";
-  return "normal";
-}
+// buildAvoidFlags() УДАЛЕНА - теперь используем readiness.avoidFlags
+// calculateIntent() УДАЛЕНА - теперь используем readiness.intent
 
 // ============================================================================
 // HELPER: Calculate sets/reps using Volume Engine
@@ -206,6 +128,213 @@ function calculateSetsReps(args: {
 }
 
 // ============================================================================
+// RECOVERY SESSION GENERATOR
+// ============================================================================
+
+export function generateRecoverySession(args: {
+  userProfile: UserProfile;
+  painAreas?: string[];
+  availableMinutes?: number;
+}): GeneratedWorkoutDay {
+  const { userProfile, painAreas = [], availableMinutes = 30 } = args;
+  
+  // Base recovery exercises (mobility + stretching)
+  const baseRecovery = [
+    {
+      sets: 2,
+      repsRange: [10, 15] as [number, number],
+      restSec: 30,
+      notes: "Плавные движения позвоночником. Вдох - прогиб, выдох - округление спины.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_cat_cow",
+        name: "Кошка-Корова (Cat-Cow)",
+        patterns: ["core" as Pattern],
+        primaryMuscles: ["core" as MuscleGroup, "lower_back" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 1 as 1,
+        setupCost: 1 as 1,
+        stabilityDemand: 1 as 1,
+        kind: "core" as ExerciseKind,
+        repRangeDefault: { min: 8, max: 15 },
+        restSecDefault: 30,
+        cues: ["Медленно и плавно", "Синхронизируй с дыханием"],
+      },
+    },
+    {
+      sets: 2,
+      repsRange: [10, 15] as [number, number],
+      restSec: 30,
+      notes: "Круговые движения руками вперёд и назад. Увеличивай амплитуду постепенно.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_shoulder_circles",
+        name: "Подвижность плеч (Shoulder Circles)",
+        patterns: ["delts_iso" as Pattern],
+        primaryMuscles: ["front_delts" as MuscleGroup, "side_delts" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 1 as 1,
+        setupCost: 1 as 1,
+        stabilityDemand: 1 as 1,
+        kind: "isolation" as ExerciseKind,
+        repRangeDefault: { min: 10, max: 15 },
+        restSecDefault: 30,
+        cues: ["Контролируй движение", "Без боли"],
+      },
+    },
+    {
+      sets: 3,
+      repsRange: [20, 30] as [number, number],
+      restSec: 45,
+      notes: "Опустись в глубокий присед и держи позицию. Улучшает мобильность бёдер и голеностопа.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_deep_squat",
+        name: "Глубокий присед с удержанием",
+        patterns: ["squat" as Pattern],
+        primaryMuscles: ["quads" as MuscleGroup, "glutes" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 2 as 2,
+        setupCost: 1 as 1,
+        stabilityDemand: 2 as 2,
+        kind: "compound" as ExerciseKind,
+        repRangeDefault: { min: 20, max: 30 },
+        restSecDefault: 45,
+        cues: ["Пятки на полу", "Спина прямая"],
+      },
+    },
+    {
+      sets: 2,
+      repsRange: [30, 45] as [number, number],
+      restSec: 30,
+      notes: "Встань в дверном проёме, руки на косяк. Шаг вперёд для растяжки груди.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_chest_stretch",
+        name: "Растяжка грудных",
+        patterns: ["horizontal_push" as Pattern],
+        primaryMuscles: ["chest" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 1 as 1,
+        setupCost: 1 as 1,
+        stabilityDemand: 1 as 1,
+        kind: "isolation" as ExerciseKind,
+        repRangeDefault: { min: 30, max: 45 },
+        restSecDefault: 30,
+        cues: ["Дыши глубоко", "Без боли"],
+      },
+    },
+    {
+      sets: 2,
+      repsRange: [30, 45] as [number, number],
+      restSec: 30,
+      notes: "Сидя, наклонись к прямым ногам. Тянись грудью к коленям.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_hamstring_stretch",
+        name: "Растяжка задней поверхности",
+        patterns: ["hinge" as Pattern],
+        primaryMuscles: ["hamstrings" as MuscleGroup, "lower_back" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 1 as 1,
+        setupCost: 1 as 1,
+        stabilityDemand: 1 as 1,
+        kind: "isolation" as ExerciseKind,
+        repRangeDefault: { min: 30, max: 45 },
+        restSecDefault: 30,
+        cues: ["Не сгибай колени", "Медленно"],
+      },
+    },
+    {
+      sets: 2,
+      repsRange: [20, 30] as [number, number],
+      restSec: 60,
+      notes: "Лёгкая активация кора. Фокус на дыхании и статике.",
+      role: "accessory" as SlotRole,
+      exercise: {
+        id: "recovery_plank",
+        name: "Планка статика",
+        patterns: ["core" as Pattern],
+        primaryMuscles: ["core" as MuscleGroup],
+        equipment: ["bodyweight" as LibraryEquipment],
+        minLevel: "beginner" as Experience,
+        difficulty: 2 as 2,
+        setupCost: 1 as 1,
+        stabilityDemand: 3 as 3,
+        kind: "core" as ExerciseKind,
+        repRangeDefault: { min: 20, max: 40 },
+        restSecDefault: 60,
+        cues: ["Тело прямое", "Дыши ровно"],
+      },
+    },
+  ];
+  
+  // Adjust duration if needed
+  let exercises = [...baseRecovery];
+  const estimatedDuration = Math.ceil(exercises.length * 3); // ~3 min per exercise
+  
+  if (availableMinutes < estimatedDuration && exercises.length > 3) {
+    exercises = exercises.slice(0, Math.max(3, Math.floor(availableMinutes / 3)));
+  }
+  
+  const totalExercises = exercises.length;
+  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+  
+  const adaptationNotes = [
+    "🛌 ВОССТАНОВИТЕЛЬНАЯ СЕССИЯ: фокус на мобильности и расслаблении.",
+    "Все движения выполняй медленно и подконтрольно.",
+    "Если появляется боль — останови упражнение.",
+  ];
+  
+  if (painAreas.length > 0) {
+    const painLocationNames: Record<string, string> = {
+      shoulder: "плечо",
+      elbow: "локоть",
+      wrist: "запястье / кисть",
+      neck: "шея",
+      lower_back: "поясница",
+      hip: "тазобедренный сустав",
+      knee: "колено",
+      ankle: "голеностоп / стопа",
+    };
+    const names = painAreas.map(p => painLocationNames[p] || p).join(", ");
+    adaptationNotes.push(`⚠️ Избегай нагрузки на: ${names}.`);
+  }
+  
+  const warmup = [
+    "5 минут лёгкой ходьбы или суставной гимнастики",
+    "Концентрируйся на дыхании и осознанных движениях",
+  ];
+  
+  const cooldown = [
+    "5 минут медленной растяжки всего тела",
+    "Глубокое дыхание, расслабление",
+  ];
+  
+  return {
+    schemeId: "recovery",
+    schemeName: "Восстановительная сессия",
+    dayIndex: 0,
+    dayLabel: "Recovery",
+    dayFocus: "Мобильность и растяжка",
+    intent: "light" as Intent,
+    warmup,
+    exercises,
+    cooldown,
+    totalExercises,
+    totalSets,
+    estimatedDuration: availableMinutes,
+    adaptationNotes,
+    warnings: [],
+  };
+}
+
+// ============================================================================
 // MAIN GENERATOR: Generate a workout day
 // ============================================================================
 
@@ -226,13 +355,21 @@ export function generateWorkoutDay(args: {
     throw new Error(`Day index ${dayIndex} not found in scheme ${scheme.id}`);
   }
 
-  // Calculate intent from checkin
-  let intent = calculateIntent(checkin);
+  // НОВОЕ: Используем единую систему Readiness
+  const readiness = computeReadiness({
+    checkin,
+    fallbackTimeBucket: userProfile.timeBucket,
+  });
   
-  // НОВОЕ: Override intent if deload week
+  let intent = readiness.intent;
+  
+  // Override intent if deload week
   if (weekPlanData?.isDeloadWeek) {
     intent = "light";
   }
+  
+  // Используем timeBucket из readiness (учитывает availableMinutes)
+  const effectiveTimeBucket = readiness.timeBucket;
 
   // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
   // ВАЖНО: строки типизированы Equipment → LibraryEquipment[], TypeScript проверит совпадение
@@ -250,13 +387,13 @@ export function generateWorkoutDay(args: {
   const constraints: UserConstraints = {
     experience: userProfile.experience,
     equipmentAvailable: mapEquipmentToAvailable(userProfile.equipment),
-    avoid: buildAvoidFlags(checkin), // ИСПРАВЛЕНО: убрал userProfile.constraints (это не JointFlag[])
+    avoid: readiness.avoidFlags, // НОВОЕ: используем из readiness
   };
 
   // Build checkin context
   const ctx: CheckinContext = {
     intent,
-    timeBucket: userProfile.timeBucket,
+    timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
     goal: userProfile.goal as any, // Type mapping handled at runtime
     preferCircuits: userProfile.goal === "lose_weight",
     avoidHighSetupWhenTired: intent === "light",
@@ -274,7 +411,7 @@ export function generateWorkoutDay(args: {
   
   const slots = buildDaySlots({
     templateRulesId: dayBlueprint.templateRulesId ?? dayBlueprint.label,
-    timeBucket: userProfile.timeBucket,
+    timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
     intent,
   });
 
@@ -384,16 +521,105 @@ export function generateWorkoutDay(args: {
   totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
 
   // Estimate duration: warmup (10) + exercises + cooldown (5)
-  const exerciseDuration = exercises.reduce((sum, e) => {
-    // ИСПРАВЛЕНО: 3-4 сек/повтор (темп) + rest + setup между подходами
-    const avgReps = (e.repsRange[0] + e.repsRange[1]) / 2;
-    const repTime = avgReps * 3.5; // секунды на подход (темп)
-    const setupTime = 20; // секунды на подготовку/смену веса между подходами
-    const setTime = repTime + e.restSec + setupTime;
-    return sum + setTime * e.sets;
-  }, 0);
+  const calculateDuration = (exs: typeof exercises) => {
+    // ПРАВИЛЬНЫЙ расчёт: setup ОДИН РАЗ на упражнение (не в reduce!)
+    const workTime = exs.reduce((sum, e) => {
+      const avgReps = (e.repsRange[0] + e.repsRange[1]) / 2;
+      const repTime = avgReps * 3.5; // секунды на подход (темп execution)
+      
+      // Rest только между подходами (не после последнего)
+      const totalWorkTime = e.sets * repTime;
+      const totalRestTime = (e.sets - 1) * e.restSec;
+      
+      return sum + totalWorkTime + totalRestTime;
+    }, 0);
+    
+    // Setup time между упражнениями (переход станции/оборудования)
+    const setupTime = exs.length * 30; // 30 сек на каждое упражнение
+    
+    // Total: Warmup (10 min) + work + setup + Cooldown (5 min)
+    const totalMinutes = 10 + (workTime + setupTime) / 60 + 5;
+    
+    return Math.ceil(totalMinutes);
+  };
   
-  const estimatedDuration = Math.ceil((10 + exerciseDuration / 60 + 5));
+  let estimatedDuration = calculateDuration(exercises);
+  
+  // NEW: Reduce exercises/sets if availableMinutes is less than estimated duration
+  // ИСПРАВЛЕНО: используем readiness.effectiveMinutes (единый источник)
+  let wasReducedForTime = false;
+  if (readiness.effectiveMinutes && readiness.effectiveMinutes < estimatedDuration) {
+    const rolePriority: Record<SlotRole, number> = {
+      conditioning: 0,
+      pump: 1,
+      accessory: 2,
+      secondary: 3,
+      main: 4,
+    };
+    
+    // Add buffer: target 90% of available time to be safe
+    const targetDuration = readiness.effectiveMinutes * 0.9;
+    
+    let iterations = 0;
+    const maxIterations = 10; // Safety limit
+    
+    // Aggressive reduction for very limited time (< 30 min)
+    const isVeryLimitedTime = readiness.effectiveMinutes < 30;
+    const minExercises = isVeryLimitedTime ? 2 : 3;
+    
+    // First try: remove low-priority exercises
+    while (exercises.length > minExercises && estimatedDuration > targetDuration && iterations < maxIterations) {
+      // Find exercise with lowest priority
+      const idx = exercises
+        .map((e, i) => ({ i, p: rolePriority[e.role] ?? 99 }))
+        .sort((a, b) => a.p - b.p)[0]?.i;
+      
+      if (idx == null) break;
+      
+      const [removed] = exercises.splice(idx, 1);
+      if (removed) {
+        totalSets -= removed.sets;
+        totalExercises--;
+        wasReducedForTime = true;
+      }
+      
+      estimatedDuration = calculateDuration(exercises);
+      iterations++;
+    }
+    
+    // Second try: reduce sets if still too long
+    let setsReductionPasses = 0;
+    while (estimatedDuration > targetDuration && setsReductionPasses < 2) {
+      let didReduce = false;
+      for (const ex of exercises) {
+        const minSets = isVeryLimitedTime ? 2 : 3;
+        if (ex.sets > minSets) {
+          ex.sets = Math.max(minSets, ex.sets - 1);
+          totalSets--;
+          wasReducedForTime = true;
+          didReduce = true;
+        }
+      }
+      if (!didReduce) break;
+      estimatedDuration = calculateDuration(exercises);
+      setsReductionPasses++;
+    }
+    
+    // Third try: reduce rest times if STILL too long and very limited time
+    if (isVeryLimitedTime && estimatedDuration > targetDuration) {
+      for (const ex of exercises) {
+        if (ex.restSec > 60) {
+          ex.restSec = Math.max(60, Math.floor(ex.restSec * 0.75)); // Reduce by 25%
+          wasReducedForTime = true;
+        }
+      }
+      estimatedDuration = calculateDuration(exercises);
+    }
+    
+    // Recalculate after time-based reduction
+    totalExercises = exercises.length;
+    totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+  }
 
   // -------------------------------------------------------------------------
   // STEP 5: Generate adaptation notes and warnings
@@ -401,6 +627,9 @@ export function generateWorkoutDay(args: {
   
   const adaptationNotes: string[] = [];
   const warnings: string[] = [];
+  
+  // НОВОЕ: Используем warnings из readiness (единый источник правды)
+  warnings.push(...readiness.warnings);
 
   // Track if volume was reduced
   const originalSetCount = selectedExercises.reduce((sum: number, { role }) => {
@@ -422,21 +651,25 @@ export function generateWorkoutDay(args: {
 
   if (weekPlanData?.isDeloadWeek) {
     adaptationNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
-  } else if (intent === "light") {
-    adaptationNotes.push("Тренировка облегчена из-за низкой энергии/сна. Фокус на технике.");
   }
-
-  if (intent === "hard") {
-    adaptationNotes.push("Высокая готовность — целимся в верхний диапазон повторений.");
-  }
+  
+  // Используем notes из readiness
+  adaptationNotes.push(...readiness.notes);
 
   if (dupIntensity) {
     const dupLabels = { heavy: "Heavy (силовой)", medium: "Medium (средний)", light: "Light (лёгкий)" };
     adaptationNotes.push(`DUP: ${dupLabels[dupIntensity]} день`);
   }
 
-  if (checkin?.pain && checkin.pain.length > 0) {
-    warnings.push(`Боль в: ${checkin.pain.join(", ")}. Избегай дискомфорта, снижай веса при необходимости.`);
+  // УДАЛЕНО: дублирование warnings про стресс/боль
+  // Теперь используем только из readiness (единый источник правды)
+  
+  // NEW: Note if workout was shortened due to time constraints
+  // ИСПРАВЛЕНО: используем readiness.effectiveMinutes
+  if (wasReducedForTime && readiness.effectiveMinutes) {
+    adaptationNotes.push(
+      `⏱️ Тренировка сокращена под доступное время (${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`
+    );
   }
 
   // -------------------------------------------------------------------------

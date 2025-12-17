@@ -92,7 +92,7 @@ const checkin1Low: CheckInData = {
   energy: "low",
   sleep: "poor",
   stress: "high",
-  pain: ["lower_back"],
+  pain: [{ location: "lower_back", level: 5 }],
 };
 
 console.log(`\n🏋️ Generating Day 1 workout (LOW energy, back pain)...`);
