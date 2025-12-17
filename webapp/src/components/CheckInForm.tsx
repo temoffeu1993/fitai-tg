@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
 
 type Props = {
@@ -90,12 +90,14 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 420ms cubic-bezier(.16,1,.3,1) both;
+  animation: checkinStepIn 720ms cubic-bezier(.22,1,.36,1) both;
   will-change: transform, opacity;
+  transform-origin: 50% 50%;
 }
 @keyframes checkinStepIn {
-  from { opacity: 0; transform: translateY(18px) scale(0.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(30px) scale(0.96); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-step-animate { animation: none !important; }
@@ -173,6 +175,9 @@ export function CheckInForm({
   const stepCardRef = useRef<HTMLDivElement | null>(null);
   const measureRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
+  const [pressPrimary, setPressPrimary] = useState(false);
+  const [pressBack, setPressBack] = useState(false);
+  const navTimerRef = useRef<number | null>(null);
 
   const sleepOptions = [
     { key: "poor" as const, label: "Плохо", desc: "Сон был прерывистым или коротким — восстановление слабое." },
@@ -240,19 +245,44 @@ export function CheckInForm({
   const shouldRender = inline || open;
   if (!shouldRender) return null;
 
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current != null) window.clearTimeout(navTimerRef.current);
+    };
+  }, []);
+
+  const flashPress = (kind: "primary" | "back") => {
+    if (kind === "primary") setPressPrimary(true);
+    else setPressBack(true);
+    window.setTimeout(() => {
+      if (kind === "primary") setPressPrimary(false);
+      else setPressBack(false);
+    }, 160);
+  };
+
   const handlePrimary = () => {
     if (loading) return;
     if (isLastStep) {
       void handleSubmit();
       return;
     }
-    setStep((s) => Math.max(0, Math.min(lastStep, s + 1)));
+    flashPress("primary");
+    if (navTimerRef.current != null) window.clearTimeout(navTimerRef.current);
+    navTimerRef.current = window.setTimeout(() => {
+      setStep((s) => Math.max(0, Math.min(lastStep, s + 1)));
+      navTimerRef.current = null;
+    }, 140);
   };
 
   const handleBackClick = () => {
     if (loading) return;
+    flashPress("back");
     if (step > 0) {
-      setStep((s) => Math.max(0, s - 1));
+      if (navTimerRef.current != null) window.clearTimeout(navTimerRef.current);
+      navTimerRef.current = window.setTimeout(() => {
+        setStep((s) => Math.max(0, s - 1));
+        navTimerRef.current = null;
+      }, 120);
       return;
     }
     const cb = onBack || onClose || onSkip;
@@ -523,20 +553,33 @@ export function CheckInForm({
 
         <div style={footerStyle}>
           <button
-            style={modal.save}
+            style={{
+              ...modal.save,
+              ...(pressPrimary && !loading
+                ? { transform: "translateY(1px) scale(0.99)", filter: "brightness(0.98)", boxShadow: "0 6px 12px rgba(0,0,0,0.14)" }
+                : null),
+            }}
             onClick={handlePrimary}
             type="button"
             disabled={loading}
             className="checkin-primary-btn"
+            onPointerDown={() => setPressPrimary(true)}
+            onPointerUp={() => setPressPrimary(false)}
+            onPointerCancel={() => setPressPrimary(false)}
+            onPointerLeave={() => setPressPrimary(false)}
           >
             {loading && isLastStep ? "Сохраняем..." : primaryLabel}
           </button>
           <button
-            style={modal.backTextBtn}
+            style={{ ...modal.backTextBtn, ...(pressBack && !loading ? { opacity: 0.72, transform: "translateY(1px)" } : null) }}
             onClick={handleBackClick}
             type="button"
             disabled={loading}
             className="checkin-text-btn"
+            onPointerDown={() => setPressBack(true)}
+            onPointerUp={() => setPressBack(false)}
+            onPointerCancel={() => setPressBack(false)}
+            onPointerLeave={() => setPressBack(false)}
           >
             {backLabel || "Назад"}
           </button>
