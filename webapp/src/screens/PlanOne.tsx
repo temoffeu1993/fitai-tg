@@ -445,6 +445,14 @@ export default function PlanOne() {
   const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
   const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
   const startWorkoutDate = selectedPlanned?.scheduledFor ? new Date(selectedPlanned.scheduledFor).toISOString().slice(0, 10) : null;
+  const schemeTitle = useMemo(() => {
+    const pool = [selectedPlanned, ...remainingPlanned].filter(Boolean) as PlannedWorkout[];
+    for (const w of pool) {
+      const name = String((w.plan as any)?.schemeName || "").trim();
+      if (name) return name;
+    }
+    return "Тренировки";
+  }, [selectedPlanned, remainingPlanned]);
 
   const dayLabelRU = (label: string) => {
     const v = String(label || "").toLowerCase();
@@ -500,21 +508,17 @@ export default function PlanOne() {
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>{heroDateChip}</span>
-          <span style={s.credits}>Неделя</span>
+          <span style={s.credits}>{schemeTitle}</span>
         </div>
-        <div style={s.heroTitle}>Твои тренировки</div>
+        <div style={s.heroKicker}>Неделя тренировок</div>
+        <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>
-          Выбери, с какой тренировки начать. Выполненные исчезнут из списка.
+          Сгенерировал для тебя недельный план тренировок.
         </div>
       </section>
 
       {remainingPlanned.length ? (
-        <section style={s.blockWhite}>
-          <div style={pick.header}>
-            <div style={pick.headerTitle}>Список тренировок</div>
-            <div style={pick.headerHint}>Осталось: {remainingPlanned.length}</div>
-          </div>
-
+        <section style={{ display: "grid", gap: 12, marginTop: 14 }}>
           <div style={{ display: "grid", gap: 12 }}>
             {remainingPlanned.map((w, index) => {
               const p: any = w.plan || {};
@@ -1621,6 +1625,7 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  heroKicker: { marginTop: 10, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
   pill: {
     background: "rgba(255,255,255,.08)",
     padding: "6px 10px",
