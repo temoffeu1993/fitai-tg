@@ -167,28 +167,33 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
-          {/* 1. СОН (один вопрос, 5 чипов) */}
+          {/* 1. СОН (ползунок, 5 значений) */}
           <div style={modal.cardMini}>
             <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-              {(["poor", "fair", "ok", "good", "excellent"] as const).map((val) => (
-                <button
-                  key={val}
-                  type="button"
-                  style={sleepQuality === val ? chipActive : chipStyle}
-                  onClick={() => setSleepQuality(val)}
-                >
-                  {val === "poor"
-                    ? "Плохо"
-                    : val === "fair"
-                    ? "Так себе"
-                    : val === "ok"
-                    ? "Нормально"
-                    : val === "good"
-                    ? "Хорошо"
-                    : "Отлично"}
-                </button>
-              ))}
+            <input
+              type="range"
+              min={0}
+              max={4}
+              step={1}
+              value={["poor", "fair", "ok", "good", "excellent"].indexOf(sleepQuality)}
+              onChange={(e) => {
+                const idx = Number(e.target.value);
+                setSleepQuality((["poor", "fair", "ok", "good", "excellent"] as const)[idx] || "ok");
+              }}
+              style={{
+                ...sliderStyle(0, 4, ["poor", "fair", "ok", "good", "excellent"].indexOf(sleepQuality), [0, 25, 50, 75, 100]),
+                marginTop: 4,
+              }}
+              className="checkin-slider"
+            />
+            <div style={{ ...modal.subLabel, marginTop: 2 }}>
+              {{
+                poor: "Плохо",
+                fair: "Так себе",
+                ok: "Нормально",
+                good: "Хорошо",
+                excellent: "Отлично",
+              }[sleepQuality]}
             </div>
           </div>
 
