@@ -725,7 +725,6 @@ export default function PlanOne() {
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
-                      <div style={pick.detailTitle}>Упражнения</div>
                       <ExercisesList items={mappedExercises} variant="main" isOpen={true} />
                     </div>
                   ) : null}
@@ -2413,12 +2412,11 @@ const pick: Record<string, React.CSSProperties> = {
   },
   detailsSection: {
     marginTop: 12,
-    padding: 14,
-    background: "rgba(255,255,255,0.5)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
-    display: "grid",
-    gap: 10,
+    padding: 0,
+    background: "transparent",
+    borderRadius: 0,
+    border: "none",
+    display: "block",
   },
   detailTitle: {
     fontSize: 13,
