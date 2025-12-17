@@ -467,13 +467,40 @@ export default function PlanOne() {
 
   const dayLabelRU = (label: string) => {
     const v = String(label || "").toLowerCase();
-    if (v.includes("push")) return "Пуш";
-    if (v.includes("pull")) return "Пул";
-    if (v.includes("leg")) return "Ноги";
-    if (v.includes("upper")) return "Верх";
-    if (v.includes("lower")) return "Низ";
-    if (v.includes("full")) return "Фулл бади";
+    if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Пуш";
+    if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Пул";
+    if (v.includes("leg") || v.includes("ног")) return "Ноги и ягодицы";
+    if (v.includes("upper") || v.includes("верх")) return "Верх тела";
+    if (v.includes("lower") || v.includes("низ")) return "Низ тела";
+    if (v.includes("full")) return "Всё тело";
+    if (v.includes("recovery") || v.includes("восстанов")) return "Восстановление";
     return label || "Тренировка";
+  };
+
+  const dayDescriptionRU = (label: string) => {
+    const v = String(label || "").toLowerCase();
+    if (v.includes("push") || v.includes("пуш") || v.includes("жим")) {
+      return "В этой тренировке прорабатываем жимовые мышцы: грудь, плечи и трицепс. Акцент на жимы и их безопасные вариации.";
+    }
+    if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) {
+      return "В этой тренировке прорабатываем мышцы спины и задней поверхности плеч, а также бицепс. Акцент на тяги, контроль лопаток и технику.";
+    }
+    if (v.includes("leg") || v.includes("ног")) {
+      return "В этой тренировке прорабатываем ноги и ягодицы: квадрицепсы, заднюю поверхность бедра и ягодичные. Акцент на базовые движения и технику.";
+    }
+    if (v.includes("upper") || v.includes("верх")) {
+      return "В этой тренировке прорабатываем мышцы верхней части тела: грудь, спину и руки. Балансируем жимовые и тянущие движения.";
+    }
+    if (v.includes("lower") || v.includes("низ")) {
+      return "В этой тренировке прорабатываем нижнюю часть тела: ноги, ягодицы и мышцы-стабилизаторы. Работаем в контроле и без дискомфорта.";
+    }
+    if (v.includes("full")) {
+      return "В этой тренировке прорабатываем всё тело за одно занятие: основные группы мышц в сбалансированном объёме.";
+    }
+    if (v.includes("recovery") || v.includes("восстанов")) {
+      return "Восстановительная тренировка: лёгкая нагрузка, мобильность и мягкая работа без боли. Цель — почувствовать лучшее самочувствие после занятия.";
+    }
+    return "";
   };
 
   const workoutChips = (p: any) => {
@@ -572,8 +599,11 @@ export default function PlanOne() {
               const isSelected = w.id === selectedPlannedId;
               const isRecommended = w.id === recommendedPlannedId;
               const { totalExercises, minutes } = workoutChips(p);
-              const label = dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
-              const focus = String(p.dayFocus || p.focus || p.description || "").trim();
+              const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+              const label = dayLabelRU(rawLabel);
+              const dayDesc = dayDescriptionRU(rawLabel);
+              const focusRaw = String(p.dayFocus || p.focus || p.description || "").trim();
+              const focus = dayDesc || focusRaw || "Сделал тренировку под твою схему и текущее состояние.";
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const mappedExercises: Exercise[] = (Array.isArray(p.exercises) ? p.exercises : []).map((ex: any) => ({
