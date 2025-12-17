@@ -90,15 +90,51 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 260ms cubic-bezier(.2,.9,.2,1) both;
+  animation: checkinStepIn 420ms cubic-bezier(.16,1,.3,1) both;
   will-change: transform, opacity;
 }
 @keyframes checkinStepIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-step-animate { animation: none !important; }
+}
+
+.checkin-primary-btn,
+.checkin-text-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.checkin-primary-btn {
+  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+.checkin-primary-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.98);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.14);
+}
+@media (hover: hover) {
+  .checkin-primary-btn:hover:not(:disabled) {
+    filter: brightness(1.03);
+  }
+}
+.checkin-primary-btn:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+.checkin-text-btn {
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.checkin-text-btn:active:not(:disabled) {
+  opacity: 0.72;
+  transform: translateY(1px);
+}
+.checkin-text-btn:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.12);
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 `;
 
@@ -486,10 +522,22 @@ export function CheckInForm({
         </div>
 
         <div style={footerStyle}>
-          <button style={modal.save} onClick={handlePrimary} type="button" disabled={loading}>
+          <button
+            style={modal.save}
+            onClick={handlePrimary}
+            type="button"
+            disabled={loading}
+            className="checkin-primary-btn"
+          >
             {loading && isLastStep ? "Сохраняем..." : primaryLabel}
           </button>
-          <button style={modal.backTextBtn} onClick={handleBackClick} type="button" disabled={loading}>
+          <button
+            style={modal.backTextBtn}
+            onClick={handleBackClick}
+            type="button"
+            disabled={loading}
+            className="checkin-text-btn"
+          >
             {backLabel || "Назад"}
           </button>
         </div>
@@ -652,6 +700,7 @@ const modal: Record<string, React.CSSProperties> = {
     fontSize: 17,
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    WebkitTapHighlightColor: "transparent",
   },
   backTextBtn: {
     width: "100%",
@@ -663,6 +712,7 @@ const modal: Record<string, React.CSSProperties> = {
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
+    WebkitTapHighlightColor: "transparent",
   },
   error: {
     background: "rgba(255,0,0,0.07)",
