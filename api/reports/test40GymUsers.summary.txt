@@ -1,0 +1,76 @@
+Generated: 2025-12-18T17:14:43.541Z
+Users: 40
+Buckets: {"опасно":12,"ok":15,"сомнительно":13}
+Global issues: 12 | warnings: 44
+
+=== ОПАСНО (12) ===
+- G01 female 52y 167cm 63kg BMI22.6 exp=advanced goal=health_wellness 6x45 | scheme=NONE
+    * No scheme candidates
+- G02 male 37y 179cm 114kg BMI35.6 exp=advanced goal=lose_weight 6x60 | scheme=NONE
+    * No scheme candidates
+- G03 male 55y 175cm 65kg BMI21.2 exp=intermediate goal=athletic_body 3x60 | scheme=fb_3x_classic
+    * Нарушены blockedPatterns: squat
+- G05 male 36y 177cm 73kg BMI23.3 exp=advanced goal=lose_weight 6x90 | scheme=NONE
+    * No scheme candidates
+- G11 male 45y 174cm 84kg BMI27.7 exp=beginner goal=lose_weight 2x45 | scheme=fb_2x_beginner_base
+    * Нарушены blockedPatterns: horizontal_push
+- G13 male 38y 176cm 68kg BMI22 exp=advanced goal=athletic_body 4x60 | scheme=ul_4x_classic_ab
+    * Нарушены blockedPatterns: horizontal_push
+- G14 female 48y 166cm 92kg BMI33.4 exp=beginner goal=build_muscle 3x60 | scheme=fb_3x_classic
+    * Нарушены blockedPatterns: squat
+- G16 female 27y 164cm 89kg BMI33.1 exp=intermediate goal=athletic_body 5x45 | scheme=athletic_5x
+    * Нарушены blockedPatterns: squat
+- G23 female 31y 171cm 96kg BMI32.8 exp=intermediate goal=athletic_body 3x45 | scheme=fb_3x_classic
+    * Нарушены blockedPatterns: horizontal_push
+- G28 female 37y 159cm 59kg BMI23.3 exp=intermediate goal=lose_weight 5x60 | scheme=athletic_5x
+    * Нарушены blockedPatterns: horizontal_push
+- G29 female 51y 161cm 68kg BMI26.2 exp=intermediate goal=athletic_body 5x60 | scheme=athletic_5x
+    * Нарушены blockedPatterns: squat
+- G32 female 29y 166cm 59kg BMI21.4 exp=beginner goal=strength 2x90 | scheme=NONE
+    * No scheme candidates
+
+=== СОМНИТЕЛЬНО (13) ===
+- G07 male 35y 167cm 66kg BMI23.7 exp=intermediate goal=health_wellness 3x60 | scheme=fb_3x_classic
+    * Push/Pull imbalance: push=9 pull=15 ratio=0.60
+- G12 female 30y 162cm 58kg BMI22.1 exp=beginner goal=athletic_body 2x45 | scheme=fb_2x_beginner_base
+    * Push/Pull imbalance: push=6 pull=10 ratio=0.60
+- G17 female 28y 159cm 64kg BMI25.3 exp=intermediate goal=lose_weight 4x90 | scheme=legs_priority_4x
+    * Push/Pull imbalance: push=6 pull=9 ratio=0.67
+- G18 female 42y 175cm 85kg BMI27.8 exp=advanced goal=build_muscle 4x90 | scheme=ul_4x_classic_ab
+    * Push/Pull imbalance: push=19 pull=26 ratio=0.73
+- G20 female 20y 176cm 79kg BMI25.5 exp=intermediate goal=build_muscle 4x60 | scheme=ul_4x_powerbuilding
+    * Missing requiredPatterns day2 (Upper Hypertrophy): arms_iso
+- G21 female 46y 166cm 71kg BMI25.8 exp=advanced goal=lose_weight 5x45 | scheme=athletic_5x
+    * Push/Pull imbalance: push=12 pull=19 ratio=0.63
+- G26 female 40y 160cm 55kg BMI21.5 exp=advanced goal=athletic_body 5x45 | scheme=athletic_5x
+    * Push/Pull imbalance: push=15 pull=21 ratio=0.71
+- G30 male 40y 167cm 63kg BMI22.6 exp=beginner goal=lose_weight 4x45 | scheme=ul_4x_classic_ab
+    * Missing requiredPatterns day1 (Lower A): core
+    * Missing requiredPatterns day3 (Lower B): core
+- G33 female 28y 164cm 73kg BMI27.1 exp=advanced goal=strength 4x60 | scheme=ul_4x_powerbuilding
+    * Missing requiredPatterns day2 (Upper Hypertrophy): arms_iso
+- G35 female 32y 168cm 68kg BMI24.1 exp=intermediate goal=health_wellness 5x45 | scheme=athletic_5x
+    * Push/Pull imbalance: push=10 pull=14 ratio=0.71
+- G36 female 47y 163cm 61kg BMI23 exp=advanced goal=health_wellness 5x45 | scheme=athletic_5x
+    * Push/Pull imbalance: push=12 pull=19 ratio=0.63
+- G37 female 34y 170cm 63kg BMI21.8 exp=advanced goal=build_muscle 4x60 | scheme=ul_4x_powerbuilding
+    * Missing requiredPatterns day2 (Upper Hypertrophy): arms_iso
+- G39 male 54y 173cm 93kg BMI31.1 exp=advanced goal=strength 5x90 | scheme=ppl_5x_classic_ab
+    * Push/Pull imbalance: push=17 pull=24 ratio=0.71
+
+=== OK (15) ===
+- G04 male 29y 181cm 79kg BMI24.1 exp=beginner goal=build_muscle 3x60 | scheme=fb_3x_classic
+- G06 female 52y 160cm 72kg BMI28.1 exp=beginner goal=build_muscle 3x60 | scheme=fb_3x_classic
+- G08 female 44y 168cm 67kg BMI23.7 exp=intermediate goal=build_muscle 4x60 | scheme=ul_4x_classic_ab
+- G09 female 25y 168cm 68kg BMI24.1 exp=advanced goal=build_muscle 5x60 | scheme=ppl_5x_classic_ab
+- G10 female 28y 159cm 66kg BMI26.1 exp=beginner goal=athletic_body 4x90 | scheme=legs_priority_4x
+- G15 female 64y 170cm 80kg BMI27.7 exp=intermediate goal=build_muscle 3x45 | scheme=fb_3x_classic
+- G19 female 26y 168cm 66kg BMI23.4 exp=intermediate goal=athletic_body 3x60 | scheme=ppl_3x_condensed
+- G22 male 25y 172cm 63kg BMI21.3 exp=beginner goal=athletic_body 3x60 | scheme=fb_3x_classic
+- G24 male 24y 175cm 75kg BMI24.5 exp=intermediate goal=strength 3x60 | scheme=ppl_3x_condensed
+- G25 female 41y 165cm 54kg BMI19.8 exp=intermediate goal=build_muscle 4x90 | scheme=ul_4x_classic_ab
+- G27 male 54y 167cm 76kg BMI27.3 exp=intermediate goal=strength 4x45 | scheme=ul_4x_classic_ab
+- G31 female 39y 167cm 76kg BMI27.3 exp=beginner goal=athletic_body 4x90 | scheme=ul_4x_classic_ab
+- G34 male 53y 183cm 79kg BMI23.6 exp=intermediate goal=strength 4x45 | scheme=ul_4x_classic_ab
+- G38 male 31y 175cm 78kg BMI25.5 exp=intermediate goal=build_muscle 5x45 | scheme=ppl_5x_classic_ab
+- G40 male 39y 184cm 71kg BMI21 exp=intermediate goal=athletic_body 4x45 | scheme=ul_4x_classic_ab

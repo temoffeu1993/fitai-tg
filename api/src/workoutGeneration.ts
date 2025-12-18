@@ -435,6 +435,7 @@ async function buildUserProfile(uid: string): Promise<UserProfile> {
   const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;
   
   return {
+    userId: uid, // NEW: для системы прогрессии
     experience,
     goal,
     daysPerWeek,
@@ -1245,14 +1246,22 @@ workoutGeneration.post(
 
       // НОВОЕ: Apply progression system
       try {
+        console.log('\n🔄 [save-session] Applying progression system...');
+        
         // Get user profile for goal/experience
         const [onboardingRow] = await q<{ data: any; summary: any }>(
           `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
           [uid]
         );
         
+        if (!onboardingRow) {
+          console.warn(`  ⚠️  No onboarding found for user ${uid.slice(0, 8)}... - using defaults`);
+        }
+        
         const goal = onboardingRow?.data?.goal || onboardingRow?.summary?.goal || "build_muscle";
         const experience = onboardingRow?.data?.experience || onboardingRow?.summary?.experience || "intermediate";
+        
+        console.log(`  User profile: ${experience} / ${goal}`);
         
         // Apply progression
         const { applyProgressionFromSession } = await import("./progressionService.js");
@@ -1264,15 +1273,17 @@ workoutGeneration.post(
           workoutDate: finishedAt.toISOString().slice(0, 10),
         });
         
-        console.log(`[Progression] Applied to session:`, {
+        console.log(`\n✅ [save-session] Progression applied successfully:`, {
           totalExercises: progressionSummary.totalExercises,
           progressed: progressionSummary.progressedCount,
           maintained: progressionSummary.maintainedCount,
           deloaded: progressionSummary.deloadCount,
+          rotations: progressionSummary.rotationSuggestions.length,
         });
       } catch (progError) {
         // Don't fail the entire save if progression fails
-        console.error("[Progression] Error applying progression:", progError);
+        console.error("\n❌ [save-session] Error applying progression:", progError);
+        console.error("  Stack:", (progError as Error).stack);
         // Continue to COMMIT workout
       }
 

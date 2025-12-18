@@ -160,14 +160,26 @@ async function findExerciseByName(name: string): Promise<Exercise | null> {
     
     const searchNorm = normalize(name);
     
-    // Find by exact match or close match
-    const found = EXERCISE_LIBRARY.find(ex => {
-      const exNorm = normalize(ex.name);
-      return exNorm === searchNorm || exNorm.includes(searchNorm) || searchNorm.includes(exNorm);
-    });
+    // Find by exact match first
+    let found = EXERCISE_LIBRARY.find(ex => normalize(ex.name) === searchNorm);
+    
+    // If not found, try partial match
+    if (!found) {
+      found = EXERCISE_LIBRARY.find(ex => {
+        const exNorm = normalize(ex.name);
+        return exNorm.includes(searchNorm) || searchNorm.includes(exNorm);
+      });
+    }
+    
+    if (found) {
+      console.log(`  [ProgressionService] Matched "${name}" → ${found.id} (${found.name})`);
+    } else {
+      console.warn(`  [ProgressionService] ⚠️ Exercise not found: "${name}"`);
+    }
     
     return found || null;
-  } catch {
+  } catch (err) {
+    console.error(`  [ProgressionService] Error finding exercise "${name}":`, err);
     return null;
   }
 }
@@ -195,6 +207,20 @@ export async function applyProgressionFromSession(args: {
 }): Promise<ProgressionSummary> {
   const { userId, payload, goal, experience, workoutDate } = args;
   
+  console.log(`\n🏋️ [ProgressionService] Processing session for user ${userId.slice(0, 8)}...`);
+  console.log(`  Workout date: ${workoutDate}`);
+  console.log(`  Goal: ${goal}, Experience: ${experience}`);
+  console.log(`  Exercises: ${payload.exercises?.length || 0}`);
+  
+  // Validate inputs
+  if (!userId) {
+    throw new Error('[ProgressionService] userId is required');
+  }
+  
+  if (!payload?.exercises || !Array.isArray(payload.exercises)) {
+    throw new Error('[ProgressionService] payload.exercises is required');
+  }
+  
   const summary: ProgressionSummary = {
     totalExercises: 0,
     progressedCount: 0,
@@ -204,21 +230,28 @@ export async function applyProgressionFromSession(args: {
     details: [],
   };
   
+  let processedCount = 0;
+  let skippedCount = 0;
+  
   // Process each exercise
   for (const exerciseData of payload.exercises) {
     // Skip if no sets recorded
     if (!exerciseData.sets || exerciseData.sets.length === 0) {
+      console.log(`  ⏭️  Skipping "${exerciseData.name}" (no sets recorded)`);
+      skippedCount++;
       continue;
     }
     
     // Find exercise in library
     const exercise = await findExerciseByName(exerciseData.name);
     if (!exercise) {
-      console.warn(`[ProgressionService] Exercise not found: ${exerciseData.name}`);
+      console.warn(`  ⚠️  Exercise not found: "${exerciseData.name}" - skipping progression`);
+      skippedCount++;
       continue;
     }
     
     summary.totalExercises++;
+    processedCount++;
     
     try {
       // Get or initialize progression data
@@ -294,9 +327,21 @@ export async function applyProgressionFromSession(args: {
       });
       
     } catch (error) {
-      console.error(`[ProgressionService] Error processing ${exerciseData.name}:`, error);
+      console.error(`  ❌ Error processing ${exerciseData.name}:`, error);
+      skippedCount++;
       // Continue with other exercises
     }
+  }
+  
+  // Log summary
+  console.log(`\n📊 [ProgressionService] Session processed:`);
+  console.log(`  ✅ Processed: ${processedCount} exercises`);
+  console.log(`  ⏭️  Skipped: ${skippedCount} exercises`);
+  console.log(`  📈 Progressed: ${summary.progressedCount}`);
+  console.log(`  ➡️  Maintained: ${summary.maintainedCount}`);
+  console.log(`  📉 Deloaded: ${summary.deloadCount}`);
+  if (summary.rotationSuggestions.length > 0) {
+    console.log(`  🔄 Rotation suggested: ${summary.rotationSuggestions.join(', ')}`);
   }
   
   return summary;
@@ -324,7 +369,17 @@ export async function getNextWorkoutRecommendations(args: {
 }): Promise<Map<string, ProgressionRecommendation>> {
   const { userId, exercises, goal, experience } = args;
   
+  console.log(`\n📖 [ProgressionService] Getting recommendations for ${exercises.length} exercises...`);
+  
+  // Validate inputs
+  if (!userId) {
+    console.warn('  ⚠️  No userId provided, skipping progression recommendations');
+    return new Map();
+  }
+  
   const recommendations = new Map<string, ProgressionRecommendation>();
+  let newExercises = 0;
+  let withHistory = 0;
   
   for (const exercise of exercises) {
     try {
@@ -345,6 +400,9 @@ export async function getNextWorkoutRecommendations(args: {
           newWeight: initData.currentWeight,
           reason: "Первый раз с этим упражнением. Начинаем с консервативного веса.",
         });
+        
+        newExercises++;
+        console.log(`  🆕 ${exercise.name}: starting weight ${initData.currentWeight}кг`);
         continue;
       }
       
@@ -364,11 +422,24 @@ export async function getNextWorkoutRecommendations(args: {
       });
       
       recommendations.set(exercise.id, recommendation);
+      withHistory++;
+      
+      const actionEmoji = {
+        increase_weight: '📈',
+        increase_reps: '📊',
+        decrease_weight: '📉',
+        deload: '🛌',
+        maintain: '➡️',
+      }[recommendation.action] || '❓';
+      
+      console.log(`  ${actionEmoji} ${exercise.name}: ${recommendation.action} (${recommendation.newWeight || 'N/A'}кг)`);
       
     } catch (error) {
-      console.error(`[ProgressionService] Error getting recommendation for ${exercise.name}:`, error);
+      console.error(`  ❌ Error getting recommendation for ${exercise.name}:`, error);
     }
   }
+  
+  console.log(`  Summary: ${withHistory} with history, ${newExercises} new exercises`);
   
   return recommendations;
 }

@@ -1,0 +1,833 @@
+// workoutDayGenerator.ts
+// ============================================================================
+// DETERMINISTIC WORKOUT DAY GENERATOR
+// 
+// Integrates:
+// - normalizedSchemes.ts (scheme selection)
+// - dayPatternMap.ts (day structure)
+// - exerciseSelector.ts (exercise selection)
+// - exerciseLibrary.ts (200 exercises)
+// - readiness.ts (НОВОЕ: единая оценка готовности)
+// 
+// NO AI INVOLVED - Pure code logic
+// ============================================================================
+import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
+import { buildDaySlots } from "./dayPatternMap.js";
+import { selectExercisesForDay, } from "./exerciseSelector.js";
+import { calculateSetsForSlot, getRepsRange, getRestTime, validateWorkoutVolume, getSessionCaps, MAX_RECOVERABLE_VOLUME, } from "./volumeEngine.js";
+import { getWeekPlan, } from "./mesocycleEngine.js";
+import { computeReadiness, normalizeBlockedPatterns } from "./readiness.js";
+// buildAvoidFlags() УДАЛЕНА - теперь используем readiness.avoidFlags
+// calculateIntent() УДАЛЕНА - теперь используем readiness.intent
+// ============================================================================
+// HELPER: Calculate sets/reps using Volume Engine
+// ============================================================================
+function calculateSetsReps(args) {
+    const { role, experience, goal, daysPerWeek, intent } = args;
+    // Use Volume Engine for professional calculation
+    const sets = calculateSetsForSlot({
+        role,
+        experience,
+        goal,
+        daysPerWeek,
+        intent,
+    });
+    const repsRange = getRepsRange({ role, goal, intent });
+    const restSec = getRestTime({ role, goal, experience, intent });
+    return { sets, repsRange, restSec };
+}
+// ============================================================================
+// COVERAGE-AWARE TRIMMING: fitSession helpers
+// ============================================================================
+/**
+ * Compute which patterns are covered by current exercises
+ */
+function computeCoverage(exercises) {
+    const covered = new Set();
+    for (const ex of exercises) {
+        for (const pattern of ex.coversPatterns ?? []) {
+            covered.add(String(pattern));
+        }
+    }
+    return covered;
+}
+/**
+ * Check if all required patterns are covered
+ */
+function coversAllRequired(exercises, required) {
+    if (required.length === 0)
+        return true;
+    const covered = computeCoverage(exercises);
+    return required.every(p => covered.has(String(p)));
+}
+/**
+ * Check if we can remove exercise at index without breaking required coverage
+ */
+function canRemove(exercises, idx, required, corePolicy) {
+    const ex = exercises[idx];
+    // Create hypothetical array without this exercise
+    const remaining = exercises.filter((_, i) => i !== idx);
+    // Check 1: Required patterns coverage
+    if (!coversAllRequired(remaining, required)) {
+        return false;
+    }
+    // Check 2: corePolicy (если это последнее core упражнение и core required)
+    if (corePolicy === "required" && ex.coversPatterns.includes("core")) {
+        const hasCoreLeft = remaining.some(e => e.coversPatterns.includes("core"));
+        if (!hasCoreLeft) {
+            return false; // Нельзя удалить последнее core!
+        }
+    }
+    return true;
+}
+/**
+ * Минимальные сеты для роли (зависит от DUP + intent)
+ */
+function minSetsForRole(role, dupIntensity, intent) {
+    if (role === "conditioning" || role === "pump")
+        return 0; // Можно удалить полностью
+    if (role === "main") {
+        // Для main: зависит от DUP и intent
+        if (intent === "light")
+            return 3;
+        if (dupIntensity === "heavy")
+            return 4; // Силовой день - не меньше 4!
+        return 3;
+    }
+    if (role === "secondary") {
+        if (intent === "light")
+            return 1;
+        return 2; // Обычно не режем ниже 2
+    }
+    if (role === "accessory") {
+        return 1; // Минимум 1 подход
+    }
+    return 1;
+}
+/**
+ * Reduce sets by 1 for one exercise of given role (if above minSets)
+ * Returns true if reduction happened
+ */
+function reduceSetsOnce(exercises, role, minSets) {
+    // Находим кандидатов: данной роли, с sets > minSets
+    const candidates = exercises
+        .map((e, i) => ({ e, i }))
+        .filter(x => x.e.role === role && x.e.sets > minSets);
+    if (candidates.length === 0)
+        return false;
+    // Берём первого кандидата (можно добавить приоритизацию)
+    candidates[0].e.sets -= 1;
+    return true;
+}
+/**
+ * Remove one exercise (coverage-safe, from end of array)
+ * Returns true if removal happened
+ */
+function removeOneExercise(exercises, required, corePolicy) {
+    const roleOrder = ["conditioning", "pump", "accessory", "secondary", "main"];
+    for (const role of roleOrder) {
+        // Iterate from end (to avoid index shift issues)
+        for (let i = exercises.length - 1; i >= 0; i--) {
+            const ex = exercises[i];
+            if (ex.role !== role)
+                continue;
+            // Check if we can remove without breaking coverage
+            if (canRemove(exercises, i, required, corePolicy)) {
+                console.log(`       → Removing ${ex.exercise.name} (${ex.role})`);
+                exercises.splice(i, 1);
+                return true;
+            }
+        }
+    }
+    return false; // Не смогли удалить ни одного упражнения безопасно
+}
+/**
+ * Calculate estimated duration (simplified)
+ */
+function estimateDuration(exercises) {
+    let total = 0;
+    for (const ex of exercises) {
+        // each set: ~60s work + rest
+        const setDuration = 60 + ex.restSec;
+        total += ex.sets * setDuration;
+    }
+    return Math.ceil(total / 60); // minutes
+}
+/**
+ * MAIN: Fit session to time and caps constraints
+ *
+ * Algorithm:
+ * 1. Check if over time/caps
+ * 2. Try sets-first trimming (conditioning → pump → accessory → secondary → main)
+ * 3. Try exercise removal (only if coverage-safe)
+ * 4. Repeat until fit or cannot trim further
+ */
+function fitSession(args) {
+    const { exercises, required, corePolicy, maxMinutes, caps, dupIntensity, intent } = args;
+    const logs = [];
+    let trimmed = false;
+    // Time buffer: 8% of maxMinutes (or 5 min for null)
+    const bufferMin = maxMinutes !== null ? Math.ceil(maxMinutes * 0.08) : 5;
+    let iteration = 0;
+    const MAX_ITERATIONS = 50; // Safety против бесконечного цикла
+    while (iteration < MAX_ITERATIONS) {
+        iteration++;
+        const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+        const totalExercises = exercises.length;
+        const est = estimateDuration(exercises);
+        const overTime = maxMinutes !== null ? est > maxMinutes + bufferMin : false;
+        const overSets = totalSets > caps.maxSets;
+        const overEx = totalExercises > caps.maxExercises;
+        // If all good, exit
+        if (!overTime && !overSets && !overEx) {
+            if (trimmed) {
+                logs.push(`✅ Fit achieved: ${totalExercises} ex, ${totalSets} sets, ~${est}min`);
+            }
+            break;
+        }
+        logs.push(`   Iteration ${iteration}: ${totalExercises} ex, ${totalSets} sets, ~${est}min (over: time=${overTime}, sets=${overSets}, ex=${overEx})`);
+        let changed = false;
+        // Phase 1: Sets-first trimming (ВСЕГДА пробуем, даже при overEx!)
+        if (overTime || overSets || overEx) {
+            const rolesOrder = ["conditioning", "pump", "accessory", "secondary", "main"];
+            for (const role of rolesOrder) {
+                const minSets = minSetsForRole(role, dupIntensity, intent);
+                if (reduceSetsOnce(exercises, role, minSets)) {
+                    logs.push(`       → Reduced sets: ${role} role`);
+                    changed = true;
+                    trimmed = true;
+                    break; // Go to next iteration
+                }
+            }
+        }
+        // Phase 2: Exercise removal (только если sets-first не помог)
+        if (!changed && (overTime || overEx || overSets)) {
+            if (removeOneExercise(exercises, required, corePolicy)) {
+                logs.push(`       → Removed exercise (coverage-safe)`);
+                changed = true;
+                trimmed = true;
+            }
+            else {
+                logs.push(`       ⚠️  Cannot remove more exercises without breaking required coverage`);
+                break; // Не можем урезать дальше
+            }
+        }
+        // If nothing changed, we're stuck
+        if (!changed) {
+            logs.push(`       ⚠️  Cannot trim further (stuck)`);
+            break;
+        }
+    }
+    if (iteration >= MAX_ITERATIONS) {
+        logs.push(`⚠️  Max iterations reached (${MAX_ITERATIONS}), stopping trim`);
+    }
+    return { trimmed, logs };
+}
+// ============================================================================
+// RECOVERY SESSION GENERATOR
+// ============================================================================
+export function generateRecoverySession(args) {
+    const { userProfile, painAreas = [], availableMinutes = 30 } = args;
+    // Base recovery exercises (mobility + stretching)
+    const baseRecovery = [
+        {
+            sets: 2,
+            repsRange: [10, 15],
+            restSec: 30,
+            notes: "Плавные движения позвоночником. Вдох - прогиб, выдох - округление спины.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_cat_cow",
+                name: "Кошка-Корова (Cat-Cow)",
+                patterns: ["core"],
+                primaryMuscles: ["core", "lower_back"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 1,
+                setupCost: 1,
+                stabilityDemand: 1,
+                kind: "core",
+                repRangeDefault: { min: 8, max: 15 },
+                restSecDefault: 30,
+                cues: ["Медленно и плавно", "Синхронизируй с дыханием"],
+            },
+        },
+        {
+            sets: 2,
+            repsRange: [10, 15],
+            restSec: 30,
+            notes: "Круговые движения руками вперёд и назад. Увеличивай амплитуду постепенно.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_shoulder_circles",
+                name: "Подвижность плеч (Shoulder Circles)",
+                patterns: ["delts_iso"],
+                primaryMuscles: ["front_delts", "side_delts"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 1,
+                setupCost: 1,
+                stabilityDemand: 1,
+                kind: "isolation",
+                repRangeDefault: { min: 10, max: 15 },
+                restSecDefault: 30,
+                cues: ["Контролируй движение", "Без боли"],
+            },
+        },
+        {
+            sets: 3,
+            repsRange: [20, 30],
+            restSec: 45,
+            notes: "Опустись в глубокий присед и держи позицию. Улучшает мобильность бёдер и голеностопа.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_deep_squat",
+                name: "Глубокий присед с удержанием",
+                patterns: ["squat"],
+                primaryMuscles: ["quads", "glutes"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 2,
+                setupCost: 1,
+                stabilityDemand: 2,
+                kind: "compound",
+                repRangeDefault: { min: 20, max: 30 },
+                restSecDefault: 45,
+                cues: ["Пятки на полу", "Спина прямая"],
+            },
+        },
+        {
+            sets: 2,
+            repsRange: [30, 45],
+            restSec: 30,
+            notes: "Встань в дверном проёме, руки на косяк. Шаг вперёд для растяжки груди.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_chest_stretch",
+                name: "Растяжка грудных",
+                patterns: ["horizontal_push"],
+                primaryMuscles: ["chest"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 1,
+                setupCost: 1,
+                stabilityDemand: 1,
+                kind: "isolation",
+                repRangeDefault: { min: 30, max: 45 },
+                restSecDefault: 30,
+                cues: ["Дыши глубоко", "Без боли"],
+            },
+        },
+        {
+            sets: 2,
+            repsRange: [30, 45],
+            restSec: 30,
+            notes: "Сидя, наклонись к прямым ногам. Тянись грудью к коленям.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_hamstring_stretch",
+                name: "Растяжка задней поверхности",
+                patterns: ["hinge"],
+                primaryMuscles: ["hamstrings", "lower_back"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 1,
+                setupCost: 1,
+                stabilityDemand: 1,
+                kind: "isolation",
+                repRangeDefault: { min: 30, max: 45 },
+                restSecDefault: 30,
+                cues: ["Не сгибай колени", "Медленно"],
+            },
+        },
+        {
+            sets: 2,
+            repsRange: [20, 30],
+            restSec: 60,
+            notes: "Лёгкая активация кора. Фокус на дыхании и статике.",
+            role: "accessory",
+            exercise: {
+                id: "recovery_plank",
+                name: "Планка статика",
+                patterns: ["core"],
+                primaryMuscles: ["core"],
+                equipment: ["bodyweight"],
+                minLevel: "beginner",
+                difficulty: 2,
+                setupCost: 1,
+                stabilityDemand: 3,
+                kind: "core",
+                repRangeDefault: { min: 20, max: 40 },
+                restSecDefault: 60,
+                cues: ["Тело прямое", "Дыши ровно"],
+            },
+        },
+    ];
+    // Adjust duration if needed
+    // NEW: добавляем coversPatterns для совместимости с DayExercise type
+    let exercises = baseRecovery.map(ex => ({
+        ...ex,
+        coversPatterns: ex.exercise.patterns,
+    }));
+    const estimatedDuration = Math.ceil(exercises.length * 3); // ~3 min per exercise
+    if (availableMinutes < estimatedDuration && exercises.length > 3) {
+        exercises = exercises.slice(0, Math.max(3, Math.floor(availableMinutes / 3)));
+    }
+    const totalExercises = exercises.length;
+    const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+    const adaptationNotes = [
+        "🛌 ВОССТАНОВИТЕЛЬНАЯ СЕССИЯ: фокус на мобильности и расслаблении.",
+        "Все движения выполняй медленно и подконтрольно.",
+        "Если появляется боль — останови упражнение.",
+    ];
+    if (painAreas.length > 0) {
+        const painLocationNames = {
+            shoulder: "плечо",
+            elbow: "локоть",
+            wrist: "запястье / кисть",
+            neck: "шея",
+            lower_back: "поясница",
+            hip: "тазобедренный сустав",
+            knee: "колено",
+            ankle: "голеностоп / стопа",
+        };
+        const names = painAreas.map(p => painLocationNames[p] || p).join(", ");
+        adaptationNotes.push(`⚠️ Избегай нагрузки на: ${names}.`);
+    }
+    const warmup = [
+        "5 минут лёгкой ходьбы или суставной гимнастики",
+        "Концентрируйся на дыхании и осознанных движениях",
+    ];
+    const cooldown = [
+        "5 минут медленной растяжки всего тела",
+        "Глубокое дыхание, расслабление",
+    ];
+    return {
+        schemeId: "recovery",
+        schemeName: "Восстановительная сессия",
+        dayIndex: 0,
+        dayLabel: "Recovery",
+        dayFocus: "Мобильность и растяжка",
+        intent: "light",
+        warmup,
+        exercises,
+        cooldown,
+        totalExercises,
+        totalSets,
+        estimatedDuration: availableMinutes,
+        adaptationNotes,
+        warnings: [],
+    };
+}
+// ============================================================================
+// MAIN GENERATOR: Generate a workout day
+// ============================================================================
+export function generateWorkoutDay(args) {
+    const { scheme, dayIndex, userProfile, readiness, history, dupIntensity, weekPlanData } = args;
+    console.log("\n🏋️ [WORKOUT GENERATOR] ==============================");
+    console.log(`  User: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w`);
+    console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex]?.label || 'N/A'}`);
+    // Mesocycle & DUP info
+    if (weekPlanData) {
+        const weekType = weekPlanData.isDeloadWeek ? 'DELOAD' : 'NORMAL';
+        const dupInfo = dupIntensity ? `DUP: ${dupIntensity}` : 'no DUP';
+        console.log(`  Mesocycle: ${weekType} week | ${dupInfo}`);
+    }
+    // Get the day blueprint from scheme
+    const dayBlueprint = scheme.days[dayIndex];
+    if (!dayBlueprint) {
+        throw new Error(`Day index ${dayIndex} not found in scheme ${scheme.id}`);
+    }
+    // -------------------------------------------------------------------------
+    // E1: Вычисляем effectiveRequired (scheme required - blocked + corePolicy)
+    // -------------------------------------------------------------------------
+    // Схемные required patterns
+    const schemeRequired = dayBlueprint.requiredPatterns || [];
+    // Нормализуем заблокированные паттерны
+    const blockedSet = normalizeBlockedPatterns(readiness.blockedPatterns);
+    // effectiveRequired = required - blocked (фильтруем deprecated patterns)
+    let effectiveRequired = schemeRequired
+        .filter(p => p !== "arms_iso") // Deprecated: use triceps_iso or biceps_iso
+        .filter(p => !blockedSet.has(String(p)));
+    // Применяем corePolicy: если core = optional, удаляем core из effectiveRequired
+    if (readiness.corePolicy === "optional") {
+        effectiveRequired = effectiveRequired.filter(p => p !== "core");
+    }
+    // Важный edge case: если слишком много required заблокировано
+    if (effectiveRequired.length === 0 && schemeRequired.length > 0) {
+        console.warn(`⚠️  ALL required patterns blocked! Day structure may be broken.`);
+    }
+    else if (effectiveRequired.length < schemeRequired.length * 0.3 && schemeRequired.length >= 3) {
+        console.warn(`⚠️  Too many required patterns blocked (${effectiveRequired.length}/${schemeRequired.length}), consider day swap`);
+    }
+    console.log(`  Required: ${schemeRequired.length} total → ${effectiveRequired.length} effective (after blocked + corePolicy)`);
+    if (effectiveRequired.length < schemeRequired.length) {
+        const effectiveSet = new Set(effectiveRequired.map(String));
+        const removed = schemeRequired.filter(p => !effectiveSet.has(String(p)));
+        console.log(`     Removed: ${removed.join(', ')}`);
+    }
+    let intent = readiness.intent;
+    // Override intent if deload week
+    if (weekPlanData?.isDeloadWeek) {
+        intent = "light";
+        console.log(`  → Intent overridden to 'light' (deload week)`);
+    }
+    // Используем timeBucket из readiness (учитывает availableMinutes)
+    const effectiveTimeBucket = readiness.timeBucket;
+    // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
+    // ВАЖНО: строки типизированы Equipment → LibraryEquipment[], TypeScript проверит совпадение
+    // Без as - если имя не совпадёт, TypeScript упадёт на компиляции
+    function mapEquipmentToAvailable(equipment) {
+        if (equipment === "gym_full")
+            return ["gym_full"];
+        if (equipment === "dumbbells")
+            return ["dumbbell", "bench", "bodyweight"];
+        if (equipment === "bodyweight")
+            return ["bodyweight", "pullup_bar", "bands"];
+        if (equipment === "limited")
+            return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"];
+        // Fallback: если не распознали, считаем gym_full
+        return ["gym_full"];
+    }
+    // Build constraints
+    const constraints = {
+        experience: userProfile.experience,
+        equipmentAvailable: mapEquipmentToAvailable(userProfile.equipment),
+        avoid: readiness.avoidFlags, // НОВОЕ: используем из readiness
+    };
+    // Build checkin context
+    const ctx = {
+        intent,
+        timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
+        goal: userProfile.goal, // Type mapping handled at runtime
+        preferCircuits: userProfile.goal === "lose_weight",
+        avoidHighSetupWhenTired: intent === "light",
+        historyAvoidance: history?.recentExerciseIds
+            ? {
+                recentExerciseIds: history.recentExerciseIds,
+                mode: "soft",
+            }
+            : undefined,
+    };
+    // -------------------------------------------------------------------------
+    // STEP 1: Build day slots
+    // -------------------------------------------------------------------------
+    const slots = buildDaySlots({
+        templateRulesId: dayBlueprint.templateRulesId ?? dayBlueprint.label,
+        timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
+        intent,
+        experience: userProfile.experience, // NEW: влияет на slot budget (advanced = больше слотов)
+    });
+    console.log(`  Slots: ${slots.length} | Intent: ${intent} | TimeBucket: ${effectiveTimeBucket}min`);
+    // -------------------------------------------------------------------------
+    // STEP 2: Select exercises for slots
+    // -------------------------------------------------------------------------
+    const excludedCount = history?.recentExerciseIds?.length || 0;
+    console.log(`  History exclusion: ${excludedCount} exercises from recent workouts`);
+    const selectedExercises = selectExercisesForDay({
+        slots,
+        ctx,
+        constraints,
+        excludeIds: history?.recentExerciseIds,
+        requiredPatterns: effectiveRequired, // NEW: priority boost + relaxation for required
+    });
+    console.log(`  Selected ${selectedExercises.length} exercises (rotation for variety)`);
+    console.log(`     Names: ${selectedExercises.map(s => s.ex.name).join(', ')}`);
+    // -------------------------------------------------------------------------
+    // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
+    // -------------------------------------------------------------------------
+    const exercises = selectedExercises.map(({ ex, role }) => {
+        // КРИТИЧНО: используем role из селектора (он уже правильно рассчитан с downgrade)
+        let { sets, repsRange, restSec } = calculateSetsReps({
+            role,
+            experience: userProfile.experience,
+            goal: userProfile.goal,
+            daysPerWeek: userProfile.daysPerWeek,
+            intent,
+        });
+        // НОВОЕ: Применить volumeMultiplier из мезоцикла
+        if (weekPlanData?.volumeMultiplier) {
+            sets = Math.max(1, Math.round(sets * weekPlanData.volumeMultiplier));
+        }
+        // НОВОЕ: Применить DUP reps ranges ТОЛЬКО для main/secondary И ТОЛЬКО для strength/athletic_body
+        // Для build_muscle НЕ ТРОГАЕМ диапазоны - остаются гипертрофийные 6-10, 8-12
+        if (dupIntensity && (role === "main" || role === "secondary")) {
+            // DUP применяется только для силовых целей
+            if (userProfile.goal === "strength" || userProfile.goal === "athletic_body") {
+                const dupReps = {
+                    heavy: [4, 6], // Силовой день
+                    medium: [6, 10], // Средний день  
+                    light: [10, 15], // Лёгкий день (пампинг)
+                };
+                repsRange = dupReps[dupIntensity];
+            }
+            // Для build_muscle, lose_weight, health_wellness - DUP НЕ применяется
+        }
+        return {
+            exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)
+            sets,
+            repsRange,
+            restSec,
+            notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
+            role, // Role из селектора (правильно downgraded для doubles)
+            coversPatterns: ex.patterns, // NEW: для coverage-aware trimming
+        };
+    });
+    // -------------------------------------------------------------------------
+    // STEP 4: NEW - Coverage-aware fitSession (заменяет старую логику урезания)
+    // -------------------------------------------------------------------------
+    console.log(`  Selected ${exercises.length} exercises, ${exercises.reduce((s, e) => s + e.sets, 0)} sets total`);
+    // Get session caps from Volume Engine
+    const sessionCaps = getSessionCaps(userProfile.experience, effectiveTimeBucket, intent);
+    console.log(`  Session caps: ${sessionCaps.minExercises}-${sessionCaps.maxExercises} exercises, max ${sessionCaps.maxSets} sets`);
+    // Fit session to time and caps (coverage-aware, sets-first)
+    const fitResult = fitSession({
+        exercises,
+        required: effectiveRequired,
+        corePolicy: readiness.corePolicy,
+        maxMinutes: readiness.effectiveMinutes,
+        caps: sessionCaps,
+        dupIntensity,
+        intent,
+    });
+    if (fitResult.trimmed) {
+        console.log(`\n  ⚙️  TRIM APPLIED:`);
+        fitResult.logs.forEach(log => console.log(log));
+    }
+    // Recalculate after trimming
+    const totalExercises = exercises.length;
+    const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+    const estimatedDuration = estimateDuration(exercises);
+    console.log(`\n  ✅ FINAL WORKOUT:`);
+    console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+    // Final validation (только для отладки/логов)
+    const finalValidation = validateWorkoutVolume({
+        totalSets,
+        totalExercises,
+        experience: userProfile.experience,
+        timeBucket: effectiveTimeBucket,
+        intent,
+    });
+    if (!finalValidation.valid) {
+        console.warn(`  ⚠️  Final validation warnings:`);
+        finalValidation.warnings.forEach(w => console.warn(`     ${w}`));
+    }
+    // OLD wasReducedForTime logic REMOVED - now handled by fitSession above
+    const wasReducedForTime = fitResult.trimmed; // For compatibility with adaptation notes below
+    // -------------------------------------------------------------------------
+    // STEP 5: Generate adaptation notes and warnings
+    // -------------------------------------------------------------------------
+    const adaptationNotes = [];
+    const warnings = [];
+    // НОВОЕ: Используем warnings из readiness (единый источник правды)
+    warnings.push(...readiness.warnings);
+    // Track if volume was reduced
+    const originalSetCount = selectedExercises.reduce((sum, { role }) => {
+        const { sets } = calculateSetsReps({
+            role,
+            experience: userProfile.experience,
+            goal: userProfile.goal,
+            daysPerWeek: userProfile.daysPerWeek,
+            intent,
+        });
+        return sum + sets;
+    }, 0);
+    if (originalSetCount > totalSets || selectedExercises.length > totalExercises) {
+        adaptationNotes.push(`Объём скорректирован до безопасного уровня (${totalSets} подходов, ${totalExercises} упражнений) для вашего опыта.`);
+    }
+    if (weekPlanData?.isDeloadWeek) {
+        adaptationNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
+    }
+    // Используем notes из readiness (без технических деталей типа DUP)
+    adaptationNotes.push(...readiness.notes);
+    // УДАЛЕНО: дублирование warnings про стресс/боль
+    // Теперь используем только из readiness (единый источник правды)
+    // NEW: Note if workout was shortened due to time constraints
+    // ИСПРАВЛЕНО: используем readiness.effectiveMinutes
+    if (wasReducedForTime && readiness.effectiveMinutes) {
+        adaptationNotes.push(`⏱️ Тренировка сокращена под доступное время (${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`);
+    }
+    // -------------------------------------------------------------------------
+    // STEP 6: Generate warmup and cooldown
+    // -------------------------------------------------------------------------
+    const warmup = generateWarmup(exercises.map(e => e.exercise), dayBlueprint.focus);
+    const cooldown = generateCooldown(exercises.map(e => e.exercise), dayBlueprint.focus);
+    console.log(`\n  ✅ FINAL WORKOUT:`);
+    console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+    if (dupIntensity) {
+        const dupLabels = { heavy: "Heavy (силовой)", medium: "Medium (средний)", light: "Light (лёгкий)" };
+        console.log(`     DUP Pattern: ${dupLabels[dupIntensity]} день`);
+    }
+    console.log(`\n  📋 EXERCISES:`);
+    exercises.forEach((ex, i) => {
+        console.log(`     ${i + 1}. ${ex.exercise.name}`);
+        console.log(`        Sets: ${ex.sets} | Reps: ${ex.repsRange[0]}-${ex.repsRange[1]} | Rest: ${ex.restSec}s | Role: ${ex.role}`);
+    });
+    console.log(`\n  📝 USER MESSAGES:`);
+    if (warnings.length > 0) {
+        console.log(`     ⚠️  WARNINGS:`);
+        warnings.forEach(w => console.log(`        - ${w}`));
+    }
+    if (adaptationNotes.length > 0) {
+        console.log(`     📝 NOTES:`);
+        adaptationNotes.forEach(n => console.log(`        - ${n}`));
+    }
+    if (warnings.length === 0 && adaptationNotes.length === 0) {
+        console.log(`     No special messages (normal workout)`);
+    }
+    console.log("=====================================================\n");
+    return {
+        schemeId: scheme.id,
+        schemeName: scheme.russianName,
+        dayIndex,
+        dayLabel: dayBlueprint.label,
+        dayFocus: dayBlueprint.focus,
+        intent,
+        warmup,
+        exercises,
+        cooldown,
+        totalExercises,
+        totalSets,
+        estimatedDuration,
+        adaptationNotes: adaptationNotes.length > 0 ? adaptationNotes : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+    };
+}
+// ============================================================================
+// HELPER: Generate warmup
+// ============================================================================
+function generateWarmup(exercises, dayFocus) {
+    const warmupItems = [];
+    // Базовая разминка (всегда)
+    warmupItems.push("5 минут лёгкого кардио (велотренажёр, эллипс или ходьба)");
+    // Специфическая разминка по паттернам
+    const patterns = [...new Set(exercises.flatMap(ex => ex.patterns))];
+    if (patterns.some(p => ["squat", "hinge", "lunge"].includes(p))) {
+        warmupItems.push("Приседания с собственным весом × 15");
+        warmupItems.push("Выпады назад × 10 на каждую ногу");
+        warmupItems.push("Ягодичный мост × 15");
+    }
+    if (patterns.some(p => ["horizontal_push", "incline_push", "vertical_push"].includes(p))) {
+        warmupItems.push("Вращения рук × 10 вперёд и назад");
+        warmupItems.push("Отжимания от стены × 10");
+        warmupItems.push("Разведения рук в стороны × 15");
+    }
+    if (patterns.some(p => ["horizontal_pull", "vertical_pull"].includes(p))) {
+        warmupItems.push("Вращения плечами × 15");
+        warmupItems.push("Подтягивание лопаток на турнике (висы) × 10 сек");
+        warmupItems.push("Тяга резинки к груди × 15");
+    }
+    warmupItems.push("Лёгкие подходы первого упражнения (50% веса × 12, 70% веса × 8)");
+    return warmupItems.slice(0, 6); // Max 6 items
+}
+// ============================================================================
+// HELPER: Generate cooldown
+// ============================================================================
+function generateCooldown(exercises, dayFocus) {
+    const cooldownItems = [];
+    // Растяжка по группам мышц
+    const muscles = [...new Set(exercises.flatMap(ex => ex.primaryMuscles))];
+    if (muscles.some(m => ["quads", "glutes", "hamstrings"].includes(m))) {
+        cooldownItems.push("Растяжка квадрицепса (стоя на одной ноге) — 30 сек каждая");
+        cooldownItems.push("Растяжка задней поверхности бедра (наклон к ногам) — 30 сек");
+        cooldownItems.push("Растяжка ягодиц (лёжа на спине, колено к груди) — 30 сек каждая");
+    }
+    if (muscles.some(m => ["chest", "front_delts"].includes(m))) {
+        cooldownItems.push("Растяжка грудных (руки за спину в дверном проёме) — 30 сек");
+        cooldownItems.push("Растяжка передних дельт (рука за спину) — 30 сек каждая");
+    }
+    if (muscles.some(m => ["lats", "traps", "rear_delts"].includes(m))) {
+        cooldownItems.push("Растяжка широчайших (вис на турнике) — 20 сек");
+        cooldownItems.push("Растяжка задних дельт (рука через грудь) — 30 сек каждая");
+    }
+    cooldownItems.push("Глубокое дыхание 5-10 циклов (вдох 4 сек, выдох 6 сек)");
+    return cooldownItems.slice(0, 6); // Max 6 items
+}
+// ============================================================================
+// HELPER: Recommend scheme for user
+// ============================================================================
+export function recommendScheme(userProfile) {
+    const candidates = getCandidateSchemes({
+        experience: userProfile.experience,
+        goal: userProfile.goal,
+        daysPerWeek: userProfile.daysPerWeek,
+        timeBucket: userProfile.timeBucket,
+        equipment: userProfile.equipment,
+        sex: userProfile.sex,
+        constraints: [], // TODO: map from userProfile.constraints
+    });
+    if (candidates.length === 0) {
+        throw new Error("No suitable schemes found for this user profile");
+    }
+    const ranked = rankSchemes({
+        experience: userProfile.experience,
+        goal: userProfile.goal,
+        daysPerWeek: userProfile.daysPerWeek,
+        timeBucket: userProfile.timeBucket,
+        equipment: userProfile.equipment,
+        sex: userProfile.sex,
+    }, candidates);
+    return {
+        recommended: ranked[0],
+        alternatives: ranked.slice(1, 4), // Top 3 alternatives
+    };
+}
+// ============================================================================
+// HELPER: Generate full week
+// ============================================================================
+export function generateWeekPlan(args) {
+    const { scheme, userProfile, mesocycle, checkins, history } = args;
+    // НОВОЕ: Получить план недели из мезоцикла
+    let weekPlanData = null;
+    if (mesocycle) {
+        weekPlanData = getWeekPlan({
+            mesocycle,
+            weekNumber: mesocycle.currentWeek,
+            daysPerWeek: scheme.daysPerWeek,
+        });
+    }
+    const weekPlan = [];
+    // НОВОЕ: Собираем все использованные упражнения за неделю
+    // чтобы избежать дублей между днями
+    const usedExerciseIds = [];
+    // NEW H: Weekly volume tracking for muscle balance
+    const weeklyProgress = new Map(); // muscle -> sets accumulated
+    const targetPerWeek = MAX_RECOVERABLE_VOLUME[userProfile.experience].perMusclePerWeek;
+    for (let dayIndex = 0; dayIndex < scheme.daysPerWeek; dayIndex++) {
+        const checkin = checkins?.[dayIndex];
+        // НОВОЕ: Получить DUP интенсивность для этого дня
+        const dupIntensity = weekPlanData?.dupPattern?.[dayIndex];
+        // НОВОЕ: Передаем историю с учётом упражнений из предыдущих дней недели
+        const historyWithWeekExclusions = history ? {
+            ...history,
+            recentExerciseIds: [...(history.recentExerciseIds || []), ...usedExerciseIds],
+        } : {
+            recentExerciseIds: usedExerciseIds,
+        };
+        // Создаём readiness для каждого дня (без чек-ина при week generation)
+        const readiness = computeReadiness({
+            checkin: undefined,
+            fallbackTimeBucket: userProfile.timeBucket,
+        });
+        const dayPlan = generateWorkoutDay({
+            scheme,
+            dayIndex,
+            userProfile,
+            readiness,
+            history: historyWithWeekExclusions, // ИЗМЕНЕНО: передаём обновлённую историю
+            dupIntensity,
+            weekPlanData,
+        });
+        weekPlan.push(dayPlan);
+        // НОВОЕ: Собираем ID упражнений этого дня
+        dayPlan.exercises.forEach(ex => {
+            usedExerciseIds.push(ex.exercise.id);
+            // NEW H: Update weekly volume progress
+            for (const muscle of ex.exercise.primaryMuscles) {
+                const current = weeklyProgress.get(muscle) || 0;
+                weeklyProgress.set(muscle, current + ex.sets);
+            }
+        });
+    }
+    return weekPlan;
+}
