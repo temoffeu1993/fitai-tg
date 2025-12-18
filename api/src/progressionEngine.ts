@@ -57,6 +57,8 @@ export type ProgressionRecommendation = {
   newWeight?: number;
   newRepsTarget?: [number, number];
   reason: string;
+  /** True when last workout failed to hit the lower reps bound (for stall tracking) */
+  failedLowerBound?: boolean;
   alternatives?: string[];     // ID альтернативных упражнений для ротации
 };
 
@@ -192,6 +194,22 @@ function analyzePerformance(
   };
 }
 
+function getLoadableEquipment(equipmentList: string[]): string | null {
+  const loadablePriority = [
+    "barbell",
+    "dumbbell",
+    "machine",
+    "cable",
+    "smith",
+    "kettlebell",
+    "bodyweight",
+  ];
+  for (const eq of loadablePriority) {
+    if (equipmentList.includes(eq)) return eq;
+  }
+  return null;
+}
+
 // ============================================================================
 // HELPER: Determine progression status
 // ============================================================================
@@ -247,8 +265,9 @@ export function calculateProgression(args: {
   experience: ExperienceLevel;
   targetRepsRange: [number, number];
   currentIntent?: "light" | "normal" | "hard";
+  workoutHistory?: ExerciseHistory; // if provided, analyze this completed workout
 }): ProgressionRecommendation {
-  const { exercise, progressionData, goal, targetRepsRange, currentIntent } = args;
+  const { exercise, progressionData, goal, targetRepsRange, currentIntent, workoutHistory } = args;
 
   const rules = PROGRESSION_RULES_BY_GOAL[goal];
 
@@ -259,15 +278,17 @@ export function calculateProgression(args: {
       action: "maintain",
       newWeight: progressionData.currentWeight,
       reason: "Первая тренировка с этим упражнением. Используй рабочий вес для техники.",
+      failedLowerBound: false,
     };
   }
 
-  // Get last workout
-  const lastWorkout = progressionData.history[progressionData.history.length - 1];
-  const performance = analyzePerformance(lastWorkout, targetRepsRange, rules);
+  const workoutToAnalyze =
+    workoutHistory ?? progressionData.history[progressionData.history.length - 1];
+  const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
 
   // CASE 1: Deload needed (too many stalls)
-  if (progressionData.status === "deload_needed") {
+  // Do not rely only on stored status (can be stale); compute directly from stallCount.
+  if (progressionData.stallCount >= rules.deloadThreshold) {
     const deloadWeight = Math.max(
       progressionData.currentWeight * (1 - rules.deloadPercentage),
       0
@@ -278,6 +299,7 @@ export function calculateProgression(args: {
       action: "deload",
       newWeight: Math.round(deloadWeight * 4) / 4, // Round to 0.25 kg
       reason: `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
+      failedLowerBound: false,
     };
   }
 
@@ -288,13 +310,14 @@ export function calculateProgression(args: {
       action: "maintain",
       newWeight: progressionData.currentWeight,
       reason: "Light день: сохраняем текущий вес для восстановления.",
+      failedLowerBound: false,
     };
   }
 
   // CASE 3: Achieved upper bound → increase weight
   if (performance.achievedUpperBound && performance.success) {
-    const equipment = exercise.equipment[0]; // Primary equipment
-    const increment = WEIGHT_INCREMENT[equipment] || 2.5;
+    const equipment = getLoadableEquipment(exercise.equipment);
+    const increment = equipment ? (WEIGHT_INCREMENT[equipment] || 2.5) : 0;
 
     // Bodyweight exercises → increase reps target
     if (equipment === "bodyweight" || progressionData.currentWeight === 0) {
@@ -308,6 +331,17 @@ export function calculateProgression(args: {
         action: "increase_reps",
         newRepsTarget: newTarget,
         reason: `Прогресс! Добил верх диапазона (${targetRepsRange[1]} reps). Повышаем целевые повторения на ${rules.repsIncrease}.`,
+        failedLowerBound: false,
+      };
+    }
+
+    if (!equipment) {
+      return {
+        exerciseId: exercise.id,
+        action: "maintain",
+        newWeight: progressionData.currentWeight,
+        reason: "Прогресс по повторениям есть, но тип оборудования не определён. Оставляем вес без изменения.",
+        failedLowerBound: false,
       };
     }
 
@@ -319,6 +353,7 @@ export function calculateProgression(args: {
       action: "increase_weight",
       newWeight: Math.round(newWeight * 4) / 4, // Round to 0.25 kg
       reason: `Прогресс! Добил ${targetRepsRange[1]} повторов. Увеличиваем вес на ${increment} кг.`,
+      failedLowerBound: false,
     };
   }
 
@@ -335,6 +370,7 @@ export function calculateProgression(args: {
         action: "decrease_weight",
         newWeight: Math.round(decreaseWeight * 4) / 4,
         reason: `Не добил минимум ${targetRepsRange[0]} повторов ${newStallCount} раз подряд. Снижаем вес на 10%.`,
+        failedLowerBound: true,
       };
     }
 
@@ -344,6 +380,7 @@ export function calculateProgression(args: {
       action: "maintain",
       newWeight: progressionData.currentWeight,
       reason: `Не добил минимум повторений. Попробуй ещё раз с тем же весом на следующей тренировке.`,
+      failedLowerBound: true,
     };
   }
 
@@ -354,6 +391,7 @@ export function calculateProgression(args: {
       action: "maintain",
       newWeight: progressionData.currentWeight,
       reason: `Выполнил минимум, но не добил верх. Держи вес и добивай до ${targetRepsRange[1]} повторов.`,
+      failedLowerBound: false,
     };
   }
 
@@ -363,6 +401,7 @@ export function calculateProgression(args: {
     action: "maintain",
     newWeight: progressionData.currentWeight,
     reason: "Сохраняем текущий вес.",
+    failedLowerBound: false,
   };
 }
 
@@ -514,10 +553,8 @@ export function updateProgressionData(args: {
   if (recommendation.action === "increase_weight" || recommendation.action === "increase_reps") {
     newStallCount = 0;
     lastProgressDate = workoutHistory.workoutDate;
-  } else if (recommendation.action === "decrease_weight" || recommendation.action === "maintain") {
-    if (recommendation.reason.includes("Не добил")) {
-      newStallCount++;
-    }
+  } else if (recommendation.failedLowerBound) {
+    newStallCount++;
   } else if (recommendation.action === "deload") {
     newStallCount = 0;
     newDeloadCount++;

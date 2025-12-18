@@ -25,11 +25,13 @@ export async function getProgressionData(
     [userId, exerciseId]
   );
 
+  // DB returns newest-first (DESC). Engine expects chronological order (oldest → newest)
+  // so that `history[history.length - 1]` is the latest workout.
   const history: ExerciseHistory[] = historyRows.map(h => ({
     exerciseId: h.exercise_id,
     workoutDate: h.workout_date,
     sets: typeof h.sets === 'string' ? JSON.parse(h.sets) : h.sets,
-  }));
+  })).reverse();
 
   return {
     exerciseId: row.exercise_id,

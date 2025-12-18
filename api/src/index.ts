@@ -78,6 +78,10 @@ app.listen(config.port, () => {
 import { q } from "./db.js";
 
 (async () => {
-  const info = await q(`SELECT current_database() db, inet_server_addr() host, inet_server_port() port`);
-  console.log("DB whoami:", info[0]);  // <-- увидишь порт
+  try {
+    const info = await q(`SELECT current_database() db, inet_server_addr() host, inet_server_port() port`);
+    console.log("DB whoami:", info[0]);  // <-- увидишь порт
+  } catch (e) {
+    console.error("DB whoami failed:", (e as Error)?.message || e);
+  }
 })();

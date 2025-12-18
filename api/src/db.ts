@@ -8,17 +8,21 @@ const { Pool } = pg;
 
 // Жёстко парсим DATABASE_URL, чтобы PG* env не переопределяли
 const cn = parsePg(config.databaseUrl);
+const resolvedHost = cn.host || "127.0.0.1";
+const isLocalHost =
+  resolvedHost === "127.0.0.1" || resolvedHost === "localhost" || resolvedHost === "::1";
 
 export const pool = new Pool({
-  host: cn.host || "127.0.0.1",
+  host: resolvedHost,
   port: cn.port ? Number(cn.port) : 5432,
   user: cn.user ?? undefined,
   password: cn.password ?? undefined,
   database: cn.database ?? undefined,
-  ssl: config.nodeEnv === "production" ? { rejectUnauthorized: false } : false,
+  // Managed Postgres providers (e.g. Neon) require SSL; local dev Postgres often doesn't.
+  ssl: isLocalHost ? false : { rejectUnauthorized: false },
   max: 20,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 2_000,
+  connectionTimeoutMillis: 10_000,
 });
 
 // базовые логи

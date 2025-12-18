@@ -51,6 +51,7 @@ export type FrontendSet = {
  * Exercise data from frontend payload
  */
 export type FrontendExercise = {
+  id?: string; // preferred (stable) identifier from exercise library
   name: string;
   pattern?: string;
   targetMuscles?: string[];
@@ -184,6 +185,20 @@ async function findExerciseByName(name: string): Promise<Exercise | null> {
   }
 }
 
+async function findExerciseById(id: string): Promise<Exercise | null> {
+  try {
+    const { EXERCISE_LIBRARY } = await import("./exerciseLibrary.js");
+    const found = EXERCISE_LIBRARY.find(ex => ex.id === id);
+    if (!found) {
+      console.warn(`  [ProgressionService] ⚠️ Exercise not found by id: "${id}"`);
+    }
+    return found || null;
+  } catch (err) {
+    console.error(`  [ProgressionService] Error finding exercise by id "${id}":`, err);
+    return null;
+  }
+}
+
 // ============================================================================
 // MAIN: Apply progression from completed session
 // ============================================================================
@@ -243,7 +258,9 @@ export async function applyProgressionFromSession(args: {
     }
     
     // Find exercise in library
-    const exercise = await findExerciseByName(exerciseData.name);
+    const exercise =
+      (exerciseData.id ? await findExerciseById(exerciseData.id) : null) ??
+      (await findExerciseByName(exerciseData.name));
     if (!exercise) {
       console.warn(`  ⚠️  Exercise not found: "${exerciseData.name}" - skipping progression`);
       skippedCount++;
@@ -278,10 +295,11 @@ export async function applyProgressionFromSession(args: {
         workoutDate,
         sets: exerciseData.sets.map((s, idx) => ({
           targetReps: targetRepsRange[1], // upper bound as target
-          actualReps: s.reps || 0,
-          weight: s.weight || 0,
+          actualReps: s.reps ?? 0,
+          weight: s.weight ?? 0,
           rpe: avgRpe,
-          completed: (s.reps || 0) >= targetRepsRange[0], // met lower bound
+          // completed = performed (not "met lower bound"), so engine can distinguish failure vs not-done
+          completed: (s.reps ?? 0) > 0 || (s.weight ?? 0) > 0,
         })),
       };
       
@@ -293,6 +311,7 @@ export async function applyProgressionFromSession(args: {
         experience,
         targetRepsRange,
         currentIntent: undefined, // use default from payload/RPE
+        workoutHistory: history,  // analyze the just-completed workout (not the previous one)
       });
       
       // Update progression data based on recommendation
@@ -399,27 +418,34 @@ export async function getNextWorkoutRecommendations(args: {
           action: "maintain",
           newWeight: initData.currentWeight,
           reason: "Первый раз с этим упражнением. Начинаем с консервативного веса.",
+          failedLowerBound: false,
         });
         
         newExercises++;
         console.log(`  🆕 ${exercise.name}: starting weight ${initData.currentWeight}кг`);
         continue;
       }
-      
-      // Has history: get last workout to determine target reps
-      const lastWorkout = progressionData.history[progressionData.history.length - 1];
-      const targetRepsRange: [number, number] = lastWorkout 
-        ? [lastWorkout.sets[0]?.targetReps - 2 || 8, lastWorkout.sets[0]?.targetReps + 2 || 12]
-        : [8, 12];
-      
-      const recommendation = calculateProgression({
-        exercise,
-        progressionData,
-        goal,
-        experience,
-        targetRepsRange,
-        currentIntent: undefined,
-      });
+
+      // Read-only recommendations:
+      // - normally: return stored currentWeight (do NOT re-run progression off the same last workout)
+      // - if deload is due: suggest deload weight
+      const rules = PROGRESSION_RULES_BY_GOAL[goal];
+      const needsDeload = progressionData.stallCount >= rules.deloadThreshold;
+      const recommendation: ProgressionRecommendation = needsDeload
+        ? {
+            exerciseId: exercise.id,
+            action: "deload",
+            newWeight: Math.round(Math.max(progressionData.currentWeight * (1 - rules.deloadPercentage), 0) * 4) / 4,
+            reason: `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
+            failedLowerBound: false,
+          }
+        : {
+            exerciseId: exercise.id,
+            action: "maintain",
+            newWeight: progressionData.currentWeight,
+            reason: "Используй текущий рабочий вес из прогрессии.",
+            failedLowerBound: false,
+          };
       
       recommendations.set(exercise.id, recommendation);
       withHistory++;
@@ -430,6 +456,7 @@ export async function getNextWorkoutRecommendations(args: {
         decrease_weight: '📉',
         deload: '🛌',
         maintain: '➡️',
+        rotate_exercise: '🔄',
       }[recommendation.action] || '❓';
       
       console.log(`  ${actionEmoji} ${exercise.name}: ${recommendation.action} (${recommendation.newWeight || 'N/A'}кг)`);

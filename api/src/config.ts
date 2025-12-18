@@ -2,8 +2,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-console.log("RAW ENV:", process.env.DATABASE_URL);
-
 interface Config {
   port: number;
   botToken: string;

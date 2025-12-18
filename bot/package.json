@@ -1,7 +1,6 @@
 {
   "name": "fitai-tg-bot",
   "type": "module",
-  "scripts": { "dev": "tsx index.ts", "start": "node index.js" },
-  "dependencies": { "telegraf": "^4.16.3", "dotenv": "^16.4.5" },
-  "devDependencies": { "tsx": "^4.19.1" }
+  "scripts": { "dev": "tsx index.ts", "start": "tsx index.ts" },
+  "dependencies": { "telegraf": "^4.16.3", "dotenv": "^16.4.5", "tsx": "^4.19.1" }
 }
