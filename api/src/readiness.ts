@@ -286,17 +286,55 @@ export function computeReadiness(args: {
   const warnings: string[] = [];
   const notes: string[] = [];
 
-  // Боль warnings
+  // =========================================================================
+  // 7. WARNINGS & NOTES (человеко-читаемые сообщения для пользователя)
+  // =========================================================================
+
+  // СОН
+  if (checkin?.sleep === "poor") {
+    warnings.push(
+      "😴 Плохой сон может снизить восстановление и координацию. " +
+      "Если чувствуешь усталость — снизь рабочие веса на 5-10%."
+    );
+    reasons.push("😴 Плохой сон");
+  } else if (checkin?.sleep === "fair") {
+    notes.push("💤 Сон не идеальный. Слушай своё тело, не форсируй максимальные веса.");
+  }
+
+  // ЭНЕРГИЯ
+  if (checkin?.energy === "low") {
+    warnings.push(
+      "🔋 Низкая энергия. Сократи рабочие веса на 10-15% или уменьши количество подходов."
+    );
+    reasons.push("🔋 Низкая энергия");
+  } else if (checkin?.energy === "high") {
+    notes.push("⚡ Высокая энергия! Можешь попробовать немного увеличить веса или добавить повторы.");
+  }
+
+  // СТРЕСС
+  if (checkin?.stress === "very_high") {
+    warnings.push(
+      "😰 Очень высокий стресс. Тренировка поможет, но избегай максимальных весов. " +
+      "Сфокусируйся на технике и дыхании."
+    );
+    reasons.push("😰 Очень высокий стресс");
+  } else if (checkin?.stress === "high") {
+    warnings.push("😓 Высокий стресс. Снизь интенсивность, если нужно. Тренировка должна помочь расслабиться.");
+  } else if (checkin?.stress === "low") {
+    notes.push("😌 Низкий стресс — отличное состояние для тренировки!");
+  }
+
+  // БОЛЬ
   if (checkin?.pain && checkin.pain.length > 0) {
     const painLocationNames: Record<string, string> = {
       shoulder: "плечо",
       elbow: "локоть",
-      wrist: "запястье / кисть",
+      wrist: "запястье",
       neck: "шея",
       lower_back: "поясница",
       hip: "тазобедренный сустав",
       knee: "колено",
-      ankle: "голеностоп / стопа",
+      ankle: "голеностоп",
     };
     
     const painDesc = checkin.pain
@@ -305,44 +343,42 @@ export function computeReadiness(args: {
         return `${name} (${p.level}/10)`;
       })
       .join(", ");
-    warnings.push(`Боль: ${painDesc}. Избегай дискомфорта, снижай веса при необходимости.`);
+    
+    const maxPainLoc = checkin.pain.reduce((max, p) => p.level > max.level ? p : max);
+    const maxPainName = painLocationNames[maxPainLoc.location] || maxPainLoc.location;
+    
+    if (maxPainLevel >= 7) {
+      warnings.push(
+        `🔴 Сильная боль: ${painDesc}. Упражнения адаптированы, но если боль усиливается — останови тренировку.`
+      );
+    } else if (maxPainLevel >= 4) {
+      warnings.push(
+        `⚠️ Боль: ${painDesc}. Упражнения подобраны с учётом этого. Избегай дискомфорта, снижай веса при необходимости.`
+      );
+    } else {
+      notes.push(`💡 Лёгкий дискомфорт: ${painDesc}. Разминка и умеренная нагрузка помогут.`);
+    }
   }
 
-  // Стресс warnings
-  if (checkin?.stress === "very_high") {
-    warnings.push("😰 Очень высокий стресс. Сфокусируйся на технике, избегай максимальных весов.");
-  } else if (checkin?.stress === "high") {
-    warnings.push("😓 Высокий стресс. Снизь интенсивность если нужно.");
-  }
-
-  // Сон/энергия notes
-  if (checkin?.energy === "low" && checkin?.sleep === "poor") {
-    reasons.push("🔋 Низкая энергия и плохой сон");
-  } else if (checkin?.energy === "low") {
-    reasons.push("🔋 Низкая энергия");
-  } else if (checkin?.sleep === "poor") {
-    reasons.push("😴 Плохой сон");
-  }
-
-  if (checkin?.stress === "very_high") {
-    reasons.push("😰 Очень высокий стресс");
-  }
-
-  // Intent notes
-  if (intent === "light") {
-    notes.push("Тренировка облегчена из-за низкой энергии/сна. Фокус на технике.");
-  } else if (intent === "hard") {
-    notes.push("Высокая готовность — целимся в верхний диапазон повторений.");
-  }
-
-  // Time notes
+  // ВРЕМЯ
   if (effectiveMinutes && effectiveMinutes < fallbackTimeBucket) {
-    notes.push(`⏱️ Доступное время: ${effectiveMinutes} мин. План адаптирован.`);
+    notes.push(
+      `⏱️ Доступно ${effectiveMinutes} мин (обычно ${fallbackTimeBucket}). ` +
+      `Тренировка адаптирована: убраны менее приоритетные упражнения.`
+    );
   }
 
-  // Default note для нейтрального состояния
+  // КОМБИНАЦИИ (усиливают эффект)
+  if (checkin?.energy === "low" && checkin?.sleep === "poor") {
+    notes.push(
+      "⚠️ Сочетание низкой энергии и плохого сна — сигнал организму. " +
+      "Тренировка облегчена, но если совсем тяжело — лучше отдохни."
+    );
+  }
+
+  // DEFAULT для нейтрального состояния
   if (severity === 'low' && warnings.length === 0 && notes.length === 0) {
-    notes.push("✅ Самочувствие в норме. Тренировка по плану.");
+    notes.push("✅ Отличное самочувствие! Тренировка по плану.");
   }
 
   // -------------------------------------------------------------------------
@@ -374,26 +410,31 @@ export function computeReadiness(args: {
     console.log(`   Max pain: ${result.maxPainLevel}/10`);
   }
   
+  console.log(`\n   🔧 TECHNICAL DETAILS:`);
   if (result.avoidFlags.length > 0) {
-    console.log(`   Avoid flags: ${result.avoidFlags.join(', ')}`);
+    console.log(`      Avoid flags: ${result.avoidFlags.join(', ')}`);
   }
-  
   if (result.blockedPatterns.length > 0) {
-    console.log(`   Blocked patterns: ${result.blockedPatterns.join(', ')}`);
+    console.log(`      Blocked patterns: ${result.blockedPatterns.join(', ')}`);
   }
-  
   if (result.blockedDayTypes.length > 0) {
-    console.log(`   Blocked day types: ${result.blockedDayTypes.join(', ')}`);
+    console.log(`      Blocked day types: ${result.blockedDayTypes.join(', ')}`);
+  }
+  if (result.avoidFlags.length === 0 && result.blockedPatterns.length === 0 && result.blockedDayTypes.length === 0) {
+    console.log(`      No technical restrictions`);
   }
   
+  console.log(`\n   💬 USER MESSAGES:`);
   if (result.warnings.length > 0) {
-    console.log(`\n   ⚠️  WARNINGS:`);
-    result.warnings.forEach(w => console.log(`      - ${w}`));
+    console.log(`      ⚠️  WARNINGS (${result.warnings.length}):`);
+    result.warnings.forEach(w => console.log(`         - ${w}`));
   }
-  
   if (result.notes.length > 0) {
-    console.log(`\n   📝 NOTES:`);
-    result.notes.forEach(n => console.log(`      - ${n}`));
+    console.log(`      📝 NOTES (${result.notes.length}):`);
+    result.notes.forEach(n => console.log(`         - ${n}`));
+  }
+  if (result.warnings.length === 0 && result.notes.length === 0) {
+    console.log(`      No messages (normal state)`);
   }
   
   console.log("=========================================\n");

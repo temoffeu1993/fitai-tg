@@ -427,6 +427,9 @@ export function generateWorkoutDay(args: {
   // STEP 2: Select exercises for slots
   // -------------------------------------------------------------------------
   
+  const excludedCount = history?.recentExerciseIds?.length || 0;
+  console.log(`  History exclusion: ${excludedCount} exercises from recent workouts`);
+  
   const selectedExercises = selectExercisesForDay({
     slots,
     ctx,
@@ -434,7 +437,7 @@ export function generateWorkoutDay(args: {
     excludeIds: history?.recentExerciseIds,
   });
 
-  console.log(`  Selected ${selectedExercises.length} exercises`);
+  console.log(`  Selected ${selectedExercises.length} exercises (rotation for variety)`);
   console.log(`     Names: ${selectedExercises.map(s => s.ex.name).join(', ')}`);
 
   // -------------------------------------------------------------------------
@@ -667,13 +670,8 @@ export function generateWorkoutDay(args: {
     adaptationNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
   }
   
-  // Используем notes из readiness
+  // Используем notes из readiness (без технических деталей типа DUP)
   adaptationNotes.push(...readiness.notes);
-
-  if (dupIntensity) {
-    const dupLabels = { heavy: "Heavy (силовой)", medium: "Medium (средний)", light: "Light (лёгкий)" };
-    adaptationNotes.push(`DUP: ${dupLabels[dupIntensity]} день`);
-  }
 
   // УДАЛЕНО: дублирование warnings про стресс/боль
   // Теперь используем только из readiness (единый источник правды)
@@ -695,14 +693,31 @@ export function generateWorkoutDay(args: {
 
   console.log(`\n  ✅ FINAL WORKOUT:`);
   console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+  
+  if (dupIntensity) {
+    const dupLabels = { heavy: "Heavy (силовой)", medium: "Medium (средний)", light: "Light (лёгкий)" };
+    console.log(`     DUP Pattern: ${dupLabels[dupIntensity]} день`);
+  }
+  
   console.log(`\n  📋 EXERCISES:`);
   exercises.forEach((ex, i) => {
     console.log(`     ${i + 1}. ${ex.exercise.name}`);
     console.log(`        Sets: ${ex.sets} | Reps: ${ex.repsRange[0]}-${ex.repsRange[1]} | Rest: ${ex.restSec}s | Role: ${ex.role}`);
   });
-  console.log(`\n  📝 ADAPTATIONS:`);
-  console.log(`     Warnings: ${warnings.length > 0 ? warnings.join(' | ') : 'none'}`);
-  console.log(`     Notes: ${adaptationNotes.length > 0 ? adaptationNotes.join(' | ') : 'none'}`);
+  
+  console.log(`\n  📝 USER MESSAGES:`);
+  if (warnings.length > 0) {
+    console.log(`     ⚠️  WARNINGS:`);
+    warnings.forEach(w => console.log(`        - ${w}`));
+  }
+  if (adaptationNotes.length > 0) {
+    console.log(`     📝 NOTES:`);
+    adaptationNotes.forEach(n => console.log(`        - ${n}`));
+  }
+  if (warnings.length === 0 && adaptationNotes.length === 0) {
+    console.log(`     No special messages (normal workout)`);
+  }
+  
   console.log("=====================================================\n");
 
   return {
