@@ -79,13 +79,13 @@ export function getSessionCaps(
     },
     intermediate: {
       45: { min: 5, max: 7, sets: 18 },
-      60: { min: 6, max: 8, sets: 21 },
-      90: { min: 7, max: 10, sets: 24 }, // max:10 synced with dayPatternMap 90 hard:max:10
+      60: { min: 6, max: 8, sets: 24 },  // ПОВЫШЕНО: 21 → 24 (верхняя граница научного стандарта)
+      90: { min: 7, max: 10, sets: 27 }, // ПОВЫШЕНО: 24 → 27 (для DUP heavy days)
     },
     advanced: {
       45: { min: 6, max: 8, sets: 20 },
-      60: { min: 7, max: 9, sets: 24 },
-      90: { min: 8, max: 11, sets: 28 }, // max:11 synced with dayPatternMap 90 hard:max:10 + advanced buffer
+      60: { min: 7, max: 9, sets: 26 },  // ПОВЫШЕНО: 24 → 26 (верхняя граница для advanced)
+      90: { min: 8, max: 11, sets: 30 }, // ПОВЫШЕНО: 28 → 30 (advanced может больше)
     },
   };
 

@@ -220,7 +220,10 @@ function minSetsForRole(
   }
   
   if (role === "accessory") {
-    return 1; // Минимум 1 подход
+    // ПРОФЕССИОНАЛЬНО: accessory минимум 2 подхода (или удалить)
+    // Исключение: light intent может быть 1
+    if (intent === "light") return 1;
+    return 2; // Минимум 2 подхода для изоляции
   }
   
   return 1;
@@ -379,6 +382,30 @@ function fitSession(args: {
     logs.push(`⚠️  Max iterations reached (${MAX_ITERATIONS}), stopping trim`);
   }
   
+  // ФИНАЛЬНАЯ ОЧИСТКА: Удаляем accessory упражнения с 1 сетом (если не critical)
+  // 1 сет изоляции = непрофессионально, лучше удалить
+  if (intent !== "light") { // Для light intent 1 сет accessory = ок
+    const toRemove: number[] = [];
+    
+    exercises.forEach((ex, idx) => {
+      if (ex.role === "accessory" && ex.sets === 1) {
+        // Проверяем можно ли удалить без нарушения required
+        if (canRemove(exercises, idx, required, corePolicy)) {
+          toRemove.push(idx);
+        }
+      }
+    });
+    
+    if (toRemove.length > 0) {
+      // Удаляем в обратном порядке (чтобы индексы не сбивались)
+      for (let i = toRemove.length - 1; i >= 0; i--) {
+        exercises.splice(toRemove[i], 1);
+      }
+      logs.push(`🧹 Cleanup: Removed ${toRemove.length} accessory exercise(s) with only 1 set`);
+      trimmed = true;
+    }
+  }
+
   return { trimmed, logs };
 }
 
