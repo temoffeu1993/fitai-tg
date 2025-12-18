@@ -42,6 +42,7 @@ import { computeReadiness, normalizeBlockedPatterns, type Intent, type Readiness
 // ============================================================================
 
 export type UserProfile = {
+  userId?: string; // NEW: для системы прогрессии
   experience: ExperienceLevel;
   goal: Goal;
   daysPerWeek: number;
@@ -87,6 +88,10 @@ export type DayExercise = {
   
   // NEW: Coverage tracking для required patterns
   coversPatterns: Pattern[]; // = exercise.patterns (копия для быстрого доступа)
+  
+  // NEW: Progression system
+  suggestedWeight?: number; // Рекомендуемый вес от системы прогрессии
+  progressionNote?: string; // Заметка о прогрессии (прогресс/deload/история)
 };
 
 export type GeneratedWorkoutDay = {
@@ -783,7 +788,7 @@ function generateMissedPatternExplanations(
 // MAIN GENERATOR: Generate a workout day
 // ============================================================================
 
-export function generateWorkoutDay(args: {
+export async function generateWorkoutDay(args: {
   scheme: NormalizedWorkoutScheme;
   dayIndex: number; // 0-based (0 = first day of scheme)
   userProfile: UserProfile;
@@ -791,7 +796,7 @@ export function generateWorkoutDay(args: {
   history?: WorkoutHistory;
   dupIntensity?: DUPIntensity; // НОВОЕ: DUP интенсивность
   weekPlanData?: any; // НОВОЕ: план недели
-}): GeneratedWorkoutDay {
+}): Promise<GeneratedWorkoutDay> {
   const { scheme, dayIndex, userProfile, readiness, history, dupIntensity, weekPlanData } = args;
 
   console.log("\n🏋️ [WORKOUT GENERATOR] ==============================");
@@ -984,6 +989,30 @@ export function generateWorkoutDay(args: {
   }
 
   // -------------------------------------------------------------------------
+  // STEP 2.5: НОВОЕ - Get progression recommendations
+  // -------------------------------------------------------------------------
+  let progressionRecommendations = new Map<string, any>();
+  
+  if (userProfile.userId) {
+    try {
+      const { getNextWorkoutRecommendations } = await import("./progressionService.js");
+      const exercisesForProgression = selectedExercises.map(s => s.ex);
+      
+      progressionRecommendations = await getNextWorkoutRecommendations({
+        userId: userProfile.userId,
+        exercises: exercisesForProgression,
+        goal: userProfile.goal,
+        experience: userProfile.experience,
+      });
+      
+      console.log(`  [Progression] Got recommendations for ${progressionRecommendations.size} exercises`);
+    } catch (err) {
+      console.warn(`  [Progression] Failed to get recommendations:`, err);
+      // Continue without progression data
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
@@ -1018,6 +1047,28 @@ export function generateWorkoutDay(args: {
       // Для build_muscle, lose_weight, health_wellness - DUP НЕ применяется
     }
 
+    // НОВОЕ: Get progression recommendation for this exercise
+    const recommendation = progressionRecommendations.get(ex.id);
+    let suggestedWeight: number | undefined;
+    let progressionNote: string | undefined;
+    
+    if (recommendation) {
+      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
+        suggestedWeight = recommendation.newWeight;
+      }
+      
+      // Add note about last performance
+      if (recommendation.action === "increase_weight") {
+        progressionNote = `💪 Прогресс! Увеличиваем вес до ${recommendation.newWeight} кг`;
+      } else if (recommendation.action === "increase_reps") {
+        progressionNote = `💪 Прогресс! Повышаем повторения`;
+      } else if (recommendation.action === "deload") {
+        progressionNote = `🛌 Deload: снижаем вес до ${recommendation.newWeight} кг`;
+      } else if (recommendation.newWeight && recommendation.newWeight > 0) {
+        progressionNote = `В прошлый раз: ${recommendation.newWeight} кг`;
+      }
+    }
+
     return {
       exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)
       sets,
@@ -1026,6 +1077,8 @@ export function generateWorkoutDay(args: {
       notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
       role, // Role из селектора (правильно downgraded для doubles)
       coversPatterns: ex.patterns, // NEW: для coverage-aware trimming
+      suggestedWeight, // NEW: Рекомендуемый вес от прогрессии
+      progressionNote, // NEW: Заметка о прогрессии
     } as DayExercise;
   });
 
@@ -1301,13 +1354,13 @@ export function recommendScheme(userProfile: UserProfile): {
 // HELPER: Generate full week
 // ============================================================================
 
-export function generateWeekPlan(args: {
+export async function generateWeekPlan(args: {
   scheme: NormalizedWorkoutScheme;
   userProfile: UserProfile;
   mesocycle?: Mesocycle; // НОВОЕ: мезоцикл для периодизации
   checkins?: CheckInData[]; // One per day
   history?: WorkoutHistory;
-}): GeneratedWorkoutDay[] {
+}): Promise<GeneratedWorkoutDay[]> {
   const { scheme, userProfile, mesocycle, checkins, history } = args;
 
   // НОВОЕ: Получить план недели из мезоцикла
@@ -1350,7 +1403,7 @@ export function generateWeekPlan(args: {
       fallbackTimeBucket: userProfile.timeBucket,
     });
 
-    const dayPlan = generateWorkoutDay({
+    const dayPlan = await generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,

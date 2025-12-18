@@ -19,6 +19,8 @@ import type { Goal, ExperienceLevel } from "./normalizedSchemes.js";
 // TYPES
 // ============================================================================
 
+export type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
+
 export type ProgressionStatus = 
   | "progressing"      // Стабильный прогресс
   | "maintaining"      // Держит уровень

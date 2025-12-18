@@ -10,7 +10,7 @@ export async function getProgressionData(
 ): Promise<ExerciseProgressionData | null> {
   const rows = await q<any>(
     `SELECT * FROM exercise_progression 
-     WHERE user_id = $1 AND exercise_id = $2`,
+     WHERE user_id = $1::uuid AND exercise_id = $2`,
     [userId, exerciseId]
   );
 
@@ -20,7 +20,7 @@ export async function getProgressionData(
 
   const historyRows = await q<any>(
     `SELECT * FROM exercise_history 
-     WHERE user_id = $1 AND exercise_id = $2 
+     WHERE user_id = $1::uuid AND exercise_id = $2 
      ORDER BY workout_date DESC LIMIT 48`,
     [userId, exerciseId]
   );
@@ -28,17 +28,17 @@ export async function getProgressionData(
   const history: ExerciseHistory[] = historyRows.map(h => ({
     exerciseId: h.exercise_id,
     workoutDate: h.workout_date,
-    sets: h.sets,
+    sets: typeof h.sets === 'string' ? JSON.parse(h.sets) : h.sets,
   }));
 
   return {
     exerciseId: row.exercise_id,
-    currentWeight: parseFloat(row.current_weight),
+    currentWeight: parseFloat(row.current_weight) || 0,
     history,
-    status: row.status,
-    stallCount: row.stall_count,
-    deloadCount: row.deload_count,
-    lastProgressDate: row.last_progress_date,
+    status: row.status || "maintaining",
+    stallCount: parseInt(row.stall_count) || 0,
+    deloadCount: parseInt(row.deload_count) || 0,
+    lastProgressDate: row.last_progress_date || null,
   };
 }
 
@@ -49,7 +49,7 @@ export async function saveProgressionData(
   await q(
     `INSERT INTO exercise_progression 
       (user_id, exercise_id, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+     VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW())
      ON CONFLICT (user_id, exercise_id) 
      DO UPDATE SET
        current_weight = $3,
@@ -65,7 +65,7 @@ export async function saveProgressionData(
       data.status,
       data.stallCount,
       data.deloadCount,
-      data.lastProgressDate,
+      data.lastProgressDate || null,
     ]
   );
 }
@@ -76,7 +76,7 @@ export async function saveWorkoutHistory(
 ): Promise<void> {
   await q(
     `INSERT INTO exercise_history (user_id, exercise_id, workout_date, sets)
-     VALUES ($1, $2, $3, $4)`,
+     VALUES ($1::uuid, $2, $3, $4)`,
     [userId, history.exerciseId, history.workoutDate, JSON.stringify(history.sets)]
   );
 }

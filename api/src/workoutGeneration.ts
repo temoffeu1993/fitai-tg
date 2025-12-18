@@ -220,7 +220,7 @@ workoutGeneration.post(
 
     // НОВОЕ: Generate week plan БЕЗ чек-ина (базовая структура недели)
     // Чек-ин будет применяться только при старте конкретного дня
-    const weekPlan = generateWeekPlan({
+    const weekPlan = await generateWeekPlan({
       scheme,
       userProfile,
       mesocycle,
@@ -628,7 +628,7 @@ workoutGeneration.post(
       fallbackTimeBucket: userProfile.timeBucket,
     });
 
-    const workout = generateWorkoutDay({
+    const workout = await generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,
@@ -737,7 +737,7 @@ workoutGeneration.post(
     console.log(`   Mesocycle: Week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
 
     // Generate week plan
-    const weekPlan = generateWeekPlan({
+    const weekPlan = await generateWeekPlan({
       scheme,
       userProfile,
       mesocycle, // НОВОЕ: передаём мезоцикл
@@ -849,7 +849,7 @@ workoutGeneration.get(
     const history = await getWorkoutHistory(uid);
 
     // НОВОЕ: Generate week plan БЕЗ чек-ина (базовая структура недели)
-    const weekPlan = generateWeekPlan({ 
+    const weekPlan = await generateWeekPlan({ 
       scheme, 
       userProfile, 
       mesocycle, 
@@ -1075,7 +1075,7 @@ workoutGeneration.post(
         });
       }
       
-      const adaptedWorkout = generateWorkoutDay({
+      const adaptedWorkout = await generateWorkoutDay({
         scheme,
         dayIndex: finalDayIndex,
         userProfile,
@@ -1241,6 +1241,39 @@ workoutGeneration.post(
            VALUES ($1, $2::jsonb, $3, 'completed', $4, $5, $2::jsonb, $3)`,
           [uid, payload, finishedAt.toISOString(), sessionId, finishedAt.toISOString().slice(0, 10)]
         );
+      }
+
+      // НОВОЕ: Apply progression system
+      try {
+        // Get user profile for goal/experience
+        const [onboardingRow] = await q<{ data: any; summary: any }>(
+          `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
+          [uid]
+        );
+        
+        const goal = onboardingRow?.data?.goal || onboardingRow?.summary?.goal || "build_muscle";
+        const experience = onboardingRow?.data?.experience || onboardingRow?.summary?.experience || "intermediate";
+        
+        // Apply progression
+        const { applyProgressionFromSession } = await import("./progressionService.js");
+        const progressionSummary = await applyProgressionFromSession({
+          userId: uid,
+          payload: payload as any,
+          goal,
+          experience,
+          workoutDate: finishedAt.toISOString().slice(0, 10),
+        });
+        
+        console.log(`[Progression] Applied to session:`, {
+          totalExercises: progressionSummary.totalExercises,
+          progressed: progressionSummary.progressedCount,
+          maintained: progressionSummary.maintainedCount,
+          deloaded: progressionSummary.deloadCount,
+        });
+      } catch (progError) {
+        // Don't fail the entire save if progression fails
+        console.error("[Progression] Error applying progression:", progError);
+        // Continue to COMMIT workout
       }
 
       await q("COMMIT");
