@@ -4,6 +4,14 @@
 import { q } from "./db.js";
 import type { ExerciseProgressionData, ExerciseHistory } from "./progressionEngine.js";
 
+function normalizeWorkoutDate(value: any): string {
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const d = new Date(value);
+  if (Number.isFinite(d.getTime())) return d.toISOString().slice(0, 10);
+  return String(value);
+}
+
 export async function getProgressionData(
   exerciseId: string,
   userId: string
@@ -29,7 +37,7 @@ export async function getProgressionData(
   // so that `history[history.length - 1]` is the latest workout.
   const history: ExerciseHistory[] = historyRows.map(h => ({
     exerciseId: h.exercise_id,
-    workoutDate: h.workout_date,
+    workoutDate: normalizeWorkoutDate(h.workout_date),
     sets: typeof h.sets === 'string' ? JSON.parse(h.sets) : h.sets,
   })).reverse();
 

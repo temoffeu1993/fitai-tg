@@ -256,6 +256,14 @@ export async function applyProgressionFromSession(args: {
       skippedCount++;
       continue;
     }
+
+    // Only reps-based sets are useful for progression decisions.
+    const repsSets = exerciseData.sets.filter((s) => (s.reps ?? 0) > 0);
+    if (repsSets.length === 0) {
+      console.log(`  ⏭️  Skipping "${exerciseData.name}" (no reps recorded)`);
+      skippedCount++;
+      continue;
+    }
     
     // Find exercise in library
     const exercise =
@@ -293,20 +301,35 @@ export async function applyProgressionFromSession(args: {
       const history: ExerciseHistory = {
         exerciseId: exercise.id,
         workoutDate,
-        sets: exerciseData.sets.map((s, idx) => ({
+        sets: repsSets.map((s) => ({
           targetReps: targetRepsRange[1], // upper bound as target
           actualReps: s.reps ?? 0,
           weight: s.weight ?? 0,
           rpe: avgRpe,
-          // completed = performed (not "met lower bound"), so engine can distinguish failure vs not-done
-          completed: (s.reps ?? 0) > 0 || (s.weight ?? 0) > 0,
+          // completed = performed set (reps are present)
+          completed: (s.reps ?? 0) > 0,
         })),
+      };
+
+      // Sync effective currentWeight with what user actually performed this session.
+      // Use median weight of performed sets to avoid spikes from warm-ups/top-sets.
+      const performedWeights = history.sets
+        .map((s) => s.weight)
+        .filter((w) => typeof w === "number" && w > 0)
+        .sort((a, b) => a - b);
+      const effectiveCurrentWeight =
+        performedWeights.length > 0
+          ? performedWeights[Math.floor(performedWeights.length / 2)]
+          : progressionData.currentWeight;
+      const progressionDataForCalc: ExerciseProgressionData = {
+        ...progressionData,
+        currentWeight: effectiveCurrentWeight,
       };
       
       // Calculate progression recommendation
       const recommendation = calculateProgression({
         exercise,
-        progressionData,
+        progressionData: progressionDataForCalc,
         goal,
         experience,
         targetRepsRange,
@@ -316,7 +339,7 @@ export async function applyProgressionFromSession(args: {
       
       // Update progression data based on recommendation
       const updatedData = updateProgressionData({
-        progressionData,
+        progressionData: progressionDataForCalc,
         workoutHistory: history,
         recommendation,
         goal,
