@@ -678,10 +678,12 @@ workoutGeneration.post(
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
     
-    console.log(`🗓️ Generating week plan for user ${uid}`);
+    console.log(`\n🗓️  [GENERATE WEEK] ===================================`);
+    console.log(`   User: ${uid}`);
     
     // Get user profile
     const userProfile = await buildUserProfile(uid);
+    console.log(`   Profile: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w | ${userProfile.timeBucket}min`);
     
     // Get selected scheme
     const schemeRows = await q<{ scheme_id: string }>(
@@ -718,6 +720,9 @@ workoutGeneration.post(
       console.log(`⏩ Advanced to week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
 
+    console.log(`   Scheme: ${scheme.id} (${scheme.russianName})`);
+    console.log(`   Mesocycle: Week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
+
     // Generate week plan
     const weekPlan = generateWeekPlan({
       scheme,
@@ -726,7 +731,11 @@ workoutGeneration.post(
       history,
     });
     
-    console.log(`✅ Generated week plan: ${weekPlan.length} days (meso week ${mesocycle.currentWeek})`);
+    console.log(`   ✅ Generated ${weekPlan.length} workouts:`);
+    weekPlan.forEach((w, i) => {
+      console.log(`      Day ${i + 1}: ${w.dayLabel} (${w.totalExercises} ex, ${w.totalSets} sets, ${w.estimatedDuration}min, intent: ${w.intent})`);
+    });
+    console.log("=====================================================\n");
     
     // НОВОЕ: Save weekly plan
     await saveWeeklyPlan({
@@ -859,7 +868,8 @@ workoutGeneration.post(
     
     const workoutDate = date || new Date().toISOString().split('T')[0];
     
-    console.log(`🏁 Starting workout for user ${uid} on ${workoutDate}`);
+    console.log(`\n🏁 [START WORKOUT] ===================================`);
+    console.log(`   User: ${uid} | Date: ${workoutDate}`);
     
     // 1. Get base planned workout for this date
     const plannedRows = await q<{ 
@@ -880,17 +890,19 @@ workoutGeneration.post(
     const basePlan = plannedRows[0].data;
     const originalDayIndex = basePlan.dayIndex;
     
+    console.log(`   Base plan: Day ${originalDayIndex} - ${basePlan.dayLabel}`);
+    
     // 2. Get or use check-in
     let checkin: CheckInData | undefined;
     if (checkinFromBody) {
       // Map frontend payload to CheckInData format
       checkin = mapPayloadToCheckInData(checkinFromBody);
+      console.log(`   Check-in: from request`);
     } else {
       // Get latest check-in from DB
       checkin = await getLatestCheckIn(uid);
+      console.log(`   Check-in: from DB`);
     }
-    
-    console.log(`   Check-in:`, checkin || 'none');
     
     // 3. Get user profile and scheme
     const userProfile = await buildUserProfile(uid);
@@ -911,11 +923,13 @@ workoutGeneration.post(
       checkin,
     });
     
-    console.log(`   Decision:`, decision.action, decision.notes);
+    console.log(`   📋 Decision: ${decision.action}`);
     
     // 5. Handle decision
     if (decision.action === "skip") {
       // Skip workout - return recovery info
+      console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
+      console.log("=====================================================\n");
       return res.json({
         action: "skip",
         notes: decision.notes,
@@ -924,6 +938,7 @@ workoutGeneration.post(
     }
     
     if (decision.action === "recovery") {
+      console.log(`   🧘 RECOVERY: Replacing ${basePlan.dayLabel}`);
       // Generate recovery session
       const { generateRecoverySession } = await import("./workoutDayGenerator.js");
       const painAreas = checkin?.pain?.map(p => p.location) || [];
@@ -973,6 +988,8 @@ workoutGeneration.post(
         [uid, workoutData, workoutDate]
       );
       
+      console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+      console.log("=====================================================\n");
       return res.json({
         action: "recovery",
         notes: decision.notes,
@@ -984,6 +1001,7 @@ workoutGeneration.post(
     let swapInfo = null;
     
     if (decision.action === "swap_day") {
+      console.log(`   🔄 SWAP: ${basePlan.dayLabel} → ${decision.targetDayLabel}`);
       finalDayIndex = decision.targetDayIndex;
       swapInfo = {
         from: basePlan.dayLabel,
@@ -1016,8 +1034,6 @@ workoutGeneration.post(
       dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
       weekPlanData,
     });
-    
-    console.log(`✅ Adapted workout: ${adaptedWorkout.totalExercises} exercises, ${adaptedWorkout.totalSets} sets`);
     
     // 7. Save adapted workout with metadata
     const workoutData = {
@@ -1089,10 +1105,11 @@ workoutGeneration.post(
         [uid, targetDate.toISOString().split('T')[0], workoutDate]
       );
       
-      console.log(`🔄 Marked future day ${finalDayIndex} (${targetDate.toISOString().split('T')[0]}) as swapped earlier`);
+      console.log(`      Marked future day ${finalDayIndex} as swapped`);
     }
     
-    console.log(`💾 Saved adapted workout to DB`);
+    console.log(`   ✅ Saved: ${adaptedWorkout.dayLabel} (${adaptedWorkout.totalExercises} ex, ${adaptedWorkout.totalSets} sets, ${adaptedWorkout.estimatedDuration}min)`);
+    console.log("=====================================================\n");
     
     // 8. Return adapted workout
     res.json({

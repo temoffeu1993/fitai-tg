@@ -33,8 +33,14 @@ export function decideStartAction(args: {
 }): StartDecision {
   const { scheme, dayIndex, checkin } = args;
 
+  console.log("\n🎯 [DECISION POLICY] ================================");
+  console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex].label}`);
+  console.log(`  Focus: ${scheme.days[dayIndex].focus || 'N/A'}`);
+
   // Без чек-ина → просто выполняем день
   if (!checkin) {
+    console.log("  ✅ No check-in → keep_day");
+    console.log("=================================================\n");
     return { action: "keep_day" };
   }
 
@@ -74,6 +80,8 @@ export function decideStartAction(args: {
       notes.push(...readiness.reasons);
     }
 
+    console.log(`  ✅ KEEP_DAY (severity: ${readiness.severity}, not blocked)`);
+    console.log("==================================================\n");
     return {
       action: "keep_day",
       notes: notes.length > 0 ? notes : undefined,
@@ -85,6 +93,8 @@ export function decideStartAction(args: {
 
   if (swapTarget !== null) {
     const targetDay = scheme.days[swapTarget];
+    console.log(`  🔄 SWAP_DAY: ${scheme.days[dayIndex].label} → Day ${swapTarget}: ${targetDay.label}`);
+    console.log("==================================================\n");
     return {
       action: "swap_day",
       targetDayIndex: swapTarget,
@@ -98,6 +108,8 @@ export function decideStartAction(args: {
   }
 
   // Не нашли подходящий swap → recovery
+  console.log(`  🧘 RECOVERY (no swap found)`);
+  console.log("==================================================\n");
   return {
     action: "recovery",
     notes: [

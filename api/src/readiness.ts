@@ -56,6 +56,9 @@ export function computeReadiness(args: {
 }): Readiness {
   const { checkin, fallbackTimeBucket } = args;
 
+  console.log("\n🔍 [READINESS] ========================================");
+  console.log("📋 Input:", JSON.stringify({ checkin, fallbackTimeBucket }, null, 2));
+
   // -------------------------------------------------------------------------
   // 1. PAIN ANALYSIS (самое важное - безопасность)
   // -------------------------------------------------------------------------
@@ -286,7 +289,7 @@ export function computeReadiness(args: {
   // 8. RETURN READINESS
   // -------------------------------------------------------------------------
   
-  return {
+  const result = {
     intent,
     severity,
     severityScore,
@@ -301,6 +304,20 @@ export function computeReadiness(args: {
     notes,
     reasons,
   };
+
+  console.log("\n✅ [READINESS RESULT]:");
+  console.log(`  Intent: ${result.intent} (score ${result.severityScore})`);
+  console.log(`  Severity: ${result.severity}`);
+  console.log(`  Max Pain: ${result.maxPainLevel}/10`);
+  console.log(`  Time: ${result.timeBucket}min (effective: ${result.effectiveMinutes ?? 'N/A'})`);
+  console.log(`  Avoid: [${result.avoidFlags.join(', ')}]`);
+  console.log(`  Blocked Patterns: [${result.blockedPatterns.join(', ')}]`);
+  console.log(`  Blocked Days: [${result.blockedDayTypes.join(', ')}]`);
+  console.log(`  Warnings: ${result.warnings.length}`);
+  console.log(`  Notes: ${result.notes.length}`);
+  console.log("=========================================\n");
+
+  return result;
 }
 
 // ============================================================================

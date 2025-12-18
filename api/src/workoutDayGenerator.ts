@@ -349,6 +349,10 @@ export function generateWorkoutDay(args: {
 }): GeneratedWorkoutDay {
   const { scheme, dayIndex, userProfile, checkin, history, dupIntensity, weekPlanData } = args;
 
+  console.log("\n🏋️ [WORKOUT GENERATOR] ==============================");
+  console.log(`  User: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w`);
+  console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex]?.label || 'N/A'}`);
+
   // Get the day blueprint from scheme
   const dayBlueprint = scheme.days[dayIndex];
   if (!dayBlueprint) {
@@ -415,6 +419,8 @@ export function generateWorkoutDay(args: {
     intent,
   });
 
+  console.log(`  Slots: ${slots.length} | Intent: ${intent} | TimeBucket: ${effectiveTimeBucket}min`);
+
   // -------------------------------------------------------------------------
   // STEP 2: Select exercises for slots
   // -------------------------------------------------------------------------
@@ -425,6 +431,8 @@ export function generateWorkoutDay(args: {
     constraints,
     excludeIds: history?.recentExerciseIds,
   });
+
+  console.log(`  Selected ${selectedExercises.length} exercises`);
 
   // -------------------------------------------------------------------------
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
@@ -545,10 +553,13 @@ export function generateWorkoutDay(args: {
   
   let estimatedDuration = calculateDuration(exercises);
   
+  console.log(`  Initial duration: ${estimatedDuration} min (${exercises.length} exercises, ${totalSets} sets)`);
+  
   // NEW: Reduce exercises/sets if availableMinutes is less than estimated duration
   // ИСПРАВЛЕНО: используем readiness.effectiveMinutes (единый источник)
   let wasReducedForTime = false;
   if (readiness.effectiveMinutes && readiness.effectiveMinutes < estimatedDuration) {
+    console.log(`  ⏱️  TIME REDUCTION: ${estimatedDuration}min > ${readiness.effectiveMinutes}min available`);
     const rolePriority: Record<SlotRole, number> = {
       conditioning: 0,
       pump: 1,
@@ -678,6 +689,11 @@ export function generateWorkoutDay(args: {
   
   const warmup = generateWarmup(exercises.map(e => e.exercise), dayBlueprint.focus);
   const cooldown = generateCooldown(exercises.map(e => e.exercise), dayBlueprint.focus);
+
+  console.log(`  ✅ Final: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+  console.log(`     Exercises: ${exercises.map(e => e.exercise.name).join(', ')}`);
+  console.log(`     Warnings: ${warnings.length} | Notes: ${adaptationNotes.length}`);
+  console.log("=====================================================\n");
 
   return {
     schemeId: scheme.id,
