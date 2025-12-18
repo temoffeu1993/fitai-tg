@@ -65,6 +65,12 @@ export default function WorkoutSession() {
     }
   }, [loc.state]);
 
+  // Извлекаем notes/warnings из navigation state
+  const adaptationNotes = useMemo(() => {
+    const fromState = (loc.state as any)?.notes;
+    return Array.isArray(fromState) ? fromState : [];
+  }, [loc.state]);
+
   const [items, setItems] = useState<Item[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
@@ -413,7 +419,12 @@ export default function WorkoutSession() {
             {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
           </div>
           <div style={s.heroTitle}>{plan.title}</div>
-          <div style={s.heroSubtitle}>Держи темп. Заполняй подходы по мере выполнения.</div>
+          <div style={s.heroSubtitle}>
+            {adaptationNotes.length > 0 
+              ? adaptationNotes.join(" • ")
+              : "Держи темп. Заполняй подходы по мере выполнения."
+            }
+          </div>
 
           {/* прогресс «лава» */}
           <div style={s.heroCtas}>

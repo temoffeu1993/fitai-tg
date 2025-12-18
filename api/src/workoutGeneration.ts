@@ -1124,10 +1124,15 @@ workoutGeneration.post(
     console.log(`   ✅ Saved: ${adaptedWorkout.dayLabel} (${adaptedWorkout.totalExercises} ex, ${adaptedWorkout.totalSets} sets, ${adaptedWorkout.estimatedDuration}min)`);
     console.log("=====================================================\n");
     
-    // 9. Return adapted workout
+    // 9. Return adapted workout with combined notes
+    const combinedNotes = [
+      ...(decision.notes || []),
+      ...(adaptedWorkout.adaptationNotes || []),
+    ];
+
     res.json({
       action: decision.action,
-      notes: decision.notes,
+      notes: combinedNotes.length > 0 ? combinedNotes : undefined,
       workout: workoutData,
       swapInfo,
     });
