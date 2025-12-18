@@ -241,8 +241,9 @@ export function buildDaySlots(args: {
   timeBucket: TimeBucket;
   intent: Intent;
   availableMinutes?: number; // Optional fine-tuning
+  experience?: "beginner" | "intermediate" | "advanced"; // NEW: влияет на slot budget
 }): Slot[] {
-  const { templateRulesId, timeBucket, intent, availableMinutes } = args;
+  const { templateRulesId, timeBucket, intent, availableMinutes, experience } = args;
 
   const rules = TRAINING_RULES_LIBRARY[templateRulesId];
   if (!rules) {
@@ -250,8 +251,23 @@ export function buildDaySlots(args: {
   }
 
   // Determine total slot budget
+  // NEW: для advanced берём ближе к max, для beginner - ближе к min
   const range = SLOT_RANGE[timeBucket][intent];
-  let slotBudget = Math.floor((range.min + range.max) / 2);
+  let slotBudget: number;
+  
+  if (experience === "advanced") {
+    // Advanced: используй 90% от диапазона (почти max для профи)
+    slotBudget = Math.round(range.min + (range.max - range.min) * 0.9);
+  } else if (experience === "beginner") {
+    // Beginner: используй 35% от диапазона (консервативно)
+    slotBudget = Math.round(range.min + (range.max - range.min) * 0.35);
+  } else {
+    // Intermediate: 65% (выше среднего)
+    slotBudget = Math.round(range.min + (range.max - range.min) * 0.65);
+  }
+  
+  // Debug log removed for cleaner output
+
 
   // Fine-tune based on exact minutes if provided
   if (availableMinutes) {
@@ -311,9 +327,89 @@ export function buildDaySlots(args: {
   }
 
   // -------------------------------------------------------------------------
-  // STEP 3: Adjust for light intent (reduce volume)
+  // NEW STEP 2.5: Add filler slots if budget allows (for advanced/long sessions)
   // -------------------------------------------------------------------------
   
+  // Если бюджет позволяет больше упражнений, добавляем "filler" patterns
+  // Это важно для advanced 90min где rules дают только 5-6 паттернов, а нужно 9-10
+  // -------------------------------------------------------------------------
+  // CRITICAL: Всегда достигаем slotBudget (для правильной утилизации времени!)
+  // -------------------------------------------------------------------------
+  
+  if (usedBudget < slotBudget) {
+    // Приоритет filler patterns (помогают балансу, не критичны)
+    const fillerPatterns: Pattern[] = [];
+    
+    // Для Push days: добавить rear_delts (задние дельты помогают балансу)
+    if (templateRulesId.toLowerCase().includes("push")) {
+      if (!usedPatterns.has("rear_delts")) fillerPatterns.push("rear_delts");
+      if (!usedPatterns.has("core")) fillerPatterns.push("core");
+      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
+    }
+    
+    // Для Pull days: добавить core
+    if (templateRulesId.toLowerCase().includes("pull")) {
+      if (!usedPatterns.has("core")) fillerPatterns.push("core");
+      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
+    }
+    
+    // Для Legs days: calves, core
+    if (templateRulesId.toLowerCase().includes("leg")) {
+      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
+      if (!usedPatterns.has("core")) fillerPatterns.push("core");
+    }
+    
+    // Для Upper days: core, biceps/triceps iso, calves
+    if (templateRulesId.toLowerCase().includes("upper")) {
+      if (!usedPatterns.has("core")) fillerPatterns.push("core");
+      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
+      if (!usedPatterns.has("biceps_iso")) fillerPatterns.push("biceps_iso");
+      if (!usedPatterns.has("triceps_iso")) fillerPatterns.push("triceps_iso");
+      if (!usedPatterns.has("rear_delts")) fillerPatterns.push("rear_delts");
+    }
+    
+    // Для Full Body: calves, biceps/triceps
+    if (templateRulesId.toLowerCase().includes("full")) {
+      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
+      if (!usedPatterns.has("biceps_iso")) fillerPatterns.push("biceps_iso");
+      if (!usedPatterns.has("triceps_iso")) fillerPatterns.push("triceps_iso");
+    }
+    
+    // Fallback: core если ещё не добавлен
+    if (!usedPatterns.has("core")) fillerPatterns.push("core");
+    
+    // Добавляем filler patterns до достижения budget
+    for (const pattern of fillerPatterns) {
+      if (usedBudget >= slotBudget) break;
+      if (usedPatterns.has(pattern)) continue;
+      
+      slots.push({ pattern, count: 1, role: "accessory" });
+      usedPatterns.add(pattern);
+      usedBudget += 1;
+    }
+    
+    // КРИТИЧНО: ВСЕГДА достигаем budget через дубликаты
+    // Это гарантирует правильную утилизацию времени (90min → 9 упражнений)
+    while (usedBudget < slotBudget && usedPatterns.size > 0) {
+      const existingPatterns = Array.from(usedPatterns);
+      
+      // Приоритет для дубликатов: compound patterns > isolation
+      const compoundPatterns = existingPatterns.filter(p => 
+        ["squat", "hinge", "lunge", "horizontal_push", "incline_push", "vertical_push", 
+         "horizontal_pull", "vertical_pull", "hip_thrust"].includes(p)
+      );
+      
+      const patternToDouble = compoundPatterns[0] || existingPatterns[0];
+      
+      slots.push({ pattern: patternToDouble, count: 1, role: "accessory" });
+      usedBudget += 1;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 3: Adjust for light intent (reduce volume)
+  // -------------------------------------------------------------------------
+
   if (intent === "light" && usedBudget > range.min) {
     // ИСПРАВЛЕНО: мягко режем doubles поштучно (не целиком)
     while (usedBudget > range.min && slots.length > 0) {

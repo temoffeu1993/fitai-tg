@@ -27,13 +27,15 @@ import {
   getRepsRange,
   getRestTime,
   validateWorkoutVolume,
+  getSessionCaps,
+  MAX_RECOVERABLE_VOLUME,
 } from "./volumeEngine.js";
 import {
   getWeekPlan,
   type Mesocycle,
   type DUPIntensity,
 } from "./mesocycleEngine.js";
-import { computeReadiness, type Intent, type Readiness } from "./readiness.js";
+import { computeReadiness, normalizeBlockedPatterns, type Intent, type Readiness } from "./readiness.js";
 
 // ============================================================================
 // TYPES
@@ -68,6 +70,25 @@ export type WorkoutHistory = {
   lastWorkoutDate?: string;
 };
 
+/**
+ * DayExercise: Упражнение в контексте дня тренировки
+ * 
+ * НОВОЕ: coversPatterns для coverage-aware trimming
+ * - Позволяет проверять "можно ли удалить упражнение без нарушения required patterns"
+ * - Используется в fitSession() для интеллектуального урезания
+ */
+export type DayExercise = {
+  exercise: Exercise;
+  sets: number;
+  repsRange: [number, number];
+  restSec: number;
+  notes: string;
+  role: SlotRole;
+  
+  // NEW: Coverage tracking для required patterns
+  coversPatterns: Pattern[]; // = exercise.patterns (копия для быстрого доступа)
+};
+
 export type GeneratedWorkoutDay = {
   schemeId: string;
   schemeName: string;
@@ -76,14 +97,7 @@ export type GeneratedWorkoutDay = {
   dayFocus: string;
   intent: Intent;
   warmup?: string[];
-  exercises: Array<{
-    exercise: Exercise;
-    sets: number;
-    repsRange: [number, number];
-    restSec: number;
-    notes: string;
-    role: SlotRole; // КРИТИЧНО: добавлен для type safety
-  }>;
+  exercises: DayExercise[]; // ОБНОВЛЕНО: используем DayExercise с coversPatterns
   cooldown?: string[];
   totalExercises: number;
   totalSets: number;
@@ -125,6 +139,247 @@ function calculateSetsReps(args: {
   const restSec = getRestTime({ role, goal, experience, intent });
 
   return { sets, repsRange, restSec };
+}
+
+// ============================================================================
+// COVERAGE-AWARE TRIMMING: fitSession helpers
+// ============================================================================
+
+/**
+ * Compute which patterns are covered by current exercises
+ */
+function computeCoverage(exercises: DayExercise[]): Set<string> {
+  const covered = new Set<string>();
+  for (const ex of exercises) {
+    for (const pattern of ex.coversPatterns ?? []) {
+      covered.add(String(pattern));
+    }
+  }
+  return covered;
+}
+
+/**
+ * Check if all required patterns are covered
+ */
+function coversAllRequired(exercises: DayExercise[], required: Pattern[]): boolean {
+  if (required.length === 0) return true;
+  const covered = computeCoverage(exercises);
+  return required.every(p => covered.has(String(p)));
+}
+
+/**
+ * Check if we can remove exercise at index without breaking required coverage
+ */
+function canRemove(
+  exercises: DayExercise[],
+  idx: number,
+  required: Pattern[],
+  corePolicy: "required" | "optional"
+): boolean {
+  const ex = exercises[idx];
+  
+  // Create hypothetical array without this exercise
+  const remaining = exercises.filter((_, i) => i !== idx);
+  
+  // Check 1: Required patterns coverage
+  if (!coversAllRequired(remaining, required)) {
+    return false;
+  }
+  
+  // Check 2: corePolicy (если это последнее core упражнение и core required)
+  if (corePolicy === "required" && ex.coversPatterns.includes("core")) {
+    const hasCoreLeft = remaining.some(e => e.coversPatterns.includes("core"));
+    if (!hasCoreLeft) {
+      return false; // Нельзя удалить последнее core!
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Минимальные сеты для роли (зависит от DUP + intent)
+ */
+function minSetsForRole(
+  role: SlotRole,
+  dupIntensity: DUPIntensity | undefined,
+  intent: Intent
+): number {
+  if (role === "conditioning" || role === "pump") return 0; // Можно удалить полностью
+  
+  if (role === "main") {
+    // Для main: зависит от DUP и intent
+    if (intent === "light") return 3;
+    if (dupIntensity === "heavy") return 4; // Силовой день - не меньше 4!
+    return 3;
+  }
+  
+  if (role === "secondary") {
+    if (intent === "light") return 1;
+    return 2; // Обычно не режем ниже 2
+  }
+  
+  if (role === "accessory") {
+    return 1; // Минимум 1 подход
+  }
+  
+  return 1;
+}
+
+/**
+ * Reduce sets by 1 for one exercise of given role (if above minSets)
+ * Returns true if reduction happened
+ */
+function reduceSetsOnce(
+  exercises: DayExercise[],
+  role: SlotRole,
+  minSets: number
+): boolean {
+  // Находим кандидатов: данной роли, с sets > minSets
+  const candidates = exercises
+    .map((e, i) => ({ e, i }))
+    .filter(x => x.e.role === role && x.e.sets > minSets);
+  
+  if (candidates.length === 0) return false;
+  
+  // Берём первого кандидата (можно добавить приоритизацию)
+  candidates[0].e.sets -= 1;
+  return true;
+}
+
+/**
+ * Remove one exercise (coverage-safe, from end of array)
+ * Returns true if removal happened
+ */
+function removeOneExercise(
+  exercises: DayExercise[],
+  required: Pattern[],
+  corePolicy: "required" | "optional"
+): boolean {
+  const roleOrder: SlotRole[] = ["conditioning", "pump", "accessory", "secondary", "main"];
+  
+  for (const role of roleOrder) {
+    // Iterate from end (to avoid index shift issues)
+    for (let i = exercises.length - 1; i >= 0; i--) {
+      const ex = exercises[i];
+      if (ex.role !== role) continue;
+      
+      // Check if we can remove without breaking coverage
+      if (canRemove(exercises, i, required, corePolicy)) {
+        console.log(`       → Removing ${ex.exercise.name} (${ex.role})`);
+        exercises.splice(i, 1);
+        return true;
+      }
+    }
+  }
+  
+  return false; // Не смогли удалить ни одного упражнения безопасно
+}
+
+/**
+ * Calculate estimated duration (simplified)
+ */
+function estimateDuration(exercises: DayExercise[]): number {
+  let total = 0;
+  for (const ex of exercises) {
+    // each set: ~60s work + rest
+    const setDuration = 60 + ex.restSec;
+    total += ex.sets * setDuration;
+  }
+  return Math.ceil(total / 60); // minutes
+}
+
+/**
+ * MAIN: Fit session to time and caps constraints
+ * 
+ * Algorithm:
+ * 1. Check if over time/caps
+ * 2. Try sets-first trimming (conditioning → pump → accessory → secondary → main)
+ * 3. Try exercise removal (only if coverage-safe)
+ * 4. Repeat until fit or cannot trim further
+ */
+function fitSession(args: {
+  exercises: DayExercise[];
+  required: Pattern[];
+  corePolicy: "required" | "optional";
+  maxMinutes: number | null;
+  caps: { maxExercises: number; maxSets: number; minExercises: number };
+  dupIntensity?: DUPIntensity;
+  intent: Intent;
+}): { trimmed: boolean; logs: string[] } {
+  const { exercises, required, corePolicy, maxMinutes, caps, dupIntensity, intent } = args;
+  
+  const logs: string[] = [];
+  let trimmed = false;
+  
+  // Time buffer: 8% of maxMinutes (or 5 min for null)
+  const bufferMin = maxMinutes !== null ? Math.ceil(maxMinutes * 0.08) : 5;
+  
+  let iteration = 0;
+  const MAX_ITERATIONS = 50; // Safety против бесконечного цикла
+  
+  while (iteration < MAX_ITERATIONS) {
+    iteration++;
+    
+    const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+    const totalExercises = exercises.length;
+    const est = estimateDuration(exercises);
+    
+    const overTime = maxMinutes !== null ? est > maxMinutes + bufferMin : false;
+    const overSets = totalSets > caps.maxSets;
+    const overEx = totalExercises > caps.maxExercises;
+    
+    // If all good, exit
+    if (!overTime && !overSets && !overEx) {
+      if (trimmed) {
+        logs.push(`✅ Fit achieved: ${totalExercises} ex, ${totalSets} sets, ~${est}min`);
+      }
+      break;
+    }
+    
+    logs.push(`   Iteration ${iteration}: ${totalExercises} ex, ${totalSets} sets, ~${est}min (over: time=${overTime}, sets=${overSets}, ex=${overEx})`);
+    
+    let changed = false;
+    
+    // Phase 1: Sets-first trimming (ВСЕГДА пробуем, даже при overEx!)
+    if (overTime || overSets || overEx) {
+      const rolesOrder: SlotRole[] = ["conditioning", "pump", "accessory", "secondary", "main"];
+      
+      for (const role of rolesOrder) {
+        const minSets = minSetsForRole(role, dupIntensity, intent);
+        if (reduceSetsOnce(exercises, role, minSets)) {
+          logs.push(`       → Reduced sets: ${role} role`);
+          changed = true;
+          trimmed = true;
+          break; // Go to next iteration
+        }
+      }
+    }
+    
+    // Phase 2: Exercise removal (только если sets-first не помог)
+    if (!changed && (overTime || overEx || overSets)) {
+      if (removeOneExercise(exercises, required, corePolicy)) {
+        logs.push(`       → Removed exercise (coverage-safe)`);
+        changed = true;
+        trimmed = true;
+      } else {
+        logs.push(`       ⚠️  Cannot remove more exercises without breaking required coverage`);
+        break; // Не можем урезать дальше
+      }
+    }
+    
+    // If nothing changed, we're stuck
+    if (!changed) {
+      logs.push(`       ⚠️  Cannot trim further (stuck)`);
+      break;
+    }
+  }
+  
+  if (iteration >= MAX_ITERATIONS) {
+    logs.push(`⚠️  Max iterations reached (${MAX_ITERATIONS}), stopping trim`);
+  }
+  
+  return { trimmed, logs };
 }
 
 // ============================================================================
@@ -275,7 +530,11 @@ export function generateRecoverySession(args: {
   ];
   
   // Adjust duration if needed
-  let exercises = [...baseRecovery];
+  // NEW: добавляем coversPatterns для совместимости с DayExercise type
+  let exercises: DayExercise[] = baseRecovery.map(ex => ({
+    ...ex,
+    coversPatterns: ex.exercise.patterns,
+  }));
   const estimatedDuration = Math.ceil(exercises.length * 3); // ~3 min per exercise
   
   if (availableMinutes < estimatedDuration && exercises.length > 3) {
@@ -335,6 +594,165 @@ export function generateRecoverySession(args: {
 }
 
 // ============================================================================
+// HELPER: Generate user-friendly explanations for missed patterns
+// ============================================================================
+
+/**
+ * Генерирует понятные пользователю объяснения почему некоторые упражнения пропущены
+ */
+function generateMissedPatternExplanations(
+  missedPatterns: Pattern[],
+  pain: Array<{ location: string; level: number }>,
+  corePolicy?: "required" | "optional"
+): string[] {
+  const explanations: string[] = [];
+  
+  // Маппинг: pattern → информация о боли и user-friendly название
+  const patternInfo: Record<Pattern, {
+    friendlyName: string;
+    painLocations: string[];
+    advice: string;
+  }> = {
+    // Push patterns
+    "horizontal_push": {
+      friendlyName: "жимовые упражнения (грудь)",
+      painLocations: ["shoulder", "elbow", "wrist"],
+      advice: "Жимы вернутся когда плечо восстановится"
+    },
+    "incline_push": {
+      friendlyName: "жимы под углом",
+      painLocations: ["shoulder"],
+      advice: "Наклонные жимы вернутся когда плечо восстановится"
+    },
+    "vertical_push": {
+      friendlyName: "жимы над головой",
+      painLocations: ["shoulder"],
+      advice: "Жимы над головой требуют здорового плеча"
+    },
+    
+    // Pull patterns
+    "horizontal_pull": {
+      friendlyName: "тяговые упражнения (спина)",
+      painLocations: ["shoulder", "lower_back", "elbow"],
+      advice: "Тяги вернутся после восстановления"
+    },
+    "vertical_pull": {
+      friendlyName: "подтягивания и вертикальные тяги",
+      painLocations: ["shoulder", "elbow"],
+      advice: "Вертикальные тяги вернутся когда плечо восстановится"
+    },
+    
+    // Leg patterns
+    "squat": {
+      friendlyName: "приседания",
+      painLocations: ["knee", "lower_back", "hip"],
+      advice: "Приседания вернутся когда колено/спина восстановится"
+    },
+    "hinge": {
+      friendlyName: "тяговые на ноги (румынская тяга, гиперэкстензии)",
+      painLocations: ["lower_back", "hamstring"],
+      advice: "Тяговые на ноги вернутся когда поясница восстановится"
+    },
+    "lunge": {
+      friendlyName: "выпады",
+      painLocations: ["knee", "hip"],
+      advice: "Выпады вернутся когда колено восстановится"
+    },
+    "hip_thrust": {
+      friendlyName: "ягодичный мост и тазовые тяги",
+      painLocations: ["lower_back", "hip"],
+      advice: "Ягодичные упражнения вернутся после восстановления"
+    },
+    
+    // Isolation
+    "rear_delts": {
+      friendlyName: "упражнения на задние дельты",
+      painLocations: ["shoulder"],
+      advice: "Изоляция дельт вернётся после восстановления плеча"
+    },
+    "delts_iso": {
+      friendlyName: "изоляция дельт (махи)",
+      painLocations: ["shoulder"],
+      advice: "Махи вернутся когда плечо восстановится"
+    },
+    "triceps_iso": {
+      friendlyName: "изоляция трицепса",
+      painLocations: ["elbow", "shoulder"],
+      advice: "Изоляция трицепса вернётся после восстановления"
+    },
+    "biceps_iso": {
+      friendlyName: "изоляция бицепса",
+      painLocations: ["elbow"],
+      advice: "Изоляция бицепса вернётся после восстановления локтя"
+    },
+    
+    // Core
+    "core": {
+      friendlyName: "упражнения на пресс/кор",
+      painLocations: ["lower_back", "hip"],
+      advice: "Кор-тренировки вернутся после восстановления"
+    },
+    
+    // Other
+    "carry": {
+      friendlyName: "переноски (farmer's walk)",
+      painLocations: ["lower_back", "shoulder"],
+      advice: "Переноски вернутся после восстановления"
+    },
+    "calves": {
+      friendlyName: "икры",
+      painLocations: ["ankle", "knee"],
+      advice: "Икры вернутся после восстановления"
+    },
+    "conditioning_low_impact": {
+      friendlyName: "низкоинтенсивное кардио",
+      painLocations: [],
+      advice: "Кардио адаптировано под текущее состояние"
+    },
+    "conditioning_intervals": {
+      friendlyName: "интервальные тренировки",
+      painLocations: [],
+      advice: "HIIT вернётся когда состояние улучшится"
+    },
+  };
+  
+  for (const pattern of missedPatterns) {
+    const info = patternInfo[pattern];
+    if (!info) continue;
+    
+    // Найти соответствующую боль
+    const relevantPain = pain.find(p => info.painLocations.includes(p.location));
+    
+    if (relevantPain) {
+      const painNames: Record<string, string> = {
+        shoulder: "плече",
+        elbow: "локте",
+        wrist: "запястье",
+        lower_back: "пояснице",
+        knee: "колене",
+        hip: "бедре",
+        ankle: "голеностопе",
+        hamstring: "задней поверхности бедра",
+      };
+      
+      const painName = painNames[relevantPain.location] || relevantPain.location;
+      const painLevel = relevantPain.level;
+      
+      let message = `⚠️ ${info.friendlyName} пропущены из-за боли в ${painName} (${painLevel}/10). ${info.advice}.`;
+      
+      // Добавить совет при сильной боли
+      if (painLevel >= 6) {
+        message += `\n   💡 Совет: Боль ${painLevel}/10 - это серьёзно. Если не проходит 3+ дней — обратись к врачу.`;
+      }
+      
+      explanations.push(message);
+    }
+  }
+  
+  return explanations;
+}
+
+// ============================================================================
 // MAIN GENERATOR: Generate a workout day
 // ============================================================================
 
@@ -366,6 +784,73 @@ export function generateWorkoutDay(args: {
     throw new Error(`Day index ${dayIndex} not found in scheme ${scheme.id}`);
   }
   
+  // -------------------------------------------------------------------------
+  // E1: Вычисляем effectiveRequired (scheme required - blocked + corePolicy)
+  // -------------------------------------------------------------------------
+  
+  // Схемные required patterns
+  const schemeRequired = dayBlueprint.requiredPatterns || [];
+  
+  // Нормализуем заблокированные паттерны
+  const blockedSet = normalizeBlockedPatterns(readiness.blockedPatterns);
+  
+  // effectiveRequired = required - blocked (фильтруем deprecated patterns)
+  let effectiveRequired = schemeRequired
+    .filter(p => p !== "arms_iso") // Deprecated: use triceps_iso or biceps_iso
+    .filter(p => !blockedSet.has(String(p))) as Pattern[];
+  
+  // Применяем corePolicy: если core = optional, удаляем core из effectiveRequired
+  if (readiness.corePolicy === "optional") {
+    effectiveRequired = effectiveRequired.filter(p => p !== "core");
+  }
+  
+  // Важный edge case: если слишком много required заблокировано
+  if (effectiveRequired.length === 0 && schemeRequired.length > 0) {
+    console.warn(`⚠️  ALL required patterns blocked! Day structure may be broken.`);
+  } else if (effectiveRequired.length < schemeRequired.length * 0.3 && schemeRequired.length >= 3) {
+    console.warn(`⚠️  Too many required patterns blocked (${effectiveRequired.length}/${schemeRequired.length}), consider day swap`);
+  }
+  
+  console.log(`  Required: ${schemeRequired.length} total → ${effectiveRequired.length} effective (after blocked + corePolicy)`);
+  
+  // Собираем информацию о пропущенных паттернах для user messages
+  let missedPatternExplanations: string[] = [];
+  
+  if (effectiveRequired.length < schemeRequired.length) {
+    const effectiveSet = new Set(effectiveRequired.map(String));
+    const removed = schemeRequired.filter(p => !effectiveSet.has(String(p)));
+    console.log(`     Removed: ${removed.join(', ')}`);
+    
+    // Генерируем user-friendly объяснения для пропущенных паттернов
+    // Конвертируем Map в массив для функции
+    const painArray = Array.from(readiness.painByLocation.entries()).map(([location, level]) => ({
+      location,
+      level
+    }));
+    
+    // Фильтруем только паттерны заблокированные болью (не core policy)
+    const removedByPain = (removed as Pattern[]).filter(p => {
+      // core удалён из-за policy, не боли
+      if (p === "core" && readiness.corePolicy === "optional") {
+        return false;
+      }
+      return blockedSet.has(String(p));
+    });
+    
+    missedPatternExplanations = generateMissedPatternExplanations(
+      removedByPain,
+      painArray,
+      readiness.corePolicy
+    );
+    
+    // Добавим объяснение для core если удалён из-за policy
+    if (removed.includes("core" as any) && readiness.corePolicy === "optional") {
+      missedPatternExplanations.push(
+        `ℹ️ Упражнения на пресс пропущены из-за нехватки времени. Это нормально - кор работает во всех базовых упражнениях.`
+      );
+    }
+  }
+
   let intent = readiness.intent;
   
   // Override intent if deload week
@@ -419,6 +904,7 @@ export function generateWorkoutDay(args: {
     templateRulesId: dayBlueprint.templateRulesId ?? dayBlueprint.label,
     timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
     intent,
+    experience: userProfile.experience, // NEW: влияет на slot budget (advanced = больше слотов)
   });
 
   console.log(`  Slots: ${slots.length} | Intent: ${intent} | TimeBucket: ${effectiveTimeBucket}min`);
@@ -435,10 +921,40 @@ export function generateWorkoutDay(args: {
     ctx,
     constraints,
     excludeIds: history?.recentExerciseIds,
+    requiredPatterns: effectiveRequired, // NEW: priority boost + relaxation for required
   });
 
   console.log(`  Selected ${selectedExercises.length} exercises (rotation for variety)`);
   console.log(`     Names: ${selectedExercises.map(s => s.ex.name).join(', ')}`);
+  
+  // НОВОЕ: Проверяем фактическое покрытие effectiveRequired
+  const actualCoverage = new Set<string>();
+  for (const sel of selectedExercises) {
+    for (const pattern of sel.ex.patterns) {
+      actualCoverage.add(String(pattern));
+    }
+  }
+  
+  const uncoveredRequired = effectiveRequired.filter(p => !actualCoverage.has(String(p)));
+  if (uncoveredRequired.length > 0) {
+    console.warn(`⚠️  Uncovered required patterns: ${uncoveredRequired.join(', ')}`);
+    
+    // Добавляем объяснения для НЕ покрытых паттернов
+    const painArray = Array.from(readiness.painByLocation.entries()).map(([location, level]) => ({
+      location,
+      level
+    }));
+    
+    const uncoveredExplanations = generateMissedPatternExplanations(
+      uncoveredRequired,
+      painArray,
+      readiness.corePolicy
+    );
+    
+    if (uncoveredExplanations.length > 0) {
+      missedPatternExplanations.push(...uncoveredExplanations);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
@@ -482,161 +998,65 @@ export function generateWorkoutDay(args: {
       restSec,
       notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
       role, // Role из селектора (правильно downgraded для doubles)
-    };
+      coversPatterns: ex.patterns, // NEW: для coverage-aware trimming
+    } as DayExercise;
   });
 
   // -------------------------------------------------------------------------
-  // STEP 4: Calculate totals and validate volume using Volume Engine
+  // STEP 4: NEW - Coverage-aware fitSession (заменяет старую логику урезания)
   // -------------------------------------------------------------------------
   
-  let totalExercises = exercises.length;
-  let totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
-
-  // Validate volume using Volume Engine
-  const validation = validateWorkoutVolume({
+  console.log(`  Selected ${exercises.length} exercises, ${exercises.reduce((s, e) => s + e.sets, 0)} sets total`);
+  
+  // Get session caps from Volume Engine
+  const sessionCaps = getSessionCaps(
+    userProfile.experience,
+    effectiveTimeBucket as TimeBucket,
+    intent
+  );
+  
+  console.log(`  Session caps: ${sessionCaps.minExercises}-${sessionCaps.maxExercises} exercises, max ${sessionCaps.maxSets} sets`);
+  
+  // Fit session to time and caps (coverage-aware, sets-first)
+  const fitResult = fitSession({
+    exercises,
+    required: effectiveRequired,
+    corePolicy: readiness.corePolicy,
+    maxMinutes: readiness.effectiveMinutes,
+    caps: sessionCaps,
+    dupIntensity,
+    intent,
+  });
+  
+  if (fitResult.trimmed) {
+    console.log(`\n  ⚙️  TRIM APPLIED:`);
+    fitResult.logs.forEach(log => console.log(log));
+  }
+  
+  // Recalculate after trimming
+  const totalExercises = exercises.length;
+  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+  const estimatedDuration = estimateDuration(exercises);
+  
+  console.log(`\n  ✅ FINAL WORKOUT:`);
+  console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+  
+  // Final validation (только для отладки/логов)
+  const finalValidation = validateWorkoutVolume({
     totalSets,
     totalExercises,
     experience: userProfile.experience,
+    timeBucket: effectiveTimeBucket as TimeBucket,
+    intent,
   });
-
-  // If volume is too high, reduce from the end (accessories first)
-  // ИСПРАВЛЕНО: удаляем упражнения по приоритету роли (не слепо с конца)
-  // conditioning/pump → accessory → secondary → main (в последнюю очередь)
-  if (!validation.valid) {
-    const rolePriority: Record<SlotRole, number> = {
-      conditioning: 0,
-      pump: 1,
-      accessory: 2,
-      secondary: 3,
-      main: 4,
-    };
-
-    while (
-      exercises.length > 0 &&
-      (totalSets > validation.maxSets || exercises.length > validation.maxExercises)
-    ) {
-      // Найти упражнение с самым низким приоритетом
-      const idx = exercises
-        .map((e, i) => ({ i, p: rolePriority[e.role] ?? 99 }))
-        .sort((a, b) => a.p - b.p)[0]?.i;
-      
-      if (idx == null) break;
-      
-      const [removed] = exercises.splice(idx, 1);
-      if (removed) {
-        totalSets -= removed.sets;
-        totalExercises--;
-      }
-    }
+  
+  if (!finalValidation.valid) {
+    console.warn(`  ⚠️  Final validation warnings:`);
+    finalValidation.warnings.forEach(w => console.warn(`     ${w}`));
   }
-  
-  // Recalculate after potential volume reduction
-  totalExercises = exercises.length;
-  totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
 
-  // Estimate duration: warmup (10) + exercises + cooldown (5)
-  const calculateDuration = (exs: typeof exercises) => {
-    // ПРАВИЛЬНЫЙ расчёт: setup ОДИН РАЗ на упражнение (не в reduce!)
-    const workTime = exs.reduce((sum, e) => {
-      const avgReps = (e.repsRange[0] + e.repsRange[1]) / 2;
-      const repTime = avgReps * 3.5; // секунды на подход (темп execution)
-      
-      // Rest только между подходами (не после последнего)
-      const totalWorkTime = e.sets * repTime;
-      const totalRestTime = (e.sets - 1) * e.restSec;
-      
-      return sum + totalWorkTime + totalRestTime;
-    }, 0);
-    
-    // Setup time между упражнениями (переход станции/оборудования)
-    const setupTime = exs.length * 30; // 30 сек на каждое упражнение
-    
-    // Total: Warmup (10 min) + work + setup + Cooldown (5 min)
-    const totalMinutes = 10 + (workTime + setupTime) / 60 + 5;
-    
-    return Math.ceil(totalMinutes);
-  };
-  
-  let estimatedDuration = calculateDuration(exercises);
-  
-  console.log(`  Initial duration: ${estimatedDuration} min (${exercises.length} exercises, ${totalSets} sets)`);
-  
-  // NEW: Reduce exercises/sets if availableMinutes is less than estimated duration
-  // ИСПРАВЛЕНО: используем readiness.effectiveMinutes (единый источник)
-  let wasReducedForTime = false;
-  if (readiness.effectiveMinutes && readiness.effectiveMinutes < estimatedDuration) {
-    console.log(`  ⏱️  TIME REDUCTION: ${estimatedDuration}min > ${readiness.effectiveMinutes}min available`);
-    const rolePriority: Record<SlotRole, number> = {
-      conditioning: 0,
-      pump: 1,
-      accessory: 2,
-      secondary: 3,
-      main: 4,
-    };
-    
-    // Add buffer: target 90% of available time to be safe
-    const targetDuration = readiness.effectiveMinutes * 0.9;
-    
-    let iterations = 0;
-    const maxIterations = 10; // Safety limit
-    
-    // Aggressive reduction for very limited time (< 30 min)
-    const isVeryLimitedTime = readiness.effectiveMinutes < 30;
-    const minExercises = isVeryLimitedTime ? 2 : 3;
-    
-    // First try: remove low-priority exercises
-    while (exercises.length > minExercises && estimatedDuration > targetDuration && iterations < maxIterations) {
-      // Find exercise with lowest priority
-      const idx = exercises
-        .map((e, i) => ({ i, p: rolePriority[e.role] ?? 99 }))
-        .sort((a, b) => a.p - b.p)[0]?.i;
-      
-      if (idx == null) break;
-      
-      const [removed] = exercises.splice(idx, 1);
-      if (removed) {
-        totalSets -= removed.sets;
-        totalExercises--;
-        wasReducedForTime = true;
-      }
-      
-      estimatedDuration = calculateDuration(exercises);
-      iterations++;
-    }
-    
-    // Second try: reduce sets if still too long
-    let setsReductionPasses = 0;
-    while (estimatedDuration > targetDuration && setsReductionPasses < 2) {
-      let didReduce = false;
-      for (const ex of exercises) {
-        const minSets = isVeryLimitedTime ? 2 : 3;
-        if (ex.sets > minSets) {
-          ex.sets = Math.max(minSets, ex.sets - 1);
-          totalSets--;
-          wasReducedForTime = true;
-          didReduce = true;
-        }
-      }
-      if (!didReduce) break;
-      estimatedDuration = calculateDuration(exercises);
-      setsReductionPasses++;
-    }
-    
-    // Third try: reduce rest times if STILL too long and very limited time
-    if (isVeryLimitedTime && estimatedDuration > targetDuration) {
-      for (const ex of exercises) {
-        if (ex.restSec > 60) {
-          ex.restSec = Math.max(60, Math.floor(ex.restSec * 0.75)); // Reduce by 25%
-          wasReducedForTime = true;
-        }
-      }
-      estimatedDuration = calculateDuration(exercises);
-    }
-    
-    // Recalculate after time-based reduction
-    totalExercises = exercises.length;
-    totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
-  }
+  // OLD wasReducedForTime logic REMOVED - now handled by fitSession above
+  const wasReducedForTime = fitResult.trimmed; // For compatibility with adaptation notes below
 
   // -------------------------------------------------------------------------
   // STEP 5: Generate adaptation notes and warnings
@@ -644,9 +1064,14 @@ export function generateWorkoutDay(args: {
   
   const adaptationNotes: string[] = [];
   const warnings: string[] = [];
-  
+
   // НОВОЕ: Используем warnings из readiness (единый источник правды)
   warnings.push(...readiness.warnings);
+  
+  // НОВОЕ: Добавляем объяснения пропущенных паттернов
+  if (missedPatternExplanations.length > 0) {
+    warnings.push(...missedPatternExplanations);
+  }
 
   // Track if volume was reduced
   const originalSetCount = selectedExercises.reduce((sum: number, { role }) => {
@@ -873,6 +1298,10 @@ export function generateWeekPlan(args: {
   // НОВОЕ: Собираем все использованные упражнения за неделю
   // чтобы избежать дублей между днями
   const usedExerciseIds: string[] = [];
+  
+  // NEW H: Weekly volume tracking for muscle balance
+  const weeklyProgress = new Map<string, number>(); // muscle -> sets accumulated
+  const targetPerWeek = MAX_RECOVERABLE_VOLUME[userProfile.experience].perMusclePerWeek;
 
   for (let dayIndex = 0; dayIndex < scheme.daysPerWeek; dayIndex++) {
     const checkin = checkins?.[dayIndex];
@@ -909,6 +1338,12 @@ export function generateWeekPlan(args: {
     // НОВОЕ: Собираем ID упражнений этого дня
     dayPlan.exercises.forEach(ex => {
       usedExerciseIds.push(ex.exercise.id);
+      
+      // NEW H: Update weekly volume progress
+      for (const muscle of ex.exercise.primaryMuscles) {
+        const current = weeklyProgress.get(muscle) || 0;
+        weeklyProgress.set(muscle, current + ex.sets);
+      }
     });
   }
 

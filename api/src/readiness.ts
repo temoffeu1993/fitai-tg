@@ -23,6 +23,8 @@ export type Severity = "low" | "medium" | "high" | "critical";
 
 export type DayType = "push" | "pull" | "legs" | "upper" | "lower" | "full_body" | "unknown";
 
+export type CorePolicy = "required" | "optional";
+
 export type Readiness = {
   // Нагрузка
   intent: Intent;
@@ -39,6 +41,9 @@ export type Readiness = {
   // Время
   timeBucket: TimeBucket;
   effectiveMinutes: number | null; // из checkin или null
+  
+  // Политика required patterns
+  corePolicy: CorePolicy; // core required только если достаточно времени
   
   // Человеко-читаемые объяснения
   warnings: string[];
@@ -382,7 +387,17 @@ export function computeReadiness(args: {
   }
 
   // -------------------------------------------------------------------------
-  // 8. RETURN READINESS
+  // 8. CORE POLICY (тренерская политика по core упражнениям)
+  // -------------------------------------------------------------------------
+  
+  // Core required только если достаточно времени для полноценной тренировки
+  // При коротких сессиях приоритет — главным движениям дня
+  const corePolicy: CorePolicy = (effectiveMinutes !== null && effectiveMinutes < 40) || timeBucket === 45
+    ? "optional"
+    : "required";
+
+  // -------------------------------------------------------------------------
+  // 9. RETURN READINESS
   // -------------------------------------------------------------------------
   
   const result = {
@@ -396,6 +411,7 @@ export function computeReadiness(args: {
     blockedDayTypes: uniqueDayTypes,
     timeBucket,
     effectiveMinutes,
+    corePolicy,
     warnings,
     notes,
     reasons,
@@ -440,6 +456,28 @@ export function computeReadiness(args: {
   console.log("=========================================\n");
 
   return result;
+}
+
+// ============================================================================
+// HELPER: Normalize blocked patterns (handle aliases, deduplication)
+// ============================================================================
+
+/**
+ * Преобразует список заблокированных паттернов в нормализованный Set
+ * Для корректного вычисления effectiveRequired = schemeRequired - blocked
+ */
+export function normalizeBlockedPatterns(blocked: string[]): Set<string> {
+  const normalized = new Set<string>();
+  
+  for (const pattern of blocked) {
+    const p = pattern.toLowerCase().trim();
+    normalized.add(p);
+    
+    // Обработка алиасов (если добавятся в будущем)
+    // if (p === "overhead_press") normalized.add("vertical_push");
+  }
+  
+  return normalized;
 }
 
 // ============================================================================

@@ -37,6 +37,63 @@ export type TimeBucket = 45 | 60 | 90;
 
 export type SlotRole = "main" | "secondary" | "accessory" | "pump" | "conditioning";
 
+// ============================================================================
+// PROFESSIONAL PATTERN → ROLE MAPPING
+// ============================================================================
+
+/**
+ * Определяет правильную роль для паттерна (используется для required patterns)
+ * Тренерская логика: compound → main, isolation → secondary/accessory, core → accessory
+ */
+function getDefaultRoleForPattern(pattern: Pattern): SlotRole {
+  // COMPOUND MOVEMENTS → MAIN (базовые многосуставные)
+  if ([
+    "squat",
+    "hinge",
+    "lunge",
+    "hip_thrust",
+    "horizontal_push",
+    "incline_push",
+    "vertical_push",
+    "horizontal_pull",
+    "vertical_pull",
+  ].includes(pattern)) {
+    return "main";
+  }
+
+  // ISOLATION → SECONDARY (изоляция крупных мышц)
+  if ([
+    "rear_delts",
+    "delts_iso",
+  ].includes(pattern)) {
+    return "secondary";
+  }
+
+  // SMALL ISOLATION → ACCESSORY (мелкие мышцы, кор)
+  if ([
+    "triceps_iso",
+    "biceps_iso",
+    "calves",
+    "core",      // ← КРИТИЧНО! Кор = accessory
+    "carry",
+  ].includes(pattern)) {
+    return "accessory";
+  }
+
+  // CONDITIONING
+  if ([
+    "conditioning_low_impact",
+    "conditioning_intervals",
+  ].includes(pattern)) {
+    return "conditioning";
+  }
+
+  // Default fallback
+  return "secondary";
+}
+
+// ============================================================================
+
 export type UserConstraints = {
   experience: Experience;
   equipmentAvailable?: Equipment[];
@@ -136,15 +193,23 @@ export function scoreExerciseAdvanced(args: {
   role: SlotRole;
   ctx: CheckinContext;
   constraints: UserConstraints;
-  
+
   // Diversity controls across the session
   usedIds: Set<string>;
   usedPatterns: Map<Pattern, number>;
   usedPrimaryMuscles: Map<MuscleGroup, number>;
+  
+  // NEW: Required pattern priority
+  isRequiredPattern?: boolean;
 }): number {
-  const { ex, pattern, role, ctx, usedIds, usedPatterns, usedPrimaryMuscles } = args;
+  const { ex, pattern, role, ctx, usedIds, usedPatterns, usedPrimaryMuscles, isRequiredPattern = false } = args;
 
   let s = 0;
+  
+  // NEW: MASSIVE boost for required patterns (must be selected first!)
+  if (isRequiredPattern) {
+    s += 100; // Priority over everything else
+  }
 
   // -------------------------------------------------------------------------
   // A) HARD PENALTIES
@@ -401,11 +466,12 @@ export function pickExercisesForPattern(args: {
   role: SlotRole;
   ctx: CheckinContext;
   constraints: UserConstraints;
-  
+
   usedIds?: Set<string>;
   usedPatterns?: Map<Pattern, number>;
   usedPrimaryMuscles?: Map<MuscleGroup, number>;
   excludeIds?: string[];
+  isRequiredPattern?: boolean; // NEW: priority boost + relaxation if needed
 }): Exercise[] {
   const {
     pattern,
@@ -420,10 +486,50 @@ export function pickExercisesForPattern(args: {
   const usedPatterns = args.usedPatterns ?? new Map<Pattern, number>();
   const usedPrimaryMuscles = args.usedPrimaryMuscles ?? new Map<MuscleGroup, number>();
 
-  const pool = filterExercisesForPattern({ pattern, constraints })
+  // Normalized args with guaranteed non-undefined trackers
+  const normArgs = { 
+    ...args, 
+    usedIds, 
+    usedPatterns, 
+    usedPrimaryMuscles 
+  };
+
+  let pool = filterExercisesForPattern({ pattern, constraints })
     .filter(ex => !excludeIds.includes(ex.id));
   
-  if (!pool.length) return [];
+  // Relaxation Level 0: If pool empty AND required, try ignoring minLevel
+  if (!pool.length && args.isRequiredPattern) {
+    console.warn(`⚠️  Relaxation L0: ignoring minLevel for required pattern "${pattern}"`);
+    
+    const eqAvail = constraints.equipmentAvailable || [];
+    const hasGymFull = eqAvail.includes("gym_full" as any);
+    
+    pool = EXERCISE_LIBRARY.filter(ex => {
+      if (!ex.patterns.includes(pattern)) return false;
+      if (excludeIds.includes(ex.id)) return false;
+      
+      // Equipment gate (still enforced, but with gym_full/bodyweight logic)
+      if (!hasGymFull && eqAvail.length) {
+        const needsEquipment = ex.equipment.filter(eq => eq !== "bodyweight");
+        if (needsEquipment.length && !needsEquipment.every(eq => eqAvail.includes(eq))) {
+          return false;
+        }
+      }
+      
+      // Avoid flags (still enforced - safety!)
+      if (constraints.avoid?.length) {
+        const avoidFlags = constraints.avoid.filter(Boolean);
+        if (ex.jointFlags?.some(jf => avoidFlags.includes(jf))) return false;
+      }
+      
+      return true;
+    });
+  }
+  
+  // If still no pool, we'll try duplicate fallback later
+  if (!pool.length && !args.isRequiredPattern) {
+    return []; // Non-required patterns can return empty
+  }
 
   let ranked = pool
     .map(ex => ({
@@ -437,12 +543,13 @@ export function pickExercisesForPattern(args: {
         usedIds,
         usedPatterns,
         usedPrimaryMuscles,
+        isRequiredPattern: args.isRequiredPattern, // NEW
       }),
     }))
     .filter(x => x.score > -1e8)
     .sort((a, b) => b.score - a.score);
 
-  // If pool too small due to hard history avoidance, relax to soft
+  // Relaxation Level 1: If pool too small due to hard history avoidance, relax to soft
   if (ranked.length < n && ctx.historyAvoidance?.mode === "hard") {
     const relaxed: CheckinContext = {
       ...ctx,
@@ -461,10 +568,93 @@ export function pickExercisesForPattern(args: {
           usedIds,
           usedPatterns,
           usedPrimaryMuscles,
+          isRequiredPattern: args.isRequiredPattern,
         }),
       }))
       .filter(x => x.score > -1e8)
       .sort((a, b) => b.score - a.score);
+  }
+  
+  // Try selecting from pool first
+  const selected = pickExercisesFromPool(pool, n, normArgs, args.isRequiredPattern);
+  
+  // If got enough, return
+  if (selected.length >= n) return selected;
+  
+  // Relaxation Level 2: For REQUIRED patterns, if still not enough, allow duplicates (last resort!)
+  if (args.isRequiredPattern) {
+    console.warn(`⚠️  CRITICAL: Allowing duplicates for required pattern "${pattern}" (got ${selected.length}/${n})`);
+    
+    // Allow ANY exercise with this pattern, even if already used (but respect avoid/equipment)
+    const eqAvail = constraints.equipmentAvailable || [];
+    const hasGymFull = eqAvail.includes("gym_full" as any);
+    const avoidFlags = constraints.avoid?.filter(Boolean) || [];
+    
+    const dupPool = EXERCISE_LIBRARY.filter(ex => {
+      if (!ex.patterns.includes(pattern)) return false;
+      
+      // Equipment gate
+      if (!hasGymFull && eqAvail.length) {
+        const needsEquipment = ex.equipment.filter(eq => eq !== "bodyweight");
+        if (needsEquipment.length && !needsEquipment.every(eq => eqAvail.includes(eq))) {
+          return false;
+        }
+      }
+      
+      // Avoid flags (safety!)
+      if (ex.jointFlags?.some(jf => avoidFlags.includes(jf))) return false;
+      
+      return true;
+    });
+    
+    if (dupPool.length) {
+      // FIXED: Return directly from dupPool, ignoring usedIds
+      return pickExercisesFromPool(dupPool, n, { ...normArgs, usedIds: new Set<string>() }, true);
+    }
+  }
+  
+  return selected;
+}
+
+// Helper function to avoid duplication
+function pickExercisesFromPool(
+  pool: Exercise[],
+  n: number,
+  args: any,
+  isRequiredPattern?: boolean
+): Exercise[] {
+  const { pattern, role, ctx, constraints, usedIds, usedPatterns, usedPrimaryMuscles } = args;
+  
+  let ranked = pool
+    .map(ex => ({
+      ex,
+      score: scoreExerciseAdvanced({
+        ex,
+        pattern,
+        role,
+        ctx,
+        constraints,
+        usedIds,
+        usedPatterns,
+        usedPrimaryMuscles,
+        isRequiredPattern,
+      }),
+    }))
+    .filter(x => x.score > -1e8)
+    .sort((a, b) => b.score - a.score);
+
+  // OPTIMIZATION: For required patterns, take deterministically (no random)
+  if (isRequiredPattern && ranked.length >= n) {
+    const deterministic = ranked.slice(0, n).map(x => x.ex);
+    // Update trackers
+    for (const ex of deterministic) {
+      usedIds.add(ex.id);
+      usedPatterns.set(pattern, (usedPatterns.get(pattern) ?? 0) + 1);
+      for (const m of ex.primaryMuscles) {
+        usedPrimaryMuscles.set(m, (usedPrimaryMuscles.get(m) ?? 0) + 1);
+      }
+    }
+    return deterministic;
   }
 
   // Take top K, then weighted-random inside a small window
@@ -511,12 +701,21 @@ export function pickExercisesForPattern(args: {
     else top.shift();
   }
 
-  // SAFETY: If we couldn't fill the slot, try without scoring penalties
-  if (out.length < n && pool.length >= n) {
-    console.warn(`⚠️ Could not fill ${n} exercises for ${pattern}, trying fallback (pool: ${pool.length})`);
-    // Just take top N from pool without complex scoring
+  // FALLBACK: If we couldn't fill the slot, try without usedIds filter
+  if (out.length < n) {
     const remaining = pool.filter(ex => !usedIds.has(ex.id)).slice(0, n - out.length);
-    out.push(...remaining);
+    
+    if (remaining.length > 0) {
+      console.warn(`⚠️ Fallback: taking ${remaining.length} exercises for ${pattern} (pool: ${pool.length})`);
+      out.push(...remaining);
+    }
+
+    // LAST RESORT for required: allow duplicates from pool
+    if (out.length < n && isRequiredPattern) {
+      console.warn(`⚠️ LAST RESORT: allowing duplicates for required ${pattern}`);
+      const any = pool.slice(0, n - out.length); // Allow duplicates
+      out.push(...any);
+    }
   }
 
   return out;
@@ -533,11 +732,18 @@ export type SelectedExercise = {
   role: SlotRole;
 };
 
+/**
+ * NEW: 2-phase selection with required patterns priority
+ * 
+ * Phase 1: Ensure required patterns are covered (with relaxation if needed)
+ * Phase 2: Fill remaining slots with variety/balance
+ */
 export function selectExercisesForDay(args: {
   slots: Slot[];
   ctx: CheckinContext;
   constraints: UserConstraints;
   excludeIds?: string[];
+  requiredPatterns?: Pattern[]; // NEW: patterns that MUST be covered
 }): SelectedExercise[] {
   const usedIds = new Set<string>(args.excludeIds ?? []);
   const usedPatterns = new Map<Pattern, number>();
@@ -585,10 +791,52 @@ export function selectExercisesForDay(args: {
   // КРИТИЧНО: возвращаем упражнения + pattern + role
   const out: SelectedExercise[] = [];
 
+  // ============================================================================
+  // PHASE 1: REQUIRED PATTERNS (guarantee coverage first!)
+  // ============================================================================
+  const required = args.requiredPatterns ?? [];
+  const requiredPicked = new Set<Pattern>();
+
+  for (const rp of required) {
+    // ✅ PROFESSIONAL: Определяем правильную роль для паттерна
+    const properRole = getDefaultRoleForPattern(rp);
+    
+    const picked = pickExercisesForPattern({
+      pattern: rp,
+      n: 1,
+      role: properRole, // ✅ ИСПРАВЛЕНО: compound→main, core→accessory
+      ctx: args.ctx,
+      constraints: args.constraints,
+      usedIds,
+      usedPatterns,
+      usedPrimaryMuscles,
+      excludeIds: args.excludeIds,
+      isRequiredPattern: true, // CRITICAL: enables relaxation
+    });
+
+    if (picked.length) {
+      out.push({ ex: picked[0], pattern: rp, role: properRole }); // ✅ ИСПРАВЛЕНО
+      requiredPicked.add(rp);
+    } else {
+      console.warn(`❌ Required pattern "${rp}" could not be covered!`);
+    }
+  }
+
+  // ============================================================================
+  // PHASE 2: FILL ALL SLOTS (skip first occurrence of already-picked required)
+  // ============================================================================
+  const skippedOnce = new Set<Pattern>();
+  
   for (const slot of interleaved) {
+    // If this pattern was picked in Phase 1, skip its FIRST slot occurrence
+    if (requiredPicked.has(slot.pattern) && !skippedOnce.has(slot.pattern)) {
+      skippedOnce.add(slot.pattern);
+      continue; // Skip first slot (already covered by Phase 1)
+    }
+    
     const picked = pickExercisesForPattern({
       pattern: slot.pattern,
-      n: 1, // Теперь всегда берём по 1 упражнению
+      n: 1,
       role: slot.role,
       ctx: args.ctx,
       constraints: args.constraints,
@@ -596,6 +844,7 @@ export function selectExercisesForDay(args: {
       usedPatterns,
       usedPrimaryMuscles,
       excludeIds: args.excludeIds,
+      isRequiredPattern: false, // Phase 2 = optional
     });
 
     // КРИТИЧНО: возвращаем вместе с pattern и role

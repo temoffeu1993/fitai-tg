@@ -16,7 +16,7 @@
 // All deterministic, no AI, fully scalable
 // ============================================================================
 
-import type { Goal, ExperienceLevel } from "./normalizedSchemes.js";
+import type { Goal, ExperienceLevel, TimeBucket } from "./normalizedSchemes.js";
 import type { Intent, SlotRole } from "./exerciseSelector.js";
 
 // ============================================================================
@@ -27,49 +27,110 @@ export const MAX_RECOVERABLE_VOLUME = {
   beginner: {
     perSession: 15,              // Мягкий лимит (для Full Body)
     perMusclePerWeek: 10,        // ГЛАВНЫЙ ЛИМИТ (Mike Israetel MRV)
-    exercisesPerSession: 6,
+    exercisesPerSession: 6,      // DEPRECATED: use getSessionCaps() instead
   },
   intermediate: {
     perSession: 20,              // Мягкий лимит
     perMusclePerWeek: 15,        // ГЛАВНЫЙ ЛИМИТ
-    exercisesPerSession: 7,
+    exercisesPerSession: 7,      // DEPRECATED: use getSessionCaps() instead
   },
   advanced: {
     perSession: 25,              // Мягкий лимит (для Bro Split может быть 20+ sets на одну группу)
     perMusclePerWeek: 20,        // ГЛАВНЫЙ ЛИМИТ
-    exercisesPerSession: 9,
+    exercisesPerSession: 9,      // DEPRECATED: use getSessionCaps() instead
   },
 } as const;
+
+// ============================================================================
+// 1a. SESSION CAPS: Dynamic limits based on timeBucket + intent
+// ============================================================================
+
+/**
+ * Session capacity: min/max exercises and sets based on experience, time, intent
+ * 
+ * KEY PRINCIPLE:
+ * - maxExercises >= dayPatternMap SLOT_RANGE upper bound (no conflicts!)
+ * - maxSets adjusts by intent (light = lower, hard = higher)
+ * - minExercises prevents under-utilizing long sessions (90min shouldn't be 4 exercises)
+ * 
+ * SYNC WITH dayPatternMap.ts SLOT_RANGE:
+ * - 90 normal: min:7, max:9  → caps must allow 9!
+ * - 90 hard:   min:9, max:10 → caps must allow 10!
+ */
+
+export type SessionCaps = {
+  minExercises: number;  // Prevent under-utilization
+  maxExercises: number;  // Prevent overload (synced with dayPatternMap)
+  maxSets: number;       // Total sets cap (adjusts by intent)
+};
+
+export function getSessionCaps(
+  experience: ExperienceLevel,
+  timeBucket: TimeBucket,
+  intent: Intent
+): SessionCaps {
+  // Base caps by experience × timeBucket
+  // CRITICAL: maxExercises MUST be >= dayPatternMap SLOT_RANGE max for this timeBucket!
+  const baseCaps: Record<ExperienceLevel, Record<TimeBucket, { min: number; max: number; sets: number }>> = {
+    beginner: {
+      45: { min: 4, max: 6, sets: 14 },
+      60: { min: 5, max: 7, sets: 16 },
+      90: { min: 6, max: 9, sets: 18 },  // max:9 synced with dayPatternMap (beginner 90 normal:7-9)
+    },
+    intermediate: {
+      45: { min: 5, max: 7, sets: 18 },
+      60: { min: 6, max: 8, sets: 21 },
+      90: { min: 7, max: 10, sets: 24 }, // max:10 synced with dayPatternMap 90 hard:max:10
+    },
+    advanced: {
+      45: { min: 6, max: 8, sets: 20 },
+      60: { min: 7, max: 9, sets: 24 },
+      90: { min: 8, max: 11, sets: 28 }, // max:11 synced with dayPatternMap 90 hard:max:10 + advanced buffer
+    },
+  };
+
+  const base = baseCaps[experience][timeBucket];
+
+  // Intent modifies SETS, not exercises count (more/less volume, not variety)
+  const intentSetsMod = intent === "light" ? -4 : intent === "hard" ? +2 : 0;
+
+  return {
+    minExercises: base.min,
+    maxExercises: base.max,
+    maxSets: Math.max(10, base.sets + intentSetsMod), // Never below 10 sets
+  };
+}
 
 // ============================================================================
 // 2. BASE SETS BY ROLE AND EXPERIENCE
 // ============================================================================
 
+// ПРОФЕССИОНАЛЬНАЯ БАЗА: Точно настроенная под реальные тренировки
 export const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> = {
   main: {
     beginner: 2,
-    intermediate: 4,  // Было 3 → увеличено для достаточного объема
-    advanced: 5,      // Было 4 → увеличено для профи
+    intermediate: 3,
+    advanced: 4,
   },
   secondary: {
     beginner: 2,
     intermediate: 3,
-    advanced: 4,      // Было 3 → увеличено для профи
+    advanced: 3,
   },
   accessory: {
     beginner: 1,
-    intermediate: 3,  // Было 2 → увеличено для достаточного объема
-    advanced: 4,      // Было 3 → увеличено для профи
+    intermediate: 3,  // ПОВЫШЕНО: 2 → 3 для достаточного объёма
+    advanced: 3,
   },
   pump: {
     beginner: 1,
     intermediate: 2,
-    advanced: 3,      // Было 2 → увеличено для профи
+    advanced: 2,
   },
   conditioning: {
     beginner: 1,
     intermediate: 1,
-    advanced: 2,
+    advanced: 1,
   },
 };
 
@@ -210,16 +271,38 @@ export function calculateSetsForSlot(args: {
   // Calculate final sets
   const calculatedSets = baseSets * goalMod * daysMod * intentMod;
 
-  // Round and clamp
-  // ВАЖНО: для intent=hard используем ceiling чтобы гарантировать увеличение
+  // Round and clamp by intent + experience (professional rounding)
   let sets: number;
+  
   if (intent === "hard") {
-    sets = Math.ceil(calculatedSets); // Округление вверх для hard
+    sets = Math.ceil(calculatedSets);
+  } else if (intent === "light") {
+    sets = Math.floor(calculatedSets);
+    // Защита от слишком лёгких тренировок
+    if (role === "main" || role === "secondary") {
+      sets = Math.max(2, sets);
+    }
+    if (role === "accessory") {
+      sets = Math.max(1, sets);
+    }
   } else {
-    sets = Math.round(calculatedSets);
+    // PROFESSIONAL: Advanced округляется вверх при значениях ≥ X.3 (больше объёма для профи)
+    if (experience === "advanced" && calculatedSets >= 2.3 && calculatedSets < 3) {
+      sets = Math.ceil(calculatedSets); // 2.3-2.9 → 3
+    } else {
+      sets = Math.round(calculatedSets);
+    }
   }
   
   const clamped = Math.max(1, Math.min(sets, 6)); // Never more than 6 sets per exercise
+  
+  // DEBUG: Log when clamp triggers (scientific limit: 6 sets max per exercise)
+  if (process.env.DEBUG_VOLUME === "1" && sets > 6) {
+    console.warn(
+      `⚠️  Volume clamp: ${role}/${experience} wanted ${sets} sets ` +
+      `(base=${baseSets}, goal×${goalMod.toFixed(2)}, days×${daysMod.toFixed(2)}, intent×${intentMod.toFixed(2)}), clamped to 6`
+    );
+  }
 
   return clamped;
 }
@@ -339,54 +422,74 @@ export function getRestTime(args: {
 }
 
 // ============================================================================
-// 11. VALIDATION: Check if workout is reasonable (мягкая проверка)
+// 11. VALIDATION: Check if workout exceeds caps (NO TRIMMING HERE!)
 // ============================================================================
 
 /**
- * Проверяет адекватность ОДНОЙ тренировки (длина, объём)
+ * Проверяет превышение caps ОДНОЙ тренировки (длина, объём)
  * 
- * ВАЖНО: perSession — это МЯГКИЙ лимит (ориентир для Full Body)
- * Для Bro Split (грудь 1×/нед) может быть 15-20 sets груди — это ОК!
+ * ВАЖНО: 
+ * - Эта функция ТОЛЬКО возвращает флаги превышения
+ * - Удаление/урезание делает workoutDayGenerator.fitSession() (там есть context required patterns)
+ * - perSession — это МЯГКИЙ лимит (ориентир для Full Body)
+ * - Для Bro Split (грудь 1×/нед) может быть 15-20 sets груди — это ОК!
  * 
- * Главная защита — это validateFullWeek() с perMusclePerWeek лимитом.
+ * NEW: Использует getSessionCaps() вместо жёстких лимитов из MAX_RECOVERABLE_VOLUME
  */
 export function validateWorkoutVolume(args: {
   totalSets: number;
   totalExercises: number;
   experience: ExperienceLevel;
+  timeBucket: TimeBucket;
+  intent: Intent;
 }): {
   valid: boolean;
+  overMaxSets: boolean;
+  overMaxExercises: boolean;
+  underMinExercises: boolean;
   warnings: string[];
-  maxSets: number;
-  maxExercises: number;
+  caps: SessionCaps;
 } {
-  const { totalSets, totalExercises, experience } = args;
+  const { totalSets, totalExercises, experience, timeBucket, intent } = args;
 
-  const limits = MAX_RECOVERABLE_VOLUME[experience];
+  const caps = getSessionCaps(experience, timeBucket, intent);
   const warnings: string[] = [];
 
-  let valid = true;
+  const overMaxSets = totalSets > caps.maxSets;
+  const overMaxExercises = totalExercises > caps.maxExercises;
+  const underMinExercises = totalExercises < caps.minExercises;
 
-  // Мягкая проверка sets (для Bro Split может быть больше)
-  if (totalSets > limits.perSession * 1.2) {
+  // Мягкая проверка sets
+  if (overMaxSets) {
     warnings.push(
-      `⚠️ Тренировка длинная: ${totalSets} подходов (рекомендуется ${limits.perSession} для ${experience})`
+      `⚠️ Превышение maxSets: ${totalSets} > ${caps.maxSets} (${experience}, ${timeBucket}min, ${intent})`
     );
   }
 
-  // Жёсткая проверка количества упражнений (слишком много = долго)
-  if (totalExercises > limits.exercisesPerSession) {
-    valid = false;
+  // Проверка количества упражнений
+  if (overMaxExercises) {
     warnings.push(
-      `❌ Слишком много упражнений: ${totalExercises} > ${limits.exercisesPerSession} для ${experience}`
+      `⚠️ Слишком много упражнений: ${totalExercises} > ${caps.maxExercises}`
     );
   }
+
+  if (underMinExercises) {
+    warnings.push(
+      `⚠️ Слишком мало упражнений: ${totalExercises} < ${caps.minExercises} (недоиспользование ${timeBucket}min)`
+    );
+  }
+
+  // ВАЖНО: underMinExercises = warning only, не ошибка!
+  // При боли/blockedPatterns/коротком effectiveMinutes может быть невозможно набрать minExercises
+  const valid = !overMaxSets && !overMaxExercises;
 
   return {
     valid,
+    overMaxSets,
+    overMaxExercises,
+    underMinExercises,
     warnings,
-    maxSets: limits.perSession,
-    maxExercises: limits.exercisesPerSession,
+    caps,
   };
 }
 
