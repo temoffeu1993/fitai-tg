@@ -422,9 +422,13 @@ async function buildUserProfile(uid: string): Promise<UserProfile> {
   }
   
   // Calculate time bucket
+  // Профессиональная логика: buckets с небольшим overlap для естественных границ
+  // 45 bucket: до 52 мин (фокус короткие тренировки)
+  // 60 bucket: 52-72 мин (стандарт для большинства)
+  // 90 bucket: 73+ мин (длинные интенсивные тренировки)
   let timeBucket: TimeBucket = 60;
-  if (minutesPerSession <= 50) timeBucket = 45;
-  else if (minutesPerSession <= 75) timeBucket = 60;
+  if (minutesPerSession < 52) timeBucket = 45;        
+  else if (minutesPerSession < 73) timeBucket = 60;   
   else timeBucket = 90;
   
   // Get sex
