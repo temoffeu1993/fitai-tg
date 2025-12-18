@@ -1,6 +1,7 @@
 // api/src/db.ts
 import pg from "pg";
 import { parse as parsePg } from "pg-connection-string";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { config } from "./config.js";
 import { AppError } from "./middleware/errorHandler.js";
 
@@ -24,6 +25,8 @@ export const pool = new Pool({
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
 });
+
+const txStorage = new AsyncLocalStorage<pg.PoolClient>();
 
 // базовые логи
 pool.on("connect", () => {
@@ -57,7 +60,8 @@ pool.on("error", (err) => {
 export async function q<T = any>(text: string, params: any[] = []): Promise<T[]> {
   const t0 = Date.now();
   try {
-    const res = await pool.query(text, params);
+    const client = txStorage.getStore();
+    const res = client ? await client.query(text, params) : await pool.query(text, params);
     if (config.nodeEnv !== "production") {
       console.log(`SQL ok (${Date.now() - t0}ms, rows=${res.rowCount}) ::`, text, params);
     }
@@ -65,6 +69,25 @@ export async function q<T = any>(text: string, params: any[] = []): Promise<T[]>
   } catch (err: any) {
     console.error("DB ERROR:", err?.message, { text, params });
     throw new AppError("Database operation failed", 500);
+  }
+}
+
+export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await txStorage.run(client, async () => fn());
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // ignore rollback failures
+    }
+    throw err;
+  } finally {
+    client.release();
   }
 }
 

@@ -271,19 +271,17 @@ export function calculateProgression(args: {
 
   const rules = PROGRESSION_RULES_BY_GOAL[goal];
 
-  // If no history, maintain current weight
-  if (progressionData.history.length === 0) {
+  const workoutToAnalyze =
+    workoutHistory ?? progressionData.history[progressionData.history.length - 1];
+  if (!workoutToAnalyze) {
     return {
       exerciseId: exercise.id,
       action: "maintain",
       newWeight: progressionData.currentWeight,
-      reason: "Первая тренировка с этим упражнением. Используй рабочий вес для техники.",
+      reason: "Нет истории по упражнению. Используй рабочий вес для техники.",
       failedLowerBound: false,
     };
   }
-
-  const workoutToAnalyze =
-    workoutHistory ?? progressionData.history[progressionData.history.length - 1];
   const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
 
   // CASE 1: Deload needed (too many stalls)

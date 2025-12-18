@@ -317,9 +317,13 @@ export async function applyProgressionFromSession(args: {
         .map((s) => s.weight)
         .filter((w) => typeof w === "number" && w > 0)
         .sort((a, b) => a - b);
+      const maxW = performedWeights.length > 0 ? performedWeights[performedWeights.length - 1] : 0;
+      const workingWeights =
+        maxW > 0 ? performedWeights.filter((w) => w >= maxW * 0.85) : performedWeights;
+      const weightsForEstimate = workingWeights.length > 0 ? workingWeights : performedWeights;
       const effectiveCurrentWeight =
-        performedWeights.length > 0
-          ? performedWeights[Math.floor(performedWeights.length / 2)]
+        weightsForEstimate.length > 0
+          ? weightsForEstimate[Math.floor(weightsForEstimate.length / 2)]
           : progressionData.currentWeight;
       const progressionDataForCalc: ExerciseProgressionData = {
         ...progressionData,

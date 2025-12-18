@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { Router, Response } from "express";
-import { q } from "./db.js";
+import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { 
   generateWorkoutDay,
@@ -1208,8 +1208,7 @@ workoutGeneration.post(
     durationMin = Math.max(10, Math.min(300, Math.round(durationMin)));
     const finishedAt = new Date(startedAt.getTime() + durationMin * 60_000);
 
-    await q("BEGIN");
-    try {
+    const sessionId = await withTransaction(async () => {
       const result = await q<{ id: string }>(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
@@ -1287,12 +1286,10 @@ workoutGeneration.post(
         // Continue to COMMIT workout
       }
 
-      await q("COMMIT");
-      res.json({ ok: true, sessionId });
-    } catch (err) {
-      await q("ROLLBACK");
-      throw err;
-    }
+      return sessionId;
+    });
+
+    res.json({ ok: true, sessionId });
   })
 );
 
