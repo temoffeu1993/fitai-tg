@@ -57,7 +57,22 @@ export function computeReadiness(args: {
   const { checkin, fallbackTimeBucket } = args;
 
   console.log("\n🔍 [READINESS] ========================================");
-  console.log("📋 Input:", JSON.stringify({ checkin, fallbackTimeBucket }, null, 2));
+  if (!checkin) {
+    console.log("📋 Input: No check-in (using defaults)");
+  } else {
+    console.log("📋 Check-in input:");
+    console.log(`   Sleep: ${checkin.sleep}`);
+    console.log(`   Energy: ${checkin.energy}`);
+    console.log(`   Stress: ${checkin.stress}`);
+    if (checkin.pain && checkin.pain.length > 0) {
+      console.log(`   Pain: ${checkin.pain.map(p => `${p.location}=${p.level}/10`).join(', ')}`);
+    } else {
+      console.log(`   Pain: none`);
+    }
+    if (checkin.availableMinutes) {
+      console.log(`   Available time: ${checkin.availableMinutes} min`);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // 1. PAIN ANALYSIS (самое важное - безопасность)
@@ -88,54 +103,94 @@ export function computeReadiness(args: {
   let severityScore = 0;
   const reasons: string[] = [];
 
+  console.log("\n📊 Scoring breakdown:");
+  
   // Боль (главный фактор безопасности)
+  let painScore = 0;
   if (maxPainLevel >= 9) {
+    painScore = 6;
     severityScore += 6;
   } else if (maxPainLevel === 8) {
+    painScore = 5;
     severityScore += 5;
   } else if (maxPainLevel === 7) {
+    painScore = 4;
     severityScore += 4;
   } else if (maxPainLevel >= 5) {
+    painScore = 2;
     severityScore += 2; // 5-6/10: умеренная боль
   } else if (maxPainLevel >= 4) {
+    painScore = 1;
     severityScore += 1; // 4/10: лёгкая адаптация (было +2, завышало)
+  }
+  
+  if (maxPainLevel > 0) {
+    console.log(`   Pain (max ${maxPainLevel}/10): +${painScore}`);
   }
   
   // Мультизонная боль опаснее
   if (countL2Plus >= 2) {
     severityScore += 1;
+    console.log(`   Multiple pain zones (${countL2Plus}): +1`);
   }
 
   // Сон
+  let sleepScore = 0;
   if (!checkin) {
     // no checkin = neutral
   } else if (checkin.sleep === "poor") {
+    sleepScore = 2;
     severityScore += 2;
   } else if (checkin.sleep === "fair") {
+    sleepScore = 1;
     severityScore += 1;
   } else if (checkin.sleep === "ok") {
+    sleepScore = 0;
     severityScore += 0;
   } else if (checkin.sleep === "good") {
+    sleepScore = -1;
     severityScore -= 1;
   } else if (checkin.sleep === "excellent") {
+    sleepScore = -2;
     severityScore -= 2;
+  }
+  
+  if (checkin && sleepScore !== 0) {
+    console.log(`   Sleep (${checkin.sleep}): ${sleepScore > 0 ? '+' : ''}${sleepScore}`);
   }
 
   // Энергия
+  let energyScore = 0;
   if (checkin?.energy === "low") {
+    energyScore = 2;
     severityScore += 2;
   } else if (checkin?.energy === "high") {
+    energyScore = -1;
     severityScore -= 1;
+  }
+  
+  if (checkin && energyScore !== 0) {
+    console.log(`   Energy (${checkin.energy}): ${energyScore > 0 ? '+' : ''}${energyScore}`);
   }
 
   // Стресс
+  let stressScore = 0;
   if (checkin?.stress === "very_high") {
+    stressScore = 2;
     severityScore += 2;
   } else if (checkin?.stress === "high") {
+    stressScore = 1;
     severityScore += 1;
   } else if (checkin?.stress === "low") {
+    stressScore = -1;
     severityScore -= 1;
   }
+  
+  if (checkin && stressScore !== 0) {
+    console.log(`   Stress (${checkin.stress}): ${stressScore > 0 ? '+' : ''}${stressScore}`);
+  }
+  
+  console.log(`   → Total severity score: ${Math.round(severityScore * 10) / 10}`);
 
   // -------------------------------------------------------------------------
   // 3. SEVERITY CLASSIFICATION
@@ -285,6 +340,11 @@ export function computeReadiness(args: {
     notes.push(`⏱️ Доступное время: ${effectiveMinutes} мин. План адаптирован.`);
   }
 
+  // Default note для нейтрального состояния
+  if (severity === 'low' && warnings.length === 0 && notes.length === 0) {
+    notes.push("✅ Самочувствие в норме. Тренировка по плану.");
+  }
+
   // -------------------------------------------------------------------------
   // 8. RETURN READINESS
   // -------------------------------------------------------------------------
@@ -306,15 +366,36 @@ export function computeReadiness(args: {
   };
 
   console.log("\n✅ [READINESS RESULT]:");
-  console.log(`  Intent: ${result.intent} (score ${result.severityScore})`);
-  console.log(`  Severity: ${result.severity}`);
-  console.log(`  Max Pain: ${result.maxPainLevel}/10`);
-  console.log(`  Time: ${result.timeBucket}min (effective: ${result.effectiveMinutes ?? 'N/A'})`);
-  console.log(`  Avoid: [${result.avoidFlags.join(', ')}]`);
-  console.log(`  Blocked Patterns: [${result.blockedPatterns.join(', ')}]`);
-  console.log(`  Blocked Days: [${result.blockedDayTypes.join(', ')}]`);
-  console.log(`  Warnings: ${result.warnings.length}`);
-  console.log(`  Notes: ${result.notes.length}`);
+  console.log(`   Severity: ${result.severity.toUpperCase()} (score: ${result.severityScore})`);
+  console.log(`   Intent: ${result.intent}`);
+  console.log(`   Time bucket: ${result.timeBucket}min (available: ${result.effectiveMinutes ?? 'not specified'})`);
+  
+  if (result.maxPainLevel > 0) {
+    console.log(`   Max pain: ${result.maxPainLevel}/10`);
+  }
+  
+  if (result.avoidFlags.length > 0) {
+    console.log(`   Avoid flags: ${result.avoidFlags.join(', ')}`);
+  }
+  
+  if (result.blockedPatterns.length > 0) {
+    console.log(`   Blocked patterns: ${result.blockedPatterns.join(', ')}`);
+  }
+  
+  if (result.blockedDayTypes.length > 0) {
+    console.log(`   Blocked day types: ${result.blockedDayTypes.join(', ')}`);
+  }
+  
+  if (result.warnings.length > 0) {
+    console.log(`\n   ⚠️  WARNINGS:`);
+    result.warnings.forEach(w => console.log(`      - ${w}`));
+  }
+  
+  if (result.notes.length > 0) {
+    console.log(`\n   📝 NOTES:`);
+    result.notes.forEach(n => console.log(`      - ${n}`));
+  }
+  
   console.log("=========================================\n");
 
   return result;

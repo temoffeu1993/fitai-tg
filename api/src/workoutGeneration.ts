@@ -615,11 +615,17 @@ workoutGeneration.post(
     console.log(`   History: ${history.recentExerciseIds.length} recent exercises`);
     
     // Generate workout
+    const { computeReadiness } = await import("./readiness.js");
+    const readiness = computeReadiness({
+      checkin,
+      fallbackTimeBucket: userProfile.timeBucket,
+    });
+
     const workout = generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,
-      checkin,
+      readiness,
       history,
     });
     
@@ -915,17 +921,24 @@ workoutGeneration.post(
       throw new AppError("Scheme not found", 404);
     }
     
-    // 4. Decide action using policy
+    // 4. ВАЖНО: Вычисляем readiness ОДИН РАЗ (используется и в policy, и в generator)
+    const { computeReadiness } = await import("./readiness.js");
+    const readiness = computeReadiness({
+      checkin,
+      fallbackTimeBucket: userProfile.timeBucket,
+    });
+    
+    // 5. Decide action using policy
     const { decideStartAction } = await import("./checkinPolicy.js");
     const decision = decideStartAction({
       scheme,
       dayIndex: originalDayIndex,
-      checkin,
+      readiness,
     });
     
     console.log(`   📋 Decision: ${decision.action}`);
     
-    // 5. Handle decision
+    // 6. Handle decision
     if (decision.action === "skip") {
       // Skip workout - return recovery info
       console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
@@ -1010,7 +1023,7 @@ workoutGeneration.post(
       };
     }
     
-    // 6. Generate adapted workout for finalDayIndex
+    // 7. Generate adapted workout for finalDayIndex
     const history = await getWorkoutHistory(uid);
     const mesocycle = await getMesocycle(uid);
     
@@ -1029,13 +1042,13 @@ workoutGeneration.post(
       scheme,
       dayIndex: finalDayIndex,
       userProfile,
-      checkin, // ВАЖНО: применяем чек-ин здесь
+      readiness, // ВАЖНО: передаём уже вычисленный readiness
       history,
       dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
       weekPlanData,
     });
     
-    // 7. Save adapted workout with metadata
+    // 8. Save adapted workout with metadata
     const workoutData = {
       schemeId: scheme.id,
       schemeName: adaptedWorkout.schemeName,
@@ -1111,7 +1124,7 @@ workoutGeneration.post(
     console.log(`   ✅ Saved: ${adaptedWorkout.dayLabel} (${adaptedWorkout.totalExercises} ex, ${adaptedWorkout.totalSets} sets, ${adaptedWorkout.estimatedDuration}min)`);
     console.log("=====================================================\n");
     
-    // 8. Return adapted workout
+    // 9. Return adapted workout
     res.json({
       action: decision.action,
       notes: decision.notes,

@@ -8,6 +8,7 @@
 import { recommendScheme, generateWorkoutDay, generateWeekPlan } from "./workoutDayGenerator.js";
 import type { UserProfile, CheckInData } from "./workoutDayGenerator.js";
 import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
+import { computeReadiness } from "./readiness.js";
 
 // ============================================================================
 // TEST SCENARIOS
@@ -53,11 +54,16 @@ const checkin1Normal: CheckInData = {
 
 console.log(`\n🏋️ Generating Day 1 workout (normal energy)...`);
 
+const readiness1 = computeReadiness({
+  checkin: checkin1Normal,
+  fallbackTimeBucket: user1.timeBucket,
+});
+
 const workout1 = generateWorkoutDay({
   scheme: scheme1,
   dayIndex: 0,
   userProfile: user1,
-  checkin: checkin1Normal,
+  readiness: readiness1,
   history: {
     recentExerciseIds: [], // First workout, no history
   },
@@ -97,11 +103,16 @@ const checkin1Low: CheckInData = {
 
 console.log(`\n🏋️ Generating Day 1 workout (LOW energy, back pain)...`);
 
+const readiness1Low = computeReadiness({
+  checkin: checkin1Low,
+  fallbackTimeBucket: user1.timeBucket,
+});
+
 const workout1Light = generateWorkoutDay({
   scheme: scheme1,
   dayIndex: 0,
   userProfile: user1,
-  checkin: checkin1Low,
+  readiness: readiness1Low,
   history: {
     recentExerciseIds: [], 
   },
@@ -196,11 +207,16 @@ console.log(`   Split: ${scheme3.splitType}`);
 console.log(`   Benefits:`);
 scheme3.benefits.forEach(b => console.log(`   - ${b}`));
 
+const readiness3 = computeReadiness({
+  checkin: { energy: "high", sleep: "good", stress: "low" },
+  fallbackTimeBucket: user3.timeBucket,
+});
+
 const day1Glutes = generateWorkoutDay({
   scheme: scheme3,
   dayIndex: 0,
   userProfile: user3,
-  checkin: { energy: "high", sleep: "good", stress: "low" },
+  readiness: readiness3,
 });
 
 console.log(`\n🏋️ Day 1 (${day1Glutes.dayLabel}):`);

@@ -10,7 +10,7 @@
 
 import type { CheckInData } from "./workoutDayGenerator.js";
 import type { NormalizedWorkoutScheme } from "./normalizedSchemes.js";
-import { computeReadiness, translateLocation, type DayType } from "./readiness.js";
+import { translateLocation, type DayType, type Readiness } from "./readiness.js";
 
 // ============================================================================
 // TYPES
@@ -29,26 +29,14 @@ export type StartDecision =
 export function decideStartAction(args: {
   scheme: NormalizedWorkoutScheme;
   dayIndex: number;
-  checkin?: CheckInData;
+  readiness: Readiness; // ИЗМЕНЕНО: принимаем готовый readiness
 }): StartDecision {
-  const { scheme, dayIndex, checkin } = args;
+  const { scheme, dayIndex, readiness } = args;
 
   console.log("\n🎯 [DECISION POLICY] ================================");
   console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex].label}`);
   console.log(`  Focus: ${scheme.days[dayIndex].focus || 'N/A'}`);
-
-  // Без чек-ина → просто выполняем день
-  if (!checkin) {
-    console.log("  ✅ No check-in → keep_day");
-    console.log("=================================================\n");
-    return { action: "keep_day" };
-  }
-
-  // НОВОЕ: Используем единую систему Readiness
-  const readiness = computeReadiness({
-    checkin,
-    fallbackTimeBucket: 60, // Не важно для policy, но нужно для API
-  });
+  console.log(`  Readiness: severity=${readiness.severity}, intent=${readiness.intent}, pain=${readiness.maxPainLevel}/10`);
 
   // КРИТИЧЕСКИЙ уровень → skip (боль 8-10, множественные травмы)
   if (readiness.severity === "critical") {

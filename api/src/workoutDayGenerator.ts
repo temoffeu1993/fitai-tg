@@ -33,7 +33,7 @@ import {
   type Mesocycle,
   type DUPIntensity,
 } from "./mesocycleEngine.js";
-import { computeReadiness, type Intent } from "./readiness.js";
+import { computeReadiness, type Intent, type Readiness } from "./readiness.js";
 
 // ============================================================================
 // TYPES
@@ -342,34 +342,36 @@ export function generateWorkoutDay(args: {
   scheme: NormalizedWorkoutScheme;
   dayIndex: number; // 0-based (0 = first day of scheme)
   userProfile: UserProfile;
-  checkin?: CheckInData;
+  readiness: Readiness; // ИЗМЕНЕНО: принимаем готовый readiness
   history?: WorkoutHistory;
   dupIntensity?: DUPIntensity; // НОВОЕ: DUP интенсивность
   weekPlanData?: any; // НОВОЕ: план недели
 }): GeneratedWorkoutDay {
-  const { scheme, dayIndex, userProfile, checkin, history, dupIntensity, weekPlanData } = args;
+  const { scheme, dayIndex, userProfile, readiness, history, dupIntensity, weekPlanData } = args;
 
   console.log("\n🏋️ [WORKOUT GENERATOR] ==============================");
   console.log(`  User: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w`);
   console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex]?.label || 'N/A'}`);
+  
+  // Mesocycle & DUP info
+  if (weekPlanData) {
+    const weekType = weekPlanData.isDeloadWeek ? 'DELOAD' : 'NORMAL';
+    const dupInfo = dupIntensity ? `DUP: ${dupIntensity}` : 'no DUP';
+    console.log(`  Mesocycle: ${weekType} week | ${dupInfo}`);
+  }
 
   // Get the day blueprint from scheme
   const dayBlueprint = scheme.days[dayIndex];
   if (!dayBlueprint) {
     throw new Error(`Day index ${dayIndex} not found in scheme ${scheme.id}`);
   }
-
-  // НОВОЕ: Используем единую систему Readiness
-  const readiness = computeReadiness({
-    checkin,
-    fallbackTimeBucket: userProfile.timeBucket,
-  });
   
   let intent = readiness.intent;
   
   // Override intent if deload week
   if (weekPlanData?.isDeloadWeek) {
     intent = "light";
+    console.log(`  → Intent overridden to 'light' (deload week)`);
   }
   
   // Используем timeBucket из readiness (учитывает availableMinutes)
@@ -433,6 +435,7 @@ export function generateWorkoutDay(args: {
   });
 
   console.log(`  Selected ${selectedExercises.length} exercises`);
+  console.log(`     Names: ${selectedExercises.map(s => s.ex.name).join(', ')}`);
 
   // -------------------------------------------------------------------------
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
@@ -690,9 +693,16 @@ export function generateWorkoutDay(args: {
   const warmup = generateWarmup(exercises.map(e => e.exercise), dayBlueprint.focus);
   const cooldown = generateCooldown(exercises.map(e => e.exercise), dayBlueprint.focus);
 
-  console.log(`  ✅ Final: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
-  console.log(`     Exercises: ${exercises.map(e => e.exercise.name).join(', ')}`);
-  console.log(`     Warnings: ${warnings.length} | Notes: ${adaptationNotes.length}`);
+  console.log(`\n  ✅ FINAL WORKOUT:`);
+  console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
+  console.log(`\n  📋 EXERCISES:`);
+  exercises.forEach((ex, i) => {
+    console.log(`     ${i + 1}. ${ex.exercise.name}`);
+    console.log(`        Sets: ${ex.sets} | Reps: ${ex.repsRange[0]}-${ex.repsRange[1]} | Rest: ${ex.restSec}s | Role: ${ex.role}`);
+  });
+  console.log(`\n  📝 ADAPTATIONS:`);
+  console.log(`     Warnings: ${warnings.length > 0 ? warnings.join(' | ') : 'none'}`);
+  console.log(`     Notes: ${adaptationNotes.length > 0 ? adaptationNotes.join(' | ') : 'none'}`);
   console.log("=====================================================\n");
 
   return {
@@ -863,11 +873,17 @@ export function generateWeekPlan(args: {
       recentExerciseIds: usedExerciseIds,
     };
     
+    // Создаём readiness для каждого дня (без чек-ина при week generation)
+    const readiness = computeReadiness({
+      checkin: undefined,
+      fallbackTimeBucket: userProfile.timeBucket,
+    });
+
     const dayPlan = generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,
-      checkin,
+      readiness,
       history: historyWithWeekExclusions, // ИЗМЕНЕНО: передаём обновлённую историю
       dupIntensity,
       weekPlanData,
