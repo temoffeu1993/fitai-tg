@@ -465,16 +465,18 @@ export function CheckInForm({
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{availableMinutes} мин</div>
               </div>
-              <input
-                type="range"
-                min={40}
-                max={90}
-                step={10}
-                value={availableMinutes}
-                onChange={(e) => setAvailableMinutes(Number(e.target.value))}
-                style={{ ...sliderStyle(40, 90, availableMinutes, [0, 25, 50, 75, 100]) }}
-                className="checkin-slider"
-              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[45, 60, 90].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    style={availableMinutes === m ? chipActive : chipStyle}
+                    onClick={() => setAvailableMinutes(m)}
+                  >
+                    {m} мин
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 

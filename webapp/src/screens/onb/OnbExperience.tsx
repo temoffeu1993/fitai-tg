@@ -85,7 +85,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack, onTa
         <div style={ux.cardMini}>
           <div style={ux.cardMiniTitle}>⏱️ Длительность тренировки</div>
           <div style={ux.rowChips}>
-            {[30, 45, 60, 75, 90].map((m) => (
+            {[45, 60, 90].map((m) => (
               <Chip
                 key={m}
                 label={`${m}`}
