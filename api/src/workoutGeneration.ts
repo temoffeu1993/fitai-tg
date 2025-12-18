@@ -445,30 +445,69 @@ async function buildUserProfile(uid: string): Promise<UserProfile> {
 // ============================================================================
 
 async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
-  // Get last 20 exercises from completed workouts
-  const rows = await q<{ exercises: any[] }>(
-    `SELECT data->'exercises' as exercises 
-     FROM planned_workouts 
-     WHERE user_id = $1 AND status = 'completed'
-     ORDER BY completed_at DESC 
-     LIMIT 10`,
-    [uid]
-  );
+  // Get exercises from:
+  // 1. Current week's scheduled workouts (for variety within week)
+  // 2. Last completed workouts (for variety across weeks)
   
   const recentExerciseIds: string[] = [];
   
-  for (const row of rows) {
+  // ВАЖНО: Сначала добавляем упражнения из ТЕКУЩЕЙ НЕДЕЛИ (scheduled)
+  // Это обеспечивает rotation ВНУТРИ недели
+  const thisWeekRows = await q<{ exercises: any[], workout_date: string }>(
+    `SELECT data->'exercises' as exercises, workout_date
+     FROM planned_workouts 
+     WHERE user_id = $1 
+       AND status = 'scheduled'
+       AND workout_date >= CURRENT_DATE
+       AND workout_date < CURRENT_DATE + INTERVAL '7 days'
+     ORDER BY workout_date ASC`,
+    [uid]
+  );
+  
+  console.log(`   [History] Found ${thisWeekRows.length} scheduled workouts in current week`);
+  
+  for (const row of thisWeekRows) {
     if (Array.isArray(row.exercises)) {
       for (const ex of row.exercises) {
-        if (ex.exercise?.id) {
-          recentExerciseIds.push(ex.exercise.id);
+        if (ex.exerciseId || ex.exercise?.id) {
+          const id = ex.exerciseId || ex.exercise?.id;
+          if (!recentExerciseIds.includes(id)) {
+            recentExerciseIds.push(id);
+          }
         }
       }
     }
   }
   
+  // Затем добавляем упражнения из COMPLETED workouts (для rotation между неделями)
+  const completedRows = await q<{ exercises: any[] }>(
+    `SELECT data->'exercises' as exercises 
+     FROM planned_workouts 
+     WHERE user_id = $1 AND status = 'completed'
+     ORDER BY completed_at DESC 
+     LIMIT 5`,
+    [uid]
+  );
+  
+  console.log(`   [History] Found ${completedRows.length} completed workouts`);
+  
+  for (const row of completedRows) {
+    if (Array.isArray(row.exercises)) {
+      for (const ex of row.exercises) {
+        if (ex.exerciseId || ex.exercise?.id) {
+          const id = ex.exerciseId || ex.exercise?.id;
+          if (!recentExerciseIds.includes(id)) {
+            recentExerciseIds.push(id);
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`   [History] Total unique exercises to exclude: ${recentExerciseIds.length}`);
+  
   return {
-    recentExerciseIds: recentExerciseIds.slice(0, 20), // Last 20 exercises
+    recentExerciseIds: recentExerciseIds.slice(0, 30), // Top 30 recent exercises
   };
 }
 
