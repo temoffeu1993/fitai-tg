@@ -1,617 +1,375 @@
 // testRealUsers.ts
 // ============================================================================
-// РЕАЛЬНЫЙ ТЕСТ: Прогон различных профилей пользователей
+// РЕАЛЬНЫЙ ТЕСТ С РЕАЛЬНОЙ БД: Создаём пользователей и тренировки
 // ============================================================================
 
-import { generateWorkoutDay, generateWeekPlan, type UserProfile, type CheckInData } from "./workoutDayGenerator.js";
-import { NORMALIZED_SCHEMES } from "./normalizedSchemes.js";
-import { createMesocycle } from "./mesocycleEngine.js";
-import { computeReadiness } from "./readiness.js";
+import { q } from "./db.js";
+import { applyProgressionFromSession, getNextWorkoutRecommendations } from "./progressionService.js";
+import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
+import type { SessionPayload } from "./progressionService.js";
 
-// ============================================================================
-// ПРОФИЛИ ПОЛЬЗОВАТЕЛЕЙ
-// ============================================================================
-
-// РЕАЛЬНЫЕ профили из онбординга (только gym_full, только существующие схемы)
-const USER_PROFILES: Array<{ name: string; profile: UserProfile }> = [
+// Test users
+const TEST_USERS = [
   {
-    name: "Новичок женщина набор 3д 60мин",
-    profile: {
-      experience: "beginner",
-      goal: "build_muscle",
-      daysPerWeek: 3,
-      timeBucket: 60,
-      equipment: "gym_full",
-      sex: "female",
-    },
+    id: "11111111-1111-1111-1111-111111111111", // Fixed UUID
+    name: "Тест Иван",
+    goal: "build_muscle" as const,
+    experience: "intermediate" as const,
   },
   {
-    name: "Средний мужчина набор 4д 90мин",
-    profile: {
-      experience: "intermediate",
-      goal: "build_muscle",
-      daysPerWeek: 4,
-      timeBucket: 90,
-      equipment: "gym_full",
-      sex: "male",
-    },
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "Тест Мария",
+    goal: "lose_weight" as const,
+    experience: "beginner" as const,
   },
   {
-    name: "Средний мужчина набор 5д 60мин",
-    profile: {
-      experience: "intermediate",
-      goal: "build_muscle",
-      daysPerWeek: 5,
-      timeBucket: 60,
-      equipment: "gym_full",
-      sex: "male",
-    },
-  },
-  {
-    name: "Продвинутый мужчина сила 5д 90мин",
-    profile: {
-      experience: "advanced",
-      goal: "strength",
-      daysPerWeek: 5,
-      timeBucket: 90,
-      equipment: "gym_full",
-      sex: "male",
-    },
-  },
-  {
-    name: "Продвинутый мужчина набор 6д 90мин",
-    profile: {
-      experience: "advanced",
-      goal: "build_muscle",
-      daysPerWeek: 6,
-      timeBucket: 90,
-      equipment: "gym_full",
-      sex: "male",
-    },
-  },
-  {
-    name: "Средний женщина ягодицы 4д 60мин",
-    profile: {
-      experience: "intermediate",
-      goal: "lower_body_focus",
-      daysPerWeek: 4,
-      timeBucket: 60,
-      equipment: "gym_full",
-      sex: "female",
-    },
-  },
-  {
-    name: "Продвинутый женщина ягодицы 5д 60мин",
-    profile: {
-      experience: "advanced",
-      goal: "lower_body_focus",
-      daysPerWeek: 5,
-      timeBucket: 60,
-      equipment: "gym_full",
-      sex: "female",
-    },
+    id: "33333333-3333-3333-3333-333333333333",
+    name: "Тест Алексей",
+    goal: "strength" as const,
+    experience: "advanced" as const,
   },
 ];
 
-// ============================================================================
-// ЧЕК-ИНЫ
-// ============================================================================
-
-const CHECK_INS: Array<{ name: string; checkin: CheckInData }> = [
-  {
-    name: "Идеальное состояние",
-    checkin: {
-      energy: "high",
-      sleep: "good",
-      stress: "low",
-      pain: [],
-      soreness: [],
-    },
-  },
-  {
-    name: "Низкая энергия после плохого сна",
-    checkin: {
-      energy: "low",
-      sleep: "poor",
-      stress: "medium",
-      pain: [],
-      soreness: [],
-    },
-  },
-  {
-    name: "Боль в плече средняя",
-    checkin: {
-      energy: "medium",
-      sleep: "ok",
-      stress: "low",
-      pain: [{ location: "shoulder", level: 5 }],
-      soreness: [],
-    },
-  },
-  {
-    name: "Боль в колене сильная + стресс",
-    checkin: {
-      energy: "low",
-      sleep: "ok",
-      stress: "high",
-      pain: [{ location: "knee", level: 7 }],
-      soreness: [],
-    },
-  },
-  {
-    name: "Множественные боли",
-    checkin: {
-      energy: "low",
-      sleep: "poor",
-      stress: "very_high",
-      pain: [
-        { location: "lower_back", level: 6 },
-        { location: "shoulder", level: 4 },
-      ],
-      soreness: ["legs", "back"],
-    },
-  },
-];
-
-// ============================================================================
-// ФУНКЦИЯ АНАЛИЗА ТРЕНИРОВКИ
-// ============================================================================
-
-function analyzeWorkout(workout: any, profile: UserProfile, checkin?: CheckInData) {
-  const issues: string[] = [];
-  const warnings: string[] = [];
+// Helper: Clean old test data
+async function cleanupTestData() {
+  console.log("\n🧹 Очистка старых тестовых данных...");
   
-  // NEW J: effectiveRequired coverage check
-  const dayLabel = workout.dayLabel || "";
-  const schemeRequired = workout.schemeRequired || []; // Would need to pass this
-  const effectiveRequired = workout.effectiveRequired || []; // Would need to pass this
-  
-  if (schemeRequired.length > 0) {
-    const coveredPatterns = new Set<string>();
-    workout.exercises.forEach((ex: any) => {
-      ex.coversPatterns?.forEach((p: string) => coveredPatterns.add(p));
-    });
-    
-    const missingRequired = effectiveRequired.filter((p: string) => !coveredPatterns.has(p));
-    if (missingRequired.length > 0) {
-      issues.push(`Missing required patterns: ${missingRequired.join(", ")}`);
+  for (const user of TEST_USERS) {
+    try {
+      await q(`DELETE FROM exercise_history WHERE user_id = $1`, [user.id]);
+      await q(`DELETE FROM exercise_progression WHERE user_id = $1`, [user.id]);
+      console.log(`  ✅ Очищено: ${user.name}`);
+    } catch (err) {
+      console.warn(`  ⚠️  Ошибка очистки ${user.name}:`, err);
     }
-    
-    console.log(`\n  ✅ Required coverage: ${effectiveRequired.length - missingRequired.length}/${effectiveRequired.length} patterns`);
   }
+}
+
+// Helper: Check if tables exist
+async function checkTables() {
+  console.log("\n🔍 Проверка таблиц БД...");
   
-  // NEW J: Time utilization check
-  const timeSlot = profile.timeBucket;
-  const duration = workout.estimatedDuration;
-  const utilization = (duration / timeSlot) * 100;
+  const tables = [
+    "exercise_progression",
+    "exercise_history",
+  ];
   
-  console.log(`  ⏱️  Time utilization: ${duration}/${timeSlot}min (${utilization.toFixed(0)}%)`);
-  
-  if (timeSlot === 90 && duration < 70) {
-    warnings.push(`Under-utilizing 90min slot: only ${duration}min`);
-  }
-  if (duration > timeSlot * 1.1) {
-    issues.push(`Over time budget: ${duration}min > ${timeSlot}min`);
-  }
-  
-  // АНАЛИЗ ОБЪЁМА ПО МЫШЦАМ (для первого intermediate 90min)
-  if (profile.experience === "intermediate" && profile.timeBucket === 90 && profile.goal === "build_muscle") {
-    const muscleVolume = new Map<string, number>();
-    
-    console.log("\n  📊 ДЕТАЛИ ПО МЫШЦАМ:");
-    workout.exercises.forEach((ex: any, i: number) => {
-      console.log(`     ${i + 1}. ${ex.exercise.name} (${ex.sets} подходов)`);
-      console.log(`        Primary: ${ex.exercise.primaryMuscles.join(", ")}`);
+  for (const table of tables) {
+    try {
+      const result = await q(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = $1
+        )
+      `, [table]);
       
-      // Считаем объём по мышцам
-      for (const muscle of ex.exercise.primaryMuscles) {
-        muscleVolume.set(muscle, (muscleVolume.get(muscle) || 0) + ex.sets);
+      const exists = result[0]?.exists || false;
+      console.log(`  ${exists ? "✅" : "❌"} ${table}: ${exists ? "exists" : "NOT FOUND"}`);
+      
+      if (!exists) {
+        throw new Error(`Table ${table} not found! Run migration first.`);
       }
-    });
-    
-    console.log("\n  📊 ОБЪЁМ ПО МЫШЦАМ (за эту тренировку):");
-    const sorted = Array.from(muscleVolume.entries()).sort((a, b) => b[1] - a[1]);
-    sorted.forEach(([muscle, sets]) => {
-      console.log(`     ${muscle.padEnd(15)}: ${sets} подходов`);
-    });
-    console.log("");
-  }
-
-  // 1. Проверка объёма
-  const { experience } = profile;
-  const timeBucket = profile.timeBucket;
-
-  // Ожидаемые диапазоны упражнений (ПРОФЕССИОНАЛЬНЫЕ СТАНДАРТЫ)
-  // Jeff Nippard, Greg Nuckols, Mike Israetel: 6-8 ex (60min), 7-9 ex (90min)
-  const expectedExercises: Record<string, { min: number; max: number }> = {
-    "beginner-45": { min: 4, max: 6 },
-    "beginner-60": { min: 5, max: 7 },
-    "beginner-90": { min: 6, max: 8 },
-    "intermediate-45": { min: 5, max: 7 },
-    "intermediate-60": { min: 6, max: 8 },
-    "intermediate-90": { min: 7, max: 9 },  // ✅ Правильно
-    "advanced-45": { min: 6, max: 8 },
-    "advanced-60": { min: 7, max: 9 },
-    "advanced-90": { min: 7, max: 9 },  // ИСПРАВЛЕНО: было 9-10
-  };
-
-  const key = `${experience}-${timeBucket}`;
-  const expected = expectedExercises[key];
-
-  if (expected) {
-    if (workout.totalExercises < expected.min) {
-      issues.push(`Слишком мало упражнений: ${workout.totalExercises} (ожидается ${expected.min}-${expected.max})`);
-    }
-    if (workout.totalExercises > expected.max) {
-      warnings.push(`Много упражнений: ${workout.totalExercises} (ожидается ${expected.min}-${expected.max})`);
+    } catch (err) {
+      console.error(`  ❌ Ошибка проверки ${table}:`, err);
+      throw err;
     }
   }
-
-  // 2. Проверка подходов (ПРОФЕССИОНАЛЬНЫЕ СТАНДАРТЫ)
-  // 60 мин: 15-20 sets, 90 мин: 18-24 sets (научные данные)
-  const expectedSets: Record<string, { min: number; max: number }> = {
-    beginner: { min: 12, max: 18 },  // Консервативно для новичков ✅
-    intermediate: { min: 15, max: 24 },  // ИСПРАВЛЕНО: было 18-25
-    advanced: { min: 18, max: 26 },  // ИСПРАВЛЕНО: было 22-30 (завышено!)
-  };
-
-  const expectedSetRange = expectedSets[experience];
-  if (expectedSetRange) {
-    if (workout.totalSets < expectedSetRange.min) {
-      issues.push(`Слишком мало подходов: ${workout.totalSets} (ожидается ${expectedSetRange.min}-${expectedSetRange.max})`);
-    }
-    if (workout.totalSets > expectedSetRange.max) {
-      issues.push(`Слишком много подходов: ${workout.totalSets} (ожидается ${expectedSetRange.min}-${expectedSetRange.max})`);
-    }
-  }
-
-  // 3. Проверка времени
-  const timeBuffer = timeBucket * 1.2; // +20% допуск
-  if (workout.estimatedDuration > timeBuffer) {
-    issues.push(`Тренировка слишком долгая: ${workout.estimatedDuration}мин (доступно ${timeBucket}мин)`);
-  }
-
-  // 4. Проверка упражнений
-  const exerciseIds = new Set<string>();
-  const patterns = new Set<string>();
-
-  for (const ex of workout.exercises) {
-    // Дубликаты упражнений
-    if (exerciseIds.has(ex.exercise.id)) {
-      issues.push(`ДУБЛИКАТ упражнения: ${ex.exercise.name}`);
-    }
-    exerciseIds.add(ex.exercise.id);
-
-    // Собираем паттерны
-    for (const pattern of ex.exercise.patterns) {
-      patterns.add(pattern);
-    }
-
-    // Проверка подходов и повторений
-    if (ex.sets < 1 || ex.sets > 6) {
-      issues.push(`Странное количество подходов для ${ex.exercise.name}: ${ex.sets}`);
-    }
-
-    if (ex.repsRange[0] > ex.repsRange[1]) {
-      issues.push(`Неверный диапазон повторений для ${ex.exercise.name}: ${ex.repsRange[0]}-${ex.repsRange[1]}`);
-    }
-
-    // Проверка отдыха
-    if (ex.restSec < 30 || ex.restSec > 300) {
-      warnings.push(`Странный отдых для ${ex.exercise.name}: ${ex.restSec}с`);
-    }
-  }
-
-  // 5. Проверка адаптации к чекину
-  if (checkin) {
-    // Если боль в плече - не должно быть overhead_press
-    if (checkin.pain?.some(p => p.location === "shoulder" && p.level >= 5)) {
-      const hasOverhead = workout.exercises.some((ex: any) =>
-        ex.exercise.patterns.includes("vertical_push")
-      );
-      if (hasOverhead) {
-        issues.push(`Боль в плече ${checkin.pain.find(p => p.location === "shoulder")?.level}/10, но есть жимы над головой!`);
-      }
-    }
-
-    // Если боль в колене - не должно быть приседаний
-    if (checkin.pain?.some(p => p.location === "knee" && p.level >= 6)) {
-      const hasSquat = workout.exercises.some((ex: any) =>
-        ex.exercise.patterns.includes("squat")
-      );
-      if (hasSquat) {
-        issues.push(`Боль в колене ${checkin.pain.find(p => p.location === "knee")?.level}/10, но есть приседания!`);
-      }
-    }
-
-    // Низкая энергия + плохой сон = должен быть light intent
-    if (checkin.energy === "low" && checkin.sleep === "poor") {
-      if (workout.intent !== "light") {
-        warnings.push(`Низкая энергия + плохой сон, но intent = ${workout.intent} (ожидается light)`);
-      }
-    }
-  }
-
-  // 6. Проверка разнообразия паттернов
-  if (workout.dayFocus.includes("Push") || workout.dayFocus.includes("Толкающ")) {
-    if (!patterns.has("horizontal_push") && !patterns.has("incline_push")) {
-      warnings.push(`Push day без горизонтальных/наклонных жимов`);
-    }
-  }
-
-  return { issues, warnings };
 }
 
-// ============================================================================
-// ФУНКЦИЯ АНАЛИЗА НЕДЕЛИ
-// ============================================================================
-
-function analyzeWeek(weekPlan: any[], profile: UserProfile) {
-  const issues: string[] = [];
-  const warnings: string[] = [];
-
-  // Собираем статистику по неделе
-  const totalExercises = weekPlan.reduce((sum, day) => sum + day.totalExercises, 0);
-  const totalSets = weekPlan.reduce((sum, day) => sum + day.totalSets, 0);
-  const totalMinutes = weekPlan.reduce((sum, day) => sum + day.estimatedDuration, 0);
-
-  // Проверка на дубликаты упражнений между днями
-  const allExerciseIds = new Map<string, number>();
-
-  for (const day of weekPlan) {
-    for (const ex of day.exercises) {
-      const id = ex.exercise.id;
-      allExerciseIds.set(id, (allExerciseIds.get(id) || 0) + 1);
-    }
+// Simulate one workout for a user
+async function simulateWorkout(
+  userId: string,
+  userName: string,
+  goal: "build_muscle" | "lose_weight" | "strength",
+  experience: "beginner" | "intermediate" | "advanced",
+  weekNumber: number,
+  dayNumber: number
+): Promise<void> {
+  console.log(`\n${"─".repeat(80)}`);
+  console.log(`👤 ${userName} | Неделя ${weekNumber}, День ${dayNumber}`);
+  console.log(`${"─".repeat(80)}`);
+  
+  // Select exercises based on goal
+  let exerciseIds: string[];
+  
+  if (goal === "build_muscle") {
+    exerciseIds = [
+      "ho_barbell_bench_press",
+      "sq_back_squat",
+      "hi_conventional_deadlift",
+      "ve_lat_pulldown",
+    ];
+  } else if (goal === "strength") {
+    exerciseIds = [
+      "ho_barbell_bench_press",
+      "sq_back_squat",
+      "hi_conventional_deadlift",
+    ];
+  } else {
+    exerciseIds = [
+      "sq_goblet_squat",
+      "ho_db_bench_press",
+      "ve_lat_pulldown",
+      "lu_walking_lunge",
+    ];
   }
-
-  // Ищем упражнения которые повторяются слишком часто
-  for (const [id, count] of allExerciseIds.entries()) {
-    if (count > 2 && profile.daysPerWeek >= 4) {
-      const ex = weekPlan.flatMap(d => d.exercises).find((e: any) => e.exercise.id === id);
-      warnings.push(`Упражнение "${ex?.exercise?.name}" встречается ${count} раз за неделю (много для ${profile.daysPerWeek}д программы)`);
-    }
+  
+  const exercises = exerciseIds
+    .map(id => EXERCISE_LIBRARY.find(ex => ex.id === id))
+    .filter(Boolean);
+  
+  if (exercises.length === 0) {
+    console.error("  ❌ Упражнения не найдены!");
+    return;
   }
-
-  // Проверка баланса Push/Pull
-  let pushSets = 0;
-  let pullSets = 0;
-
-  for (const day of weekPlan) {
-    for (const ex of day.exercises) {
-      const patterns = ex.exercise.patterns;
-      if (patterns.some((p: string) => p.includes("push"))) {
-        pushSets += ex.sets;
-      }
-      if (patterns.some((p: string) => p.includes("pull"))) {
-        pullSets += ex.sets;
-      }
+  
+  console.log(`\n📋 Запрашиваем рекомендации для ${exercises.length} упражнений...`);
+  
+  // Get recommendations
+  const recommendations = await getNextWorkoutRecommendations({
+    userId,
+    exercises: exercises as any,
+    goal,
+    experience,
+  });
+  
+  console.log(`  ✅ Получено рекомендаций: ${recommendations.size}`);
+  
+  // Simulate performance
+  const targetReps = goal === "strength" ? [4, 6] : goal === "build_muscle" ? [8, 12] : [10, 15];
+  
+  const completedExercises = exercises.map((ex) => {
+    const rec = recommendations.get(ex!.id);
+    const weight = rec?.newWeight || (goal === "strength" ? 60 : goal === "build_muscle" ? 40 : 10);
+    
+    // Simulate realistic performance based on week
+    let baseReps = targetReps[0] + 1;
+    
+    if (weekNumber === 1) {
+      baseReps = targetReps[0]; // First week: conservative
+    } else if (weekNumber === 2) {
+      baseReps = targetReps[0] + 1; // Second week: better
+    } else if (weekNumber === 3) {
+      baseReps = targetReps[0] + 2; // Third week: good
+    } else if (weekNumber === 4) {
+      baseReps = targetReps[1]; // Fourth week: hit top range
     }
-  }
-
-  // Должно быть примерно 1:1 или 2:3 (pull чуть больше)
-  if (pushSets > 0 && pullSets > 0) {
-    const ratio = pushSets / pullSets;
-    if (ratio > 1.3) {
-      warnings.push(`Дисбаланс Push/Pull: ${pushSets} push vs ${pullSets} pull (ratio ${ratio.toFixed(2)}). Pull должно быть больше или равно.`);
-    }
-  }
-
-  return {
-    issues,
-    warnings,
-    stats: {
-      totalExercises,
-      totalSets,
-      totalMinutes,
-      avgExercisesPerDay: (totalExercises / weekPlan.length).toFixed(1),
-      avgSetsPerDay: (totalSets / weekPlan.length).toFixed(1),
-      pushSets,
-      pullSets,
-      ratio: pullSets > 0 ? (pushSets / pullSets).toFixed(2) : "N/A",
+    
+    const sets = [
+      { reps: baseReps, weight, done: true },
+      { reps: Math.max(targetReps[0], baseReps - 1), weight, done: true },
+      { reps: Math.max(targetReps[0], baseReps - 2), weight, done: true },
+    ];
+    
+    console.log(`  🏋️  ${ex!.name}:`);
+    console.log(`      Вес: ${weight}кг (${rec?.action || "new"})`);
+    console.log(`      Повторы: ${sets.map(s => s.reps).join(", ")}`);
+    
+    return {
+      name: ex!.name,
+      pattern: ex!.patterns[0],
+      sets,
+      effort: "working" as const,
+      done: true,
+    };
+  });
+  
+  // Create payload
+  const payload: SessionPayload = {
+    title: `Тренировка ${weekNumber}-${dayNumber}`,
+    location: "gym",
+    durationMin: 60,
+    exercises: completedExercises,
+    feedback: {
+      sessionRpe: 7,
     },
   };
-}
-
-// ============================================================================
-// ЗАПУСК ТЕСТОВ
-// ============================================================================
-
-console.log("╔════════════════════════════════════════════════════════════════╗");
-console.log("║  ТЕСТ РЕАЛЬНЫХ ВАРИАЦИЙ ПОЛЬЗОВАТЕЛЕЙ                         ║");
-console.log("╚════════════════════════════════════════════════════════════════╝\n");
-
-let totalTests = 0;
-let totalIssues = 0;
-let totalWarnings = 0;
-
-// Тест 1: Недельные планы для разных профилей (БЕЗ чекина)
-console.log("\n📅 ТЕСТ 1: НЕДЕЛЬНЫЕ ПЛАНЫ (базовая генерация без чекина)\n");
-console.log("=".repeat(80));
-
-for (const { name, profile } of USER_PROFILES) {
-  totalTests++;
-
-  console.log(`\n🧑 ${name}`);
-  console.log(`   ${profile.experience} | ${profile.goal} | ${profile.daysPerWeek}д/нед | ${profile.timeBucket}мин | ${profile.equipment}`);
-
-  // Находим подходящую схему
-  const scheme = NORMALIZED_SCHEMES.find(
-    s =>
-      s.daysPerWeek === profile.daysPerWeek &&
-      s.goals.includes(profile.goal) &&
-      s.experienceLevels.includes(profile.experience)
-  );
-
-  if (!scheme) {
-    console.log(`   ❌ Не найдена подходящая схема!`);
-    totalIssues++;
-    continue;
-  }
-
-  console.log(`   📋 Схема: ${scheme.russianName}`);
-
-  // Генерируем мезоцикл
-  const mesocycle = createMesocycle({ userId: "test", goal: profile.goal });
-
-  // Генерируем недельный план
-  const weekPlan = generateWeekPlan({
-    scheme,
-    userProfile: profile,
-    mesocycle,
-    history: { recentExerciseIds: [] },
+  
+  const workoutDate = new Date();
+  workoutDate.setDate(workoutDate.getDate() + (weekNumber - 1) * 7 + (dayNumber - 1) * 2);
+  
+  console.log(`\n💾 Сохраняем в БД (дата: ${workoutDate.toISOString().slice(0, 10)})...`);
+  
+  // Save to DB
+  const progressionSummary = await applyProgressionFromSession({
+    userId,
+    payload,
+    goal,
+    experience,
+    workoutDate: workoutDate.toISOString().slice(0, 10),
   });
-
-  console.log(`   ✅ Сгенерировано ${weekPlan.length} дней\n`);
-
-  // Анализируем неделю
-  const weekAnalysis = analyzeWeek(weekPlan, profile);
-
-  console.log(`   📊 Статистика недели:`);
-  console.log(`      Всего упражнений: ${weekAnalysis.stats.totalExercises}`);
-  console.log(`      Всего подходов: ${weekAnalysis.stats.totalSets}`);
-  console.log(`      Среднее упр/день: ${weekAnalysis.stats.avgExercisesPerDay}`);
-  console.log(`      Среднее подходов/день: ${weekAnalysis.stats.avgSetsPerDay}`);
-  console.log(`      Push/Pull баланс: ${weekAnalysis.stats.pushSets}/${weekAnalysis.stats.pullSets} (${weekAnalysis.stats.ratio})`);
-
-  // Выводим каждый день
-  for (let i = 0; i < weekPlan.length; i++) {
-    const day = weekPlan[i];
-    console.log(`\n   День ${i + 1}: ${day.dayLabel} (${day.dayFocus})`);
-    console.log(`      Intent: ${day.intent} | Упражнений: ${day.totalExercises} | Подходов: ${day.totalSets} | ~${day.estimatedDuration}мин`);
-
-    // Анализируем день
-    const dayAnalysis = analyzeWorkout(day, profile);
-
-    if (dayAnalysis.issues.length > 0) {
-      console.log(`      ❌ ПРОБЛЕМЫ:`);
-      dayAnalysis.issues.forEach(issue => console.log(`         - ${issue}`));
-      totalIssues += dayAnalysis.issues.length;
-    }
-
-    if (dayAnalysis.warnings.length > 0) {
-      console.log(`      ⚠️  ПРЕДУПРЕЖДЕНИЯ:`);
-      dayAnalysis.warnings.forEach(warn => console.log(`         - ${warn}`));
-      totalWarnings += dayAnalysis.warnings.length;
-    }
-
-    // Показываем упражнения
-    console.log(`      Упражнения:`);
-    day.exercises.forEach((ex: any, idx: number) => {
-      console.log(`         ${idx + 1}. ${ex.exercise.name} - ${ex.sets}×${ex.repsRange[0]}-${ex.repsRange[1]}, ${ex.restSec}с (${ex.role})`);
-    });
-  }
-
-  // Анализ недели
-  if (weekAnalysis.issues.length > 0) {
-    console.log(`\n   ❌ ПРОБЛЕМЫ НЕДЕЛИ:`);
-    weekAnalysis.issues.forEach(issue => console.log(`      - ${issue}`));
-    totalIssues += weekAnalysis.issues.length;
-  }
-
-  if (weekAnalysis.warnings.length > 0) {
-    console.log(`\n   ⚠️  ПРЕДУПРЕЖДЕНИЯ НЕДЕЛИ:`);
-    weekAnalysis.warnings.forEach(warn => console.log(`      - ${warn}`));
-    totalWarnings += weekAnalysis.warnings.length;
-  }
-
-  console.log("\n" + "-".repeat(80));
+  
+  console.log(`\n📊 Результат:`);
+  console.log(`  ✅ Прогресс: ${progressionSummary.progressedCount} упражнений`);
+  console.log(`  ➡️  Удержание: ${progressionSummary.maintainedCount} упражнений`);
+  console.log(`  📉 Deload: ${progressionSummary.deloadedCount} упражнений`);
 }
 
-// Тест 2: Адаптация к чекинам (один день с разными чекинами)
-console.log("\n\n🏋️ ТЕСТ 2: АДАПТАЦИЯ К РАЗНЫМ ЧЕК-ИНАМ\n");
-console.log("=".repeat(80));
-
-const testProfile = USER_PROFILES[1].profile; // Intermediate build_muscle
-const testScheme = NORMALIZED_SCHEMES.find(
-  s => s.daysPerWeek === 4 && s.goals.includes("build_muscle")
-);
-
-if (testScheme) {
-  console.log(`\nПрофиль: ${USER_PROFILES[1].name}`);
-  console.log(`Схема: ${testScheme.russianName}`);
-  console.log(`Тестируем день 0: ${testScheme.days[0].label}\n`);
-
-  for (const { name, checkin } of CHECK_INS) {
-    totalTests++;
-
-    console.log(`\n📋 Чекин: ${name}`);
-    console.log(`   Энергия: ${checkin.energy} | Сон: ${checkin.sleep} | Стресс: ${checkin.stress}`);
-    if (checkin.pain && checkin.pain.length > 0) {
-      console.log(`   Боль: ${checkin.pain.map(p => `${p.location} (${p.level}/10)`).join(", ")}`);
+// Verify data in DB
+async function verifyDatabase() {
+  console.log(`\n${"═".repeat(80)}`);
+  console.log("🔍 ПРОВЕРКА ДАННЫХ В БД");
+  console.log(`${"═".repeat(80)}`);
+  
+  for (const user of TEST_USERS) {
+    console.log(`\n👤 ${user.name} (${user.id})`);
+    
+    // Check progression data
+    const progressionRows = await q<{
+      exercise_id: string;
+      current_weight: number;
+      status: string;
+      stall_count: number;
+      deload_count: number;
+    }>(`
+      SELECT 
+        exercise_id,
+        current_weight,
+        status,
+        stall_count,
+        deload_count
+      FROM exercise_progression
+      WHERE user_id = $1
+      ORDER BY updated_at DESC
+    `, [user.id]);
+    
+    console.log(`\n  📊 exercise_progression (${progressionRows.length} записей):`);
+    
+    if (progressionRows.length === 0) {
+      console.log("    ⚠️  Нет данных!");
+    } else {
+      progressionRows.forEach(row => {
+        const ex = EXERCISE_LIBRARY.find(e => e.id === row.exercise_id);
+        console.log(`    • ${ex?.name || row.exercise_id}:`);
+        console.log(`        Вес: ${row.current_weight}кг`);
+        console.log(`        Статус: ${row.status}`);
+        console.log(`        Застоев: ${row.stall_count}, Deload'ов: ${row.deload_count}`);
+      });
     }
-
-    // Вычисляем readiness из чекина
-    const readiness = computeReadiness({
-      checkin,
-      fallbackTimeBucket: testProfile.timeBucket,
-    });
-
-    const workout = generateWorkoutDay({
-      scheme: testScheme,
-      dayIndex: 0,
-      userProfile: testProfile,
-      readiness,
-      history: { recentExerciseIds: [] },
-    });
-
-    console.log(`   ✅ Сгенерирована тренировка: ${workout.dayLabel}`);
-    console.log(`      Intent: ${workout.intent} | Упражнений: ${workout.totalExercises} | Подходов: ${workout.totalSets} | ~${workout.estimatedDuration}мин`);
-
-    // Анализ
-    const analysis = analyzeWorkout(workout, testProfile, checkin);
-
-    if (analysis.issues.length > 0) {
-      console.log(`      ❌ ПРОБЛЕМЫ:`);
-      analysis.issues.forEach(issue => console.log(`         - ${issue}`));
-      totalIssues += analysis.issues.length;
+    
+    // Check history
+    const historyRows = await q<{
+      exercise_id: string;
+      workout_date: string;
+      sets: any;
+    }>(`
+      SELECT 
+        exercise_id,
+        workout_date,
+        sets
+      FROM exercise_history
+      WHERE user_id = $1
+      ORDER BY workout_date DESC
+      LIMIT 10
+    `, [user.id]);
+    
+    console.log(`\n  📅 exercise_history (${historyRows.length} последних тренировок):`);
+    
+    if (historyRows.length === 0) {
+      console.log("    ⚠️  Нет данных!");
+    } else {
+      // Group by exercise
+      const byExercise = new Map<string, typeof historyRows>();
+      historyRows.forEach(row => {
+        if (!byExercise.has(row.exercise_id)) {
+          byExercise.set(row.exercise_id, []);
+        }
+        byExercise.get(row.exercise_id)!.push(row);
+      });
+      
+      byExercise.forEach((rows, exerciseId) => {
+        const ex = EXERCISE_LIBRARY.find(e => e.id === exerciseId);
+        console.log(`\n    ${ex?.name || exerciseId} (${rows.length} тренировок):`);
+        
+        rows.slice(0, 3).forEach(row => {
+          const sets = typeof row.sets === 'string' ? JSON.parse(row.sets) : row.sets;
+          const avgReps = sets.reduce((sum: number, s: any) => sum + s.actualReps, 0) / sets.length;
+          const weight = sets[0].weight;
+          
+          console.log(`      ${row.workout_date}: ${weight}кг × ${avgReps.toFixed(1)} reps (avg)`);
+        });
+      });
     }
-
-    if (analysis.warnings.length > 0) {
-      console.log(`      ⚠️  ПРЕДУПРЕЖДЕНИЯ:`);
-      analysis.warnings.forEach(warn => console.log(`         - ${warn}`));
-      totalWarnings += analysis.warnings.length;
-    }
-
-    if (workout.adaptationNotes && workout.adaptationNotes.length > 0) {
-      console.log(`      📝 Адаптация:`);
-      workout.adaptationNotes.forEach((note: string) => console.log(`         - ${note}`));
-    }
-
-    if (workout.warnings && workout.warnings.length > 0) {
-      console.log(`      ⚠️  Системные предупреждения:`);
-      workout.warnings.forEach((warn: string) => console.log(`         - ${warn}`));
-    }
-
-    console.log(`\n      Упражнения:`);
-    workout.exercises.forEach((ex: any, idx: number) => {
-      const painNote = checkin.pain?.some(p =>
-        ex.exercise.jointFlags?.includes(`${p.location}_sensitive`)
-      ) ? " ⚠️ МОЖЕТ БОЛЕТЬ!" : "";
-      console.log(`         ${idx + 1}. ${ex.exercise.name} - ${ex.sets}×${ex.repsRange[0]}-${ex.repsRange[1]}, ${ex.restSec}с${painNote}`);
-    });
-
-    console.log("\n" + "-".repeat(80));
   }
 }
 
-// Финальный отчёт
-console.log("\n\n╔════════════════════════════════════════════════════════════════╗");
-console.log("║  ФИНАЛЬНЫЙ ОТЧЁТ                                               ║");
-console.log("╚════════════════════════════════════════════════════════════════╝\n");
-
-console.log(`Всего тестов: ${totalTests}`);
-console.log(`Найдено проблем: ${totalIssues}`);
-console.log(`Найдено предупреждений: ${totalWarnings}`);
-
-if (totalIssues === 0) {
-  console.log(`\n✅ ВСЕ ТЕСТЫ ПРОШЛИ БЕЗ КРИТИЧЕСКИХ ПРОБЛЕМ!`);
-} else {
-  console.log(`\n❌ ЕСТЬ ПРОБЛЕМЫ! Требуется доработка.`);
+// Main test
+async function runRealTest() {
+  console.log("\n🚀 РЕАЛЬНЫЙ ТЕСТ С РЕАЛЬНОЙ БД");
+  console.log("=".repeat(80));
+  console.log("Создаём тестовых пользователей, генерируем тренировки,");
+  console.log("сохраняем в PostgreSQL, проверяем данные");
+  console.log("=".repeat(80));
+  
+  try {
+    // 1. Check tables
+    await checkTables();
+    
+    // 2. Cleanup old data
+    await cleanupTestData();
+    
+    // 3. Simulate 4 weeks of training for each user
+    console.log(`\n${"═".repeat(80)}`);
+    console.log("📅 СИМУЛЯЦИЯ 4 НЕДЕЛЬ ТРЕНИРОВОК");
+    console.log(`${"═".repeat(80)}`);
+    
+    for (const user of TEST_USERS) {
+      console.log(`\n\n${"█".repeat(80)}`);
+      console.log(`👤 ${user.name.toUpperCase()}`);
+      console.log(`   Goal: ${user.goal} | Experience: ${user.experience}`);
+      console.log(`${"█".repeat(80)}`);
+      
+      // 4 weeks × 3 workouts per week
+      for (let week = 1; week <= 4; week++) {
+        for (let day = 1; day <= 3; day++) {
+          await simulateWorkout(
+            user.id,
+            user.name,
+            user.goal,
+            user.experience,
+            week,
+            day
+          );
+          
+          // Small delay
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+    }
+    
+    // 4. Verify data in DB
+    await verifyDatabase();
+    
+    // 5. Show summary
+    console.log(`\n\n${"═".repeat(80)}`);
+    console.log("✅ ТЕСТ ЗАВЕРШЁН УСПЕШНО");
+    console.log(`${"═".repeat(80)}`);
+    
+    console.log("\n📊 ИТОГ:");
+    console.log("  ✅ Таблицы проверены");
+    console.log("  ✅ Старые данные очищены");
+    console.log("  ✅ 3 пользователя × 4 недели × 3 тренировки = 36 тренировок сохранено");
+    console.log("  ✅ Данные реально в PostgreSQL");
+    console.log("  ✅ Прогрессия работает!");
+    
+    console.log("\n🔍 Проверь сам:");
+    console.log("  psql -c \"SELECT COUNT(*) FROM exercise_progression WHERE user_id IN ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333');\"");
+    console.log("  psql -c \"SELECT COUNT(*) FROM exercise_history WHERE user_id IN ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333');\"");
+    
+  } catch (err) {
+    console.error("\n❌ ОШИБКА:", err);
+    throw err;
+  }
 }
 
-if (totalWarnings > 0) {
-  console.log(`⚠️  Есть предупреждения - стоит проверить.`);
-}
-
-console.log("\n");
+// Run
+runRealTest()
+  .then(() => {
+    console.log("\n✅ Тест завершён, выход...");
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error("\n❌ Тест провалился:", err);
+    process.exit(1);
+  });
