@@ -73,9 +73,9 @@ export function getSessionCaps(
   // CRITICAL: maxExercises MUST be >= dayPatternMap SLOT_RANGE max for this timeBucket!
   const baseCaps: Record<ExperienceLevel, Record<TimeBucket, { min: number; max: number; sets: number }>> = {
     beginner: {
-      45: { min: 4, max: 6, sets: 14 },
-      60: { min: 5, max: 7, sets: 16 },
-      90: { min: 6, max: 9, sets: 18 },  // max:9 synced with dayPatternMap (beginner 90 normal:7-9)
+      45: { min: 4, max: 6, sets: 16 },  // ПОВЫШЕНО: 14 → 16 (Nippard: ~16 sets/day для beginner короткая)
+      60: { min: 5, max: 7, sets: 20 },  // ПОВЫШЕНО: 16 → 20 (Nippard FB 3d: 20 sets/day)
+      90: { min: 6, max: 9, sets: 22 },  // ПОВЫШЕНО: 18 → 22 (beginner 90min может больше)
     },
     intermediate: {
       45: { min: 5, max: 7, sets: 18 },
@@ -118,7 +118,7 @@ export const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> =
     advanced: 3,
   },
   accessory: {
-    beginner: 1,
+    beginner: 2,      // ИСПРАВЛЕНО: 1 → 2 (Nippard: accessory 2-3 sets для всех уровней)
     intermediate: 3,  // ПОВЫШЕНО: 2 → 3 для достаточного объёма
     advanced: 3,
   },

@@ -259,8 +259,8 @@ export function buildDaySlots(args: {
     // Advanced: используй 90% от диапазона (почти max для профи)
     slotBudget = Math.round(range.min + (range.max - range.min) * 0.9);
   } else if (experience === "beginner") {
-    // Beginner: используй 35% от диапазона (консервативно)
-    slotBudget = Math.round(range.min + (range.max - range.min) * 0.35);
+    // Beginner: используй 70% от диапазона (ИСПРАВЛЕНО: 35%→70% для 6-7 упражнений как у Nippard)
+    slotBudget = Math.round(range.min + (range.max - range.min) * 0.7);
   } else {
     // Intermediate: 65% (выше среднего)
     slotBudget = Math.round(range.min + (range.max - range.min) * 0.65);
