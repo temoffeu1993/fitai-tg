@@ -445,42 +445,8 @@ async function buildUserProfile(uid: string): Promise<UserProfile> {
 // ============================================================================
 
 async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
-  // Get exercises from:
-  // 1. Current week's scheduled workouts (for variety within week)
-  // 2. Last completed workouts (for variety across weeks)
-  
-  const recentExerciseIds: string[] = [];
-  
-  // ВАЖНО: Сначала добавляем упражнения из ТЕКУЩЕЙ НЕДЕЛИ (scheduled)
-  // Это обеспечивает rotation ВНУТРИ недели
-  const thisWeekRows = await q<{ exercises: any[], workout_date: string }>(
-    `SELECT data->'exercises' as exercises, workout_date
-     FROM planned_workouts 
-     WHERE user_id = $1 
-       AND status = 'scheduled'
-       AND workout_date >= CURRENT_DATE
-       AND workout_date < CURRENT_DATE + INTERVAL '7 days'
-     ORDER BY workout_date ASC`,
-    [uid]
-  );
-  
-  console.log(`   [History] Found ${thisWeekRows.length} scheduled workouts in current week`);
-  
-  for (const row of thisWeekRows) {
-    if (Array.isArray(row.exercises)) {
-      for (const ex of row.exercises) {
-        if (ex.exerciseId || ex.exercise?.id) {
-          const id = ex.exerciseId || ex.exercise?.id;
-          if (!recentExerciseIds.includes(id)) {
-            recentExerciseIds.push(id);
-          }
-        }
-      }
-    }
-  }
-  
-  // Затем добавляем упражнения из COMPLETED workouts (для rotation между неделями)
-  const completedRows = await q<{ exercises: any[] }>(
+  // Get exercises from completed workouts (for variety between weeks)
+  const rows = await q<{ exercises: any[] }>(
     `SELECT data->'exercises' as exercises 
      FROM planned_workouts 
      WHERE user_id = $1 AND status = 'completed'
@@ -489,9 +455,9 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
     [uid]
   );
   
-  console.log(`   [History] Found ${completedRows.length} completed workouts`);
+  const recentExerciseIds: string[] = [];
   
-  for (const row of completedRows) {
+  for (const row of rows) {
     if (Array.isArray(row.exercises)) {
       for (const ex of row.exercises) {
         if (ex.exerciseId || ex.exercise?.id) {
@@ -504,10 +470,8 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
     }
   }
   
-  console.log(`   [History] Total unique exercises to exclude: ${recentExerciseIds.length}`);
-  
   return {
-    recentExerciseIds: recentExerciseIds.slice(0, 30), // Top 30 recent exercises
+    recentExerciseIds: recentExerciseIds.slice(0, 20), // Last 20 exercises
   };
 }
 
@@ -1051,75 +1015,105 @@ workoutGeneration.post(
     
     let finalDayIndex = originalDayIndex;
     let swapInfo = null;
+    let workoutData: any;
     
-    if (decision.action === "swap_day") {
-      console.log(`   🔄 SWAP: ${basePlan.dayLabel} → ${decision.targetDayLabel}`);
-      finalDayIndex = decision.targetDayIndex;
-      swapInfo = {
-        from: basePlan.dayLabel,
-        to: decision.targetDayLabel,
-        reason: decision.notes,
+    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
+    if (decision.action === "keep_day") {
+      console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
+      
+      // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
+      const combinedNotes = [
+        ...(decision.notes || []),
+        ...(basePlan.adaptationNotes || []),
+      ];
+      
+      workoutData = {
+        ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
+        adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+        warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
+        // Обновляем метаданные
+        meta: {
+          adaptedAt: new Date().toISOString(),
+          originalDayIndex,
+          finalDayIndex: originalDayIndex,
+          action: "keep_day",
+          wasSwapped: false,
+          checkinApplied: !!checkin,
+        },
+      };
+      
+      console.log(`   ✅ Kept original workout (${basePlan.totalExercises} ex, ${basePlan.totalSets} sets, ${basePlan.estimatedDuration}min)`);
+      
+    } else {
+      // 8. Для SWAP или других действий — РЕГЕНЕРИРУЕМ тренировку
+      
+      if (decision.action === "swap_day") {
+        console.log(`   🔄 SWAP: ${basePlan.dayLabel} → ${decision.targetDayLabel}`);
+        finalDayIndex = decision.targetDayIndex;
+        swapInfo = {
+          from: basePlan.dayLabel,
+          to: decision.targetDayLabel,
+          reason: decision.notes,
+        };
+      }
+      
+      const history = await getWorkoutHistory(uid);
+      const mesocycle = await getMesocycle(uid);
+      
+      // Get week plan data for periodization
+      let weekPlanData = null;
+      if (mesocycle) {
+        const { getWeekPlan } = await import("./mesocycleEngine.js");
+        weekPlanData = getWeekPlan({
+          mesocycle,
+          weekNumber: mesocycle.currentWeek,
+          daysPerWeek: scheme.daysPerWeek,
+        });
+      }
+      
+      const adaptedWorkout = generateWorkoutDay({
+        scheme,
+        dayIndex: finalDayIndex,
+        userProfile,
+        readiness, // ВАЖНО: передаём уже вычисленный readiness
+        history,
+        dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
+        weekPlanData,
+      });
+      
+      workoutData = {
+        schemeId: scheme.id,
+        schemeName: adaptedWorkout.schemeName,
+        dayIndex: adaptedWorkout.dayIndex,
+        dayLabel: adaptedWorkout.dayLabel,
+        dayFocus: adaptedWorkout.dayFocus,
+        intent: adaptedWorkout.intent,
+        exercises: adaptedWorkout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          exerciseName: ex.exercise.name,
+          sets: ex.sets,
+          repsRange: ex.repsRange,
+          restSec: ex.restSec,
+          notes: ex.notes,
+          targetMuscles: ex.exercise.primaryMuscles,
+        })),
+        totalExercises: adaptedWorkout.totalExercises,
+        totalSets: adaptedWorkout.totalSets,
+        estimatedDuration: adaptedWorkout.estimatedDuration,
+        adaptationNotes: adaptedWorkout.adaptationNotes,
+        warnings: adaptedWorkout.warnings,
+        // НОВОЕ: метаданные адаптации
+        meta: {
+          adaptedAt: new Date().toISOString(),
+          originalDayIndex,
+          finalDayIndex,
+          action: decision.action,
+          wasSwapped: decision.action === "swap_day",
+          swapInfo: swapInfo || undefined,
+          checkinApplied: !!checkin,
+        },
       };
     }
-    
-    // 7. Generate adapted workout for finalDayIndex
-    const history = await getWorkoutHistory(uid);
-    const mesocycle = await getMesocycle(uid);
-    
-    // Get week plan data for periodization
-    let weekPlanData = null;
-    if (mesocycle) {
-      const { getWeekPlan } = await import("./mesocycleEngine.js");
-      weekPlanData = getWeekPlan({
-        mesocycle,
-        weekNumber: mesocycle.currentWeek,
-        daysPerWeek: scheme.daysPerWeek,
-      });
-    }
-    
-    const adaptedWorkout = generateWorkoutDay({
-      scheme,
-      dayIndex: finalDayIndex,
-      userProfile,
-      readiness, // ВАЖНО: передаём уже вычисленный readiness
-      history,
-      dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
-      weekPlanData,
-    });
-    
-    // 8. Save adapted workout with metadata
-    const workoutData = {
-      schemeId: scheme.id,
-      schemeName: adaptedWorkout.schemeName,
-      dayIndex: adaptedWorkout.dayIndex,
-      dayLabel: adaptedWorkout.dayLabel,
-      dayFocus: adaptedWorkout.dayFocus,
-      intent: adaptedWorkout.intent,
-      exercises: adaptedWorkout.exercises.map(ex => ({
-        exerciseId: ex.exercise.id,
-        exerciseName: ex.exercise.name,
-        sets: ex.sets,
-        repsRange: ex.repsRange,
-        restSec: ex.restSec,
-        notes: ex.notes,
-        targetMuscles: ex.exercise.primaryMuscles,
-      })),
-      totalExercises: adaptedWorkout.totalExercises,
-      totalSets: adaptedWorkout.totalSets,
-      estimatedDuration: adaptedWorkout.estimatedDuration,
-      adaptationNotes: adaptedWorkout.adaptationNotes,
-      warnings: adaptedWorkout.warnings,
-      // НОВОЕ: метаданные адаптации
-      meta: {
-        adaptedAt: new Date().toISOString(),
-        originalDayIndex,
-        finalDayIndex,
-        action: decision.action,
-        wasSwapped: decision.action === "swap_day",
-        swapInfo: swapInfo || undefined,
-        checkinApplied: !!checkin,
-      },
-    };
     
     // Update planned_workouts
     // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
@@ -1160,13 +1154,12 @@ workoutGeneration.post(
       console.log(`      Marked future day ${finalDayIndex} as swapped`);
     }
     
-    console.log(`   ✅ Saved: ${adaptedWorkout.dayLabel} (${adaptedWorkout.totalExercises} ex, ${adaptedWorkout.totalSets} sets, ${adaptedWorkout.estimatedDuration}min)`);
     console.log("=====================================================\n");
     
-    // 9. Return adapted workout with combined notes
+    // 9. Return workout with combined notes
     const combinedNotes = [
       ...(decision.notes || []),
-      ...(adaptedWorkout.adaptationNotes || []),
+      ...(workoutData.adaptationNotes || []),
     ];
 
     res.json({
