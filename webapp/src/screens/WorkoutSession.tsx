@@ -82,6 +82,7 @@ export default function WorkoutSession() {
   const [progressionJob, setProgressionJob] = useState<{ id: string; status: string; lastError?: string | null } | null>(
     null
   );
+  const [saveError, setSaveError] = useState<string | null>(null);
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
       {
@@ -326,6 +327,7 @@ export default function WorkoutSession() {
     const startGuess = new Date(Date.now() - defaultDuration * 60000);
     setFinishDuration(String(defaultDuration));
     setFinishStart(startGuess.toISOString().slice(0, 16));
+    setSaveError(null);
     setFinishModal(true);
   };
 
@@ -336,6 +338,7 @@ export default function WorkoutSession() {
     }
 
     let saveOk = false;
+    let savedSessionId: string | null = null;
     const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
     const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
 
@@ -361,23 +364,12 @@ export default function WorkoutSession() {
       },
     };
 
-    // локальная история
-    try {
-      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      const record = {
-        id: (crypto as any)?.randomUUID?.() || String(Date.now()),
-        finishedAt: new Date().toISOString(),
-        ...payload,
-      };
-      history.unshift(record);
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 500)));
-    } catch {}
-
     // сервер
     try {
       setSaving(true);
       setServerProgression(null);
       setProgressionJob(null);
+      setSaveError(null);
       console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
       const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
       const result = await saveSession(payload, {
@@ -385,6 +377,7 @@ export default function WorkoutSession() {
         startedAt: startedAtIso,
         durationMin,
       });
+      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
       setServerProgression(result?.progression ?? null);
       if (result?.progressionJobId) {
         setProgressionJob({
@@ -398,47 +391,62 @@ export default function WorkoutSession() {
       // If progression was not ready immediately, poll a few times in background.
       if (!result?.progression && result?.progressionJobId && result?.progressionJobStatus !== "done") {
         const jobId = String(result.progressionJobId);
-        const maxPolls = 4;
-        for (let i = 0; i < maxPolls; i++) {
-          await new Promise((r) => setTimeout(r, 1400 + Math.round(Math.random() * 900)));
-          try {
-            const jobRes = await getProgressionJob(jobId);
-            const job = jobRes?.job;
-            if (job?.status) {
-              setProgressionJob({ id: jobId, status: String(job.status), lastError: job.lastError ?? null });
+        void (async () => {
+          const maxPolls = 4;
+          for (let i = 0; i < maxPolls; i++) {
+            await new Promise((r) => setTimeout(r, 1400 + Math.round(Math.random() * 900)));
+            try {
+              const jobRes = await getProgressionJob(jobId);
+              const job = jobRes?.job;
+              if (job?.status) {
+                setProgressionJob({ id: jobId, status: String(job.status), lastError: job.lastError ?? null });
+              }
+              if (job?.status === "done" && job?.result) {
+                setServerProgression(job.result);
+                break;
+              }
+              if (job?.status === "failed") {
+                break;
+              }
+            } catch {
+              // ignore polling errors
             }
-            if (job?.status === "done" && job?.result) {
-              setServerProgression(job.result);
-              break;
-            }
-            if (job?.status === "failed") {
-              break;
-            }
-          } catch {
-            // ignore polling errors
           }
-        }
+        })();
       }
     } catch {
       // не блокируем UX если сеть/сервер упали
+      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
     } finally {
       setSaving(false);
-      setFinishModal(false);
-      localStorage.removeItem("current_plan");
-      localStorage.removeItem("session_draft");
-      localStorage.removeItem("planned_workout_id");
-      localStorage.removeItem(PLAN_CACHE_KEY);
-      try {
-        window.dispatchEvent(new CustomEvent("plan_completed"));
-      } catch {}
-      try {
-        window.dispatchEvent(new CustomEvent("schedule_updated"));
-      } catch {}
       if (saveOk) {
+        setFinishModal(false);
+
+        // локальная история — только если реально сохранили на сервере
+        try {
+          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          const record = {
+            id: savedSessionId || ((crypto as any)?.randomUUID?.() || String(Date.now())),
+            finishedAt: new Date().toISOString(),
+            ...payload,
+          };
+          history.unshift(record);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 500)));
+        } catch {}
+
+        localStorage.removeItem("current_plan");
+        localStorage.removeItem("session_draft");
+        localStorage.removeItem("planned_workout_id");
+        localStorage.removeItem(PLAN_CACHE_KEY);
+        try {
+          window.dispatchEvent(new CustomEvent("plan_completed"));
+        } catch {}
+        try {
+          window.dispatchEvent(new CustomEvent("schedule_updated"));
+        } catch {}
+
         setPendingNavHome(true);
         setShowConfetti(true);
-      } else {
-        nav("/");
       }
     }
   };
@@ -648,6 +656,21 @@ export default function WorkoutSession() {
               <button style={modal.close} onClick={() => setFinishModal(false)}>✕</button>
             </div>
             <div style={modal.body}>
+              {saveError && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: "rgba(239,68,68,.12)",
+                    border: "1px solid rgba(239,68,68,.25)",
+                    color: "#7f1d1d",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {saveError}
+                </div>
+              )}
               <label style={modal.label}>
                 <span style={modal.labelText}>Время начала</span>
                 <input
