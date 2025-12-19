@@ -167,10 +167,70 @@ async function applyWeeklyPlansMigration() {
   }
 }
 
+/**
+ * Применяет SQL миграцию для outbox очереди прогрессии
+ * (eventual consistency: тренировка сохраняется всегда, прогрессия догоняет через job)
+ */
+async function applyProgressionJobsMigration() {
+  try {
+    console.log("\n🔧 Checking progression jobs migration...");
+
+    const exists = await pool.query(
+      `
+      SELECT table_name
+        FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_name = 'progression_jobs'
+      `
+    );
+
+    if (exists.rows.length > 0) {
+      console.log("✅ Progression jobs migration already applied");
+      return;
+    }
+
+    console.log("📝 Applying progression jobs migration...");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS progression_jobs (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL,
+        session_id uuid NOT NULL,
+        planned_workout_id uuid NULL,
+        workout_date date NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        attempts int NOT NULL DEFAULT 0,
+        next_run_at timestamptz NOT NULL DEFAULT now(),
+        last_error text NULL,
+        result jsonb NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        completed_at timestamptz NULL
+      );
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_progression_jobs_session_id
+        ON progression_jobs(session_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_progression_jobs_pending
+        ON progression_jobs(status, next_run_at, created_at);
+    `);
+
+    console.log("✅ Progression jobs migration applied successfully!\n");
+  } catch (error: any) {
+    console.error("❌ Progression jobs migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
     await applyWeeklyPlansMigration();
+    await applyProgressionJobsMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу

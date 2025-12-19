@@ -203,6 +203,33 @@ function analyzePerformance(
   };
 }
 
+function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
+  const sets = full.sets ?? [];
+  const weights = sets
+    .map((s) => s.weight)
+    .filter((w) => typeof w === "number" && w > 0)
+    .sort((a, b) => a - b);
+
+  // Bodyweight (or no weight recorded) → treat all performed sets as working
+  if (weights.length === 0) return full;
+
+  const maxW = weights[weights.length - 1] ?? 0;
+  if (maxW <= 0) return full;
+
+  const working = sets.filter((s) => (s.weight ?? 0) >= maxW * 0.85);
+  if (working.length >= 2) {
+    return { ...full, sets: working };
+  }
+
+  // Fallback: take the heaviest 2 performed sets
+  const top2 = [...sets]
+    .filter((s) => (s.weight ?? 0) > 0)
+    .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
+    .slice(-2);
+
+  return top2.length >= 2 ? { ...full, sets: top2 } : full;
+}
+
 function getLoadableEquipment(equipmentList: string[]): string | null {
   const loadablePriority = [
     "barbell",
@@ -281,9 +308,9 @@ export function calculateProgression(args: {
 
   const rules = PROGRESSION_RULES_BY_GOAL[goal];
 
-  const workoutToAnalyze =
+  const workoutToAnalyzeFull =
     workoutHistory ?? progressionData.history[progressionData.history.length - 1];
-  if (!workoutToAnalyze) {
+  if (!workoutToAnalyzeFull) {
     return {
       exerciseId: exercise.id,
       action: "maintain",
@@ -300,6 +327,9 @@ export function calculateProgression(args: {
       },
     };
   }
+  // IMPORTANT: Engine always analyzes WORKING sets derived from the last workout,
+  // so stored history may keep warmups/ramps without affecting decisions.
+  const workoutToAnalyze = deriveWorkingHistory(workoutToAnalyzeFull);
   const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
   const [minReps, maxReps] = targetRepsRange;
   const totalWorkingSets = performance.totalSets;

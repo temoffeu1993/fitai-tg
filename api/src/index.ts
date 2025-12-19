@@ -19,6 +19,7 @@ import { workoutTest } from "./workoutTest.js"; // 🔥 НОВОЕ: тестов
 import { scientificWorkoutTest } from "./scientificWorkoutTest.js"; // 🔥 НАУЧНАЯ система
 import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler } from "./middleware/errorHandler.js";
+import { startProgressionJobWorker } from "./progressionJobs.js";
 
 const app = express();
 
@@ -73,6 +74,9 @@ app.listen(config.port, () => {
   console.log("api:" + config.port);
   console.log("=== API INDEX LOADED ===");
 });
+
+// Background worker: догоняет прогрессию из outbox очереди
+startProgressionJobWorker();
 
 // api/src/index.ts (после app.listen)
 import { q } from "./db.js";

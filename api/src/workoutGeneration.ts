@@ -6,6 +6,7 @@
 import { Router, Response } from "express";
 import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
+import { enqueueProgressionJob, processProgressionJob } from "./progressionJobs.js";
 import { 
   generateWorkoutDay,
   generateWeekPlan,
@@ -1209,7 +1210,10 @@ workoutGeneration.post(
     const finishedAt = new Date(startedAt.getTime() + durationMin * 60_000);
 
     let progression: any = null;
-    const sessionId = await withTransaction(async () => {
+    let progressionJobId: string | null = null;
+    let progressionJobStatus: string | null = null;
+
+    const { sessionId, jobId } = await withTransaction(async () => {
       const result = await q<{ id: string }>(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
@@ -1244,55 +1248,31 @@ workoutGeneration.post(
         );
       }
 
-      // НОВОЕ: Apply progression system
-      try {
-        console.log('\n🔄 [save-session] Applying progression system...');
-        
-        // Get user profile for goal/experience
-        const [onboardingRow] = await q<{ data: any; summary: any }>(
-          `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
-          [uid]
-        );
-        
-        if (!onboardingRow) {
-          console.warn(`  ⚠️  No onboarding found for user ${uid.slice(0, 8)}... - using defaults`);
-        }
-        
-        const goal = onboardingRow?.data?.goal || onboardingRow?.summary?.goal || "build_muscle";
-        const experience = onboardingRow?.data?.experience || onboardingRow?.summary?.experience || "intermediate";
-        
-        console.log(`  User profile: ${experience} / ${goal}`);
-        
-        // Apply progression
-        const { applyProgressionFromSession } = await import("./progressionService.js");
-        const progressionSummary = await applyProgressionFromSession({
-          userId: uid,
-          payload: payload as any,
-          goal,
-          experience,
-          workoutDate: finishedAt.toISOString().slice(0, 10),
-          plannedWorkoutId,
-        });
-        progression = progressionSummary;
-        
-        console.log(`\n✅ [save-session] Progression applied successfully:`, {
-          totalExercises: progressionSummary.totalExercises,
-          progressed: progressionSummary.progressedCount,
-          maintained: progressionSummary.maintainedCount,
-          deloaded: progressionSummary.deloadCount,
-          rotations: progressionSummary.rotationSuggestions.length,
-        });
-      } catch (progError) {
-        // Don't fail the entire save if progression fails
-        console.error("\n❌ [save-session] Error applying progression:", progError);
-        console.error("  Stack:", (progError as Error).stack);
-        // Continue to COMMIT workout
-      }
+      // NEW: Outbox job for progression (eventual consistency)
+      const { jobId } = await enqueueProgressionJob({
+        userId: uid,
+        sessionId,
+        plannedWorkoutId,
+        workoutDate: finishedAt.toISOString().slice(0, 10),
+      });
 
-      return sessionId;
+      return { sessionId, jobId };
     });
 
-    res.json({ ok: true, sessionId, progression });
+    progressionJobId = jobId;
+
+    // Best-effort immediate processing (does not affect workout save)
+    try {
+      const r = await processProgressionJob({ jobId });
+      progressionJobStatus = r.status;
+      progression = r.progression;
+    } catch (e) {
+      console.error("[save-session] progression job process failed:", (e as any)?.message || e);
+      progressionJobStatus = "pending";
+      progression = null;
+    }
+
+    res.json({ ok: true, sessionId, progression, progressionJobId, progressionJobStatus });
   })
 );
 

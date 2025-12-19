@@ -493,7 +493,7 @@ export async function applyProgressionFromSession(args: {
       // Update progression data based on recommendation
       const updatedData = updateProgressionData({
         progressionData: progressionDataForCalc,
-        workoutHistory: workingHistory,
+        workoutHistory: fullHistory,
         recommendation,
         goal,
       });
