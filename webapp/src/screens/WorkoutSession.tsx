@@ -9,6 +9,7 @@ const SESSION_BG =
   "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";
 
 type PlanExercise = {
+  exerciseId?: string;
   name: string;
   sets: number;
   reps?: string | number;
@@ -29,6 +30,7 @@ type SetEntry = { reps?: number; weight?: number };
 type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
 
 type Item = {
+  id?: string;
   name: string;
   pattern?: string;
   targetMuscles?: string[];
@@ -76,6 +78,7 @@ export default function WorkoutSession() {
   const [running, setRunning] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [pendingNavHome, setPendingNavHome] = useState(false);
+  const [serverProgression, setServerProgression] = useState<any | null>(null);
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
       {
@@ -194,6 +197,7 @@ export default function WorkoutSession() {
 
     setItems(
       plan.exercises.map((ex) => ({
+        id: (ex as any).exerciseId || (ex as any).id || (ex as any).exercise?.id,
         name: ex.name,
         pattern: ex.pattern,
         targetMuscles: (ex as any).targetMuscles || [],
@@ -337,6 +341,7 @@ export default function WorkoutSession() {
       location: plan.location,
       durationMin,
       exercises: items.map((it) => ({
+        id: it.id,
         name: it.name,
         pattern: it.pattern,
         targetMuscles: it.targetMuscles,
@@ -368,13 +373,15 @@ export default function WorkoutSession() {
     // сервер
     try {
       setSaving(true);
+      setServerProgression(null);
       console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
       const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
-      await saveSession(payload, {
+      const result = await saveSession(payload, {
         ...extra,
         startedAt: startedAtIso,
         durationMin,
       });
+      setServerProgression(result?.progression ?? null);
       saveOk = true;
     } catch {
       // не блокируем UX если сеть/сервер упали
@@ -670,6 +677,7 @@ export default function WorkoutSession() {
       {/* конфетти */}
       {showConfetti && (
         <Confetti
+          progression={serverProgression}
           onClose={() => {
             setShowConfetti(false);
             if (pendingNavHome) nav("/");
@@ -709,7 +717,29 @@ function NumInput({
   );
 }
 
-function Confetti({ onClose }: { onClose: () => void }) {
+function Confetti({ onClose, progression }: { onClose: () => void; progression?: any | null }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const summary = progression || null;
+  const details: Array<any> = Array.isArray(summary?.details) ? summary.details : [];
+
+  const actionLabel = (action: string | undefined) =>
+    ({
+      increase_weight: "📈 +вес",
+      increase_reps: "📈 +повт.",
+      maintain: "➡️ без изменений",
+      decrease_weight: "📉 -вес",
+      deload: "🛌 deload",
+      rotate_exercise: "🔄 замена",
+    } as Record<string, string>)[action || ""] || "➡️";
+
+  const formatDelta = (rec: any) => {
+    if (!rec) return "";
+    if (typeof rec.newWeight === "number" && Number.isFinite(rec.newWeight) && rec.newWeight > 0) return `${rec.newWeight} кг`;
+    if (Array.isArray(rec.newRepsTarget) && rec.newRepsTarget.length === 2) return `${rec.newRepsTarget[0]}–${rec.newRepsTarget[1]} повт.`;
+    return "";
+  };
+
   return (
     <div className="confetti-wrap">
       <div className="confetti-overlay" />
@@ -717,7 +747,65 @@ function Confetti({ onClose }: { onClose: () => void }) {
         <div className="confetti-card">
           <div className="confetti-icon">✅</div>
           <div className="confetti-title">Тренировка сохранена</div>
-          <div className="confetti-subtitle">Повторы и веса записаны в прогресс</div>
+          <div className="confetti-subtitle">
+            Повторы и веса записаны. Прогрессия учитывает только рабочие подходы (≈ ≥85% от топ-веса), разминки не влияют.
+          </div>
+
+          {summary && (
+            <div className="confetti-prog">
+              <div className="confetti-prog-row">
+                <span>Прогресс:</span>
+                <span>
+                  {Number(summary.progressedCount) || 0} ↑ / {Number(summary.maintainedCount) || 0} → /{" "}
+                  {Number(summary.deloadCount) || 0} ↓
+                </span>
+              </div>
+              {Array.isArray(summary.rotationSuggestions) && summary.rotationSuggestions.length > 0 && (
+                <div className="confetti-prog-row">
+                  <span>Ротация:</span>
+                  <span>{summary.rotationSuggestions.join(", ")}</span>
+                </div>
+              )}
+              {details.length > 0 && (
+                <button
+                  type="button"
+                  className="confetti-link"
+                  onClick={() => setShowDetails((v) => !v)}
+                >
+                  {showDetails ? "Скрыть детали прогрессии" : "Показать детали прогрессии"}
+                </button>
+              )}
+              {showDetails && details.length > 0 && (
+                <div className="confetti-details">
+                  {details.slice(0, 24).map((d, i) => {
+                    const rec = d?.recommendation;
+                    const explain = rec?.explain;
+                    const delta = formatDelta(rec);
+                    const title = String(d?.exerciseName || rec?.exerciseId || `#${i + 1}`);
+                    const reason = String(rec?.reason || "").trim();
+                    const ws =
+                      explain?.totalWorkingSets != null
+                        ? `рабочие ${explain.lowerHits ?? "?"}/${explain.totalWorkingSets}, верх ${explain.upperHits ?? "?"}/${explain.totalWorkingSets}`
+                        : "";
+                    const extra = [delta, ws].filter(Boolean).join(" • ");
+                    return (
+                      <div key={i} className="confetti-detail-item">
+                        <div className="confetti-detail-head">
+                          <span className="confetti-detail-name">{title}</span>
+                          <span className="confetti-detail-action">{actionLabel(rec?.action)}</span>
+                        </div>
+                        {extra ? <div className="confetti-detail-meta">{extra}</div> : null}
+                        {reason ? <div className="confetti-detail-reason">{reason}</div> : null}
+                      </div>
+                    );
+                  })}
+                  {details.length > 24 && (
+                    <div className="confetti-detail-more">…и ещё {details.length - 24} упражнений</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <button className="confetti-btn" onClick={onClose}>Продолжить</button>
         </div>
       </div>
@@ -1006,7 +1094,7 @@ const confettiCSS = `
   padding: 20px;
 }
 .confetti-overlay{ display:none; }
-.confetti-text{ width: 100%; max-width: 320px; }
+.confetti-text{ width: 100%; max-width: 560px; }
 .confetti-card{
   pointer-events:auto;
   width: 100%;
@@ -1017,10 +1105,62 @@ const confettiCSS = `
   display: grid;
   gap: 10px;
   text-align: center;
+  max-height: 82vh;
+  overflow: auto;
 }
 .confetti-icon{ font-size: 30px; }
 .confetti-title{ font-size: 18px; font-weight: 700; color: #111; }
 .confetti-subtitle{ font-size: 13px; color: #4b5563; }
+.confetti-prog{
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.55);
+  border-radius: 14px;
+  padding: 12px;
+}
+.confetti-prog-row{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #111;
+}
+.confetti-link{
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: #4f46e5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.confetti-details{
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+.confetti-detail-item{
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(15,23,42,.04);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.confetti-detail-head{
+  display:flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #111;
+}
+.confetti-detail-name{ overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confetti-detail-action{ color: #334155; font-weight: 600; flex: 0 0 auto; }
+.confetti-detail-meta{ margin-top: 4px; font-size: 12px; color: #475569; }
+.confetti-detail-reason{ margin-top: 6px; font-size: 12.5px; color: #111827; line-height: 1.25; }
+.confetti-detail-more{ font-size: 12px; color: #64748b; }
 .confetti-btn{
   border: none;
   border-radius: 12px;

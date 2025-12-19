@@ -14,6 +14,7 @@
 
 import type { Exercise, JointFlag, Equipment as LibraryEquipment, Experience, ExerciseKind, Pattern, MuscleGroup } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Equipment, TimeBucket } from "./normalizedSchemes.js";
+import type { ProgressionRecommendation } from "./progressionEngine.js";
 import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
 import { buildDaySlots } from "./dayPatternMap.js";
 import {
@@ -991,7 +992,7 @@ export async function generateWorkoutDay(args: {
   // -------------------------------------------------------------------------
   // STEP 2.5: НОВОЕ - Get progression recommendations
   // -------------------------------------------------------------------------
-  let progressionRecommendations = new Map<string, any>();
+  let progressionRecommendations = new Map<string, ProgressionRecommendation>();
   
   if (userProfile.userId) {
     try {
@@ -1052,22 +1053,24 @@ export async function generateWorkoutDay(args: {
     let suggestedWeight: number | undefined;
     let progressionNote: string | undefined;
     
-    if (recommendation) {
-      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
-        suggestedWeight = recommendation.newWeight;
-      }
-      
-      // Add note about last performance
-      if (recommendation.action === "increase_weight") {
-        progressionNote = `💪 Прогресс! Увеличиваем вес до ${recommendation.newWeight} кг`;
-      } else if (recommendation.action === "increase_reps") {
-        progressionNote = `💪 Прогресс! Повышаем повторения`;
-      } else if (recommendation.action === "deload") {
-        progressionNote = `🛌 Deload: снижаем вес до ${recommendation.newWeight} кг`;
-      } else if (recommendation.newWeight && recommendation.newWeight > 0) {
-        progressionNote = `В прошлый раз: ${recommendation.newWeight} кг`;
-      }
-    }
+	    if (recommendation) {
+	      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
+	        suggestedWeight = recommendation.newWeight;
+	      }
+
+        const emojiByAction: Record<ProgressionRecommendation["action"], string> = {
+          increase_weight: "💪",
+          increase_reps: "💪",
+          deload: "🛌",
+          decrease_weight: "📉",
+          maintain: "➡️",
+          rotate_exercise: "🔄",
+        };
+
+        const emoji = emojiByAction[recommendation.action];
+
+	      progressionNote = (emoji ? `${emoji} ` : "") + String(recommendation.reason || "").trim();
+	    }
 
     return {
       exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)

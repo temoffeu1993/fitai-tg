@@ -13,7 +13,8 @@ import type {
   ExerciseProgressionData, 
   ExerciseHistory,
   ProgressionRecommendation,
-  EffortTag as EngineEffortTag
+  EffortTag as EngineEffortTag,
+  ProgressionContext
 } from "./progressionEngine.js";
 
 import {
@@ -29,6 +30,8 @@ import {
   saveProgressionData,
   saveWorkoutHistory,
 } from "./progressionDb.js";
+
+import { q } from "./db.js";
 
 // ============================================================================
 // TYPES: Payload structure from frontend
@@ -219,13 +222,89 @@ export async function applyProgressionFromSession(args: {
   goal: Goal;
   experience: ExperienceLevel;
   workoutDate: string;
+  plannedWorkoutId?: string | null;
 }): Promise<ProgressionSummary> {
-  const { userId, payload, goal, experience, workoutDate } = args;
+  const { userId, payload, goal, experience, workoutDate, plannedWorkoutId } = args;
   
   console.log(`\n🏋️ [ProgressionService] Processing session for user ${userId.slice(0, 8)}...`);
   console.log(`  Workout date: ${workoutDate}`);
   console.log(`  Goal: ${goal}, Experience: ${experience}`);
   console.log(`  Exercises: ${payload.exercises?.length || 0}`);
+
+  const sessionRpeRaw = payload.feedback?.sessionRpe;
+  const sessionRpe =
+    typeof sessionRpeRaw === "number" && Number.isFinite(sessionRpeRaw) ? sessionRpeRaw : undefined;
+
+  // Optional planned workout context (for adherence + recovery/shortened detection)
+  const plannedSetsByExerciseId = new Map<string, number>();
+  const plannedSetsByNameNorm = new Map<string, number>();
+  let plannedIntent: string | undefined;
+
+  if (plannedWorkoutId) {
+    try {
+      const rows = await q<{ plan: any }>(
+        `SELECT plan FROM planned_workouts WHERE id = $1::uuid AND user_id = $2::uuid LIMIT 1`,
+        [plannedWorkoutId, userId]
+      );
+      const plan = rows[0]?.plan;
+      plannedIntent = plan?.intent;
+
+      const plannedExercises = Array.isArray(plan?.exercises) ? plan.exercises : [];
+      for (const ex of plannedExercises) {
+        const exId = ex?.exerciseId || ex?.exercise?.id;
+        const exName = ex?.name || ex?.exerciseName;
+        const sets = Number(ex?.sets);
+        if (!Number.isFinite(sets) || sets <= 0) continue;
+        if (typeof exId === "string" && exId.trim()) plannedSetsByExerciseId.set(exId, Math.round(sets));
+        if (typeof exName === "string" && exName.trim()) {
+          const key = exName
+            .toLowerCase()
+            .replace(/ё/g, "е")
+            .replace(/[^\wа-яa-z]/g, "");
+          plannedSetsByNameNorm.set(key, Math.round(sets));
+        }
+      }
+    } catch (e) {
+      console.warn("  [ProgressionService] Failed to load planned workout for adherence:", e);
+    }
+  }
+
+  // Optional recovery signals from latest check-in
+  let recoveryReason: string | undefined;
+  try {
+    const rows = await q<{
+      energy_level: "low" | "medium" | "high" | null;
+      sleep_quality: "poor" | "fair" | "ok" | "good" | "excellent" | null;
+      stress_level: "low" | "medium" | "high" | "very_high" | null;
+      pain: any;
+    }>(
+      `SELECT energy_level, sleep_quality, stress_level, pain
+       FROM daily_check_ins
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+    const row = rows[0];
+    if (row) {
+      const reasons: string[] = [];
+      if (row.energy_level === "low") reasons.push("низкая энергия");
+      if (row.sleep_quality === "poor" || row.sleep_quality === "fair") reasons.push("плохой сон");
+      if (row.stress_level === "very_high") reasons.push("очень высокий стресс");
+
+      const pain = typeof row.pain === "string"
+        ? (() => { try { return JSON.parse(row.pain); } catch { return []; } })()
+        : row.pain;
+      if (Array.isArray(pain)) {
+        const maxPain = pain.reduce((m: number, p: any) => Math.max(m, Number(p?.level) || 0), 0);
+        if (maxPain >= 6) reasons.push("выраженная боль");
+      }
+
+      if (reasons.length > 0) recoveryReason = reasons.join(", ");
+    }
+  } catch {
+    // ignore
+  }
   
   // Validate inputs
   if (!userId) {
@@ -297,8 +376,8 @@ export async function applyProgressionFromSession(args: {
       // Map frontend effort to RPE
       const avgRpe = mapEffortToRPE(exerciseData.effort);
       
-      // Build ExerciseHistory entry
-      const history: ExerciseHistory = {
+      // Build full ExerciseHistory (store all reps-based sets)
+      const fullHistory: ExerciseHistory = {
         exerciseId: exercise.id,
         workoutDate,
         sets: repsSets.map((s) => ({
@@ -311,20 +390,89 @@ export async function applyProgressionFromSession(args: {
         })),
       };
 
-      // Sync effective currentWeight with what user actually performed this session.
-      // Use median weight of performed sets to avoid spikes from warm-ups/top-sets.
-      const performedWeights = history.sets
+      // Determine working sets (progression decisions use only these)
+      const weights = fullHistory.sets
         .map((s) => s.weight)
         .filter((w) => typeof w === "number" && w > 0)
         .sort((a, b) => a - b);
-      const maxW = performedWeights.length > 0 ? performedWeights[performedWeights.length - 1] : 0;
-      const workingWeights =
-        maxW > 0 ? performedWeights.filter((w) => w >= maxW * 0.85) : performedWeights;
-      const weightsForEstimate = workingWeights.length > 0 ? workingWeights : performedWeights;
+      const maxW = weights.length > 0 ? weights[weights.length - 1] : 0;
+
+      let workingSets = fullHistory.sets;
+      if (maxW > 0) {
+        const working = fullHistory.sets.filter((s) => (s.weight ?? 0) >= maxW * 0.85);
+        if (working.length >= 2) {
+          workingSets = working;
+        } else if (fullHistory.sets.length >= 2) {
+          // fallback: take the heaviest 2 performed sets
+          workingSets = [...fullHistory.sets]
+            .filter((s) => (s.weight ?? 0) > 0)
+            .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
+            .slice(-2);
+        }
+      }
+
+      const workingHistory: ExerciseHistory = {
+        ...fullHistory,
+        sets: workingSets,
+      };
+
+      // Sync effective currentWeight with what user actually performed (use median of working weights).
+      const workingWeights = workingHistory.sets
+        .map((s) => s.weight)
+        .filter((w) => typeof w === "number" && w > 0)
+        .sort((a, b) => a - b);
       const effectiveCurrentWeight =
-        weightsForEstimate.length > 0
-          ? weightsForEstimate[Math.floor(weightsForEstimate.length / 2)]
+        workingWeights.length > 0
+          ? workingWeights[Math.floor(workingWeights.length / 2)]
           : progressionData.currentWeight;
+
+      const plannedSets =
+        plannedSetsByExerciseId.get(exercise.id) ??
+        plannedSetsByNameNorm.get(
+          exerciseData.name
+            .toLowerCase()
+            .replace(/ё/g, "е")
+            .replace(/[^\wа-яa-z]/g, "")
+        );
+      const performedSets = fullHistory.sets.length;
+
+      const shortened =
+        typeof plannedSets === "number" &&
+        plannedSets > 0 &&
+        performedSets / plannedSets < 0.75;
+
+      const antiOverreach =
+        (typeof sessionRpe === "number" && sessionRpe >= 9) ||
+        exerciseData.effort === "hard" ||
+        exerciseData.effort === "max";
+
+      const doNotPenalize =
+        plannedIntent === "light" ||
+        Boolean(recoveryReason) ||
+        shortened ||
+        workingHistory.sets.length < 2;
+
+      const doNotPenalizeReason =
+        plannedIntent === "light"
+          ? "лёгкий день по плану"
+          : recoveryReason
+            ? `чек-ин: ${recoveryReason}`
+            : shortened && plannedSets
+              ? `сокращённая тренировка (${performedSets}/${plannedSets} подходов)`
+              : workingHistory.sets.length < 2
+                ? "недостаточно рабочих подходов"
+                : undefined;
+
+      const context: ProgressionContext = {
+        sessionRpe,
+        exerciseEffort: exerciseData.effort ?? undefined,
+        plannedSets,
+        performedSets,
+        totalWorkingSets: workingHistory.sets.length,
+        antiOverreach,
+        doNotPenalize,
+        doNotPenalizeReason,
+      };
       const progressionDataForCalc: ExerciseProgressionData = {
         ...progressionData,
         currentWeight: effectiveCurrentWeight,
@@ -338,20 +486,21 @@ export async function applyProgressionFromSession(args: {
         experience,
         targetRepsRange,
         currentIntent: undefined, // use default from payload/RPE
-        workoutHistory: history,  // analyze the just-completed workout (not the previous one)
+        workoutHistory: workingHistory, // analyze only working sets
+        context,
       });
       
       // Update progression data based on recommendation
       const updatedData = updateProgressionData({
         progressionData: progressionDataForCalc,
-        workoutHistory: history,
+        workoutHistory: workingHistory,
         recommendation,
         goal,
       });
       
       // Save to database
       await saveProgressionData(updatedData, userId);
-      await saveWorkoutHistory(history, userId);
+      await saveWorkoutHistory(fullHistory, userId);
       
       // Update summary counts
       if (recommendation.action === "increase_weight" || recommendation.action === "increase_reps") {
@@ -463,14 +612,17 @@ export async function getNextWorkoutRecommendations(args: {
             exerciseId: exercise.id,
             action: "deload",
             newWeight: Math.round(Math.max(progressionData.currentWeight * (1 - rules.deloadPercentage), 0) * 4) / 4,
-            reason: `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
+            reason: `Deload: ${progressionData.stallCount} тренировок без прогресса → снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
             failedLowerBound: false,
           }
         : {
             exerciseId: exercise.id,
             action: "maintain",
             newWeight: progressionData.currentWeight,
-            reason: "Используй текущий рабочий вес из прогрессии.",
+            reason:
+              progressionData.stallCount > 0
+                ? `Вес сохраняем. Застой: ${progressionData.stallCount}/${rules.deloadThreshold}.`
+                : "Текущий рабочий вес из прогрессии.",
             failedLowerBound: false,
           };
       

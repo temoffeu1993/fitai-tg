@@ -59,6 +59,17 @@ export type ProgressionRecommendation = {
   reason: string;
   /** True when last workout failed to hit the lower reps bound (for stall tracking) */
   failedLowerBound?: boolean;
+  explain?: {
+    totalWorkingSets?: number;
+    lowerHits?: number;
+    upperHits?: number;
+    plannedSets?: number;
+    performedSets?: number;
+    sessionRpe?: number;
+    antiOverreach?: boolean;
+    doNotPenalize?: boolean;
+    doNotPenalizeReason?: string;
+  };
   alternatives?: string[];     // ID альтернативных упражнений для ротации
 };
 
@@ -86,6 +97,17 @@ type ProgressionRules = {
   stallThreshold: number;      // Сколько тренировок застоя = stall
   deloadThreshold: number;     // Сколько stall'ов = deload
   deloadPercentage: number;    // На сколько % снижать вес при deload
+};
+
+export type ProgressionContext = {
+  sessionRpe?: number;
+  exerciseEffort?: Exclude<EffortTag, null>;
+  plannedSets?: number;
+  performedSets?: number;
+  totalWorkingSets?: number;
+  antiOverreach?: boolean;
+  doNotPenalize?: boolean;
+  doNotPenalizeReason?: string;
 };
 
 export const PROGRESSION_RULES_BY_GOAL: Record<Goal, ProgressionRules> = {
@@ -142,54 +164,41 @@ function analyzePerformance(
   targetRepsRange: [number, number],
   rules: ProgressionRules
 ): {
-  success: boolean;
-  achievedUpperBound: boolean;
-  achievedLowerBound: boolean;
-  completionRate: number;
+  totalSets: number;
+  lowerHits: number;
+  upperHits: number;
+  lastSetUpper: boolean;
   averageRpe?: number;
 } {
   const sets = history.sets;
   const [minReps, maxReps] = targetRepsRange;
 
-  let completedSets = 0;
-  let upperBoundSets = 0;
-  let lowerBoundSets = 0;
+  let totalSets = 0;
+  let upperHits = 0;
+  let lowerHits = 0;
   let totalRpe = 0;
   let rpeCount = 0;
 
   for (const set of sets) {
-    if (set.completed) {
-      completedSets++;
-      
-      if (set.actualReps >= maxReps) {
-        upperBoundSets++;
-      }
-      
-      if (set.actualReps >= minReps) {
-        lowerBoundSets++;
-      }
-
-      if (set.rpe) {
-        totalRpe += set.rpe;
-        rpeCount++;
-      }
+    if (!set.completed) continue;
+    totalSets++;
+    if (set.actualReps >= minReps) lowerHits++;
+    if (set.actualReps >= maxReps) upperHits++;
+    if (set.rpe) {
+      totalRpe += set.rpe;
+      rpeCount++;
     }
   }
 
-  const completionRate = sets.length > 0 ? completedSets / sets.length : 0;
-  const upperBoundRate = sets.length > 0 ? upperBoundSets / sets.length : 0;
-  const lowerBoundRate = sets.length > 0 ? lowerBoundSets / sets.length : 0;
-
-  const success = lowerBoundRate >= rules.successThreshold;
-  const achievedUpperBound = upperBoundRate >= rules.successThreshold;
-  const achievedLowerBound = lowerBoundRate >= rules.successThreshold;
+  const last = sets.length > 0 ? sets[sets.length - 1] : undefined;
+  const lastSetUpper = Boolean(last && last.completed && last.actualReps >= maxReps);
   const averageRpe = rpeCount > 0 ? totalRpe / rpeCount : undefined;
 
   return {
-    success,
-    achievedUpperBound,
-    achievedLowerBound,
-    completionRate,
+    totalSets,
+    lowerHits,
+    upperHits,
+    lastSetUpper,
     averageRpe,
   };
 }
@@ -266,8 +275,9 @@ export function calculateProgression(args: {
   targetRepsRange: [number, number];
   currentIntent?: "light" | "normal" | "hard";
   workoutHistory?: ExerciseHistory; // if provided, analyze this completed workout
+  context?: ProgressionContext;
 }): ProgressionRecommendation {
-  const { exercise, progressionData, goal, targetRepsRange, currentIntent, workoutHistory } = args;
+  const { exercise, progressionData, goal, targetRepsRange, currentIntent, workoutHistory, context } = args;
 
   const rules = PROGRESSION_RULES_BY_GOAL[goal];
 
@@ -280,9 +290,45 @@ export function calculateProgression(args: {
       newWeight: progressionData.currentWeight,
       reason: "Нет истории по упражнению. Используй рабочий вес для техники.",
       failedLowerBound: false,
+      explain: {
+        sessionRpe: context?.sessionRpe,
+        antiOverreach: Boolean(context?.antiOverreach),
+        doNotPenalize: Boolean(context?.doNotPenalize),
+        doNotPenalizeReason: context?.doNotPenalizeReason,
+        plannedSets: context?.plannedSets,
+        performedSets: context?.performedSets,
+      },
     };
   }
   const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
+  const [minReps, maxReps] = targetRepsRange;
+  const totalWorkingSets = performance.totalSets;
+
+  const explainBase: NonNullable<ProgressionRecommendation["explain"]> = {
+    totalWorkingSets: context?.totalWorkingSets ?? totalWorkingSets,
+    lowerHits: performance.lowerHits,
+    upperHits: performance.upperHits,
+    plannedSets: context?.plannedSets,
+    performedSets: context?.performedSets,
+    sessionRpe: context?.sessionRpe,
+    antiOverreach: Boolean(context?.antiOverreach),
+    doNotPenalize: Boolean(context?.doNotPenalize),
+    doNotPenalizeReason: context?.doNotPenalizeReason,
+  };
+
+  // do-not-penalize: recovery / shortened day / low data
+  if (context?.doNotPenalize) {
+    return {
+      exerciseId: exercise.id,
+      action: "maintain",
+      newWeight: progressionData.currentWeight,
+      reason: context.doNotPenalizeReason
+        ? `Recovery: ${context.doNotPenalizeReason} → вес сохраняем.`
+        : "Recovery: вес сохраняем. Без штрафа в прогрессии.",
+      failedLowerBound: false,
+      explain: explainBase,
+    };
+  }
 
   // CASE 1: Deload needed (too many stalls)
   // Do not rely only on stored status (can be stale); compute directly from stallCount.
@@ -298,6 +344,7 @@ export function calculateProgression(args: {
       newWeight: Math.round(deloadWeight * 4) / 4, // Round to 0.25 kg
       reason: `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
       failedLowerBound: false,
+      explain: explainBase,
     };
   }
 
@@ -309,27 +356,75 @@ export function calculateProgression(args: {
       newWeight: progressionData.currentWeight,
       reason: "Light день: сохраняем текущий вес для восстановления.",
       failedLowerBound: false,
+      explain: explainBase,
     };
   }
 
-  // CASE 3: Achieved upper bound → increase weight
-  if (performance.achievedUpperBound && performance.success) {
+  // If not enough working sets, avoid making progression decisions.
+  if (totalWorkingSets < 2) {
+    return {
+      exerciseId: exercise.id,
+      action: "maintain",
+      newWeight: progressionData.currentWeight,
+      reason: "Недостаточно рабочих подходов для решения по прогрессии. Оставляем вес.",
+      failedLowerBound: false,
+      explain: explainBase,
+    };
+  }
+
+  const failCount = totalWorkingSets - performance.lowerHits;
+  const isStrength = goal === "strength";
+  const antiOverreach = Boolean(context?.antiOverreach);
+
+  const failedLowerBound = isStrength
+    ? failCount >= 1
+    : totalWorkingSets === 2
+      ? failCount >= 1
+      : totalWorkingSets === 3
+        ? failCount >= 2
+        : failCount > totalWorkingSets / 2;
+
+  const allMetLower = performance.lowerHits === totalWorkingSets;
+
+  const requiredUpperHits = isStrength
+    ? totalWorkingSets
+    : totalWorkingSets === 2
+      ? 2
+      : totalWorkingSets === 3
+        ? 2
+        : Math.ceil(totalWorkingSets * 0.75);
+
+  const upperOk = allMetLower &&
+    performance.upperHits >= requiredUpperHits &&
+    performance.lastSetUpper;
+
+  if (upperOk) {
+    if (antiOverreach) {
+      return {
+        exerciseId: exercise.id,
+        action: "maintain",
+        newWeight: progressionData.currentWeight,
+        reason: "Верх диапазона добит, но день тяжёлый (высокий RPE/effort) → вес сохраняем.",
+        failedLowerBound: false,
+        explain: explainBase,
+      };
+    }
+
     const equipment = getLoadableEquipment(exercise.equipment);
     const increment = equipment ? (WEIGHT_INCREMENT[equipment] || 2.5) : 0;
 
-    // Bodyweight exercises → increase reps target
     if (equipment === "bodyweight" || progressionData.currentWeight === 0) {
       const newTarget: [number, number] = [
         targetRepsRange[0] + rules.repsIncrease,
         targetRepsRange[1] + rules.repsIncrease,
       ];
-
       return {
         exerciseId: exercise.id,
         action: "increase_reps",
         newRepsTarget: newTarget,
-        reason: `Прогресс! Добил верх диапазона (${targetRepsRange[1]} reps). Повышаем целевые повторения на ${rules.repsIncrease}.`,
+        reason: `Прогресс! Закрыл диапазон (${minReps}-${maxReps}). Повышаем повторения на ${rules.repsIncrease}.`,
         failedLowerBound: false,
+        explain: explainBase,
       };
     }
 
@@ -340,23 +435,23 @@ export function calculateProgression(args: {
         newWeight: progressionData.currentWeight,
         reason: "Прогресс по повторениям есть, но тип оборудования не определён. Оставляем вес без изменения.",
         failedLowerBound: false,
+        explain: explainBase,
       };
     }
 
-    // Weighted exercises → increase weight
     const newWeight = progressionData.currentWeight + increment;
-
     return {
       exerciseId: exercise.id,
       action: "increase_weight",
       newWeight: Math.round(newWeight * 4) / 4, // Round to 0.25 kg
-      reason: `Прогресс! Добил ${targetRepsRange[1]} повторов. Увеличиваем вес на ${increment} кг.`,
+      reason: `Прогресс! Закрыл диапазон (${minReps}-${maxReps}) в рабочих подходах. +${increment} кг.`,
       failedLowerBound: false,
+      explain: explainBase,
     };
   }
 
-  // CASE 4: Failed to reach lower bound → decrease weight or deload
-  if (!performance.achievedLowerBound) {
+  // Failed to reach lower bound → decrease weight or maintain
+  if (failedLowerBound) {
     const newStallCount = progressionData.stallCount + 1;
 
     // If already stalling for a while → suggest decrease
@@ -367,8 +462,9 @@ export function calculateProgression(args: {
         exerciseId: exercise.id,
         action: "decrease_weight",
         newWeight: Math.round(decreaseWeight * 4) / 4,
-        reason: `Не добил минимум ${targetRepsRange[0]} повторов ${newStallCount} раз подряд. Снижаем вес на 10%.`,
+        reason: `Не добил минимум ${minReps} в рабочих подходах (${newStallCount} раз подряд). Снижаем вес на 10%.`,
         failedLowerBound: true,
+        explain: explainBase,
       };
     }
 
@@ -377,19 +473,9 @@ export function calculateProgression(args: {
       exerciseId: exercise.id,
       action: "maintain",
       newWeight: progressionData.currentWeight,
-      reason: `Не добил минимум повторений. Попробуй ещё раз с тем же весом на следующей тренировке.`,
+      reason: `Не добил минимум ${minReps} в рабочих подходах. Пробуем ещё раз с тем же весом.`,
       failedLowerBound: true,
-    };
-  }
-
-  // CASE 5: Achieved lower bound but not upper → maintain and push
-  if (performance.achievedLowerBound && !performance.achievedUpperBound) {
-    return {
-      exerciseId: exercise.id,
-      action: "maintain",
-      newWeight: progressionData.currentWeight,
-      reason: `Выполнил минимум, но не добил верх. Держи вес и добивай до ${targetRepsRange[1]} повторов.`,
-      failedLowerBound: false,
+      explain: explainBase,
     };
   }
 
@@ -398,8 +484,9 @@ export function calculateProgression(args: {
     exerciseId: exercise.id,
     action: "maintain",
     newWeight: progressionData.currentWeight,
-    reason: "Сохраняем текущий вес.",
+    reason: `Вес сохраняем. Цель: добить верх диапазона (${maxReps}) в рабочих подходах.`,
     failedLowerBound: false,
+    explain: explainBase,
   };
 }
 

@@ -302,9 +302,9 @@ workoutGeneration.post(
           sets: ex.sets,
           reps: ex.repsRange,
           restSec: ex.restSec,
-          weight: 0, // Будет заполнено из progressionDb
+          weight: ex.suggestedWeight ?? 0,
           targetMuscles: ex.exercise.primaryMuscles,
-          cues: ex.notes,
+          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
           // NEW: Detailed fields
           technique: ex.exercise.technique,
           equipment: ex.exercise.equipment,
@@ -1208,6 +1208,7 @@ workoutGeneration.post(
     durationMin = Math.max(10, Math.min(300, Math.round(durationMin)));
     const finishedAt = new Date(startedAt.getTime() + durationMin * 60_000);
 
+    let progression: any = null;
     const sessionId = await withTransaction(async () => {
       const result = await q<{ id: string }>(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
@@ -1270,7 +1271,9 @@ workoutGeneration.post(
           goal,
           experience,
           workoutDate: finishedAt.toISOString().slice(0, 10),
+          plannedWorkoutId,
         });
+        progression = progressionSummary;
         
         console.log(`\n✅ [save-session] Progression applied successfully:`, {
           totalExercises: progressionSummary.totalExercises,
@@ -1289,7 +1292,7 @@ workoutGeneration.post(
       return sessionId;
     });
 
-    res.json({ ok: true, sessionId });
+    res.json({ ok: true, sessionId, progression });
   })
 );
 
