@@ -68,7 +68,11 @@ export async function q<T = any>(text: string, params: any[] = []): Promise<T[]>
     return res.rows as T[];
   } catch (err: any) {
     console.error("DB ERROR:", err?.message, { text, params });
-    throw new AppError("Database operation failed", 500);
+    const e = new AppError("Database operation failed", 500, { code: "db_error" });
+    (e as any).causeMessage = String(err?.message || "");
+    (e as any).causeCode = err?.code ? String(err.code) : "";
+    (e as any).causeConstraint = err?.constraint ? String(err.constraint) : "";
+    throw e;
   }
 }
 
@@ -175,21 +179,7 @@ async function applyProgressionJobsMigration() {
   try {
     console.log("\n🔧 Checking progression jobs migration...");
 
-    const exists = await pool.query(
-      `
-      SELECT table_name
-        FROM information_schema.tables
-       WHERE table_schema = 'public'
-         AND table_name = 'progression_jobs'
-      `
-    );
-
-    if (exists.rows.length > 0) {
-      console.log("✅ Progression jobs migration already applied");
-      return;
-    }
-
-    console.log("📝 Applying progression jobs migration...");
+    console.log("📝 Ensuring progression_jobs schema...");
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS progression_jobs (
@@ -209,19 +199,47 @@ async function applyProgressionJobsMigration() {
       );
     `);
 
-    await pool.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_progression_jobs_session_id
-        ON progression_jobs(session_id);
-    `);
+    // For older versions / partially applied tables
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0;`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS next_run_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS last_error text NULL;`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS result jsonb NULL;`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE progression_jobs ADD COLUMN IF NOT EXISTS completed_at timestamptz NULL;`);
 
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_progression_jobs_pending
-        ON progression_jobs(status, next_run_at, created_at);
-    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_progression_jobs_session_id ON progression_jobs(session_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_progression_jobs_pending ON progression_jobs(status, next_run_at, created_at);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_progression_jobs_user ON progression_jobs(user_id, created_at DESC);`);
 
-    console.log("✅ Progression jobs migration applied successfully!\n");
+    console.log("✅ Progression jobs schema ensured\n");
   } catch (error: any) {
     console.error("❌ Progression jobs migration failed:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Adds `session_id` to exercise_history for idempotent outbox retries.
+ */
+async function applyExerciseHistorySessionIdMigration() {
+  try {
+    console.log("\n🔧 Checking exercise_history.session_id migration...");
+
+    await pool.query(`
+      ALTER TABLE exercise_history
+      ADD COLUMN IF NOT EXISTS session_id uuid NULL;
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_exercise_history_session
+      ON exercise_history(user_id, exercise_id, session_id);
+    `);
+
+    console.log("✅ exercise_history.session_id ensured\n");
+  } catch (error: any) {
+    console.error("❌ exercise_history.session_id migration failed:", error.message);
     throw error;
   }
 }
@@ -231,6 +249,7 @@ async function applyProgressionJobsMigration() {
   try {
     await applyWeeklyPlansMigration();
     await applyProgressionJobsMigration();
+    await applyExerciseHistorySessionIdMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу

@@ -203,18 +203,21 @@ function analyzePerformance(
   };
 }
 
-function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
-  const sets = full.sets ?? [];
+export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
+  const allSets = full.sets ?? [];
+  const sets = allSets.filter((s) => Boolean(s.completed) && (s.actualReps ?? 0) > 0);
+  if (sets.length === 0) return full;
+
   const weights = sets
     .map((s) => s.weight)
     .filter((w) => typeof w === "number" && w > 0)
     .sort((a, b) => a - b);
 
   // Bodyweight (or no weight recorded) → treat all performed sets as working
-  if (weights.length === 0) return full;
+  if (weights.length === 0) return { ...full, sets };
 
   const maxW = weights[weights.length - 1] ?? 0;
-  if (maxW <= 0) return full;
+  if (maxW <= 0) return { ...full, sets };
 
   const working = sets.filter((s) => (s.weight ?? 0) >= maxW * 0.85);
   if (working.length >= 2) {
@@ -668,11 +671,14 @@ export function updateProgressionData(args: {
   if (recommendation.action === "increase_weight" || recommendation.action === "increase_reps") {
     newStallCount = 0;
     lastProgressDate = workoutHistory.workoutDate;
-  } else if (recommendation.failedLowerBound) {
-    newStallCount++;
+  } else if (recommendation.action === "decrease_weight") {
+    // Weight correction is a "reset attempt": do not keep accumulating stalls.
+    newStallCount = 0;
   } else if (recommendation.action === "deload") {
     newStallCount = 0;
     newDeloadCount++;
+  } else if (recommendation.failedLowerBound) {
+    newStallCount++;
   }
 
   // Determine new status

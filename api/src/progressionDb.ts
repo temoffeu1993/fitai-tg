@@ -87,11 +87,13 @@ export async function saveProgressionData(
 
 export async function saveWorkoutHistory(
   history: ExerciseHistory,
-  userId: string
+  userId: string,
+  opts?: { sessionId?: string | null }
 ): Promise<void> {
   await q(
-    `INSERT INTO exercise_history (user_id, exercise_id, workout_date, sets)
-     VALUES ($1::uuid, $2, $3, $4)`,
-    [userId, history.exerciseId, history.workoutDate, JSON.stringify(history.sets)]
+    `INSERT INTO exercise_history (user_id, exercise_id, workout_date, session_id, sets)
+     VALUES ($1::uuid, $2, $3, $4::uuid, $5)
+     ON CONFLICT (user_id, exercise_id, session_id) DO NOTHING`,
+    [userId, history.exerciseId, history.workoutDate, opts?.sessionId ?? null, JSON.stringify(history.sets)]
   );
 }

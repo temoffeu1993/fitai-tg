@@ -1277,6 +1277,55 @@ workoutGeneration.post(
 );
 
 // ============================================================================
+// GET /progression/jobs/:id - Poll progression job status/result
+// ============================================================================
+
+workoutGeneration.get(
+  "/progression/jobs/:id",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const jobId = String(req.params?.id || "");
+    if (!isUUID(jobId)) {
+      throw new AppError("Invalid job id", 400);
+    }
+
+    const rows = await q<{
+      id: string;
+      status: string;
+      attempts: number;
+      last_error: string | null;
+      result: any | null;
+      updated_at: string;
+      completed_at: string | null;
+    }>(
+      `SELECT id, status, attempts, last_error, result, updated_at, completed_at
+         FROM progression_jobs
+        WHERE id = $1::uuid AND user_id = $2::uuid
+        LIMIT 1`,
+      [jobId, uid]
+    );
+
+    if (!rows.length) {
+      throw new AppError("Job not found", 404);
+    }
+
+    const row = rows[0];
+    res.json({
+      ok: true,
+      job: {
+        id: row.id,
+        status: row.status,
+        attempts: row.attempts,
+        lastError: row.last_error,
+        result: row.result,
+        updatedAt: row.updated_at,
+        completedAt: row.completed_at,
+      },
+    });
+  })
+);
+
+// ============================================================================
 // GET /workout/today - Get today's workout
 // ============================================================================
 

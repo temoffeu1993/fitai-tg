@@ -134,3 +134,8 @@ export async function saveSession(
   });
   return parseJson(res, "save_session");
 }
+
+export async function getProgressionJob(jobId: string) {
+  const res = await apiFetch(`/plan/progression/jobs/${jobId}`);
+  return parseJson<{ ok: boolean; job: any }>(res, "progression_job");
+}

@@ -19,6 +19,7 @@ import type {
 
 import {
   calculateProgression,
+  deriveWorkingHistory,
   updateProgressionData,
   initializeProgressionData,
   shouldRotateExercise,
@@ -223,8 +224,9 @@ export async function applyProgressionFromSession(args: {
   experience: ExperienceLevel;
   workoutDate: string;
   plannedWorkoutId?: string | null;
+  sessionId?: string | null;
 }): Promise<ProgressionSummary> {
-  const { userId, payload, goal, experience, workoutDate, plannedWorkoutId } = args;
+  const { userId, payload, goal, experience, workoutDate, plannedWorkoutId, sessionId } = args;
   
   console.log(`\n🏋️ [ProgressionService] Processing session for user ${userId.slice(0, 8)}...`);
   console.log(`  Workout date: ${workoutDate}`);
@@ -390,31 +392,8 @@ export async function applyProgressionFromSession(args: {
         })),
       };
 
-      // Determine working sets (progression decisions use only these)
-      const weights = fullHistory.sets
-        .map((s) => s.weight)
-        .filter((w) => typeof w === "number" && w > 0)
-        .sort((a, b) => a - b);
-      const maxW = weights.length > 0 ? weights[weights.length - 1] : 0;
-
-      let workingSets = fullHistory.sets;
-      if (maxW > 0) {
-        const working = fullHistory.sets.filter((s) => (s.weight ?? 0) >= maxW * 0.85);
-        if (working.length >= 2) {
-          workingSets = working;
-        } else if (fullHistory.sets.length >= 2) {
-          // fallback: take the heaviest 2 performed sets
-          workingSets = [...fullHistory.sets]
-            .filter((s) => (s.weight ?? 0) > 0)
-            .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
-            .slice(-2);
-        }
-      }
-
-      const workingHistory: ExerciseHistory = {
-        ...fullHistory,
-        sets: workingSets,
-      };
+      // Working sets are a derivation rule (single source of truth in engine).
+      const workingHistory = deriveWorkingHistory(fullHistory);
 
       // Sync effective currentWeight with what user actually performed (use median of working weights).
       const workingWeights = workingHistory.sets
@@ -485,8 +464,8 @@ export async function applyProgressionFromSession(args: {
         goal,
         experience,
         targetRepsRange,
-        currentIntent: undefined, // use default from payload/RPE
-        workoutHistory: workingHistory, // analyze only working sets
+        currentIntent: plannedIntent === "light" ? "light" : undefined,
+        workoutHistory: fullHistory,
         context,
       });
       
@@ -500,7 +479,7 @@ export async function applyProgressionFromSession(args: {
       
       // Save to database
       await saveProgressionData(updatedData, userId);
-      await saveWorkoutHistory(fullHistory, userId);
+      await saveWorkoutHistory(fullHistory, userId, { sessionId });
       
       // Update summary counts
       if (recommendation.action === "increase_weight" || recommendation.action === "increase_reps") {

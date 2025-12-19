@@ -1,7 +1,7 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { saveSession } from "@/api/plan";
+import { getProgressionJob, saveSession } from "@/api/plan";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
@@ -79,6 +79,9 @@ export default function WorkoutSession() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [pendingNavHome, setPendingNavHome] = useState(false);
   const [serverProgression, setServerProgression] = useState<any | null>(null);
+  const [progressionJob, setProgressionJob] = useState<{ id: string; status: string; lastError?: string | null } | null>(
+    null
+  );
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
       {
@@ -374,6 +377,7 @@ export default function WorkoutSession() {
     try {
       setSaving(true);
       setServerProgression(null);
+      setProgressionJob(null);
       console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
       const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
       const result = await saveSession(payload, {
@@ -382,7 +386,39 @@ export default function WorkoutSession() {
         durationMin,
       });
       setServerProgression(result?.progression ?? null);
+      if (result?.progressionJobId) {
+        setProgressionJob({
+          id: String(result.progressionJobId),
+          status: String(result.progressionJobStatus || "pending"),
+          lastError: null,
+        });
+      }
       saveOk = true;
+
+      // If progression was not ready immediately, poll a few times in background.
+      if (!result?.progression && result?.progressionJobId && result?.progressionJobStatus !== "done") {
+        const jobId = String(result.progressionJobId);
+        const maxPolls = 4;
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise((r) => setTimeout(r, 1400 + Math.round(Math.random() * 900)));
+          try {
+            const jobRes = await getProgressionJob(jobId);
+            const job = jobRes?.job;
+            if (job?.status) {
+              setProgressionJob({ id: jobId, status: String(job.status), lastError: job.lastError ?? null });
+            }
+            if (job?.status === "done" && job?.result) {
+              setServerProgression(job.result);
+              break;
+            }
+            if (job?.status === "failed") {
+              break;
+            }
+          } catch {
+            // ignore polling errors
+          }
+        }
+      }
     } catch {
       // не блокируем UX если сеть/сервер упали
     } finally {
@@ -678,6 +714,7 @@ export default function WorkoutSession() {
       {showConfetti && (
         <Confetti
           progression={serverProgression}
+          progressionJob={progressionJob}
           onClose={() => {
             setShowConfetti(false);
             if (pendingNavHome) nav("/");
@@ -717,7 +754,15 @@ function NumInput({
   );
 }
 
-function Confetti({ onClose, progression }: { onClose: () => void; progression?: any | null }) {
+function Confetti({
+  onClose,
+  progression,
+  progressionJob,
+}: {
+  onClose: () => void;
+  progression?: any | null;
+  progressionJob?: { id: string; status: string; lastError?: string | null } | null;
+}) {
   const [showDetails, setShowDetails] = useState(false);
 
   const summary = progression || null;
@@ -750,6 +795,14 @@ function Confetti({ onClose, progression }: { onClose: () => void; progression?:
           <div className="confetti-subtitle">
             Повторы и веса записаны. Прогрессия учитывает только рабочие подходы (≈ ≥85% от топ-веса), разминки не влияют.
           </div>
+
+          {!summary && progressionJob && progressionJob.status !== "done" && (
+            <div className="confetti-subtitle">
+              {progressionJob.status === "failed"
+                ? "Прогресс не обновился автоматически. Мы уже разбираемся — веса не будут «скакать»."
+                : "Прогресс обновится автоматически (это может занять несколько секунд)."}
+            </div>
+          )}
 
           {summary && (
             <div className="confetti-prog">
