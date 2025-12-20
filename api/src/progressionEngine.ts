@@ -87,6 +87,19 @@ export const WEIGHT_INCREMENT: Record<string, number> = {
   kettlebell: 4.0,    // Гиря: +4 кг (8 / 12 / 16 / 20 / 24)
 };
 
+function readWeightIncrementOverride(equipment: string, fallback: number): number {
+  const key = `PROGRESSION_INCREMENT_${equipment.toUpperCase()}`;
+  const raw = process.env[key];
+  const v = raw != null ? Number(raw) : NaN;
+  return Number.isFinite(v) && v >= 0 ? v : fallback;
+}
+
+function getWeightIncrementForExercise(equipment: string | null): number {
+  if (!equipment) return 0;
+  const base = WEIGHT_INCREMENT[equipment] ?? 2.5;
+  return readWeightIncrementOverride(equipment, base);
+}
+
 // ============================================================================
 // CONSTANTS: Progression rules by goal
 // ============================================================================
@@ -444,7 +457,7 @@ export function calculateProgression(args: {
     }
 
     const equipment = getLoadableEquipment(exercise.equipment);
-    const increment = equipment ? (WEIGHT_INCREMENT[equipment] || 2.5) : 0;
+    const increment = getWeightIncrementForExercise(equipment);
 
     if (equipment === "bodyweight" || progressionData.currentWeight === 0) {
       const newTarget: [number, number] = [
@@ -540,7 +553,16 @@ export function shouldRotateExercise(progressionData: ExerciseProgressionData): 
     const daysSinceProgress = 
       (Date.now() - new Date(progressionData.lastProgressDate).getTime()) / (1000 * 60 * 60 * 24);
     
-    if (daysSinceProgress > 56) return true; // 8 weeks
+    if (daysSinceProgress > 56) {
+      const recentThresholdDays = 14;
+      const recentCountNeeded = 2;
+      const recentCutoff = Date.now() - recentThresholdDays * 24 * 60 * 60 * 1000;
+      const recentWorkouts = (progressionData.history || []).filter((h) => {
+        const t = new Date(h.workoutDate).getTime();
+        return Number.isFinite(t) && t >= recentCutoff;
+      });
+      if (recentWorkouts.length >= recentCountNeeded) return true; // 8 weeks without progress while training actively
+    }
   }
 
   return false;

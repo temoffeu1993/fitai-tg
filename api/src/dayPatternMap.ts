@@ -270,7 +270,7 @@ export function buildDaySlots(args: {
 
 
   // Fine-tune based on exact minutes if provided
-  if (availableMinutes) {
+  if (typeof availableMinutes === "number" && Number.isFinite(availableMinutes)) {
     if (timeBucket === 45 && availableMinutes < 40) slotBudget = range.min;
     if (timeBucket === 45 && availableMinutes > 50) slotBudget = range.max;
     if (timeBucket === 60 && availableMinutes < 50) slotBudget = range.min;

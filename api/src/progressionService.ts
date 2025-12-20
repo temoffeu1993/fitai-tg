@@ -30,6 +30,7 @@ import {
   getProgressionData,
   saveProgressionData,
   saveWorkoutHistory,
+  lockProgressionRow,
 } from "./progressionDb.js";
 
 import { q } from "./db.js";
@@ -143,23 +144,27 @@ function parseRepsRange(reps: string | number | undefined): [number, number] {
   
   if (typeof reps === 'number') {
     // Single number: use ±2 range
-    const min = Math.max(1, reps - 2);
-    const max = reps + 2;
-    return [min, max];
+    const min = Math.max(1, Math.min(50, reps - 2));
+    const max = Math.max(1, Math.min(50, reps + 2));
+    return min <= max ? [min, max] : [max, min];
   }
   
   // String: "6-10", "8–12", "10"
   const match = String(reps).match(/(\d+)\s*[-–—]\s*(\d+)/);
   if (match) {
-    return [Number(match[1]), Number(match[2])];
+    let min = Math.max(1, Math.min(50, Number(match[1])));
+    let max = Math.max(1, Math.min(50, Number(match[2])));
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [8, 12];
+    if (min > max) [min, max] = [max, min];
+    return [min, max];
   }
   
   // Single number as string
   const num = Number(reps);
   if (Number.isFinite(num) && num > 0) {
-    const min = Math.max(1, num - 2);
-    const max = num + 2;
-    return [min, max];
+    const min = Math.max(1, Math.min(50, num - 2));
+    const max = Math.max(1, Math.min(50, num + 2));
+    return min <= max ? [min, max] : [max, min];
   }
   
   return [8, 12]; // fallback
@@ -184,6 +189,7 @@ async function findExerciseByName(name: string): Promise<Exercise | null> {
     
     // Find by exact match first
     let found = EXERCISE_LIBRARY.find(ex => normalize(ex.name) === searchNorm);
+    const exactFound = Boolean(found);
     
     // If not found, try partial match
     if (!found) {
@@ -194,6 +200,12 @@ async function findExerciseByName(name: string): Promise<Exercise | null> {
     }
     
     if (found) {
+      if (!exactFound) {
+        console.warn(
+          `  [ProgressionService] ⚠️ Fuzzy matched "${name}" → "${found.name}". ` +
+          `Consider passing exercise ID from frontend for accuracy.`
+        );
+      }
       console.log(`  [ProgressionService] Matched "${name}" → ${found.id} (${found.name})`);
     } else {
       console.warn(`  [ProgressionService] ⚠️ Exercise not found: "${name}"`);
@@ -347,62 +359,96 @@ export async function applyProgressionFromSession(args: {
   let processedCount = 0;
   let skippedCount = 0;
   
-  // Process each exercise
-  for (const exerciseData of payload.exercises) {
-    progLog(
-      `\n  [ProgressionService][debug] Exercise payload:`,
-      {
-        id: exerciseData.id,
-        name: exerciseData.name,
-        reps: exerciseData.reps,
-        effort: exerciseData.effort,
-        setsCount: Array.isArray(exerciseData.sets) ? exerciseData.sets.length : 0,
-      }
-    );
-    // Skip if no sets recorded
-    if (!exerciseData.sets || exerciseData.sets.length === 0) {
-      console.log(`  ⏭️  Skipping "${exerciseData.name}" (no sets recorded)`);
+  const effortRank: Record<FrontendEffort, number> = {
+    easy: 1,
+    working: 2,
+    quite_hard: 3,
+    hard: 4,
+    max: 5,
+  };
+
+  type AggregatedExercise = {
+    exercise: Exercise;
+    name: string;
+    reps?: string | number;
+    effort?: FrontendEffort;
+    repsSets: FrontendSet[]; // reps-only sets (concatenated across duplicates)
+  };
+
+  // Resolve exercises to library IDs and aggregate duplicates per resolved exercise.id.
+  const aggregated = new Map<string, AggregatedExercise>();
+  for (const input of payload.exercises) {
+    progLog(`\n  [ProgressionService][debug] Exercise payload:`, {
+      id: input.id,
+      name: input.name,
+      reps: input.reps,
+      effort: input.effort,
+      setsCount: Array.isArray(input.sets) ? input.sets.length : 0,
+    });
+
+    if (!input.sets || input.sets.length === 0) {
+      console.log(`  ⏭️  Skipping "${input.name}" (no sets recorded)`);
       skippedCount++;
       continue;
     }
 
-    // Only reps-based sets are useful for progression decisions.
-    const repsSets = exerciseData.sets.filter((s) => (s.reps ?? 0) > 0);
+    const repsSets = input.sets.filter((s) => (s.reps ?? 0) > 0);
     if (repsSets.length === 0) {
-      console.log(`  ⏭️  Skipping "${exerciseData.name}" (no reps recorded)`);
+      console.log(`  ⏭️  Skipping "${input.name}" (no reps recorded)`);
       skippedCount++;
       continue;
     }
-    progLog(
-      `  [ProgressionService][debug] repsSets=${repsSets.length}`,
-      repsSets.map((s) => ({ reps: s.reps ?? null, weight: s.weight ?? null }))
-    );
-    
-    // Find exercise in library
+
     const exercise =
-      (exerciseData.id ? await findExerciseById(exerciseData.id) : null) ??
-      (await findExerciseByName(exerciseData.name));
+      (input.id ? await findExerciseById(input.id) : null) ?? (await findExerciseByName(input.name));
     if (!exercise) {
-      console.warn(`  ⚠️  Exercise not found: "${exerciseData.name}" - skipping progression`);
+      console.warn(`  ⚠️  Exercise not found: "${input.name}" - skipping progression`);
       skippedCount++;
       continue;
     }
-    
+
+    const key = exercise.id;
+    const prev = aggregated.get(key);
+    if (!prev) {
+      aggregated.set(key, {
+        exercise,
+        name: input.name || exercise.name,
+        reps: input.reps,
+        effort: input.effort,
+        repsSets: [...repsSets],
+      });
+      continue;
+    }
+
+    prev.repsSets.push(...repsSets);
+    if (prev.reps == null && input.reps != null) prev.reps = input.reps;
+    if (prev.effort == null && input.effort != null) prev.effort = input.effort;
+    if (prev.effort != null && input.effort != null) {
+      if ((effortRank[input.effort] ?? 0) > (effortRank[prev.effort] ?? 0)) {
+        prev.effort = input.effort;
+      }
+    }
+  }
+
+  // Process each unique exercise once
+  for (const exerciseData of aggregated.values()) {
+    const exercise = exerciseData.exercise;
+
     summary.totalExercises++;
     processedCount++;
-    
+
     try {
-      // Get or initialize progression data
-      let progressionData = await getProgressionData(exercise.id, userId);
-      
-      if (!progressionData) {
-        progressionData = initializeProgressionData({
-          exerciseId: exercise.id,
-          exercise,
-          experience,
-          goal,
-        });
-      }
+      const init = initializeProgressionData({
+        exerciseId: exercise.id,
+        exercise,
+        experience,
+        goal,
+      });
+
+      // Prevent concurrent lost updates for this exercise across parallel jobs/sessions.
+      await lockProgressionRow({ userId, exerciseId: exercise.id, initialWeight: init.currentWeight });
+
+      const progressionData = (await getProgressionData(exercise.id, userId)) ?? init;
       
       // Parse target reps range
       const targetRepsRange = parseRepsRange(exerciseData.reps);
@@ -416,7 +462,7 @@ export async function applyProgressionFromSession(args: {
       const fullHistory: ExerciseHistory = {
         exerciseId: exercise.id,
         workoutDate,
-        sets: repsSets.map((s) => ({
+        sets: exerciseData.repsSets.map((s) => ({
           targetReps: targetRepsRange[1], // upper bound as target
           actualReps: s.reps ?? 0,
           weight: s.weight ?? 0,
@@ -433,7 +479,7 @@ export async function applyProgressionFromSession(args: {
         workingHistory.sets.map((s) => ({ reps: s.actualReps, weight: s.weight }))
       );
 
-      const hasAnyRecordedWeight = repsSets.some((s: any) => {
+      const hasAnyRecordedWeight = exerciseData.repsSets.some((s: any) => {
         const w = s?.weight;
         return typeof w === "number" && Number.isFinite(w) && w > 0;
       });

@@ -59,7 +59,24 @@ function inferLoadInfoFromExercise(exercise: any): {
   if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь (кг)" };
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
-  const hasExternal = equipment.some((eq: string) => loadable.has(eq));
+  const externalHints = [
+    "barbell",
+    "dumbbell",
+    "machine",
+    "cable",
+    "smith",
+    "kettlebell",
+    "landmine",
+    "штанг",
+    "гантел",
+    "тренаж",
+    "блок",
+    "кроссовер",
+    "смита",
+    "гир",
+  ];
+  const hintedExternal = externalHints.some((k) => id.includes(k) || name.includes(k) || nameEn.includes(k));
+  const hasExternal = equipment.some((eq: string) => loadable.has(eq)) || hintedExternal;
   const hasBodyweight =
     equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
 
@@ -173,7 +190,7 @@ workoutGeneration.post(
         data.stressLevel || null,
         data.energyLevel || null,
         data.notes || null,
-        data.availableMinutes || null,
+        data.availableMinutes ?? null,
       ]
     );
     
@@ -615,13 +632,53 @@ function mapStress(v: any): "high" | "medium" | "low" | "very_high" {
 function mapPayloadToCheckInData(payload: any): CheckInData | undefined {
   if (!payload) return undefined;
   
+  const rawSleep = payload.sleepQuality ?? payload.sleep;
+  const rawEnergy = payload.energyLevel ?? payload.energy;
+  const rawStress = payload.stressLevel ?? payload.stress;
+  const rawPain = payload.pain;
+  const rawAvailableMinutes = payload.availableMinutes ?? payload.available_minutes ?? payload.minutes;
+
+  const validSleep = new Set<CheckInData["sleep"]>(["poor", "fair", "ok", "good", "excellent"]);
+  const sleep: CheckInData["sleep"] = validSleep.has(rawSleep) ? rawSleep : "ok";
+
+  const validEnergy = new Set<CheckInData["energy"]>(["low", "medium", "high"]);
+  const energy: CheckInData["energy"] = validEnergy.has(rawEnergy) ? rawEnergy : "medium";
+
+  const stress: CheckInData["stress"] = mapStress(rawStress);
+
+  // Validate pain (same locations as /check-in)
+  const PAIN_LOCATIONS = new Set(["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"]);
+  let pain: CheckInData["pain"] | undefined = undefined;
+  if (Array.isArray(rawPain)) {
+    const validated: import("./workoutDayGenerator.js").PainEntry[] = [];
+    for (const p of rawPain) {
+      if (!p || typeof p !== "object") continue;
+      const location = String((p as any).location || "").trim();
+      const levelRaw = Number((p as any).level);
+      if (!PAIN_LOCATIONS.has(location)) continue;
+      if (!Number.isFinite(levelRaw)) continue;
+      const level = Math.max(1, Math.min(10, Math.round(levelRaw)));
+      validated.push({ location, level });
+    }
+    pain = validated.length > 0 ? validated : undefined;
+  }
+
+  // Validate minutes. NOTE: /workout/start may pass 0 (special case: "no time").
+  let availableMinutes: number | undefined = undefined;
+  if (rawAvailableMinutes !== null && rawAvailableMinutes !== undefined) {
+    const minsRaw = Number(rawAvailableMinutes);
+    if (Number.isFinite(minsRaw) && minsRaw >= 0 && minsRaw <= 240) {
+      availableMinutes = Math.round(minsRaw);
+    }
+  }
+
   return {
-    sleep: payload.sleepQuality || "ok",
-    energy: payload.energyLevel || "medium",
-    stress: mapStress(payload.stressLevel),
-    pain: Array.isArray(payload.pain) ? payload.pain : undefined,
+    sleep,
+    energy,
+    stress,
+    pain,
     soreness: [],
-    availableMinutes: payload.availableMinutes ?? undefined, // ИСПРАВЛЕНО: добавлено
+    availableMinutes,
   };
 }
 
@@ -1012,13 +1069,13 @@ workoutGeneration.post(
 	    if (decision.action === "recovery") {
       console.log(`   🧘 RECOVERY: Replacing ${basePlan.dayLabel}`);
       // Generate recovery session
-      const { generateRecoverySession } = await import("./workoutDayGenerator.js");
-      const painAreas = checkin?.pain?.map(p => p.location) || [];
-      const recoveryWorkout = generateRecoverySession({
-        userProfile,
-        painAreas,
-        availableMinutes: checkin?.availableMinutes || 30,
-      });
+	      const { generateRecoverySession } = await import("./workoutDayGenerator.js");
+	      const painAreas = checkin?.pain?.map(p => p.location) || [];
+	      const recoveryWorkout = generateRecoverySession({
+	        userProfile,
+	        painAreas,
+	        availableMinutes: readiness.effectiveMinutes ?? 30,
+	      });
       
       // Convert to workout format
       const workoutData = {
@@ -1076,22 +1133,26 @@ workoutGeneration.post(
     let swapInfo = null;
     let workoutData: any;
     
-	    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
-	    if (decision.action === "keep_day") {
-	      const availableMinutes = readiness.effectiveMinutes ?? checkin?.availableMinutes ?? null;
-	      const estimateBasePlanMinutes = (plan: any): number | null => {
-	        const rawExercises = plan?.exercises;
-	        const exercises = Array.isArray(rawExercises) ? rawExercises : [];
-	        let totalSec = 0;
-	        let counted = 0;
-	        for (const ex of exercises) {
-	          // `sets` may be a number (planned workouts) OR an array (saved session payload).
-	          const setsCountRaw = Array.isArray(ex?.sets) ? ex.sets.length : Number(ex?.sets);
-	          const setsCount = Number.isFinite(setsCountRaw) ? Math.round(setsCountRaw) : 0;
-	          if (setsCount <= 0) continue;
-	          const restRaw = ex?.restSec ?? ex?.rest ?? 90;
-	          const restSec = Number.isFinite(Number(restRaw)) ? Math.max(0, Math.round(Number(restRaw))) : 90;
-	          const setDurationSec = 60 + restSec;
+		    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
+		    if (decision.action === "keep_day") {
+		      const availableMinutes = readiness.effectiveMinutes;
+		      const estimateBasePlanMinutes = (plan: any): number | null => {
+		        const rawExercises = plan?.exercises;
+		        const exercises = Array.isArray(rawExercises) ? rawExercises : [];
+		        let totalSec = 0;
+		        let counted = 0;
+		        for (const ex of exercises) {
+		          // `sets` may be a number (planned workouts) OR an array (saved session payload).
+		          const setsCountRaw = Array.isArray(ex?.sets)
+		            ? ex.sets.length
+		            : Number.isFinite(Number(ex?.sets))
+		            ? Number(ex?.sets)
+		            : Number(ex?.totalSets);
+		          const setsCount = Number.isFinite(setsCountRaw) ? Math.round(setsCountRaw) : 0;
+		          if (setsCount <= 0) continue;
+		          const restRaw = ex?.restSec ?? ex?.rest ?? 90;
+		          const restSec = Number.isFinite(Number(restRaw)) ? Math.max(0, Math.round(Number(restRaw))) : 90;
+		          const setDurationSec = 60 + restSec;
 	          totalSec += setsCount * setDurationSec;
 	          counted++;
 	        }
@@ -1103,24 +1164,70 @@ workoutGeneration.post(
 	        return null;
 	      };
 
-	      const estimatedRaw = Number(basePlan?.estimatedDuration);
-	      const baseEstimated = Number.isFinite(estimatedRaw) && estimatedRaw > 0
-	        ? estimatedRaw
-	        : estimateBasePlanMinutes(basePlan);
-	      const shouldAdaptForTime =
-	        typeof availableMinutes === "number" &&
-	        Number.isFinite(availableMinutes) &&
-	        typeof baseEstimated === "number" &&
-	        Number.isFinite(baseEstimated) &&
-	        baseEstimated > availableMinutes + 10; // allow small buffer
+		      const estimatedRaw = Number(basePlan?.estimatedDuration);
+		      const baseEstimated = Number.isFinite(estimatedRaw) && estimatedRaw > 0
+		        ? estimatedRaw
+		        : estimateBasePlanMinutes(basePlan);
 
-	      if (shouldAdaptForTime) {
-	        console.log(
-          `   ✅ KEEP_DAY: Day stays the same, but workout is too long (${baseEstimated}min > ${availableMinutes}min + 10) → regenerating with timeBucket=${readiness.timeBucket}`
-        );
+		      const bufferMin =
+		        typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
+		          ? Math.ceil(availableMinutes * 0.08)
+		          : 0;
 
-        const history = await getWorkoutHistory(uid);
-        const mesocycle = await getMesocycle(uid);
+		      const shouldAdaptForTime =
+		        typeof availableMinutes === "number" &&
+		        Number.isFinite(availableMinutes) &&
+		        typeof baseEstimated === "number" &&
+		        Number.isFinite(baseEstimated) &&
+		        baseEstimated > availableMinutes + bufferMin;
+
+		      const baseIntent = typeof basePlan?.intent === "string" ? String(basePlan.intent) : null;
+		      const shouldAdaptForIntent = baseIntent !== null && baseIntent !== readiness.intent;
+
+		      const blockedSet =
+		        Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0
+		          ? new Set(readiness.blockedPatterns.map((p) => String(p).toLowerCase().trim()))
+		          : null;
+		      const baseExercises = Array.isArray(basePlan?.exercises) ? basePlan.exercises : [];
+		      const hasBlockedExercises =
+		        blockedSet !== null &&
+		        baseExercises.some((ex: any) => {
+		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+		          if (typeof id !== "string") return false;
+		          const lib = EXERCISE_LIBRARY.find((e) => e.id === id);
+		          if (!lib) return false;
+		          return Array.isArray((lib as any).patterns)
+		            ? (lib as any).patterns.some((pat: any) => blockedSet.has(String(pat).toLowerCase()))
+		            : false;
+		        });
+
+		      const hasCoreExercisesWhenOptional =
+		        readiness.corePolicy === "optional" &&
+		        baseExercises.some((ex: any) => {
+		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+		          if (typeof id !== "string") return false;
+		          const lib = EXERCISE_LIBRARY.find((e) => e.id === id);
+		          if (!lib) return false;
+		          return Array.isArray((lib as any).patterns)
+		            ? (lib as any).patterns.some((pat: any) => String(pat).toLowerCase() === "core")
+		            : false;
+		        });
+
+		      const shouldRegenerate = shouldAdaptForTime || shouldAdaptForIntent || hasBlockedExercises || hasCoreExercisesWhenOptional;
+
+		      if (shouldRegenerate) {
+		        const reasons: string[] = [];
+		        if (shouldAdaptForTime) reasons.push("time");
+		        if (shouldAdaptForIntent) reasons.push("intent");
+		        if (hasBlockedExercises) reasons.push("blocked_patterns");
+		        if (hasCoreExercisesWhenOptional) reasons.push("core_policy");
+
+		        console.log(
+	          `   ✅ KEEP_DAY: Day stays the same, but workout needs adaptation (${reasons.join(", ")}) → regenerating with timeBucket=${readiness.timeBucket}`
+	        );
+
+	        const history = await getWorkoutHistory(uid);
+	        const mesocycle = await getMesocycle(uid);
 
         // Get week plan data for periodization
         let weekPlanData = null;
@@ -1307,28 +1414,41 @@ workoutGeneration.post(
     
     // If swapped, mark future occurrence of finalDayIndex as "already done today"
     if (decision.action === "swap_day") {
-      // Calculate when finalDayIndex was originally scheduled
-      const daysSinceWeekStart = new Date(workoutDate).getDay();
-      const daysUntilTarget = (finalDayIndex - originalDayIndex + scheme.daysPerWeek) % scheme.daysPerWeek;
-      const targetDate = new Date(workoutDate);
-      targetDate.setDate(targetDate.getDate() + daysUntilTarget);
-      
-      // Mark that day as swapped (using separate metadata field)
-      await q(
-        `UPDATE planned_workouts
-         SET metadata = jsonb_set(
-           COALESCE(metadata, '{}'::jsonb),
-           '{wasSwappedEarlier}',
-           'true'::jsonb
-         ),
-         updated_at = NOW()
+      // Find the next planned workout that corresponds to finalDayIndex and mark it as already done.
+      const nextRows = await q<{ workout_date: string }>(
+        `SELECT workout_date
+         FROM planned_workouts
          WHERE user_id = $1
-           AND workout_date = $2
-           AND workout_date > $3`,
-        [uid, targetDate.toISOString().split('T')[0], workoutDate]
+           AND workout_date > $2
+           AND (data->>'dayIndex')::int = $3
+         ORDER BY workout_date ASC
+         LIMIT 1`,
+        [uid, workoutDate, finalDayIndex]
       );
-      
-      console.log(`      Marked future day ${finalDayIndex} as swapped`);
+
+      if (nextRows.length) {
+        const nextDate = nextRows[0].workout_date;
+        const markedAt = new Date().toISOString();
+
+        await q(
+          `UPDATE planned_workouts
+           SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+             'wasSwappedEarlier', true,
+             'swappedIntoDate', $3,
+             'swappedFromDayIndex', $4,
+             'swappedToDayIndex', $5,
+             'swappedMarkedAt', $6
+           ),
+           updated_at = NOW()
+           WHERE user_id = $1
+             AND workout_date = $2`,
+          [uid, nextDate, workoutDate, originalDayIndex, finalDayIndex, markedAt]
+        );
+
+        console.log(`      Marked future dayIndex=${finalDayIndex} on ${nextDate} as swapped`);
+      } else {
+        console.log(`      No future planned workout found for dayIndex=${finalDayIndex} to mark as swapped`);
+      }
     }
     
     console.log("=====================================================\n");

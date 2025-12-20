@@ -3320,7 +3320,7 @@ plan.post(
         data.hydration || null,
         data.lastMeal || null,
         data.notes || null,
-        data.availableMinutes || null,
+        data.availableMinutes ?? null,
       ]
     );
 

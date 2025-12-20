@@ -463,6 +463,10 @@ export function generateRecoverySession(args: {
   availableMinutes?: number;
 }): GeneratedWorkoutDay {
   const { userProfile, painAreas = [], availableMinutes = 30 } = args;
+  const normalizedAvailableMinutes =
+    typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
+      ? Math.max(0, Math.round(availableMinutes))
+      : 30;
   
   // Base recovery exercises (mobility + stretching)
   const baseRecovery = [
@@ -607,20 +611,29 @@ export function generateRecoverySession(args: {
 	    coversPatterns: ex.exercise.patterns,
 	    ...inferLoadInfo(ex.exercise),
 	  }));
-  const estimatedDuration = Math.ceil(exercises.length * 3); // ~3 min per exercise
+	  // Adjust duration if needed
+	  // NOTE: We keep the heuristic (~3 min per exercise) only for trimming; the returned
+	  // estimatedDuration is computed from sets/rest for consistency with other workouts.
+	  const approxDurationMin = Math.ceil(exercises.length * 3);
+	  if (normalizedAvailableMinutes <= 0) {
+	    exercises = [];
+	  } else if (normalizedAvailableMinutes < approxDurationMin && exercises.length > 0) {
+	    const targetExercises = Math.max(1, Math.floor(normalizedAvailableMinutes / 3));
+	    exercises = exercises.slice(0, Math.min(exercises.length, targetExercises));
+	  }
   
-  if (availableMinutes < estimatedDuration && exercises.length > 3) {
-    exercises = exercises.slice(0, Math.max(3, Math.floor(availableMinutes / 3)));
-  }
-  
-  const totalExercises = exercises.length;
-  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
-  
-  const adaptationNotes = [
-    "🛌 ВОССТАНОВИТЕЛЬНАЯ СЕССИЯ: фокус на мобильности и расслаблении.",
-    "Все движения выполняй медленно и подконтрольно.",
-    "Если появляется боль — останови упражнение.",
-  ];
+	  const totalExercises = exercises.length;
+	  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
+	  const estimatedDuration = totalExercises > 0 ? estimateDuration(exercises) : 0;
+	  
+	  const adaptationNotes = [
+	    "🛌 ВОССТАНОВИТЕЛЬНАЯ СЕССИЯ: фокус на мобильности и расслаблении.",
+	    "Все движения выполняй медленно и подконтрольно.",
+	    "Если появляется боль — останови упражнение.",
+	  ];
+	  if (normalizedAvailableMinutes <= 0) {
+	    adaptationNotes.unshift("⏱️ Сегодня почти нет времени — сделай хотя бы 1-2 минуты лёгкой разминки/дыхания.");
+	  }
   
   if (painAreas.length > 0) {
     const painLocationNames: Record<string, string> = {
@@ -647,22 +660,22 @@ export function generateRecoverySession(args: {
     "Глубокое дыхание, расслабление",
   ];
   
-  return {
-    schemeId: "recovery",
-    schemeName: "Восстановительная сессия",
-    dayIndex: 0,
-    dayLabel: "Recovery",
-    dayFocus: "Мобильность и растяжка",
-    intent: "light" as Intent,
-    warmup,
-    exercises,
-    cooldown,
-    totalExercises,
-    totalSets,
-    estimatedDuration: availableMinutes,
-    adaptationNotes,
-    warnings: [],
-  };
+	  return {
+	    schemeId: "recovery",
+	    schemeName: "Восстановительная сессия",
+	    dayIndex: 0,
+	    dayLabel: "Recovery",
+	    dayFocus: "Мобильность и растяжка",
+	    intent: "light" as Intent,
+	    warmup,
+	    exercises,
+	    cooldown,
+	    totalExercises,
+	    totalSets,
+	    estimatedDuration,
+	    adaptationNotes,
+	    warnings: [],
+	  };
 }
 
 // ============================================================================

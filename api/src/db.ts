@@ -232,9 +232,20 @@ async function applyExerciseHistorySessionIdMigration() {
       ADD COLUMN IF NOT EXISTS session_id uuid NULL;
     `);
 
+    // created_at is used for deterministic ordering when multiple sessions exist on the same workout_date.
+    await pool.query(`
+      ALTER TABLE exercise_history
+      ADD COLUMN IF NOT EXISTS created_at timestamptz NULL DEFAULT now();
+    `);
+
     await pool.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_exercise_history_session
       ON exercise_history(user_id, exercise_id, session_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercise_history_user_exercise_order
+      ON exercise_history(user_id, exercise_id, workout_date DESC, created_at DESC);
     `);
 
     console.log("✅ exercise_history.session_id ensured\n");

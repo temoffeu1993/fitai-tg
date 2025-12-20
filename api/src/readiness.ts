@@ -74,7 +74,7 @@ export function computeReadiness(args: {
     } else {
       console.log(`   Pain: none`);
     }
-    if (checkin.availableMinutes) {
+    if (typeof checkin.availableMinutes === "number" && Number.isFinite(checkin.availableMinutes)) {
       console.log(`   Available time: ${checkin.availableMinutes} min`);
     }
   }
@@ -271,7 +271,7 @@ export function computeReadiness(args: {
   let timeBucket = fallbackTimeBucket;
   let effectiveMinutes: number | null = null;
   
-  if (checkin?.availableMinutes) {
+  if (typeof checkin?.availableMinutes === "number" && Number.isFinite(checkin.availableMinutes)) {
     effectiveMinutes = checkin.availableMinutes;
     
     // Маппинг минут → timeBucket
@@ -290,10 +290,6 @@ export function computeReadiness(args: {
   
   const warnings: string[] = [];
   const notes: string[] = [];
-
-  // =========================================================================
-  // 7. WARNINGS & NOTES (человеко-читаемые сообщения для пользователя)
-  // =========================================================================
 
   // СОН
   if (checkin?.sleep === "poor") {
@@ -366,7 +362,7 @@ export function computeReadiness(args: {
   }
 
   // ВРЕМЯ
-  if (effectiveMinutes && effectiveMinutes < fallbackTimeBucket) {
+  if (effectiveMinutes !== null && effectiveMinutes < fallbackTimeBucket) {
     notes.push(
       `⏱️ Доступно ${effectiveMinutes} мин (обычно ${fallbackTimeBucket}). ` +
       `Тренировка адаптирована: убраны менее приоритетные упражнения.`

@@ -23,7 +23,7 @@ export async function getProgressionData(
 ): Promise<ExerciseProgressionData | null> {
   const rows = await q<any>(
     `SELECT * FROM exercise_progression 
-     WHERE user_id = $1::uuid AND exercise_id = $2`,
+     WHERE user_id = $1 AND exercise_id = $2`,
     [userId, exerciseId]
   );
 
@@ -33,8 +33,9 @@ export async function getProgressionData(
 
   const historyRows = await q<any>(
     `SELECT * FROM exercise_history 
-     WHERE user_id = $1::uuid AND exercise_id = $2 
-     ORDER BY workout_date DESC LIMIT 48`,
+     WHERE user_id = $1 AND exercise_id = $2 
+     ORDER BY workout_date DESC, created_at DESC NULLS LAST, session_id DESC NULLS LAST
+     LIMIT 48`,
     [userId, exerciseId]
   );
 
@@ -64,7 +65,7 @@ export async function saveProgressionData(
   await q(
     `INSERT INTO exercise_progression 
       (user_id, exercise_id, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
-     VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
      ON CONFLICT (user_id, exercise_id) 
      DO UPDATE SET
        current_weight = $3,
@@ -92,8 +93,34 @@ export async function saveWorkoutHistory(
 ): Promise<void> {
   await q(
     `INSERT INTO exercise_history (user_id, exercise_id, workout_date, session_id, sets)
-     VALUES ($1::uuid, $2, $3, $4::uuid, $5)
-     ON CONFLICT (user_id, exercise_id, session_id) DO NOTHING`,
+     VALUES ($1, $2, $3, $4::uuid, $5)
+     ON CONFLICT (user_id, exercise_id, session_id) DO UPDATE
+       SET workout_date = EXCLUDED.workout_date,
+           sets = EXCLUDED.sets`,
     [userId, history.exerciseId, history.workoutDate, opts?.sessionId ?? null, JSON.stringify(history.sets)]
+  );
+}
+
+export async function lockProgressionRow(args: {
+  userId: string;
+  exerciseId: string;
+  initialWeight: number;
+}): Promise<void> {
+  const { userId, exerciseId, initialWeight } = args;
+  // Ensure a row exists, then lock it to prevent concurrent lost updates across jobs.
+  await q(
+    `INSERT INTO exercise_progression
+      (user_id, exercise_id, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
+     VALUES ($1, $2, $3, 'maintaining', 0, 0, NULL, NOW())
+     ON CONFLICT (user_id, exercise_id) DO NOTHING`,
+    [userId, exerciseId, initialWeight]
+  );
+
+  await q(
+    `SELECT 1
+       FROM exercise_progression
+      WHERE user_id = $1 AND exercise_id = $2
+      FOR UPDATE`,
+    [userId, exerciseId]
   );
 }
