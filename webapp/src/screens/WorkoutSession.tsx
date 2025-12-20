@@ -538,12 +538,12 @@ export default function WorkoutSession() {
               <div style={card.head}>
                 <div>
                   <div style={card.title}>{it.name}</div>
-                  <div style={card.metaChips}>
-                    <Chip label={`${it.sets.length}×`} />
-                    <Chip label={`повт. ${it.targetReps ?? "—"}`} />
-                    {it.targetWeight ? <Chip label={String(it.targetWeight)} /> : null}
-                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
-                  </div>
+	                  <div style={card.metaChips}>
+	                    <Chip label={`${it.sets.length}×`} />
+	                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
+	                    {it.targetWeight ? <Chip label={String(it.targetWeight)} /> : null}
+	                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+	                  </div>
                 </div>
               </div>
 
@@ -882,6 +882,17 @@ function Confetti({
 
 function Chip({ label }: { label: string }) {
   return <span style={chipStyle}>{label}</span>;
+}
+
+function formatRepsLabel(value: unknown): string {
+  if (Array.isArray(value) && value.length >= 2) {
+    const a = Number(value[0]);
+    const b = Number(value[1]);
+    if (Number.isFinite(a) && Number.isFinite(b)) return `${a}–${b}`;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string" && value.trim()) return value;
+  return "—";
 }
 
 /* ---------- Стиль ---------- */
