@@ -1032,12 +1032,14 @@ workoutGeneration.post(
 	        let totalSec = 0;
 	        let counted = 0;
 	        for (const ex of exercises) {
-	          const sets = Number(ex?.sets);
-	          if (!Number.isFinite(sets) || sets <= 0) continue;
+	          // `sets` may be a number (planned workouts) OR an array (saved session payload).
+	          const setsCountRaw = Array.isArray(ex?.sets) ? ex.sets.length : Number(ex?.sets);
+	          const setsCount = Number.isFinite(setsCountRaw) ? Math.round(setsCountRaw) : 0;
+	          if (setsCount <= 0) continue;
 	          const restRaw = ex?.restSec ?? ex?.rest ?? 90;
 	          const restSec = Number.isFinite(Number(restRaw)) ? Math.max(0, Math.round(Number(restRaw))) : 90;
 	          const setDurationSec = 60 + restSec;
-	          totalSec += Math.round(sets) * setDurationSec;
+	          totalSec += setsCount * setDurationSec;
 	          counted++;
 	        }
 	        if (counted > 0 && totalSec > 0) return Math.ceil(totalSec / 60);
