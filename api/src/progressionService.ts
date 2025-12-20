@@ -117,6 +117,12 @@ function mapEffortToRPE(effort: FrontendEffort | undefined): number {
   return mapping[effort] || 7;
 }
 
+function requiresExternalLoad(equipmentList: string[]): boolean {
+  // "bodyweight" is intentionally excluded: weight may be 0/omitted.
+  const loadable = ["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell"];
+  return equipmentList.some((eq) => loadable.includes(eq));
+}
+
 /**
  * Parse target reps range from string/number
  * Examples: "6-10" → [6, 10], 12 → [8, 12], "8-12" → [8, 12]
@@ -395,6 +401,12 @@ export async function applyProgressionFromSession(args: {
       // Working sets are a derivation rule (single source of truth in engine).
       const workingHistory = deriveWorkingHistory(fullHistory);
 
+      const hasAnyRecordedWeight = repsSets.some((s: any) => {
+        const w = s?.weight;
+        return typeof w === "number" && Number.isFinite(w) && w > 0;
+      });
+      const missingWeightData = requiresExternalLoad(exercise.equipment) && !hasAnyRecordedWeight;
+
       // Sync effective currentWeight with what user actually performed (use median of working weights).
       const workingWeights = workingHistory.sets
         .map((s) => s.weight)
@@ -428,6 +440,7 @@ export async function applyProgressionFromSession(args: {
       const doNotPenalize =
         plannedIntent === "light" ||
         Boolean(recoveryReason) ||
+        missingWeightData ||
         shortened ||
         workingHistory.sets.length < 2;
 
@@ -436,11 +449,13 @@ export async function applyProgressionFromSession(args: {
           ? "лёгкий день по плану"
           : recoveryReason
             ? `чек-ин: ${recoveryReason}`
-            : shortened && plannedSets
-              ? `сокращённая тренировка (${performedSets}/${plannedSets} подходов)`
-              : workingHistory.sets.length < 2
-                ? "недостаточно рабочих подходов"
-                : undefined;
+            : missingWeightData
+              ? "не указан вес в подходах (для прогрессии нужен вес хотя бы в рабочих подходах)"
+              : shortened && plannedSets
+                ? `сокращённая тренировка (${performedSets}/${plannedSets} подходов)`
+                : workingHistory.sets.length < 2
+                  ? "недостаточно рабочих подходов"
+                  : undefined;
 
       const context: ProgressionContext = {
         sessionRpe,

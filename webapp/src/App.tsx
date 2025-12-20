@@ -10,6 +10,7 @@ import CheckIn from "./screens/CheckIn";
 import Nutrition from "./screens/Nutrition";
 import Profile from "./screens/Profile";
 import WorkoutSession from "./screens/WorkoutSession";
+import WorkoutResult from "./screens/WorkoutResult";
 import History from "@/screens/History";
 import NutritionToday from "@/screens/NutritionToday";
 import Schedule from "./screens/Schedule";
@@ -178,6 +179,7 @@ export default function App() {
             <Route path="/nutrition" element={<Nutrition />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/workout/session" element={<WorkoutSession />} />
+            <Route path="/workout/result" element={<WorkoutResult />} />
              <Route path="/history" element={<History />} />
              <Route path="/nutrition/today" element={<NutritionToday />} />
              <Route path="/schedule" element={<Schedule />} />

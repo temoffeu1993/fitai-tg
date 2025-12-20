@@ -1,10 +1,11 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getProgressionJob, saveSession } from "@/api/plan";
+import { saveSession } from "@/api/plan";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
+const LAST_RESULT_KEY = "last_workout_result_v1";
 const SESSION_BG =
   "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";
 
@@ -76,12 +77,6 @@ export default function WorkoutSession() {
   const [items, setItems] = useState<Item[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [pendingNavHome, setPendingNavHome] = useState(false);
-  const [serverProgression, setServerProgression] = useState<any | null>(null);
-  const [progressionJob, setProgressionJob] = useState<{ id: string; status: string; lastError?: string | null } | null>(
-    null
-  );
   const [saveError, setSaveError] = useState<string | null>(null);
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
@@ -331,16 +326,17 @@ export default function WorkoutSession() {
     setFinishModal(true);
   };
 
-  const handleComplete = async () => {
-    if (!finishModal) {
-      openFinishModal();
-      return;
-    }
+	  const handleComplete = async () => {
+	    if (!finishModal) {
+	      openFinishModal();
+	      return;
+	    }
 
-    let saveOk = false;
-    let savedSessionId: string | null = null;
-    const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
-    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
+	    let saveOk = false;
+	    let savedSessionId: string | null = null;
+	    let saveResponse: any | null = null;
+	    const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
+	    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
 
     const payload = {
       title: plan.title,
@@ -364,67 +360,53 @@ export default function WorkoutSession() {
       },
     };
 
-    // сервер
-    try {
-      setSaving(true);
-      setServerProgression(null);
-      setProgressionJob(null);
-      setSaveError(null);
-      console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
-      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
-      const result = await saveSession(payload, {
-        ...extra,
-        startedAt: startedAtIso,
-        durationMin,
-      });
-      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
-      setServerProgression(result?.progression ?? null);
-      if (result?.progressionJobId) {
-        setProgressionJob({
-          id: String(result.progressionJobId),
-          status: String(result.progressionJobStatus || "pending"),
-          lastError: null,
-        });
-      }
-      saveOk = true;
-
-      // If progression was not ready immediately, poll a few times in background.
-      if (!result?.progression && result?.progressionJobId && result?.progressionJobStatus !== "done") {
-        const jobId = String(result.progressionJobId);
-        void (async () => {
-          const maxPolls = 4;
-          for (let i = 0; i < maxPolls; i++) {
-            await new Promise((r) => setTimeout(r, 1400 + Math.round(Math.random() * 900)));
-            try {
-              const jobRes = await getProgressionJob(jobId);
-              const job = jobRes?.job;
-              if (job?.status) {
-                setProgressionJob({ id: jobId, status: String(job.status), lastError: job.lastError ?? null });
-              }
-              if (job?.status === "done" && job?.result) {
-                setServerProgression(job.result);
-                break;
-              }
-              if (job?.status === "failed") {
-                break;
-              }
-            } catch {
-              // ignore polling errors
-            }
-          }
-        })();
-      }
-    } catch {
-      // не блокируем UX если сеть/сервер упали
-      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
+	    // сервер
+	    try {
+	      setSaving(true);
+	      setSaveError(null);
+	      console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
+	      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
+	      const result = await saveSession(payload, {
+	        ...extra,
+	        startedAt: startedAtIso,
+	        durationMin,
+	      });
+	      saveResponse = result;
+	      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
+	      saveOk = true;
+	    } catch {
+	      // не блокируем UX если сеть/сервер упали
+	      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
     } finally {
-      setSaving(false);
-      if (saveOk) {
-        setFinishModal(false);
+	      setSaving(false);
+	      if (saveOk) {
+	        setFinishModal(false);
 
-        // локальная история — только если реально сохранили на сервере
-        try {
-          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+	        const createdAt = new Date().toISOString();
+	        const storedResult = {
+	          version: 1 as const,
+	          createdAt,
+	          sessionId: savedSessionId,
+	          plannedWorkoutId: plannedWorkoutId || null,
+	          payload,
+	          progression: saveResponse?.progression ?? null,
+	          progressionJob: saveResponse?.progressionJobId
+	            ? {
+	                id: String(saveResponse.progressionJobId),
+	                status: String(saveResponse.progressionJobStatus || "pending"),
+	                lastError: null,
+	              }
+	            : null,
+	        };
+
+	        // сохраняем отдельный экран результата до очистки черновиков/плана
+	        try {
+	          localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(storedResult));
+	        } catch {}
+
+	        // локальная история — только если реально сохранили на сервере
+	        try {
+	          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
           const record = {
             id: savedSessionId || ((crypto as any)?.randomUUID?.() || String(Date.now())),
             finishedAt: new Date().toISOString(),
@@ -441,15 +423,14 @@ export default function WorkoutSession() {
         try {
           window.dispatchEvent(new CustomEvent("plan_completed"));
         } catch {}
-        try {
-          window.dispatchEvent(new CustomEvent("schedule_updated"));
-        } catch {}
+	        try {
+	          window.dispatchEvent(new CustomEvent("schedule_updated"));
+	        } catch {}
 
-        setPendingNavHome(true);
-        setShowConfetti(true);
-      }
-    }
-  };
+	        nav("/workout/result", { replace: true, state: { result: storedResult } });
+	      }
+	    }
+	  };
 
   return (
     <div style={page.outer}>
@@ -733,22 +714,11 @@ export default function WorkoutSession() {
         </div>
       </section>
 
-      {/* конфетти */}
-      {showConfetti && (
-        <Confetti
-          progression={serverProgression}
-          progressionJob={progressionJob}
-          onClose={() => {
-            setShowConfetti(false);
-            if (pendingNavHome) nav("/");
-          }}
-        />
-      )}
-      <div style={s.bottomSpacer} />
-      </div>
-    </div>
-  );
-}
+	      <div style={s.bottomSpacer} />
+	      </div>
+	    </div>
+	  );
+	}
 
 /* ---------- Мелкие компоненты ---------- */
 function NumInput({

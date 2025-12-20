@@ -206,7 +206,7 @@ function analyzePerformance(
 export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
   const allSets = full.sets ?? [];
   const sets = allSets.filter((s) => Boolean(s.completed) && (s.actualReps ?? 0) > 0);
-  if (sets.length === 0) return full;
+  if (sets.length === 0) return { ...full, sets };
 
   const weights = sets
     .map((s) => s.weight)
@@ -219,10 +219,8 @@ export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
   const maxW = weights[weights.length - 1] ?? 0;
   if (maxW <= 0) return { ...full, sets };
 
-  const working = sets.filter((s) => (s.weight ?? 0) >= maxW * 0.85);
-  if (working.length >= 2) {
-    return { ...full, sets: working };
-  }
+  const working = sets.filter((s) => (s.weight ?? 0) > 0 && (s.weight ?? 0) >= maxW * 0.85);
+  if (working.length > 0) return { ...full, sets: working };
 
   // Fallback: take the heaviest 2 performed sets
   const top2 = [...sets]
@@ -230,7 +228,9 @@ export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
     .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
     .slice(-2);
 
-  return top2.length >= 2 ? { ...full, sets: top2 } : full;
+  // If only 1 weighted set exists (e.g. user entered weight only for top set),
+  // treat that single set as the only working set to avoid counting unweighted sets as working.
+  return top2.length > 0 ? { ...full, sets: top2 } : { ...full, sets };
 }
 
 function getLoadableEquipment(equipmentList: string[]): string | null {

@@ -173,6 +173,73 @@ async function run() {
   assert(approxEqual(Number(progB.current_weight), 62.5), "CASE B DB current_weight should remain 62.5");
   assert(Number(progB.stall_count) === 0, "CASE B stall_count should remain 0");
 
+  console.log("\nCASE B2: missing weight data for loadable exercise, should maintain and no stall");
+  const b2 = await applyProgressionFromSession({
+    userId,
+    goal: "build_muscle",
+    experience: "intermediate",
+    workoutDate: today,
+    payload: {
+      title: "B2",
+      durationMin: 60,
+      exercises: [
+        {
+          id: bench.id,
+          name: bench.name,
+          reps: "8-12",
+          effort: "working",
+          done: true,
+          sets: [
+            { reps: 12 }, // weight omitted
+            { reps: 12 }, // weight omitted
+            { reps: 12 }, // weight omitted
+          ],
+        },
+      ],
+      feedback: { sessionRpe: 7 },
+    },
+  });
+  assert(b2.details[0]?.recommendation?.action === "maintain", "CASE B2 expected maintain");
+  assert(
+    String(b2.details[0]?.recommendation?.reason || "").includes("не указан вес"),
+    "CASE B2 expected missing weight reason"
+  );
+  const progB2 = await getProg(userId, bench.id);
+  assert(progB2, "CASE B2 progression row missing");
+  assert(approxEqual(Number(progB2.current_weight), 62.5), "CASE B2 current_weight should remain 62.5");
+  assert(Number(progB2.stall_count) === 0, "CASE B2 stall_count should remain 0");
+
+  console.log("\nCASE B3: only one weighted set, should maintain and no stall (insufficient working data)");
+  const b3 = await applyProgressionFromSession({
+    userId,
+    goal: "build_muscle",
+    experience: "intermediate",
+    workoutDate: today,
+    payload: {
+      title: "B3",
+      durationMin: 60,
+      exercises: [
+        {
+          id: bench.id,
+          name: bench.name,
+          reps: "8-12",
+          effort: "working",
+          done: true,
+          sets: [
+            { reps: 12, weight: 62.5 },
+            { reps: 10 }, // missing weight
+            { reps: 9 },  // missing weight
+          ],
+        },
+      ],
+      feedback: { sessionRpe: 7 },
+    },
+  });
+  assert(b3.details[0]?.recommendation?.action === "maintain", "CASE B3 expected maintain");
+  const progB3 = await getProg(userId, bench.id);
+  assert(progB3, "CASE B3 progression row missing");
+  assert(Number(progB3.stall_count) === 0, "CASE B3 stall_count should remain 0");
+
   console.log("\nCASE C: do-not-penalize via planned intent=light, should maintain and no stall");
   const plannedLightId = await insertPlannedWorkout({
     userId,

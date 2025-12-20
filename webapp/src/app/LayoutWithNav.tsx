@@ -15,6 +15,9 @@ function resolveNavCurrent(pathname: string): NavCurrent {
 }
 
 function shouldHideNav(_pathname: string) {
+  const pathname = _pathname || "";
+  if (pathname.startsWith("/workout/session")) return true;
+  if (pathname.startsWith("/workout/result")) return true;
   return false;
 }
 
@@ -139,7 +142,14 @@ export default function LayoutWithNav() {
   const disableKeyboardShift = pathname.startsWith("/workout/session");
 
   return (
-    <div style={{ minHeight: "100%", background: "transparent", paddingBottom: 72, position: "relative" }}>
+    <div
+      style={{
+        minHeight: "100%",
+        background: "transparent",
+        paddingBottom: hideNav ? 0 : 72,
+        position: "relative",
+      }}
+    >
       {/* общий фиксированный фон */}
       <BgGradient />
 
