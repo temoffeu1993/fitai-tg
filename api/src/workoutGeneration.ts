@@ -1023,18 +1023,44 @@ workoutGeneration.post(
     let swapInfo = null;
     let workoutData: any;
     
-    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
-    if (decision.action === "keep_day") {
-      const availableMinutes = readiness.effectiveMinutes ?? checkin?.availableMinutes ?? null;
-      const baseEstimated = Number(basePlan?.estimatedDuration);
-      const shouldAdaptForTime =
-        typeof availableMinutes === "number" &&
-        Number.isFinite(availableMinutes) &&
-        Number.isFinite(baseEstimated) &&
-        baseEstimated > availableMinutes + 10; // allow small buffer
+	    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
+	    if (decision.action === "keep_day") {
+	      const availableMinutes = readiness.effectiveMinutes ?? checkin?.availableMinutes ?? null;
+	      const estimateBasePlanMinutes = (plan: any): number | null => {
+	        const rawExercises = plan?.exercises;
+	        const exercises = Array.isArray(rawExercises) ? rawExercises : [];
+	        let totalSec = 0;
+	        let counted = 0;
+	        for (const ex of exercises) {
+	          const sets = Number(ex?.sets);
+	          if (!Number.isFinite(sets) || sets <= 0) continue;
+	          const restRaw = ex?.restSec ?? ex?.rest ?? 90;
+	          const restSec = Number.isFinite(Number(restRaw)) ? Math.max(0, Math.round(Number(restRaw))) : 90;
+	          const setDurationSec = 60 + restSec;
+	          totalSec += Math.round(sets) * setDurationSec;
+	          counted++;
+	        }
+	        if (counted > 0 && totalSec > 0) return Math.ceil(totalSec / 60);
+	        const totalSetsRaw = Number(plan?.totalSets);
+	        if (Number.isFinite(totalSetsRaw) && totalSetsRaw > 0) return Math.ceil(totalSetsRaw * 2.5);
+	        const totalExRaw = Number(plan?.totalExercises);
+	        if (Number.isFinite(totalExRaw) && totalExRaw > 0) return Math.ceil(totalExRaw * 7.5);
+	        return null;
+	      };
 
-      if (shouldAdaptForTime) {
-        console.log(
+	      const estimatedRaw = Number(basePlan?.estimatedDuration);
+	      const baseEstimated = Number.isFinite(estimatedRaw) && estimatedRaw > 0
+	        ? estimatedRaw
+	        : estimateBasePlanMinutes(basePlan);
+	      const shouldAdaptForTime =
+	        typeof availableMinutes === "number" &&
+	        Number.isFinite(availableMinutes) &&
+	        typeof baseEstimated === "number" &&
+	        Number.isFinite(baseEstimated) &&
+	        baseEstimated > availableMinutes + 10; // allow small buffer
+
+	      if (shouldAdaptForTime) {
+	        console.log(
           `   ✅ KEEP_DAY: Day stays the same, but workout is too long (${baseEstimated}min > ${availableMinutes}min + 10) → regenerating with timeBucket=${readiness.timeBucket}`
         );
 
