@@ -17,6 +17,9 @@ type PlanExercise = {
   restSec?: number;
   pattern?: string;
   weight?: string | number | null; // ← новое: целевой вес от тренера, если есть
+  loadType?: "bodyweight" | "external" | "assisted";
+  requiresWeightInput?: boolean;
+  weightLabel?: string;
 };
 
 type Plan = {
@@ -38,6 +41,9 @@ type Item = {
   targetReps?: string | number;
   targetWeight?: string | null; // рекомендация по весу от тренера, строка типа "12 кг" или "20 кг штанга"
   restSec?: number;
+  loadType?: "bodyweight" | "external" | "assisted";
+  requiresWeightInput?: boolean;
+  weightLabel?: string;
   sets: SetEntry[];
   done?: boolean;
   effort?: EffortTag;
@@ -194,23 +200,26 @@ export default function WorkoutSession() {
       return;
     }
 
-    setItems(
-      plan.exercises.map((ex) => ({
-        id: (ex as any).exerciseId || (ex as any).id || (ex as any).exercise?.id,
-        name: ex.name,
-        pattern: ex.pattern,
-        targetMuscles: (ex as any).targetMuscles || [],
-        targetReps: ex.reps,
-        targetWeight:
-          (ex as any).weight != null
-            ? String((ex as any).weight)
-            : (ex as any).targetWeight ?? null,
-        restSec: ex.restSec,
-        done: false,
-        effort: null,
-        sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
-          reps: undefined,
-          weight: undefined,
+	    setItems(
+	      plan.exercises.map((ex) => ({
+	        id: (ex as any).exerciseId || (ex as any).id || (ex as any).exercise?.id,
+	        name: ex.name,
+	        pattern: ex.pattern,
+	        targetMuscles: (ex as any).targetMuscles || [],
+	        targetReps: ex.reps,
+	        targetWeight:
+	          (ex as any).weight != null
+	            ? String((ex as any).weight)
+	            : (ex as any).targetWeight ?? null,
+	        restSec: ex.restSec,
+	        loadType: (ex as any).loadType,
+	        requiresWeightInput: (ex as any).requiresWeightInput,
+	        weightLabel: (ex as any).weightLabel,
+	        done: false,
+	        effort: null,
+	        sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
+	          reps: undefined,
+	          weight: undefined,
         })),
       }))
     );
@@ -494,21 +503,33 @@ export default function WorkoutSession() {
 
       {/* Упражнения */}
       <main style={{ display: "grid", gap: 12 }}>
-        {items.map((it, ei) => {
-          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
-          const hasExplicitWeight =
-            typeof it.targetWeight === "number" ||
-            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
-          const showWeightInput = !isBodyweight || hasExplicitWeight;
-          return (
-            <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
-              <button
-                type="button"
-                onClick={() => toggleExerciseDone(ei, showWeightInput)}
-                className="check-toggle"
-                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
-                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
-              >
+	        {items.map((it, ei) => {
+	          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
+	          const hasExplicitWeight =
+	            typeof it.targetWeight === "number" ||
+	            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
+	          const loadType =
+	            it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
+	          const showWeightInput = loadType !== "bodyweight";
+	          const requiresWeight =
+	            typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
+	          const weightPlaceholder =
+	            typeof it.weightLabel === "string" && it.weightLabel.trim()
+	              ? it.weightLabel.toLowerCase().includes("помощ")
+	                ? "помощь кг"
+	                : "кг"
+	              : loadType === "assisted"
+	                ? "помощь кг"
+	                : "кг";
+	          return (
+	            <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
+	              <button
+	                type="button"
+	                onClick={() => toggleExerciseDone(ei, requiresWeight)}
+	                className="check-toggle"
+	                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
+	                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
+	              >
                 ✓
               </button>
               {blockedCheck === ei && (
@@ -544,14 +565,14 @@ export default function WorkoutSession() {
                         onChange={(v) => setValue(ei, si, "reps", v)}
                         disabled={it.done}
                       />
-                      {showWeightInput ? (
-                        <NumInput
-                          value={s.weight}
-                          placeholder="кг"
-                          onChange={(v) => setValue(ei, si, "weight", v)}
-                          disabled={it.done}
-                        />
-                      ) : null}
+	                      {showWeightInput ? (
+	                        <NumInput
+	                          value={s.weight}
+	                          placeholder={weightPlaceholder}
+	                          onChange={(v) => setValue(ei, si, "weight", v)}
+	                          disabled={it.done}
+	                        />
+	                      ) : null}
                     </div>
                   </div>
                 ))}

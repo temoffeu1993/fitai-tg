@@ -93,6 +93,11 @@ export type DayExercise = {
   // NEW: Progression system
   suggestedWeight?: number; // Рекомендуемый вес от системы прогрессии
   progressionNote?: string; // Заметка о прогрессии (прогресс/deload/история)
+
+  // NEW: UI load type (avoid name-based heuristics on frontend)
+  loadType?: "bodyweight" | "external" | "assisted";
+  requiresWeightInput?: boolean; // for completion gate (e.g. assisted machines)
+  weightLabel?: string; // e.g. "Вес (кг)" or "Помощь (кг)"
 };
 
 export type GeneratedWorkoutDay = {
@@ -118,6 +123,39 @@ export type GeneratedWorkoutDay = {
 // ============================================================================
 // HELPER: Calculate sets/reps using Volume Engine
 // ============================================================================
+
+function inferLoadInfo(exercise: Exercise): {
+  loadType: "bodyweight" | "external" | "assisted";
+  requiresWeightInput: boolean;
+  weightLabel: string;
+} {
+  const id = String((exercise as any).id || "").toLowerCase();
+  const name = String((exercise as any).name || "").toLowerCase();
+  const nameEn = String((exercise as any).nameEn || "").toLowerCase();
+  const equipment = Array.isArray((exercise as any).equipment) ? (exercise as any).equipment : [];
+
+  const isAssisted =
+    id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
+  if (isAssisted) {
+    return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь (кг)" };
+  }
+
+  const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
+  const hasExternal = equipment.some((eq: string) => loadable.has(eq));
+  const hasBodyweight = equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
+
+  if (!hasExternal) {
+    return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "" };
+  }
+
+  // Some exercises can be done either with BW or added load (e.g. glute bridge).
+  // Show weight input, but don't force it for completion if BW is a valid variant.
+  return {
+    loadType: "external",
+    requiresWeightInput: !hasBodyweight,
+    weightLabel: "Вес (кг)",
+  };
+}
 
 function calculateSetsReps(args: {
   role: "main" | "secondary" | "accessory" | "pump" | "conditioning";
@@ -562,12 +600,13 @@ export function generateRecoverySession(args: {
     },
   ];
   
-  // Adjust duration if needed
-  // NEW: добавляем coversPatterns для совместимости с DayExercise type
-  let exercises: DayExercise[] = baseRecovery.map(ex => ({
-    ...ex,
-    coversPatterns: ex.exercise.patterns,
-  }));
+	  // Adjust duration if needed
+	  // NEW: добавляем coversPatterns для совместимости с DayExercise type
+	  let exercises: DayExercise[] = baseRecovery.map(ex => ({
+	    ...ex,
+	    coversPatterns: ex.exercise.patterns,
+	    ...inferLoadInfo(ex.exercise),
+	  }));
   const estimatedDuration = Math.ceil(exercises.length * 3); // ~3 min per exercise
   
   if (availableMinutes < estimatedDuration && exercises.length > 3) {
@@ -1017,7 +1056,7 @@ export async function generateWorkoutDay(args: {
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
-  const exercises = selectedExercises.map(({ ex, role }) => {
+	  const exercises = selectedExercises.map(({ ex, role }) => {
     // КРИТИЧНО: используем role из селектора (он уже правильно рассчитан с downgrade)
 
     let { sets, repsRange, restSec } = calculateSetsReps({
@@ -1072,12 +1111,13 @@ export async function generateWorkoutDay(args: {
 	      progressionNote = (emoji ? `${emoji} ` : "") + String(recommendation.reason || "").trim();
 	    }
 
-    return {
-      exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)
-      sets,
-      repsRange,
-      restSec,
-      notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
+	    return {
+	      ...inferLoadInfo(ex),
+	      exercise: ex, // КРИТИЧНО: ex уже Exercise (из selected.ex)
+	      sets,
+	      repsRange,
+	      restSec,
+	      notes: Array.isArray(ex.cues) ? ex.cues.join(". ") : (ex.cues || ""),
       role, // Role из селектора (правильно downgraded для doubles)
       coversPatterns: ex.patterns, // NEW: для coverage-aware trimming
       suggestedWeight, // NEW: Рекомендуемый вес от прогрессии

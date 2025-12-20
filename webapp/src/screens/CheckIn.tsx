@@ -16,12 +16,16 @@ function toSessionPlan(workout: any) {
     location,
     duration,
     exercises: exercises.map((ex: any) => ({
+      exerciseId: ex?.exerciseId || ex?.id || undefined,
       name: String(ex?.name || ex?.exerciseName || "Упражнение"),
       sets: Number(ex?.sets) || 1,
       reps: ex?.reps || ex?.repsRange || "",
       restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
       pattern: ex?.pattern,
       weight: ex?.weight ?? null,
+      loadType: ex?.loadType,
+      requiresWeightInput: ex?.requiresWeightInput,
+      weightLabel: ex?.weightLabel,
     })),
   };
 }

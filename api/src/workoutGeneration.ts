@@ -14,6 +14,7 @@ import {
   type CheckInData,
   type WorkoutHistory,
 } from "./workoutDayGenerator.js";
+import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
 import {
   NORMALIZED_SCHEMES,
   type ExperienceLevel,
@@ -43,6 +44,46 @@ function getUid(req: any): string {
 
 const isUUID = (s: unknown) =>
   typeof s === "string" && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+
+function inferLoadInfoFromExercise(exercise: any): {
+  loadType: "bodyweight" | "external" | "assisted";
+  requiresWeightInput: boolean;
+  weightLabel: string;
+} {
+  const id = String(exercise?.id || "").toLowerCase();
+  const name = String(exercise?.name || "").toLowerCase();
+  const nameEn = String(exercise?.nameEn || "").toLowerCase();
+  const equipment = Array.isArray(exercise?.equipment) ? exercise.equipment : [];
+
+  const isAssisted = id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
+  if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь (кг)" };
+
+  const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
+  const hasExternal = equipment.some((eq: string) => loadable.has(eq));
+  const hasBodyweight =
+    equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
+
+  if (!hasExternal) return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "" };
+  return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel: "Вес (кг)" };
+}
+
+function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
+  if (!Array.isArray(exercises)) return [];
+  return exercises.map((ex: any) => {
+    if (ex?.loadType && typeof ex?.requiresWeightInput === "boolean") return ex;
+    const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+    const lib = typeof id === "string" ? EXERCISE_LIBRARY.find((e) => e.id === id) : null;
+    const inferred = inferLoadInfoFromExercise(
+      lib || { id, name: ex?.exerciseName || ex?.name, equipment: ex?.equipment || [] }
+    );
+    return {
+      ...ex,
+      loadType: ex?.loadType ?? inferred.loadType,
+      requiresWeightInput: ex?.requiresWeightInput ?? inferred.requiresWeightInput,
+      weightLabel: ex?.weightLabel ?? inferred.weightLabel,
+    };
+  });
+}
 
 // ============================================================================
 // POST /check-in - Save daily check-in
@@ -254,19 +295,22 @@ workoutGeneration.post(
         dayLabel: workout.dayLabel,
         dayFocus: workout.dayFocus,
         intent: workout.intent,
-        exercises: workout.exercises.map(ex => ({
-          exerciseId: ex.exercise.id,
-          exerciseName: ex.exercise.name,
-          sets: ex.sets,
-          repsRange: ex.repsRange,
-          restSec: ex.restSec,
-          notes: ex.notes,
-          targetMuscles: ex.exercise.primaryMuscles,
-        })),
-        totalExercises: workout.totalExercises,
-        totalSets: workout.totalSets,
-        estimatedDuration: workout.estimatedDuration,
-        adaptationNotes: workout.adaptationNotes,
+	        exercises: workout.exercises.map(ex => ({
+	          exerciseId: ex.exercise.id,
+	          exerciseName: ex.exercise.name,
+	          sets: ex.sets,
+	          repsRange: ex.repsRange,
+	          restSec: ex.restSec,
+	          notes: ex.notes,
+	          targetMuscles: ex.exercise.primaryMuscles,
+	          loadType: (ex as any).loadType,
+	          requiresWeightInput: (ex as any).requiresWeightInput,
+	          weightLabel: (ex as any).weightLabel,
+	        })),
+	        totalExercises: workout.totalExercises,
+	        totalSets: workout.totalSets,
+	        estimatedDuration: workout.estimatedDuration,
+	        adaptationNotes: workout.adaptationNotes,
         warnings: workout.warnings,
       };
       
@@ -297,21 +341,24 @@ workoutGeneration.post(
       plan: {
         id: `week_${Date.now()}`,
         warmup: todayWorkout.warmup,
-        exercises: todayWorkout.exercises.map(ex => ({
-          exerciseId: ex.exercise.id,
-          name: ex.exercise.name,
-          sets: ex.sets,
-          reps: ex.repsRange,
-          restSec: ex.restSec,
-          weight: ex.suggestedWeight ?? 0,
-          targetMuscles: ex.exercise.primaryMuscles,
-          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
-          // NEW: Detailed fields
-          technique: ex.exercise.technique,
-          equipment: ex.exercise.equipment,
-          difficulty: ex.exercise.difficulty,
-          unilateral: ex.exercise.unilateral,
-        })),
+	        exercises: todayWorkout.exercises.map(ex => ({
+	          exerciseId: ex.exercise.id,
+	          name: ex.exercise.name,
+	          sets: ex.sets,
+	          reps: ex.repsRange,
+	          restSec: ex.restSec,
+	          weight: ex.suggestedWeight ?? 0,
+	          targetMuscles: ex.exercise.primaryMuscles,
+	          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
+	          // NEW: Detailed fields
+	          technique: ex.exercise.technique,
+	          equipment: ex.exercise.equipment,
+	          difficulty: ex.exercise.difficulty,
+	          unilateral: ex.exercise.unilateral,
+	          loadType: (ex as any).loadType,
+	          requiresWeightInput: (ex as any).requiresWeightInput,
+	          weightLabel: (ex as any).weightLabel,
+	        })),
         cooldown: todayWorkout.cooldown,
         dayLabel: todayWorkout.dayLabel,
         focus: todayWorkout.dayFocus,
@@ -648,15 +695,18 @@ workoutGeneration.post(
       dayLabel: workout.dayLabel,
       dayFocus: workout.dayFocus,
       intent: workout.intent,
-      exercises: workout.exercises.map(ex => ({
-        exerciseId: ex.exercise.id,
-        exerciseName: ex.exercise.name,
-        sets: ex.sets,
-        repsRange: ex.repsRange,
-        restSec: ex.restSec,
-        notes: ex.notes,
-        targetMuscles: ex.exercise.primaryMuscles,
-      })),
+	        exercises: workout.exercises.map(ex => ({
+	          exerciseId: ex.exercise.id,
+	          exerciseName: ex.exercise.name,
+	          sets: ex.sets,
+	          repsRange: ex.repsRange,
+	          restSec: ex.restSec,
+	          notes: ex.notes,
+	          targetMuscles: ex.exercise.primaryMuscles,
+	          loadType: (ex as any).loadType,
+	          requiresWeightInput: (ex as any).requiresWeightInput,
+	          weightLabel: (ex as any).weightLabel,
+	        })),
       totalExercises: workout.totalExercises,
       totalSets: workout.totalSets,
       estimatedDuration: workout.estimatedDuration,
@@ -959,7 +1009,7 @@ workoutGeneration.post(
       });
     }
     
-    if (decision.action === "recovery") {
+	    if (decision.action === "recovery") {
       console.log(`   🧘 RECOVERY: Replacing ${basePlan.dayLabel}`);
       // Generate recovery session
       const { generateRecoverySession } = await import("./workoutDayGenerator.js");
@@ -978,15 +1028,18 @@ workoutGeneration.post(
         dayLabel: "Recovery",
         dayFocus: "Мобильность и растяжка",
         intent: "light",
-        exercises: recoveryWorkout.exercises.map(ex => ({
-          exerciseId: ex.exercise.id,
-          exerciseName: ex.exercise.name,
-          sets: ex.sets,
-          repsRange: ex.repsRange,
-          restSec: ex.restSec,
-          notes: ex.notes,
-          targetMuscles: ex.exercise.primaryMuscles,
-        })),
+	        exercises: recoveryWorkout.exercises.map(ex => ({
+	          exerciseId: ex.exercise.id,
+	          exerciseName: ex.exercise.name,
+	          sets: ex.sets,
+	          repsRange: ex.repsRange,
+	          restSec: ex.restSec,
+	          notes: ex.notes,
+	          targetMuscles: ex.exercise.primaryMuscles,
+	          loadType: (ex as any).loadType,
+	          requiresWeightInput: (ex as any).requiresWeightInput,
+	          weightLabel: (ex as any).weightLabel,
+	        })),
         totalExercises: recoveryWorkout.totalExercises,
         totalSets: recoveryWorkout.totalSets,
         estimatedDuration: recoveryWorkout.estimatedDuration,
@@ -1095,22 +1148,25 @@ workoutGeneration.post(
           ...(adaptedWorkout.adaptationNotes || []),
         ];
 
-        workoutData = {
+	        workoutData = {
           schemeId: scheme.id,
           schemeName: adaptedWorkout.schemeName,
           dayIndex: adaptedWorkout.dayIndex,
           dayLabel: adaptedWorkout.dayLabel,
           dayFocus: adaptedWorkout.dayFocus,
           intent: adaptedWorkout.intent,
-          exercises: adaptedWorkout.exercises.map((ex) => ({
-            exerciseId: ex.exercise.id,
-            exerciseName: ex.exercise.name,
-            sets: ex.sets,
-            repsRange: ex.repsRange,
-            restSec: ex.restSec,
-            notes: ex.notes,
-            targetMuscles: ex.exercise.primaryMuscles,
-          })),
+	          exercises: adaptedWorkout.exercises.map((ex) => ({
+	            exerciseId: ex.exercise.id,
+	            exerciseName: ex.exercise.name,
+	            sets: ex.sets,
+	            repsRange: ex.repsRange,
+	            restSec: ex.restSec,
+	            notes: ex.notes,
+	            targetMuscles: ex.exercise.primaryMuscles,
+	            loadType: (ex as any).loadType,
+	            requiresWeightInput: (ex as any).requiresWeightInput,
+	            weightLabel: (ex as any).weightLabel,
+	          })),
           totalExercises: adaptedWorkout.totalExercises,
           totalSets: adaptedWorkout.totalSets,
           estimatedDuration: adaptedWorkout.estimatedDuration,
@@ -1129,8 +1185,8 @@ workoutGeneration.post(
         console.log(
           `   ✅ KEEP_DAY: Regenerated workout (${workoutData.totalExercises} ex, ${workoutData.totalSets} sets, ${workoutData.estimatedDuration}min)`
         );
-      } else {
-        console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
+	      } else {
+	        console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
       
         // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
         const combinedNotes = [
@@ -1138,12 +1194,16 @@ workoutGeneration.post(
           ...(basePlan.adaptationNotes || []),
         ];
 
-        workoutData = {
-          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
-          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
-          // Обновляем метаданные
-          meta: {
+	        const enrichedExercises = enrichLoadInfoForStoredPlanExercises(
+	          Array.isArray(basePlan?.exercises) ? basePlan.exercises : []
+	        );
+	        workoutData = {
+	          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
+	          exercises: enrichedExercises,
+	          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+	          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
+	          // Обновляем метаданные
+	          meta: {
             adaptedAt: new Date().toISOString(),
             originalDayIndex,
             finalDayIndex: originalDayIndex,
@@ -1185,7 +1245,7 @@ workoutGeneration.post(
         });
       }
       
-      const adaptedWorkout = await generateWorkoutDay({
+	      const adaptedWorkout = await generateWorkoutDay({
         scheme,
         dayIndex: finalDayIndex,
         userProfile,
@@ -1195,22 +1255,25 @@ workoutGeneration.post(
         weekPlanData,
       });
       
-      workoutData = {
+	      workoutData = {
         schemeId: scheme.id,
         schemeName: adaptedWorkout.schemeName,
         dayIndex: adaptedWorkout.dayIndex,
         dayLabel: adaptedWorkout.dayLabel,
         dayFocus: adaptedWorkout.dayFocus,
         intent: adaptedWorkout.intent,
-        exercises: adaptedWorkout.exercises.map(ex => ({
-          exerciseId: ex.exercise.id,
-          exerciseName: ex.exercise.name,
-          sets: ex.sets,
-          repsRange: ex.repsRange,
-          restSec: ex.restSec,
-          notes: ex.notes,
-          targetMuscles: ex.exercise.primaryMuscles,
-        })),
+	        exercises: adaptedWorkout.exercises.map(ex => ({
+	          exerciseId: ex.exercise.id,
+	          exerciseName: ex.exercise.name,
+	          sets: ex.sets,
+	          repsRange: ex.repsRange,
+	          restSec: ex.restSec,
+	          notes: ex.notes,
+	          targetMuscles: ex.exercise.primaryMuscles,
+	          loadType: (ex as any).loadType,
+	          requiresWeightInput: (ex as any).requiresWeightInput,
+	          weightLabel: (ex as any).weightLabel,
+	        })),
         totalExercises: adaptedWorkout.totalExercises,
         totalSets: adaptedWorkout.totalSets,
         estimatedDuration: adaptedWorkout.estimatedDuration,
