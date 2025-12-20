@@ -34,6 +34,17 @@ import {
 
 import { q } from "./db.js";
 
+function isProgressionDebug(): boolean {
+  const v = process.env.DEBUG_PROGRESSION || process.env.DEBUG_AI || "";
+  if (v === "1" || v === "true") return true;
+  return String(v).toLowerCase().includes("progression");
+}
+
+function progLog(...args: any[]) {
+  if (!isProgressionDebug()) return;
+  console.log(...args);
+}
+
 // ============================================================================
 // TYPES: Payload structure from frontend
 // ============================================================================
@@ -238,6 +249,7 @@ export async function applyProgressionFromSession(args: {
   console.log(`  Workout date: ${workoutDate}`);
   console.log(`  Goal: ${goal}, Experience: ${experience}`);
   console.log(`  Exercises: ${payload.exercises?.length || 0}`);
+  progLog(`  [ProgressionService][debug] plannedWorkoutId=${plannedWorkoutId || "null"} sessionId=${sessionId || "null"}`);
 
   const sessionRpeRaw = payload.feedback?.sessionRpe;
   const sessionRpe =
@@ -337,6 +349,16 @@ export async function applyProgressionFromSession(args: {
   
   // Process each exercise
   for (const exerciseData of payload.exercises) {
+    progLog(
+      `\n  [ProgressionService][debug] Exercise payload:`,
+      {
+        id: exerciseData.id,
+        name: exerciseData.name,
+        reps: exerciseData.reps,
+        effort: exerciseData.effort,
+        setsCount: Array.isArray(exerciseData.sets) ? exerciseData.sets.length : 0,
+      }
+    );
     // Skip if no sets recorded
     if (!exerciseData.sets || exerciseData.sets.length === 0) {
       console.log(`  ⏭️  Skipping "${exerciseData.name}" (no sets recorded)`);
@@ -351,6 +373,10 @@ export async function applyProgressionFromSession(args: {
       skippedCount++;
       continue;
     }
+    progLog(
+      `  [ProgressionService][debug] repsSets=${repsSets.length}`,
+      repsSets.map((s) => ({ reps: s.reps ?? null, weight: s.weight ?? null }))
+    );
     
     // Find exercise in library
     const exercise =
@@ -380,9 +406,11 @@ export async function applyProgressionFromSession(args: {
       
       // Parse target reps range
       const targetRepsRange = parseRepsRange(exerciseData.reps);
+      progLog(`  [ProgressionService][debug] targetRepsRange=${targetRepsRange[0]}-${targetRepsRange[1]}`);
       
       // Map frontend effort to RPE
       const avgRpe = mapEffortToRPE(exerciseData.effort);
+      progLog(`  [ProgressionService][debug] mappedSetRpe=${avgRpe} sessionRpe=${sessionRpe ?? "n/a"}`);
       
       // Build full ExerciseHistory (store all reps-based sets)
       const fullHistory: ExerciseHistory = {
@@ -400,12 +428,19 @@ export async function applyProgressionFromSession(args: {
 
       // Working sets are a derivation rule (single source of truth in engine).
       const workingHistory = deriveWorkingHistory(fullHistory);
+      progLog(
+        `  [ProgressionService][debug] workingSets=${workingHistory.sets.length}/${fullHistory.sets.length}`,
+        workingHistory.sets.map((s) => ({ reps: s.actualReps, weight: s.weight }))
+      );
 
       const hasAnyRecordedWeight = repsSets.some((s: any) => {
         const w = s?.weight;
         return typeof w === "number" && Number.isFinite(w) && w > 0;
       });
       const missingWeightData = requiresExternalLoad(exercise.equipment) && !hasAnyRecordedWeight;
+      progLog(
+        `  [ProgressionService][debug] equipment=${exercise.equipment.join(",")} requiresLoad=${requiresExternalLoad(exercise.equipment)} hasAnyWeight=${hasAnyRecordedWeight} missingWeightData=${missingWeightData}`
+      );
 
       // Sync effective currentWeight with what user actually performed (use median of working weights).
       const workingWeights = workingHistory.sets
@@ -416,6 +451,9 @@ export async function applyProgressionFromSession(args: {
         workingWeights.length > 0
           ? workingWeights[Math.floor(workingWeights.length / 2)]
           : progressionData.currentWeight;
+      progLog(
+        `  [ProgressionService][debug] currentWeight(db)=${progressionData.currentWeight} effectiveCurrentWeight=${effectiveCurrentWeight} workingWeights=${workingWeights}`
+      );
 
       const plannedSets =
         plannedSetsByExerciseId.get(exercise.id) ??
@@ -431,6 +469,9 @@ export async function applyProgressionFromSession(args: {
         typeof plannedSets === "number" &&
         plannedSets > 0 &&
         performedSets / plannedSets < 0.75;
+      progLog(
+        `  [ProgressionService][debug] plannedSets=${plannedSets ?? "n/a"} performedSets=${performedSets} shortened=${shortened}`
+      );
 
       const antiOverreach =
         (typeof sessionRpe === "number" && sessionRpe >= 9) ||
@@ -443,6 +484,9 @@ export async function applyProgressionFromSession(args: {
         missingWeightData ||
         shortened ||
         workingHistory.sets.length < 2;
+      progLog(
+        `  [ProgressionService][debug] plannedIntent=${plannedIntent ?? "n/a"} recoveryReason=${recoveryReason ?? "n/a"} doNotPenalize=${doNotPenalize} antiOverreach=${antiOverreach}`
+      );
 
       const doNotPenalizeReason =
         plannedIntent === "light"
@@ -483,6 +527,17 @@ export async function applyProgressionFromSession(args: {
         workoutHistory: fullHistory,
         context,
       });
+      progLog(
+        `  [ProgressionService][debug] recommendation`,
+        {
+          action: recommendation.action,
+          newWeight: recommendation.newWeight,
+          newRepsTarget: recommendation.newRepsTarget,
+          failedLowerBound: recommendation.failedLowerBound,
+          reason: recommendation.reason,
+          explain: recommendation.explain,
+        }
+      );
       
       // Update progression data based on recommendation
       const updatedData = updateProgressionData({
@@ -491,10 +546,25 @@ export async function applyProgressionFromSession(args: {
         recommendation,
         goal,
       });
+      progLog(
+        `  [ProgressionService][debug] updatedData`,
+        {
+          currentWeight: updatedData.currentWeight,
+          stallCount: updatedData.stallCount,
+          deloadCount: updatedData.deloadCount,
+          status: updatedData.status,
+          lastProgressDate: updatedData.lastProgressDate ?? null,
+        }
+      );
       
       // Save to database
+      progLog(`  [ProgressionService][debug] saving progression/history to DB...`);
       await saveProgressionData(updatedData, userId);
       await saveWorkoutHistory(fullHistory, userId, { sessionId });
+      progLog(
+        `  [ProgressionService][debug] saved ✅`,
+        { exerciseId: exercise.id, workoutDate, sessionId: sessionId ?? null, setsSaved: fullHistory.sets.length }
+      );
       
       // Update summary counts
       if (recommendation.action === "increase_weight" || recommendation.action === "increase_reps") {

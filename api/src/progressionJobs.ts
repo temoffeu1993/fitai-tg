@@ -53,6 +53,17 @@ function readEnvFloat(name: string, fallback: number): number {
   return Number.isFinite(v) ? v : fallback;
 }
 
+function isProgressionDebug(): boolean {
+  const v = process.env.DEBUG_PROGRESSION || process.env.DEBUG_AI || "";
+  if (v === "1" || v === "true") return true;
+  return String(v).toLowerCase().includes("progression");
+}
+
+function progLog(...args: any[]) {
+  if (!isProgressionDebug()) return;
+  console.log(...args);
+}
+
 function formatError(e: any): string {
   const cause = typeof e?.causeMessage === "string" && e.causeMessage.trim() ? e.causeMessage : "";
   const code = typeof e?.causeCode === "string" && e.causeCode.trim() ? ` (${e.causeCode})` : "";
@@ -70,6 +81,14 @@ export async function enqueueProgressionJob(args: {
 }): Promise<{ jobId: string }> {
   const jobId = randomUUID();
   const { userId, sessionId, plannedWorkoutId, workoutDate } = args;
+
+  progLog("[ProgressionJobs][debug] enqueue", {
+    jobId,
+    userId: userId.slice(0, 8),
+    sessionId: sessionId.slice(0, 8),
+    plannedWorkoutId: plannedWorkoutId ? String(plannedWorkoutId).slice(0, 8) : null,
+    workoutDate,
+  });
 
   const rows = await q<{ id: string }>(
     `INSERT INTO progression_jobs (
@@ -112,9 +131,11 @@ async function getSessionPayload(args: { userId: string; sessionId: string }): P
 export async function processProgressionJob(args: {
   jobId: string;
 }): Promise<{ status: ProgressionJobStatus; progression: ProgressionSummary | null }> {
+  progLog("[ProgressionJobs][debug] process job request", { jobId: args.jobId });
   const job = await claimJobById(args.jobId, { force: true });
   if (!job) return { status: "pending", progression: null };
   if (typeof (job as any).status === "string" && !("session_id" in (job as any))) {
+    progLog("[ProgressionJobs][debug] process job early return", job);
     return job as any;
   }
 
@@ -258,6 +279,14 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
   if (job.status === "failed") return { status: "failed", progression: null };
 
   try {
+    progLog("[ProgressionJobs][debug] runJob start", {
+      jobId: job.id,
+      status: job.status,
+      attempts: job.attempts,
+      userId: String(job.user_id).slice(0, 8),
+      sessionId: String(job.session_id).slice(0, 8),
+      workoutDate: normalizeDate(job.workout_date),
+    });
     const payload = await getSessionPayload({ userId: job.user_id, sessionId: job.session_id });
     const { goal, experience } = await getUserGoalExperience(job.user_id);
     const workoutDate = normalizeDate(job.workout_date);
@@ -275,6 +304,14 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
       })
     );
 
+    progLog("[ProgressionJobs][debug] runJob applied", {
+      jobId: job.id,
+      totalExercises: progression?.totalExercises,
+      progressed: progression?.progressedCount,
+      maintained: progression?.maintainedCount,
+      deload: progression?.deloadCount,
+    });
+
     await withTransaction(async () => {
       await q(
         `UPDATE progression_jobs
@@ -290,6 +327,7 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
 
     return { status: "done", progression };
   } catch (e: any) {
+    progLog("[ProgressionJobs][debug] runJob error", { jobId: job.id, message: String(e?.message || e) });
     const maxAttempts = readEnvInt("PROGRESSION_JOB_MAX_ATTEMPTS", 12);
     const attempts = Number(job.attempts || 0);
     const msg = formatError(e);
@@ -305,6 +343,7 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
             WHERE id = $1::uuid`,
           [job.id, msg]
         );
+        progLog("[ProgressionJobs][debug] job marked failed", { jobId: job.id, attempts, maxAttempts });
         return;
       }
 
@@ -318,6 +357,7 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
           WHERE id = $1::uuid`,
         [job.id, msg, delay]
       );
+      progLog("[ProgressionJobs][debug] job rescheduled", { jobId: job.id, attempts, delaySec: delay });
     });
 
     return { status: attempts >= maxAttempts ? "failed" : "pending", progression: null };

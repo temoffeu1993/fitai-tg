@@ -1209,6 +1209,34 @@ workoutGeneration.post(
     durationMin = Math.max(10, Math.min(300, Math.round(durationMin)));
     const finishedAt = new Date(startedAt.getTime() + durationMin * 60_000);
 
+    const debugProgression =
+      process.env.DEBUG_PROGRESSION === "1" ||
+      process.env.DEBUG_AI === "1" ||
+      String(process.env.DEBUG_AI || "").toLowerCase().includes("progression");
+    if (debugProgression) {
+      const exCount = Array.isArray(payload?.exercises) ? payload.exercises.length : 0;
+      const exSummary = Array.isArray(payload?.exercises)
+        ? payload.exercises.slice(0, 30).map((e: any) => ({
+            id: e?.id,
+            name: e?.name,
+            sets: Array.isArray(e?.sets) ? e.sets.length : 0,
+            repsFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.reps ?? 0) > 0).length : 0,
+            weightFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.weight ?? 0) > 0).length : 0,
+            effort: e?.effort,
+          }))
+        : [];
+      console.log("[save-session][debug] request", {
+        userId: String(uid).slice(0, 8),
+        plannedWorkoutId,
+        startedAt: startedAt.toISOString(),
+        durationMin,
+        finishedAt: finishedAt.toISOString(),
+        sessionRpe: payload?.feedback?.sessionRpe,
+        exercises: exCount,
+        exSummary,
+      });
+    }
+
     let progression: any = null;
     let progressionJobId: string | null = null;
     let progressionJobStatus: string | null = null;
@@ -1270,6 +1298,23 @@ workoutGeneration.post(
       console.error("[save-session] progression job process failed:", (e as any)?.message || e);
       progressionJobStatus = "pending";
       progression = null;
+    }
+
+    if (debugProgression) {
+      console.log("[save-session][debug] response", {
+        ok: true,
+        sessionId: String(sessionId).slice(0, 8),
+        progressionJobId: String(progressionJobId).slice(0, 8),
+        progressionJobStatus,
+        progressionSummary: progression
+          ? {
+              totalExercises: progression.totalExercises,
+              progressedCount: progression.progressedCount,
+              maintainedCount: progression.maintainedCount,
+              deloadCount: progression.deloadCount,
+            }
+          : null,
+      });
     }
 
     res.json({ ok: true, sessionId, progression, progressionJobId, progressionJobStatus });
