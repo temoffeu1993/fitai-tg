@@ -1025,30 +1025,110 @@ workoutGeneration.post(
     
     // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
     if (decision.action === "keep_day") {
-      console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
+      const availableMinutes = readiness.effectiveMinutes ?? checkin?.availableMinutes ?? null;
+      const baseEstimated = Number(basePlan?.estimatedDuration);
+      const shouldAdaptForTime =
+        typeof availableMinutes === "number" &&
+        Number.isFinite(availableMinutes) &&
+        Number.isFinite(baseEstimated) &&
+        baseEstimated > availableMinutes + 10; // allow small buffer
+
+      if (shouldAdaptForTime) {
+        console.log(
+          `   ✅ KEEP_DAY: Day stays the same, but workout is too long (${baseEstimated}min > ${availableMinutes}min + 10) → regenerating with timeBucket=${readiness.timeBucket}`
+        );
+
+        const history = await getWorkoutHistory(uid);
+        const mesocycle = await getMesocycle(uid);
+
+        // Get week plan data for periodization
+        let weekPlanData = null;
+        if (mesocycle) {
+          const { getWeekPlan } = await import("./mesocycleEngine.js");
+          weekPlanData = getWeekPlan({
+            mesocycle,
+            weekNumber: mesocycle.currentWeek,
+            daysPerWeek: scheme.daysPerWeek,
+          });
+        }
+
+        const adaptedWorkout = await generateWorkoutDay({
+          scheme,
+          dayIndex: originalDayIndex,
+          userProfile,
+          readiness,
+          history,
+          dupIntensity: weekPlanData?.dupPattern?.[originalDayIndex],
+          weekPlanData,
+        });
+
+        const combinedNotes = [
+          ...(decision.notes || []),
+          ...(adaptedWorkout.adaptationNotes || []),
+        ];
+
+        workoutData = {
+          schemeId: scheme.id,
+          schemeName: adaptedWorkout.schemeName,
+          dayIndex: adaptedWorkout.dayIndex,
+          dayLabel: adaptedWorkout.dayLabel,
+          dayFocus: adaptedWorkout.dayFocus,
+          intent: adaptedWorkout.intent,
+          exercises: adaptedWorkout.exercises.map((ex) => ({
+            exerciseId: ex.exercise.id,
+            exerciseName: ex.exercise.name,
+            sets: ex.sets,
+            repsRange: ex.repsRange,
+            restSec: ex.restSec,
+            notes: ex.notes,
+            targetMuscles: ex.exercise.primaryMuscles,
+          })),
+          totalExercises: adaptedWorkout.totalExercises,
+          totalSets: adaptedWorkout.totalSets,
+          estimatedDuration: adaptedWorkout.estimatedDuration,
+          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
+          meta: {
+            adaptedAt: new Date().toISOString(),
+            originalDayIndex,
+            finalDayIndex: originalDayIndex,
+            action: "keep_day",
+            wasSwapped: false,
+            checkinApplied: !!checkin,
+          },
+        };
+
+        console.log(
+          `   ✅ KEEP_DAY: Regenerated workout (${workoutData.totalExercises} ex, ${workoutData.totalSets} sets, ${workoutData.estimatedDuration}min)`
+        );
+      } else {
+        console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
       
-      // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
-      const combinedNotes = [
-        ...(decision.notes || []),
-        ...(basePlan.adaptationNotes || []),
-      ];
-      
-      workoutData = {
-        ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
-        adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-        warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
-        // Обновляем метаданные
-        meta: {
-          adaptedAt: new Date().toISOString(),
-          originalDayIndex,
-          finalDayIndex: originalDayIndex,
-          action: "keep_day",
-          wasSwapped: false,
-          checkinApplied: !!checkin,
-        },
-      };
-      
-      console.log(`   ✅ Kept original workout (${basePlan.totalExercises} ex, ${basePlan.totalSets} sets, ${basePlan.estimatedDuration}min)`);
+        // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
+        const combinedNotes = [
+          ...(decision.notes || []),
+          ...(basePlan.adaptationNotes || []),
+        ];
+
+        workoutData = {
+          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
+          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
+          // Обновляем метаданные
+          meta: {
+            adaptedAt: new Date().toISOString(),
+            originalDayIndex,
+            finalDayIndex: originalDayIndex,
+            action: "keep_day",
+            wasSwapped: false,
+            checkinApplied: !!checkin,
+          },
+        };
+
+        console.log(
+          `   ✅ Kept original workout (${basePlan.totalExercises} ex, ${basePlan.totalSets} sets, ${basePlan.estimatedDuration}min)`
+        );
+      }
       
     } else {
       // 8. Для SWAP или других действий — РЕГЕНЕРИРУЕМ тренировку
