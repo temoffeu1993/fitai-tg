@@ -995,11 +995,13 @@ workoutGeneration.post(
     
     // 1. Get base planned workout for this date
     const plannedRows = await q<{ 
-      data: any, 
+      data: any,
+      plan: any,
+      base_plan: any,
       status: string,
       workout_date: string,
     }>(
-      `SELECT data, status, workout_date FROM planned_workouts 
+      `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
        WHERE user_id = $1 AND workout_date = $2
        LIMIT 1`,
       [uid, workoutDate]
@@ -1009,7 +1011,8 @@ workoutGeneration.post(
       throw new AppError("No planned workout found for this date. Please generate a week plan first.", 404);
     }
     
-    const basePlan = plannedRows[0].data;
+    const row = plannedRows[0];
+    const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
     const originalDayIndex = basePlan.dayIndex;
     
     console.log(`   Base plan: Day ${originalDayIndex} - ${basePlan.dayLabel}`);
@@ -1113,7 +1116,8 @@ workoutGeneration.post(
       // Save recovery workout to DB
       await q(
         `UPDATE planned_workouts 
-         SET data = $2::jsonb, 
+         SET base_plan = COALESCE(base_plan, plan),
+             data = $2::jsonb, 
              plan = $2::jsonb,
              updated_at = NOW()
          WHERE user_id = $1 AND workout_date = $3`,
@@ -1136,6 +1140,7 @@ workoutGeneration.post(
 		    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
 		    if (decision.action === "keep_day") {
 		      const availableMinutes = readiness.effectiveMinutes;
+          const baseWasCheckinApplied = Boolean(basePlan?.meta?.checkinApplied);
 		      const estimateBasePlanMinutes = (plan: any): number | null => {
 		        const rawExercises = plan?.exercises;
 		        const exercises = Array.isArray(rawExercises) ? rawExercises : [];
@@ -1181,6 +1186,17 @@ workoutGeneration.post(
 		        Number.isFinite(baseEstimated) &&
 		        baseEstimated > availableMinutes + bufferMin;
 
+          // If this workout was previously adapted for shorter time (check-in applied),
+          // allow re-generation when the user now has significantly MORE time.
+          const shouldAdaptForMoreTime =
+            baseWasCheckinApplied &&
+            typeof availableMinutes === "number" &&
+            Number.isFinite(availableMinutes) &&
+            typeof baseEstimated === "number" &&
+            Number.isFinite(baseEstimated) &&
+            availableMinutes >= 60 &&
+            baseEstimated + 15 < availableMinutes;
+
 		      const baseIntent = typeof basePlan?.intent === "string" ? String(basePlan.intent) : null;
 		      const shouldAdaptForIntent = baseIntent !== null && baseIntent !== readiness.intent;
 
@@ -1213,11 +1229,17 @@ workoutGeneration.post(
 		            : false;
 		        });
 
-		      const shouldRegenerate = shouldAdaptForTime || shouldAdaptForIntent || hasBlockedExercises || hasCoreExercisesWhenOptional;
+		      const shouldRegenerate =
+            shouldAdaptForTime ||
+            shouldAdaptForMoreTime ||
+            shouldAdaptForIntent ||
+            hasBlockedExercises ||
+            hasCoreExercisesWhenOptional;
 
 		      if (shouldRegenerate) {
 		        const reasons: string[] = [];
 		        if (shouldAdaptForTime) reasons.push("time");
+            if (shouldAdaptForMoreTime) reasons.push("time_up");
 		        if (shouldAdaptForIntent) reasons.push("intent");
 		        if (hasBlockedExercises) reasons.push("blocked_patterns");
 		        if (hasCoreExercisesWhenOptional) reasons.push("core_policy");
@@ -1293,7 +1315,7 @@ workoutGeneration.post(
           `   ✅ KEEP_DAY: Regenerated workout (${workoutData.totalExercises} ex, ${workoutData.totalSets} sets, ${workoutData.estimatedDuration}min)`
         );
 	      } else {
-	        console.log(`   ✅ KEEP_DAY: Using saved exercises from plan`);
+	        console.log(`   ✅ KEEP_DAY: Using base plan exercises`);
       
         // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
         const combinedNotes = [
@@ -1405,7 +1427,8 @@ workoutGeneration.post(
     // Meta info preserves the swap history for tracking and future adjustments.
     await q(
       `UPDATE planned_workouts 
-       SET data = $2::jsonb, 
+       SET base_plan = COALESCE(base_plan, plan),
+           data = $2::jsonb, 
            plan = $2::jsonb,
            updated_at = NOW()
        WHERE user_id = $1 AND workout_date = $3`,

@@ -255,12 +255,40 @@ async function applyExerciseHistorySessionIdMigration() {
   }
 }
 
+/**
+ * Adds `base_plan` to planned_workouts to preserve the original weekly plan.
+ * This allows /workout/start to be re-run with different check-in time without "sticking" to a previous adaptation.
+ */
+async function applyPlannedWorkoutsBasePlanMigration() {
+  try {
+    console.log("\n🔧 Checking planned_workouts.base_plan migration...");
+
+    await pool.query(`
+      ALTER TABLE planned_workouts
+      ADD COLUMN IF NOT EXISTS base_plan jsonb NULL;
+    `);
+
+    // Backfill: keep whatever is currently in plan as the baseline if none exists.
+    await pool.query(`
+      UPDATE planned_workouts
+      SET base_plan = plan
+      WHERE base_plan IS NULL;
+    `);
+
+    console.log("✅ planned_workouts.base_plan ensured\n");
+  } catch (error: any) {
+    console.error("❌ planned_workouts.base_plan migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
     await applyWeeklyPlansMigration();
     await applyProgressionJobsMigration();
     await applyExerciseHistorySessionIdMigration();
+    await applyPlannedWorkoutsBasePlanMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу
