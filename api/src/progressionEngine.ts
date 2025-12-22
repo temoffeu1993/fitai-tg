@@ -60,15 +60,23 @@ export type ProgressionRecommendation = {
   /** True when last workout failed to hit the lower reps bound (for stall tracking) */
   failedLowerBound?: boolean;
   explain?: {
+    targetRepsRange?: [number, number];
     totalWorkingSets?: number;
     lowerHits?: number;
     upperHits?: number;
+    lastSetUpper?: boolean;
+    requiredUpperHits?: number;
+    upperOk?: boolean;
+    failCount?: number;
+    failedLowerBound?: boolean;
     plannedSets?: number;
     performedSets?: number;
     sessionRpe?: number;
     antiOverreach?: boolean;
     doNotPenalize?: boolean;
     doNotPenalizeReason?: string;
+    equipment?: string | null;
+    increment?: number;
   };
   alternatives?: string[];     // ID альтернативных упражнений для ротации
 };
@@ -350,10 +358,15 @@ export function calculateProgression(args: {
   const [minReps, maxReps] = targetRepsRange;
   const totalWorkingSets = performance.totalSets;
 
+  const failCount = totalWorkingSets - performance.lowerHits;
+
   const explainBase: NonNullable<ProgressionRecommendation["explain"]> = {
+    targetRepsRange,
     totalWorkingSets: context?.totalWorkingSets ?? totalWorkingSets,
     lowerHits: performance.lowerHits,
     upperHits: performance.upperHits,
+    lastSetUpper: performance.lastSetUpper,
+    failCount,
     plannedSets: context?.plannedSets,
     performedSets: context?.performedSets,
     sessionRpe: context?.sessionRpe,
@@ -414,11 +427,10 @@ export function calculateProgression(args: {
       newWeight: progressionData.currentWeight,
       reason: "Недостаточно рабочих подходов для решения по прогрессии. Оставляем вес.",
       failedLowerBound: false,
-      explain: explainBase,
+      explain: { ...explainBase, failedLowerBound: false },
     };
   }
 
-  const failCount = totalWorkingSets - performance.lowerHits;
   const isStrength = goal === "strength";
   const antiOverreach = Boolean(context?.antiOverreach);
 
@@ -444,6 +456,11 @@ export function calculateProgression(args: {
     performance.upperHits >= requiredUpperHits &&
     performance.lastSetUpper;
 
+  // Include decision thresholds in explain for debuggability.
+  explainBase.requiredUpperHits = requiredUpperHits;
+  explainBase.upperOk = upperOk;
+  explainBase.failedLowerBound = failedLowerBound;
+
   if (upperOk) {
     if (antiOverreach) {
       return {
@@ -452,12 +469,14 @@ export function calculateProgression(args: {
         newWeight: progressionData.currentWeight,
         reason: "Верх диапазона добит, но день тяжёлый (высокий RPE/effort) → вес сохраняем.",
         failedLowerBound: false,
-        explain: explainBase,
+        explain: { ...explainBase, equipment: getLoadableEquipment(exercise.equipment), increment: undefined },
       };
     }
 
     const equipment = getLoadableEquipment(exercise.equipment);
     const increment = getWeightIncrementForExercise(equipment);
+    explainBase.equipment = equipment;
+    explainBase.increment = increment;
 
     if (equipment === "bodyweight" || progressionData.currentWeight === 0) {
       const newTarget: [number, number] = [

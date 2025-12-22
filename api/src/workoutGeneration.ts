@@ -1533,9 +1533,12 @@ workoutGeneration.post(
         ? payload.exercises.slice(0, 30).map((e: any) => ({
             id: e?.id,
             name: e?.name,
+            repsTarget: e?.reps,
             sets: Array.isArray(e?.sets) ? e.sets.length : 0,
             repsFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.reps ?? 0) > 0).length : 0,
             weightFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.weight ?? 0) > 0).length : 0,
+            repsSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.reps ?? null) : [],
+            weightSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.weight ?? null) : [],
             effort: e?.effort,
           }))
         : [];
