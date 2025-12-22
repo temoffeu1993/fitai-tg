@@ -217,10 +217,12 @@ export default function WorkoutSession() {
 	        weightLabel: (ex as any).weightLabel,
 	        done: false,
 	        effort: null,
-	        sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
-	          reps: undefined,
-	          weight: undefined,
-        })),
+	        sets: Array.from({ length: Number(ex.sets) || 1 }, () => {
+	          const raw = (ex as any).weight;
+	          const preset =
+	            typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : undefined;
+	          return { reps: undefined, weight: preset };
+	        }),
       }))
     );
     setElapsed(0);
@@ -537,6 +539,8 @@ export default function WorkoutSession() {
 	              : loadType === "assisted"
 	                ? "помощь кг"
 	                : "кг";
+	          const recKg = formatKg(it.targetWeight);
+	          const isAssist = weightPlaceholder.includes("помощ");
 	          return (
 	            <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
 	              <button
@@ -557,7 +561,7 @@ export default function WorkoutSession() {
 	                  <div style={card.metaChips}>
 	                    <Chip label={`${it.sets.length}×`} />
 	                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
-	                    {it.targetWeight ? <Chip label={String(it.targetWeight)} /> : null}
+	                    {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
 	                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
 	                  </div>
                 </div>
@@ -602,7 +606,15 @@ export default function WorkoutSession() {
                   onClick={() =>
                     setItems((prev) => {
                       const next = structuredClone(prev);
-                      next[ei].sets.push({ reps: undefined, weight: undefined });
+                      const prevSets = next[ei].sets || [];
+                      const last = prevSets.length ? prevSets[prevSets.length - 1] : null;
+                      const lastWeight =
+                        typeof last?.weight === "number" && Number.isFinite(last.weight) && last.weight > 0
+                          ? last.weight
+                          : null;
+                      const targetWeight = parseWeightNumber(next[ei].targetWeight);
+                      const preset = lastWeight ?? (targetWeight != null && targetWeight > 0 ? targetWeight : null);
+                      next[ei].sets.push({ reps: undefined, weight: preset ?? undefined });
                       return next;
                     })
                   }
@@ -909,6 +921,23 @@ function formatRepsLabel(value: unknown): string {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value === "string" && value.trim()) return value;
   return "—";
+}
+
+function parseWeightNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const s = value.trim().replace(",", ".");
+    const num = Number(s.replace(/[^\d.\-]/g, ""));
+    if (Number.isFinite(num)) return num;
+  }
+  return null;
+}
+
+function formatKg(value: unknown): string | null {
+  const num = parseWeightNumber(value);
+  if (num == null || !Number.isFinite(num) || num <= 0) return null;
+  const fixed = Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
+  return `${fixed} кг`;
 }
 
 /* ---------- Стиль ---------- */

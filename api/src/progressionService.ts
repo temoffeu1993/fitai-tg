@@ -697,7 +697,7 @@ export async function getNextWorkoutRecommendations(args: {
 }): Promise<Map<string, ProgressionRecommendation>> {
   const { userId, exercises, goal, experience } = args;
   
-  console.log(`\n📖 [ProgressionService] Getting recommendations for ${exercises.length} exercises...`);
+  progLog(`\n📖 [ProgressionService] Getting recommendations for ${exercises.length} exercises...`);
   
   // Validate inputs
   if (!userId) {
@@ -731,7 +731,7 @@ export async function getNextWorkoutRecommendations(args: {
         });
         
         newExercises++;
-        console.log(`  🆕 ${exercise.name}: starting weight ${initData.currentWeight}кг`);
+        progLog(`  🆕 ${exercise.name}: starting weight ${initData.currentWeight}кг`);
         continue;
       }
 
@@ -771,14 +771,14 @@ export async function getNextWorkoutRecommendations(args: {
         rotate_exercise: '🔄',
       }[recommendation.action] || '❓';
       
-      console.log(`  ${actionEmoji} ${exercise.name}: ${recommendation.action} (${recommendation.newWeight || 'N/A'}кг)`);
+      progLog(`  ${actionEmoji} ${exercise.name}: ${recommendation.action} (${recommendation.newWeight || 'N/A'}кг)`);
       
     } catch (error) {
       console.error(`  ❌ Error getting recommendation for ${exercise.name}:`, error);
     }
   }
   
-  console.log(`  Summary: ${withHistory} with history, ${newExercises} new exercises`);
+  progLog(`  Summary: ${withHistory} with history, ${newExercises} new exercises`);
   
   return recommendations;
 }

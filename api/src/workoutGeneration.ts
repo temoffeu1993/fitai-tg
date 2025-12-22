@@ -7,6 +7,7 @@ import { Router, Response } from "express";
 import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { enqueueProgressionJob, processProgressionJob } from "./progressionJobs.js";
+import { getNextWorkoutRecommendations } from "./progressionService.js";
 import { 
   generateWorkoutDay,
   generateWeekPlan,
@@ -100,6 +101,11 @@ function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
       weightLabel: ex?.weightLabel ?? inferred.weightLabel,
     };
   });
+}
+
+function toFinitePositiveNumberOrNull(value: any): number | null {
+  const num = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
 }
 
 // ============================================================================
@@ -318,6 +324,7 @@ workoutGeneration.post(
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
+	          weight: ex.suggestedWeight ?? null,
 	          notes: ex.notes,
 	          targetMuscles: ex.exercise.primaryMuscles,
 	          loadType: (ex as any).loadType,
@@ -364,7 +371,7 @@ workoutGeneration.post(
 	          sets: ex.sets,
 	          reps: ex.repsRange,
 	          restSec: ex.restSec,
-	          weight: ex.suggestedWeight ?? 0,
+	          weight: ex.suggestedWeight ?? null,
 	          targetMuscles: ex.exercise.primaryMuscles,
 	          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
 	          // NEW: Detailed fields
@@ -758,6 +765,7 @@ workoutGeneration.post(
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
+	          weight: ex.suggestedWeight ?? null,
 	          notes: ex.notes,
 	          targetMuscles: ex.exercise.primaryMuscles,
 	          loadType: (ex as any).loadType,
@@ -1290,6 +1298,7 @@ workoutGeneration.post(
 	            sets: ex.sets,
 	            repsRange: ex.repsRange,
 	            restSec: ex.restSec,
+	            weight: ex.suggestedWeight ?? null,
 	            notes: ex.notes,
 	            targetMuscles: ex.exercise.primaryMuscles,
 	            loadType: (ex as any).loadType,
@@ -1326,9 +1335,52 @@ workoutGeneration.post(
 	        const enrichedExercises = enrichLoadInfoForStoredPlanExercises(
 	          Array.isArray(basePlan?.exercises) ? basePlan.exercises : []
 	        );
+
+	        // planned_workouts may not store weights; attach suggested weights from progression for UI.
+	        let exercisesWithWeights = enrichedExercises;
+	        try {
+	          const needsWeights = enrichedExercises.some((ex: any) => {
+	            const hasWeight = toFinitePositiveNumberOrNull(ex?.weight) != null;
+	            const lt = String(ex?.loadType || "").toLowerCase();
+	            const isBodyweight = lt === "bodyweight";
+	            return !hasWeight && !isBodyweight;
+	          });
+
+	          if (needsWeights) {
+	            const ids = enrichedExercises
+	              .map((ex: any) => ex?.exerciseId || ex?.id || ex?.exercise?.id || null)
+	              .filter((id: any) => typeof id === "string") as string[];
+	            const uniqueIds = Array.from(new Set(ids));
+	            const libById = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
+	            const libExercises = uniqueIds.map((id) => libById.get(id)).filter(Boolean) as any[];
+
+	            if (libExercises.length > 0) {
+	              const recs = await getNextWorkoutRecommendations({
+	                userId: uid,
+	                exercises: libExercises,
+	                goal: userProfile.goal,
+	                experience: userProfile.experience,
+	              });
+
+	              exercisesWithWeights = enrichedExercises.map((ex: any) => {
+	                const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+	                const rec = typeof id === "string" ? recs.get(id) : undefined;
+	                const suggested = rec?.newWeight;
+	                const suggestedWeight = toFinitePositiveNumberOrNull(suggested);
+	                return {
+	                  ...ex,
+	                  // Keep stored weight if present; otherwise attach suggested (null for BW).
+	                  weight: toFinitePositiveNumberOrNull(ex?.weight) ?? suggestedWeight,
+	                };
+	              });
+	            }
+	          }
+	        } catch (e) {
+	          console.warn("   ⚠️  Failed to attach suggested weights for stored plan exercises:", e);
+	        }
 	        workoutData = {
 	          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
-	          exercises: enrichedExercises,
+	          exercises: exercisesWithWeights,
 	          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
 	          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
 	          // Обновляем метаданные
@@ -1397,6 +1449,7 @@ workoutGeneration.post(
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
+	          weight: ex.suggestedWeight ?? null,
 	          notes: ex.notes,
 	          targetMuscles: ex.exercise.primaryMuscles,
 	          loadType: (ex as any).loadType,
