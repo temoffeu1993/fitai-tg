@@ -393,15 +393,15 @@ export default function WorkoutSession() {
 	      setSaveError(null);
 	      console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
 	      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
-	      const result = await saveSession(payload, {
-	        ...extra,
-	        startedAt: startedAtIso,
-	        durationMin,
-	      });
-	      saveResponse = result;
-	      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
-	      saveOk = true;
-	    } catch {
+		      const result = await saveSession(payload, {
+		        ...extra,
+		        startedAt: startedAtIso,
+		        durationMin,
+		      });
+		      saveResponse = result;
+		      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
+		      saveOk = true;
+		    } catch {
 	      // не блокируем UX если сеть/сервер упали
 	      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
     } finally {
@@ -410,21 +410,29 @@ export default function WorkoutSession() {
 	        setFinishModal(false);
 
 	        const createdAt = new Date().toISOString();
-	        const storedResult = {
-	          version: 1 as const,
-	          createdAt,
-	          sessionId: savedSessionId,
-	          plannedWorkoutId: plannedWorkoutId || null,
-	          payload,
-	          progression: saveResponse?.progression ?? null,
-	          progressionJob: saveResponse?.progressionJobId
-	            ? {
-	                id: String(saveResponse.progressionJobId),
-	                status: String(saveResponse.progressionJobStatus || "pending"),
-	                lastError: null,
-	              }
-	            : null,
-	        };
+		        const storedResult = {
+		          version: 1 as const,
+		          createdAt,
+		          sessionId: savedSessionId,
+		          plannedWorkoutId: plannedWorkoutId || null,
+		          payload,
+		          progression: saveResponse?.progression ?? null,
+		          progressionJob: saveResponse?.progressionJobId
+		            ? {
+		                id: String(saveResponse.progressionJobId),
+		                status: String(saveResponse.progressionJobStatus || "pending"),
+		                lastError: null,
+		              }
+		            : null,
+		          coachJob: saveResponse?.coachJobId
+		            ? {
+		                id: String(saveResponse.coachJobId),
+		                status: String(saveResponse.coachJobStatus || "pending"),
+		                lastError: null,
+		              }
+		            : null,
+		          weeklyCoachJobId: saveResponse?.weeklyCoachJobId ? String(saveResponse.weeklyCoachJobId) : null,
+		        };
 
 	        // сохраняем отдельный экран результата до очистки черновиков/плана
 	        try {

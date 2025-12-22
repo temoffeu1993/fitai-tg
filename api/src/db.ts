@@ -282,6 +282,67 @@ async function applyPlannedWorkoutsBasePlanMigration() {
   }
 }
 
+/**
+ * Ensures outbox-style coach feedback jobs table.
+ * This powers "trainer-like" AI feedback after each workout and weekly summaries.
+ */
+async function applyCoachJobsMigration() {
+  try {
+    console.log("\n🔧 Checking coach_jobs migration...");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coach_jobs (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL,
+        kind text NOT NULL, -- 'session' | 'week'
+        session_id uuid NULL UNIQUE, -- non-null only for kind='session' (NULLs allowed)
+        period_start date NULL,
+        period_end date NULL,
+        status text NOT NULL DEFAULT 'pending',
+        attempts int NOT NULL DEFAULT 0,
+        next_run_at timestamptz NOT NULL DEFAULT now(),
+        last_error text NULL,
+        result jsonb NULL,
+        telegram_sent boolean NOT NULL DEFAULT false,
+        telegram_message_id text NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        completed_at timestamptz NULL
+      );
+    `);
+
+    // Backfill/compat for older versions (idempotent)
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'session';`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS session_id uuid NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS period_start date NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS period_end date NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS next_run_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS last_error text NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS result jsonb NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS telegram_sent boolean NOT NULL DEFAULT false;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS telegram_message_id text NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS completed_at timestamptz NULL;`);
+
+    // Ensure uniqueness for weekly reports (one per user per period_end)
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_jobs_week_unique
+      ON coach_jobs(user_id, kind, period_end)
+      WHERE kind = 'week' AND period_end IS NOT NULL;
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_jobs_pending ON coach_jobs(status, next_run_at, created_at);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_jobs_user ON coach_jobs(user_id, created_at DESC);`);
+
+    console.log("✅ coach_jobs schema ensured\n");
+  } catch (error: any) {
+    console.error("❌ coach_jobs migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
@@ -289,6 +350,7 @@ async function applyPlannedWorkoutsBasePlanMigration() {
     await applyProgressionJobsMigration();
     await applyExerciseHistorySessionIdMigration();
     await applyPlannedWorkoutsBasePlanMigration();
+    await applyCoachJobsMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу

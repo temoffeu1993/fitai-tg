@@ -5,6 +5,7 @@ dotenv.config();
 interface Config {
   port: number;
   botToken: string;
+  webappUrl?: string;
   jwtSecret: string;
   databaseUrl: string;
   corsOrigin: string[];
@@ -30,6 +31,7 @@ function validateEnv(): Config {
   return {
     port: parseInt(process.env.PORT || "8080", 10),
     botToken: process.env.BOT_TOKEN!,
+    webappUrl: process.env.WEBAPP_URL || undefined,
     jwtSecret: process.env.JWT_SECRET!,
     databaseUrl,
     corsOrigin: (process.env.CORS_ORIGIN || "http://localhost:5173").split(","),

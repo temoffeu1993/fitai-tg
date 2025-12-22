@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getProgressionJob } from "@/api/plan";
+import { getCoachJob, getProgressionJob, getWorkoutSessionById } from "@/api/plan";
 
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const HISTORY_KEY = "history_sessions_v1";
@@ -15,6 +15,9 @@ type StoredWorkoutResult = {
   payload: any;
   progression: any | null;
   progressionJob: ProgressionJob;
+  coachJob?: { id: string; status: string; lastError?: string | null } | null;
+  coachReport?: any | null;
+  weeklyCoachJobId?: string | null;
 };
 
 function readStored(): StoredWorkoutResult | null {
@@ -142,18 +145,71 @@ export default function WorkoutResult() {
   const location = useLocation();
 
   const fromState: StoredWorkoutResult | null = (location.state as any)?.result || null;
+  const urlSessionId = useMemo(() => {
+    try {
+      const sp = new URLSearchParams(location.search || "");
+      const id = sp.get("sessionId");
+      return id && id.trim() ? id.trim() : null;
+    } catch {
+      return null;
+    }
+  }, [location.search]);
 
   const initial = useMemo(() => fromState || readStored(), [fromState]);
   const [result, setResult] = useState<StoredWorkoutResult | null>(initial);
 
   const [job, setJob] = useState<ProgressionJob>(initial?.progressionJob ?? null);
   const [summary, setSummary] = useState<any | null>(initial?.progression ?? null);
+  const [coachJob, setCoachJob] = useState<{ id: string; status: string; lastError?: string | null } | null>(
+    initial?.coachJob ?? null
+  );
+  const [coachReport, setCoachReport] = useState<any | null>(initial?.coachReport ?? null);
   const [polling, setPolling] = useState(false);
+  const [coachPolling, setCoachPolling] = useState(false);
   const [expandUp, setExpandUp] = useState(true);
   const [expandKeep, setExpandKeep] = useState(false);
   const [expandDown, setExpandDown] = useState(false);
   const [showMoreProgress, setShowMoreProgress] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Deep link support: /workout/result?sessionId=...
+  useEffect(() => {
+    if (result) return;
+    if (!urlSessionId) return;
+    let canceled = false;
+    void (async () => {
+      try {
+        const data = await getWorkoutSessionById(urlSessionId);
+        if (canceled) return;
+        const nowIso = new Date().toISOString();
+        const next: StoredWorkoutResult = {
+          version: 1,
+          createdAt: nowIso,
+          sessionId: data?.session?.id || urlSessionId,
+          plannedWorkoutId: null,
+          payload: data?.session?.payload ?? null,
+          progression: data?.progressionJob?.result ?? null,
+          progressionJob: data?.progressionJob?.id
+            ? { id: String(data.progressionJob.id), status: String(data.progressionJob.status || "pending"), lastError: data.progressionJob.lastError ?? null }
+            : null,
+          coachJob: data?.coachReport?.jobId
+            ? { id: String(data.coachReport.jobId), status: String(data.coachReport.status || "pending"), lastError: data.coachReport.lastError ?? null }
+            : null,
+          coachReport: data?.coachReport?.result ?? null,
+        };
+        setResult(next);
+        setJob(next.progressionJob ?? null);
+        setSummary(next.progression ?? null);
+        setCoachJob(next.coachJob ?? null);
+        setCoachReport(next.coachReport ?? null);
+      } catch {
+        // ignore deep-link failures
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [result, urlSessionId]);
 
   useEffect(() => {
     if (!result) return;
@@ -163,12 +219,26 @@ export default function WorkoutResult() {
   const jobId = job?.id ? String(job.id) : null;
   const needsPoll = Boolean(jobId && (!summary || job?.status !== "done") && job?.status !== "failed");
 
+  const coachJobId = coachJob?.id ? String(coachJob.id) : null;
+  const needsCoachPoll = Boolean(
+    coachJobId && (!coachReport || coachJob?.status !== "done") && coachJob?.status !== "failed"
+  );
+
   const pollOnce = async (): Promise<{ status?: string; result?: any | null } | null> => {
     if (!jobId) return;
     const res = await getProgressionJob(jobId);
     const j = res?.job;
     if (j?.status) setJob({ id: jobId, status: String(j.status), lastError: j.lastError ?? null });
     if (j?.status === "done" && j?.result) setSummary(j.result);
+    return j ? { status: j.status, result: j.result } : null;
+  };
+
+  const pollCoachOnce = async (): Promise<{ status?: string; result?: any | null } | null> => {
+    if (!coachJobId) return;
+    const res = await getCoachJob(coachJobId);
+    const j = res?.job;
+    if (j?.status) setCoachJob({ id: coachJobId, status: String(j.status), lastError: j.lastError ?? null });
+    if (j?.status === "done" && j?.result) setCoachReport(j.result);
     return j ? { status: j.status, result: j.result } : null;
   };
 
@@ -203,8 +273,39 @@ export default function WorkoutResult() {
 
   useEffect(() => {
     if (!result) return;
+    if (!needsCoachPoll) return;
+    if (coachPolling) return;
+    setCoachPolling(true);
+
+    let canceled = false;
+    void (async () => {
+      const maxPolls = 10;
+      for (let i = 0; i < maxPolls; i++) {
+        if (canceled) break;
+        await new Promise((r) => setTimeout(r, 900 + Math.round(Math.random() * 900)));
+        try {
+          const j = await pollCoachOnce();
+          const st = String(j?.status || "").toLowerCase();
+          if (st === "done" || st === "failed") break;
+        } catch {
+          // ignore polling errors
+        }
+      }
+      if (!canceled) setCoachPolling(false);
+    })();
+
+    return () => {
+      canceled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coachJobId, needsCoachPoll]);
+
+  useEffect(() => {
+    if (!result) return;
     setJob(result.progressionJob ?? null);
     setSummary(result.progression ?? null);
+    setCoachJob(result.coachJob ?? null);
+    setCoachReport(result.coachReport ?? null);
   }, [result?.createdAt]);
 
   useEffect(() => {
@@ -215,10 +316,12 @@ export default function WorkoutResult() {
         ...prev,
         progressionJob: job,
         progression: summary,
+        coachJob,
+        coachReport,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.status, job?.lastError, summary]);
+  }, [job?.status, job?.lastError, summary, coachJob?.status, coachJob?.lastError, coachReport]);
 
   if (!result) {
     return (
@@ -619,13 +722,37 @@ export default function WorkoutResult() {
                     <div style={s.coachHeadText}>Твой тренер</div>
                   </div>
                   <div style={s.coachMsg}>
-                    {coachSummaryMessage({
-                      hasLoadDown: loadDown.length > 0,
-                      weightUpCount: weightUp.length,
-                      repsUpCount: repsUp.length,
-                      keepCount: keep.length,
-                      sessionRpe: sessionRpe ?? null,
-                    })}
+                    {Array.isArray((coachReport as any)?.detail?.bullets) && (coachReport as any).detail.bullets.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {(coachReport as any).detail.bullets.slice(0, 5).map((b: any, i: number) => (
+                          <div key={i}>• {String(b || "").trim()}</div>
+                        ))}
+                      </div>
+                    ) : Array.isArray((coachReport as any)?.telegram?.bullets) && (coachReport as any).telegram.bullets.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {(coachReport as any).telegram.bullets.slice(0, 5).map((b: any, i: number) => (
+                          <div key={i}>• {String(b || "").trim()}</div>
+                        ))}
+                      </div>
+                    ) : coachJobId && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
+                      "Готовлю разбор тренировки…"
+                    ) : String(coachJob?.status || "").toLowerCase() === "failed" ? (
+                      coachSummaryMessage({
+                        hasLoadDown: loadDown.length > 0,
+                        weightUpCount: weightUp.length,
+                        repsUpCount: repsUp.length,
+                        keepCount: keep.length,
+                        sessionRpe: sessionRpe ?? null,
+                      })
+                    ) : (
+                      coachSummaryMessage({
+                        hasLoadDown: loadDown.length > 0,
+                        weightUpCount: weightUp.length,
+                        repsUpCount: repsUp.length,
+                        keepCount: keep.length,
+                        sessionRpe: sessionRpe ?? null,
+                      })
+                    )}
                   </div>
                 </div>
               </div>

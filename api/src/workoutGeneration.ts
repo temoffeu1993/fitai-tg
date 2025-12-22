@@ -7,6 +7,14 @@ import { Router, Response } from "express";
 import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { enqueueProgressionJob, processProgressionJob } from "./progressionJobs.js";
+import {
+  enqueueCoachJob,
+  getCoachJob,
+  getCoachReportBySession,
+  getLatestWeeklyCoachReport,
+  maybeEnqueueWeeklyCoachJob,
+  processCoachJob,
+} from "./coachJobs.js";
 import { getNextWorkoutRecommendations } from "./progressionService.js";
 import { 
   generateWorkoutDay,
@@ -1607,12 +1615,15 @@ workoutGeneration.post(
       });
     }
 
-    let progression: any = null;
-    let progressionJobId: string | null = null;
-    let progressionJobStatus: string | null = null;
+	    let progression: any = null;
+	    let progressionJobId: string | null = null;
+	    let progressionJobStatus: string | null = null;
+	    let coachJobId: string | null = null;
+	    let coachJobStatus: string | null = null;
+	    let weeklyCoachJobId: string | null = null;
 
-    const { sessionId, jobId } = await withTransaction(async () => {
-      const result = await q<{ id: string }>(
+		    const { sessionId, jobId, coachJobId: cjId } = await withTransaction(async () => {
+	      const result = await q<{ id: string }>(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
          RETURNING id`,
@@ -1647,28 +1658,53 @@ workoutGeneration.post(
       }
 
       // NEW: Outbox job for progression (eventual consistency)
-      const { jobId } = await enqueueProgressionJob({
-        userId: uid,
-        sessionId,
-        plannedWorkoutId,
-        workoutDate: finishedAt.toISOString().slice(0, 10),
-      });
+	      const { jobId } = await enqueueProgressionJob({
+	        userId: uid,
+	        sessionId,
+	        plannedWorkoutId,
+	        workoutDate: finishedAt.toISOString().slice(0, 10),
+	      });
 
-      return { sessionId, jobId };
-    });
+		      const { jobId: cj } = await enqueueCoachJob({
+		        userId: uid,
+		        kind: "session",
+		        sessionId,
+		      });
 
-    progressionJobId = jobId;
+		      return { sessionId, jobId, coachJobId: cj };
+		    });
 
-    // Best-effort immediate processing (does not affect workout save)
-    try {
-      const r = await processProgressionJob({ jobId });
-      progressionJobStatus = r.status;
-      progression = r.progression;
-    } catch (e) {
-      console.error("[save-session] progression job process failed:", (e as any)?.message || e);
-      progressionJobStatus = "pending";
-      progression = null;
-    }
+		    progressionJobId = jobId;
+		    coachJobId = cjId || null;
+
+	    // Best-effort immediate processing (does not affect workout save)
+	    try {
+	      const r = await processProgressionJob({ jobId });
+	      progressionJobStatus = r.status;
+	      progression = r.progression;
+	    } catch (e) {
+	      console.error("[save-session] progression job process failed:", (e as any)?.message || e);
+	      progressionJobStatus = "pending";
+	      progression = null;
+	    }
+
+	    // Coach feedback: do not block saving the workout (OpenAI call can be slow).
+	    coachJobStatus = coachJobId ? "pending" : null;
+	    if (coachJobId) {
+	      setTimeout(() => {
+	        processCoachJob({ jobId: coachJobId })
+	          .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
+	      }, 0);
+	    }
+
+	    // Weekly: best-effort enqueue (throttled inside helper)
+	    try {
+	      const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
+	      weeklyCoachJobId = w?.jobId || null;
+	    } catch (e) {
+	      console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
+	      weeklyCoachJobId = null;
+	    }
 
     if (debugProgression) {
       console.log("[save-session][debug] response", {
@@ -1687,9 +1723,18 @@ workoutGeneration.post(
       });
     }
 
-    res.json({ ok: true, sessionId, progression, progressionJobId, progressionJobStatus });
-  })
-);
+	    res.json({
+	      ok: true,
+	      sessionId,
+	      progression,
+	      progressionJobId,
+	      progressionJobStatus,
+	      coachJobId,
+	      coachJobStatus,
+	      weeklyCoachJobId,
+	    });
+	  })
+	);
 
 // ============================================================================
 // GET /progression/jobs/:id - Poll progression job status/result
@@ -1736,6 +1781,97 @@ workoutGeneration.get(
         updatedAt: row.updated_at,
         completedAt: row.completed_at,
       },
+    });
+  })
+);
+
+// ============================================================================
+// GET /coach/jobs/:id - Poll coach job status/result
+// ============================================================================
+
+workoutGeneration.get(
+  "/coach/jobs/:id",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const jobId = String(req.params?.id || "");
+    if (!isUUID(jobId)) throw new AppError("Invalid job id", 400);
+    const job = await getCoachJob(uid, jobId);
+    if (!job) throw new AppError("coach_job_not_found", 404);
+    res.json({ ok: true, job });
+  })
+);
+
+// ============================================================================
+// GET /coach/session/:sessionId - Get latest coach report for a session
+// ============================================================================
+
+workoutGeneration.get(
+  "/coach/session/:sessionId",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const sessionId = String(req.params?.sessionId || "");
+    if (!isUUID(sessionId)) throw new AppError("Invalid session id", 400);
+    const report = await getCoachReportBySession(uid, sessionId);
+    if (!report) return res.json({ ok: true, found: false });
+    res.json({ ok: true, found: true, report });
+  })
+);
+
+// ============================================================================
+// GET /coach/weekly/latest - Latest weekly coach report (last 7 days)
+// ============================================================================
+
+workoutGeneration.get(
+  "/coach/weekly/latest",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const report = await getLatestWeeklyCoachReport(uid);
+    if (!report) return res.json({ ok: true, found: false });
+    res.json({ ok: true, found: true, report });
+  })
+);
+
+// ============================================================================
+// GET /sessions/:id - Fetch saved workout session (for deep links)
+// ============================================================================
+
+workoutGeneration.get(
+  "/sessions/:id",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const sessionId = String(req.params?.id || "");
+    if (!isUUID(sessionId)) throw new AppError("Invalid session id", 400);
+
+    const [s] = await q<{ id: string; finished_at: string; payload: any }>(
+      `SELECT id, finished_at, payload
+         FROM workout_sessions
+        WHERE user_id = $1 AND id = $2::uuid
+        LIMIT 1`,
+      [uid, sessionId]
+    );
+    if (!s?.id) throw new AppError("session_not_found", 404);
+
+    const [pj] = await q<{ id: string; status: string | null; result: any | null; last_error: string | null }>(
+      `SELECT id, status, result, last_error
+         FROM progression_jobs
+        WHERE user_id = $1 AND session_id = $2::uuid
+        LIMIT 1`,
+      [uid, sessionId]
+    );
+
+    const coach = await getCoachReportBySession(uid, sessionId);
+
+    res.json({
+      ok: true,
+      session: {
+        id: s.id,
+        finishedAt: s.finished_at,
+        payload: s.payload,
+      },
+      progressionJob: pj
+        ? { id: pj.id, status: pj.status, result: pj.result ?? null, lastError: pj.last_error ?? null }
+        : null,
+      coachReport: coach || null,
     });
   })
 );

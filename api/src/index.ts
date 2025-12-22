@@ -20,6 +20,7 @@ import { scientificWorkoutTest } from "./scientificWorkoutTest.js"; // 🔥 НА
 import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler } from "./middleware/errorHandler.js";
 import { startProgressionJobWorker } from "./progressionJobs.js";
+import { startCoachJobWorker } from "./coachJobs.js";
 
 const app = express();
 
@@ -77,6 +78,8 @@ app.listen(config.port, () => {
 
 // Background worker: догоняет прогрессию из outbox очереди
 startProgressionJobWorker();
+// Background worker: генерирует "тренерский" фидбек (best-effort)
+startCoachJobWorker();
 
 // api/src/index.ts (после app.listen)
 import { q } from "./db.js";

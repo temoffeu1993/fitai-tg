@@ -139,3 +139,26 @@ export async function getProgressionJob(jobId: string) {
   const res = await apiFetch(`/plan/progression/jobs/${jobId}`);
   return parseJson<{ ok: boolean; job: any }>(res, "progression_job");
 }
+
+export async function getCoachJob(jobId: string) {
+  const res = await apiFetch(`/plan/coach/jobs/${jobId}`);
+  return parseJson<{ ok: boolean; job: any }>(res, "coach_job");
+}
+
+export async function getCoachSessionReport(sessionId: string) {
+  const res = await apiFetch(`/plan/coach/session/${sessionId}`);
+  return parseJson<{ ok: boolean; found: boolean; report?: any }>(res, "coach_session");
+}
+
+export async function getLatestWeeklyCoachReport() {
+  const res = await apiFetch(`/plan/coach/weekly/latest`);
+  return parseJson<{ ok: boolean; found: boolean; report?: any }>(res, "coach_weekly_latest");
+}
+
+export async function getWorkoutSessionById(sessionId: string) {
+  const res = await apiFetch(`/plan/sessions/${sessionId}`);
+  return parseJson<{ ok: boolean; session: any; progressionJob?: any | null; coachReport?: any | null }>(
+    res,
+    "session_by_id"
+  );
+}
