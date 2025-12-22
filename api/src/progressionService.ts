@@ -136,11 +136,23 @@ function requiresExternalLoad(equipmentList: string[]): boolean {
 }
 
 /**
- * Parse target reps range from string/number
+ * Parse target reps range from string/number/tuple.
  * Examples: "6-10" → [6, 10], 12 → [8, 12], "8-12" → [8, 12]
  */
-function parseRepsRange(reps: string | number | undefined): [number, number] {
+function parseRepsRange(reps: unknown): [number, number] {
   if (!reps) return [8, 12]; // default
+
+  // Array/tuple: [6,10] (common payload form from frontend)
+  if (Array.isArray(reps) && reps.length >= 2) {
+    const a = Number(reps[0]);
+    const b = Number(reps[1]);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      let min = Math.max(1, Math.min(50, Math.round(a)));
+      let max = Math.max(1, Math.min(50, Math.round(b)));
+      if (min > max) [min, max] = [max, min];
+      return [min, max];
+    }
+  }
   
   if (typeof reps === 'number') {
     // Single number: use ±2 range
@@ -150,7 +162,8 @@ function parseRepsRange(reps: string | number | undefined): [number, number] {
   }
   
   // String: "6-10", "8–12", "10"
-  const match = String(reps).match(/(\d+)\s*[-–—]\s*(\d+)/);
+  const s = String(reps).trim();
+  const match = s.match(/(\d+)\s*[-–—]\s*(\d+)/);
   if (match) {
     let min = Math.max(1, Math.min(50, Number(match[1])));
     let max = Math.max(1, Math.min(50, Number(match[2])));
@@ -158,9 +171,19 @@ function parseRepsRange(reps: string | number | undefined): [number, number] {
     if (min > max) [min, max] = [max, min];
     return [min, max];
   }
+
+  // Comma-delimited: "6,10" (can happen if array got stringified)
+  const comma = s.match(/(\d+)\s*,\s*(\d+)/);
+  if (comma) {
+    let min = Math.max(1, Math.min(50, Number(comma[1])));
+    let max = Math.max(1, Math.min(50, Number(comma[2])));
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [8, 12];
+    if (min > max) [min, max] = [max, min];
+    return [min, max];
+  }
   
   // Single number as string
-  const num = Number(reps);
+  const num = Number(s);
   if (Number.isFinite(num) && num > 0) {
     const min = Math.max(1, Math.min(50, num - 2));
     const max = Math.max(1, Math.min(50, num + 2));

@@ -326,6 +326,22 @@ export default function WorkoutSession() {
     );
   }
 
+  const normalizeRepsForPayload = (reps: unknown): string | number | undefined => {
+    if (reps == null) return undefined;
+    if (typeof reps === "number" && Number.isFinite(reps) && reps > 0) return Math.round(reps);
+    if (typeof reps === "string" && reps.trim()) return reps.trim();
+    if (Array.isArray(reps) && reps.length >= 2) {
+      const a = Number(reps[0]);
+      const b = Number(reps[1]);
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        const min = Math.round(Math.min(a, b));
+        const max = Math.round(Math.max(a, b));
+        if (min > 0 && max > 0) return `${min}-${max}`;
+      }
+    }
+    return undefined;
+  };
+
   const openFinishModal = () => {
     const defaultDuration = Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
     const startGuess = new Date(Date.now() - defaultDuration * 60000);
@@ -357,7 +373,7 @@ export default function WorkoutSession() {
         pattern: it.pattern,
         targetMuscles: it.targetMuscles,
         restSec: it.restSec,
-        reps: it.targetReps,
+        reps: normalizeRepsForPayload(it.targetReps),
         done: !!it.done,
         effort: it.effort ?? undefined,
         sets: it.sets
