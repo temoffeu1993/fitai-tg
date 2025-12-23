@@ -200,16 +200,17 @@ export default function CoachChat() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     height: "100dvh",
-    padding: "0 0 calc(104px + var(--tg-viewport-inset-bottom, 0px))",
+    padding: "0 0 calc(132px + var(--tg-viewport-inset-bottom, 0px))",
     display: "grid",
     boxSizing: "border-box",
     overflow: "hidden",
+    overscrollBehavior: "none",
   },
   screen: {
     height: "100%",
     minHeight: 0,
     display: "grid",
-    gridTemplateRows: "auto 1fr auto",
+    gridTemplateRows: "auto minmax(0, 1fr) auto",
     padding: "14px 14px 0",
     boxSizing: "border-box",
     overflow: "hidden",
@@ -237,6 +238,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   glassBlock: {
     minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
     borderRadius: 20,
     border: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.55)",
@@ -283,7 +286,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   messages: {
     minHeight: 0,
-    overflow: "auto",
+    flex: 1,
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    WebkitOverflowScrolling: "touch",
     padding: "14px 14px",
     display: "grid",
     gap: 10,
