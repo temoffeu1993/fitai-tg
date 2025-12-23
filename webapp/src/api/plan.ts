@@ -162,3 +162,20 @@ export async function getWorkoutSessionById(sessionId: string) {
     "session_by_id"
   );
 }
+
+export async function getCoachChatHistory(limit = 40) {
+  const res = await apiFetch(`/plan/coach/chat/history?limit=${encodeURIComponent(String(limit))}`);
+  return parseJson<{ ok: boolean; messages: Array<{ id: string; role: string; content: string; createdAt: string }> }>(
+    res,
+    "coach_chat_history"
+  );
+}
+
+export async function sendCoachChat(message: string) {
+  const res = await apiFetch(`/plan/coach/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  return parseJson<{ ok: boolean; threadId: string; userMessage: any; assistantMessage: any }>(res, "coach_chat_send");
+}

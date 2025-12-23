@@ -343,6 +343,46 @@ async function applyCoachJobsMigration() {
   }
 }
 
+/**
+ * Ensures coach chat persistence tables (threads + messages).
+ */
+async function applyCoachChatMigration() {
+  try {
+    console.log("\n🔧 Checking coach_chat migration...");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coach_chat_threads (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL UNIQUE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coach_chat_messages (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        thread_id uuid NOT NULL REFERENCES coach_chat_threads(id) ON DELETE CASCADE,
+        role text NOT NULL CHECK (role IN ('user','assistant','system')),
+        content text NOT NULL,
+        meta jsonb NULL,
+        prompt_tokens int NULL,
+        completion_tokens int NULL,
+        total_tokens int NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_chat_messages_thread_time ON coach_chat_messages(thread_id, created_at ASC);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_chat_messages_thread_time_desc ON coach_chat_messages(thread_id, created_at DESC);`);
+
+    console.log("✅ coach_chat schema ensured\n");
+  } catch (error: any) {
+    console.error("❌ coach_chat migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
@@ -351,6 +391,7 @@ async function applyCoachJobsMigration() {
     await applyExerciseHistorySessionIdMigration();
     await applyPlannedWorkoutsBasePlanMigration();
     await applyCoachJobsMigration();
+    await applyCoachChatMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу

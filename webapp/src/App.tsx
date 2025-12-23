@@ -11,6 +11,7 @@ import Nutrition from "./screens/Nutrition";
 import Profile from "./screens/Profile";
 import WorkoutSession from "./screens/WorkoutSession";
 import WorkoutResult from "./screens/WorkoutResult";
+import CoachChat from "./screens/CoachChat";
 import History from "@/screens/History";
 import NutritionToday from "@/screens/NutritionToday";
 import Schedule from "./screens/Schedule";
@@ -172,12 +173,13 @@ export default function App() {
       <BrowserRouter>
         <OnboardingProvider>
           <Routes>
-          <Route element={<LayoutWithNav />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/plan/one" element={<PlanOne />} />
-            <Route path="/check-in" element={<CheckIn />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/profile" element={<Profile />} />
+	          <Route element={<LayoutWithNav />}>
+	            <Route path="/" element={<Dashboard />} />
+	            <Route path="/coach" element={<CoachChat />} />
+	            <Route path="/plan/one" element={<PlanOne />} />
+	            <Route path="/check-in" element={<CheckIn />} />
+	            <Route path="/nutrition" element={<Nutrition />} />
+	            <Route path="/profile" element={<Profile />} />
             <Route path="/workout/session" element={<WorkoutSession />} />
             <Route path="/workout/result" element={<WorkoutResult />} />
              <Route path="/history" element={<History />} />

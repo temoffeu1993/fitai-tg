@@ -15,6 +15,7 @@ import {
   maybeEnqueueWeeklyCoachJob,
   processCoachJob,
 } from "./coachJobs.js";
+import { getCoachChatHistoryForUser, sendCoachChatMessage } from "./coachChat.js";
 import { getNextWorkoutRecommendations } from "./progressionService.js";
 import { 
   generateWorkoutDay,
@@ -1873,6 +1874,30 @@ workoutGeneration.get(
         : null,
       coachReport: coach || null,
     });
+  })
+);
+
+// ============================================================================
+// COACH CHAT: Ask questions with full history context
+// ============================================================================
+
+workoutGeneration.get(
+  "/coach/chat/history",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const limit = Number(req.query?.limit);
+    const messages = await getCoachChatHistoryForUser(uid, Number.isFinite(limit) ? limit : 40);
+    res.json({ ok: true, messages });
+  })
+);
+
+workoutGeneration.post(
+  "/coach/chat",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const message = req.body?.message;
+    const out = await sendCoachChatMessage({ userId: uid, message });
+    res.json({ ok: true, threadId: out.threadId, userMessage: out.userMessage, assistantMessage: out.assistantMessage });
   })
 );
 
