@@ -6,6 +6,7 @@ import { q, withTransaction } from "./db.js";
 import { config } from "./config.js";
 import { AppError } from "./middleware/errorHandler.js";
 import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
+import { createJsonObjectResponse } from "./openaiJson.js";
 
 type Role = "user" | "assistant" | "system";
 
@@ -535,22 +536,21 @@ export async function sendCoachChatMessage(args: {
   }
 
   const model = String(process.env.COACH_CHAT_MODEL || "gpt-5.2");
-  const t0 = Date.now();
-  const completion = await openai.chat.completions.create({
+  const instructions = buildSystemPrompt();
+  const baseMessages = history
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+  const call1 = await createJsonObjectResponse({
+    client: openai as any,
     model,
+    instructions,
+    messages: [...baseMessages, { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) }],
     temperature: 0.7,
-    max_tokens: 1200,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: buildSystemPrompt() },
-      ...history
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) },
-    ],
+    maxOutputTokens: 1200,
   });
 
-  const raw = completion.choices[0]?.message?.content || "{}";
+  const raw = call1.jsonText || "{}";
   const parsed = safeJsonParse(raw);
   const answerText0 = normalizeAnswerText({
     intro: parsed?.intro,
@@ -563,11 +563,11 @@ export async function sendCoachChatMessage(args: {
     console.log("[COACH_CHAT][content] answer:", answerText0);
   }
 
-  const latencyMs = Date.now() - t0;
-  const usage = completion.usage || ({} as any);
-  const promptTokens = Number.isFinite(Number(usage.prompt_tokens)) ? Number(usage.prompt_tokens) : null;
-  const completionTokens = Number.isFinite(Number(usage.completion_tokens)) ? Number(usage.completion_tokens) : null;
-  const totalTokens = Number.isFinite(Number(usage.total_tokens)) ? Number(usage.total_tokens) : null;
+  let latencyMs = call1.usage.latencyMs;
+  let promptTokens = call1.usage.promptTokens;
+  let completionTokens = call1.usage.completionTokens;
+  let totalTokens = call1.usage.totalTokens;
+  let apiUsed = call1.usage.api;
 
   if (process.env.AI_USAGE_LOG === "1") {
     console.log(
@@ -590,13 +590,11 @@ export async function sendCoachChatMessage(args: {
   let rewriteUsed = false;
   if (answerLooksTooGeneric) {
     try {
-      const completion2 = await openai.chat.completions.create({
+      const call2 = await createJsonObjectResponse({
+        client: openai as any,
         model,
-        temperature: 0.5,
-        max_tokens: 1100,
-        response_format: { type: "json_object" },
+        instructions,
         messages: [
-          { role: "system", content: buildSystemPrompt() },
           {
             role: "user",
             content:
@@ -606,8 +604,11 @@ export async function sendCoachChatMessage(args: {
               "Если данных не хватает — прямо так и скажи и дай 2–3 шага, которые можно проверить в следующей тренировке.",
           },
         ],
+        temperature: 0.5,
+        maxOutputTokens: 1100,
       });
-      const raw2 = completion2.choices[0]?.message?.content || "{}";
+
+      const raw2 = call2.jsonText || "{}";
       const parsed2 = safeJsonParse(raw2);
       const answerText2 = normalizeAnswerText({
         intro: parsed2?.intro,
@@ -618,6 +619,16 @@ export async function sendCoachChatMessage(args: {
       if (answerText2 && answerText2.length > 40) {
         answerText = answerText2;
         rewriteUsed = true;
+        latencyMs += call2.usage.latencyMs;
+        promptTokens =
+          promptTokens == null && call2.usage.promptTokens == null ? null : (promptTokens ?? 0) + (call2.usage.promptTokens ?? 0);
+        completionTokens =
+          completionTokens == null && call2.usage.completionTokens == null
+            ? null
+            : (completionTokens ?? 0) + (call2.usage.completionTokens ?? 0);
+        totalTokens =
+          totalTokens == null && call2.usage.totalTokens == null ? null : (totalTokens ?? 0) + (call2.usage.totalTokens ?? 0);
+        apiUsed = call2.usage.api;
       }
     } catch {
       // ignore rewrite failures
@@ -640,7 +651,7 @@ export async function sendCoachChatMessage(args: {
       [
         threadId,
         answerText,
-        JSON.stringify({ focus, intent: focus?.intent?.kind || null, rewriteUsed }),
+        JSON.stringify({ focus, intent: focus?.intent?.kind || null, rewriteUsed, api: apiUsed }),
         model,
         promptTokens,
         completionTokens,

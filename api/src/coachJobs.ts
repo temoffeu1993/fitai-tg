@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import OpenAI from "openai";
 import { q, withTransaction } from "./db.js";
 import { config } from "./config.js";
+import { createJsonObjectResponse } from "./openaiJson.js";
 
 export type CoachJobKind = "session" | "week";
 export type CoachJobStatus = "pending" | "processing" | "done" | "failed";
@@ -496,39 +497,36 @@ function buildWeeklyCoachPrompt(args: {
 
 async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<Omit<CoachResult, "kind" | "createdAt">> {
   const model = String(process.env.COACH_FEEDBACK_MODEL || "gpt-5.2");
-  const t0 = Date.now();
   const openai = getOpenAI();
   if (shouldLogContent()) {
     console.log(`[COACH_FEEDBACK][content] kind=${kind} prompt:`, prompt.slice(0, 8000));
   }
-  const completion = await openai.chat.completions.create({
+  const instructions =
+    'Ты опытный фитнес‑тренер (10+ лет). Пиши по-русски, на "ты". Пиши как живой тренер: по делу, без канцелярита и без шаблонов. Не упоминай, что ты ИИ. Не используй эмодзи. Не задавай вопросов.';
+
+  const call = await createJsonObjectResponse({
+    client: openai as any,
     model,
+    instructions,
+    messages: [{ role: "user", content: prompt }],
     temperature: 0.85,
-    max_tokens: 1200,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          'Ты опытный фитнес‑тренер (10+ лет). Пиши по-русски, на "ты". Пиши как живой тренер: по делу, без канцелярита и без шаблонов. Не упоминай, что ты ИИ. Не используй эмодзи. Не задавай вопросов.',
-      },
-      { role: "user", content: prompt },
-    ],
+    maxOutputTokens: 1200,
   });
-  const latencyMs = Date.now() - t0;
-  const promptTokens = completion.usage?.prompt_tokens ?? null;
-  const completionTokens = completion.usage?.completion_tokens ?? null;
-  const totalTokens = completion.usage?.total_tokens ?? null;
+
+  const latencyMs = call.usage.latencyMs;
+  const promptTokens = call.usage.promptTokens;
+  const completionTokens = call.usage.completionTokens;
+  const totalTokens = call.usage.totalTokens;
   if (process.env.AI_USAGE_LOG === "1") {
     console.log(
       `[COACH_FEEDBACK] kind=${kind} model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
     );
   }
   coachLog(
-    `[COACH] openai.chat ${latencyMs}ms kind=${kind} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
+    `[COACH] openai.${call.usage.api} ${latencyMs}ms kind=${kind} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
   );
 
-  const raw = completion.choices[0]?.message?.content || "{}";
+  const raw = call.jsonText || "{}";
   if (shouldLogContent()) {
     console.log(`[COACH_FEEDBACK][content] kind=${kind} raw:`, raw.slice(0, 8000));
   }
@@ -554,7 +552,7 @@ async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<
     },
     meta: {
       ...(isCoachDebug() ? { raw } : {}),
-      usage: { model, latencyMs, promptTokens, completionTokens, totalTokens },
+      usage: { model, api: call.usage.api, latencyMs, promptTokens, completionTokens, totalTokens },
     },
   };
 }

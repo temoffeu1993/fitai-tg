@@ -18,7 +18,7 @@ import { workoutGeneration } from "./workoutGeneration.js"; // 🔥 НОВАЯ �
 import { workoutTest } from "./workoutTest.js"; // 🔥 НОВОЕ: тестовый эндпоинт
 import { scientificWorkoutTest } from "./scientificWorkoutTest.js"; // 🔥 НАУЧНАЯ система
 import { getSubscriptionStatus } from "./subscription.js";
-import { asyncHandler } from "./middleware/errorHandler.js";
+import { asyncHandler, errorHandler } from "./middleware/errorHandler.js";
 import { startProgressionJobWorker } from "./progressionJobs.js";
 import { startCoachJobWorker } from "./coachJobs.js";
 
@@ -66,10 +66,7 @@ app.get(
 );
 
 // error handler
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  const code = err.status || 500;
-  res.status(code).json({ error: err.code || "internal_error", message: err.message || "Internal error" });
-});
+app.use(errorHandler);
 
 app.listen(config.port, () => {
   console.log("api:" + config.port);
