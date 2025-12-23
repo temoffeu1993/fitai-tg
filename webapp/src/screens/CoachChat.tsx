@@ -42,11 +42,25 @@ export default function CoachChat() {
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
+    const rootEl = document.getElementById("root");
+    const prevRootOverflowY = rootEl?.style.overflowY;
+    const prevRootOverscroll = rootEl?.style.overscrollBehavior;
+    const prevRootTouchAction = rootEl?.style.touchAction;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
+    if (rootEl) {
+      rootEl.style.overflowY = "hidden";
+      rootEl.style.overscrollBehavior = "none";
+      rootEl.style.touchAction = "none";
+    }
     return () => {
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
+      if (rootEl) {
+        rootEl.style.overflowY = prevRootOverflowY ?? "";
+        rootEl.style.overscrollBehavior = prevRootOverscroll ?? "";
+        rootEl.style.touchAction = prevRootTouchAction ?? "";
+      }
     };
   }, []);
 
@@ -445,7 +459,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   composer: {
     gridRow: 4,
-    padding: "10px 14px calc(12px + var(--tg-viewport-inset-bottom, 0px))",
+    padding:
+      "10px 14px calc(26px + max(var(--tg-viewport-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
     background: "rgba(255,255,255,0.72)",
     borderTop: "1px solid rgba(0,0,0,0.08)",
     backdropFilter: "blur(18px) saturate(180%)",
