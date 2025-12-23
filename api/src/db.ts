@@ -303,6 +303,11 @@ async function applyCoachJobsMigration() {
         next_run_at timestamptz NOT NULL DEFAULT now(),
         last_error text NULL,
         result jsonb NULL,
+        model text NULL,
+        prompt_tokens int NULL,
+        completion_tokens int NULL,
+        total_tokens int NULL,
+        latency_ms int NULL,
         telegram_sent boolean NOT NULL DEFAULT false,
         telegram_message_id text NULL,
         created_at timestamptz NOT NULL DEFAULT now(),
@@ -321,6 +326,11 @@ async function applyCoachJobsMigration() {
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS next_run_at timestamptz NOT NULL DEFAULT now();`);
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS last_error text NULL;`);
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS result jsonb NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS model text NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS prompt_tokens int NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS completion_tokens int NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS total_tokens int NULL;`);
+    await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS latency_ms int NULL;`);
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS telegram_sent boolean NOT NULL DEFAULT false;`);
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS telegram_message_id text NULL;`);
     await pool.query(`ALTER TABLE coach_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();`);
@@ -366,15 +376,19 @@ async function applyCoachChatMigration() {
         role text NOT NULL CHECK (role IN ('user','assistant','system')),
         content text NOT NULL,
         meta jsonb NULL,
+        model text NULL,
         prompt_tokens int NULL,
         completion_tokens int NULL,
         total_tokens int NULL,
+        latency_ms int NULL,
         created_at timestamptz NOT NULL DEFAULT now()
       );
     `);
 
+    await pool.query(`ALTER TABLE coach_chat_messages ADD COLUMN IF NOT EXISTS model text NULL;`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_chat_messages_thread_time ON coach_chat_messages(thread_id, created_at ASC);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_coach_chat_messages_thread_time_desc ON coach_chat_messages(thread_id, created_at DESC);`);
+    await pool.query(`ALTER TABLE coach_chat_messages ADD COLUMN IF NOT EXISTS latency_ms int NULL;`);
 
     console.log("✅ coach_chat schema ensured\n");
   } catch (error: any) {

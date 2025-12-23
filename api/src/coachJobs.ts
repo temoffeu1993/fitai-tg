@@ -93,6 +93,10 @@ function coachLog(...args: any[]) {
   console.log(...args);
 }
 
+function shouldLogContent(): boolean {
+  return process.env.AI_LOG_CONTENT === "1";
+}
+
 function formatError(e: any): string {
   const msg = String(e?.message || e);
   const cause = typeof e?.causeMessage === "string" && e.causeMessage.trim() ? e.causeMessage : "";
@@ -491,10 +495,14 @@ function buildWeeklyCoachPrompt(args: {
 }
 
 async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<Omit<CoachResult, "kind" | "createdAt">> {
+  const model = String(process.env.COACH_FEEDBACK_MODEL || "gpt-4o");
   const t0 = Date.now();
   const openai = getOpenAI();
+  if (shouldLogContent()) {
+    console.log(`[COACH_FEEDBACK][content] kind=${kind} prompt:`, prompt.slice(0, 8000));
+  }
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     temperature: 0.85,
     max_tokens: 1200,
     response_format: { type: "json_object" },
@@ -507,9 +515,23 @@ async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<
       { role: "user", content: prompt },
     ],
   });
-  coachLog(`[COACH] openai.chat ${Date.now() - t0}ms kind=${kind} prompt=${completion.usage?.prompt_tokens ?? "?"} completion=${completion.usage?.completion_tokens ?? "?"}`);
+  const latencyMs = Date.now() - t0;
+  const promptTokens = completion.usage?.prompt_tokens ?? null;
+  const completionTokens = completion.usage?.completion_tokens ?? null;
+  const totalTokens = completion.usage?.total_tokens ?? null;
+  if (process.env.AI_USAGE_LOG === "1") {
+    console.log(
+      `[COACH_FEEDBACK] kind=${kind} model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
+    );
+  }
+  coachLog(
+    `[COACH] openai.chat ${latencyMs}ms kind=${kind} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
+  );
 
   const raw = completion.choices[0]?.message?.content || "{}";
+  if (shouldLogContent()) {
+    console.log(`[COACH_FEEDBACK][content] kind=${kind} raw:`, raw.slice(0, 8000));
+  }
   const parsed = safeJsonParse(raw);
   const telegramBullets = normalizeBullets(parsed?.telegram?.bullets ?? parsed?.bullets, 3, 5);
   const detailBullets = normalizeBullets(parsed?.detail?.bullets ?? parsed?.bullets, 3, 7);
@@ -530,7 +552,10 @@ async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<
       bullets: detailBullets.length ? detailBullets : telegramBullets,
       actions,
     },
-    meta: isCoachDebug() ? { raw } : undefined,
+    meta: {
+      ...(isCoachDebug() ? { raw } : {}),
+      usage: { model, latencyMs, promptTokens, completionTokens, totalTokens },
+    },
   };
 }
 
@@ -893,11 +918,24 @@ async function runJob(job: CoachJobRow): Promise<{ status: CoachJobStatus; resul
         `UPDATE coach_jobs
             SET status = 'done',
                 result = $2::jsonb,
+                model = $3,
+                prompt_tokens = $4,
+                completion_tokens = $5,
+                total_tokens = $6,
+                latency_ms = $7,
                 last_error = NULL,
                 updated_at = now(),
                 completed_at = now()
           WHERE id = $1::uuid`,
-        [job.id, result]
+        [
+          job.id,
+          result,
+          result?.meta?.usage?.model ?? null,
+          result?.meta?.usage?.promptTokens ?? null,
+          result?.meta?.usage?.completionTokens ?? null,
+          result?.meta?.usage?.totalTokens ?? null,
+          result?.meta?.usage?.latencyMs ?? null,
+        ]
       );
 
       // Telegram send (best-effort)
@@ -954,11 +992,24 @@ async function runJob(job: CoachJobRow): Promise<{ status: CoachJobStatus; resul
       `UPDATE coach_jobs
           SET status = 'done',
               result = $2::jsonb,
+              model = $3,
+              prompt_tokens = $4,
+              completion_tokens = $5,
+              total_tokens = $6,
+              latency_ms = $7,
               last_error = NULL,
               updated_at = now(),
               completed_at = now()
         WHERE id = $1::uuid`,
-      [job.id, result]
+      [
+        job.id,
+        result,
+        result?.meta?.usage?.model ?? null,
+        result?.meta?.usage?.promptTokens ?? null,
+        result?.meta?.usage?.completionTokens ?? null,
+        result?.meta?.usage?.totalTokens ?? null,
+        result?.meta?.usage?.latencyMs ?? null,
+      ]
     );
 
     const tgId = await getUserTelegramId(job.user_id);

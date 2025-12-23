@@ -217,6 +217,17 @@ function buildUserPrompt(args: { question: string; context: any }): string {
   ].join("\n");
 }
 
+function makeContextRef(ctx: any) {
+  const workouts = Array.isArray(ctx?.workouts) ? ctx.workouts : [];
+  const checkins = Array.isArray(ctx?.checkins) ? ctx.checkins : [];
+  return {
+    workoutsCount: workouts.length,
+    workoutIds: workouts.map((w: any) => w?.id).filter(Boolean),
+    checkinsCount: checkins.length,
+    checkinDates: checkins.map((c: any) => String(c?.createdAt || "").slice(0, 10)).filter(Boolean),
+  };
+}
+
 export async function getCoachChatHistoryForUser(userId: string, limit = 40): Promise<ChatMessage[]> {
   const threadId = await getOrCreateThreadId(userId);
   return getChatHistory(threadId, limit);
@@ -235,10 +246,17 @@ export async function sendCoachChatMessage(args: {
   const threadId = await getOrCreateThreadId(userId);
   const history = await getChatHistory(threadId, 18);
   const context = await getUserContext(userId);
+  const contextRef = makeContextRef(context);
 
+  if (process.env.AI_LOG_CONTENT === "1") {
+    console.log("[COACH_CHAT][content] question:", message);
+    console.log("[COACH_CHAT][content] contextRef:", JSON.stringify(contextRef));
+  }
+
+  const model = String(process.env.COACH_CHAT_MODEL || "gpt-4o");
   const t0 = Date.now();
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     temperature: 0.8,
     max_tokens: 1200,
     response_format: { type: "json_object" },
@@ -260,10 +278,21 @@ export async function sendCoachChatMessage(args: {
     outro: parsed?.outro,
   });
 
+  if (process.env.AI_LOG_CONTENT === "1") {
+    console.log("[COACH_CHAT][content] answer:", answerText);
+  }
+
+  const latencyMs = Date.now() - t0;
   const usage = completion.usage || ({} as any);
   const promptTokens = Number.isFinite(Number(usage.prompt_tokens)) ? Number(usage.prompt_tokens) : null;
   const completionTokens = Number.isFinite(Number(usage.completion_tokens)) ? Number(usage.completion_tokens) : null;
   const totalTokens = Number.isFinite(Number(usage.total_tokens)) ? Number(usage.total_tokens) : null;
+
+  if (process.env.AI_USAGE_LOG === "1") {
+    console.log(
+      `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
+    );
+  }
 
   // Persist messages transactionally.
   const saved = await withTransaction(async () => {
@@ -271,20 +300,22 @@ export async function sendCoachChatMessage(args: {
       `INSERT INTO coach_chat_messages (thread_id, role, content, meta)
        VALUES ($1, 'user', $2, $3::jsonb)
        RETURNING id, created_at`,
-      [threadId, message, JSON.stringify({ t: Date.now() })]
+      [threadId, message, JSON.stringify({ contextRef })]
     );
 
     const [a] = await q<{ id: string; created_at: string }>(
-      `INSERT INTO coach_chat_messages (thread_id, role, content, meta, prompt_tokens, completion_tokens, total_tokens)
-       VALUES ($1, 'assistant', $2, $3::jsonb, $4, $5, $6)
+      `INSERT INTO coach_chat_messages (thread_id, role, content, meta, model, prompt_tokens, completion_tokens, total_tokens, latency_ms)
+       VALUES ($1, 'assistant', $2, $3::jsonb, $4, $5, $6, $7, $8)
        RETURNING id, created_at`,
       [
         threadId,
         answerText,
-        JSON.stringify({ model: "gpt-4o", latencyMs: Date.now() - t0 }),
+        JSON.stringify({}),
+        model,
         promptTokens,
         completionTokens,
         totalTokens,
+        latencyMs,
       ]
     );
 
