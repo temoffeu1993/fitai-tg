@@ -253,6 +253,16 @@ function buildFocusContext(args: { question: string; context: any }) {
   const intent = detectIntent(args.question);
   const focusExercises = extractFocusExercises({ question: args.question, workouts });
 
+  const includeLast = workouts.length > 0 && questionMentionsLastWorkout(args.question);
+  const lastWorkout = includeLast
+    ? {
+        id: workouts[0]?.id ?? null,
+        finishedAt: workouts[0]?.finishedAt ?? null,
+        stats: workouts[0]?.stats ?? null,
+        workout: workouts[0]?.workout ?? null,
+      }
+    : null;
+
   const exerciseHistory = focusExercises.length
     ? workouts
         .map((w: any) => {
@@ -285,6 +295,7 @@ function buildFocusContext(args: { question: string; context: any }) {
     intent,
     focusExercises,
     exerciseHistory,
+    lastWorkout,
   };
 }
 
@@ -398,16 +409,19 @@ function buildSystemPrompt(): string {
     'Ты опытный фитнес‑тренер (10+ лет). Отвечай по-русски, на "ты".',
     "Твоя задача — анализировать данные пользователя из приложения и давать профессиональные рекомендации.",
     "Пиши живо и по делу, без канцелярита и без шаблонных комплиментов.",
+    "Не пересказывай список упражнений — пользователь и так это видел. Твоя ценность: анализ причин и конкретные шаги.",
+    "Каждый пункт должен опираться на данные пользователя (тренировки/чек-ины) или быть явно помечен как гипотеза.",
     "",
     "Важно:",
     "- Не придумывай факты, которых нет в данных. Причины формулируй как гипотезы (например: «похоже», «возможно»).",
     "- Не ставь диагнозы и не лечи. Если боль сильная/острая — советуй снизить нагрузку и при необходимости обратиться к специалисту.",
     "- Не используй термины типа RPE/RIR/1RM/проценты/тоннаж.",
+    "- Не утверждай, что пользователь «мало отдыхал/отдыхал X минут» — фактический отдых не логируется. Можно предложить увеличить отдых как эксперимент, но без утверждений.",
     "- Дай 3–6 ключевых выводов и 2–4 конкретных шага «что делать дальше».",
   ].join("\n");
 }
 
-function buildUserPrompt(args: { question: string; context: any; focus: any }): string {
+function buildUserPrompt(args: { question: string; context: any; focus: any; historyBrief: any }): string {
   return [
     "ВАЖНО: не пересказывай тренировки. Отвечай на вопрос по сути и опирайся на данные пользователя.",
     "Если данных недостаточно — скажи это прямо и предложи 1–2 безопасных шага, которые не требуют гадания.",
@@ -417,6 +431,9 @@ function buildUserPrompt(args: { question: string; context: any; focus: any }): 
     "",
     "Фокус под вопрос (JSON):",
     JSON.stringify(args.focus),
+    "",
+    "Короткая сводка диалога (JSON):",
+    JSON.stringify(args.historyBrief),
     "",
     "Вопрос пользователя:",
     args.question,
@@ -429,6 +446,7 @@ function buildUserPrompt(args: { question: string; context: any; focus: any }): 
     "- 2–4 actions: конкретные шаги на следующую тренировку/неделю.",
     "- Не используй конкретные веса/повторы, если ты их не видишь явно в данных из JSON.",
     "- Не делай вид, что ты уверен: причины формулируй как гипотезы.",
+    "- В каждом bullet постарайся упомянуть конкретику из данных (упражнение/дата/длительность/оценка тяжести/объём), иначе перепиши bullet.",
   ].join("\n");
 }
 
@@ -441,6 +459,18 @@ function makeContextRef(ctx: any) {
     checkinsCount: checkins.length,
     checkinDates: checkins.map((c: any) => String(c?.createdAt || "").slice(0, 10)).filter(Boolean),
   };
+}
+
+function makeHistoryBrief(history: ChatMessage[]) {
+  return history.slice(-6).map((m) => ({
+    role: m.role,
+    content: String(m.content || "").slice(0, 280),
+  }));
+}
+
+function questionMentionsLastWorkout(q: string): boolean {
+  const s = normalizeNameKey(q);
+  return /последн|сегодня|этатрен|посмотритренировку|проанализирутрен|разбортрен/.test(s);
 }
 
 export async function getCoachChatHistoryForUser(userId: string, limit = 40): Promise<ChatMessage[]> {
@@ -463,6 +493,7 @@ export async function sendCoachChatMessage(args: {
   const context = await getUserContext(userId);
   const contextRef = makeContextRef(context);
   const focus = buildFocusContext({ question: message, context });
+  const historyBrief = makeHistoryBrief(history);
 
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] question:", message);
@@ -507,7 +538,7 @@ export async function sendCoachChatMessage(args: {
   const t0 = Date.now();
   const completion = await openai.chat.completions.create({
     model,
-    temperature: 0.8,
+    temperature: 0.7,
     max_tokens: 1200,
     response_format: { type: "json_object" },
     messages: [
@@ -515,13 +546,13 @@ export async function sendCoachChatMessage(args: {
       ...history
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      { role: "user", content: buildUserPrompt({ question: message, context, focus }) },
+      { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) },
     ],
   });
 
   const raw = completion.choices[0]?.message?.content || "{}";
   const parsed = safeJsonParse(raw);
-  const answerText = normalizeAnswerText({
+  const answerText0 = normalizeAnswerText({
     intro: parsed?.intro,
     bullets: parsed?.bullets,
     actions: parsed?.actions,
@@ -529,7 +560,7 @@ export async function sendCoachChatMessage(args: {
   });
 
   if (process.env.AI_LOG_CONTENT === "1") {
-    console.log("[COACH_CHAT][content] answer:", answerText);
+    console.log("[COACH_CHAT][content] answer:", answerText0);
   }
 
   const latencyMs = Date.now() - t0;
@@ -542,6 +573,55 @@ export async function sendCoachChatMessage(args: {
     console.log(
       `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
     );
+  }
+
+  const answerLooksTooGeneric = (() => {
+    const txt = answerText0.toLowerCase();
+    const genericMarkers = ["разнообраз", "хорошая работа", "хороший режим", "в целом", "старайся", "следи за техникой"];
+    const hasGeneric = genericMarkers.some((m) => txt.includes(m));
+    const hasNumbers = /\d/.test(txt);
+    const focusNames = Array.isArray(focus?.focusExercises) ? focus.focusExercises.map((f: any) => String(f?.name || "").toLowerCase()) : [];
+    const hasFocusMention = focusNames.some((n) => n && txt.includes(n.slice(0, Math.min(10, n.length))));
+    const assertsRest = txt.includes("время отдыха") || txt.includes("отдых между подход");
+    return (hasGeneric && !hasNumbers && !hasFocusMention) || assertsRest;
+  })();
+
+  let answerText = answerText0;
+  let rewriteUsed = false;
+  if (answerLooksTooGeneric) {
+    try {
+      const completion2 = await openai.chat.completions.create({
+        model,
+        temperature: 0.5,
+        max_tokens: 1100,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          {
+            role: "user",
+            content:
+              buildUserPrompt({ question: message, context, focus, historyBrief }) +
+              "\n\nПерепиши ответ так, чтобы он стал конкретнее и опирался на данные. " +
+              "Убери общие фразы, не утверждай про отдых между подходами. " +
+              "Если данных не хватает — прямо так и скажи и дай 2–3 шага, которые можно проверить в следующей тренировке.",
+          },
+        ],
+      });
+      const raw2 = completion2.choices[0]?.message?.content || "{}";
+      const parsed2 = safeJsonParse(raw2);
+      const answerText2 = normalizeAnswerText({
+        intro: parsed2?.intro,
+        bullets: parsed2?.bullets,
+        actions: parsed2?.actions,
+        outro: parsed2?.outro,
+      });
+      if (answerText2 && answerText2.length > 40) {
+        answerText = answerText2;
+        rewriteUsed = true;
+      }
+    } catch {
+      // ignore rewrite failures
+    }
   }
 
   // Persist messages transactionally.
@@ -560,7 +640,7 @@ export async function sendCoachChatMessage(args: {
       [
         threadId,
         answerText,
-        JSON.stringify({ focus, intent: focus?.intent?.kind || null }),
+        JSON.stringify({ focus, intent: focus?.intent?.kind || null, rewriteUsed }),
         model,
         promptTokens,
         completionTokens,
