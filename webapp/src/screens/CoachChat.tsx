@@ -183,8 +183,8 @@ export default function CoachChat() {
           </button>
 
           <div style={s.headerTitleWrap}>
-            <div style={s.headerTitle}>Moro — твой фитнес тренер</div>
-            <div style={s.headerSubtitle}>бот</div>
+            <div style={s.headerTitle}>Moro — твой тренер</div>
+            <div style={s.headerSubtitle}>чат с ИИ</div>
           </div>
 
           <div style={s.avatar} aria-hidden title="Moro">
@@ -308,8 +308,8 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 6,
     color: "#0f172a",
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 15,
+    fontWeight: 650,
     letterSpacing: -0.2,
     cursor: "pointer",
   },
@@ -319,7 +319,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: -2,
   },
   backLabel: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 1,
   },
   headerTitleWrap: {
@@ -329,8 +329,8 @@ const s: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 900,
+    fontSize: 16.5,
+    fontWeight: 800,
     letterSpacing: -0.2,
     color: "#0f172a",
     whiteSpace: "nowrap",
@@ -339,8 +339,8 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: "100%",
   },
   headerSubtitle: {
-    fontSize: 12.5,
-    fontWeight: 750,
+    fontSize: 12,
+    fontWeight: 600,
     color: "rgba(15,23,42,0.55)",
     lineHeight: 1,
   },
@@ -493,6 +493,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.35,
     fontWeight: 450,
     color: "#0f172a",
+    caretColor: "#0f172a",
     height: 44,
   },
   sendBtn: {
@@ -501,7 +502,8 @@ const s: Record<string, React.CSSProperties> = {
     width: 48,
     height: 48,
     padding: 0,
-    color: "#1b1b1b",
+    background: "rgba(15,23,42,0.92)",
+    color: "rgba(255,255,255,0.96)",
     fontSize: 18,
     fontWeight: 900,
     boxShadow: "none",
