@@ -534,7 +534,7 @@ export async function sendCoachChatMessage(args: {
     };
   }
 
-  const model = String(process.env.COACH_CHAT_MODEL || "gpt-4o");
+  const model = String(process.env.COACH_CHAT_MODEL || "gpt-5.2");
   const t0 = Date.now();
   const completion = await openai.chat.completions.create({
     model,

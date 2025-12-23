@@ -495,7 +495,7 @@ function buildWeeklyCoachPrompt(args: {
 }
 
 async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<Omit<CoachResult, "kind" | "createdAt">> {
-  const model = String(process.env.COACH_FEEDBACK_MODEL || "gpt-4o");
+  const model = String(process.env.COACH_FEEDBACK_MODEL || "gpt-5.2");
   const t0 = Date.now();
   const openai = getOpenAI();
   if (shouldLogContent()) {
