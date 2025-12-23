@@ -308,8 +308,9 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 6,
     color: "#0f172a",
-    fontSize: 14,
-    fontWeight: 800,
+    fontSize: 16,
+    fontWeight: 700,
+    letterSpacing: -0.2,
     cursor: "pointer",
   },
   backChevron: {
@@ -318,7 +319,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: -2,
   },
   backLabel: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 1,
   },
   headerTitleWrap: {
@@ -328,7 +329,7 @@ const s: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   headerTitle: {
-    fontSize: 15.5,
+    fontSize: 18,
     fontWeight: 900,
     letterSpacing: -0.2,
     color: "#0f172a",
@@ -460,7 +461,7 @@ const s: Record<string, React.CSSProperties> = {
   composer: {
     gridRow: 4,
     padding:
-      "10px 14px calc(26px + max(var(--tg-viewport-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
+      "10px 14px calc(14px + max(var(--tg-viewport-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
     background: "rgba(255,255,255,0.72)",
     borderTop: "1px solid rgba(0,0,0,0.08)",
     backdropFilter: "blur(18px) saturate(180%)",
