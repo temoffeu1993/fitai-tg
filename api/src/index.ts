@@ -41,7 +41,7 @@ app.use(
   "/plan",
   requireAuth,
   (req, res, next) => {
-    console.log("HIT /plan", req.method, req.url, "→ REDIRECT TO /api/workout");
+    console.log("HIT /plan", req.method, req.url);
     next();
   },
   workoutGeneration // 🔥 ИСПОЛЬЗУЕМ НОВУЮ СИСТЕМУ вместо старой
