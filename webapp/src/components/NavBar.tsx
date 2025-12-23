@@ -116,7 +116,7 @@ export default function NavBar({
         />
         <TabBtn
           emoji="🏋️"
-          label="Трен"
+          label="История"
           active={current === "history"}
           onClick={() => onChange?.("history")}
           disabled={lock}

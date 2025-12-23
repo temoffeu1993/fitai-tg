@@ -104,36 +104,41 @@ export default function CoachChat() {
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
-        <div style={s.title}>Тренер</div>
-        <div style={s.subtitle}>Задай вопрос — я посмотрю твои тренировки и самочувствие и дам рекомендации.</div>
-      </div>
-
-      {error ? <div style={s.error}>{error}</div> : null}
-
-      {loading ? (
-        <div style={s.loading}>Загружаю чат…</div>
-      ) : messages.length === 0 ? (
-        <div style={s.empty}>
-          <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
-          <div style={s.chips}>
-            {suggested.map((q) => (
-              <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
-                {q}
-              </button>
-            ))}
-          </div>
+      <div style={s.frame}>
+        <div style={s.header}>
+          <div style={s.title}>Тренер</div>
+          <div style={s.subtitle}>Задай вопрос — я посмотрю твои тренировки и самочувствие и дам рекомендации.</div>
         </div>
-      ) : null}
 
-      <div ref={listRef} style={s.list}>
-        {messages.map((m) => (
-          <div key={m.id} style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-              <div style={s.bubbleText}>{m.content}</div>
+        {error ? <div style={s.error}>{error}</div> : null}
+
+        {loading ? (
+          <div style={s.loading}>Загружаю чат…</div>
+        ) : messages.length === 0 ? (
+          <div style={s.empty}>
+            <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+            <div style={s.chips}>
+              {suggested.map((q) => (
+                <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
+                  {q}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
+        ) : null}
+
+        <div ref={listRef} style={s.list}>
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+            >
+              <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                <div style={s.bubbleText}>{m.content}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div style={s.composerWrap}>
@@ -156,7 +161,6 @@ export default function CoachChat() {
             {sending ? "…" : "Отправить"}
           </button>
         </div>
-        <div style={s.hint}>Enter — отправить, Shift+Enter — новая строка</div>
       </div>
     </div>
   );
@@ -164,11 +168,20 @@ export default function CoachChat() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    maxWidth: 680,
-    margin: "0 auto",
-    padding: "18px 16px 96px",
+    height: "100dvh",
+    padding: "12px 12px 0",
     display: "grid",
-    gap: 12,
+    overflow: "hidden",
+  },
+  frame: {
+    maxWidth: 680,
+    width: "100%",
+    margin: "0 auto",
+    display: "grid",
+    gridTemplateRows: "auto auto auto 1fr",
+    gap: 10,
+    minHeight: 0,
+    paddingBottom: 200, // reserve space for fixed composer + navbar
   },
   header: {
     display: "grid",
@@ -229,10 +242,9 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "left",
   },
   list: {
-    minHeight: 180,
-    maxHeight: "calc(100vh - 260px)",
+    minHeight: 0,
     overflow: "auto",
-    padding: "6px 2px 6px",
+    padding: "2px 2px 10px",
     display: "grid",
     gap: 10,
   },
@@ -241,33 +253,32 @@ const s: Record<string, React.CSSProperties> = {
   },
   bubble: {
     maxWidth: "88%",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: "10px 12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
     whiteSpace: "pre-wrap",
   },
   userBubble: {
-    background: "rgba(15,23,42,0.92)",
-    color: "rgba(255,255,255,0.96)",
+    background: "linear-gradient(180deg, #2aabee 0%, #1f8ad8 100%)",
+    color: "rgba(255,255,255,0.98)",
     borderTopRightRadius: 8,
   },
   assistantBubble: {
-    background: "rgba(255,255,255,0.75)",
+    background: "rgba(255,255,255,0.92)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.06)",
     borderTopLeftRadius: 8,
   },
   bubbleText: {
-    fontSize: 13.5,
-    lineHeight: 1.4,
-    fontWeight: 600,
+    fontSize: 14,
+    lineHeight: 1.38,
+    fontWeight: 450,
   },
   composerWrap: {
     position: "fixed",
     left: 0,
     right: 0,
-    bottom: 72,
-    padding: "0 16px 12px",
+    bottom: "calc(116px + var(--tg-viewport-inset-bottom, 0px))",
+    padding: "0 12px 12px",
     pointerEvents: "none",
     zIndex: 10,
   },
@@ -275,14 +286,14 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "auto",
     maxWidth: 680,
     margin: "0 auto",
-    background: "rgba(255,255,255,0.75)",
-    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(0,0,0,0.10)",
     borderRadius: 18,
-    padding: 10,
+    padding: "10px 10px",
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: 10,
-    boxShadow: "0 12px 30px rgba(0,0,0,.14)",
+    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
     backdropFilter: "blur(14px) saturate(160%)",
     WebkitBackdropFilter: "blur(14px) saturate(160%)",
   },
@@ -294,26 +305,17 @@ const s: Record<string, React.CSSProperties> = {
     resize: "none",
     fontSize: 14,
     lineHeight: 1.35,
-    fontWeight: 650,
+    fontWeight: 450,
     color: "#0f172a",
   },
   sendBtn: {
     border: "none",
     borderRadius: 14,
     padding: "10px 12px",
-    background: "rgba(99,102,241,0.95)",
-    color: "white",
+    background: "linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b)",
+    color: "#1b1b1b",
     fontSize: 13.5,
     fontWeight: 850,
     cursor: "pointer",
   },
-  hint: {
-    pointerEvents: "none",
-    maxWidth: 680,
-    margin: "8px auto 0",
-    fontSize: 12,
-    color: "rgba(15,23,42,0.6)",
-    paddingLeft: 6,
-  },
 };
-
