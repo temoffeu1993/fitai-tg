@@ -22,8 +22,27 @@ function SoftGlowStyles() {
         animation: glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
         transition: background 0.3s ease;
       }
+      .typing {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 2px;
+      }
+      .typing-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(15,23,42,0.5);
+        animation: typingBounce 1.2s ease-in-out infinite;
+      }
+      .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+      .typing-dot:nth-child(3) { animation-delay: 0.3s; }
       @keyframes glowShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
       @keyframes pulseSoft { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1) } 50% { filter: brightness(1.12) saturate(1.06); transform: scale(1.01) } }
+      @keyframes typingBounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+        40% { transform: translateY(-4px); opacity: 1; }
+      }
       @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
     `}</style>
   );
@@ -210,16 +229,29 @@ export default function CoachChat() {
                 </div>
               </div>
             ) : (
-              messages.map((m) => (
-                <div
-                  key={m.id}
-                  style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
-                >
-                  <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                    <div style={s.bubbleText}>{m.content}</div>
+              <>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+                  >
+                    <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                      <div style={s.bubbleText}>{m.content}</div>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {sending ? (
+                  <div style={{ ...s.bubbleRow, justifyContent: "flex-start" }}>
+                    <div style={{ ...s.bubble, ...s.assistantBubble }}>
+                      <div className="typing" aria-label="Тренер печатает">
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </section>
