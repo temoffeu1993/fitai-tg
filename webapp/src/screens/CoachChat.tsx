@@ -210,9 +210,8 @@ export default function CoachChat() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
+    height: "100dvh",
     padding: "0 0 calc(132px + var(--tg-viewport-inset-bottom, 0px))",
-    position: "fixed",
-    inset: 0,
     display: "grid",
     boxSizing: "border-box",
     overflow: "hidden",
@@ -303,9 +302,11 @@ const s: Record<string, React.CSSProperties> = {
     overscrollBehavior: "contain",
     WebkitOverflowScrolling: "touch",
     padding: "14px 14px",
-    display: "grid",
+    display: "flex",
+    flexDirection: "column",
     gap: 10,
     background: "transparent",
+    touchAction: "pan-y",
   },
   bubbleRow: {
     display: "flex",
