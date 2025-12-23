@@ -90,6 +90,7 @@ function normalizeWorkoutPayload(payload: any): any {
       name: ex?.name ?? null,
       pattern: ex?.pattern ?? null,
       effort: ex?.effort ?? null,
+      restSec: Number.isFinite(Number(ex?.restSec)) ? Math.max(0, Math.round(Number(ex.restSec))) : null,
       done: Boolean(ex?.done),
       sets: Array.isArray(ex?.sets)
         ? ex.sets.map((s: any) => ({
@@ -276,6 +277,7 @@ function buildFocusContext(args: { question: string; context: any }) {
             .map((ex: any) => ({
               name: ex?.name ?? null,
               effort: ex?.effort ?? null,
+              restSec: Number.isFinite(Number(ex?.restSec)) ? Math.max(0, Math.round(Number(ex.restSec))) : null,
               stats: summarizeExerciseSetStats(ex),
               sets: Array.isArray(ex?.sets)
                 ? ex.sets.map((s: any) => ({ reps: s?.reps ?? null, weight: s?.weight ?? null }))
@@ -414,10 +416,12 @@ function buildSystemPrompt(): string {
     "Каждый пункт должен опираться на данные пользователя (тренировки/чек-ины) или быть явно помечен как гипотеза.",
     "",
     "Важно:",
+    "- Не используй англицизмы и жаргон (Push/Pull/plateau/pinpoint/прогрессия/интенсивность и т.п.). Если такие слова есть в данных — перефразируй по‑русски простыми словами.",
     "- Не придумывай факты, которых нет в данных. Причины формулируй как гипотезы (например: «похоже», «возможно»).",
     "- Не ставь диагнозы и не лечи. Если боль сильная/острая — советуй снизить нагрузку и при необходимости обратиться к специалисту.",
     "- Не используй термины типа RPE/RIR/1RM/проценты/тоннаж.",
-    "- Не утверждай, что пользователь «мало отдыхал/отдыхал X минут» — фактический отдых не логируется. Можно предложить увеличить отдых как эксперимент, но без утверждений.",
+    "- Не утверждай, что пользователь «мало отдыхал/отдыхал X минут» — фактический отдых не логируется. В данных может быть только рекомендованный отдых (restSec) — говори про него как «по плану».",
+    "- Не задавай вопросов и не проси прислать данные. Если данных не хватает — скажи это прямо и предложи проверяемый шаг на следующей тренировке.",
     "- Дай 3–6 ключевых выводов и 2–4 конкретных шага «что делать дальше».",
   ].join("\n");
 }

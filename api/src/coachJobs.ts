@@ -165,6 +165,7 @@ function summarizeWorkoutPayload(payload: any): any {
       name: String(ex?.name || "").trim(),
       effort: ex?.effort ?? null,
       done: Boolean(ex?.done),
+      restSec: Number.isFinite(Number(ex?.restSec)) ? Math.max(0, Math.round(Number(ex.restSec))) : null,
       setCount: sets.length,
       reps,
       weights,
@@ -407,6 +408,7 @@ function buildSessionCoachPrompt(args: {
         ? session.payload.exercises.map((e: any) => ({
             name: e?.name,
             effort: e?.effort ?? null,
+            restSec: Number.isFinite(Number(e?.restSec)) ? Math.max(0, Math.round(Number(e.restSec))) : null,
             sets: Array.isArray(e?.sets) ? e.sets.slice(0, 12).map((s: any) => ({ reps: s?.reps ?? null, weight: s?.weight ?? null })) : [],
           }))
         : [],
@@ -432,6 +434,7 @@ function buildSessionCoachPrompt(args: {
 Ограничения:
 - Не используй RPE/RIR/1RM/проценты/тоннаж и т.п.
 - Не придумывай факты, которых нет в данных. Причины формулируй как аккуратные гипотезы ("похоже", "возможно").
+- Не используй англицизмы и жаргон (Push/Pull/plateau/pinpoint/прогрессия/интенсивность и т.п.). Если такие слова есть в данных — перефразируй по‑русски простыми словами.
 - Если есть боль/дискомфорт по check-in — будь осторожен, предложи безопаснее, не ставь диагнозы.
 - Не используй эмодзи.
 - Не задавай вопросов.
@@ -481,6 +484,7 @@ function buildWeeklyCoachPrompt(args: {
 - Не используй RPE/RIR/1RM/проценты/тоннаж и т.п.
 - Не придумывай факты, которых нет в данных.
 - Если встречается боль/дискомфорт — осторожные советы, без диагнозов.
+- Не используй англицизмы и жаргон (Push/Pull/plateau/pinpoint/прогрессия/интенсивность и т.п.). Если такие слова есть в данных — перефразируй по‑русски простыми словами.
 - Не используй эмодзи.
 - Не задавай вопросов.
 
@@ -502,7 +506,7 @@ async function generateCoachResult(kind: CoachJobKind, prompt: string): Promise<
     console.log(`[COACH_FEEDBACK][content] kind=${kind} prompt:`, prompt.slice(0, 8000));
   }
   const instructions =
-    'Ты опытный фитнес‑тренер (10+ лет). Пиши по-русски, на "ты". Пиши как живой тренер: по делу, без канцелярита и без шаблонов. Не упоминай, что ты ИИ. Не используй эмодзи. Не задавай вопросов.';
+    'Ты опытный фитнес‑тренер (10+ лет). Пиши по-русски, на "ты". Пиши как живой тренер: по делу, без канцелярита и без шаблонов. Не упоминай, что ты ИИ. Не используй эмодзи. Не задавай вопросов. Не используй англицизмы и жаргон (Push/Pull/plateau/pinpoint/прогрессия/интенсивность и т.п.) — перефразируй по‑русски простыми словами.';
 
   const call = await createJsonObjectResponse({
     client: openai as any,
