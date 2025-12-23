@@ -122,73 +122,77 @@ export default function CoachChat() {
     <div style={s.page}>
       <SoftGlowStyles />
 
-      <section style={s.chatCard}>
-        <div style={s.cardHeader}>
-          <div style={s.cardTitle}>Чат с тренером</div>
-        </div>
+      <section style={s.frame}>
+        <header style={s.frameTop}>
+          <div style={s.title}>Чат с тренером</div>
+        </header>
 
         {error ? <div style={s.error}>{error}</div> : null}
 
-        <div ref={listRef} style={s.messages}>
-          {loading ? (
-            <div style={s.loading}>Загружаю чат…</div>
-          ) : messages.length === 0 ? (
-            <div style={s.empty}>
-              <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
-              <div style={s.chips}>
-                {suggested.map((q) => (
-                  <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
-              >
-                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                  <div style={s.bubbleText}>{m.content}</div>
+        <div style={s.windowWrap}>
+          <div ref={listRef} style={s.window}>
+            {loading ? (
+              <div style={s.loading}>Загружаю чат…</div>
+            ) : messages.length === 0 ? (
+              <div style={s.empty}>
+                <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+                <div style={s.chips}>
+                  {suggested.map((q) => (
+                    <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
+                      {q}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))
-          )}
-        </div>
-
-        <div style={s.composer}>
-          <div style={s.inputBox}>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Напиши вопрос…"
-              rows={1}
-              style={s.input}
-              disabled={sending}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-            />
+            ) : (
+              messages.map((m) => (
+                <div
+                  key={m.id}
+                  style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+                >
+                  <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                    <div style={s.bubbleText}>{m.content}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-
-          <button
-            className="soft-glow"
-            style={{
-              ...s.sendBtn,
-              opacity: sending || !text.trim() ? 0.6 : 1,
-              cursor: sending || !text.trim() ? "default" : "pointer",
-            }}
-            type="button"
-            onClick={() => void send()}
-            disabled={sending || !text.trim()}
-          >
-            {sending ? "…" : "Отправить"}
-          </button>
         </div>
+
+        <footer style={s.frameBottom}>
+          <div style={s.composerRow}>
+            <div style={s.inputBox}>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Напиши вопрос…"
+                rows={1}
+                style={s.input}
+                disabled={sending}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+            </div>
+
+            <button
+              className="soft-glow"
+              style={{
+                ...s.sendBtn,
+                opacity: sending || !text.trim() ? 0.6 : 1,
+                cursor: sending || !text.trim() ? "default" : "pointer",
+              }}
+              type="button"
+              onClick={() => void send()}
+              disabled={sending || !text.trim()}
+            >
+              {sending ? "…" : "Отправить"}
+            </button>
+          </div>
+        </footer>
       </section>
     </div>
   );
@@ -197,34 +201,36 @@ export default function CoachChat() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     height: "100dvh",
-    padding: "14px 14px 118px",
+    padding: "14px 14px calc(104px + var(--tg-viewport-inset-bottom, 0px))",
     display: "grid",
+    boxSizing: "border-box",
     overflow: "hidden",
   },
-  chatCard: {
+  frame: {
     maxWidth: 720,
     width: "100%",
     margin: "0 auto",
-    minHeight: 0,
     height: "100%",
+    minHeight: 0,
     display: "grid",
     gridTemplateRows: "auto auto 1fr auto",
-    borderRadius: 22,
+    borderRadius: 26,
     border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 10px 28px rgba(0,0,0,.10)",
     background: "rgba(255,255,255,0.55)",
+    boxShadow: "0 8px 24px rgba(0,0,0,.10)",
     backdropFilter: "blur(16px) saturate(160%)",
     WebkitBackdropFilter: "blur(16px) saturate(160%)",
     overflow: "hidden",
+    boxSizing: "border-box",
   },
-  cardHeader: {
-    padding: "14px 16px",
+  frameTop: {
+    padding: "16px 14px 14px",
     borderBottom: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.45)",
     backdropFilter: "blur(10px) saturate(140%)",
     WebkitBackdropFilter: "blur(10px) saturate(140%)",
   },
-  cardTitle: {
+  title: {
     fontSize: 16,
     fontWeight: 850,
     color: "#0f172a",
@@ -275,12 +281,19 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "left",
   },
-  messages: {
+  windowWrap: {
+    minHeight: 0,
+    padding: "0 10px",
+    display: "grid",
+    boxSizing: "border-box",
+  },
+  window: {
     minHeight: 0,
     overflow: "auto",
     padding: "12px 10px",
     display: "grid",
     gap: 10,
+    borderRadius: 18,
     background:
       "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
   },
@@ -294,7 +307,7 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-wrap",
   },
   assistantBubble: {
-    background: "rgba(255,255,255,0.62)",
+    background: "rgba(255,255,255,0.60)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.08)",
     borderTopLeftRadius: 8,
@@ -303,7 +316,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(10px) saturate(140%)",
   },
   userBubble: {
-    background: "rgba(255,255,255,0.48)",
+    background: "rgba(255,255,255,0.46)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.10)",
     borderTopRightRadius: 8,
@@ -316,15 +329,17 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.38,
     fontWeight: 450,
   },
-  composer: {
-    padding: "12px",
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 10,
+  frameBottom: {
+    padding: "16px 14px 22px",
     borderTop: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.45)",
     backdropFilter: "blur(10px) saturate(140%)",
     WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  },
+  composerRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 10,
   },
   inputBox: {
     borderRadius: 16,
@@ -334,6 +349,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "10px 12px",
     display: "flex",
     alignItems: "center",
+    minHeight: 52,
   },
   input: {
     width: "100%",
@@ -354,5 +370,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13.5,
     fontWeight: 850,
     boxShadow: "0 10px 22px rgba(0,0,0,.14)",
+    minHeight: 52,
   },
 };
