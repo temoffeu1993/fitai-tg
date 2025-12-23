@@ -125,38 +125,35 @@ export default function CoachChat() {
       <section style={s.frame}>
         <header style={s.frameTop}>
           <div style={s.title}>Чат с тренером</div>
+          {error ? <div style={s.error}>{error}</div> : null}
         </header>
 
-        {error ? <div style={s.error}>{error}</div> : null}
-
-        <div style={s.windowWrap}>
-          <div ref={listRef} style={s.window}>
-            {loading ? (
-              <div style={s.loading}>Загружаю чат…</div>
-            ) : messages.length === 0 ? (
-              <div style={s.empty}>
-                <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
-                <div style={s.chips}>
-                  {suggested.map((q) => (
-                    <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
-                      {q}
-                    </button>
-                  ))}
+        <div ref={listRef} style={s.messages}>
+          {loading ? (
+            <div style={s.loading}>Загружаю чат…</div>
+          ) : messages.length === 0 ? (
+            <div style={s.empty}>
+              <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+              <div style={s.chips}>
+                {suggested.map((q) => (
+                  <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            messages.map((m) => (
+              <div
+                key={m.id}
+                style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+              >
+                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                  <div style={s.bubbleText}>{m.content}</div>
                 </div>
               </div>
-            ) : (
-              messages.map((m) => (
-                <div
-                  key={m.id}
-                  style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
-                >
-                  <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                    <div style={s.bubbleText}>{m.content}</div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+            ))
+          )}
         </div>
 
         <footer style={s.frameBottom}>
@@ -213,7 +210,7 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     minHeight: 0,
     display: "grid",
-    gridTemplateRows: "auto auto 1fr auto",
+    gridTemplateRows: "auto 1fr auto",
     borderRadius: 26,
     border: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.55)",
@@ -224,7 +221,7 @@ const s: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
   },
   frameTop: {
-    padding: "16px 14px 14px",
+    padding: "18px 12px 16px",
     borderBottom: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.45)",
     backdropFilter: "blur(10px) saturate(140%)",
@@ -243,7 +240,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "10px 12px",
     fontSize: 13,
     fontWeight: 650,
-    margin: "10px 12px 0",
+    marginTop: 10,
   },
   loading: {
     padding: "18px 12px",
@@ -281,19 +278,12 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "left",
   },
-  windowWrap: {
-    minHeight: 0,
-    padding: "0 10px",
-    display: "grid",
-    boxSizing: "border-box",
-  },
-  window: {
+  messages: {
     minHeight: 0,
     overflow: "auto",
     padding: "12px 10px",
     display: "grid",
     gap: 10,
-    borderRadius: 18,
     background:
       "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
   },
@@ -316,7 +306,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(10px) saturate(140%)",
   },
   userBubble: {
-    background: "rgba(255,255,255,0.46)",
+    background: "rgba(255,255,255,0.44)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.10)",
     borderTopRightRadius: 8,
@@ -330,7 +320,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 450,
   },
   frameBottom: {
-    padding: "16px 14px 22px",
+    padding: "18px 12px 26px",
     borderTop: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.45)",
     backdropFilter: "blur(10px) saturate(140%)",
