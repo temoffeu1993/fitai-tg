@@ -273,6 +273,7 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   headerBar: {
+    gridRow: 1,
     padding: "calc(10px + var(--tg-viewport-inset-top, 0px)) 14px 10px",
     display: "grid",
     gridTemplateColumns: "auto minmax(0, 1fr) auto",
@@ -343,6 +344,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1,
   },
   errorBanner: {
+    gridRow: 2,
     margin: "10px 14px 0",
     background: "rgba(239,68,68,.12)",
     border: "1px solid rgba(239,68,68,.25)",
@@ -353,6 +355,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 750,
   },
   thread: {
+    gridRow: 3,
     minHeight: 0,
     overflow: "hidden",
     display: "flex",
@@ -441,6 +444,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 450,
   },
   composer: {
+    gridRow: 4,
     padding: "10px 14px calc(12px + var(--tg-viewport-inset-bottom, 0px))",
     background: "rgba(255,255,255,0.72)",
     borderTop: "1px solid rgba(0,0,0,0.08)",
