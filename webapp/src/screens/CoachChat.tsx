@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCoachChatHistory, sendCoachChat } from "@/api/plan";
+import { useNavigate } from "react-router-dom";
 
 type Msg = {
   id: string;
@@ -29,12 +30,14 @@ function SoftGlowStyles() {
 }
 
 export default function CoachChat() {
+  const nav = useNavigate();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
@@ -62,6 +65,18 @@ export default function CoachChat() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   };
+
+  const autosizeInput = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.min(140, Math.max(44, el.scrollHeight));
+    el.style.height = `${next}px`;
+  };
+
+  useEffect(() => {
+    autosizeInput();
+  }, [text]);
 
   useEffect(() => {
     let canceled = false;
@@ -99,6 +114,7 @@ export default function CoachChat() {
     setSending(true);
     setError(null);
     setText("");
+    requestAnimationFrame(() => autosizeInput());
 
     const tempUser: Msg = {
       id: (crypto as any)?.randomUUID?.() || String(Date.now()),
@@ -134,12 +150,37 @@ export default function CoachChat() {
       <SoftGlowStyles />
 
       <div style={s.screen}>
-        <header style={s.top}>
-          <div style={s.title}>Чат с тренером</div>
-          {error ? <div style={s.error}>{error}</div> : null}
+        <header style={s.headerBar}>
+          <button
+            type="button"
+            style={s.backBtn}
+            onClick={() => {
+              try {
+                if (window.history.length > 1) nav(-1);
+                else nav("/");
+              } catch {
+                nav("/");
+              }
+            }}
+            aria-label="Назад"
+          >
+            <span style={s.backChevron}>‹</span>
+            <span style={s.backLabel}>Назад</span>
+          </button>
+
+          <div style={s.headerTitleWrap}>
+            <div style={s.headerTitle}>Moro — твой фитнес тренер</div>
+            <div style={s.headerSubtitle}>бот</div>
+          </div>
+
+          <div style={s.avatar} aria-hidden title="Moro">
+            <span style={s.avatarEmoji}>🤖</span>
+          </div>
         </header>
 
-        <section style={s.glassBlock}>
+        {error ? <div style={s.errorBanner}>{error}</div> : null}
+
+        <section style={s.thread}>
           <div ref={listRef} style={s.messages}>
             {loading ? (
               <div style={s.loading}>Загружаю чат…</div>
@@ -169,13 +210,14 @@ export default function CoachChat() {
           </div>
         </section>
 
-        <footer style={s.bottom}>
-          <div style={s.composerRow}>
+        <footer style={s.composer}>
+          <div style={s.composerInner}>
             <div style={s.inputBox}>
               <textarea
+                ref={inputRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Напиши вопрос…"
+                placeholder="Сообщение"
                 rows={1}
                 style={s.input}
                 disabled={sending}
@@ -198,8 +240,10 @@ export default function CoachChat() {
               type="button"
               onClick={() => void send()}
               disabled={sending || !text.trim()}
+              aria-label="Отправить"
+              title="Отправить"
             >
-              {sending ? "…" : "Отправить"}
+              {sending ? "…" : "➤"}
             </button>
           </div>
         </footer>
@@ -211,8 +255,10 @@ export default function CoachChat() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     height: "100dvh",
-    padding: "0 0 calc(132px + var(--tg-viewport-inset-bottom, 0px))",
-    display: "grid",
+    maxWidth: 720,
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
     boxSizing: "border-box",
     overflow: "hidden",
     overscrollBehavior: "none",
@@ -221,43 +267,99 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     minHeight: 0,
     display: "grid",
-    gridTemplateRows: "auto minmax(0, 1fr) auto",
-    padding: "14px 14px 0",
+    gridTemplateRows: "auto auto minmax(0, 1fr) auto",
+    padding: 0,
     boxSizing: "border-box",
     overflow: "hidden",
   },
-  top: {
-    padding: "6px 2px 10px",
+  headerBar: {
+    padding: "calc(10px + var(--tg-viewport-inset-top, 0px)) 14px 10px",
     display: "grid",
+    gridTemplateColumns: "auto minmax(0, 1fr) auto",
+    alignItems: "center",
     gap: 10,
+    background: "rgba(255,255,255,0.70)",
+    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    backdropFilter: "blur(18px) saturate(180%)",
+    WebkitBackdropFilter: "blur(18px) saturate(180%)",
   },
-  title: {
-    fontSize: 18,
-    fontWeight: 900,
+  backBtn: {
+    border: "none",
+    background: "transparent",
+    padding: "8px 10px",
+    marginLeft: -8,
+    borderRadius: 14,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
     color: "#0f172a",
-    letterSpacing: -0.2,
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: "pointer",
   },
-  error: {
+  backChevron: {
+    fontSize: 22,
+    lineHeight: 1,
+    marginTop: -2,
+  },
+  backLabel: {
+    fontSize: 14,
+    lineHeight: 1,
+  },
+  headerTitleWrap: {
+    display: "grid",
+    justifyItems: "center",
+    gap: 1,
+    minWidth: 0,
+  },
+  headerTitle: {
+    fontSize: 15.5,
+    fontWeight: 900,
+    letterSpacing: -0.2,
+    color: "#0f172a",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "100%",
+  },
+  headerSubtitle: {
+    fontSize: 12.5,
+    fontWeight: 750,
+    color: "rgba(15,23,42,0.55)",
+    lineHeight: 1,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.55)",
+    border: "1px solid rgba(0,0,0,0.10)",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+    display: "grid",
+    placeItems: "center",
+  },
+  avatarEmoji: {
+    fontSize: 20,
+    lineHeight: 1,
+  },
+  errorBanner: {
+    margin: "10px 14px 0",
     background: "rgba(239,68,68,.12)",
     border: "1px solid rgba(239,68,68,.25)",
     color: "#7f1d1d",
     borderRadius: 16,
     padding: "10px 12px",
     fontSize: 13,
-    fontWeight: 650,
-    marginTop: 10,
+    fontWeight: 750,
   },
-  glassBlock: {
+  thread: {
     minHeight: 0,
+    overflow: "hidden",
     display: "flex",
     flexDirection: "column",
-    borderRadius: 20,
-    border: "1px solid rgba(0,0,0,0.08)",
-    background: "rgba(255,255,255,0.55)",
-    boxShadow: "0 10px 28px rgba(0,0,0,.10)",
-    backdropFilter: "blur(16px) saturate(160%)",
-    WebkitBackdropFilter: "blur(16px) saturate(160%)",
-    overflow: "hidden",
+    background:
+      "radial-gradient(circle at 20% 10%, rgba(236,227,255,.35) 0%, rgba(236,227,255,0) 38%), radial-gradient(circle at 90% 40%, rgba(255,216,194,.30) 0%, rgba(255,216,194,0) 42%), rgba(255,255,255,0.22)",
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
   },
   loading: {
     padding: "18px 12px",
@@ -266,13 +368,13 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   empty: {
-    background: "rgba(255,255,255,0.5)",
-    border: "1px solid rgba(0,0,0,0.06)",
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 18,
     padding: 14,
     display: "grid",
     gap: 10,
-    margin: 12,
+    margin: "12px 14px",
   },
   emptyTitle: {
     fontSize: 14,
@@ -301,7 +403,7 @@ const s: Record<string, React.CSSProperties> = {
     overflowY: "auto",
     overscrollBehavior: "contain",
     WebkitOverflowScrolling: "touch",
-    padding: "14px 14px",
+    padding: "14px 14px 10px",
     display: "flex",
     flexDirection: "column",
     gap: 10,
@@ -312,13 +414,13 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
   },
   bubble: {
-    maxWidth: "88%",
+    maxWidth: "86%",
     borderRadius: 18,
     padding: "10px 12px",
     whiteSpace: "pre-wrap",
   },
   assistantBubble: {
-    background: "rgba(255,255,255,0.62)",
+    background: "rgba(255,255,255,0.70)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.08)",
     borderTopLeftRadius: 8,
@@ -327,37 +429,39 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(10px) saturate(140%)",
   },
   userBubble: {
-    background: "rgba(255,255,255,0.48)",
-    color: "#0f172a",
-    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(15,23,42,0.92)",
+    color: "rgba(255,255,255,0.96)",
+    border: "1px solid rgba(15,23,42,0.14)",
     borderTopRightRadius: 8,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.14)",
   },
   bubbleText: {
     fontSize: 14,
     lineHeight: 1.38,
     fontWeight: 450,
   },
-  bottom: {
-    padding: "14px 0 0",
-    background: "transparent",
+  composer: {
+    padding: "10px 14px calc(12px + var(--tg-viewport-inset-bottom, 0px))",
+    background: "rgba(255,255,255,0.72)",
+    borderTop: "1px solid rgba(0,0,0,0.08)",
+    backdropFilter: "blur(18px) saturate(180%)",
+    WebkitBackdropFilter: "blur(18px) saturate(180%)",
   },
-  composerRow: {
+  composerInner: {
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: 10,
+    alignItems: "end",
   },
   inputBox: {
     borderRadius: 16,
     border: "1px solid rgba(0,0,0,0.10)",
-    background: "rgba(255,255,255,0.60)",
+    background: "rgba(255,255,255,0.78)",
     boxShadow: "none",
     padding: "10px 12px",
     display: "flex",
     alignItems: "center",
-    minHeight: 56,
+    minHeight: 48,
   },
   input: {
     width: "100%",
@@ -369,15 +473,19 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.35,
     fontWeight: 450,
     color: "#0f172a",
+    height: 44,
   },
   sendBtn: {
     border: "none",
-    borderRadius: 16,
-    padding: "10px 14px",
+    borderRadius: 999,
+    width: 48,
+    height: 48,
+    padding: 0,
     color: "#1b1b1b",
-    fontSize: 13.5,
-    fontWeight: 850,
+    fontSize: 18,
+    fontWeight: 900,
     boxShadow: "none",
-    minHeight: 56,
+    display: "grid",
+    placeItems: "center",
   },
 };
