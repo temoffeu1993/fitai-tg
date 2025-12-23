@@ -12,6 +12,22 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function SoftGlowStyles() {
+  return (
+    <style>{`
+      .soft-glow {
+        background: linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);
+        background-size: 300% 300%;
+        animation: glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
+        transition: background 0.3s ease;
+      }
+      @keyframes glowShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
+      @keyframes pulseSoft { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1) } 50% { filter: brightness(1.12) saturate(1.06); transform: scale(1.01) } }
+      @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
+    `}</style>
+  );
+}
+
 export default function CoachChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +69,7 @@ export default function CoachChat() {
             createdAt: String(m.createdAt || nowIso()),
           }));
         if (!canceled) setMessages(normalized);
-      } catch (e: any) {
+      } catch {
         if (!canceled) setError("Не удалось загрузить чат. Проверь интернет и попробуй ещё раз.");
       } finally {
         if (!canceled) setLoading(false);
@@ -93,7 +109,7 @@ export default function CoachChat() {
       };
       setMessages((prev) => [...prev, assistant]);
       setTimeout(scrollToBottom, 50);
-    } catch (e: any) {
+    } catch {
       setError("Не удалось отправить сообщение. Попробуй ещё раз.");
       setMessages((prev) => prev.filter((m) => m.id !== tempUser.id));
       setText(msg);
@@ -104,64 +120,76 @@ export default function CoachChat() {
 
   return (
     <div style={s.page}>
-      <div style={s.frame}>
-        <div style={s.header}>
-          <div style={s.title}>Тренер</div>
-          <div style={s.subtitle}>Задай вопрос — я посмотрю твои тренировки и самочувствие и дам рекомендации.</div>
+      <SoftGlowStyles />
+
+      <section style={s.chatCard}>
+        <div style={s.cardHeader}>
+          <div style={s.cardTitle}>Чат с тренером</div>
         </div>
 
         {error ? <div style={s.error}>{error}</div> : null}
 
-        {loading ? (
-          <div style={s.loading}>Загружаю чат…</div>
-        ) : messages.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
-            <div style={s.chips}>
-              {suggested.map((q) => (
-                <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div ref={listRef} style={s.list}>
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
-            >
-              <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                <div style={s.bubbleText}>{m.content}</div>
+        <div ref={listRef} style={s.messages}>
+          {loading ? (
+            <div style={s.loading}>Загружаю чат…</div>
+          ) : messages.length === 0 ? (
+            <div style={s.empty}>
+              <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+              <div style={s.chips}>
+                {suggested.map((q) => (
+                  <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
+                    {q}
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
+          ) : (
+            messages.map((m) => (
+              <div
+                key={m.id}
+                style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+              >
+                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                  <div style={s.bubbleText}>{m.content}</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </div>
 
-      <div style={s.composerWrap}>
         <div style={s.composer}>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Напиши вопрос…"
-            rows={1}
-            style={s.input}
-            disabled={sending}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
+          <div style={s.inputBox}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Напиши вопрос…"
+              rows={1}
+              style={s.input}
+              disabled={sending}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+            />
+          </div>
+
+          <button
+            className="soft-glow"
+            style={{
+              ...s.sendBtn,
+              opacity: sending || !text.trim() ? 0.6 : 1,
+              cursor: sending || !text.trim() ? "default" : "pointer",
             }}
-          />
-          <button style={s.sendBtn} type="button" onClick={() => void send()} disabled={sending || !text.trim()}>
+            type="button"
+            onClick={() => void send()}
+            disabled={sending || !text.trim()}
+          >
             {sending ? "…" : "Отправить"}
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -169,48 +197,53 @@ export default function CoachChat() {
 const s: Record<string, React.CSSProperties> = {
   page: {
     height: "100dvh",
-    padding: "12px 12px 0",
+    padding: "14px 14px 118px",
     display: "grid",
     overflow: "hidden",
   },
-  frame: {
-    maxWidth: 680,
+  chatCard: {
+    maxWidth: 720,
     width: "100%",
     margin: "0 auto",
-    display: "grid",
-    gridTemplateRows: "auto auto auto 1fr",
-    gap: 10,
     minHeight: 0,
-    paddingBottom: 200, // reserve space for fixed composer + navbar
-  },
-  header: {
+    height: "100%",
     display: "grid",
-    gap: 6,
+    gridTemplateRows: "auto auto 1fr auto",
+    borderRadius: 22,
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 10px 28px rgba(0,0,0,.10)",
+    background: "rgba(255,255,255,0.55)",
+    backdropFilter: "blur(16px) saturate(160%)",
+    WebkitBackdropFilter: "blur(16px) saturate(160%)",
+    overflow: "hidden",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 900,
-    letterSpacing: -0.2,
+  cardHeader: {
+    padding: "14px 16px",
+    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.45)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 850,
     color: "#0f172a",
-  },
-  subtitle: {
-    fontSize: 13.5,
-    color: "rgba(15,23,42,0.74)",
-    lineHeight: 1.35,
   },
   error: {
     background: "rgba(239,68,68,.12)",
     border: "1px solid rgba(239,68,68,.25)",
     color: "#7f1d1d",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: "10px 12px",
     fontSize: 13,
     fontWeight: 650,
+    margin: "10px 12px 0",
   },
   loading: {
-    padding: "10px 12px",
+    padding: "18px 12px",
     fontSize: 14,
     color: "rgba(15,23,42,0.7)",
+    textAlign: "center",
   },
   empty: {
     background: "rgba(255,255,255,0.5)",
@@ -219,6 +252,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: 14,
     display: "grid",
     gap: 10,
+    margin: 12,
   },
   emptyTitle: {
     fontSize: 14,
@@ -241,12 +275,14 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "left",
   },
-  list: {
+  messages: {
     minHeight: 0,
     overflow: "auto",
-    padding: "2px 2px 10px",
+    padding: "12px 10px",
     display: "grid",
     gap: 10,
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.35) 0%, rgba(217,194,240,.35) 45%, rgba(255,216,194,.35) 100%)",
   },
   bubbleRow: {
     display: "flex",
@@ -257,45 +293,47 @@ const s: Record<string, React.CSSProperties> = {
     padding: "10px 12px",
     whiteSpace: "pre-wrap",
   },
-  userBubble: {
-    background: "linear-gradient(180deg, #2aabee 0%, #1f8ad8 100%)",
-    color: "rgba(255,255,255,0.98)",
-    borderTopRightRadius: 8,
-  },
   assistantBubble: {
-    background: "rgba(255,255,255,0.92)",
+    background: "rgba(255,255,255,0.62)",
     color: "#0f172a",
-    border: "1px solid rgba(0,0,0,0.06)",
+    border: "1px solid rgba(0,0,0,0.08)",
     borderTopLeftRadius: 8,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  },
+  userBubble: {
+    background: "rgba(255,255,255,0.48)",
+    color: "#0f172a",
+    border: "1px solid rgba(0,0,0,0.10)",
+    borderTopRightRadius: 8,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
   },
   bubbleText: {
     fontSize: 14,
     lineHeight: 1.38,
     fontWeight: 450,
   },
-  composerWrap: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: "calc(116px + var(--tg-viewport-inset-bottom, 0px))",
-    padding: "0 12px 12px",
-    pointerEvents: "none",
-    zIndex: 10,
-  },
   composer: {
-    pointerEvents: "auto",
-    maxWidth: 680,
-    margin: "0 auto",
-    background: "rgba(255,255,255,0.92)",
-    border: "1px solid rgba(0,0,0,0.10)",
-    borderRadius: 18,
-    padding: "10px 10px",
+    padding: "12px",
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: 10,
-    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
-    backdropFilter: "blur(14px) saturate(160%)",
-    WebkitBackdropFilter: "blur(14px) saturate(160%)",
+    borderTop: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.45)",
+    backdropFilter: "blur(10px) saturate(140%)",
+    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  },
+  inputBox: {
+    borderRadius: 16,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.60)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
   },
   input: {
     width: "100%",
@@ -310,12 +348,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   sendBtn: {
     border: "none",
-    borderRadius: 14,
-    padding: "10px 12px",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b)",
+    borderRadius: 16,
+    padding: "10px 14px",
     color: "#1b1b1b",
     fontSize: 13.5,
     fontWeight: 850,
-    cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(0,0,0,.14)",
   },
 };
