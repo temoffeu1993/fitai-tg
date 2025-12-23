@@ -254,7 +254,7 @@ export default function CoachChat() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    height: "100dvh",
+    height: "var(--app-height, 100vh)",
     maxWidth: 720,
     margin: "0 auto",
     display: "flex",
