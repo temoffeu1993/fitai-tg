@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { q, withTransaction } from "./db.js";
 import { config } from "./config.js";
 import { AppError } from "./middleware/errorHandler.js";
+import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
 
 type Role = "user" | "assistant" | "system";
 
@@ -70,6 +71,13 @@ function normalizeAnswerText(parts: {
   return lines.join("\n").trim();
 }
 
+function normalizeNameKey(name: string): string {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\wа-яa-z]/g, "");
+}
+
 function normalizeWorkoutPayload(payload: any): any {
   const exercises = Array.isArray(payload?.exercises) ? payload.exercises : [];
   return {
@@ -90,6 +98,17 @@ function normalizeWorkoutPayload(payload: any): any {
         : [],
     })),
   };
+}
+
+function isGreetingOnly(text: string): boolean {
+  const s = String(text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[!?.]+/g, "")
+    .replace(/\s+/g, " ");
+  if (!s) return true;
+  // short greeting without an actual question
+  return /^(привет|здаров|здравствуйте|добрый день|доброе утро|добрый вечер|хай|hey|hello|hi)$/.test(s);
 }
 
 async function getOrCreateThreadId(userId: string): Promise<string> {
@@ -115,6 +134,158 @@ async function getChatHistory(threadId: string, limit: number): Promise<ChatMess
   return rows
     .reverse()
     .map((r) => ({ id: r.id, role: r.role, content: r.content, createdAt: r.created_at }));
+}
+
+function summarizeExerciseSetStats(ex: any) {
+  const sets = Array.isArray(ex?.sets) ? ex.sets : [];
+  const normalizedSets = sets
+    .map((s: any) => ({
+      reps: Number.isFinite(Number(s?.reps)) ? Number(s.reps) : null,
+      weight: Number.isFinite(Number(s?.weight)) ? Number(s.weight) : null,
+    }))
+    .filter((s: any) => s.reps != null || s.weight != null);
+
+  const volumeKg = normalizedSets.reduce((sum: number, s: any) => {
+    if (s.reps == null || s.weight == null) return sum;
+    if (s.reps <= 0 || s.weight <= 0) return sum;
+    return sum + s.reps * s.weight;
+  }, 0);
+  const maxWeight = normalizedSets.reduce((m: number, s: any) => (s.weight != null && s.weight > m ? s.weight : m), 0);
+  const totalReps = normalizedSets.reduce((sum: number, s: any) => sum + (s.reps != null ? s.reps : 0), 0);
+  return {
+    setCount: normalizedSets.length,
+    totalReps,
+    maxWeight: maxWeight || null,
+    volumeKg: Math.round(volumeKg * 10) / 10,
+  };
+}
+
+function computeSessionStats(payload: any) {
+  const exercises = Array.isArray(payload?.exercises) ? payload.exercises : [];
+  const durationMin = Number.isFinite(Number(payload?.durationMin)) ? Number(payload.durationMin) : null;
+  const sessionRpe = Number.isFinite(Number(payload?.feedback?.sessionRpe)) ? Number(payload.feedback.sessionRpe) : null;
+  const doneExercises = exercises.filter((e: any) => Boolean(e?.done)).length;
+  const totalSets = exercises.reduce((sum: number, e: any) => sum + (Array.isArray(e?.sets) ? e.sets.length : 0), 0);
+  const totalVolumeKg = exercises.reduce((sum: number, e: any) => sum + (summarizeExerciseSetStats(e).volumeKg || 0), 0);
+  const effortCounts: Record<string, number> = {};
+  for (const e of exercises) {
+    const k = String(e?.effort || "").trim();
+    if (!k) continue;
+    effortCounts[k] = (effortCounts[k] || 0) + 1;
+  }
+  return {
+    durationMin,
+    sessionRpe,
+    doneExercises,
+    totalExercises: exercises.length,
+    totalSets,
+    totalVolumeKg: Math.round(totalVolumeKg * 10) / 10,
+    effortCounts,
+  };
+}
+
+function detectIntent(question: string) {
+  const q = normalizeNameKey(question);
+  if (!q) return { kind: "unknown" as const };
+  if (/ustal|ustalost|fatigue|tired/.test(q) || /устал|усталост|нетсил|вял|разбит/.test(q)) return { kind: "recovery" as const };
+  if (/bol|pain|hurt/.test(q) || /болит|боль|дискомфорт|травм|ноет/.test(q)) return { kind: "pain" as const };
+  if (/ne(rast|rastet)|plateau|stagn/.test(q) || /нераст|стоит|плато|застопор/.test(q)) return { kind: "plateau" as const };
+  if (/skolko|time|minut|быстр|долго|успев/.test(q) || /врем|минут|долго|коротк|успев/.test(q)) return { kind: "time" as const };
+  if (/pitan|kcal|belok|protein|carb|углев|калор|питан|вес/.test(q)) return { kind: "nutrition" as const };
+  return { kind: "general" as const };
+}
+
+function extractFocusExercises(args: { question: string; workouts: any[] }) {
+  const qKey = normalizeNameKey(args.question);
+  if (!qKey) return [];
+
+  const fromHistory = new Set<string>();
+  for (const w of args.workouts) {
+    const exercises = Array.isArray(w?.workout?.exercises) ? w.workout.exercises : [];
+    for (const ex of exercises) {
+      const nm = String(ex?.name || "").trim();
+      if (nm) fromHistory.add(nm);
+    }
+  }
+
+  const candidates: Array<{ name: string; key: string; source: "history" | "library" }> = [];
+  for (const nm of fromHistory) candidates.push({ name: nm, key: normalizeNameKey(nm), source: "history" });
+  // Add library names for better matching to user wording, but keep minimal.
+  for (const ex of EXERCISE_LIBRARY as any[]) {
+    const nm = String(ex?.name || "").trim();
+    if (!nm) continue;
+    candidates.push({ name: nm, key: normalizeNameKey(nm), source: "library" });
+  }
+
+  const tokens = qKey
+    .split(/(\d+)/g)
+    .join(" ")
+    .split(/\s+/g)
+    .filter(Boolean);
+  const strongWords = ["жим", "присед", "тяга", "станов", "подтяг", "отжим", "плеч", "спин", "груд", "ног", "бицеп", "трицеп"];
+  const hits: Record<string, { name: string; score: number; source: string }> = {};
+  for (const c of candidates) {
+    if (!c.key || c.key.length < 3) continue;
+    let score = 0;
+    // direct substring match
+    if (qKey.includes(c.key) || c.key.includes(qKey)) score += 6;
+    for (const sw of strongWords) {
+      if (qKey.includes(normalizeNameKey(sw)) && c.key.includes(normalizeNameKey(sw))) score += 3;
+    }
+    for (const t of tokens) {
+      const tk = normalizeNameKey(t);
+      if (tk.length < 3) continue;
+      if (c.key.includes(tk)) score += 1;
+    }
+    if (score <= 0) continue;
+    const prev = hits[c.name];
+    if (!prev || score > prev.score) hits[c.name] = { name: c.name, score, source: c.source };
+  }
+
+  return Object.values(hits)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((h) => ({ name: h.name, source: h.source, score: h.score }));
+}
+
+function buildFocusContext(args: { question: string; context: any }) {
+  const workouts = Array.isArray(args.context?.workouts) ? args.context.workouts : [];
+  const intent = detectIntent(args.question);
+  const focusExercises = extractFocusExercises({ question: args.question, workouts });
+
+  const exerciseHistory = focusExercises.length
+    ? workouts
+        .map((w: any) => {
+          const exercises = Array.isArray(w?.workout?.exercises) ? w.workout.exercises : [];
+          const matched = exercises
+            .filter((ex: any) => {
+              const exKey = normalizeNameKey(ex?.name || "");
+              return focusExercises.some((f) => exKey && exKey.includes(normalizeNameKey(f.name)));
+            })
+            .map((ex: any) => ({
+              name: ex?.name ?? null,
+              effort: ex?.effort ?? null,
+              stats: summarizeExerciseSetStats(ex),
+              sets: Array.isArray(ex?.sets)
+                ? ex.sets.map((s: any) => ({ reps: s?.reps ?? null, weight: s?.weight ?? null }))
+                : [],
+            }));
+          if (!matched.length) return null;
+          return {
+            workoutId: w?.id,
+            finishedAt: w?.finishedAt,
+            sessionStats: w?.stats ?? null,
+            exercises: matched,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return {
+    intent,
+    focusExercises,
+    exerciseHistory,
+  };
 }
 
 async function getUserContext(userId: string) {
@@ -181,13 +352,45 @@ async function getUserContext(userId: string) {
     [userId]
   );
 
-  const normalizedSessions = sessions.map((s) => ({
-    id: s.id,
-    finishedAt: s.finished_at,
-    workout: normalizeWorkoutPayload(s.payload),
-  }));
+  const normalizedSessions = sessions.map((s) => {
+    const workout = normalizeWorkoutPayload(s.payload);
+    const stats = computeSessionStats(s.payload);
+    return {
+      id: s.id,
+      finishedAt: s.finished_at,
+      workout,
+      stats,
+    };
+  });
 
-  return { userProfile, checkins: normalizedCheckins, workouts: normalizedSessions };
+  const workoutsLast7 = normalizedSessions.filter((w) => {
+    const t = new Date(w.finishedAt as any).getTime();
+    return Number.isFinite(t) && Date.now() - t <= 7 * 24 * 60 * 60 * 1000;
+  });
+  const avgDuration =
+    normalizedSessions.length > 0
+      ? Math.round(
+          (normalizedSessions.reduce((sum: number, w: any) => sum + (Number(w?.stats?.durationMin) || 0), 0) /
+            normalizedSessions.length) * 10
+        ) / 10
+      : null;
+  const avgSessionRpe =
+    normalizedSessions.filter((w: any) => Number.isFinite(Number(w?.stats?.sessionRpe))).length > 0
+      ? Math.round(
+          (normalizedSessions.reduce((sum: number, w: any) => sum + (Number(w?.stats?.sessionRpe) || 0), 0) /
+            normalizedSessions.filter((w: any) => Number.isFinite(Number(w?.stats?.sessionRpe))).length) * 10
+        ) / 10
+      : null;
+
+  const stats = {
+    workoutsCount: normalizedSessions.length,
+    workoutsLast7d: workoutsLast7.length,
+    checkinsCount: normalizedCheckins.length,
+    avgDurationMin: avgDuration,
+    avgSessionDifficulty: avgSessionRpe,
+  };
+
+  return { userProfile, checkins: normalizedCheckins, workouts: normalizedSessions, stats };
 }
 
 function buildSystemPrompt(): string {
@@ -204,16 +407,28 @@ function buildSystemPrompt(): string {
   ].join("\n");
 }
 
-function buildUserPrompt(args: { question: string; context: any }): string {
+function buildUserPrompt(args: { question: string; context: any; focus: any }): string {
   return [
+    "ВАЖНО: не пересказывай тренировки. Отвечай на вопрос по сути и опирайся на данные пользователя.",
+    "Если данных недостаточно — скажи это прямо и предложи 1–2 безопасных шага, которые не требуют гадания.",
+    "",
     "Контекст пользователя (JSON):",
     JSON.stringify(args.context),
+    "",
+    "Фокус под вопрос (JSON):",
+    JSON.stringify(args.focus),
     "",
     "Вопрос пользователя:",
     args.question,
     "",
     "Ответ верни строго JSON в формате:",
     `{"intro": string, "bullets": string[], "actions": [{"title": string, "how": string, "why": string}], "outro": string}`,
+    "",
+    "Требования к ответу:",
+    "- 3–6 bullets: это выводы/причины/наблюдения, а не перечисление упражнений.",
+    "- 2–4 actions: конкретные шаги на следующую тренировку/неделю.",
+    "- Не используй конкретные веса/повторы, если ты их не видишь явно в данных из JSON.",
+    "- Не делай вид, что ты уверен: причины формулируй как гипотезы.",
   ].join("\n");
 }
 
@@ -247,10 +462,45 @@ export async function sendCoachChatMessage(args: {
   const history = await getChatHistory(threadId, 18);
   const context = await getUserContext(userId);
   const contextRef = makeContextRef(context);
+  const focus = buildFocusContext({ question: message, context });
 
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] question:", message);
     console.log("[COACH_CHAT][content] contextRef:", JSON.stringify(contextRef));
+  }
+
+  // Avoid wasting tokens on small talk: guide user to ask a concrete question.
+  if (isGreetingOnly(message)) {
+    const assistantText =
+      "Привет. Напиши, что хочешь разобрать — я посмотрю твои тренировки и самочувствие и дам конкретные шаги.\n\n" +
+      "Примеры:\n" +
+      "• «Почему не растёт жим?»\n" +
+      "• «Проанализируй последнюю тренировку: что улучшить?»\n" +
+      "• «Почему в последние недели усталость выше?»\n" +
+      "• «Как прогрессировать, если у меня 45–60 минут?»";
+
+    const saved = await withTransaction(async () => {
+      const [u] = await q<{ id: string; created_at: string }>(
+        `INSERT INTO coach_chat_messages (thread_id, role, content, meta)
+         VALUES ($1, 'user', $2, $3::jsonb)
+         RETURNING id, created_at`,
+        [threadId, message, JSON.stringify({ contextRef, type: "greeting" })]
+      );
+      const [a] = await q<{ id: string; created_at: string }>(
+        `INSERT INTO coach_chat_messages (thread_id, role, content, meta)
+         VALUES ($1, 'assistant', $2, $3::jsonb)
+         RETURNING id, created_at`,
+        [threadId, assistantText, JSON.stringify({ type: "greeting" })]
+      );
+      await q(`UPDATE coach_chat_threads SET updated_at = now() WHERE id = $1`, [threadId]);
+      return { u, a };
+    });
+
+    return {
+      threadId,
+      userMessage: { id: saved.u.id, role: "user", content: message, createdAt: saved.u.created_at },
+      assistantMessage: { id: saved.a.id, role: "assistant", content: assistantText, createdAt: saved.a.created_at },
+    };
   }
 
   const model = String(process.env.COACH_CHAT_MODEL || "gpt-4o");
@@ -265,7 +515,7 @@ export async function sendCoachChatMessage(args: {
       ...history
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      { role: "user", content: buildUserPrompt({ question: message, context }) },
+      { role: "user", content: buildUserPrompt({ question: message, context, focus }) },
     ],
   });
 
@@ -300,7 +550,7 @@ export async function sendCoachChatMessage(args: {
       `INSERT INTO coach_chat_messages (thread_id, role, content, meta)
        VALUES ($1, 'user', $2, $3::jsonb)
        RETURNING id, created_at`,
-      [threadId, message, JSON.stringify({ contextRef })]
+      [threadId, message, JSON.stringify({ contextRef, focus, intent: focus?.intent?.kind || null })]
     );
 
     const [a] = await q<{ id: string; created_at: string }>(
@@ -310,7 +560,7 @@ export async function sendCoachChatMessage(args: {
       [
         threadId,
         answerText,
-        JSON.stringify({}),
+        JSON.stringify({ focus, intent: focus?.intent?.kind || null }),
         model,
         promptTokens,
         completionTokens,
