@@ -36,6 +36,17 @@ export default function CoachChat() {
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   const suggested = useMemo(
     () => [
       "Проанализируй мою последнюю тренировку и скажи, что улучшить",
@@ -199,8 +210,9 @@ export default function CoachChat() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    height: "100dvh",
     padding: "0 0 calc(132px + var(--tg-viewport-inset-bottom, 0px))",
+    position: "fixed",
+    inset: 0,
     display: "grid",
     boxSizing: "border-box",
     overflow: "hidden",
