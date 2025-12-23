@@ -122,41 +122,43 @@ export default function CoachChat() {
     <div style={s.page}>
       <SoftGlowStyles />
 
-      <section style={s.frame}>
-        <header style={s.frameTop}>
+      <div style={s.screen}>
+        <header style={s.top}>
           <div style={s.title}>Чат с тренером</div>
           {error ? <div style={s.error}>{error}</div> : null}
         </header>
 
-        <div ref={listRef} style={s.messages}>
-          {loading ? (
-            <div style={s.loading}>Загружаю чат…</div>
-          ) : messages.length === 0 ? (
-            <div style={s.empty}>
-              <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
-              <div style={s.chips}>
-                {suggested.map((q) => (
-                  <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
-              >
-                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                  <div style={s.bubbleText}>{m.content}</div>
+        <section style={s.glassBlock}>
+          <div ref={listRef} style={s.messages}>
+            {loading ? (
+              <div style={s.loading}>Загружаю чат…</div>
+            ) : messages.length === 0 ? (
+              <div style={s.empty}>
+                <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+                <div style={s.chips}>
+                  {suggested.map((q) => (
+                    <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
+                      {q}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              messages.map((m) => (
+                <div
+                  key={m.id}
+                  style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}
+                >
+                  <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
+                    <div style={s.bubbleText}>{m.content}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
-        <footer style={s.frameBottom}>
+        <footer style={s.bottom}>
           <div style={s.composerRow}>
             <div style={s.inputBox}>
               <textarea
@@ -190,7 +192,7 @@ export default function CoachChat() {
             </button>
           </div>
         </footer>
-      </section>
+      </div>
     </div>
   );
 }
@@ -203,31 +205,25 @@ const s: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     overflow: "hidden",
   },
-  frame: {
-    maxWidth: "100%",
-    width: "100%",
-    margin: 0,
+  screen: {
     height: "100%",
     minHeight: 0,
     display: "grid",
     gridTemplateRows: "auto 1fr auto",
-    borderRadius: 26,
-    border: "1px solid rgba(0,0,0,0.08)",
-    background: "transparent",
-    overflow: "hidden",
+    padding: "14px 14px 0",
     boxSizing: "border-box",
+    overflow: "hidden",
   },
-  frameTop: {
-    padding: "22px 14px 18px",
-    borderBottom: "1px solid rgba(0,0,0,0.08)",
-    background: "rgba(255,255,255,0.55)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  top: {
+    padding: "6px 2px 10px",
+    display: "grid",
+    gap: 10,
   },
   title: {
-    fontSize: 16,
-    fontWeight: 850,
+    fontSize: 18,
+    fontWeight: 900,
     color: "#0f172a",
+    letterSpacing: -0.2,
   },
   error: {
     background: "rgba(239,68,68,.12)",
@@ -238,6 +234,16 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 650,
     marginTop: 10,
+  },
+  glassBlock: {
+    minHeight: 0,
+    borderRadius: 20,
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.55)",
+    boxShadow: "0 10px 28px rgba(0,0,0,.10)",
+    backdropFilter: "blur(16px) saturate(160%)",
+    WebkitBackdropFilter: "blur(16px) saturate(160%)",
+    overflow: "hidden",
   },
   loading: {
     padding: "18px 12px",
@@ -293,7 +299,7 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-wrap",
   },
   assistantBubble: {
-    background: "rgba(255,255,255,0.60)",
+    background: "rgba(255,255,255,0.62)",
     color: "#0f172a",
     border: "1px solid rgba(0,0,0,0.08)",
     borderTopLeftRadius: 8,
@@ -315,12 +321,9 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.38,
     fontWeight: 450,
   },
-  frameBottom: {
-    padding: "22px 14px 32px",
-    borderTop: "1px solid rgba(0,0,0,0.08)",
-    background: "rgba(255,255,255,0.55)",
-    backdropFilter: "blur(10px) saturate(140%)",
-    WebkitBackdropFilter: "blur(10px) saturate(140%)",
+  bottom: {
+    padding: "14px 0 0",
+    background: "transparent",
   },
   composerRow: {
     display: "grid",
