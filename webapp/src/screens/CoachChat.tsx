@@ -353,7 +353,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     border: "1px solid rgba(0,0,0,0.10)",
     background: "rgba(255,255,255,0.60)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    boxShadow: "none",
     padding: "10px 12px",
     display: "flex",
     alignItems: "center",
@@ -377,7 +377,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1b1b1b",
     fontSize: 13.5,
     fontWeight: 850,
-    boxShadow: "0 10px 22px rgba(0,0,0,.14)",
+    boxShadow: "none",
     minHeight: 56,
   },
 };
