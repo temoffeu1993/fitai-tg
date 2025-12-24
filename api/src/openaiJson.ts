@@ -47,6 +47,12 @@ export async function createJsonObjectResponse(args: {
     return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("temperature");
   };
 
+  const isUnsupportedMaxTokensError = (err: any) => {
+    const msg =
+      String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
+    return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("max_tokens");
+  };
+
   // Some models (notably gpt-5-mini) may return empty `output_text`/`output` via Responses API in our setup.
   // Prefer Chat Completions for gpt-5-mini, unless explicitly forced via USE_RESPONSES_API=1.
   const preferChatCompletions = /^gpt-5-mini$/i.test(model) && process.env.USE_RESPONSES_API !== "1";
@@ -61,6 +67,7 @@ export async function createJsonObjectResponse(args: {
     const params: any = {
       model,
       temperature,
+      // Some models (notably gpt-5*) use `max_completion_tokens` instead of `max_tokens` in Chat Completions.
       max_tokens: maxOutputTokens,
       response_format: { type: "json_object" },
       messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
@@ -70,8 +77,13 @@ export async function createJsonObjectResponse(args: {
     try {
       completion = await (client as any).chat.completions.create(params);
     } catch (err: any) {
+      // Retry without unsupported knobs (some models restrict params).
       if (isUnsupportedTemperatureError(err)) {
         delete params.temperature;
+        completion = await (client as any).chat.completions.create(params);
+      } else if (isUnsupportedMaxTokensError(err)) {
+        delete params.max_tokens;
+        params.max_completion_tokens = maxOutputTokens;
         completion = await (client as any).chat.completions.create(params);
       } else {
         throw err;
