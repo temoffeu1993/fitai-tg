@@ -51,6 +51,7 @@ export default function CheckIn() {
       // Вызываем API для адаптации тренировки
       const response = await startWorkout({
         date: workoutDate,
+        plannedWorkoutId,
         checkin: payload,
       });
 

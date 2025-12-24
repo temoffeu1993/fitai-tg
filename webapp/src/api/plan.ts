@@ -99,6 +99,7 @@ export async function getLatestCheckIn() {
 export async function startWorkout(payload: {
   date?: string;
   checkin?: CheckInPayload;
+  plannedWorkoutId?: string;
 }) {
   const res = await apiFetch("/plan/workout/start", {
     method: "POST",

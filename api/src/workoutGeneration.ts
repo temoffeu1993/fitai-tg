@@ -1062,12 +1062,14 @@ workoutGeneration.post(
   "/workout/start",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    const { date, checkin: checkinFromBody } = req.body;
+    const { date, checkin: checkinFromBody, plannedWorkoutId: plannedWorkoutIdRaw } = req.body;
     
     const workoutDate = date || new Date().toISOString().split('T')[0];
+    const plannedWorkoutId = isUUID(plannedWorkoutIdRaw) ? String(plannedWorkoutIdRaw) : null;
     
     console.log(`\n🏁 [START WORKOUT] ===================================`);
     console.log(`   User: ${uid} | Date: ${workoutDate}`);
+    if (plannedWorkoutId) console.log(`   PlannedWorkoutId: ${plannedWorkoutId}`);
     
     // 1. Get base planned workout for this date
     const plannedRows = await q<{ 
@@ -1077,10 +1079,15 @@ workoutGeneration.post(
       status: string,
       workout_date: string,
     }>(
-      `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
-       WHERE user_id = $1 AND workout_date = $2
-       LIMIT 1`,
-      [uid, workoutDate]
+      plannedWorkoutId
+        ? `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
+           WHERE user_id = $1 AND id = $2::uuid
+           LIMIT 1`
+        : `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
+           WHERE user_id = $1 AND workout_date = $2
+           ORDER BY scheduled_for DESC NULLS LAST, updated_at DESC NULLS LAST
+           LIMIT 1`,
+      plannedWorkoutId ? [uid, plannedWorkoutId] : [uid, workoutDate]
     );
     
     if (!plannedRows.length) {
