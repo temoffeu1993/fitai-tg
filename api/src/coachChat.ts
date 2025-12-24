@@ -717,7 +717,17 @@ export async function sendCoachChatMessage(args: {
   });
 
   const raw = call1.jsonText || "{}";
+
+  if (process.env.AI_LOG_CONTENT === "1") {
+    console.log("[COACH_CHAT][raw_response]", raw.slice(0, 500));
+  }
+
   const parsed = safeJsonParse(raw);
+
+  if (process.env.AI_LOG_CONTENT === "1") {
+    console.log("[COACH_CHAT][parsed]", JSON.stringify(parsed).slice(0, 300));
+  }
+
   const answerText0 = normalizeAnswerText({
     intro: parsed?.intro,
     bullets: parsed?.bullets,
