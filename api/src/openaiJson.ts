@@ -68,8 +68,17 @@ export async function createJsonObjectResponse(args: {
     const usage = r?.usage;
     const jsonText = extractResponsesText(r);
 
+    if (process.env.AI_LOG_CONTENT === "1") {
+      console.log("[openaiJson][responses_api] output_text:", r?.output_text?.slice(0, 200));
+      console.log("[openaiJson][responses_api] output:", JSON.stringify(r?.output)?.slice(0, 300));
+      console.log("[openaiJson][responses_api] extracted:", jsonText.slice(0, 200));
+    }
+
     // Fallback: some setups return empty output_text/output; try Chat Completions.
     if (!jsonText) {
+      if (process.env.AI_LOG_CONTENT === "1") {
+        console.log("[openaiJson] Responses API returned empty, trying Chat Completions fallback...");
+      }
       try {
         const completion: any = await (client as any).chat.completions.create({
           model,
@@ -83,6 +92,11 @@ export async function createJsonObjectResponse(args: {
         });
         const usage2 = completion?.usage;
         const content2 = completion?.choices?.[0]?.message?.content || "";
+
+        if (process.env.AI_LOG_CONTENT === "1") {
+          console.log("[openaiJson][chat_completions_fallback] content:", content2?.slice(0, 200));
+        }
+
         return {
           jsonText: String(content2 || "").trim(),
           usage: {
@@ -94,7 +108,10 @@ export async function createJsonObjectResponse(args: {
             totalTokens: typeof usage2?.total_tokens === "number" ? usage2.total_tokens : null,
           },
         };
-      } catch {
+      } catch (err) {
+        if (process.env.AI_LOG_CONTENT === "1") {
+          console.log("[openaiJson][chat_completions_fallback] ERROR:", err);
+        }
         // ignore fallback errors, keep original responses usage
       }
     }
