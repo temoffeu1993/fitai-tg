@@ -143,6 +143,13 @@ export async function createJsonObjectResponse(args: {
   const latencyMs = Date.now() - t0;
   const usage = completion?.usage;
   const content = completion?.choices?.[0]?.message?.content || "";
+
+  if (process.env.AI_LOG_CONTENT === "1") {
+    console.log("[openaiJson][chat_completions_direct] content:", content?.slice(0, 200));
+    console.log("[openaiJson][chat_completions_direct] refusal:", completion?.choices?.[0]?.message?.refusal);
+    console.log("[openaiJson][chat_completions_direct] finish_reason:", completion?.choices?.[0]?.finish_reason);
+  }
+
   return {
     jsonText: String(content || "").trim(),
     usage: {
