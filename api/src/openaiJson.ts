@@ -84,7 +84,7 @@ export async function createJsonObjectResponse(args: {
           model,
           ...(isGpt5Mini ? {} : { temperature }),
           ...(isGpt5Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
-          ...(isGpt5Mini ? {} : { response_format: { type: "json_object" } }),
+          response_format: { type: "json_object" },
           messages: [
             { role: "system", content: instructions },
             ...messages.map((m) => ({ role: m.role, content: m.content })),
@@ -133,7 +133,7 @@ export async function createJsonObjectResponse(args: {
     model,
     ...(isGpt5Mini ? {} : { temperature }),
     ...(isGpt5Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
-    ...(isGpt5Mini ? {} : { response_format: { type: "json_object" } }),
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: instructions },
       ...messages.map((m) => ({ role: m.role, content: m.content })),
