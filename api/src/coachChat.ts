@@ -509,30 +509,7 @@ function roundToStep(n: unknown, step: number): number | null {
   return Math.round(v / step) * step;
 }
 
-function buildExerciseDictionary(workouts: any[]) {
-  const names: string[] = [];
-  const seen = new Set<string>();
-  for (const w of workouts) {
-    const exs = Array.isArray(w?.workout?.exercises) ? w.workout.exercises : [];
-    for (const ex of exs) {
-      const nm = String(ex?.name || "").trim();
-      if (!nm) continue;
-      if (seen.has(nm)) continue;
-      seen.add(nm);
-      names.push(nm);
-    }
-  }
-  const dict: Record<string, string> = {};
-  const nameToId = new Map<string, string>();
-  names.forEach((nm, idx) => {
-    const id = `E${idx + 1}`;
-    dict[id] = nm;
-    nameToId.set(nm, id);
-  });
-  return { dict, nameToId };
-}
-
-function workoutToTable(args: { workout: any; workoutIndex: number; nameToId: Map<string, string> }): string {
+function workoutToTable(args: { workout: any; workoutIndex: number }): string {
   const w = args.workout;
   const exs = Array.isArray(w?.exercises) ? w.exercises : [];
   const lines: string[] = [];
@@ -550,7 +527,7 @@ function workoutToTable(args: { workout: any; workoutIndex: number; nameToId: Ma
 
   for (const ex of exs) {
     const nm = String(ex?.name || "").trim();
-    const exId = nm ? args.nameToId.get(nm) || nm : "?";
+    const exName = nm || "?";
     const restSec = roundToStep(ex?.restSec, 1);
     const done = ex?.done === true ? "1" : ex?.done === false ? "0" : "?";
     const effort = ex?.effort != null ? String(ex.effort).trim() : null;
@@ -564,7 +541,7 @@ function workoutToTable(args: { workout: any; workoutIndex: number; nameToId: Ma
     });
     lines.push(
       [
-        exId,
+        exName,
         restSec != null ? `rest=${restSec}` : null,
         effort ? `eff=${effort}` : null,
         `done=${done}`,
@@ -580,18 +557,16 @@ function workoutToTable(args: { workout: any; workoutIndex: number; nameToId: Ma
 
 function compactContextForLLM(context: any) {
   const workouts = Array.isArray(context?.workouts) ? context.workouts : [];
-  const { dict, nameToId } = buildExerciseDictionary(workouts);
   const compactWorkouts = workouts.map((w: any, idx: number) => ({
     id: w?.id ?? null,
     finishedAt: w?.finishedAt ?? null,
     stats: w?.stats ?? null,
-    table: workoutToTable({ workout: w?.workout, workoutIndex: idx, nameToId }),
+    table: workoutToTable({ workout: w?.workout, workoutIndex: idx }),
   }));
   return {
     userProfile: context?.userProfile ?? null,
     stats: context?.stats ?? null,
     checkins: context?.checkins ?? [],
-    exerciseDict: dict,
     workouts: compactWorkouts,
   };
 }
