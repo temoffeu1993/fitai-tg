@@ -22,6 +22,12 @@ export async function createJsonObjectResponse(args: {
 }): Promise<{ jsonText: string; usage: JsonCallUsage }> {
   const { client, model, instructions, messages, temperature, maxOutputTokens } = args;
 
+  const isUnsupportedTemperatureError = (err: any) => {
+    const msg =
+      String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
+    return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("temperature");
+  };
+
   const preferResponses =
     process.env.USE_RESPONSES_API === "1" ||
     /^gpt-5/i.test(model) ||
@@ -31,14 +37,26 @@ export async function createJsonObjectResponse(args: {
   const t0 = Date.now();
 
   if (preferResponses) {
-    const r: any = await (client as any).responses.create({
+    const params: any = {
       model,
       instructions,
       input: messages.map((m) => ({ role: m.role, content: m.content })),
       text: { format: { type: "json_object" } },
       temperature,
       max_output_tokens: maxOutputTokens,
-    });
+    };
+
+    let r: any;
+    try {
+      r = await (client as any).responses.create(params);
+    } catch (err: any) {
+      if (isUnsupportedTemperatureError(err)) {
+        delete params.temperature;
+        r = await (client as any).responses.create(params);
+      } else {
+        throw err;
+      }
+    }
     const latencyMs = Date.now() - t0;
     const usage = r?.usage;
     return {
@@ -54,16 +72,25 @@ export async function createJsonObjectResponse(args: {
     };
   }
 
-  const completion: any = await (client as any).chat.completions.create({
+  const params: any = {
     model,
     temperature,
     max_tokens: maxOutputTokens,
     response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: instructions },
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
-    ],
-  });
+    messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
+  };
+
+  let completion: any;
+  try {
+    completion = await (client as any).chat.completions.create(params);
+  } catch (err: any) {
+    if (isUnsupportedTemperatureError(err)) {
+      delete params.temperature;
+      completion = await (client as any).chat.completions.create(params);
+    } else {
+      throw err;
+    }
+  }
   const latencyMs = Date.now() - t0;
   const usage = completion?.usage;
   const content = completion?.choices?.[0]?.message?.content || "";
@@ -79,4 +106,3 @@ export async function createJsonObjectResponse(args: {
     },
   };
 }
-
