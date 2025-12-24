@@ -555,6 +555,13 @@ export async function sendCoachChatMessage(args: {
   }
 
   const model = String(process.env.COACH_CHAT_MODEL || "gpt-5-mini");
+  const isMiniModel = /mini/i.test(model);
+  const maxOutputTokens = (() => {
+    const v = Number(process.env.COACH_CHAT_MAX_OUTPUT_TOKENS);
+    if (Number.isFinite(v) && v > 0) return Math.round(v);
+    return isMiniModel ? 700 : 1200;
+  })();
+  const allowRewrite = !isMiniModel && String(process.env.COACH_CHAT_REWRITE || "1") !== "0";
   const instructions = buildSystemPrompt();
   const baseMessages = history
     .filter((m) => m.role === "user" || m.role === "assistant")
@@ -566,7 +573,7 @@ export async function sendCoachChatMessage(args: {
     instructions,
     messages: [...baseMessages, { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) }],
     temperature: 0.7,
-    maxOutputTokens: 1200,
+    maxOutputTokens,
   });
 
   const raw = call1.jsonText || "{}";
@@ -588,12 +595,6 @@ export async function sendCoachChatMessage(args: {
   let totalTokens = call1.usage.totalTokens;
   let apiUsed = call1.usage.api;
 
-  if (process.env.AI_USAGE_LOG === "1") {
-    console.log(
-      `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
-    );
-  }
-
   const answerLooksTooGeneric = (() => {
     const txt = answerText0.toLowerCase();
     const genericMarkers = ["разнообраз", "хорошая работа", "хороший режим", "в целом", "старайся", "следи за техникой"];
@@ -607,7 +608,7 @@ export async function sendCoachChatMessage(args: {
 
   let answerText = answerText0;
   let rewriteUsed = false;
-  if (answerLooksTooGeneric) {
+  if (allowRewrite && answerLooksTooGeneric) {
     try {
       const call2 = await createJsonObjectResponse({
         client: openai as any,
@@ -624,7 +625,7 @@ export async function sendCoachChatMessage(args: {
           },
         ],
         temperature: 0.5,
-        maxOutputTokens: 1100,
+        maxOutputTokens: Math.min(maxOutputTokens, 900),
       });
 
       const raw2 = call2.jsonText || "{}";
@@ -652,6 +653,12 @@ export async function sendCoachChatMessage(args: {
     } catch {
       // ignore rewrite failures
     }
+  }
+
+  if (process.env.AI_USAGE_LOG === "1") {
+    console.log(
+      `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"} rewrite=${rewriteUsed ? "1" : "0"}`
+    );
   }
 
   // Persist messages transactionally.
