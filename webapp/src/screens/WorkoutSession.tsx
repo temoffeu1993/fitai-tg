@@ -1,6 +1,6 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type TouchEvent } from "react";
 import { saveSession } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 
@@ -30,7 +30,7 @@ type Plan = {
   exercises: Array<PlanExercise>;
 };
 
-type SetEntry = { reps?: number; weight?: number };
+type SetEntry = { reps?: number; weight?: number; done?: boolean };
 
 type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
 
@@ -93,6 +93,7 @@ export default function WorkoutSession() {
   }, [loc.state]);
 
   const [items, setItems] = useState<Item[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [changes, setChanges] = useState<ChangeEvent[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
@@ -101,6 +102,17 @@ export default function WorkoutSession() {
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [altsLoading, setAltsLoading] = useState(false);
   const [altsError, setAltsError] = useState<string | null>(null);
+  const [blockedSet, setBlockedSet] = useState<{ ei: number; si: number } | null>(null);
+  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
+  const REST_PREF_KEY = "workout_rest_enabled_v1";
+  const [restEnabled, setRestEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(REST_PREF_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [restSecLeft, setRestSecLeft] = useState<number | null>(null);
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
       {
@@ -188,6 +200,12 @@ export default function WorkoutSession() {
     }
   }, [plannedWorkoutId]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(REST_PREF_KEY, restEnabled ? "1" : "0");
+    } catch {}
+  }, [REST_PREF_KEY, restEnabled]);
+
   // init
   useEffect(() => {
     if (!plan) return;
@@ -207,6 +225,7 @@ export default function WorkoutSession() {
 
     if (draftMatches && hasDraftItems) {
       setItems(draft.items || []);
+      setActiveIndex(typeof draft.activeIndex === "number" ? Math.max(0, Math.floor(draft.activeIndex)) : 0);
       setChanges(Array.isArray(draft.changes) ? draft.changes : []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
@@ -241,10 +260,11 @@ export default function WorkoutSession() {
 	          const raw = (ex as any).weight;
 	          const preset =
 	            typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : undefined;
-	          return { reps: undefined, weight: preset };
+	          return { reps: undefined, weight: preset, done: false };
 	        }),
       }))
     );
+    setActiveIndex(0);
     setChanges([]);
     setElapsed(0);
     setRunning(true);
@@ -260,6 +280,16 @@ export default function WorkoutSession() {
   }, [running]);
 
   useEffect(() => {
+    if (restSecLeft == null) return;
+    if (restSecLeft <= 0) {
+      setRestSecLeft(null);
+      return;
+    }
+    const id = window.setInterval(() => setRestSecLeft((s) => (s == null ? null : s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [restSecLeft]);
+
+  useEffect(() => {
     return () => {
       if (blockTimer.current) window.clearTimeout(blockTimer.current);
     };
@@ -271,6 +301,7 @@ export default function WorkoutSession() {
     const draftPayload = {
       title: plan.title,
       items,
+      activeIndex,
       changes,
       elapsed,
       running,
@@ -278,7 +309,14 @@ export default function WorkoutSession() {
       sessionRpe,
     };
     localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+  }, [items, activeIndex, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+
+  useEffect(() => {
+    setActiveIndex((idx) => {
+      const max = Math.max(0, items.length - 1);
+      return Math.max(0, Math.min(max, idx));
+    });
+  }, [items.length]);
 
   if (!plan) {
     return (
@@ -292,6 +330,75 @@ export default function WorkoutSession() {
   const exercisesDone = items.filter((it) => it.done).length;
   const exercisesTotal = items.length;
   const progress = exercisesTotal ? Math.round((exercisesDone / exercisesTotal) * 100) : 0;
+
+  const goToIndex = (idx: number) => {
+    setActiveIndex(() => {
+      const max = Math.max(0, items.length - 1);
+      return Math.max(0, Math.min(max, Math.floor(idx)));
+    });
+  };
+  const goPrev = () => goToIndex(activeIndex - 1);
+  const goNext = () => goToIndex(activeIndex + 1);
+
+  const isNoSwipeTarget = (target: EventTarget | null) => {
+    let el = target as HTMLElement | null;
+    while (el) {
+      if (el instanceof HTMLElement) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === "input" || tag === "button" || tag === "textarea" || tag === "select") return true;
+        if (el.dataset?.noswipe === "1") return true;
+      }
+      el = (el as any).parentElement || null;
+    }
+    return false;
+  };
+
+  const onSwipeStart = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+    if (isNoSwipeTarget(e.target)) return;
+    const p =
+      "touches" in e && e.touches?.[0]
+        ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        : "clientX" in e
+          ? { x: (e as any).clientX, y: (e as any).clientY }
+          : null;
+    if (!p) return;
+    swipeStart.current = { ...p, at: Date.now() };
+  };
+
+  const onSwipeEnd = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    if (isNoSwipeTarget(e.target)) return;
+    const p =
+      "changedTouches" in e && (e as any).changedTouches?.[0]
+        ? { x: (e as any).changedTouches[0].clientX, y: (e as any).changedTouches[0].clientY }
+        : "clientX" in e
+          ? { x: (e as any).clientX, y: (e as any).clientY }
+          : null;
+    if (!p) return;
+    const dx = p.x - start.x;
+    const dy = p.y - start.y;
+    const dt = Date.now() - start.at;
+    if (dt > 900) return;
+    if (Math.abs(dx) < 60) return;
+    if (Math.abs(dy) > 60) return;
+    if (dx < 0) goNext();
+    if (dx > 0) goPrev();
+  };
+
+  const startRest = (sec: number | undefined | null) => {
+    if (!restEnabled) return;
+    const safe = Math.max(10, Math.min(30 * 60, Math.floor(Number(sec) || 0)));
+    if (!safe) return;
+    setRestSecLeft(safe);
+  };
+
+  const formatClock = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.max(0, sec % 60);
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
   const bump = (ei: number, si: number, field: "reps" | "weight", delta: number) => {
     setItems((prev) => {
@@ -310,6 +417,41 @@ export default function WorkoutSession() {
       next[ei].sets[si][field] = Number.isFinite(num) ? num : undefined;
       return next;
     });
+  };
+
+  const toggleSetDone = (ei: number, si: number, requiresWeight: boolean) => {
+    const it = items[ei];
+    const set = it?.sets?.[si];
+    if (!it || !set) return;
+    const hasReps = set.reps != null && set.reps !== undefined;
+    const hasWeight = !requiresWeight || (set.weight != null && set.weight !== undefined);
+
+    if (!(hasReps && hasWeight) && !set.done) {
+      setBlockedSet({ ei, si });
+      if (blockTimer.current) window.clearTimeout(blockTimer.current);
+      blockTimer.current = window.setTimeout(() => setBlockedSet(null), 2200);
+      return;
+    }
+
+    setItems((prev) => {
+      const next = structuredClone(prev);
+      const cur = next[ei];
+      const s = cur.sets[si];
+      const nextDone = !s.done;
+      s.done = nextDone;
+      if (nextDone) {
+        const nextSet = cur.sets[si + 1];
+        if (nextSet) {
+          if (nextSet.reps == null && s.reps != null) nextSet.reps = s.reps;
+          if (nextSet.weight == null && s.weight != null) nextSet.weight = s.weight;
+        }
+      }
+      return next;
+    });
+
+    if (!set.done) {
+      startRest(it.restSec);
+    }
   };
 
   const toggleExerciseDone = (ei: number, requiresWeight: boolean) => {
@@ -337,11 +479,13 @@ export default function WorkoutSession() {
       return;
     }
 
+    const willBeDone = !items[ei]?.done;
     setItems((prev) => {
       const next = structuredClone(prev);
       next[ei].done = !next[ei].done;
       return next;
     });
+    if (willBeDone && ei === activeIndex && ei < items.length - 1) setActiveIndex(ei + 1);
   };
 
   const pushChange = (ev: Omit<ChangeEvent, "at"> & { at?: string }) => {
@@ -371,10 +515,11 @@ export default function WorkoutSession() {
       next[ei].done = true;
       next[ei].effort = null;
       // clear unfinished set inputs (doesn't affect already entered values)
-      next[ei].sets = next[ei].sets.map((s) => ({ reps: s.reps, weight: s.weight }));
+      next[ei].sets = next[ei].sets.map((s) => ({ reps: s.reps, weight: s.weight, done: s.done }));
       return next;
     });
     pushChange({ action: "skip", fromExerciseId: it?.id || null, reason: "user_skip", source: "user", meta: { index: ei } });
+    if (ei === activeIndex && ei < items.length - 1) setActiveIndex(ei + 1);
   };
 
   const removeExercise = (ei: number) => {
@@ -383,6 +528,11 @@ export default function WorkoutSession() {
       const next = structuredClone(prev);
       next.splice(ei, 1);
       return next;
+    });
+    setActiveIndex((idx) => {
+      if (ei < idx) return Math.max(0, idx - 1);
+      if (ei === idx) return Math.max(0, Math.min(idx, items.length - 2));
+      return idx;
     });
     pushChange({ action: "remove", fromExerciseId: it?.id || null, reason: "user_remove", source: "user", meta: { index: ei, name: it?.name } });
   };
@@ -433,7 +583,7 @@ export default function WorkoutSession() {
         cur.skipped = false;
         cur.done = false;
         cur.effort = null;
-        cur.sets = Array.from({ length: total || 1 }, () => ({ reps: undefined, weight: suggested }));
+        cur.sets = Array.from({ length: total || 1 }, () => ({ reps: undefined, weight: suggested, done: false }));
         return next;
       }
 
@@ -455,10 +605,17 @@ export default function WorkoutSession() {
         done: false,
         skipped: false,
         effort: null,
-        sets: Array.from({ length: remaining }, () => ({ reps: undefined, weight: suggested })),
+        sets: Array.from({ length: remaining }, () => ({ reps: undefined, weight: suggested, done: false })),
       };
       next.splice(ei + 1, 0, replacement);
       return next;
+    });
+    setActiveIndex((idx) => {
+      if (performed > 0) {
+        if (idx === ei) return ei + 1;
+        if (idx > ei) return idx + 1;
+      }
+      return idx;
     });
 
     pushChange({
@@ -708,40 +865,99 @@ export default function WorkoutSession() {
 
       {/* Упражнения */}
       <main style={{ display: "grid", gap: 12 }}>
-	        {items.map((it, ei) => {
-	          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
-	          const hasExplicitWeight =
-	            typeof it.targetWeight === "number" ||
-	            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
-	          const loadType =
-	            it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
-	          const showWeightInput = loadType !== "bodyweight";
-	          const requiresWeight =
-	            typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
-	          const weightPlaceholder =
-	            typeof it.weightLabel === "string" && it.weightLabel.trim()
-	              ? it.weightLabel.toLowerCase().includes("помощ")
-	                ? "помощь кг"
-	                : "кг"
-	              : loadType === "assisted"
-	                ? "помощь кг"
-	                : "кг";
-	          const recKg = formatKg(it.targetWeight);
-	          const isAssist = weightPlaceholder.includes("помощ");
-	          return (
-	            <section key={ei} style={card.wrap} className={it.done ? "locked" : ""}>
-	              <button
-	                type="button"
-	                onClick={() => toggleExerciseDone(ei, requiresWeight)}
-	                className="check-toggle"
-	                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
-	                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
-	              >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <button type="button" style={btn.ghost} onClick={goPrev} disabled={activeIndex <= 0} data-noswipe="1">
+            ←
+          </button>
+          <div style={{ fontWeight: 900, color: "#0B1220", opacity: 0.9 }}>
+            Упражнение {Math.min(items.length, activeIndex + 1)} / {items.length || 0}
+          </div>
+          <button
+            type="button"
+            style={btn.ghost}
+            onClick={goNext}
+            disabled={activeIndex >= items.length - 1}
+            data-noswipe="1"
+          >
+            →
+          </button>
+        </div>
+
+        {restSecLeft != null ? (
+          <div
+            style={{
+              position: "sticky",
+              top: 10,
+              zIndex: 10,
+              background: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 16,
+              padding: "10px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#0B1220" }}>Отдых: {formatClock(restSecLeft)}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))} data-noswipe="1">
+                +15с
+              </button>
+              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft(null)} data-noswipe="1">
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {(() => {
+          const ei = activeIndex;
+          const it = items[ei];
+          if (!it) return null;
+
+          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
+          const hasExplicitWeight =
+            typeof it.targetWeight === "number" ||
+            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
+          const loadType = it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
+          const showWeightInput = loadType !== "bodyweight";
+          const requiresWeight =
+            typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
+          const weightPlaceholder =
+            typeof it.weightLabel === "string" && it.weightLabel.trim()
+              ? it.weightLabel.toLowerCase().includes("помощ")
+                ? "помощь кг"
+                : "кг"
+              : loadType === "assisted"
+                ? "помощь кг"
+                : "кг";
+          const recKg = formatKg(it.targetWeight);
+          const isAssist = weightPlaceholder.includes("помощ");
+          const weightStep = isAssist ? 5 : 2.5;
+
+          return (
+            <section
+              key={ei}
+              style={{ ...card.wrap, touchAction: "pan-y" }}
+              className={it.done ? "locked" : ""}
+              onTouchStart={onSwipeStart}
+              onTouchEnd={onSwipeEnd}
+              onPointerDown={onSwipeStart}
+              onPointerUp={onSwipeEnd}
+            >
+              <button
+                type="button"
+                onClick={() => toggleExerciseDone(ei, requiresWeight)}
+                className="check-toggle"
+                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
+                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
+                data-noswipe="1"
+              >
                 ✓
               </button>
-              {blockedCheck === ei && (
-                <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>
-              )}
+              {blockedCheck === ei && <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>}
               <div style={card.head}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -760,26 +976,36 @@ export default function WorkoutSession() {
                         boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                       }}
                       aria-label="Опции упражнения"
+                      data-noswipe="1"
                     >
                       ⋮
                     </button>
                   </div>
-	                  <div style={card.metaChips}>
-	                    <Chip label={`${it.sets.length}×`} />
-	                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
-	                    {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
-	                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
-	                  </div>
+                  <div style={card.metaChips}>
+                    <Chip label={`${it.sets.length}×`} />
+                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
+                    {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
+                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+                  </div>
                 </div>
               </div>
 
               <div style={{ display: "grid", gap: 8 }} aria-disabled={it.done}>
                 {it.sets.map((s, si) => (
-                  <div key={si} style={setrow.wrap} className="set-row">
-                    <div style={setrow.label} className="set-label">Сет {si + 1}</div>
+                  <div key={si} style={setrow.wrap} className={s.done ? "set-done set-row" : "set-row"}>
+                    <div style={setrow.label} className="set-label">
+                      Сет {si + 1}
+                    </div>
 
-                    <div style={setrow.inputs} className="sets-grid">
-                      <NumInput
+                    <div
+                      style={{
+                        ...setrow.inputs,
+                        display: "grid",
+                        gridTemplateColumns: showWeightInput ? "minmax(0,1fr) minmax(0,1fr) auto" : "minmax(0,1fr) auto",
+                      }}
+                      className="sets-grid"
+                    >
+                      <StepperNum
                         value={s.reps}
                         placeholder={
                           it.targetReps
@@ -789,26 +1015,58 @@ export default function WorkoutSession() {
                             : "повт./сек"
                         }
                         onChange={(v) => setValue(ei, si, "reps", v)}
-                        disabled={it.done}
+                        onMinus={() => bump(ei, si, "reps", -1)}
+                        onPlus={() => bump(ei, si, "reps", +1)}
+                        disabled={it.done || !!s.done}
+                        stepLabel="±1"
                       />
-	                      {showWeightInput ? (
-	                        <NumInput
-	                          value={s.weight}
-	                          placeholder={weightPlaceholder}
-	                          onChange={(v) => setValue(ei, si, "weight", v)}
-	                          disabled={it.done}
-	                        />
-	                      ) : null}
+                      {showWeightInput ? (
+                        <StepperNum
+                          value={s.weight}
+                          placeholder={weightPlaceholder}
+                          onChange={(v) => setValue(ei, si, "weight", v)}
+                          onMinus={() => bump(ei, si, "weight", -weightStep)}
+                          onPlus={() => bump(ei, si, "weight", +weightStep)}
+                          disabled={it.done || !!s.done}
+                          stepLabel={`±${weightStep}`}
+                        />
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleSetDone(ei, si, requiresWeight)}
+                        style={{
+                          border: "1px solid rgba(0,0,0,0.12)",
+                          background: s.done ? "rgba(34,197,94,0.14)" : "rgba(15,23,42,0.04)",
+                          color: "#0f172a",
+                          borderRadius: 12,
+                          padding: "10px 10px",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          minWidth: 48,
+                        }}
+                        aria-label={s.done ? "Отменить сет" : "Отметить сет"}
+                        data-noswipe="1"
+                      >
+                        ✓
+                      </button>
                     </div>
+
+                    {blockedSet?.ei === ei && blockedSet?.si === si ? (
+                      <div style={{ gridColumn: "1 / -1", marginTop: 6, fontSize: 12, fontWeight: 800, color: "#7f1d1d" }}>
+                        Заполни повторы{requiresWeight ? " и вес" : ""} перед отметкой сета
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
                   style={btn.ghost}
                   disabled={it.done}
+                  data-noswipe="1"
                   onClick={() =>
                     setItems((prev) => {
                       const next = structuredClone(prev);
@@ -820,7 +1078,7 @@ export default function WorkoutSession() {
                           : null;
                       const targetWeight = parseWeightNumber(next[ei].targetWeight);
                       const preset = lastWeight ?? (targetWeight != null && targetWeight > 0 ? targetWeight : null);
-                      next[ei].sets.push({ reps: undefined, weight: preset ?? undefined });
+                      next[ei].sets.push({ reps: last?.reps, weight: preset ?? undefined, done: false });
                       return next;
                     })
                   }
@@ -830,7 +1088,8 @@ export default function WorkoutSession() {
                 <button
                   type="button"
                   style={btn.ghost}
-                  disabled={it.done}
+                  disabled={it.done || it.sets.length <= 1}
+                  data-noswipe="1"
                   onClick={() =>
                     setItems((prev) => {
                       const next = structuredClone(prev);
@@ -840,6 +1099,14 @@ export default function WorkoutSession() {
                   }
                 >
                   ➖ Удалить сет
+                </button>
+                <button
+                  type="button"
+                  style={btn.ghost}
+                  data-noswipe="1"
+                  onClick={() => setRestEnabled((v) => !v)}
+                >
+                  {restEnabled ? "Отдых: авто ✅" : "Отдых: авто ☐"}
                 </button>
               </div>
 
@@ -857,31 +1124,32 @@ export default function WorkoutSession() {
                 <div style={effortRow.sliderWrap}>
                   <input
                     type="range"
-                min={0}
+                    min={0}
                     max={4}
                     step={1}
-            value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
-            onChange={(e) => {
-              const idx = Number(e.target.value);
-              const opt = effortOptions[idx] || effortOptions[1];
-              setEffort(ei, opt.key);
-            }}
-            style={{
-              ...effortRow.slider,
-              ...sliderFillStyle(
-                Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
-                0,
-                effortOptions.length - 1,
-                effortTicks
-              ),
-            }}
-            className="effort-slider"
-          />
+                    value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
+                    onChange={(e) => {
+                      const idx = Number((e.target as HTMLInputElement).value);
+                      const opt = effortOptions[idx] || effortOptions[1];
+                      setEffort(ei, opt.key);
+                    }}
+                    style={{
+                      ...effortRow.slider,
+                      ...sliderFillStyle(
+                        Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
+                        0,
+                        effortOptions.length - 1,
+                        effortTicks
+                      ),
+                    }}
+                    className="effort-slider"
+                    data-noswipe="1"
+                  />
                 </div>
               </div>
             </section>
           );
-        })}
+        })()}
       </main>
 
       {exerciseMenu ? (
@@ -1185,6 +1453,43 @@ function NumInput({
         style={num.input}
         disabled={disabled}
       />
+    </div>
+  );
+}
+
+function StepperNum({
+  value,
+  placeholder,
+  onChange,
+  onMinus,
+  onPlus,
+  disabled,
+  stepLabel,
+}: {
+  value?: number;
+  placeholder?: string;
+  onChange: (v: string) => void;
+  onMinus: () => void;
+  onPlus: () => void;
+  disabled?: boolean;
+  stepLabel?: string;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 8, alignItems: "center" }} data-noswipe="1">
+      <button type="button" onClick={onMinus} disabled={disabled} style={stepperBtn} aria-label="Минус" data-noswipe="1">
+        −
+      </button>
+      <div style={{ position: "relative" }}>
+        <NumInput value={value} placeholder={placeholder} onChange={onChange} disabled={disabled} />
+        {stepLabel ? (
+          <div style={{ position: "absolute", inset: "auto 10px 6px auto", fontSize: 10, fontWeight: 900, opacity: 0.45 }}>
+            {stepLabel}
+          </div>
+        ) : null}
+      </div>
+      <button type="button" onClick={onPlus} disabled={disabled} style={stepperBtn} aria-label="Плюс" data-noswipe="1">
+        +
+      </button>
     </div>
   );
 }
@@ -1593,6 +1898,13 @@ const lockCSS = `
 .locked input{ pointer-events:none; }
 .locked .chk,
 .locked .check-toggle { pointer-events:auto; z-index:1; }
+
+.set-done{
+  opacity: .72;
+}
+.set-done input{
+  background: rgba(15,23,42,0.03) !important;
+}
 `;
 
 // конфетти
@@ -1827,6 +2139,19 @@ const num = {
     background: "rgba(255,255,255,0.85)",
     caretColor: "#9ca3af",
   } as React.CSSProperties,
+};
+
+const stepperBtn: React.CSSProperties = {
+  height: 40,
+  width: 44,
+  borderRadius: 12,
+  border: "1px solid rgba(0,0,0,.10)",
+  background: "rgba(255,255,255,0.92)",
+  fontSize: 18,
+  fontWeight: 900,
+  color: "#0f172a",
+  cursor: "pointer",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
 };
 
 const metaRow: React.CSSProperties = {
