@@ -24,6 +24,32 @@ export async function createJsonObjectResponse(args: {
 
   const isGpt5Mini = /^gpt-5-mini$/i.test(model);
 
+  const extractChatCompletionsText = (completion: any): string => {
+    const msg = completion?.choices?.[0]?.message;
+    const refusal = typeof msg?.refusal === "string" ? msg.refusal.trim() : "";
+    if (refusal) return refusal;
+
+    const content = msg?.content;
+    if (typeof content === "string") return content.trim();
+    if (Array.isArray(content)) {
+      const parts: string[] = [];
+      for (const c of content) {
+        if (typeof c?.text === "string") parts.push(c.text);
+        else if (typeof c?.text?.value === "string") parts.push(c.text.value);
+        else if (typeof c?.text?.content === "string") parts.push(c.text.content);
+        else if (typeof c?.value === "string") parts.push(c.value);
+        else if (typeof c?.content === "string") parts.push(c.content);
+      }
+      return parts.join("").trim();
+    }
+    if (content && typeof content === "object") {
+      if (typeof (content as any).text === "string") return String((content as any).text).trim();
+      if (typeof (content as any).text?.value === "string") return String((content as any).text.value).trim();
+      if (typeof (content as any).value === "string") return String((content as any).value).trim();
+    }
+    return "";
+  };
+
   const extractResponsesText = (r: any): string => {
     const direct = typeof r?.output_text === "string" ? r.output_text : "";
     if (direct && direct.trim()) return direct.trim();
@@ -38,6 +64,7 @@ export async function createJsonObjectResponse(args: {
         else if (typeof c?.text?.content === "string") parts.push(c.text.content);
         else if (typeof c?.value === "string") parts.push(c.value);
         else if (typeof c?.content === "string") parts.push(c.content);
+        else if (typeof c?.refusal === "string") parts.push(c.refusal);
       }
     }
     return parts.join("").trim();
@@ -78,7 +105,8 @@ export async function createJsonObjectResponse(args: {
       ...(isGpt5Mini ? {} : { temperature }),
       // gpt-5-mini uses `max_completion_tokens` instead of `max_tokens`.
       ...(isGpt5Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
-      response_format: { type: "json_object" },
+      // gpt-5-mini behaves inconsistently with enforced json response_format; rely on prompt formatting instead.
+      ...(isGpt5Mini ? {} : { response_format: { type: "json_object" } }),
       messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
     };
 
@@ -100,9 +128,8 @@ export async function createJsonObjectResponse(args: {
     }
     const latencyMs = Date.now() - t0;
     const usage = completion?.usage;
-    const content = completion?.choices?.[0]?.message?.content || "";
     return {
-      jsonText: String(content || "").trim(),
+      jsonText: extractChatCompletionsText(completion),
       usage: {
         model,
         api: "chat_completions",
