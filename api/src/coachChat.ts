@@ -302,13 +302,27 @@ function buildFocusContext(args: { question: string; context: any }) {
   };
 }
 
+function extractOnboardingGoal(data: any, summary: any): string | null {
+  const goal =
+    data?.goal ??
+    data?.motivation?.goal ??
+    data?.goals?.primary ??
+    summary?.goal ??
+    summary?.motivation?.goal ??
+    summary?.goals?.primary ??
+    null;
+  if (goal == null) return null;
+  const s = String(goal).trim();
+  return s ? s : null;
+}
+
 async function getUserContext(userId: string) {
   const [onb] = await q<{ data: any; summary: any }>(
     `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
     [userId]
   );
   const userProfile = {
-    goal: onb?.data?.goal ?? onb?.summary?.goal ?? null,
+    goal: extractOnboardingGoal(onb?.data, onb?.summary),
     experience: onb?.data?.experience ?? onb?.summary?.experience ?? null,
     daysPerWeek: onb?.data?.schedule?.daysPerWeek ?? onb?.summary?.schedule?.daysPerWeek ?? onb?.summary?.freq ?? null,
     restrictions: onb?.data?.limitations ?? null,

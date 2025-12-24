@@ -110,7 +110,14 @@ async function getUserGoalExperience(userId: string): Promise<{ goal: any; exper
     `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
     [userId]
   );
-  const goal = onboardingRow?.data?.goal || onboardingRow?.summary?.goal || "build_muscle";
+  const goal =
+    onboardingRow?.data?.goal ||
+    onboardingRow?.data?.motivation?.goal ||
+    onboardingRow?.data?.goals?.primary ||
+    onboardingRow?.summary?.goal ||
+    onboardingRow?.summary?.motivation?.goal ||
+    onboardingRow?.summary?.goals?.primary ||
+    "build_muscle";
   const experience = onboardingRow?.data?.experience || onboardingRow?.summary?.experience || "intermediate";
   return { goal, experience };
 }

@@ -201,7 +201,14 @@ async function getUserProfileSnapshot(userId: string): Promise<any> {
   );
   const data = row?.data || {};
   const summary = row?.summary || {};
-  const goal = data?.goal ?? summary?.goal ?? null;
+  const goal =
+    data?.goal ??
+    data?.motivation?.goal ??
+    data?.goals?.primary ??
+    summary?.goal ??
+    summary?.motivation?.goal ??
+    summary?.goals?.primary ??
+    null;
   const experience = data?.experience ?? summary?.experience ?? null;
   const daysPerWeek = data?.schedule?.daysPerWeek ?? summary?.schedule?.daysPerWeek ?? summary?.freq ?? null;
   return {
