@@ -28,12 +28,58 @@ function clampInt(n: unknown, min: number, max: number, fallback: number): numbe
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
+function extractFirstJsonObject(raw: string): string | null {
+  const s = String(raw || "");
+  const start = s.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth++;
+    if (ch === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 function safeJsonParse(raw: string): any {
   const clean = String(raw || "")
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
-  return JSON.parse(clean || "{}");
+  if (!clean) return {};
+  try {
+    return JSON.parse(clean);
+  } catch {
+    try {
+      const extracted = extractFirstJsonObject(clean);
+      if (extracted) return JSON.parse(extracted);
+    } catch {
+      // ignore
+    }
+    // Fallback: treat model output as plain text.
+    return { intro: clean.slice(0, 4000), bullets: [], actions: [], outro: "" };
+  }
 }
 
 function normalizeAnswerText(parts: {
