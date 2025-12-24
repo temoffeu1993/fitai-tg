@@ -22,6 +22,23 @@ export async function createJsonObjectResponse(args: {
 }): Promise<{ jsonText: string; usage: JsonCallUsage }> {
   const { client, model, instructions, messages, temperature, maxOutputTokens } = args;
 
+  const extractResponsesText = (r: any): string => {
+    const direct = typeof r?.output_text === "string" ? r.output_text : "";
+    if (direct && direct.trim()) return direct.trim();
+
+    const outputs = Array.isArray(r?.output) ? r.output : [];
+    const parts: string[] = [];
+    for (const o of outputs) {
+      const content = Array.isArray(o?.content) ? o.content : [];
+      for (const c of content) {
+        if (typeof c?.text === "string") parts.push(c.text);
+        else if (typeof c?.value === "string") parts.push(c.value);
+        else if (typeof c?.content === "string") parts.push(c.content);
+      }
+    }
+    return parts.join("").trim();
+  };
+
   const isUnsupportedTemperatureError = (err: any) => {
     const msg =
       String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
@@ -60,7 +77,7 @@ export async function createJsonObjectResponse(args: {
     const latencyMs = Date.now() - t0;
     const usage = r?.usage;
     return {
-      jsonText: String(r?.output_text || "").trim(),
+      jsonText: extractResponsesText(r),
       usage: {
         model,
         api: "responses",
