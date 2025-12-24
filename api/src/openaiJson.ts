@@ -22,6 +22,8 @@ export async function createJsonObjectResponse(args: {
 }): Promise<{ jsonText: string; usage: JsonCallUsage }> {
   const { client, model, instructions, messages, temperature, maxOutputTokens } = args;
 
+  const isGpt5Mini = /^gpt-5-mini$/i.test(model);
+
   const extractResponsesText = (r: any): string => {
     const direct = typeof r?.output_text === "string" ? r.output_text : "";
     if (direct && direct.trim()) return direct.trim();
@@ -72,9 +74,10 @@ export async function createJsonObjectResponse(args: {
   const callChatCompletions = async (): Promise<{ jsonText: string; usage: JsonCallUsage }> => {
     const params: any = {
       model,
-      temperature,
-      // Some models (notably gpt-5*) use `max_completion_tokens` instead of `max_tokens` in Chat Completions.
-      max_tokens: maxOutputTokens,
+      // gpt-5-mini rejects non-default temperature values; omit entirely.
+      ...(isGpt5Mini ? {} : { temperature }),
+      // gpt-5-mini uses `max_completion_tokens` instead of `max_tokens`.
+      ...(isGpt5Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
       response_format: { type: "json_object" },
       messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
     };
@@ -117,7 +120,7 @@ export async function createJsonObjectResponse(args: {
       instructions,
       input: messages.map((m) => ({ role: m.role, content: m.content })),
       text: { format: { type: "json_object" } },
-      temperature,
+      ...(isGpt5Mini ? {} : { temperature }),
       max_output_tokens: maxOutputTokens,
     };
 
