@@ -47,15 +47,53 @@ export async function createJsonObjectResponse(args: {
     return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("temperature");
   };
 
+  // Some models (notably gpt-5-mini) may return empty `output_text`/`output` via Responses API in our setup.
+  // Prefer Chat Completions for gpt-5-mini, unless explicitly forced via USE_RESPONSES_API=1.
+  const preferChatCompletions = /^gpt-5-mini$/i.test(model) && process.env.USE_RESPONSES_API !== "1";
+
   const preferResponses =
-    process.env.USE_RESPONSES_API === "1" ||
-    /^gpt-5/i.test(model) ||
-    /^o\d/i.test(model) ||
-    /^gpt-4\.1/i.test(model);
+    !preferChatCompletions &&
+    (process.env.USE_RESPONSES_API === "1" || /^gpt-5/i.test(model) || /^o\d/i.test(model) || /^gpt-4\.1/i.test(model));
 
   const t0 = Date.now();
 
-  if (preferResponses) {
+  const callChatCompletions = async (): Promise<{ jsonText: string; usage: JsonCallUsage }> => {
+    const params: any = {
+      model,
+      temperature,
+      max_tokens: maxOutputTokens,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
+    };
+
+    let completion: any;
+    try {
+      completion = await (client as any).chat.completions.create(params);
+    } catch (err: any) {
+      if (isUnsupportedTemperatureError(err)) {
+        delete params.temperature;
+        completion = await (client as any).chat.completions.create(params);
+      } else {
+        throw err;
+      }
+    }
+    const latencyMs = Date.now() - t0;
+    const usage = completion?.usage;
+    const content = completion?.choices?.[0]?.message?.content || "";
+    return {
+      jsonText: String(content || "").trim(),
+      usage: {
+        model,
+        api: "chat_completions",
+        latencyMs,
+        promptTokens: typeof usage?.prompt_tokens === "number" ? usage.prompt_tokens : null,
+        completionTokens: typeof usage?.completion_tokens === "number" ? usage.completion_tokens : null,
+        totalTokens: typeof usage?.total_tokens === "number" ? usage.total_tokens : null,
+      },
+    };
+  };
+
+  const callResponses = async (): Promise<{ jsonText: string; usage: JsonCallUsage }> => {
     const params: any = {
       model,
       instructions,
@@ -89,39 +127,22 @@ export async function createJsonObjectResponse(args: {
         totalTokens: typeof usage?.total_tokens === "number" ? usage.total_tokens : null,
       },
     };
-  }
-
-  const params: any = {
-    model,
-    temperature,
-    max_tokens: maxOutputTokens,
-    response_format: { type: "json_object" },
-    messages: [{ role: "system", content: instructions }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
   };
 
-  let completion: any;
-  try {
-    completion = await (client as any).chat.completions.create(params);
-  } catch (err: any) {
-    if (isUnsupportedTemperatureError(err)) {
-      delete params.temperature;
-      completion = await (client as any).chat.completions.create(params);
-    } else {
-      throw err;
-    }
+  if (preferChatCompletions) {
+    // Try Chat Completions first (gpt-5-mini).
+    const r1 = await callChatCompletions();
+    if (r1.jsonText) return r1;
+    // Fallback to Responses if content came back empty for some reason.
+    return callResponses();
   }
-  const latencyMs = Date.now() - t0;
-  const usage = completion?.usage;
-  const content = completion?.choices?.[0]?.message?.content || "";
-  return {
-    jsonText: String(content || "").trim(),
-    usage: {
-      model,
-      api: "chat_completions",
-      latencyMs,
-      promptTokens: typeof usage?.prompt_tokens === "number" ? usage.prompt_tokens : null,
-      completionTokens: typeof usage?.completion_tokens === "number" ? usage.completion_tokens : null,
-      totalTokens: typeof usage?.total_tokens === "number" ? usage.total_tokens : null,
-    },
-  };
+
+  if (preferResponses) {
+    const r1 = await callResponses();
+    if (r1.jsonText) return r1;
+    // Fallback to chat completions if Responses returned no text.
+    return callChatCompletions();
+  }
+
+  return callChatCompletions();
 }
