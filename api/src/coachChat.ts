@@ -438,7 +438,7 @@ function buildSystemPrompt(): string {
   ].join("\n");
 }
 
-function buildUserPrompt(args: { question: string; context: any; focus: any; historyBrief: any }): string {
+function buildUserPrompt(args: { question: string; context: any; focus: any }): string {
   return [
     "ЗАДАЧА: ответь на вопрос пользователя, опираясь на данные ниже. Не пересказывай тренировку списком упражнений.",
     "",
@@ -447,9 +447,6 @@ function buildUserPrompt(args: { question: string; context: any; focus: any; his
     "",
     "Фокус под вопрос (JSON):",
     JSON.stringify(args.focus),
-    "",
-    "Последние сообщения диалога (JSON):",
-    JSON.stringify(args.historyBrief),
     "",
     "Вопрос пользователя:",
     args.question,
@@ -481,13 +478,6 @@ function makeContextRef(ctx: any) {
   };
 }
 
-function makeHistoryBrief(history: ChatMessage[]) {
-  return history.slice(-6).map((m) => ({
-    role: m.role,
-    content: String(m.content || "").slice(0, 280),
-  }));
-}
-
 function questionMentionsLastWorkout(q: string): boolean {
   const s = normalizeNameKey(q);
   return /последн|сегодня|этатрен|посмотритренировку|проанализирутрен|разбортрен/.test(s);
@@ -512,6 +502,100 @@ function countWorkoutStats(workouts: any[]) {
   return { exercises, sets };
 }
 
+function roundToStep(n: unknown, step: number): number | null {
+  const v = typeof n === "number" ? n : typeof n === "string" ? Number(n) : NaN;
+  if (!Number.isFinite(v)) return null;
+  if (step <= 0) return Math.round(v);
+  return Math.round(v / step) * step;
+}
+
+function buildExerciseDictionary(workouts: any[]) {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const w of workouts) {
+    const exs = Array.isArray(w?.workout?.exercises) ? w.workout.exercises : [];
+    for (const ex of exs) {
+      const nm = String(ex?.name || "").trim();
+      if (!nm) continue;
+      if (seen.has(nm)) continue;
+      seen.add(nm);
+      names.push(nm);
+    }
+  }
+  const dict: Record<string, string> = {};
+  const nameToId = new Map<string, string>();
+  names.forEach((nm, idx) => {
+    const id = `E${idx + 1}`;
+    dict[id] = nm;
+    nameToId.set(nm, id);
+  });
+  return { dict, nameToId };
+}
+
+function workoutToTable(args: { workout: any; workoutIndex: number; nameToId: Map<string, string> }): string {
+  const w = args.workout;
+  const exs = Array.isArray(w?.exercises) ? w.exercises : [];
+  const lines: string[] = [];
+  lines.push(
+    [
+      `W${args.workoutIndex + 1}`,
+      w?.title ? `title=${String(w.title).trim()}` : null,
+      w?.location ? `loc=${String(w.location).trim()}` : null,
+      Number.isFinite(Number(w?.durationMin)) ? `durMin=${Math.round(Number(w.durationMin))}` : null,
+      Number.isFinite(Number(w?.sessionRpe)) ? `rpe=${Math.round(Number(w.sessionRpe))}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ")
+  );
+
+  for (const ex of exs) {
+    const nm = String(ex?.name || "").trim();
+    const exId = nm ? args.nameToId.get(nm) || nm : "?";
+    const restSec = roundToStep(ex?.restSec, 1);
+    const done = ex?.done === true ? "1" : ex?.done === false ? "0" : "?";
+    const effort = ex?.effort != null ? String(ex.effort).trim() : null;
+    const sets = Array.isArray(ex?.sets) ? ex.sets : [];
+    const setCells = sets.map((s: any) => {
+      const reps = roundToStep(s?.reps, 1);
+      const weight = roundToStep(s?.weight, 0.5);
+      const wStr = weight == null ? "?" : Number.isInteger(weight) ? String(weight) : String(weight);
+      const rStr = reps == null ? "?" : String(reps);
+      return `${wStr}x${rStr}`;
+    });
+    lines.push(
+      [
+        exId,
+        restSec != null ? `rest=${restSec}` : null,
+        effort ? `eff=${effort}` : null,
+        `done=${done}`,
+        `sets=${setCells.join(",")}`,
+      ]
+        .filter(Boolean)
+        .join(" | ")
+    );
+  }
+
+  return lines.join("\n").trim();
+}
+
+function compactContextForLLM(context: any) {
+  const workouts = Array.isArray(context?.workouts) ? context.workouts : [];
+  const { dict, nameToId } = buildExerciseDictionary(workouts);
+  const compactWorkouts = workouts.map((w: any, idx: number) => ({
+    id: w?.id ?? null,
+    finishedAt: w?.finishedAt ?? null,
+    stats: w?.stats ?? null,
+    table: workoutToTable({ workout: w?.workout, workoutIndex: idx, nameToId }),
+  }));
+  return {
+    userProfile: context?.userProfile ?? null,
+    stats: context?.stats ?? null,
+    checkins: context?.checkins ?? [],
+    exerciseDict: dict,
+    workouts: compactWorkouts,
+  };
+}
+
 export async function getCoachChatHistoryForUser(userId: string, limit = 40): Promise<ChatMessage[]> {
   const threadId = await getOrCreateThreadId(userId);
   return getChatHistory(threadId, limit);
@@ -529,33 +613,30 @@ export async function sendCoachChatMessage(args: {
   const openai = getOpenAI();
   const threadId = await getOrCreateThreadId(userId);
   const history = await getChatHistory(threadId, 18);
-  const context = await getUserContext(userId);
-  const contextRef = makeContextRef(context);
-  const focus = buildFocusContext({ question: message, context });
-  const historyBrief = makeHistoryBrief(history);
-  const userPrompt = buildUserPrompt({ question: message, context, focus, historyBrief });
+  const contextFull = await getUserContext(userId);
+  const contextRef = makeContextRef(contextFull);
+  const focus = buildFocusContext({ question: message, context: contextFull });
+  const contextForLLM = compactContextForLLM(contextFull);
+  const userPrompt = buildUserPrompt({ question: message, context: contextForLLM, focus });
 
   if (process.env.AI_PROMPT_DEBUG === "1") {
-    const contextStr = JSON.stringify(context);
+    const contextStr = JSON.stringify(contextForLLM);
     const focusStr = JSON.stringify(focus);
-    const historyBriefStr = JSON.stringify(historyBrief);
-    const { exercises, sets } = countWorkoutStats(Array.isArray(context?.workouts) ? context.workouts : []);
+    const { exercises, sets } = countWorkoutStats(Array.isArray(contextFull?.workouts) ? contextFull.workouts : []);
     console.log("[COACH_CHAT][prompt_debug]", {
-      workouts: Array.isArray(context?.workouts) ? context.workouts.length : 0,
-      checkins: Array.isArray(context?.checkins) ? context.checkins.length : 0,
+      workouts: Array.isArray(contextFull?.workouts) ? contextFull.workouts.length : 0,
+      checkins: Array.isArray(contextFull?.checkins) ? contextFull.checkins.length : 0,
       historyMsgs: Array.isArray(history) ? history.length : 0,
       exercises,
       sets,
       chars: {
         context: contextStr.length,
         focus: focusStr.length,
-        historyBrief: historyBriefStr.length,
         userPrompt: userPrompt.length,
       },
       estTokens: {
         context: estimateTokensFromChars(contextStr.length),
         focus: estimateTokensFromChars(focusStr.length),
-        historyBrief: estimateTokensFromChars(historyBriefStr.length),
         userPrompt: estimateTokensFromChars(userPrompt.length),
       },
     });
@@ -661,9 +742,9 @@ export async function sendCoachChatMessage(args: {
         instructions,
         messages: [
           {
-            role: "user",
-            content:
-              buildUserPrompt({ question: message, context, focus, historyBrief }) +
+              role: "user",
+              content:
+              userPrompt +
               "\n\nПерепиши ответ так, чтобы он стал конкретнее и опирался на данные. " +
               "Убери общие фразы, не утверждай про отдых между подходами. " +
               "Если данных не хватает — прямо так и скажи и дай 2–3 шага, которые можно проверить в следующей тренировке.",
