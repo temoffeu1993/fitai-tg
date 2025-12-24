@@ -1,12 +1,14 @@
 // webapp/src/screens/WorkoutSession.tsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type TouchEvent } from "react";
 import { saveSession } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
+const SESSION_BG =
+  "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";
 
 type PlanExercise = {
   exerciseId?: string;
@@ -15,7 +17,7 @@ type PlanExercise = {
   reps?: string | number;
   restSec?: number;
   pattern?: string;
-  weight?: string | number | null;
+  weight?: string | number | null; // ← новое: целевой вес от тренера, если есть
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
@@ -38,7 +40,7 @@ type Item = {
   pattern?: string;
   targetMuscles?: string[];
   targetReps?: string | number;
-  targetWeight?: string | null;
+  targetWeight?: string | null; // рекомендация по весу от тренера, строка типа "12 кг" или "20 кг штанга"
   restSec?: number;
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
@@ -47,8 +49,6 @@ type Item = {
   done?: boolean;
   effort?: EffortTag;
   skipped?: boolean;
-  collapsed?: boolean;
-  previousSets?: Array<{ reps: number; weight: number }>;
 };
 
 type ChangeEvent = {
@@ -75,7 +75,6 @@ export default function WorkoutSession() {
     } catch {}
     return null;
   }, [loc.state]);
-
   const plannedWorkoutId = useMemo(() => {
     const fromState = (loc.state as any)?.plannedWorkoutId;
     if (typeof fromState === "string" && fromState.trim()) return fromState;
@@ -87,12 +86,14 @@ export default function WorkoutSession() {
     }
   }, [loc.state]);
 
+  // Извлекаем notes/warnings из navigation state
   const adaptationNotes = useMemo(() => {
     const fromState = (loc.state as any)?.notes;
     return Array.isArray(fromState) ? fromState : [];
   }, [loc.state]);
 
   const [items, setItems] = useState<Item[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [changes, setChanges] = useState<ChangeEvent[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
@@ -102,7 +103,7 @@ export default function WorkoutSession() {
   const [altsLoading, setAltsLoading] = useState(false);
   const [altsError, setAltsError] = useState<string | null>(null);
   const [blockedSet, setBlockedSet] = useState<{ ei: number; si: number } | null>(null);
-
+  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
   const REST_PREF_KEY = "workout_rest_enabled_v1";
   const [restEnabled, setRestEnabled] = useState<boolean>(() => {
     try {
@@ -112,37 +113,84 @@ export default function WorkoutSession() {
     }
   });
   const [restSecLeft, setRestSecLeft] = useState<number | null>(null);
-
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
-      { key: "easy", label: "Легко", desc: "Можно увеличить вес или повторы", icon: "🟢" },
-      { key: "working", label: "Рабочий", desc: "Хороший темп, оставляем как есть", icon: "🟡" },
-      { key: "quite_hard", label: "Тяжеловато", desc: "Можно чуть снизить темп", icon: "🟠" },
-      { key: "hard", label: "Тяжело", desc: "Снизь повторы на 1–2 или вес", icon: "🔴" },
-      { key: "max", label: "Предел", desc: "Уменьшить вес/повторы", icon: "⛔" },
+      {
+        key: "easy",
+        label: "Легко",
+        desc: "Мышцы включились, но не уставали. В следующий раз можно немного увеличить вес или повторы.",
+        icon: "🟢",
+      },
+      {
+        key: "working",
+        label: "Рабочий",
+        desc: "Хороший темп, чувствуешь работу, но спокойно контролируешь движение. Оставляем как есть.",
+        icon: "🟡",
+      },
+      {
+        key: "quite_hard",
+        label: "Тяжеловато",
+        desc: "Мышцы хорошо горят, последние повторы требуют усилия. Можно чуть снизить темп или повторы.",
+        icon: "🟠",
+      },
+      {
+        key: "hard",
+        label: "Тяжело",
+        desc: "Почти максимум, очень сложно закончить подход. В следующей сессии снизь повторы на 1–2 или вес.",
+        icon: "🔴",
+      },
+      {
+        key: "max",
+        label: "Предел",
+        desc: "Максимально тяжело, сил нет после подхода. Следующий раз — уменьшить вес/повторы.",
+        icon: "⛔",
+      },
     ],
     []
   );
 
   const sessionRpeOptions = useMemo(
     () => [
-      { value: 6, label: "Легко", desc: "Мог сделать гораздо больше", icon: "🟢" },
-      { value: 7, label: "Рабочая", desc: "Хорошая нагрузка без надрыва", icon: "🟡" },
-      { value: 8, label: "Тяжеловато", desc: "Сил стало заметно меньше", icon: "🟠" },
-      { value: 9, label: "Тяжело", desc: "Сильная усталость к концу", icon: "🔴" },
-      { value: 10, label: "Предел", desc: "Очень изматывающая", icon: "⛔" },
+      { value: 6, label: "Легко", desc: "Тренировка почти не утомила, мог сделать гораздо больше.", icon: "🟢" },
+      { value: 7, label: "Рабочая", desc: "Хорошая тренировка, есть ощущение нагрузки, но без надрыва.", icon: "🟡" },
+      { value: 8, label: "Тяжеловато", desc: "Местами пришлось напрягаться; сил в конце стало заметно меньше.", icon: "🟠" },
+      { value: 9, label: "Тяжело", desc: "Вся тренировка была напряжённой, к концу чувствуется сильная усталость.", icon: "🔴" },
+      { value: 10, label: "Предел", desc: "Очень изматывающая тренировка, почти на максимум возможностей.", icon: "⛔" },
     ],
     []
   );
-
   const [sessionRpeIndex, setSessionRpeIndex] = useState(1);
   const [sessionRpe, setSessionRpe] = useState(sessionRpeOptions[1].value);
+  const effortTicks = useMemo(
+    () =>
+      effortOptions.map((_, i) =>
+        effortOptions.length > 1 ? (i / (effortOptions.length - 1)) * 100 : 0
+      ),
+    [effortOptions]
+  );
+  const sessionTicks = useMemo(
+    () =>
+      sessionRpeOptions.map((_, i) =>
+        sessionRpeOptions.length > 1 ? (i / (sessionRpeOptions.length - 1)) * 100 : 0
+      ),
+    [sessionRpeOptions]
+  );
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const [finishModal, setFinishModal] = useState(false);
   const [finishStart, setFinishStart] = useState<string>("");
   const [finishDuration, setFinishDuration] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const blockTimer = useRef<number | null>(null);
+  useEffect(() => {
+    const prevBodyBg = document.body.style.background;
+    const prevHtmlBg = document.documentElement.style.background;
+    document.body.style.background = SESSION_BG;
+    document.documentElement.style.background = SESSION_BG;
+    return () => {
+      document.body.style.background = prevBodyBg;
+      document.documentElement.style.background = prevHtmlBg;
+    };
+  }, []);
 
   useEffect(() => {
     if (plannedWorkoutId) {
@@ -158,25 +206,7 @@ export default function WorkoutSession() {
     } catch {}
   }, [REST_PREF_KEY, restEnabled]);
 
-  // Load previous session data from history for smart prefill
-  const loadPreviousData = (exerciseId: string): Array<{ reps: number; weight: number }> | undefined => {
-    try {
-      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      for (const session of history) {
-        if (!Array.isArray(session?.exercises)) continue;
-        const ex = session.exercises.find((e: any) => String(e.id) === String(exerciseId));
-        if (ex?.sets && Array.isArray(ex.sets) && ex.sets.length > 0) {
-          return ex.sets.map((s: any) => ({
-            reps: Number(s.reps) || 0,
-            weight: Number(s.weight) || 0,
-          })).filter((s: any) => s.reps > 0 || s.weight > 0);
-        }
-      }
-    } catch {}
-    return undefined;
-  };
-
-  // Init
+  // init
   useEffect(() => {
     if (!plan) return;
     if (!Array.isArray(plan.exercises) || plan.exercises.length === 0) {
@@ -195,6 +225,7 @@ export default function WorkoutSession() {
 
     if (draftMatches && hasDraftItems) {
       setItems(draft.items || []);
+      setActiveIndex(typeof draft.activeIndex === "number" ? Math.max(0, Math.floor(draft.activeIndex)) : 0);
       setChanges(Array.isArray(draft.changes) ? draft.changes : []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
@@ -207,40 +238,33 @@ export default function WorkoutSession() {
       return;
     }
 
-    setItems(
-      plan.exercises.map((ex) => {
-        const exId = (ex as any).exerciseId || (ex as any).id || (ex as any).exercise?.id;
-        const previousSets = exId ? loadPreviousData(String(exId)) : undefined;
-        const raw = (ex as any).weight;
-        const preset = typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : undefined;
-
-        return {
-          id: exId,
-          name: ex.name,
-          pattern: ex.pattern,
-          targetMuscles: (ex as any).targetMuscles || [],
-          targetReps: ex.reps,
-          targetWeight:
-            (ex as any).weight != null
-              ? String((ex as any).weight)
-              : (ex as any).targetWeight ?? null,
-          restSec: ex.restSec,
-          loadType: (ex as any).loadType,
-          requiresWeightInput: (ex as any).requiresWeightInput,
-          weightLabel: (ex as any).weightLabel,
-          done: false,
+	    setItems(
+	      plan.exercises.map((ex) => ({
+	        id: (ex as any).exerciseId || (ex as any).id || (ex as any).exercise?.id,
+	        name: ex.name,
+	        pattern: ex.pattern,
+	        targetMuscles: (ex as any).targetMuscles || [],
+	        targetReps: ex.reps,
+	        targetWeight:
+	          (ex as any).weight != null
+	            ? String((ex as any).weight)
+	            : (ex as any).targetWeight ?? null,
+	        restSec: ex.restSec,
+	        loadType: (ex as any).loadType,
+	        requiresWeightInput: (ex as any).requiresWeightInput,
+	        weightLabel: (ex as any).weightLabel,
+	        done: false,
           skipped: false,
-          effort: null,
-          collapsed: false,
-          previousSets,
-          sets: Array.from({ length: Number(ex.sets) || 1 }, () => ({
-            reps: undefined,
-            weight: preset,
-            done: false,
-          })),
-        };
-      })
+	        effort: null,
+	        sets: Array.from({ length: Number(ex.sets) || 1 }, () => {
+	          const raw = (ex as any).weight;
+	          const preset =
+	            typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : undefined;
+	          return { reps: undefined, weight: preset, done: false };
+	        }),
+      }))
     );
+    setActiveIndex(0);
     setChanges([]);
     setElapsed(0);
     setRunning(true);
@@ -248,7 +272,7 @@ export default function WorkoutSession() {
     setSessionRpe(sessionRpeOptions[1].value);
   }, [plan, plannedWorkoutId, sessionRpeOptions]);
 
-  // Timer
+  // timer
   useEffect(() => {
     if (!running) return;
     const id = window.setInterval(() => setElapsed((t) => t + 1), 1000);
@@ -271,12 +295,13 @@ export default function WorkoutSession() {
     };
   }, []);
 
-  // Autosave
+  // autosave
   useEffect(() => {
     if (!plan) return;
     const draftPayload = {
       title: plan.title,
       items,
+      activeIndex,
       changes,
       elapsed,
       running,
@@ -284,7 +309,14 @@ export default function WorkoutSession() {
       sessionRpe,
     };
     localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+  }, [items, activeIndex, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+
+  useEffect(() => {
+    setActiveIndex((idx) => {
+      const max = Math.max(0, items.length - 1);
+      return Math.max(0, Math.min(max, idx));
+    });
+  }, [items.length]);
 
   if (!plan) {
     return (
@@ -298,6 +330,62 @@ export default function WorkoutSession() {
   const exercisesDone = items.filter((it) => it.done).length;
   const exercisesTotal = items.length;
   const progress = exercisesTotal ? Math.round((exercisesDone / exercisesTotal) * 100) : 0;
+
+  const goToIndex = (idx: number) => {
+    setActiveIndex(() => {
+      const max = Math.max(0, items.length - 1);
+      return Math.max(0, Math.min(max, Math.floor(idx)));
+    });
+  };
+  const goPrev = () => goToIndex(activeIndex - 1);
+  const goNext = () => goToIndex(activeIndex + 1);
+
+  const isNoSwipeTarget = (target: EventTarget | null) => {
+    let el = target as HTMLElement | null;
+    while (el) {
+      if (el instanceof HTMLElement) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === "input" || tag === "button" || tag === "textarea" || tag === "select") return true;
+        if (el.dataset?.noswipe === "1") return true;
+      }
+      el = (el as any).parentElement || null;
+    }
+    return false;
+  };
+
+  const onSwipeStart = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+    if (isNoSwipeTarget(e.target)) return;
+    const p =
+      "touches" in e && e.touches?.[0]
+        ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        : "clientX" in e
+          ? { x: (e as any).clientX, y: (e as any).clientY }
+          : null;
+    if (!p) return;
+    swipeStart.current = { ...p, at: Date.now() };
+  };
+
+  const onSwipeEnd = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    if (isNoSwipeTarget(e.target)) return;
+    const p =
+      "changedTouches" in e && (e as any).changedTouches?.[0]
+        ? { x: (e as any).changedTouches[0].clientX, y: (e as any).changedTouches[0].clientY }
+        : "clientX" in e
+          ? { x: (e as any).clientX, y: (e as any).clientY }
+          : null;
+    if (!p) return;
+    const dx = p.x - start.x;
+    const dy = p.y - start.y;
+    const dt = Date.now() - start.at;
+    if (dt > 900) return;
+    if (Math.abs(dx) < 60) return;
+    if (Math.abs(dy) > 60) return;
+    if (dx < 0) goNext();
+    if (dx > 0) goPrev();
+  };
 
   const startRest = (sec: number | undefined | null) => {
     if (!restEnabled) return;
@@ -329,38 +417,6 @@ export default function WorkoutSession() {
       next[ei].sets[si][field] = Number.isFinite(num) ? num : undefined;
       return next;
     });
-  };
-
-  // Quick log - automatically fill set with previous values
-  const quickLog = (ei: number, si: number, requiresWeight: boolean) => {
-    setItems((prev) => {
-      const next = structuredClone(prev);
-      const item = next[ei];
-      const set = item.sets[si];
-
-      // Get previous set data
-      const prevSet = si > 0 ? item.sets[si - 1] : item.previousSets?.[0];
-
-      if (prevSet) {
-        set.reps = prevSet.reps;
-        if (requiresWeight) {
-          set.weight = prevSet.weight;
-        }
-      }
-
-      set.done = true;
-
-      // Prefill next set
-      const nextSet = item.sets[si + 1];
-      if (nextSet && prevSet) {
-        if (nextSet.reps == null) nextSet.reps = prevSet.reps;
-        if (nextSet.weight == null && requiresWeight) nextSet.weight = prevSet.weight;
-      }
-
-      return next;
-    });
-
-    startRest(items[ei].restSec);
   };
 
   const toggleSetDone = (ei: number, si: number, requiresWeight: boolean) => {
@@ -423,14 +479,13 @@ export default function WorkoutSession() {
       return;
     }
 
+    const willBeDone = !items[ei]?.done;
     setItems((prev) => {
       const next = structuredClone(prev);
       next[ei].done = !next[ei].done;
-      if (next[ei].done) {
-        next[ei].collapsed = true;
-      }
       return next;
     });
+    if (willBeDone && ei === activeIndex && ei < items.length - 1) setActiveIndex(ei + 1);
   };
 
   const pushChange = (ev: Omit<ChangeEvent, "at"> & { at?: string }) => {
@@ -459,11 +514,12 @@ export default function WorkoutSession() {
       next[ei].skipped = true;
       next[ei].done = true;
       next[ei].effort = null;
-      next[ei].collapsed = true;
+      // clear unfinished set inputs (doesn't affect already entered values)
       next[ei].sets = next[ei].sets.map((s) => ({ reps: s.reps, weight: s.weight, done: s.done }));
       return next;
     });
     pushChange({ action: "skip", fromExerciseId: it?.id || null, reason: "user_skip", source: "user", meta: { index: ei } });
+    if (ei === activeIndex && ei < items.length - 1) setActiveIndex(ei + 1);
   };
 
   const removeExercise = (ei: number) => {
@@ -472,6 +528,11 @@ export default function WorkoutSession() {
       const next = structuredClone(prev);
       next.splice(ei, 1);
       return next;
+    });
+    setActiveIndex((idx) => {
+      if (ei < idx) return Math.max(0, idx - 1);
+      if (ei === idx) return Math.max(0, Math.min(idx, items.length - 2));
+      return idx;
     });
     pushChange({ action: "remove", fromExerciseId: it?.id || null, reason: "user_remove", source: "user", meta: { index: ei, name: it?.name } });
   };
@@ -526,9 +587,9 @@ export default function WorkoutSession() {
         return next;
       }
 
+      // Split: keep performed sets on the original, insert replacement with remaining sets.
       cur.sets = cur.sets.slice(0, Math.max(1, performed));
-      cur.done = true;
-      cur.collapsed = true;
+      cur.done = true; // lock performed part
       const remaining = Math.max(1, total - performed);
       const replacement: Item = {
         id: toId,
@@ -544,11 +605,17 @@ export default function WorkoutSession() {
         done: false,
         skipped: false,
         effort: null,
-        collapsed: false,
         sets: Array.from({ length: remaining }, () => ({ reps: undefined, weight: suggested, done: false })),
       };
       next.splice(ei + 1, 0, replacement);
       return next;
+    });
+    setActiveIndex((idx) => {
+      if (performed > 0) {
+        if (idx === ei) return ei + 1;
+        if (idx > ei) return idx + 1;
+      }
+      return idx;
     });
 
     pushChange({
@@ -587,9 +654,12 @@ export default function WorkoutSession() {
     });
   };
 
+  // классификатор "это чисто вес тела и нет смысла спрашивать кг"
   function isBodyweightLike(nameOrPattern: string) {
     const s = (nameOrPattern || "").toLowerCase().replace(/ё/g, "е");
-    return /отжим|push-?up|подтяг|pull-?up|chin-?up|планк|plank|вис|скруч|пресс|hollow|dead\s*bug|bird\s*dog|v-?up|ножниц|пистолет|pistol\s*squat|берпи|бурпи|выпад(?!.*гантел)|присед(?!.*гантел|.*штанг|.*гири)|статик|удержан|изометр/i.test(s);
+    return /отжим|push-?up|подтяг|pull-?up|chin-?up|планк|plank|вис|скруч|пресс|hollow|dead\s*bug|bird\s*dog|v-?up|ножниц|пистолет|pistol\s*squat|берпи|бурпи|выпад(?!.*гантел)|присед(?!.*гантел|.*штанг|.*гири)|статик|удержан|изометр/i.test(
+      s
+    );
   }
 
   const normalizeRepsForPayload = (reps: unknown): string | number | undefined => {
@@ -617,17 +687,17 @@ export default function WorkoutSession() {
     setFinishModal(true);
   };
 
-  const handleComplete = async () => {
-    if (!finishModal) {
-      openFinishModal();
-      return;
-    }
+	  const handleComplete = async () => {
+	    if (!finishModal) {
+	      openFinishModal();
+	      return;
+	    }
 
-    let saveOk = false;
-    let savedSessionId: string | null = null;
-    let saveResponse: any | null = null;
-    const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
-    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
+	    let saveOk = false;
+	    let savedSessionId: string | null = null;
+	    let saveResponse: any | null = null;
+	    const durationMin = Number(finishDuration) || Math.max(20, Math.round(elapsed / 60) || plan.duration || 45);
+	    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
 
     const payload = {
       title: plan.title,
@@ -653,57 +723,61 @@ export default function WorkoutSession() {
       },
     };
 
-    try {
-      setSaving(true);
-      setSaveError(null);
-      console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
-      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
-      const result = await saveSession(payload, {
-        ...extra,
-        startedAt: startedAtIso,
-        durationMin,
-      });
-      saveResponse = result;
-      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
-      saveOk = true;
-    } catch {
-      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
+	    // сервер
+	    try {
+	      setSaving(true);
+	      setSaveError(null);
+	      console.log("== WILL SAVE payload ==", payload, { plannedWorkoutId });
+	      const extra = plannedWorkoutId ? { plannedWorkoutId } : {};
+		      const result = await saveSession(payload, {
+		        ...extra,
+		        startedAt: startedAtIso,
+		        durationMin,
+		      });
+		      saveResponse = result;
+		      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
+		      saveOk = true;
+		    } catch {
+	      // не блокируем UX если сеть/сервер упали
+	      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй ещё раз.");
     } finally {
-      setSaving(false);
-      if (saveOk) {
-        setFinishModal(false);
+	      setSaving(false);
+	      if (saveOk) {
+	        setFinishModal(false);
 
-        const createdAt = new Date().toISOString();
-        const storedResult = {
-          version: 1 as const,
-          createdAt,
-          sessionId: savedSessionId,
-          plannedWorkoutId: plannedWorkoutId || null,
-          payload,
-          progression: saveResponse?.progression ?? null,
-          progressionJob: saveResponse?.progressionJobId
-            ? {
-                id: String(saveResponse.progressionJobId),
-                status: String(saveResponse.progressionJobStatus || "pending"),
-                lastError: null,
-              }
-            : null,
-          coachJob: saveResponse?.coachJobId
-            ? {
-                id: String(saveResponse.coachJobId),
-                status: String(saveResponse.coachJobStatus || "pending"),
-                lastError: null,
-              }
-            : null,
-          weeklyCoachJobId: saveResponse?.weeklyCoachJobId ? String(saveResponse.weeklyCoachJobId) : null,
-        };
+	        const createdAt = new Date().toISOString();
+		        const storedResult = {
+		          version: 1 as const,
+		          createdAt,
+		          sessionId: savedSessionId,
+		          plannedWorkoutId: plannedWorkoutId || null,
+		          payload,
+		          progression: saveResponse?.progression ?? null,
+		          progressionJob: saveResponse?.progressionJobId
+		            ? {
+		                id: String(saveResponse.progressionJobId),
+		                status: String(saveResponse.progressionJobStatus || "pending"),
+		                lastError: null,
+		              }
+		            : null,
+		          coachJob: saveResponse?.coachJobId
+		            ? {
+		                id: String(saveResponse.coachJobId),
+		                status: String(saveResponse.coachJobStatus || "pending"),
+		                lastError: null,
+		              }
+		            : null,
+		          weeklyCoachJobId: saveResponse?.weeklyCoachJobId ? String(saveResponse.weeklyCoachJobId) : null,
+		        };
 
-        try {
-          localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(storedResult));
-        } catch {}
+	        // сохраняем отдельный экран результата до очистки черновиков/плана
+	        try {
+	          localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(storedResult));
+	        } catch {}
 
-        try {
-          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+	        // локальная история — только если реально сохранили на сервере
+	        try {
+	          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
           const record = {
             id: savedSessionId || ((crypto as any)?.randomUUID?.() || String(Date.now())),
             finishedAt: new Date().toISOString(),
@@ -720,499 +794,677 @@ export default function WorkoutSession() {
         try {
           window.dispatchEvent(new CustomEvent("plan_completed"));
         } catch {}
-        try {
-          window.dispatchEvent(new CustomEvent("schedule_updated"));
-        } catch {}
+	        try {
+	          window.dispatchEvent(new CustomEvent("schedule_updated"));
+	        } catch {}
 
-        nav("/workout/result", { replace: true, state: { result: storedResult } });
-      }
-    }
-  };
-
-  const toggleCollapse = (ei: number) => {
-    setItems((prev) => {
-      const next = structuredClone(prev);
-      next[ei].collapsed = !next[ei].collapsed;
-      return next;
-    });
-  };
+	        nav("/workout/result", { replace: true, state: { result: storedResult } });
+	      }
+	    }
+	  };
 
   return (
     <div style={page.outer}>
       <div style={page.inner}>
-        <style>{noSpinnersCSS + responsiveCSS + compactCSS}</style>
+      <SoftGlowStyles />
+      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
 
-        {/* Compact Header */}
-        <header style={header.wrap}>
-          <button style={header.back} onClick={() => nav("/plan/one")} aria-label="Назад">←</button>
-          <div style={header.content}>
-            <div style={header.title}>{plan.title}</div>
-            <div style={header.meta}>
-              <span>{formatClock(elapsed)}</span>
-              <span>•</span>
-              <span>{exercisesDone}/{exercisesTotal}</span>
-            </div>
+      {/* HERO */}
+      <section style={s.heroCard}>
+        <div style={s.heroContent}>
+          <div style={s.heroHeader}>
+            <button style={btn.back} onClick={() => nav("/plan/one")} aria-label="Назад к генерации">←</button>
+            <span style={s.pill}>Тренировка</span>
+            <span style={{ width: 34 }} />
           </div>
-          <button style={header.menu} onClick={openFinishModal} aria-label="Меню">⋮</button>
-        </header>
 
-        {/* Progress Bar */}
-        <div style={progressBar.wrap}>
-          <div style={progressBar.track}>
-            <div style={{ ...progressBar.fill, width: `${progress}%` }} />
+          <div style={s.heroDate}>
+            {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
           </div>
-          <div style={progressBar.label}>{progress}% выполнено</div>
-        </div>
-
-        {/* Rest Timer */}
-        {restSecLeft != null && (
-          <div style={restTimer.wrap}>
-            <div style={restTimer.label}>Отдых: {formatClock(restSecLeft)}</div>
-            <div style={restTimer.actions}>
-              <button style={restTimer.btn} onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))}>+15с</button>
-              <button style={restTimer.btn} onClick={() => setRestSecLeft(null)}>✕</button>
-            </div>
+          <div style={s.heroTitle}>{plan.title}</div>
+          <div style={s.heroSubtitle}>
+            {adaptationNotes.length > 0 
+              ? adaptationNotes.join(" • ")
+              : "Держи темп. Заполняй подходы по мере выполнения."
+            }
           </div>
-        )}
 
-        {/* Exercise List */}
-        <main style={exerciseList.wrap}>
-          {items.map((it, ei) => {
-            const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
-            const hasExplicitWeight =
-              typeof it.targetWeight === "number" ||
-              (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
-            const loadType = it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
-            const showWeightInput = loadType !== "bodyweight";
-            const requiresWeight =
-              typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
-            const weightPlaceholder =
-              typeof it.weightLabel === "string" && it.weightLabel.trim()
-                ? it.weightLabel.toLowerCase().includes("помощ")
-                  ? "помощь кг"
-                  : "кг"
-                : loadType === "assisted"
-                  ? "помощь кг"
-                  : "кг";
-            const recKg = formatKg(it.targetWeight);
-            const isAssist = weightPlaceholder.includes("помощ");
-            const weightStep = isAssist ? 5 : 2.5;
-
-            const isCollapsed = it.collapsed && it.done;
-            const completedSets = it.sets.filter(s => s.done).length;
-
-            return (
-              <section
-                key={ei}
-                style={{
-                  ...exerciseCard.wrap,
-                  opacity: it.done ? 0.7 : 1,
-                }}
-              >
-                {/* Exercise Header */}
-                <div style={exerciseCard.header} onClick={() => it.done && toggleCollapse(ei)}>
-                  <div style={exerciseCard.headerLeft}>
-                    <button
-                      style={{
-                        ...exerciseCard.checkbox,
-                        ...(it.done ? exerciseCard.checkboxChecked : {}),
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleExerciseDone(ei, requiresWeight);
-                      }}
-                    >
-                      {it.done && "✓"}
-                    </button>
-                    <div style={exerciseCard.info}>
-                      <div style={exerciseCard.name}>
-                        {it.name}
-                        {it.skipped && <span style={exerciseCard.badge}>Пропущено</span>}
-                      </div>
-                      {!isCollapsed && (
-                        <div style={exerciseCard.meta}>
-                          {it.sets.length}×{formatRepsLabel(it.targetReps)}
-                          {recKg && ` • ${isAssist ? 'помощь' : ''} ${recKg}`}
-                          {it.restSec && ` • отдых ${it.restSec}с`}
-                        </div>
-                      )}
-                      {isCollapsed && (
-                        <div style={exerciseCard.meta}>
-                          {it.sets.map(s => `${s.reps || 0}${showWeightInput ? `×${s.weight || 0}` : ''}`).join(', ')}
-                        </div>
-                      )}
-                      {it.previousSets && it.previousSets.length > 0 && !isCollapsed && (
-                        <div style={exerciseCard.prev}>
-                          Prev: {it.previousSets.slice(0, 3).map(s => `${s.reps}${showWeightInput ? `×${s.weight}` : ''}`).join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    style={exerciseCard.menuBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openExerciseMenu(ei);
-                    }}
-                  >
-                    ⋮
-                  </button>
+          {/* прогресс «лава» */}
+          <div style={s.heroCtas}>
+            <div style={progressBar.wrap}>
+              <div style={progressBar.track} className="lava-track">
+                <div style={{ ...progressBar.fill, width: `${progress}%` }} className="lava-fill" />
+                <div style={{ ...progressBar.flame, left: `calc(${progress}% - 14px)` }} className="flame-dot">
+                  <span className="flame-emoji">🔥</span>
                 </div>
-
-                {blockedCheck === ei && (
-                  <div style={exerciseCard.warning}>
-                    Заполни все подходы и отметь сложность
-                  </div>
-                )}
-
-                {/* Sets - show only if not collapsed */}
-                {!isCollapsed && (
-                  <div style={exerciseCard.sets}>
-                    {it.sets.map((s, si) => {
-                      const prevSet = si > 0 ? it.sets[si - 1] : it.previousSets?.[0];
-                      const hasData = s.reps != null || s.weight != null;
-                      const canQuickLog = !s.done && prevSet && (prevSet.reps || 0) > 0;
-
-                      return (
-                        <div key={si} style={{ ...setRow.wrap, ...(s.done ? setRow.done : {}) }}>
-                          <div style={setRow.label}>#{si + 1}</div>
-
-                          {!hasData && canQuickLog ? (
-                            <button
-                              style={setRow.quickLog}
-                              onClick={() => quickLog(ei, si, requiresWeight)}
-                            >
-                              {prevSet.reps}{showWeightInput && `×${prevSet.weight}`} ▶
-                            </button>
-                          ) : (
-                            <div style={setRow.inputs}>
-                              <CompactInput
-                                value={s.reps}
-                                placeholder={formatRepsLabel(it.targetReps)}
-                                onChange={(v) => setValue(ei, si, "reps", v)}
-                                onMinus={() => bump(ei, si, "reps", -1)}
-                                onPlus={() => bump(ei, si, "reps", 1)}
-                                disabled={s.done}
-                                label="повт"
-                              />
-                              {showWeightInput && (
-                                <>
-                                  <span style={setRow.separator}>×</span>
-                                  <CompactInput
-                                    value={s.weight}
-                                    placeholder={weightPlaceholder}
-                                    onChange={(v) => setValue(ei, si, "weight", v)}
-                                    onMinus={() => bump(ei, si, "weight", -weightStep)}
-                                    onPlus={() => bump(ei, si, "weight", weightStep)}
-                                    disabled={s.done}
-                                    label="кг"
-                                  />
-                                </>
-                              )}
-                            </div>
-                          )}
-
-                          <button
-                            style={{
-                              ...setRow.check,
-                              ...(s.done ? setRow.checkDone : {}),
-                            }}
-                            onClick={() => toggleSetDone(ei, si, requiresWeight)}
-                          >
-                            ✓
-                          </button>
-
-                          {blockedSet?.ei === ei && blockedSet?.si === si && (
-                            <div style={setRow.error}>
-                              Заполни {!s.reps ? "повторы" : ""}{!s.reps && requiresWeight && !s.weight ? " и " : ""}{requiresWeight && !s.weight ? "вес" : ""}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    {/* Exercise Actions */}
-                    <div style={exerciseCard.actions}>
-                      <button
-                        style={exerciseCard.actionBtn}
-                        onClick={() =>
-                          setItems((prev) => {
-                            const next = structuredClone(prev);
-                            const last = next[ei].sets[next[ei].sets.length - 1];
-                            const targetWeight = parseWeightNumber(next[ei].targetWeight);
-                            const preset = last?.weight ?? (targetWeight != null && targetWeight > 0 ? targetWeight : undefined);
-                            next[ei].sets.push({ reps: last?.reps, weight: preset, done: false });
-                            return next;
-                          })
-                        }
-                        disabled={it.done}
-                      >
-                        + Сет
-                      </button>
-                      <button
-                        style={exerciseCard.actionBtn}
-                        onClick={() =>
-                          setItems((prev) => {
-                            const next = structuredClone(prev);
-                            if (next[ei].sets.length > 1) next[ei].sets.pop();
-                            return next;
-                          })
-                        }
-                        disabled={it.done || it.sets.length <= 1}
-                      >
-                        − Сет
-                      </button>
-                      <button
-                        style={exerciseCard.actionBtn}
-                        onClick={() => setRestEnabled((v) => !v)}
-                      >
-                        {restEnabled ? "Отдых ✅" : "Отдых ☐"}
-                      </button>
-                    </div>
-
-                    {/* Effort Quick Select */}
-                    <div style={effortQuick.wrap}>
-                      <div style={effortQuick.label}>Сложность:</div>
-                      <div style={effortQuick.options}>
-                        {effortOptions.map((opt) => (
-                          <button
-                            key={opt.key}
-                            style={{
-                              ...effortQuick.btn,
-                              ...(it.effort === opt.key ? effortQuick.btnActive : {}),
-                            }}
-                            onClick={() => setEffort(ei, opt.key)}
-                          >
-                            <span style={effortQuick.icon}>{opt.icon}</span>
-                            <span style={effortQuick.text}>{opt.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {it.effort && (
-                        <div style={effortQuick.desc}>
-                          {effortOptions.find(o => o.key === it.effort)?.desc}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </main>
-
-        {/* Session RPE */}
-        <section style={sessionFeedback.wrap}>
-          <div style={sessionFeedback.header}>Как прошло занятие?</div>
-          <div style={sessionFeedback.options}>
-            {sessionRpeOptions.map((opt, idx) => (
-              <button
-                key={opt.value}
-                style={{
-                  ...sessionFeedback.btn,
-                  ...(sessionRpeIndex === idx ? sessionFeedback.btnActive : {}),
-                }}
-                onClick={() => {
-                  setSessionRpeIndex(idx);
-                  setSessionRpe(opt.value);
-                }}
-              >
-                <span style={sessionFeedback.icon}>{opt.icon}</span>
-                <span style={sessionFeedback.label}>{opt.label}</span>
-              </button>
-            ))}
-          </div>
-          {sessionRpeOptions[sessionRpeIndex] && (
-            <div style={sessionFeedback.desc}>
-              {sessionRpeOptions[sessionRpeIndex].desc}
+              </div>
+              <div style={progressBar.meta}>
+                <span />
+                <span>{progress}%</span>
+              </div>
             </div>
-          )}
-        </section>
 
-        {/* Finish Button */}
-        <div style={finishSection.wrap}>
-          <button
-            style={{
-              ...finishSection.btn,
-              opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
-            }}
-            onClick={handleComplete}
-            disabled={exercisesDone !== exercisesTotal}
-          >
-            Завершить тренировку
-          </button>
+            <button
+              className="soft-glow"
+              style={{
+                ...s.primaryBtn,
+                opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
+                pointerEvents: exercisesDone === exercisesTotal ? "auto" : "none",
+              }}
+              onClick={handleComplete}
+              disabled={exercisesDone !== exercisesTotal}
+            >
+              {finishModal ? "Подтвердить" : "Сохранить тренировку"}
+            </button>
           {exercisesDone !== exercisesTotal && (
-            <div style={finishSection.hint}>
-              Отметь все упражнения выполненными
-            </div>
+            <div style={s.completeHint}>Отметь все упражнения выполненными, чтобы сохранить тренировку</div>
           )}
         </div>
+        </div>
+      </section>
 
-        {/* Exercise Menu Modal */}
-        {exerciseMenu && (
-          <div style={modal.overlay} onClick={closeExerciseMenu}>
-            <div style={modal.content} onClick={(e) => e.stopPropagation()}>
-              <div style={modal.header}>
-                <div style={modal.title}>{items[exerciseMenu.index]?.name}</div>
-                <button style={modal.closeBtn} onClick={closeExerciseMenu}>✕</button>
-              </div>
+      {/* Упражнения */}
+      <main style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <button type="button" style={btn.ghost} onClick={goPrev} disabled={activeIndex <= 0} data-noswipe="1">
+            ←
+          </button>
+          <div style={{ fontWeight: 900, color: "#0B1220", opacity: 0.9 }}>
+            Упражнение {Math.min(items.length, activeIndex + 1)} / {items.length || 0}
+          </div>
+          <button
+            type="button"
+            style={btn.ghost}
+            onClick={goNext}
+            disabled={activeIndex >= items.length - 1}
+            data-noswipe="1"
+          >
+            →
+          </button>
+        </div>
 
-              {altsError && <div style={modal.error}>{altsError}</div>}
+        {restSecLeft != null ? (
+          <div
+            style={{
+              position: "sticky",
+              top: 10,
+              zIndex: 10,
+              background: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 16,
+              padding: "10px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#0B1220" }}>Отдых: {formatClock(restSecLeft)}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))} data-noswipe="1">
+                +15с
+              </button>
+              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft(null)} data-noswipe="1">
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-              {exerciseMenu.mode === "menu" && (
-                <div style={modal.actions}>
-                  <button style={modal.actionBtn} onClick={() => void fetchAlternatives(exerciseMenu.index)} disabled={altsLoading}>
-                    Заменить упражнение
-                  </button>
-                  <button style={modal.actionBtn} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_skip" })} disabled={altsLoading}>
-                    Пропустить
-                  </button>
-                  <button style={modal.actionDanger} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_remove" })} disabled={altsLoading}>
-                    Удалить из тренировки
-                  </button>
-                  <button style={modal.actionDanger} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_ban" })} disabled={altsLoading}>
-                    Больше не предлагать
-                  </button>
-                </div>
-              )}
+        {(() => {
+          const ei = activeIndex;
+          const it = items[ei];
+          if (!it) return null;
 
-              {exerciseMenu.mode === "confirm_skip" && (
-                <div style={modal.actions}>
-                  <div style={modal.confirm}>Отметить как пропущенное?</div>
-                  <button
-                    style={modal.actionBtn}
-                    onClick={() => {
-                      markSkipped(exerciseMenu.index);
-                      closeExerciseMenu();
-                    }}
-                  >
-                    Да, пропустить
-                  </button>
-                  <button style={modal.actionSecondary} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>
-                    Назад
-                  </button>
-                </div>
-              )}
+          const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
+          const hasExplicitWeight =
+            typeof it.targetWeight === "number" ||
+            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
+          const loadType = it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
+          const showWeightInput = loadType !== "bodyweight";
+          const requiresWeight =
+            typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
+          const weightPlaceholder =
+            typeof it.weightLabel === "string" && it.weightLabel.trim()
+              ? it.weightLabel.toLowerCase().includes("помощ")
+                ? "помощь кг"
+                : "кг"
+              : loadType === "assisted"
+                ? "помощь кг"
+                : "кг";
+          const recKg = formatKg(it.targetWeight);
+          const isAssist = weightPlaceholder.includes("помощ");
+          const weightStep = isAssist ? 5 : 2.5;
 
-              {exerciseMenu.mode === "confirm_remove" && (
-                <div style={modal.actions}>
-                  <div style={modal.confirm}>Удалить упражнение?</div>
-                  <button
-                    style={modal.actionDanger}
-                    onClick={() => {
-                      removeExercise(exerciseMenu.index);
-                      closeExerciseMenu();
-                    }}
-                  >
-                    Да, удалить
-                  </button>
-                  <button style={modal.actionSecondary} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>
-                    Назад
-                  </button>
-                </div>
-              )}
-
-              {exerciseMenu.mode === "confirm_ban" && (
-                <div style={modal.actions}>
-                  <div style={modal.confirm}>Больше не предлагать это упражнение?</div>
-                  <button style={modal.actionDanger} onClick={() => void applyBan(exerciseMenu.index)} disabled={altsLoading}>
-                    Да, больше не предлагать
-                  </button>
-                  <button style={modal.actionSecondary} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>
-                    Назад
-                  </button>
-                </div>
-              )}
-
-              {exerciseMenu.mode === "replace" && (
-                <div style={modal.actions}>
-                  <div style={modal.sectionTitle}>Выбери замену</div>
-                  {altsLoading && <div style={modal.loading}>Загружаю…</div>}
-                  {alts.map((a) => (
+          return (
+            <section
+              key={ei}
+              style={{ ...card.wrap, touchAction: "pan-y" }}
+              className={it.done ? "locked" : ""}
+              onTouchStart={onSwipeStart}
+              onTouchEnd={onSwipeEnd}
+              onPointerDown={onSwipeStart}
+              onPointerUp={onSwipeEnd}
+            >
+              <button
+                type="button"
+                onClick={() => toggleExerciseDone(ei, requiresWeight)}
+                className="check-toggle"
+                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
+                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
+                data-noswipe="1"
+              >
+                ✓
+              </button>
+              {blockedCheck === ei && <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>}
+              <div style={card.head}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={card.title}>{it.name}</div>
                     <button
-                      key={a.exerciseId}
-                      style={modal.altBtn}
-                      onClick={() => {
-                        applyReplace(exerciseMenu.index, a);
-                        closeExerciseMenu();
+                      type="button"
+                      onClick={() => openExerciseMenu(ei)}
+                      style={{
+                        border: "1px solid rgba(0,0,0,0.12)",
+                        background: "rgba(255,255,255,0.85)",
+                        color: "#0f172a",
+                        borderRadius: 12,
+                        padding: "8px 10px",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                       }}
-                      disabled={altsLoading}
+                      aria-label="Опции упражнения"
+                      data-noswipe="1"
                     >
-                      <div style={modal.altName}>{a.name}</div>
-                      {a.hint && <div style={modal.altHint}>{a.hint}</div>}
+                      ⋮
                     </button>
-                  ))}
-                  <button style={modal.actionSecondary} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>
-                    Назад
+                  </div>
+                  <div style={card.metaChips}>
+                    <Chip label={`${it.sets.length}×`} />
+                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
+                    {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
+                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 8 }} aria-disabled={it.done}>
+                {it.sets.map((s, si) => (
+                  <div key={si} style={setrow.wrap} className={s.done ? "set-done set-row" : "set-row"}>
+                    <div style={setrow.label} className="set-label">
+                      Сет {si + 1}
+                    </div>
+
+                    <div
+                      style={{
+                        ...setrow.inputs,
+                        display: "grid",
+                        gridTemplateColumns: showWeightInput ? "minmax(0,1fr) minmax(0,1fr) auto" : "minmax(0,1fr) auto",
+                      }}
+                      className="sets-grid"
+                    >
+                      <StepperNum
+                        value={s.reps}
+                        placeholder={
+                          it.targetReps
+                            ? Array.isArray(it.targetReps)
+                              ? it.targetReps.join("-")
+                              : String(it.targetReps)
+                            : "повт./сек"
+                        }
+                        onChange={(v) => setValue(ei, si, "reps", v)}
+                        onMinus={() => bump(ei, si, "reps", -1)}
+                        onPlus={() => bump(ei, si, "reps", +1)}
+                        disabled={it.done || !!s.done}
+                        stepLabel="±1"
+                      />
+                      {showWeightInput ? (
+                        <StepperNum
+                          value={s.weight}
+                          placeholder={weightPlaceholder}
+                          onChange={(v) => setValue(ei, si, "weight", v)}
+                          onMinus={() => bump(ei, si, "weight", -weightStep)}
+                          onPlus={() => bump(ei, si, "weight", +weightStep)}
+                          disabled={it.done || !!s.done}
+                          stepLabel={`±${weightStep}`}
+                        />
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleSetDone(ei, si, requiresWeight)}
+                        style={{
+                          border: "1px solid rgba(0,0,0,0.12)",
+                          background: s.done ? "rgba(34,197,94,0.14)" : "rgba(15,23,42,0.04)",
+                          color: "#0f172a",
+                          borderRadius: 12,
+                          padding: "10px 10px",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          minWidth: 48,
+                        }}
+                        aria-label={s.done ? "Отменить сет" : "Отметить сет"}
+                        data-noswipe="1"
+                      >
+                        ✓
+                      </button>
+                    </div>
+
+                    {blockedSet?.ei === ei && blockedSet?.si === si ? (
+                      <div style={{ gridColumn: "1 / -1", marginTop: 6, fontSize: 12, fontWeight: 800, color: "#7f1d1d" }}>
+                        Заполни повторы{requiresWeight ? " и вес" : ""} перед отметкой сета
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  style={btn.ghost}
+                  disabled={it.done}
+                  data-noswipe="1"
+                  onClick={() =>
+                    setItems((prev) => {
+                      const next = structuredClone(prev);
+                      const prevSets = next[ei].sets || [];
+                      const last = prevSets.length ? prevSets[prevSets.length - 1] : null;
+                      const lastWeight =
+                        typeof last?.weight === "number" && Number.isFinite(last.weight) && last.weight > 0
+                          ? last.weight
+                          : null;
+                      const targetWeight = parseWeightNumber(next[ei].targetWeight);
+                      const preset = lastWeight ?? (targetWeight != null && targetWeight > 0 ? targetWeight : null);
+                      next[ei].sets.push({ reps: last?.reps, weight: preset ?? undefined, done: false });
+                      return next;
+                    })
+                  }
+                >
+                  ➕ Добавить сет
+                </button>
+                <button
+                  type="button"
+                  style={btn.ghost}
+                  disabled={it.done || it.sets.length <= 1}
+                  data-noswipe="1"
+                  onClick={() =>
+                    setItems((prev) => {
+                      const next = structuredClone(prev);
+                      next[ei].sets.pop();
+                      return next;
+                    })
+                  }
+                >
+                  ➖ Удалить сет
+                </button>
+                <button
+                  type="button"
+                  style={btn.ghost}
+                  data-noswipe="1"
+                  onClick={() => setRestEnabled((v) => !v)}
+                >
+                  {restEnabled ? "Отдых: авто ✅" : "Отдых: авто ☐"}
+                </button>
+              </div>
+
+              <div style={effortRow.wrap}>
+                <span style={effortRow.label}>Ощущение от упражнения</span>
+                <div style={effortRow.value}>
+                  <div style={effortRow.valueTitle}>
+                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.icon || "🟡"}</span>
+                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}</span>
+                  </div>
+                  <div style={effortRow.valueDesc}>
+                    {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
+                  </div>
+                </div>
+                <div style={effortRow.sliderWrap}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={1}
+                    value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
+                    onChange={(e) => {
+                      const idx = Number((e.target as HTMLInputElement).value);
+                      const opt = effortOptions[idx] || effortOptions[1];
+                      setEffort(ei, opt.key);
+                    }}
+                    style={{
+                      ...effortRow.slider,
+                      ...sliderFillStyle(
+                        Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
+                        0,
+                        effortOptions.length - 1,
+                        effortTicks
+                      ),
+                    }}
+                    className="effort-slider"
+                    data-noswipe="1"
+                  />
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+      </main>
+
+      {exerciseMenu ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: 14,
+            zIndex: 60,
+          }}
+          onClick={closeExerciseMenu}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              width: "min(820px, 100%)",
+              background: "#fff",
+              borderRadius: 18,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+              padding: 14,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <div style={{ fontWeight: 900, fontSize: 14, color: "#0B1220" }}>
+                {items[exerciseMenu.index]?.name || "Упражнение"}
+              </div>
+              <button
+                type="button"
+                onClick={closeExerciseMenu}
+                style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, background: "#fff", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {altsError ? (
+              <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
+                {altsError}
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "menu" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => void fetchAlternatives(exerciseMenu.index)}
+                >
+                  Заменить упражнение
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_skip" })}
+                >
+                  Пропустить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_remove" })}
+                >
+                  Удалить из тренировки
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_ban" })}
+                >
+                  Больше не предлагать это упражнение
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_skip" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Отметить как пропущенное?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => {
+                    markSkipped(exerciseMenu.index);
+                    closeExerciseMenu();
+                  }}
+                >
+                  Да, пропустить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_remove" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Удалить упражнение из этой тренировки?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => {
+                    removeExercise(exerciseMenu.index);
+                    closeExerciseMenu();
+                  }}
+                >
+                  Да, удалить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_ban" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Убрать упражнение из будущих генераций?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => void applyBan(exerciseMenu.index)}
+                >
+                  Да, больше не предлагать
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "replace" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#0B1220", fontWeight: 900 }}>Выбери замену</div>
+                {altsLoading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
+                {alts.map((a) => (
+                  <button
+                    key={a.exerciseId}
+                    type="button"
+                    style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                    disabled={altsLoading}
+                    onClick={() => {
+                      applyReplace(exerciseMenu.index, a);
+                      closeExerciseMenu();
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>{a.name}</div>
+                    {a.hint ? <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{a.hint}</div> : null}
                   </button>
+                ))}
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {finishModal && (
+        <div style={modal.wrap}>
+          <div style={modal.card}>
+            <div style={modal.header}>
+              <div style={modal.title}>Фиксация тренировки</div>
+              <button style={modal.close} onClick={() => setFinishModal(false)}>✕</button>
+            </div>
+            <div style={modal.body}>
+              {saveError && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: "rgba(239,68,68,.12)",
+                    border: "1px solid rgba(239,68,68,.25)",
+                    color: "#7f1d1d",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {saveError}
                 </div>
               )}
+              <label style={modal.label}>
+                <span style={modal.labelText}>Время начала</span>
+                <input
+                  type="datetime-local"
+                  style={modal.input}
+                  value={finishStart}
+                  onChange={(e) => setFinishStart(e.target.value)}
+                />
+              </label>
+              <label style={modal.label}>
+                <span style={modal.labelText}>Длительность (мин)</span>
+                <input
+                  type="number"
+                  min={10}
+                  step={5}
+                  style={modal.input}
+                  value={finishDuration}
+                  onChange={(e) => setFinishDuration(e.target.value)}
+                />
+              </label>
+            </div>
+            <div style={modal.footer}>
+              <button style={modal.secondary} onClick={() => setFinishModal(false)} disabled={saving}>Отмена</button>
+              <button style={modal.primary} onClick={handleComplete} disabled={saving}>
+                {saving ? "Сохраняю..." : "Подтвердить"}
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Finish Modal */}
-        {finishModal && (
-          <div style={modal.overlay}>
-            <div style={modal.content}>
-              <div style={modal.header}>
-                <div style={modal.title}>Фиксация тренировки</div>
-                <button style={modal.closeBtn} onClick={() => setFinishModal(false)}>✕</button>
-              </div>
-
-              {saveError && <div style={modal.error}>{saveError}</div>}
-
-              <div style={modal.form}>
-                <label style={modal.field}>
-                  <span style={modal.fieldLabel}>Время начала</span>
-                  <input
-                    type="datetime-local"
-                    style={modal.input}
-                    value={finishStart}
-                    onChange={(e) => setFinishStart(e.target.value)}
-                  />
-                </label>
-                <label style={modal.field}>
-                  <span style={modal.fieldLabel}>Длительность (мин)</span>
-                  <input
-                    type="number"
-                    min={10}
-                    step={5}
-                    style={modal.input}
-                    value={finishDuration}
-                    onChange={(e) => setFinishDuration(e.target.value)}
-                  />
-                </label>
-              </div>
-
-              <div style={modal.footer}>
-                <button style={modal.btnSecondary} onClick={() => setFinishModal(false)} disabled={saving}>
-                  Отмена
-                </button>
-                <button style={modal.btnPrimary} onClick={handleComplete} disabled={saving}>
-                  {saving ? "Сохраняю..." : "Подтвердить"}
-                </button>
-              </div>
+      <section style={s.feedbackCard}>
+        <div style={s.feedbackHeader}>Как прошло занятие?</div>
+        <div style={s.feedbackInner}>
+            <div style={s.feedbackValue}>
+            <div style={s.feedbackValueTitle}>
+              <span>{sessionRpeOptions[sessionRpeIndex]?.icon}</span>
+              <span>{sessionRpeOptions[sessionRpeIndex]?.label}</span>
             </div>
+            <div style={s.feedbackValueDesc}>{sessionRpeOptions[sessionRpeIndex]?.desc}</div>
           </div>
-        )}
+          <input
+            id="session-rpe"
+            type="range"
+            min={0}
+            max={sessionRpeOptions.length - 1}
+            step={1}
+            value={sessionRpeIndex}
+            onChange={(e) => {
+              const idx = Math.max(0, Math.min(sessionRpeOptions.length - 1, Number(e.target.value)));
+              setSessionRpeIndex(idx);
+              setSessionRpe(sessionRpeOptions[idx].value);
+            }}
+            style={{
+              ...s.feedbackSlider,
+              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, sessionTicks),
+            }}
+            className="effort-slider"
+          />
+        </div>
+      </section>
 
-        <div style={{ height: 40 }} />
-      </div>
+	      <div style={s.bottomSpacer} />
+	      </div>
+	    </div>
+	  );
+	}
+
+/* ---------- Мелкие компоненты ---------- */
+function NumInput({
+  value,
+  placeholder,
+  onChange,
+  disabled,
+}: {
+  value?: number;
+  placeholder?: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={num.wrap}>
+      <input
+        type="number"
+        inputMode="numeric"
+        value={value ?? ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        style={num.input}
+        disabled={disabled}
+      />
     </div>
   );
 }
 
-/* ========== COMPONENTS ========== */
-
-function CompactInput({
+function StepperNum({
   value,
   placeholder,
   onChange,
   onMinus,
   onPlus,
   disabled,
-  label,
+  stepLabel,
 }: {
   value?: number;
   placeholder?: string;
@@ -1220,27 +1472,546 @@ function CompactInput({
   onMinus: () => void;
   onPlus: () => void;
   disabled?: boolean;
-  label?: string;
+  stepLabel?: string;
 }) {
   return (
-    <div style={compactInput.wrap}>
-      <button style={compactInput.btn} onClick={onMinus} disabled={disabled}>−</button>
-      <div style={compactInput.inputWrap}>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={value ?? ""}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          style={compactInput.input}
-          disabled={disabled}
-        />
-        {label && <span style={compactInput.label}>{label}</span>}
+    <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 8, alignItems: "center" }} data-noswipe="1">
+      <button type="button" onClick={onMinus} disabled={disabled} style={stepperBtn} aria-label="Минус" data-noswipe="1">
+        −
+      </button>
+      <div style={{ position: "relative" }}>
+        <NumInput value={value} placeholder={placeholder} onChange={onChange} disabled={disabled} />
+        {stepLabel ? (
+          <div style={{ position: "absolute", inset: "auto 10px 6px auto", fontSize: 10, fontWeight: 900, opacity: 0.45 }}>
+            {stepLabel}
+          </div>
+        ) : null}
       </div>
-      <button style={compactInput.btn} onClick={onPlus} disabled={disabled}>+</button>
+      <button type="button" onClick={onPlus} disabled={disabled} style={stepperBtn} aria-label="Плюс" data-noswipe="1">
+        +
+      </button>
     </div>
   );
 }
+
+function Confetti({
+  onClose,
+  progression,
+  progressionJob,
+}: {
+  onClose: () => void;
+  progression?: any | null;
+  progressionJob?: { id: string; status: string; lastError?: string | null } | null;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const summary = progression || null;
+  const details: Array<any> = Array.isArray(summary?.details) ? summary.details : [];
+
+  const actionLabel = (action: string | undefined) =>
+    ({
+      increase_weight: "📈 +вес",
+      increase_reps: "📈 +повт.",
+      maintain: "➡️ без изменений",
+      decrease_weight: "📉 -вес",
+      deload: "🛌 deload",
+      rotate_exercise: "🔄 замена",
+    } as Record<string, string>)[action || ""] || "➡️";
+
+  const formatDelta = (rec: any) => {
+    if (!rec) return "";
+    if (typeof rec.newWeight === "number" && Number.isFinite(rec.newWeight) && rec.newWeight > 0) return `${rec.newWeight} кг`;
+    if (Array.isArray(rec.newRepsTarget) && rec.newRepsTarget.length === 2) return `${rec.newRepsTarget[0]}–${rec.newRepsTarget[1]} повт.`;
+    return "";
+  };
+
+  return (
+    <div className="confetti-wrap">
+      <div className="confetti-overlay" />
+      <div className="confetti-text">
+        <div className="confetti-card">
+          <div className="confetti-icon">✅</div>
+          <div className="confetti-title">Тренировка сохранена</div>
+          <div className="confetti-subtitle">
+            Повторы и веса записаны. Прогрессия учитывает только рабочие подходы (≈ ≥85% от топ-веса), разминки не влияют.
+          </div>
+
+          {!summary && progressionJob && progressionJob.status !== "done" && (
+            <div className="confetti-subtitle">
+              {progressionJob.status === "failed"
+                ? "Прогресс не обновился автоматически. Мы уже разбираемся — веса не будут «скакать»."
+                : "Прогресс обновится автоматически (это может занять несколько секунд)."}
+            </div>
+          )}
+
+          {summary && (
+            <div className="confetti-prog">
+              <div className="confetti-prog-row">
+                <span>Прогресс:</span>
+                <span>
+                  {Number(summary.progressedCount) || 0} ↑ / {Number(summary.maintainedCount) || 0} → /{" "}
+                  {Number(summary.deloadCount) || 0} ↓
+                </span>
+              </div>
+              {Array.isArray(summary.rotationSuggestions) && summary.rotationSuggestions.length > 0 && (
+                <div className="confetti-prog-row">
+                  <span>Ротация:</span>
+                  <span>{summary.rotationSuggestions.join(", ")}</span>
+                </div>
+              )}
+              {details.length > 0 && (
+                <button
+                  type="button"
+                  className="confetti-link"
+                  onClick={() => setShowDetails((v) => !v)}
+                >
+                  {showDetails ? "Скрыть детали прогрессии" : "Показать детали прогрессии"}
+                </button>
+              )}
+              {showDetails && details.length > 0 && (
+                <div className="confetti-details">
+                  {details.slice(0, 24).map((d, i) => {
+                    const rec = d?.recommendation;
+                    const explain = rec?.explain;
+                    const delta = formatDelta(rec);
+                    const title = String(d?.exerciseName || rec?.exerciseId || `#${i + 1}`);
+                    const reason = String(rec?.reason || "").trim();
+                    const ws =
+                      explain?.totalWorkingSets != null
+                        ? `рабочие ${explain.lowerHits ?? "?"}/${explain.totalWorkingSets}, верх ${explain.upperHits ?? "?"}/${explain.totalWorkingSets}`
+                        : "";
+                    const extra = [delta, ws].filter(Boolean).join(" • ");
+                    return (
+                      <div key={i} className="confetti-detail-item">
+                        <div className="confetti-detail-head">
+                          <span className="confetti-detail-name">{title}</span>
+                          <span className="confetti-detail-action">{actionLabel(rec?.action)}</span>
+                        </div>
+                        {extra ? <div className="confetti-detail-meta">{extra}</div> : null}
+                        {reason ? <div className="confetti-detail-reason">{reason}</div> : null}
+                      </div>
+                    );
+                  })}
+                  {details.length > 24 && (
+                    <div className="confetti-detail-more">…и ещё {details.length - 24} упражнений</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <button className="confetti-btn" onClick={onClose}>Продолжить</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Chip({ label }: { label: string }) {
+  return <span style={chipStyle}>{label}</span>;
+}
+
+function formatRepsLabel(value: unknown): string {
+  if (Array.isArray(value) && value.length >= 2) {
+    const a = Number(value[0]);
+    const b = Number(value[1]);
+    if (Number.isFinite(a) && Number.isFinite(b)) return `${a}–${b}`;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string" && value.trim()) return value;
+  return "—";
+}
+
+function parseWeightNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const s = value.trim().replace(",", ".");
+    const num = Number(s.replace(/[^\d.\-]/g, ""));
+    if (Number.isFinite(num)) return num;
+  }
+  return null;
+}
+
+function formatKg(value: unknown): string | null {
+  const num = parseWeightNumber(value);
+  if (num == null || !Number.isFinite(num) || num <= 0) return null;
+  const fixed = Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
+  return `${fixed} кг`;
+}
+
+/* ---------- Стиль ---------- */
+const page = {
+  outer: {
+    minHeight: "100vh",
+    width: "100%",
+    padding: "16px",
+    background: "transparent",
+  } as React.CSSProperties,
+  inner: {
+    maxWidth: 760,
+    margin: "0 auto",
+    fontFamily: "system-ui, -apple-system, Inter, Roboto",
+  } as React.CSSProperties,
+};
+
+const s: Record<string, React.CSSProperties> = {
+  heroCard: {
+    position: "relative",
+    padding: 22,
+    borderRadius: 28,
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    background: "#0f172a",
+    color: "#fff",
+    overflow: "hidden",
+    marginBottom: 18,
+    minHeight: 280,
+  },
+  heroContent: {
+    position: "relative",
+    zIndex: 2,
+    width: "100%",
+    display: "grid",
+    gap: 10,
+  },
+  heroHeader: { display: "grid", gridTemplateColumns: "34px 1fr 34px", alignItems: "center" },
+  pill: {
+    justifySelf: "center",
+    background: "rgba(255,255,255,.08)",
+    padding: "6px 12px",
+    borderRadius: 999,
+    fontSize: 12,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    backdropFilter: "blur(6px)",
+    textTransform: "capitalize",
+  },
+  heroDate: { opacity: 0.85, fontSize: 13 },
+  heroTitle: { fontSize: 26, fontWeight: 800, lineHeight: 1.2 },
+  heroSubtitle: { opacity: 0.9, marginTop: -2 },
+  heroCtas: {
+    marginTop: 16,
+    display: "grid",
+    gap: 12,
+    width: "100%",
+  },
+  primaryBtn: {
+    border: "none",
+    borderRadius: 16,
+    padding: "16px 20px",
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#000",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
+    cursor: "pointer",
+  },
+  completeHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(255,255,255,.9)",
+    textAlign: "center",
+  },
+  feedbackCard: {
+    marginTop: 16,
+    padding: 18,
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.65)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.08)",
+    border: "1px solid rgba(255,255,255,.4)",
+    backdropFilter: "blur(12px)",
+  },
+  feedbackHeader: { fontWeight: 800, fontSize: 15, marginBottom: 8 },
+  feedbackInner: { display: "grid", gap: 6 },
+  feedbackLabel: { fontSize: 13, fontWeight: 600, color: "#374151" },
+  feedbackSlider: {
+    width: "100%",
+    height: 28,
+    appearance: "none",
+    WebkitAppearance: "none",
+    background: "transparent",
+    cursor: "pointer",
+    padding: "8px 0",
+    touchAction: "none",
+  },
+  feedbackValue: { display: "grid", gap: 2 },
+  feedbackValueTitle: { fontSize: 13, fontWeight: 700, color: "#1f2933" },
+  feedbackValueDesc: {
+    fontSize: 12,
+    color: "#4b5563",
+    lineHeight: 1.35,
+  },
+  bottomSpacer: { height: 80 },
+};
+
+const modal: Record<string, React.CSSProperties> = {
+  wrap: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.35)",
+    display: "grid",
+    placeItems: "center",
+    zIndex: 999,
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 440,
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 12px 28px rgba(0,0,0,0.2)",
+    padding: 16,
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  title: { fontSize: 18, fontWeight: 700 },
+  close: {
+    border: "none",
+    background: "transparent",
+    fontSize: 18,
+    cursor: "pointer",
+  },
+  body: { display: "grid", gap: 12 },
+  label: { display: "grid", gap: 4 },
+  labelText: { fontSize: 13, color: "#555" },
+  input: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #ddd",
+    fontSize: 15,
+  },
+  footer: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 14,
+  },
+  secondary: {
+    border: "1px solid #ddd",
+    background: "#f5f5f5",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+  },
+  primary: {
+    border: "none",
+    background: "#000",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+  },
+};
+
+const progressBar = {
+  wrap: { display: "grid", gap: 6 } as React.CSSProperties,
+  track: {
+    position: "relative",
+    width: "100%",
+    height: 20,
+    borderRadius: 999,
+    background: "rgba(255,255,255,.15)",
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,.2)",
+  } as React.CSSProperties,
+  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 999, transition: "width .25s ease", zIndex: 1 } as React.CSSProperties,
+  flame: { position: "absolute", top: -6, fontSize: 22, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))", zIndex: 2, pointerEvents: "none" } as React.CSSProperties,
+  meta: { display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.9 } as React.CSSProperties,
+};
+
+function SoftGlowStyles() {
+  return (
+    <style>{`
+      .soft-glow {
+        background: linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);
+        background-size: 300% 300%;
+        animation: glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
+        transition: background 0.3s ease;
+      }
+      @keyframes glowShift { 0% { background-position: 0% 50% } 50% { background-position: 100% 50% } 100% { background-position: 0% 50% } }
+      @keyframes pulseSoft { 0%,100% { filter: brightness(1) saturate(1); transform: scale(1) } 50% { filter: brightness(1.15) saturate(1.1); transform: scale(1.01) } }
+      @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
+    `}</style>
+  );
+}
+
+// number без стрелок
+const noSpinnersCSS = `
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+`;
+
+// «лава» прогресс
+const lavaCSS = `
+.lava-track { position: relative; overflow: hidden; }
+.lava-fill{
+  height:100%;
+  border-radius:999px;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(255,255,255,.95), rgba(255,255,255,0) 55%),
+    linear-gradient(90deg, #fff, #ffe680, #ffb36b, #ff8a6b, #ff6b6b),
+    radial-gradient(circle at 50% 50%, rgba(255,120,0,.35), rgba(255,0,0,0) 60%);
+  background-size: 18% 140%, 300% 100%, 40% 140%;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  animation:
+    lavaPulse 1.3s ease-in-out infinite alternate,
+    lavaFlow 8s linear infinite,
+    lavaSpecks 2.2s ease-in-out infinite alternate;
+  filter: saturate(1.15) contrast(1.05);
+}
+.lava-track::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 10% 40%, rgba(255,255,255,.18) 0 2px, transparent 3px),
+    radial-gradient(circle at 40% 60%, rgba(255,255,255,.12) 0 2px, transparent 3px),
+    radial-gradient(circle at 75% 30%, rgba(255,255,255,.10) 0 2px, transparent 3px);
+  background-size: 140px 40px, 180px 50px, 220px 60px;
+  mix-blend-mode: screen;
+  animation: sparks 3.6s linear infinite;
+  pointer-events:none;
+}
+.flame-dot .flame-emoji{
+  display:inline-block;
+  animation: flameBob 1.1s ease-in-out infinite, flameGlow 1s ease-in-out infinite alternate;
+}
+@keyframes lavaFlow   { 0%{background-position: 0 0, 0 0, 0 0} 100%{background-position: 0 0, -300% 0, 100% 0} }
+@keyframes lavaPulse  { 0%{filter: brightness(1)} 100%{filter: brightness(1.25)} }
+@keyframes lavaSpecks { 0%{background-position: 0 0, 0 0, 0 0} 100%{background-position: 10% 0, 0 0, -8% 0} }
+@keyframes sparks     { 0%{background-position: 0 0,0 0,0 0} 100%{background-position: 200% 0, 160% 0, 120% 0} }
+@keyframes flameBob   { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-2px) } }
+@keyframes flameGlow  { 0%{ text-shadow:0 0 2px rgba(255,140,0,.35) } 100%{ text-shadow:0 0 10px rgba(255,140,0,.9) } }
+`;
+
+// блокировка карточки упражнения
+const lockCSS = `
+.locked{
+  opacity:.6;
+  filter: grayscale(.15);
+}
+.locked [aria-disabled="true"],
+.locked button,
+.locked input{ pointer-events:none; }
+.locked .chk,
+.locked .check-toggle { pointer-events:auto; z-index:1; }
+
+.set-done{
+  opacity: .72;
+}
+.set-done input{
+  background: rgba(15,23,42,0.03) !important;
+}
+`;
+
+// конфетти
+const confettiCSS = `
+.confetti-wrap{
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: auto;
+  background: rgba(6,11,25,.75);
+  backdrop-filter: blur(14px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 20px;
+}
+.confetti-overlay{ display:none; }
+.confetti-text{ width: 100%; max-width: 560px; }
+.confetti-card{
+  pointer-events:auto;
+  width: 100%;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255,255,255,.98), rgba(240,244,255,.95));
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+  text-align: center;
+  max-height: 82vh;
+  overflow: auto;
+}
+.confetti-icon{ font-size: 30px; }
+.confetti-title{ font-size: 18px; font-weight: 700; color: #111; }
+.confetti-subtitle{ font-size: 13px; color: #4b5563; }
+.confetti-prog{
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.55);
+  border-radius: 14px;
+  padding: 12px;
+}
+.confetti-prog-row{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #111;
+}
+.confetti-link{
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: #4f46e5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.confetti-details{
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+.confetti-detail-item{
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(15,23,42,.04);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.confetti-detail-head{
+  display:flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #111;
+}
+.confetti-detail-name{ overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confetti-detail-action{ color: #334155; font-weight: 600; flex: 0 0 auto; }
+.confetti-detail-meta{ margin-top: 4px; font-size: 12px; color: #475569; }
+.confetti-detail-reason{ margin-top: 6px; font-size: 12.5px; color: #111827; line-height: 1.25; }
+.confetti-detail-more{ font-size: 12px; color: #64748b; }
+.confetti-btn{
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg,#6a8dff,#8a64ff);
+  color: #fff;
+  cursor: pointer;
+}
+`;
+
+// адаптив
+const responsiveCSS = `
+@media (max-width: 620px){
+  .set-row{ grid-template-columns: 1fr; }
+  .set-row .set-label{ margin-bottom: 4px; }
+}
+
+@media (max-width: 420px){
+  .sets-grid{ grid-template-columns: 1fr !important; }
+}
+`;
 
 function Box({ children }: { children: ReactNode }) {
   return (
@@ -1250,719 +2021,314 @@ function Box({ children }: { children: ReactNode }) {
   );
 }
 
-/* ========== HELPERS ========== */
-
-function formatKg(raw: any): string | null {
-  if (raw == null) return null;
-  const num = typeof raw === "number" ? raw : parseFloat(String(raw));
-  if (!Number.isFinite(num) || num <= 0) return null;
-  return `${num} кг`;
-}
-
-function formatRepsLabel(reps: any): string {
-  if (reps == null) return "";
-  if (typeof reps === "number") return String(reps);
-  if (typeof reps === "string") return reps;
-  if (Array.isArray(reps) && reps.length >= 2) return `${reps[0]}-${reps[1]}`;
-  return "";
-}
-
-function parseWeightNumber(raw: any): number | null {
-  if (raw == null) return null;
-  const num = typeof raw === "number" ? raw : parseFloat(String(raw));
-  return Number.isFinite(num) && num > 0 ? num : null;
-}
-
-/* ========== STYLES ========== */
-
-const page = {
-  outer: {
-    minHeight: "100vh",
-    background: "#f8f9fa",
-  } as React.CSSProperties,
-  inner: {
-    maxWidth: 680,
-    margin: "0 auto",
-    padding: "12px 12px 24px",
-  } as React.CSSProperties,
-};
-
-const header = {
+const card = {
   wrap: {
-    position: "sticky" as const,
-    top: 0,
-    zIndex: 100,
-    background: "#fff",
-    borderRadius: 12,
-    padding: "12px 14px",
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-    marginBottom: 12,
-  } as React.CSSProperties,
-  back: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    fontSize: 18,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  } as React.CSSProperties,
-  content: {
-    flex: 1,
-    minWidth: 0,
-  } as React.CSSProperties,
-  title: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#111827",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  } as React.CSSProperties,
-  meta: {
-    fontSize: 13,
-    color: "#6b7280",
-    display: "flex",
-    gap: 6,
-    marginTop: 2,
-  } as React.CSSProperties,
-  menu: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    fontSize: 18,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  } as React.CSSProperties,
-};
-
-const progressBar = {
-  wrap: {
-    marginBottom: 12,
-  } as React.CSSProperties,
-  track: {
-    height: 8,
-    borderRadius: 999,
-    background: "#e5e7eb",
-    overflow: "hidden",
-    position: "relative" as const,
-  } as React.CSSProperties,
-  fill: {
-    position: "absolute" as const,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    background: "linear-gradient(90deg, #10b981, #059669)",
-    borderRadius: 999,
-    transition: "width 0.3s ease",
-  } as React.CSSProperties,
-  label: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 4,
-    textAlign: "right" as const,
-  } as React.CSSProperties,
-};
-
-const restTimer = {
-  wrap: {
-    background: "#fef3c7",
-    border: "1px solid #fbbf24",
-    borderRadius: 12,
-    padding: "10px 14px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  } as React.CSSProperties,
-  label: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#92400e",
-  } as React.CSSProperties,
-  actions: {
-    display: "flex",
-    gap: 8,
-  } as React.CSSProperties,
-  btn: {
-    border: "1px solid #d97706",
-    borderRadius: 8,
-    padding: "6px 10px",
-    background: "#fff",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#92400e",
-    cursor: "pointer",
-  } as React.CSSProperties,
-};
-
-const exerciseList = {
-  wrap: {
-    display: "grid",
-    gap: 12,
-  } as React.CSSProperties,
-};
-
-const exerciseCard = {
-  wrap: {
-    background: "#fff",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
+    position: "relative",
+    width: "100%",
+    boxSizing: "border-box",
     padding: 14,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    borderRadius: 20,
+    background: "rgba(255,255,255,0.65)",
+    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
+    border: "1px solid rgba(255,255,255,.4)",
+    backdropFilter: "blur(12px)",
   } as React.CSSProperties,
-  header: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  headerLeft: {
-    flex: 1,
-    display: "flex",
-    gap: 12,
-    minWidth: 0,
-  } as React.CSSProperties,
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    border: "2px solid #d1d5db",
-    background: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    flexShrink: 0,
-    fontSize: 16,
-  } as React.CSSProperties,
-  checkboxChecked: {
-    background: "#10b981",
-    borderColor: "#10b981",
-    color: "#fff",
-  } as React.CSSProperties,
-  info: {
-    flex: 1,
-    minWidth: 0,
-  } as React.CSSProperties,
-  name: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#111827",
-    marginBottom: 4,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  } as React.CSSProperties,
-  badge: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#6b7280",
-    background: "#f3f4f6",
-    padding: "2px 8px",
-    borderRadius: 999,
-  } as React.CSSProperties,
-  meta: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginBottom: 4,
-  } as React.CSSProperties,
-  prev: {
-    fontSize: 11,
-    color: "#9ca3af",
-    fontWeight: 600,
-  } as React.CSSProperties,
-  menuBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    fontSize: 18,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  } as React.CSSProperties,
-  warning: {
-    background: "#fef3c7",
-    border: "1px solid #fbbf24",
-    borderRadius: 8,
-    padding: "8px 10px",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#92400e",
-    marginBottom: 12,
-  } as React.CSSProperties,
-  sets: {
-    display: "grid",
-    gap: 8,
-  } as React.CSSProperties,
-  actions: {
-    display: "flex",
-    gap: 8,
-    marginTop: 8,
-    flexWrap: "wrap" as const,
-  } as React.CSSProperties,
-  actionBtn: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    padding: "8px 12px",
-    background: "#fff",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  } as React.CSSProperties,
+  head: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 8 } as React.CSSProperties,
+  title: { fontSize: 15.5, fontWeight: 750, color: "#111", paddingRight: 36 } as React.CSSProperties,
+  metaChips: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 } as React.CSSProperties,
 };
 
-const setRow = {
+const setrow = {
   wrap: {
     display: "grid",
-    gridTemplateColumns: "auto 1fr auto",
-    alignItems: "center",
-    gap: 10,
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "10px 12px",
+    gridTemplateColumns: "auto minmax(0,1fr)",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,.08)",
+    boxShadow: "0 8px 20px rgba(0,0,0,.08)",
+    backdropFilter: "blur(12px)",
   } as React.CSSProperties,
-  done: {
-    opacity: 0.6,
-  } as React.CSSProperties,
-  label: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#6b7280",
-  } as React.CSSProperties,
-  quickLog: {
-    border: "1px solid #10b981",
-    borderRadius: 8,
-    padding: "8px 14px",
-    background: "#ecfdf5",
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#047857",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  } as React.CSSProperties,
+  label: { fontSize: 13, color: "#4b5563", fontWeight: 600 } as React.CSSProperties,
   inputs: {
     display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-    minWidth: 0,
-  } as React.CSSProperties,
-  separator: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#9ca3af",
-  } as React.CSSProperties,
-  check: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: 16,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  } as React.CSSProperties,
-  checkDone: {
-    background: "#10b981",
-    borderColor: "#10b981",
-    color: "#fff",
-  } as React.CSSProperties,
-  error: {
-    gridColumn: "1 / -1",
-    fontSize: 11,
-    fontWeight: 700,
-    color: "#dc2626",
-    marginTop: 4,
-  } as React.CSSProperties,
-};
-
-const compactInput = {
-  wrap: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
-  } as React.CSSProperties,
-  btn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: 18,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  } as React.CSSProperties,
-  inputWrap: {
-    position: "relative" as const,
-    flex: 1,
-    minWidth: 0,
-  } as React.CSSProperties,
-  input: {
-    width: "100%",
-    height: 36,
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    textAlign: "center" as const,
-    padding: "0 8px",
-    boxSizing: "border-box" as const,
-  } as React.CSSProperties,
-  label: {
-    position: "absolute" as const,
-    bottom: 4,
-    right: 8,
-    fontSize: 10,
-    fontWeight: 700,
-    color: "#9ca3af",
-    pointerEvents: "none" as const,
-  } as React.CSSProperties,
-};
-
-const effortQuick = {
-  wrap: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTop: "1px solid #e5e7eb",
-  } as React.CSSProperties,
-  label: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#6b7280",
-    marginBottom: 8,
-  } as React.CSSProperties,
-  options: {
-    display: "flex",
-    gap: 6,
-    flexWrap: "wrap" as const,
-  } as React.CSSProperties,
-  btn: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    padding: "6px 10px",
-    background: "#fff",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  } as React.CSSProperties,
-  btnActive: {
-    background: "#10b981",
-    borderColor: "#10b981",
-    color: "#fff",
-  } as React.CSSProperties,
-  icon: {
-    fontSize: 14,
-  } as React.CSSProperties,
-  text: {} as React.CSSProperties,
-  desc: {
-    fontSize: 11,
-    color: "#6b7280",
-    marginTop: 6,
-  } as React.CSSProperties,
-};
-
-const sessionFeedback = {
-  wrap: {
-    background: "#fff",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    padding: 14,
-    marginTop: 12,
-  } as React.CSSProperties,
-  header: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#111827",
-    marginBottom: 10,
-  } as React.CSSProperties,
-  options: {
-    display: "flex",
-    gap: 6,
-    flexWrap: "wrap" as const,
-  } as React.CSSProperties,
-  btn: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    padding: "8px 12px",
-    background: "#fff",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  } as React.CSSProperties,
-  btnActive: {
-    background: "#3b82f6",
-    borderColor: "#3b82f6",
-    color: "#fff",
-  } as React.CSSProperties,
-  icon: {
-    fontSize: 16,
-  } as React.CSSProperties,
-  label: {} as React.CSSProperties,
-  desc: {
-    fontSize: 11,
-    color: "#6b7280",
-    marginTop: 8,
-  } as React.CSSProperties,
-};
-
-const finishSection = {
-  wrap: {
-    marginTop: 16,
-  } as React.CSSProperties,
-  btn: {
-    width: "100%",
-    border: "none",
-    borderRadius: 12,
-    padding: "14px 20px",
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#fff",
-    background: "linear-gradient(135deg, #10b981, #059669)",
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(16,185,129,0.3)",
-  } as React.CSSProperties,
-  hint: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center" as const,
-    marginTop: 8,
-  } as React.CSSProperties,
-};
-
-const modal = {
-  overlay: {
-    position: "fixed" as const,
-    inset: 0,
-    background: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    zIndex: 1000,
-    padding: 12,
-  } as React.CSSProperties,
-  content: {
-    width: "100%",
-    maxWidth: 500,
-    background: "#fff",
-    borderRadius: 16,
-    boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
-    maxHeight: "90vh",
-    overflow: "auto",
-  } as React.CSSProperties,
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "14px 16px",
-    borderBottom: "1px solid #e5e7eb",
-  } as React.CSSProperties,
-  title: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#111827",
-  } as React.CSSProperties,
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
-    fontSize: 18,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  error: {
-    margin: "12px 16px",
-    padding: "10px 12px",
-    borderRadius: 8,
-    background: "#fee2e2",
-    border: "1px solid #fca5a5",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#991b1b",
-  } as React.CSSProperties,
-  actions: {
-    padding: 16,
-    display: "grid",
-    gap: 8,
-  } as React.CSSProperties,
-  actionBtn: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "#f9fafb",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
-    textAlign: "left" as const,
-  } as React.CSSProperties,
-  actionDanger: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: "1px solid #fca5a5",
-    background: "#fee2e2",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
-    textAlign: "left" as const,
-    color: "#991b1b",
-  } as React.CSSProperties,
-  actionSecondary: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
-    textAlign: "left" as const,
-  } as React.CSSProperties,
-  confirm: {
-    fontSize: 13,
-    color: "#6b7280",
-    fontWeight: 600,
-  } as React.CSSProperties,
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#111827",
-  } as React.CSSProperties,
-  loading: {
-    fontSize: 13,
-    color: "#6b7280",
-  } as React.CSSProperties,
-  altBtn: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "#f9fafb",
-    cursor: "pointer",
-    textAlign: "left" as const,
-  } as React.CSSProperties,
-  altName: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#111827",
-  } as React.CSSProperties,
-  altHint: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 4,
-  } as React.CSSProperties,
-  form: {
-    padding: 16,
-    display: "grid",
-    gap: 12,
-  } as React.CSSProperties,
-  field: {
-    display: "grid",
-    gap: 6,
-  } as React.CSSProperties,
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-  } as React.CSSProperties,
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    fontSize: 14,
-    boxSizing: "border-box" as const,
-  } as React.CSSProperties,
-  footer: {
-    padding: 16,
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
     gap: 10,
-  } as React.CSSProperties,
-  btnSecondary: {
-    flex: 1,
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  btnPrimary: {
-    flex: 1,
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "none",
-    background: "#10b981",
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: "pointer",
+    width: "100%",
+    alignItems: "center",
+    minWidth: 0,
   } as React.CSSProperties,
 };
 
 const btn = {
-  secondary: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "10px 14px",
-    background: "#fff",
-    fontSize: 14,
-    fontWeight: 700,
+  back: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,.25)",
+    background: "rgba(255,255,255,.12)",
+    color: "#fff",
+    fontSize: 18,
     cursor: "pointer",
+  } as React.CSSProperties,
+  ghost: {
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.7)",
+    backdropFilter: "blur(8px)",
+    cursor: "pointer",
+    fontWeight: 600,
+  } as React.CSSProperties,
+  secondary: {
+    border: "1px solid rgba(0,0,0,.08)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.7)",
+    cursor: "pointer",
+    fontWeight: 700,
+  } as React.CSSProperties,
+  primary: {
+    width: "100%",
+    border: "none",
+    borderRadius: 16,
+    padding: "16px 20px",
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#1b1b1b",
+    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
+    boxShadow: "0 10px 26px rgba(0,0,0,.25)",
+    cursor: "pointer",
+  } as React.CSSProperties,
+  badge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "rgba(0,0,0,.08)",
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 600,
+    background: "rgba(255,255,255,0.75)",
+    cursor: "pointer",
+    backdropFilter: "blur(6px)",
+  } as React.CSSProperties,
+  badgeActive: {
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    borderColor: "transparent",
+    color: "#1b1b1b",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
   } as React.CSSProperties,
 };
 
-const noSpinnersCSS = `
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
-`;
+const num = {
+  wrap: {
+    width: "100%",
+  } as React.CSSProperties,
+  input: {
+    height: 40,
+    width: "100%",
+    padding: "0 10px",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,.08)",
+    fontSize: 16,
+    boxSizing: "border-box",
+    textAlign: "center",
+    minWidth: 0,
+    background: "rgba(255,255,255,0.85)",
+    caretColor: "#9ca3af",
+  } as React.CSSProperties,
+};
 
-const responsiveCSS = `
-@media (max-width: 420px) {
-  .compact-input-group { flex-wrap: wrap; }
+const stepperBtn: React.CSSProperties = {
+  height: 40,
+  width: 44,
+  borderRadius: 12,
+  border: "1px solid rgba(0,0,0,.10)",
+  background: "rgba(255,255,255,0.92)",
+  fontSize: 18,
+  fontWeight: 900,
+  color: "#0f172a",
+  cursor: "pointer",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+};
+
+const metaRow: React.CSSProperties = {
+  display: "flex",
+  gap: 6,
+  flexWrap: "wrap",
+  rowGap: 4,
+  alignItems: "center",
+  fontSize: 12.5,
+  color: "#1f2933",
+  marginBottom: 6,
+};
+const chipStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  borderRadius: 999,
+  padding: "2px 8px",
+  fontSize: 11,
+  fontWeight: 600,
+  background: "rgba(255,255,255,0.8)",
+  color: "#1f2933",
+  border: "1px solid rgba(0,0,0,.06)",
+  backdropFilter: "blur(6px)",
+};
+
+const checkBtn = {
+  base: {
+    position: "absolute" as const,
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: "50%",
+    border: "2px solid rgba(148,163,184,.5)",
+    background: "rgba(255,255,255,.85)",
+    color: "#6b7280",
+    display: "grid",
+    placeItems: "center",
+    fontSize: 16,
+    cursor: "pointer",
+    boxShadow: "0 6px 14px rgba(0,0,0,.12)",
+  },
+  active: {
+    borderColor: "transparent",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    color: "#1b1b1b",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+  },
+  hint: {
+    position: "absolute" as const,
+    top: 44,
+    right: 0,
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 10,
+    padding: "6px 10px",
+    fontSize: 11,
+    color: "#b45309",
+    boxShadow: "0 12px 24px rgba(0,0,0,.15)",
+    border: "1px solid rgba(248,171,101,.4)",
+    maxWidth: 180,
+    zIndex: 5,
+  },
+};
+
+const effortRow = {
+  wrap: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: "1px solid rgba(0,0,0,.08)",
+    display: "grid",
+    gap: 4,
+  } as React.CSSProperties,
+  label: { fontSize: 12.5, color: "#374151", fontWeight: 600 } as React.CSSProperties,
+  sliderWrap: { display: "grid", gap: 4 },
+  slider: {
+    width: "100%",
+    height: 28,
+    appearance: "none",
+    WebkitAppearance: "none",
+    background: "transparent",
+    cursor: "pointer",
+    padding: "8px 0",
+    touchAction: "none",
+  } as React.CSSProperties,
+  ticks: {
+  } as React.CSSProperties,
+  value: {
+    display: "grid",
+    gap: 2,
+  } as React.CSSProperties,
+  valueTitle: {
+    fontSize: 12.5,
+    fontWeight: 700,
+    color: "#1f2933",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  } as React.CSSProperties,
+  valueDesc: {
+    fontSize: 11.5,
+    color: "#4b5563",
+    lineHeight: 1.35,
+  } as React.CSSProperties,
+};
+
+function ruPlural(n: number, forms: [string, string, string]) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return forms[1];
+  return forms[2];
+}
+
+const sliderCss = `
+.effort-slider {
+  -webkit-tap-highlight-color: transparent;
+}
+.effort-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.001);
+  margin-top: -11px;
+}
+.effort-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+.effort-slider::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 0 0 12px rgba(0,0,0,0.001);
 }
 `;
+function sliderFillStyle(value: number, min: number, max: number, ticks: number[]) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min || 1)) * 100));
+  const tickImgs = ticks.map(
+    (p) => `linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.3) 100%)`
+  );
+  return {
+    backgroundImage: [
+      `linear-gradient(to right, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0.8) ${pct}%, rgba(15,23,42,0.18) ${pct}%, rgba(15,23,42,0.18) 100%)`,
+      ...tickImgs,
+    ].join(", "),
+    backgroundSize: ["100% 4px", ...tickImgs.map(() => "1px 8px")].join(", "),
+    backgroundPosition: ["0 50%", ...ticks.map((p) => `${p}% 50%`)].join(", "),
+    backgroundRepeat: "no-repeat",
+  };
+}
+function sessionRpeLabel(val: number): string {
+  if (val >= 9.5) return "Слишком тяжело";
+  if (val >= 9) return "Очень тяжело";
+  if (val >= 8) return "Тяжело";
+  if (val >= 7) return "Комфортно";
+  if (val >= 6) return "Ниже среднего";
+  return "Очень легко";
+}
 
-const compactCSS = `
-* { -webkit-tap-highlight-color: transparent; }
-button:active { transform: scale(0.98); }
-`;
+function sessionRpeHint(val: number): string {
+  if (val >= 9.5) return "Перегруз — в следующий раз уменьшим объём или вес.";
+  if (val >= 9) return "Почти на пределе — оставим или снизим нагрузку.";
+  if (val >= 8) return "Тяжело, но рабоче — сохраним или немного снизим объём.";
+  if (val >= 7) return "Оптимально — продолжаем в том же темпе.";
+  if (val >= 6) return "Легковато — можно добавить немного объёма/веса.";
+  return "Легко — можно поднять интенсивность.";
+}
