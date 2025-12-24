@@ -28,58 +28,12 @@ function clampInt(n: unknown, min: number, max: number, fallback: number): numbe
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
-function extractFirstJsonObject(raw: string): string | null {
-  const s = String(raw || "");
-  const start = s.indexOf("{");
-  if (start < 0) return null;
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < s.length; i++) {
-    const ch = s[i];
-    if (inString) {
-      if (escape) {
-        escape = false;
-        continue;
-      }
-      if (ch === "\\") {
-        escape = true;
-        continue;
-      }
-      if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      continue;
-    }
-    if (ch === "{") depth++;
-    if (ch === "}") {
-      depth--;
-      if (depth === 0) return s.slice(start, i + 1);
-    }
-  }
-  return null;
-}
-
 function safeJsonParse(raw: string): any {
   const clean = String(raw || "")
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
-  if (!clean) return {};
-  try {
-    return JSON.parse(clean);
-  } catch {
-    try {
-      const extracted = extractFirstJsonObject(clean);
-      if (extracted) return JSON.parse(extracted);
-    } catch {
-      // ignore
-    }
-    // Fallback: treat model output as plain text.
-    return { intro: clean.slice(0, 4000), bullets: [], actions: [], outro: "" };
-  }
+  return JSON.parse(clean || "{}");
 }
 
 function normalizeAnswerText(parts: {
@@ -600,55 +554,29 @@ export async function sendCoachChatMessage(args: {
     };
   }
 
-  const modelPrimary = String(process.env.COACH_CHAT_MODEL || "gpt-5-mini");
-  const modelFallback = String(process.env.COACH_CHAT_FALLBACK_MODEL || "gpt-5.2");
-  const isMiniModel = /mini/i.test(modelPrimary);
-  const maxOutputTokens = (() => {
-    const v = Number(process.env.COACH_CHAT_MAX_OUTPUT_TOKENS);
-    if (Number.isFinite(v) && v > 0) return Math.round(v);
-    return isMiniModel ? 700 : 1200;
-  })();
-  const allowRewrite = !isMiniModel && String(process.env.COACH_CHAT_REWRITE || "1") !== "0";
+  const model = String(process.env.COACH_CHAT_MODEL || "gpt-5.2");
   const instructions = buildSystemPrompt();
   const baseMessages = history
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  const userPrompt = buildUserPrompt({ question: message, context, focus, historyBrief });
+  const call1 = await createJsonObjectResponse({
+    client: openai as any,
+    model,
+    instructions,
+    messages: [...baseMessages, { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) }],
+    temperature: 0.7,
+    maxOutputTokens: 1200,
+  });
 
-  const callModel = async (model: string, temperature: number, maxOutputTokens: number) => {
-    return createJsonObjectResponse({
-      client: openai as any,
-      model,
-      instructions,
-      messages: [...baseMessages, { role: "user", content: userPrompt }],
-      temperature,
-      maxOutputTokens,
-    });
-  };
-
-  let model = modelPrimary;
-  let call1 = await callModel(modelPrimary, 0.7, maxOutputTokens);
-  // gpt-5-mini has been observed returning empty output in some environments; fallback to a reliable model.
-  if (!String(call1.jsonText || "").trim() && modelPrimary !== modelFallback) {
-    model = modelFallback;
-    call1 = await callModel(modelFallback, 0.7, maxOutputTokens);
-  }
-
-  const raw = call1.jsonText || "";
+  const raw = call1.jsonText || "{}";
   const parsed = safeJsonParse(raw);
-  let answerText0 = normalizeAnswerText({
+  const answerText0 = normalizeAnswerText({
     intro: parsed?.intro,
     bullets: parsed?.bullets,
     actions: parsed?.actions,
     outro: parsed?.outro,
   });
-  if (!String(answerText0 || "").trim()) {
-    answerText0 = String(raw || "").trim().slice(0, 4000);
-  }
-  if (!String(answerText0 || "").trim()) {
-    answerText0 = "Не удалось получить ответ от модели. Попробуй повторить вопрос.";
-  }
 
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] answer:", answerText0);
@@ -659,6 +587,12 @@ export async function sendCoachChatMessage(args: {
   let completionTokens = call1.usage.completionTokens;
   let totalTokens = call1.usage.totalTokens;
   let apiUsed = call1.usage.api;
+
+  if (process.env.AI_USAGE_LOG === "1") {
+    console.log(
+      `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"}`
+    );
+  }
 
   const answerLooksTooGeneric = (() => {
     const txt = answerText0.toLowerCase();
@@ -673,7 +607,7 @@ export async function sendCoachChatMessage(args: {
 
   let answerText = answerText0;
   let rewriteUsed = false;
-  if (allowRewrite && answerLooksTooGeneric) {
+  if (answerLooksTooGeneric) {
     try {
       const call2 = await createJsonObjectResponse({
         client: openai as any,
@@ -690,7 +624,7 @@ export async function sendCoachChatMessage(args: {
           },
         ],
         temperature: 0.5,
-        maxOutputTokens: Math.min(maxOutputTokens, 900),
+        maxOutputTokens: 1100,
       });
 
       const raw2 = call2.jsonText || "{}";
@@ -718,12 +652,6 @@ export async function sendCoachChatMessage(args: {
     } catch {
       // ignore rewrite failures
     }
-  }
-
-  if (process.env.AI_USAGE_LOG === "1") {
-    console.log(
-      `[COACH_CHAT] model=${model} ms=${latencyMs} prompt=${promptTokens ?? "?"} completion=${completionTokens ?? "?"} total=${totalTokens ?? "?"} rewrite=${rewriteUsed ? "1" : "0"}`
-    );
   }
 
   // Persist messages transactionally.
