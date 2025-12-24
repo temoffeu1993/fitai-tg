@@ -622,14 +622,20 @@ export async function sendCoachChatMessage(args: {
     maxOutputTokens,
   });
 
-  const raw = call1.jsonText || "{}";
+  const raw = call1.jsonText || "";
   const parsed = safeJsonParse(raw);
-  const answerText0 = normalizeAnswerText({
+  let answerText0 = normalizeAnswerText({
     intro: parsed?.intro,
     bullets: parsed?.bullets,
     actions: parsed?.actions,
     outro: parsed?.outro,
   });
+  if (!String(answerText0 || "").trim()) {
+    answerText0 = String(raw || "").trim().slice(0, 4000);
+  }
+  if (!String(answerText0 || "").trim()) {
+    answerText0 = "Не удалось получить ответ от модели. Попробуй повторить вопрос.";
+  }
 
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] answer:", answerText0);

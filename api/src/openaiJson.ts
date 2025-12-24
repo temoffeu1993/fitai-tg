@@ -32,6 +32,8 @@ export async function createJsonObjectResponse(args: {
       const content = Array.isArray(o?.content) ? o.content : [];
       for (const c of content) {
         if (typeof c?.text === "string") parts.push(c.text);
+        else if (typeof c?.text?.value === "string") parts.push(c.text.value);
+        else if (typeof c?.text?.content === "string") parts.push(c.text.content);
         else if (typeof c?.value === "string") parts.push(c.value);
         else if (typeof c?.content === "string") parts.push(c.content);
       }
