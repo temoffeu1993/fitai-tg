@@ -713,7 +713,7 @@ export async function sendCoachChatMessage(args: {
     instructions,
     messages: [...baseMessages, { role: "user", content: userPrompt }],
     temperature: 0.7,
-    maxOutputTokens: /mini/i.test(model) ? 700 : 1200,
+    maxOutputTokens: /mini/i.test(model) ? 2000 : 1200,
   });
 
   const raw = call1.jsonText || "{}";
@@ -781,7 +781,7 @@ export async function sendCoachChatMessage(args: {
           },
         ],
         temperature: 0.5,
-        maxOutputTokens: /mini/i.test(model) ? 650 : 1100,
+        maxOutputTokens: /mini/i.test(model) ? 1800 : 1100,
       });
 
       const raw2 = call2.jsonText || "{}";
