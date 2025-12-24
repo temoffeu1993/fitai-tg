@@ -45,10 +45,11 @@ export async function createJsonObjectResponse(args: {
   const isGpt5Mini = /^gpt-5-mini$/i.test(model);
 
   const preferResponses =
-    process.env.USE_RESPONSES_API === "1" ||
-    /^gpt-5/i.test(model) ||
-    /^o\d/i.test(model) ||
-    /^gpt-4\.1/i.test(model);
+    !isGpt5Mini &&
+    (process.env.USE_RESPONSES_API === "1" ||
+      /^gpt-5/i.test(model) ||
+      /^o\d/i.test(model) ||
+      /^gpt-4\.1/i.test(model));
 
   const t0 = Date.now();
 
