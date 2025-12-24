@@ -750,13 +750,14 @@ export default function WorkoutSession() {
                       type="button"
                       onClick={() => openExerciseMenu(ei)}
                       style={{
-                        border: "1px solid rgba(255,255,255,0.25)",
-                        background: "rgba(255,255,255,0.08)",
-                        color: "#fff",
+                        border: "1px solid rgba(0,0,0,0.12)",
+                        background: "rgba(255,255,255,0.85)",
+                        color: "#0f172a",
                         borderRadius: 12,
                         padding: "8px 10px",
                         fontWeight: 900,
                         cursor: "pointer",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                       }}
                       aria-label="Опции упражнения"
                     >
