@@ -554,7 +554,7 @@ export async function sendCoachChatMessage(args: {
     };
   }
 
-  const model = String(process.env.COACH_CHAT_MODEL || "gpt-5.2");
+  const model = String(process.env.COACH_CHAT_MODEL || "gpt-5-mini");
   const instructions = buildSystemPrompt();
   const baseMessages = history
     .filter((m) => m.role === "user" || m.role === "assistant")
