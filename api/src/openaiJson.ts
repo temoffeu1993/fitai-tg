@@ -41,15 +41,21 @@ export async function createJsonObjectResponse(args: {
     return parts.join("").trim();
   };
 
+  const getErrorText = (err: any) =>
+    String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
+
   const isUnsupportedTemperatureError = (err: any) => {
-    const msg =
-      String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
-    return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("temperature");
+    const msg = getErrorText(err);
+    if (!(err?.status === 400 || err?.code === 400)) return false;
+    // Some models reject the parameter entirely; others only allow the default value (e.g. temperature=1).
+    return (
+      msg.includes("temperature") &&
+      (msg.includes("unsupported parameter") || msg.includes("unsupported value") || msg.includes("only the default"))
+    );
   };
 
   const isUnsupportedMaxTokensError = (err: any) => {
-    const msg =
-      String(err?.message || err?.error?.message || err?.response?.data?.error?.message || err?.response?.data || "").toLowerCase();
+    const msg = getErrorText(err);
     return (err?.status === 400 || err?.code === 400) && msg.includes("unsupported parameter") && msg.includes("max_tokens");
   };
 
