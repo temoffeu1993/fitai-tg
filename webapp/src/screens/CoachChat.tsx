@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCoachChatHistory, sendCoachChat } from "@/api/plan";
+import { getPlannedWorkouts, replacePlannedWorkoutExercise, type PlannedWorkout } from "@/api/schedule";
 import { useNavigate } from "react-router-dom";
 
 type Msg = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  meta?: any;
   createdAt: string;
 };
 
@@ -55,6 +57,13 @@ export default function CoachChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
+  const [applyModal, setApplyModal] = useState<{
+    open: boolean;
+    action: any | null;
+    planned: PlannedWorkout[];
+    loading: boolean;
+    error: string | null;
+  }>({ open: false, action: null, planned: [], loading: false, error: null });
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -125,6 +134,7 @@ export default function CoachChat() {
             id: String(m.id || crypto.randomUUID()),
             role: m.role,
             content: String(m.content || ""),
+            meta: m?.meta ?? null,
             createdAt: String(m.createdAt || nowIso()),
           }));
         if (!canceled) setMessages(normalized);
@@ -165,6 +175,7 @@ export default function CoachChat() {
         id: String(a?.id || ((crypto as any)?.randomUUID?.() || String(Date.now() + 1))),
         role: "assistant",
         content: String(a?.content || ""),
+        meta: a?.meta ?? null,
         createdAt: String(a?.createdAt || nowIso()),
       };
       setMessages((prev) => [...prev, assistant]);
@@ -175,6 +186,72 @@ export default function CoachChat() {
       setText(msg);
     } finally {
       setSending(false);
+    }
+  };
+
+  const openApplyReplacement = async (action: any) => {
+    setApplyModal({ open: true, action, planned: [], loading: true, error: null });
+    try {
+      const list = await getPlannedWorkouts();
+      const remaining = (Array.isArray(list) ? list : []).filter(
+        (w) => w && w.status !== "cancelled" && w.status !== "completed"
+      );
+      setApplyModal({ open: true, action, planned: remaining, loading: false, error: null });
+    } catch (e) {
+      console.error(e);
+      setApplyModal({
+        open: true,
+        action,
+        planned: [],
+        loading: false,
+        error: "Не удалось загрузить список тренировок. Попробуй ещё раз.",
+      });
+    }
+  };
+
+  const closeApplyModal = () => setApplyModal({ open: false, action: null, planned: [], loading: false, error: null });
+
+  const findExerciseIndexInPlanned = (pw: PlannedWorkout, fromExerciseId: string, fromName?: string | null): number => {
+    const p: any = pw?.plan || {};
+    const exs: any[] = Array.isArray(p?.exercises) ? p.exercises : [];
+    const byId = exs.findIndex((ex) => String(ex?.exerciseId || ex?.id || ex?.exercise?.id || "") === fromExerciseId);
+    if (byId >= 0) return byId;
+    const name = String(fromName || "").trim().toLowerCase();
+    if (!name) return -1;
+    return exs.findIndex((ex) => String(ex?.exerciseName || ex?.name || "").toLowerCase().includes(name.slice(0, 8)));
+  };
+
+  const applyReplacementToPlanned = async (pw: PlannedWorkout) => {
+    const a = applyModal.action;
+    if (!a || a.type !== "replace_exercise") return;
+    const fromId = String(a.fromExerciseId || "");
+    const toId = String(a.toExerciseId || "");
+    if (!fromId || !toId) return;
+
+    const idx = findExerciseIndexInPlanned(pw, fromId, a.fromName);
+    if (idx < 0) {
+      setApplyModal((prev) => ({ ...prev, error: "В этой тренировке не нашёл упражнение для замены." }));
+      return;
+    }
+
+    setApplyModal((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      await replacePlannedWorkoutExercise({
+        plannedWorkoutId: pw.id,
+        index: idx,
+        newExerciseId: toId,
+        reason: "coach_suggested",
+        source: "coach",
+      });
+      closeApplyModal();
+      try {
+        window.dispatchEvent(new Event("schedule_updated" as any));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+      setApplyModal((prev) => ({ ...prev, loading: false, error: "Не удалось применить замену. Попробуй ещё раз." }));
+    } finally {
+      setApplyModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -237,6 +314,35 @@ export default function CoachChat() {
                   >
                     <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
                       <div style={s.bubbleText}>{m.content}</div>
+                      {m.role === "assistant" &&
+                      Array.isArray((m as any)?.meta?.actions) &&
+                      (m as any).meta.actions.some((a: any) => a?.type === "replace_exercise") ? (
+                        <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                          {(m as any).meta.actions
+                            .filter((a: any) => a?.type === "replace_exercise")
+                            .slice(0, 3)
+                            .map((a: any, i: number) => (
+                              <button
+                                key={`apply-${m.id}-${i}`}
+                                type="button"
+                                style={{
+                                  width: "100%",
+                                  padding: "10px 12px",
+                                  borderRadius: 14,
+                                  border: "1px solid rgba(0,0,0,0.10)",
+                                  background: "rgba(255,255,255,0.75)",
+                                  fontWeight: 800,
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                }}
+                                onClick={() => void openApplyReplacement(a)}
+                              >
+                                Применить замену: {String(a?.fromName || "").trim() || "упражнение"} →{" "}
+                                {String(a?.toName || "").trim() || "вариант"}
+                              </button>
+                            ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -255,6 +361,105 @@ export default function CoachChat() {
             )}
           </div>
         </section>
+
+        {applyModal.open ? (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.35)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              padding: 14,
+              zIndex: 70,
+            }}
+            onClick={closeApplyModal}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              style={{
+                width: "min(820px, 100%)",
+                background: "#fff",
+                borderRadius: 18,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+                padding: 14,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <div style={{ fontWeight: 900, fontSize: 14, color: "#0B1220" }}>Куда применить замену</div>
+                <button
+                  type="button"
+                  onClick={closeApplyModal}
+                  style={{
+                    border: "1px solid rgba(0,0,0,0.1)",
+                    borderRadius: 10,
+                    background: "#fff",
+                    padding: "8px 10px",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {applyModal.error ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: 10,
+                    borderRadius: 12,
+                    background: "rgba(239,68,68,.10)",
+                    border: "1px solid rgba(239,68,68,.2)",
+                    color: "#7f1d1d",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  {applyModal.error}
+                </div>
+              ) : null}
+
+              {applyModal.loading ? (
+                <div style={{ marginTop: 12, fontSize: 12, color: "#475569" }}>Загружаю…</div>
+              ) : applyModal.planned.length === 0 ? (
+                <div style={{ marginTop: 12, fontSize: 12, color: "#475569" }}>Нет запланированных тренировок.</div>
+              ) : (
+                <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                  {applyModal.planned.slice(0, 20).map((pw) => {
+                    const p: any = pw.plan || {};
+                    const title = String(p.dayLabel || p.title || "Тренировка");
+                    const when = pw.scheduledFor ? new Date(pw.scheduledFor).toLocaleString("ru-RU") : "";
+                    return (
+                      <button
+                        key={pw.id}
+                        type="button"
+                        disabled={applyModal.loading}
+                        style={{
+                          width: "100%",
+                          padding: "12px 12px",
+                          borderRadius: 14,
+                          border: "1px solid rgba(0,0,0,0.08)",
+                          background: "rgba(15,23,42,0.03)",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onClick={() => void applyReplacementToPlanned(pw)}
+                      >
+                        <div style={{ fontWeight: 900 }}>{title}</div>
+                        {when ? <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{when}</div> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         <footer style={s.composer}>
           <div style={s.composerInner}>

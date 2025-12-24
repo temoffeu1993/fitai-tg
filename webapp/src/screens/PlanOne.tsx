@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadHistory } from "@/lib/history";
-import { createPlannedWorkout, getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
+import {
+  createPlannedWorkout,
+  getPlannedWorkouts,
+  removePlannedWorkoutExercise,
+  replacePlannedWorkoutExercise,
+  skipPlannedWorkoutExercise,
+  type PlannedWorkout,
+} from "@/api/schedule";
 import { getMesocycleCurrent, submitCheckIn, type CheckInPayload } from "@/api/plan";
+import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
@@ -27,6 +35,7 @@ export type Exercise = {
   equipment?: string[];
   difficulty?: number;
   unilateral?: boolean;
+  exerciseId?: string;
 };
 
 /**
@@ -667,6 +676,7 @@ export default function PlanOne() {
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const mappedExercises: Exercise[] = (Array.isArray(p.exercises) ? p.exercises : []).map((ex: any) => ({
+                exerciseId: String(ex?.exerciseId || ex?.id || ex?.exercise?.id || "") || undefined,
                 name: String(ex?.name || ex?.exerciseName || "Упражнение"),
                 sets: Number(ex?.sets) || 1,
                 reps: ex?.reps || ex?.repsRange || "",
@@ -725,7 +735,13 @@ export default function PlanOne() {
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
-                      <ExercisesList items={mappedExercises} variant="main" isOpen={true} />
+                      <PlannedExercisesEditor
+                        plannedWorkout={w}
+                        displayItems={mappedExercises}
+                        onUpdated={(pw) => {
+                          setPlannedWorkouts((prev) => prev.map((x) => (x.id === pw.id ? pw : x)));
+                        }}
+                      />
                     </div>
                   ) : null}
                 </div>
@@ -1584,6 +1600,337 @@ function ExercisesList({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function PlannedExercisesEditor({
+  plannedWorkout,
+  displayItems,
+  onUpdated,
+}: {
+  plannedWorkout: PlannedWorkout;
+  displayItems: Exercise[];
+  onUpdated: (pw: PlannedWorkout) => void;
+}) {
+  const plan: any = plannedWorkout?.plan || {};
+  const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
+  const [menuIndex, setMenuIndex] = useState<number | null>(null);
+  const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_skip" | "confirm_ban">("menu");
+  const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const openMenu = (idx: number) => {
+    setErr(null);
+    setMode("menu");
+    setMenuIndex(idx);
+  };
+
+  const close = () => {
+    setMenuIndex(null);
+    setMode("menu");
+    setAlts([]);
+    setLoading(false);
+    setErr(null);
+  };
+
+  const current = menuIndex != null ? displayItems[menuIndex] : null;
+  const currentId = current?.exerciseId || null;
+
+  const fetchAlternatives = async () => {
+    if (!currentId || menuIndex == null) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 12 });
+      const list = Array.isArray(res?.alternatives) ? res.alternatives : [];
+      setAlts(list);
+      setMode("replace");
+    } catch (e) {
+      console.error(e);
+      setErr("Не удалось загрузить варианты замены. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyReplace = async (newExerciseId: string) => {
+    if (menuIndex == null) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      const pw = await replacePlannedWorkoutExercise({
+        plannedWorkoutId: plannedWorkout.id,
+        index: menuIndex,
+        newExerciseId,
+        reason: "user_replace",
+        source: "user",
+      });
+      onUpdated(pw);
+      close();
+      try {
+        window.dispatchEvent(new Event("schedule_updated" as any));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+      setErr("Не удалось заменить упражнение. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyRemove = async () => {
+    if (menuIndex == null) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      const pw = await removePlannedWorkoutExercise({
+        plannedWorkoutId: plannedWorkout.id,
+        index: menuIndex,
+        reason: "user_remove",
+        source: "user",
+      });
+      onUpdated(pw);
+      close();
+      try {
+        window.dispatchEvent(new Event("schedule_updated" as any));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+      setErr("Не удалось удалить упражнение. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applySkip = async () => {
+    if (menuIndex == null) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      const pw = await skipPlannedWorkoutExercise({
+        plannedWorkoutId: plannedWorkout.id,
+        index: menuIndex,
+        reason: "user_skip",
+        source: "user",
+      });
+      onUpdated(pw);
+      close();
+      try {
+        window.dispatchEvent(new Event("schedule_updated" as any));
+      } catch {}
+    } catch (e) {
+      console.error(e);
+      setErr("Не удалось пропустить упражнение. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyBan = async () => {
+    if (!currentId) return;
+    setLoading(true);
+    setErr(null);
+    try {
+      await excludeExercise({ exerciseId: currentId, reason: "user_ban_from_plan", source: "user" });
+      close();
+    } catch (e) {
+      console.error(e);
+      setErr("Не удалось исключить упражнение. Попробуй ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rowStyle: React.CSSProperties = {
+    padding: 8,
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.06)",
+    display: "flex",
+    gap: 10,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  };
+  const menuBtn: React.CSSProperties = {
+    border: "1px solid rgba(0,0,0,0.1)",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.8)",
+    padding: "6px 10px",
+    cursor: "pointer",
+    fontWeight: 800,
+    lineHeight: 1,
+  };
+  const overlay: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.35)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    padding: 14,
+    zIndex: 50,
+  };
+  const sheet: React.CSSProperties = {
+    width: "min(820px, 100%)",
+    background: "#fff",
+    borderRadius: 18,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    padding: 14,
+  };
+  const sheetTitle: React.CSSProperties = { fontWeight: 900, fontSize: 14, color: "#0B1220" };
+  const actionBtn: React.CSSProperties = {
+    width: "100%",
+    padding: "12px 12px",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(15,23,42,0.03)",
+    fontWeight: 800,
+    cursor: "pointer",
+    textAlign: "left",
+  };
+  const dangerBtn: React.CSSProperties = { ...actionBtn, background: "rgba(239,68,68,.08)", borderColor: "rgba(239,68,68,.2)" };
+
+  return (
+    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+      {displayItems.map((it, i) => {
+        const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
+        return (
+          <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#0B1220" }}>
+                {it.name || `Упражнение ${i + 1}`} {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
+              </div>
+              {it.cues ? <div style={{ fontSize: 11, color: "#4a5568", lineHeight: 1.3 }}>{it.cues}</div> : null}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+              <span
+                style={{
+                  background: "rgba(255,255,255,0.6)",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  padding: "5px 10px",
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#334155",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                💪 {it.sets}×{formatReps(it.reps)}
+              </span>
+              <button type="button" style={menuBtn} onClick={() => openMenu(i)} aria-label="Опции">
+                ⋮
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {menuIndex != null ? (
+        <div style={overlay} onClick={close} role="dialog" aria-modal="true">
+          <div style={sheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+              <div style={sheetTitle}>{current?.name || "Упражнение"}</div>
+              <button type="button" onClick={close} style={{ ...menuBtn, padding: "8px 10px" }}>
+                ✕
+              </button>
+            </div>
+
+            {err ? (
+              <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
+                {err}
+              </div>
+            ) : null}
+
+            {mode === "menu" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
+                  Заменить упражнение
+                </button>
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("confirm_skip")}>
+                  Пропустить в этой тренировке
+                </button>
+                <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
+                  Удалить из этой тренировки
+                </button>
+                <button type="button" style={dangerBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
+                  Больше не предлагать это упражнение
+                </button>
+              </div>
+            ) : null}
+
+            {mode === "confirm_remove" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                  Удалить упражнение из этого плана?
+                </div>
+                <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
+                  Да, удалить
+                </button>
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {mode === "confirm_skip" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                  Отметить упражнение как пропущенное в этой тренировке?
+                </div>
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => void applySkip()}>
+                  Да, пропустить
+                </button>
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {mode === "confirm_ban" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+                  Убрать упражнение из будущих генераций? (Можно вернуть в профиле)
+                </div>
+                <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
+                  Да, больше не предлагать
+                </button>
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {mode === "replace" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#0B1220" }}>Выбери замену</div>
+                {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
+                {alts.map((a) => (
+                  <button
+                    key={a.exerciseId}
+                    type="button"
+                    style={actionBtn}
+                    disabled={loading}
+                    onClick={() => void applyReplace(a.exerciseId)}
+                  >
+                    <div style={{ fontWeight: 900 }}>{a.name}</div>
+                    <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                      {a.hint || ""}
+                      {typeof a.suggestedWeight === "number" && Number.isFinite(a.suggestedWeight) && a.suggestedWeight > 0
+                        ? ` • реком. ${a.suggestedWeight} кг`
+                        : ""}
+                    </div>
+                  </button>
+                ))}
+                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                  Назад
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

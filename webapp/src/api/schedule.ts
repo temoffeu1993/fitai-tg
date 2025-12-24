@@ -93,6 +93,71 @@ export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> 
   return data?.plannedWorkout;
 }
 
+export async function replacePlannedWorkoutExercise(args: {
+  plannedWorkoutId: string;
+  index: number;
+  newExerciseId: string;
+  reason?: string;
+  source?: string;
+}): Promise<PlannedWorkout> {
+  const r = await apiFetch(`/api/planned-workouts/${args.plannedWorkoutId}/exercises/${args.index}/replace`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      newExerciseId: args.newExerciseId,
+      reason: args.reason || null,
+      source: args.source || "user",
+    }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_replace_exercise");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
+export async function removePlannedWorkoutExercise(args: {
+  plannedWorkoutId: string;
+  index: number;
+  reason?: string;
+  source?: string;
+}): Promise<PlannedWorkout> {
+  const r = await apiFetch(`/api/planned-workouts/${args.plannedWorkoutId}/exercises/${args.index}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason: args.reason || null, source: args.source || "user" }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_remove_exercise");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
+export async function skipPlannedWorkoutExercise(args: {
+  plannedWorkoutId: string;
+  index: number;
+  reason?: string;
+  source?: string;
+}): Promise<PlannedWorkout> {
+  const r = await apiFetch(`/api/planned-workouts/${args.plannedWorkoutId}/exercises/${args.index}/skip`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reason: args.reason || null, source: args.source || "user" }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_skip_exercise");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
 export async function saveScheduleDates(dates: ScheduleByDate): Promise<void> {
   const r = await apiFetch("/api/workout-schedule", {
     method: "POST",

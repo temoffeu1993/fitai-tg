@@ -14,6 +14,7 @@ type ChatMessage = {
   id: string;
   role: Role;
   content: string;
+  meta?: any;
   createdAt: string;
 };
 
@@ -124,8 +125,8 @@ async function getOrCreateThreadId(userId: string): Promise<string> {
 }
 
 async function getChatHistory(threadId: string, limit: number): Promise<ChatMessage[]> {
-  const rows = await q<{ id: string; role: Role; content: string; created_at: string }>(
-    `SELECT id, role, content, created_at
+  const rows = await q<{ id: string; role: Role; content: string; meta: any; created_at: string }>(
+    `SELECT id, role, content, meta, created_at
        FROM coach_chat_messages
       WHERE thread_id = $1
       ORDER BY created_at DESC
@@ -135,7 +136,7 @@ async function getChatHistory(threadId: string, limit: number): Promise<ChatMess
   // return ascending for UI
   return rows
     .reverse()
-    .map((r) => ({ id: r.id, role: r.role, content: r.content, createdAt: r.created_at }));
+    .map((r) => ({ id: r.id, role: r.role, content: r.content, meta: r.meta ?? null, createdAt: r.created_at }));
 }
 
 function summarizeExerciseSetStats(ex: any) {
@@ -472,6 +473,8 @@ function buildUserPrompt(args: { question: string; context: any; focus: any; his
     "   - Если есть конкретика (упражнение/дата/вес/повторы/длительность/самочувствие/боль/кол-во тренировок) — упоминай её.",
     "   - Если конкретики нет — прямо скажи, чего нет в данных.",
     "2) actions (2–4): что делать дальше. Каждый шаг = действие + как именно + зачем (кратко).",
+    "3) exerciseReplacements (0–3, опционально): если ты советуешь заменить упражнение на другое, дай пары замены в явном виде.",
+    '   Формат элемента: {"fromName": string, "toName": string, "reason": string}. Названия — по-русски, как в зале.',
     "",
     "Запреты:",
     "- Не придумывай цифры/веса/повторы/оценки самочувствия, которых нет в JSON.",
@@ -479,8 +482,36 @@ function buildUserPrompt(args: { question: string; context: any; focus: any; his
     "- Не заканчивай вопросами.",
     "",
     "Верни СТРОГО JSON в формате:",
-    `{"intro": string, "bullets": string[], "actions": [{"title": string, "how": string, "why": string}], "outro": string}`,
+    `{"intro": string, "bullets": string[], "actions": [{"title": string, "how": string, "why": string}], "exerciseReplacements": [{"fromName": string, "toName": string, "reason": string}], "outro": string}`,
   ].join("\n");
+}
+
+function resolveExerciseIdByName(name: string): string | null {
+  const key = normalizeNameKey(name);
+  if (!key) return null;
+  let best: { id: string; score: number } | null = null;
+  for (const ex of EXERCISE_LIBRARY as any[]) {
+    const names: string[] = [ex?.name, ex?.nameEn, ...(Array.isArray(ex?.aliases) ? ex.aliases : [])]
+      .filter(Boolean)
+      .map((s) => String(s));
+    let score = 0;
+    for (const nm of names) {
+      const k = normalizeNameKey(nm);
+      if (!k) continue;
+      if (k === key) score = Math.max(score, 20);
+      else if (k.includes(key) || key.includes(k)) score = Math.max(score, 12);
+      else {
+        const tokens = key.split(/\s+/g).filter(Boolean);
+        for (const t of tokens) {
+          const tk = normalizeNameKey(t);
+          if (tk.length >= 3 && k.includes(tk)) score = Math.max(score, 6);
+        }
+      }
+    }
+    if (score <= 0) continue;
+    if (!best || score > best.score) best = { id: String(ex.id), score };
+  }
+  return best?.id ?? null;
 }
 
 function makeContextRef(ctx: any) {
@@ -591,6 +622,37 @@ export async function sendCoachChatMessage(args: {
     outro: parsed?.outro,
   });
 
+  // Build structured actions (if any) for the UI to apply.
+  const replacementActions = (() => {
+    const repl = Array.isArray(parsed?.exerciseReplacements) ? parsed.exerciseReplacements : [];
+    const out: Array<{
+      type: "replace_exercise";
+      fromName: string;
+      toName: string;
+      fromExerciseId: string;
+      toExerciseId: string;
+      reason: string;
+    }> = [];
+    for (const r of repl.slice(0, 3)) {
+      const fromName = String(r?.fromName || "").trim();
+      const toName = String(r?.toName || "").trim();
+      const reason = String(r?.reason || "").trim();
+      if (!fromName || !toName) continue;
+      const fromId = resolveExerciseIdByName(fromName);
+      const toId = resolveExerciseIdByName(toName);
+      if (!fromId || !toId || fromId === toId) continue;
+      out.push({
+        type: "replace_exercise",
+        fromName,
+        toName,
+        fromExerciseId: fromId,
+        toExerciseId: toId,
+        reason: reason || "coach_suggested",
+      });
+    }
+    return out;
+  })();
+
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] answer:", answerText0);
   }
@@ -683,7 +745,13 @@ export async function sendCoachChatMessage(args: {
       [
         threadId,
         answerText,
-        JSON.stringify({ focus, intent: focus?.intent?.kind || null, rewriteUsed, api: apiUsed }),
+        JSON.stringify({
+          focus,
+          intent: focus?.intent?.kind || null,
+          rewriteUsed,
+          api: apiUsed,
+          actions: replacementActions,
+        }),
         model,
         promptTokens,
         completionTokens,
@@ -700,6 +768,12 @@ export async function sendCoachChatMessage(args: {
   return {
     threadId,
     userMessage: { id: saved.u.id, role: "user", content: message, createdAt: saved.u.created_at },
-    assistantMessage: { id: saved.a.id, role: "assistant", content: answerText, createdAt: saved.a.created_at },
+    assistantMessage: {
+      id: saved.a.id,
+      role: "assistant",
+      content: answerText,
+      meta: { actions: replacementActions },
+      createdAt: saved.a.created_at,
+    },
   };
 }

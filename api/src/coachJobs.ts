@@ -414,11 +414,13 @@ function buildSessionCoachPrompt(args: {
       exercises: Array.isArray(session.payload?.exercises)
         ? session.payload.exercises.map((e: any) => ({
             name: e?.name,
+            skipped: !!e?.skipped,
             effort: e?.effort ?? null,
             restSec: Number.isFinite(Number(e?.restSec)) ? Math.max(0, Math.round(Number(e.restSec))) : null,
             sets: Array.isArray(e?.sets) ? e.sets.slice(0, 12).map((s: any) => ({ reps: s?.reps ?? null, weight: s?.weight ?? null })) : [],
           }))
         : [],
+      changes: Array.isArray(session.payload?.changes) ? session.payload.changes.slice(0, 60) : [],
       sessionDifficulty: session.payload?.feedback?.sessionRpe ?? null,
       durationMin: session.payload?.durationMin ?? null,
     },

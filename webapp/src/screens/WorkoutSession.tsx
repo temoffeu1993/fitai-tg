@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { saveSession } from "@/api/plan";
+import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
@@ -47,6 +48,17 @@ type Item = {
   sets: SetEntry[];
   done?: boolean;
   effort?: EffortTag;
+  skipped?: boolean;
+};
+
+type ChangeEvent = {
+  action: "replace" | "remove" | "skip" | "exclude" | "include";
+  fromExerciseId?: string | null;
+  toExerciseId?: string | null;
+  reason?: string | null;
+  source?: string | null;
+  at: string;
+  meta?: any;
 };
 
 export default function WorkoutSession() {
@@ -81,9 +93,14 @@ export default function WorkoutSession() {
   }, [loc.state]);
 
   const [items, setItems] = useState<Item[]>([]);
+  const [changes, setChanges] = useState<ChangeEvent[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [exerciseMenu, setExerciseMenu] = useState<{ index: number; mode: "menu" | "replace" | "confirm_remove" | "confirm_skip" | "confirm_ban" } | null>(null);
+  const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
+  const [altsLoading, setAltsLoading] = useState(false);
+  const [altsError, setAltsError] = useState<string | null>(null);
   const effortOptions: Array<{ key: Exclude<EffortTag, null>; label: string; desc: string; icon: string }> = useMemo(
     () => [
       {
@@ -176,6 +193,7 @@ export default function WorkoutSession() {
     if (!plan) return;
     if (!Array.isArray(plan.exercises) || plan.exercises.length === 0) {
       setItems([]);
+      setChanges([]);
       setElapsed(0);
       setRunning(true);
       setSessionRpeIndex(1);
@@ -189,6 +207,7 @@ export default function WorkoutSession() {
 
     if (draftMatches && hasDraftItems) {
       setItems(draft.items || []);
+      setChanges(Array.isArray(draft.changes) ? draft.changes : []);
       setElapsed(draft.elapsed || 0);
       setRunning(draft.running ?? true);
       if (typeof draft.sessionRpe === "number") {
@@ -216,6 +235,7 @@ export default function WorkoutSession() {
 	        requiresWeightInput: (ex as any).requiresWeightInput,
 	        weightLabel: (ex as any).weightLabel,
 	        done: false,
+          skipped: false,
 	        effort: null,
 	        sets: Array.from({ length: Number(ex.sets) || 1 }, () => {
 	          const raw = (ex as any).weight;
@@ -225,6 +245,7 @@ export default function WorkoutSession() {
 	        }),
       }))
     );
+    setChanges([]);
     setElapsed(0);
     setRunning(true);
     setSessionRpeIndex(1);
@@ -250,13 +271,14 @@ export default function WorkoutSession() {
     const draftPayload = {
       title: plan.title,
       items,
+      changes,
       elapsed,
       running,
       plannedWorkoutId: plannedWorkoutId || null,
       sessionRpe,
     };
     localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+  }, [items, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
 
   if (!plan) {
     return (
@@ -292,6 +314,16 @@ export default function WorkoutSession() {
 
   const toggleExerciseDone = (ei: number, requiresWeight: boolean) => {
     const item = items[ei];
+    if (item?.skipped) {
+      setItems((prev) => {
+        const next = structuredClone(prev);
+        const cur = next[ei];
+        cur.done = !cur.done;
+        if (!cur.done) cur.skipped = false;
+        return next;
+      });
+      return;
+    }
     const allFilled = item.sets.every((s) => {
       const hasReps = s.reps != null && s.reps !== undefined;
       const hasWeight = !requiresWeight || (s.weight != null && s.weight !== undefined);
@@ -310,6 +342,151 @@ export default function WorkoutSession() {
       next[ei].done = !next[ei].done;
       return next;
     });
+  };
+
+  const pushChange = (ev: Omit<ChangeEvent, "at"> & { at?: string }) => {
+    const at = ev.at || new Date().toISOString();
+    setChanges((prev) => [...prev, { ...ev, at }].slice(-120));
+  };
+
+  const openExerciseMenu = (index: number) => {
+    setExerciseMenu({ index, mode: "menu" });
+    setAlts([]);
+    setAltsError(null);
+    setAltsLoading(false);
+  };
+
+  const closeExerciseMenu = () => {
+    setExerciseMenu(null);
+    setAlts([]);
+    setAltsError(null);
+    setAltsLoading(false);
+  };
+
+  const markSkipped = (ei: number) => {
+    const it = items[ei];
+    setItems((prev) => {
+      const next = structuredClone(prev);
+      next[ei].skipped = true;
+      next[ei].done = true;
+      next[ei].effort = null;
+      // clear unfinished set inputs (doesn't affect already entered values)
+      next[ei].sets = next[ei].sets.map((s) => ({ reps: s.reps, weight: s.weight }));
+      return next;
+    });
+    pushChange({ action: "skip", fromExerciseId: it?.id || null, reason: "user_skip", source: "user", meta: { index: ei } });
+  };
+
+  const removeExercise = (ei: number) => {
+    const it = items[ei];
+    setItems((prev) => {
+      const next = structuredClone(prev);
+      next.splice(ei, 1);
+      return next;
+    });
+    pushChange({ action: "remove", fromExerciseId: it?.id || null, reason: "user_remove", source: "user", meta: { index: ei, name: it?.name } });
+  };
+
+  const fetchAlternatives = async (ei: number) => {
+    const it = items[ei];
+    const fromId = it?.id;
+    if (!fromId) {
+      setAltsError("У этого упражнения нет exerciseId, заменить автоматически не получится.");
+      return;
+    }
+    setAltsLoading(true);
+    setAltsError(null);
+    try {
+      const res = await getExerciseAlternatives({ exerciseId: String(fromId), reason: "equipment_busy", limit: 12 });
+      setAlts(Array.isArray(res?.alternatives) ? res.alternatives : []);
+      setExerciseMenu({ index: ei, mode: "replace" });
+    } catch (e) {
+      console.error(e);
+      setAltsError("Не удалось загрузить варианты замены. Проверь интернет и попробуй ещё раз.");
+    } finally {
+      setAltsLoading(false);
+    }
+  };
+
+  const applyReplace = (ei: number, alt: ExerciseAlternative) => {
+    const it = items[ei];
+    const fromId = it?.id ? String(it.id) : null;
+    const toId = String(alt.exerciseId);
+    const suggested =
+      typeof alt?.suggestedWeight === "number" && Number.isFinite(alt.suggestedWeight) && alt.suggestedWeight > 0
+        ? alt.suggestedWeight
+        : undefined;
+    const performed = it.sets.filter((s) => (s.reps ?? 0) > 0 || (s.weight ?? 0) > 0).length;
+    const total = it.sets.length;
+
+    setItems((prev) => {
+      const next = structuredClone(prev);
+      const cur = next[ei];
+      const hasWork = performed > 0;
+      if (!hasWork) {
+        cur.id = toId;
+        cur.name = alt.name;
+        cur.loadType = alt.loadType as any;
+        cur.requiresWeightInput = alt.requiresWeightInput;
+        cur.weightLabel = alt.weightLabel;
+        cur.targetWeight = suggested != null ? String(suggested) : null;
+        cur.skipped = false;
+        cur.done = false;
+        cur.effort = null;
+        cur.sets = Array.from({ length: total || 1 }, () => ({ reps: undefined, weight: suggested }));
+        return next;
+      }
+
+      // Split: keep performed sets on the original, insert replacement with remaining sets.
+      cur.sets = cur.sets.slice(0, Math.max(1, performed));
+      cur.done = true; // lock performed part
+      const remaining = Math.max(1, total - performed);
+      const replacement: Item = {
+        id: toId,
+        name: alt.name,
+        pattern: cur.pattern,
+        targetMuscles: cur.targetMuscles,
+        targetReps: cur.targetReps,
+        targetWeight: suggested != null ? String(suggested) : null,
+        restSec: cur.restSec,
+        loadType: alt.loadType as any,
+        requiresWeightInput: alt.requiresWeightInput,
+        weightLabel: alt.weightLabel,
+        done: false,
+        skipped: false,
+        effort: null,
+        sets: Array.from({ length: remaining }, () => ({ reps: undefined, weight: suggested })),
+      };
+      next.splice(ei + 1, 0, replacement);
+      return next;
+    });
+
+    pushChange({
+      action: "replace",
+      fromExerciseId: fromId,
+      toExerciseId: toId,
+      reason: "user_replace",
+      source: "user",
+      meta: { index: ei, performedSets: performed, totalSets: total },
+    });
+  };
+
+  const applyBan = async (ei: number) => {
+    const it = items[ei];
+    const exId = it?.id ? String(it.id) : null;
+    if (!exId) return;
+    setAltsLoading(true);
+    setAltsError(null);
+    try {
+      await excludeExercise({ exerciseId: exId, reason: "user_ban_from_session", source: "user" });
+      pushChange({ action: "exclude", fromExerciseId: exId, reason: "user_ban", source: "user", meta: { index: ei, name: it?.name } });
+      closeExerciseMenu();
+    } catch (e) {
+      console.error(e);
+      setAltsError("Не удалось исключить упражнение. Попробуй ещё раз.");
+    } finally {
+      setAltsLoading(false);
+    }
   };
 
   const setEffort = (ei: number, effort: EffortTag) => {
@@ -377,11 +554,13 @@ export default function WorkoutSession() {
         restSec: it.restSec,
         reps: normalizeRepsForPayload(it.targetReps),
         done: !!it.done,
+        skipped: !!it.skipped,
         effort: it.effort ?? undefined,
         sets: it.sets
           .filter((s) => s.reps != null || s.weight != null)
           .map((s) => ({ reps: s.reps, weight: s.weight })),
       })),
+      changes,
       feedback: {
         sessionRpe,
       },
@@ -565,7 +744,25 @@ export default function WorkoutSession() {
               )}
               <div style={card.head}>
                 <div>
-                  <div style={card.title}>{it.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={card.title}>{it.name}</div>
+                    <button
+                      type="button"
+                      onClick={() => openExerciseMenu(ei)}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.25)",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "#fff",
+                        borderRadius: 12,
+                        padding: "8px 10px",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                      }}
+                      aria-label="Опции упражнения"
+                    >
+                      ⋮
+                    </button>
+                  </div>
 	                  <div style={card.metaChips}>
 	                    <Chip label={`${it.sets.length}×`} />
 	                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
@@ -685,6 +882,193 @@ export default function WorkoutSession() {
           );
         })}
       </main>
+
+      {exerciseMenu ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: 14,
+            zIndex: 60,
+          }}
+          onClick={closeExerciseMenu}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              width: "min(820px, 100%)",
+              background: "#fff",
+              borderRadius: 18,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+              padding: 14,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <div style={{ fontWeight: 900, fontSize: 14, color: "#0B1220" }}>
+                {items[exerciseMenu.index]?.name || "Упражнение"}
+              </div>
+              <button
+                type="button"
+                onClick={closeExerciseMenu}
+                style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, background: "#fff", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {altsError ? (
+              <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
+                {altsError}
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "menu" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => void fetchAlternatives(exerciseMenu.index)}
+                >
+                  Заменить упражнение
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_skip" })}
+                >
+                  Пропустить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_remove" })}
+                >
+                  Удалить из тренировки
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_ban" })}
+                >
+                  Больше не предлагать это упражнение
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_skip" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Отметить как пропущенное?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => {
+                    markSkipped(exerciseMenu.index);
+                    closeExerciseMenu();
+                  }}
+                >
+                  Да, пропустить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_remove" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Удалить упражнение из этой тренировки?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => {
+                    removeExercise(exerciseMenu.index);
+                    closeExerciseMenu();
+                  }}
+                >
+                  Да, удалить
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "confirm_ban" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Убрать упражнение из будущих генераций?</div>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => void applyBan(exerciseMenu.index)}
+                >
+                  Да, больше не предлагать
+                </button>
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+
+            {exerciseMenu.mode === "replace" ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#0B1220", fontWeight: 900 }}>Выбери замену</div>
+                {altsLoading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
+                {alts.map((a) => (
+                  <button
+                    key={a.exerciseId}
+                    type="button"
+                    style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                    disabled={altsLoading}
+                    onClick={() => {
+                      applyReplace(exerciseMenu.index, a);
+                      closeExerciseMenu();
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>{a.name}</div>
+                    {a.hint ? <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{a.hint}</div> : null}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
+                  disabled={altsLoading}
+                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
+                >
+                  Назад
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {finishModal && (
         <div style={modal.wrap}>

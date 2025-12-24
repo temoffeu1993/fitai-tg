@@ -51,6 +51,7 @@ export type UserProfile = {
   equipment: Equipment;
   sex?: "male" | "female";
   constraints?: string[]; // constraint tags from user
+  excludedExerciseIds?: string[]; // user-level blacklist
 };
 
 export type PainEntry = {
@@ -1005,7 +1006,10 @@ export async function generateWorkoutDay(args: {
     slots,
     ctx,
     constraints,
-    excludeIds: history?.recentExerciseIds,
+    excludeIds: [
+      ...(history?.recentExerciseIds ?? []),
+      ...(userProfile.excludedExerciseIds ?? []),
+    ],
     requiredPatterns: effectiveRequired, // NEW: priority boost + relaxation for required
   });
 

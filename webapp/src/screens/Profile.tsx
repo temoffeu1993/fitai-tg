@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "@/lib/apiClient";
 import { resetProfileRemote } from "@/api/profile";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
+import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
 
 type Summary = any;
 
@@ -38,6 +39,12 @@ export default function Profile() {
   const [tgProfile, setTgProfile] = useState<any>(null);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [excluded, setExcluded] = useState<Array<{ exerciseId: string; name: string }>>([]);
+  const [excludedLoading, setExcludedLoading] = useState(false);
+  const [excludedError, setExcludedError] = useState<string | null>(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchRes, setSearchRes] = useState<Array<{ exerciseId: string; name: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -109,6 +116,63 @@ export default function Profile() {
       window.removeEventListener("focus", onFocus);
     };
   }, []);
+
+  const loadExcluded = async () => {
+    setExcludedLoading(true);
+    setExcludedError(null);
+    try {
+      const list = await getExcludedExerciseDetails();
+      setExcluded(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error(e);
+      setExcludedError("Не удалось загрузить исключённые упражнения.");
+    } finally {
+      setExcludedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadExcluded();
+  }, []);
+
+  const runSearch = async (q: string) => {
+    const s = String(q || "").trim();
+    setSearchQ(q);
+    if (s.length < 2) {
+      setSearchRes([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const out = await searchExercises({ q: s, limit: 20 });
+      setSearchRes(Array.isArray(out?.items) ? out.items : []);
+    } catch (e) {
+      console.error(e);
+      setSearchRes([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const addExcluded = async (exerciseId: string) => {
+    try {
+      await excludeExercise({ exerciseId, reason: "profile_blacklist", source: "user" });
+      await loadExcluded();
+    } catch (e) {
+      console.error(e);
+      setExcludedError("Не удалось исключить упражнение.");
+    }
+  };
+
+  const removeExcluded = async (exerciseId: string) => {
+    try {
+      await includeExercise({ exerciseId });
+      await loadExcluded();
+    } catch (e) {
+      console.error(e);
+      setExcludedError("Не удалось вернуть упражнение.");
+    }
+  };
 
   const onb = summary || {};
   
@@ -234,6 +298,72 @@ export default function Profile() {
                 <Meta title="Пол" value={sex} />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={st.block} aria-label="Исключённые упражнения">
+        <div style={st.blockHead}>
+          <div style={st.blockTitle}>Исключённые упражнения</div>
+          <div style={st.blockSubtitle}>То, что не будет предлагаться в будущих тренировках</div>
+        </div>
+
+        {excludedError ? (
+          <div style={{ ...st.note, borderColor: "rgba(239,68,68,.25)", background: "rgba(239,68,68,.08)", color: "#7f1d1d" }}>
+            {excludedError}
+          </div>
+        ) : null}
+
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <input
+              value={searchQ}
+              onChange={(e) => void runSearch(e.target.value)}
+              placeholder="Найти упражнение…"
+              style={st.input}
+            />
+            {searchLoading ? <div style={st.mutedSmall}>Поиск…</div> : null}
+            {searchRes.length ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                {searchRes
+                  .filter((x) => !excluded.some((e) => e.exerciseId === x.exerciseId))
+                  .slice(0, 12)
+                  .map((x) => (
+                    <div key={x.exerciseId} style={st.row}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={st.rowTitle}>{x.name}</div>
+                        <div style={st.rowSub}>{x.exerciseId}</div>
+                      </div>
+                      <button type="button" style={st.rowBtn} onClick={() => void addExcluded(x.exerciseId)}>
+                        Не предлагать
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={st.subhead}>Сейчас исключены</div>
+            {excludedLoading ? (
+              <div style={st.mutedSmall}>Загружаю…</div>
+            ) : excluded.length === 0 ? (
+              <div style={st.mutedSmall}>Пока пусто.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {excluded.slice(0, 80).map((x) => (
+                  <div key={x.exerciseId} style={st.row}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={st.rowTitle}>{x.name}</div>
+                      <div style={st.rowSub}>{x.exerciseId}</div>
+                    </div>
+                    <button type="button" style={st.rowBtnSecondary} onClick={() => void removeExcluded(x.exerciseId)}>
+                      Вернуть
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -677,6 +807,65 @@ background:"transparent",
     borderRadius: 16,
     background: "#fff",
     boxShadow: cardShadow,
+  },
+  blockHead: { display: "grid", gap: 4, marginBottom: 12 },
+  blockSubtitle: { fontSize: 12, color: "#475569", fontWeight: 600 },
+
+  note: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(15,23,42,0.03)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    color: "#0f172a",
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 10,
+  },
+  mutedSmall: { fontSize: 12, color: "#64748b", fontWeight: 600 },
+  subhead: { fontSize: 12, fontWeight: 900, color: "#0B1220", marginTop: 6 },
+  input: {
+    width: "100%",
+    padding: "12px 12px",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: 700,
+    outline: "none",
+  },
+  row: {
+    padding: 10,
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.06)",
+    background: "rgba(255,255,255,0.6)",
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rowTitle: { fontSize: 13, fontWeight: 900, color: "#0B1220", overflow: "hidden", textOverflow: "ellipsis" },
+  rowSub: { fontSize: 11, color: "#64748b", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis" },
+  rowBtn: {
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 900,
+    color: "#0f172a",
+    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  rowBtnSecondary: {
+    border: "1px solid rgba(0,0,0,0.10)",
+    borderRadius: 12,
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 900,
+    color: "#0f172a",
+    background: "rgba(15,23,42,0.03)",
+    cursor: "pointer",
+    flexShrink: 0,
   },
 
   // Белая стеклянная поверхность как фирменные чипы

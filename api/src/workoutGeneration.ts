@@ -20,18 +20,16 @@ import { getNextWorkoutRecommendations } from "./progressionService.js";
 import { 
   generateWorkoutDay,
   generateWeekPlan,
-  type UserProfile,
   type CheckInData,
   type WorkoutHistory,
 } from "./workoutDayGenerator.js";
 import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
 import {
   NORMALIZED_SCHEMES,
-  type ExperienceLevel,
-  type Goal,
-  type Equipment,
-  type TimeBucket,
 } from "./normalizedSchemes.js";
+import { buildUserProfile } from "./userProfile.js";
+import { getExerciseAlternatives } from "./exerciseAlternatives.js";
+import { logExerciseChangeEvent } from "./exerciseChangeEvents.js";
 import {
   createMesocycle,
   shouldStartNewMesocycle,
@@ -116,6 +114,167 @@ function toFinitePositiveNumberOrNull(value: any): number | null {
   const num = typeof value === "number" ? value : Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
 }
+
+// ============================================================================
+// GET /exercises/:exerciseId/alternatives - deterministic alternatives from library
+// ============================================================================
+
+workoutGeneration.get(
+  "/exercises/:exerciseId/alternatives",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    const exerciseId = String(req.params?.exerciseId || "").trim();
+    if (!exerciseId) throw new AppError("missing_exercise_id", 400);
+
+    const reason = typeof req.query?.reason === "string" ? String(req.query.reason) : null;
+    const limit = typeof req.query?.limit === "string" ? Number(req.query.limit) : null;
+    const avoidEquipmentRaw = typeof req.query?.avoidEquipment === "string" ? String(req.query.avoidEquipment) : "";
+    const requireEquipmentRaw =
+      typeof req.query?.requireEquipment === "string" ? String(req.query.requireEquipment) : "";
+
+    const avoidEquipment = avoidEquipmentRaw
+      ? avoidEquipmentRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+    const requireEquipment = requireEquipmentRaw
+      ? requireEquipmentRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
+    const userProfile = await buildUserProfile(uid);
+
+    const equipmentAvailable =
+      userProfile.equipment === "gym_full"
+        ? (["gym_full"] as any)
+        : userProfile.equipment === "dumbbells"
+          ? (["dumbbell", "bench", "bodyweight"] as any)
+          : userProfile.equipment === "bodyweight"
+            ? (["bodyweight", "pullup_bar", "bands"] as any)
+            : (["gym_full"] as any);
+
+    const { original, alternatives } = getExerciseAlternatives({
+      originalExerciseId: exerciseId,
+      ctx: {
+        userExperience: userProfile.experience as any,
+        equipmentAvailable,
+        excludedExerciseIds: userProfile.excludedExerciseIds ?? [],
+        avoidEquipment: avoidEquipment as any,
+        requireEquipment: requireEquipment as any,
+        reason: reason as any,
+        limit,
+      },
+    });
+
+    // Attach suggested weights from progression (best-effort).
+    const suggestedById = new Map<string, number | null>();
+    try {
+      const ids = [original.id, ...alternatives.map((a) => a.exerciseId)];
+      const uniqueIds = Array.from(new Set(ids));
+      const libById = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
+      const libExercises = uniqueIds.map((id) => libById.get(id)).filter(Boolean) as any[];
+      if (libExercises.length) {
+        const recs = await getNextWorkoutRecommendations({
+          userId: uid,
+          exercises: libExercises,
+          goal: userProfile.goal,
+          experience: userProfile.experience,
+        });
+        for (const id of uniqueIds) {
+          const rec = recs.get(id);
+          const w = toFinitePositiveNumberOrNull(rec?.newWeight);
+          suggestedById.set(id, w);
+        }
+      }
+    } catch (e) {
+      console.warn("[alternatives] failed to attach suggested weights:", (e as any)?.message || e);
+    }
+
+    res.json({
+      ok: true,
+      original: {
+        exerciseId: original.id,
+        name: original.name,
+        equipment: original.equipment,
+        patterns: original.patterns,
+        primaryMuscles: original.primaryMuscles,
+        kind: original.kind,
+        suggestedWeight: suggestedById.get(original.id) ?? null,
+        ...inferLoadInfoFromExercise(original),
+      },
+      alternatives: alternatives.map((a) => {
+        const lib = EXERCISE_LIBRARY.find((e) => e.id === a.exerciseId);
+        return {
+          exerciseId: a.exerciseId,
+          name: a.name,
+          equipment: a.equipment,
+          patterns: a.patterns,
+          primaryMuscles: a.primaryMuscles,
+          kind: a.kind,
+          hint: a.hint,
+          suggestedWeight: suggestedById.get(a.exerciseId) ?? null,
+          ...(lib ? inferLoadInfoFromExercise(lib) : inferLoadInfoFromExercise({ id: a.exerciseId, name: a.name, equipment: a.equipment })),
+        };
+      }),
+    });
+  })
+);
+
+// ============================================================================
+// GET /exercises/search?q=... - lightweight exercise search for UI
+// ============================================================================
+
+workoutGeneration.get(
+  "/exercises/search",
+  asyncHandler(async (req: any, res: Response) => {
+    getUid(req); // auth check
+    const qRaw = typeof req.query?.q === "string" ? String(req.query.q) : "";
+    const q = qRaw.trim().toLowerCase();
+    const limit = Math.max(1, Math.min(50, Number(req.query?.limit ?? 20) || 20));
+
+    const normalized = (s: string) =>
+      String(s || "")
+        .toLowerCase()
+        .replace(/ё/g, "е")
+        .replace(/[^\wа-яa-z0-9]+/g, " ")
+        .trim();
+
+    const qn = normalized(q);
+    const tokens = qn ? qn.split(/\s+/g).filter(Boolean) : [];
+
+    const scored = (EXERCISE_LIBRARY as any[])
+      .map((ex) => {
+        const name = String(ex?.name || "");
+        const nameEn = String(ex?.nameEn || "");
+        const aliases = Array.isArray(ex?.aliases) ? ex.aliases.map((a: any) => String(a || "")) : [];
+        const hay = normalized([name, nameEn, ...aliases].join(" "));
+        let score = 0;
+        if (!qn) score = 1;
+        else {
+          if (hay.includes(qn)) score += 12;
+          for (const t of tokens) if (t.length >= 2 && hay.includes(t)) score += 2;
+          if (String(ex?.id || "").toLowerCase().includes(q.trim().toLowerCase())) score += 6;
+        }
+        return { ex, score };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ ex }) => ({
+        exerciseId: String(ex.id),
+        name: String(ex.name),
+        equipment: ex.equipment ?? [],
+        patterns: ex.patterns ?? [],
+        primaryMuscles: ex.primaryMuscles ?? [],
+        kind: ex.kind ?? null,
+      }));
+
+    res.json({ ok: true, items: scored });
+  })
+);
 
 // ============================================================================
 // POST /check-in - Save daily check-in
@@ -424,107 +583,7 @@ workoutGeneration.post(
   })
 );
 
-// ============================================================================
-// HELPER: Build user profile from database
-// ============================================================================
-
-async function buildUserProfile(uid: string): Promise<UserProfile> {
-  // Get onboarding data
-  const onboardingRows = await q<{ summary: any, data: any }>(
-    `SELECT summary, data FROM onboardings WHERE user_id = $1`,
-    [uid]
-  );
-  
-  if (!onboardingRows.length) {
-    throw new AppError("Onboarding data not found. Please complete onboarding first.", 404);
-  }
-  
-  const summary = onboardingRows[0].summary;
-  const data = onboardingRows[0].data;
-  
-  // Get selected scheme
-  const schemeRows = await q<{ scheme_id: string }>(
-    `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
-    [uid]
-  );
-  
-  if (!schemeRows.length) {
-    throw new AppError("No workout scheme selected. Please select a scheme first.", 404);
-  }
-  
-  const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
-  if (!scheme) {
-    throw new AppError("Selected scheme not found", 404);
-  }
-  
-  // Extract parameters
-  const daysPerWeek = scheme.daysPerWeek;
-  const minutesPerSession = data.schedule?.minutesPerSession || 60;
-  
-  // Map experience
-  let experience: ExperienceLevel = "beginner";
-  const rawExp = data.experience?.level || data.experience || summary.experience?.level || summary.experience || "beginner";
-  const expMap: Record<string, ExperienceLevel> = {
-    never_trained: "beginner",
-    long_break: "beginner",
-    novice: "beginner",
-    training_regularly: "intermediate",
-    training_experienced: "advanced",
-  };
-  experience = (expMap[rawExp] || rawExp) as ExperienceLevel;
-  
-  // Map goal
-  const oldGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
-  const goalMap: Record<string, Goal> = {
-    lose_weight: "lose_weight",
-    build_muscle: "build_muscle",
-    athletic_body: "athletic_body",
-    lower_body_focus: "lower_body_focus",
-    strength: "strength",
-    health_wellness: "health_wellness",
-    fat_loss: "lose_weight",
-    hypertrophy: "build_muscle",
-    general_fitness: "athletic_body",
-    powerlifting: "strength",
-  };
-  const goal: Goal = goalMap[oldGoal] || "health_wellness";
-  
-  // Map equipment
-  const location = data.location?.type || summary.location || "gym";
-  const equipmentList = data.equipment?.available || [];
-  let equipment: Equipment = "gym_full";
-  
-  if (location === "gym" || equipmentList.includes("barbell") || equipmentList.includes("machines")) {
-    equipment = "gym_full";
-  } else if (equipmentList.includes("dumbbells")) {
-    equipment = "dumbbells";
-  } else {
-    equipment = "bodyweight";
-  }
-  
-  // Calculate time bucket
-  // Профессиональная логика: buckets с небольшим overlap для естественных границ
-  // 45 bucket: до 52 мин (фокус короткие тренировки)
-  // 60 bucket: 52-72 мин (стандарт для большинства)
-  // 90 bucket: 73+ мин (длинные интенсивные тренировки)
-  let timeBucket: TimeBucket = 60;
-  if (minutesPerSession < 52) timeBucket = 45;        
-  else if (minutesPerSession < 73) timeBucket = 60;   
-  else timeBucket = 90;
-  
-  // Get sex
-  const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;
-  
-  return {
-    userId: uid, // NEW: для системы прогрессии
-    experience,
-    goal,
-    daysPerWeek,
-    timeBucket,
-    equipment,
-    sex,
-  };
-}
+// buildUserProfile() moved to api/src/userProfile.ts (shared across endpoints).
 
 // ============================================================================
 // HELPER: Get workout history
@@ -1616,6 +1675,21 @@ workoutGeneration.post(
       });
     }
 
+    const payloadChangesRaw = Array.isArray(payload?.changes) ? payload.changes : [];
+    const payloadChanges = payloadChangesRaw
+      .filter((c: any) => c && typeof c === "object")
+      .slice(0, 80)
+      .map((c: any) => ({
+        action: String(c.action || ""),
+        fromExerciseId: c.fromExerciseId != null ? String(c.fromExerciseId) : null,
+        toExerciseId: c.toExerciseId != null ? String(c.toExerciseId) : null,
+        reason: c.reason != null ? String(c.reason) : null,
+        source: c.source != null ? String(c.source) : null,
+        meta: c.meta ?? null,
+        at: c.at != null ? String(c.at) : new Date().toISOString(),
+      }))
+      .filter((c: any) => c.action && ["replace", "remove", "skip", "exclude", "include"].includes(c.action));
+
 	    let progression: any = null;
 	    let progressionJobId: string | null = null;
 	    let progressionJobStatus: string | null = null;
@@ -1646,9 +1720,11 @@ workoutGeneration.post(
               SET status = 'completed',
                   result_session_id = $3,
                   completed_at = $4,
+                  plan = $5::jsonb,
+                  data = $5::jsonb,
                   updated_at = NOW()
             WHERE id = $1 AND user_id = $2`,
-          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString()]
+          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString(), JSON.stringify(payload)]
         );
       } else {
         await q(
@@ -1656,6 +1732,22 @@ workoutGeneration.post(
            VALUES ($1, $2::jsonb, $3, 'completed', $4, $5, $2::jsonb, $3)`,
           [uid, payload, finishedAt.toISOString(), sessionId, finishedAt.toISOString().slice(0, 10)]
         );
+      }
+
+      if (payloadChanges.length) {
+        for (const c of payloadChanges) {
+          await logExerciseChangeEvent({
+            userId: uid,
+            plannedWorkoutId,
+            sessionId,
+            action: c.action as any,
+            fromExerciseId: c.fromExerciseId,
+            toExerciseId: c.toExerciseId,
+            reason: c.reason,
+            source: c.source,
+            meta: { ...(c.meta ?? {}), at: c.at },
+          });
+        }
       }
 
       // NEW: Outbox job for progression (eventual consistency)

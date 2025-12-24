@@ -397,6 +397,64 @@ async function applyCoachChatMigration() {
   }
 }
 
+/**
+ * Ensures user exercise preferences (excluded exercises) and change event log.
+ */
+async function applyExerciseChangesMigration() {
+  try {
+    console.log("\n🔧 Checking exercise changes migration...");
+
+    // User-level preferences
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS excluded_exercise_ids text[] NOT NULL DEFAULT '{}';
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_excluded_exercises_gin
+      ON users USING GIN (excluded_exercise_ids);
+    `);
+
+    // Planned workouts compatibility: many parts of the app rely on these columns existing.
+    await pool.query(`ALTER TABLE planned_workouts ADD COLUMN IF NOT EXISTS data jsonb NULL;`);
+    await pool.query(`ALTER TABLE planned_workouts ADD COLUMN IF NOT EXISTS workout_date date NULL;`);
+    await pool.query(`ALTER TABLE planned_workouts ADD COLUMN IF NOT EXISTS completed_at timestamptz NULL;`);
+
+    // Event log for all manual changes (replace/remove/skip/exclude).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exercise_change_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        planned_workout_id uuid NULL REFERENCES planned_workouts(id) ON DELETE SET NULL,
+        session_id uuid NULL REFERENCES workout_sessions(id) ON DELETE SET NULL,
+        action text NOT NULL,
+        from_exercise_id text NULL,
+        to_exercise_id text NULL,
+        reason text NULL,
+        source text NULL,
+        meta jsonb NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercise_change_events_user_time
+      ON exercise_change_events(user_id, created_at DESC);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercise_change_events_planned
+      ON exercise_change_events(planned_workout_id, created_at DESC);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_exercise_change_events_session
+      ON exercise_change_events(session_id, created_at DESC);
+    `);
+
+    console.log("✅ exercise changes schema ensured\n");
+  } catch (error: any) {
+    console.error("❌ exercise changes migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
@@ -404,6 +462,7 @@ async function applyCoachChatMigration() {
     await applyProgressionJobsMigration();
     await applyExerciseHistorySessionIdMigration();
     await applyPlannedWorkoutsBasePlanMigration();
+    await applyExerciseChangesMigration();
     await applyCoachJobsMigration();
     await applyCoachChatMigration();
   } catch (error) {
