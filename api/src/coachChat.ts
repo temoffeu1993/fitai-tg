@@ -600,8 +600,9 @@ export async function sendCoachChatMessage(args: {
     };
   }
 
-  const model = String(process.env.COACH_CHAT_MODEL || "gpt-5-mini");
-  const isMiniModel = /mini/i.test(model);
+  const modelPrimary = String(process.env.COACH_CHAT_MODEL || "gpt-5-mini");
+  const modelFallback = String(process.env.COACH_CHAT_FALLBACK_MODEL || "gpt-5.2");
+  const isMiniModel = /mini/i.test(modelPrimary);
   const maxOutputTokens = (() => {
     const v = Number(process.env.COACH_CHAT_MAX_OUTPUT_TOKENS);
     if (Number.isFinite(v) && v > 0) return Math.round(v);
@@ -613,14 +614,26 @@ export async function sendCoachChatMessage(args: {
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  const call1 = await createJsonObjectResponse({
-    client: openai as any,
-    model,
-    instructions,
-    messages: [...baseMessages, { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) }],
-    temperature: 0.7,
-    maxOutputTokens,
-  });
+  const userPrompt = buildUserPrompt({ question: message, context, focus, historyBrief });
+
+  const callModel = async (model: string, temperature: number, maxOutputTokens: number) => {
+    return createJsonObjectResponse({
+      client: openai as any,
+      model,
+      instructions,
+      messages: [...baseMessages, { role: "user", content: userPrompt }],
+      temperature,
+      maxOutputTokens,
+    });
+  };
+
+  let model = modelPrimary;
+  let call1 = await callModel(modelPrimary, 0.7, maxOutputTokens);
+  // gpt-5-mini has been observed returning empty output in some environments; fallback to a reliable model.
+  if (!String(call1.jsonText || "").trim() && modelPrimary !== modelFallback) {
+    model = modelFallback;
+    call1 = await callModel(modelFallback, 0.7, maxOutputTokens);
+  }
 
   const raw = call1.jsonText || "";
   const parsed = safeJsonParse(raw);
