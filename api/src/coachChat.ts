@@ -493,6 +493,25 @@ function questionMentionsLastWorkout(q: string): boolean {
   return /последн|сегодня|этатрен|посмотритренировку|проанализирутрен|разбортрен/.test(s);
 }
 
+function estimateTokensFromChars(charCount: number): number {
+  // Very rough rule-of-thumb for English/Russian mixed text.
+  return Math.max(0, Math.round(charCount / 4));
+}
+
+function countWorkoutStats(workouts: any[]) {
+  let exercises = 0;
+  let sets = 0;
+  for (const w of workouts) {
+    const exs = Array.isArray(w?.workout?.exercises) ? w.workout.exercises : [];
+    exercises += exs.length;
+    for (const ex of exs) {
+      const s = Array.isArray(ex?.sets) ? ex.sets : [];
+      sets += s.length;
+    }
+  }
+  return { exercises, sets };
+}
+
 export async function getCoachChatHistoryForUser(userId: string, limit = 40): Promise<ChatMessage[]> {
   const threadId = await getOrCreateThreadId(userId);
   return getChatHistory(threadId, limit);
@@ -514,6 +533,33 @@ export async function sendCoachChatMessage(args: {
   const contextRef = makeContextRef(context);
   const focus = buildFocusContext({ question: message, context });
   const historyBrief = makeHistoryBrief(history);
+  const userPrompt = buildUserPrompt({ question: message, context, focus, historyBrief });
+
+  if (process.env.AI_PROMPT_DEBUG === "1") {
+    const contextStr = JSON.stringify(context);
+    const focusStr = JSON.stringify(focus);
+    const historyBriefStr = JSON.stringify(historyBrief);
+    const { exercises, sets } = countWorkoutStats(Array.isArray(context?.workouts) ? context.workouts : []);
+    console.log("[COACH_CHAT][prompt_debug]", {
+      workouts: Array.isArray(context?.workouts) ? context.workouts.length : 0,
+      checkins: Array.isArray(context?.checkins) ? context.checkins.length : 0,
+      historyMsgs: Array.isArray(history) ? history.length : 0,
+      exercises,
+      sets,
+      chars: {
+        context: contextStr.length,
+        focus: focusStr.length,
+        historyBrief: historyBriefStr.length,
+        userPrompt: userPrompt.length,
+      },
+      estTokens: {
+        context: estimateTokensFromChars(contextStr.length),
+        focus: estimateTokensFromChars(focusStr.length),
+        historyBrief: estimateTokensFromChars(historyBriefStr.length),
+        userPrompt: estimateTokensFromChars(userPrompt.length),
+      },
+    });
+  }
 
   if (process.env.AI_LOG_CONTENT === "1") {
     console.log("[COACH_CHAT][content] question:", message);
@@ -564,7 +610,7 @@ export async function sendCoachChatMessage(args: {
     client: openai as any,
     model,
     instructions,
-    messages: [...baseMessages, { role: "user", content: buildUserPrompt({ question: message, context, focus, historyBrief }) }],
+    messages: [...baseMessages, { role: "user", content: userPrompt }],
     temperature: 0.7,
     maxOutputTokens: 1200,
   });
