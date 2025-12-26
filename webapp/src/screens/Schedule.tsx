@@ -23,13 +23,13 @@ const dayLabelRU = (label: string) => {
 
 const dayCodeShort = (label: string) => {
   const v = String(label || "").toLowerCase();
-  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "push";
-  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "pull";
-  if (v.includes("leg") || v.includes("ног")) return "legs";
-  if (v.includes("upper") || v.includes("верх")) return "upper";
-  if (v.includes("lower") || v.includes("низ")) return "lower";
-  if (v.includes("full")) return "full";
-  if (v.includes("recovery") || v.includes("восстанов")) return "recovery";
+  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "жим";
+  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "тяга";
+  if (v.includes("leg") || v.includes("ног")) return "ноги";
+  if (v.includes("upper") || v.includes("верх")) return "верх";
+  if (v.includes("lower") || v.includes("низ")) return "низ";
+  if (v.includes("full")) return "всё";
+  if (v.includes("recovery") || v.includes("восстанов")) return "восст";
   return "";
 };
 
