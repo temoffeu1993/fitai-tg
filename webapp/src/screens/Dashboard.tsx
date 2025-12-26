@@ -729,8 +729,8 @@ const s: Record<string, React.CSSProperties> = {
   ctaMain: {
     borderRadius: 16,
     padding: "18px 18px",
-    fontSize: 24,
-    lineHeight: 1.1,
+    fontSize: "clamp(22px, 6vw, 28px)",
+    lineHeight: 1.12,
     fontWeight: 900,
     color: "#000",
     background: "rgba(255, 255, 255, 1)",
@@ -739,7 +739,11 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     width: "100%",
     textAlign: "center",
-    textTransform: "uppercase",
+    textTransform: "none",
+    letterSpacing: "normal",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
     alignSelf: "center",
   },
 
