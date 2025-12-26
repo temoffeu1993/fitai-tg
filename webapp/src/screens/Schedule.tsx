@@ -839,13 +839,42 @@ function PlanPreviewModal({
       }}
     >
       <div style={cardStyle}>
+        <style>{`
+          .schedule-checkin-btn{
+            border-radius:16px;
+            padding:16px 18px;
+            width:100%;
+            border:1px solid #0f172a;
+            background:#0f172a;
+            color:#fff;
+            font-weight:800;
+            font-size:17px;
+            cursor:pointer;
+            box-shadow:0 8px 16px rgba(0,0,0,0.16);
+            -webkit-tap-highlight-color:transparent;
+            touch-action:manipulation;
+            user-select:none;
+            transition:transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+          }
+          .schedule-checkin-btn:active:not(:disabled){
+            transform:translateY(1px) scale(0.99);
+            background-color:#0b1220;
+            box-shadow:0 6px 12px rgba(0,0,0,0.14);
+            filter:brightness(0.99);
+          }
+          @media (hover:hover){
+            .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
+          }
+          .schedule-checkin-btn:focus-visible{
+            outline:3px solid rgba(15, 23, 42, 0.18);
+            outline-offset:2px;
+          }
+        `}</style>
         <div style={modalStyles.topRow}>
           <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
             ✕
           </button>
         </div>
-        <div style={modalStyles.title}>{plan.title || "Тренировка"}</div>
-        <div style={modalStyles.subtitle}>Выбери дату и время, чтобы запланировать тренировку</div>
         {/* Дата/время карточка */}
         <div style={modalStyles.dateTimeCard}>
           {!isEditing ? (
@@ -892,7 +921,12 @@ function PlanPreviewModal({
                   style={modalStyles.dateTimeInput}
                 />
               </div>
-              <button style={modalStyles.saveEditBtn} onClick={handleSaveEdit} type="button">
+              <button
+                className="schedule-checkin-btn"
+                style={modalStyles.saveEditBtn}
+                onClick={handleSaveEdit}
+                type="button"
+              >
                 Сохранить изменения
               </button>
             </div>
@@ -905,6 +939,7 @@ function PlanPreviewModal({
         <div style={modalStyles.actions}>
           <button
             type="button"
+            className="schedule-checkin-btn"
             style={modalStyles.startBtn}
             onClick={onStart}
             disabled={saving || workout.status === "completed"}
@@ -1534,16 +1569,17 @@ const modalStyles: Record<string, CSSProperties> = {
   // Сам блок модала
   card: {
     width: "min(92vw, 460px)",
-    maxHeight: "90vh",
+    maxHeight: "72vh",
     overflowY: "auto",
     overflowX: "hidden",
-    background: "var(--tg-theme-bg-color, #f5f6fb)",
+    backgroundColor: "var(--tg-theme-bg-color, #f5f6fb)",
+    backgroundImage: "var(--app-gradient)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
     borderRadius: 20,
     display: "grid",
-    gap: 12,
-    padding: "14px 16px 16px",
+    gap: 10,
+    padding: "12px 14px 14px",
   },
 
   topRow: { display: "flex", justifyContent: "flex-end" },
@@ -1557,8 +1593,6 @@ const modalStyles: Record<string, CSSProperties> = {
     padding: 6,
     borderRadius: 10,
   },
-  title: { fontSize: 18, fontWeight: 800, color: "#111", lineHeight: 1.15 },
-  subtitle: { marginTop: -6, fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)" },
 
   // ===== Дата/время блок (как было) =====
   dateTimeDisplay: {
@@ -1585,14 +1619,6 @@ const modalStyles: Record<string, CSSProperties> = {
   },
   dateTimeEdit: { display: "grid", gap: 10 },
   saveEditBtn: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    fontSize: 14,
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
-    color: "#fff",
-    cursor: "pointer",
     marginTop: 4,
   },
 
@@ -1657,19 +1683,7 @@ const modalStyles: Record<string, CSSProperties> = {
   // Низ модала — кнопки
   actions: { marginTop: 6, display: "grid", gap: 8 },
 
-  // «Начать тренировку» — стекло + фон как кнопки пролистывания месяца
-  startBtn: {
-  background: "#ffffffff",
-  border: "1px solid rgba(0,0,0,0.08)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  backdropFilter: "blur(8px)",
-  borderRadius: 14,
-  padding: "14px",
-  fontWeight: 800,
-  fontSize: 15,
-  color: "#000000ff",
-  cursor: "pointer",
-  },
+  startBtn: {},
   deleteBtn: {
     border: "none",
     borderRadius: 14,
