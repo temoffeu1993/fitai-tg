@@ -708,13 +708,7 @@ function PlanPreviewModal({
   onTimeChange: (value: string) => void;
   onSave: () => void;
 }) {
-  const plan = workout.plan || {};
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
-
-  // Новое состояние для редактирования
-  const [isEditing, setIsEditing] = useState(false);
-  const [editDate, setEditDate] = useState(date);
-  const [editTime, setEditTime] = useState(time);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMotion("open"));
@@ -726,23 +720,6 @@ function PlanPreviewModal({
     setMotion("closing");
     window.setTimeout(() => onClose(), 160);
   }, [motion, onClose]);
-
-  const handleEditToggle = () => {
-    if (workout.status === "completed") return;
-    setIsEditing(!isEditing);
-    if (!isEditing) {
-      setEditDate(date);
-      setEditTime(time);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    const when = parseLocalDateTime(editDate, editTime);
-    if (!when) return;
-    onDateChange(editDate);
-    onTimeChange(editTime);
-    setIsEditing(false);
-  };
 
   const wrapStyle: CSSProperties = {
     ...modalStyles.wrap,
@@ -800,68 +777,41 @@ function PlanPreviewModal({
             outline-offset:2px;
           }
         `}</style>
-        <div style={modalStyles.topRow}>
-          <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
-            ✕
-          </button>
-        </div>
-        {/* Дата/время карточка */}
-        <div style={modalStyles.dateTimeCard}>
-          {!isEditing ? (
-            <div style={modalStyles.dateTimeDisplay}>
-              <div style={modalStyles.dateTimeInfo}>
-                <div style={modalStyles.dateTimeRow}>
-                  <span style={modalStyles.dateTimeIcon}>📅</span>
-                  <span style={modalStyles.dateTimeText}>
-                    {new Date(date).toLocaleDateString("ru-RU", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                  </span>
-                </div>
-                <div style={modalStyles.dateTimeRow}>
-                  <span style={modalStyles.dateTimeIcon}>🕐</span>
-                  <span style={modalStyles.dateTimeText}>{time}</span>
-                </div>
-              </div>
-              {workout.status !== "completed" && (
-                <button style={modalStyles.editBtn} onClick={handleEditToggle} type="button">
-                  ✏️
-                </button>
-              )}
-            </div>
-          ) : (
-            <div style={modalStyles.dateTimeEdit}>
-              <div style={modalStyles.dateTimeRow}>
-                <span style={modalStyles.dateTimeIcon}>📅</span>
-                <input
-                  type="date"
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  style={modalStyles.dateTimeInput}
-                />
-              </div>
-              <div style={modalStyles.dateTimeRow}>
-                <span style={modalStyles.dateTimeIcon}>🕐</span>
-                <input
-                  type="time"
-                  value={editTime}
-                  onChange={(e) => setEditTime(e.target.value)}
-                  style={modalStyles.dateTimeInput}
-                />
-              </div>
-              <button
-                className="schedule-checkin-btn"
-                style={modalStyles.saveEditBtn}
-                onClick={handleSaveEdit}
-                type="button"
-              >
-                Сохранить изменения
-              </button>
-            </div>
-          )}
-        </div>
+	        <div style={modalStyles.topRow}>
+	          <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
+	            ✕
+	          </button>
+	        </div>
+	        <div style={modalStyles.dtRow}>
+	          <div style={modalStyles.dtChip}>
+	            <div style={modalStyles.dtChipLabel}>Дата</div>
+	            <div style={modalStyles.dtChipValue}>
+	              {new Date(date).toLocaleDateString("ru-RU", {
+	                weekday: "short",
+	                day: "numeric",
+	                month: "short",
+	              })}
+	            </div>
+	            <input
+	              type="date"
+	              value={date}
+	              onChange={(e) => onDateChange(e.target.value)}
+	              style={modalStyles.dtInputOverlay}
+	              aria-label="Выбрать дату"
+	            />
+	          </div>
+	          <div style={modalStyles.dtChip}>
+	            <div style={modalStyles.dtChipLabel}>Время</div>
+	            <div style={modalStyles.dtChipValue}>{time}</div>
+	            <input
+	              type="time"
+	              value={time}
+	              onChange={(e) => onTimeChange(e.target.value)}
+	              style={modalStyles.dtInputOverlay}
+	              aria-label="Выбрать время"
+	            />
+	          </div>
+	        </div>
 
         {error && <div style={modalStyles.error}>{error}</div>}
 
@@ -1499,14 +1449,15 @@ const modalStyles: Record<string, CSSProperties> = {
     maxHeight: "72vh",
     overflowY: "auto",
     overflowX: "hidden",
-    backgroundColor: "var(--tg-theme-bg-color, #f5f6fb)",
-    backgroundImage: "var(--app-gradient)",
+    background: "rgba(255,255,255,0.62)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
     borderRadius: 20,
     display: "grid",
     gap: 10,
     padding: "12px 14px 14px",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
   },
 
   topRow: { display: "flex", justifyContent: "flex-end" },
@@ -1521,57 +1472,31 @@ const modalStyles: Record<string, CSSProperties> = {
     borderRadius: 10,
   },
 
-  // ===== Дата/время блок (как было) =====
-  dateTimeDisplay: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  dateTimeInfo: { flex: 1, display: "grid", gap: 10 },
-  dateTimeText: { flex: 1, fontSize: 15, fontWeight: 600, color: "#1b1b1b" },
-  editBtn: {
-  background: "rgba(255,255,255,0.6)",
-  border: "1px solid rgba(0,0,0,0.08)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  backdropFilter: "blur(8px)",
-  width: 40,
-  height: 40,
-  borderRadius: 12,
-  fontSize: 18,
-  cursor: "pointer",
-  display: "grid",
-  placeItems: "center",
-  flexShrink: 0,
-  },
-  dateTimeEdit: { display: "grid", gap: 10 },
-  saveEditBtn: {
-    marginTop: 4,
-  },
-
-  // Дата/время карточка
-  dateTimeCard: {
-    background: "rgba(255, 255, 255, 0.85)",
+  dtRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+  dtChip: {
+    position: "relative",
+    borderRadius: 14,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.6)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    borderRadius: 14,
-    padding: 12,
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     display: "grid",
-    gap: 10,
+    gap: 6,
+    minHeight: 58,
   },
-  dateTimeRow: { display: "flex", alignItems: "center", gap: 10 },
-  dateTimeIcon: { fontSize: 18, flexShrink: 0 },
-  dateTimeInput: {
-    flex: 1,
+  dtChipLabel: { fontSize: 11, fontWeight: 700, color: "rgba(17,24,39,0.65)" },
+  dtChipValue: { fontSize: 15, fontWeight: 800, color: "#0f172a", lineHeight: 1.1 },
+  dtInputOverlay: {
+    position: "absolute",
+    inset: 0,
+    opacity: 0,
+    width: "100%",
+    height: "100%",
+    cursor: "pointer",
     border: "none",
-    background: "#fff",
-    borderRadius: 10,
-    padding: "10px 12px",
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1b1b1b",
-    fontFamily: "inherit",
-    boxShadow: "0 2px 8px rgba(0,0,0,.06)",
+    background: "transparent",
   },
 
   // Секция упражнений
@@ -1598,7 +1523,6 @@ const modalStyles: Record<string, CSSProperties> = {
 
   // Ошибка
   error: {
-    margin: "0 16px",
     background: "rgba(255,102,102,.12)",
     color: "#d32f2f",
     fontSize: 12,
