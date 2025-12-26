@@ -2040,7 +2040,7 @@ function PlannedExercisesEditor({
                             disabled={loading}
                             onClick={() => void applyReplace(a.exerciseId)}
                           >
-                            <div style={{ fontWeight: 900 }}>{a.name}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#0B1220" }}>{a.name}</div>
                           </button>
                         ))}
                         <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
