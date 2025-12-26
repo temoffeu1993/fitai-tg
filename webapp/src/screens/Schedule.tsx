@@ -721,11 +721,10 @@ function PlanPreviewModal({
     window.setTimeout(() => onClose(), 160);
   }, [motion, onClose]);
 
-  const wrapStyle: CSSProperties = {
-    ...modalStyles.wrap,
-    background: motion === "open" ? "rgba(0,0,0,.4)" : "rgba(0,0,0,0)",
-    transition: "background 180ms ease",
-  };
+	  const wrapStyle: CSSProperties = {
+	    ...modalStyles.wrap,
+	    background: "rgba(0,0,0,0)",
+	  };
 
   const cardStyle: CSSProperties = {
     ...modalStyles.card,
@@ -746,32 +745,32 @@ function PlanPreviewModal({
       }}
     >
       <div style={cardStyle}>
-        <style>{`
-          .schedule-checkin-btn{
-            border-radius:16px;
-            padding:16px 18px;
-            width:100%;
-            border:1px solid #0f172a;
-            background:#0f172a;
-            color:#fff;
-            font-weight:800;
-            font-size:17px;
-            cursor:pointer;
-            box-shadow:0 8px 16px rgba(0,0,0,0.16);
-            -webkit-tap-highlight-color:transparent;
-            touch-action:manipulation;
-            user-select:none;
-            transition:transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
-          }
-          .schedule-checkin-btn:active:not(:disabled){
-            transform:translateY(1px) scale(0.99);
-            background-color:#0b1220;
-            box-shadow:0 6px 12px rgba(0,0,0,0.14);
-            filter:brightness(0.99);
-          }
-          @media (hover:hover){
-            .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
-          }
+	        <style>{`
+	          .schedule-checkin-btn{
+	            border-radius:16px;
+	            padding:16px 18px;
+	            width:100%;
+	            border:1px solid #0f172a;
+	            background:#0f172a;
+	            color:#fff;
+	            font-weight:800;
+	            font-size:17px;
+	            cursor:pointer;
+	            box-shadow:0 8px 16px rgba(0,0,0,0.16);
+	            -webkit-tap-highlight-color:transparent;
+	            touch-action:manipulation;
+	            user-select:none;
+	            transition:transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+	          }
+	          .schedule-checkin-btn:active:not(:disabled){
+	            transform:translateY(1px) scale(0.99) !important;
+	            background-color:#0b1220 !important;
+	            box-shadow:0 6px 12px rgba(0,0,0,0.14) !important;
+	            filter:brightness(0.99) !important;
+	          }
+	          @media (hover:hover){
+	            .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
+	          }
           .schedule-checkin-btn:focus-visible{
             outline:3px solid rgba(15, 23, 42, 0.18);
             outline-offset:2px;
@@ -1487,7 +1486,7 @@ const modalStyles: Record<string, CSSProperties> = {
     minHeight: 58,
   },
   dtChipLabel: { fontSize: 11, fontWeight: 700, color: "rgba(17,24,39,0.65)" },
-  dtChipValue: { fontSize: 15, fontWeight: 800, color: "#0f172a", lineHeight: 1.1 },
+  dtChipValue: { fontSize: 12, fontWeight: 500, color: "#0B1220", lineHeight: 1.1 },
   dtInputOverlay: {
     position: "absolute",
     inset: 0,
