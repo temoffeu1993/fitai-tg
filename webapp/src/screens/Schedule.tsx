@@ -905,7 +905,7 @@ function PlanPreviewModal({
 	              onClick={onStart}
 	              disabled={saving || readOnly}
 	            >
-	              Начать тренировку
+	              🏁 Начать тренировку
 	            </button>
 	          ) : (
 	            <button
