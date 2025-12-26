@@ -1781,7 +1781,11 @@ function PlannedExercisesEditor({
     // Attach the menu right under the dots button (minimal gap) to feel like it "unfolds" from it.
     const desiredTop = r ? r.top + r.height + 2 : 120;
     const right = r ? Math.max(pad, window.innerWidth - (r.left + r.width)) : pad;
-    const top = Math.max(pad, Math.min(window.innerHeight - 420 - pad, desiredTop));
+    const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
+    const wouldOverflowBottom = desiredTop + estimatedHeight > window.innerHeight - pad;
+    const top = wouldOverflowBottom && r
+      ? Math.max(pad, r.top - estimatedHeight - 2)
+      : Math.max(pad, desiredTop);
     return {
       position: "fixed",
       right,
@@ -1797,7 +1801,16 @@ function PlannedExercisesEditor({
     border: "1px solid rgba(0,0,0,0.10)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
     padding: 8,
-    transformOrigin: "top right",
+    transformOrigin: (() => {
+      if (typeof window === "undefined") return "top right";
+      const r = anchorRect;
+      if (!r) return "top right";
+      const desiredTop = r.top + r.height + 2;
+      const pad = 12;
+      const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
+      const wouldOverflowBottom = desiredTop + estimatedHeight > window.innerHeight - pad;
+      return wouldOverflowBottom ? "bottom right" : "top right";
+    })(),
     transform: popoverVisible ? "scaleY(1)" : "scaleY(0)",
     opacity: popoverVisible ? 1 : 0,
     transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
@@ -1827,7 +1840,8 @@ function PlannedExercisesEditor({
     ...actionBtn,
     background: "transparent",
     boxShadow: "none",
-    border: "1px solid rgba(0,0,0,0.08)",
+    border: "none",
+    padding: "10px 12px",
     fontWeight: 500,
   };
   const subTitle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#0B1220" };
