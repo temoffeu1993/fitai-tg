@@ -589,9 +589,7 @@ export default function PlanOne() {
     return dayLabelRU(rawLabel);
   })();
 
-  const startCtaLabel = canStart && selectedDayLabel
-    ? `Начать ${decapitalizeRU(selectedDayLabel)}`
-    : "Начать тренировку";
+  const startCtaLabel = "Начать тренировку";
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
@@ -632,10 +630,8 @@ export default function PlanOne() {
           <span style={s.pill}>{heroDateChip}</span>
           <span style={s.credits}>{weekChip}</span>
         </div>
-        <div style={s.heroTitle}>План на неделю готов</div>
-        <div style={s.heroSubtitle}>
-          Выбери тренировку из списка ниже и приступай к выполнению
-        </div>
+        <div style={s.heroTitle}>Выбери тренировку</div>
+        <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
         <div style={s.heroCtas}>
           <button
@@ -655,18 +651,7 @@ export default function PlanOne() {
           </button>
         </div>
 
-        <button
-          type="button"
-          style={{
-            ...s.ghostBtn,
-            opacity: weekGenerating ? 0.6 : 1,
-            cursor: weekGenerating ? "not-allowed" : "pointer",
-          }}
-          disabled={weekGenerating}
-          onClick={handleGenerateWeek}
-        >
-          Сгенерировать заново
-        </button>
+        {/* regenerate button removed by request */}
       </section>
 
       {remainingPlanned.length ? (
@@ -823,23 +808,7 @@ export default function PlanOne() {
         </button>
       </div>
 
-      <button
-        type="button"
-        style={{
-          ...s.ghostBtn,
-          opacity: regenButtonDisabled ? 0.6 : 1,
-          cursor: regenButtonDisabled ? "not-allowed" : "pointer",
-        }}
-        disabled={regenButtonDisabled}
-        onClick={handleRegenerate}
-      >
-        {regenButtonLabel}
-      </button>
-      {regenNotice ? (
-        <div style={s.buttonNote}>{regenNotice}</div>
-      ) : regenInlineError ? (
-        <div style={s.inlineError}>{regenInlineError}</div>
-      ) : null}
+      {/* regenerate button removed by request */}
       </section>
 
       {/* Чипы в фирменном стиле под верхним блоком */}
