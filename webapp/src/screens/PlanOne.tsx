@@ -1773,6 +1773,7 @@ function PlannedExercisesEditor({
     padding: "6px 10px",
     cursor: "pointer",
     fontWeight: 800,
+    color: "#0B1220",
     lineHeight: 1,
   };
   const overlay: React.CSSProperties = {
