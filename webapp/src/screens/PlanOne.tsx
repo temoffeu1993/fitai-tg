@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { loadHistory } from "@/lib/history";
 import {
   createPlannedWorkout,
@@ -1601,9 +1602,8 @@ function PlannedExercisesEditor({
   const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_ban">("menu");
-  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number } | null>(
-    null
-  );
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1613,18 +1613,14 @@ function PlannedExercisesEditor({
     setErr(null);
     setMode("menu");
     setMenuIndex(idx);
-    try {
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-      }
-    } catch {}
+    setAnchorEl(el ?? null);
   };
 
   const closeImmediate = () => {
     setPopoverVisible(false);
     setMenuIndex(null);
     setMode("menu");
+    setAnchorEl(null);
     setAnchorRect(null);
     setAlts([]);
     setLoading(false);
@@ -1641,17 +1637,30 @@ function PlannedExercisesEditor({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
-    const onScroll = () => close();
-    const onResize = () => close();
+    const update = () => {
+      try {
+        if (anchorEl) setAnchorRect(anchorEl.getBoundingClientRect());
+      } catch {}
+    };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
     };
-  }, [menuIndex]);
+  }, [menuIndex, anchorEl]);
+
+  useLayoutEffect(() => {
+    if (menuIndex == null) {
+      setAnchorRect(null);
+      return;
+    }
+    try {
+      if (anchorEl) setAnchorRect(anchorEl.getBoundingClientRect());
+    } catch {}
+  }, [menuIndex, mode, anchorEl]);
 
   useEffect(() => {
     if (menuIndex == null) {
@@ -1772,37 +1781,30 @@ function PlannedExercisesEditor({
     background: "transparent",
     zIndex: 80,
   };
+  const pad = 12;
+  const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
+  const openUpward =
+    typeof window !== "undefined" &&
+    !!anchorRect &&
+    anchorRect.top + anchorRect.height + 2 + estimatedHeight > window.innerHeight - pad;
+  const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
   const popover: React.CSSProperties = (() => {
-    const pad = 12;
-    if (typeof window === "undefined") {
-      return { position: "fixed", left: pad, top: 120, width: "max-content" };
-    }
+    if (typeof window === "undefined") return { position: "fixed", left: pad, top: 120 };
     const r = anchorRect;
-    const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
-    const desiredBottomTop = r ? r.top + r.height + 2 : 120;
-    const desiredTopTop = r ? r.top - 2 : 120;
-    const openUpward = Boolean(r) && desiredBottomTop + estimatedHeight > window.innerHeight - pad;
-    const top = openUpward ? Math.max(pad, desiredTopTop) : Math.max(pad, desiredBottomTop);
-    const rightEdge = r ? r.left + r.width : pad;
-    const left = Math.max(pad, Math.min(window.innerWidth - pad, rightEdge));
+    const left = r ? r.left + r.width : pad;
+    const top = r
+      ? openUpward
+        ? r.top - 2
+        : r.top + r.height + 2
+      : 120;
     return {
       position: "fixed",
-      top,
       left,
+      top,
       width: "max-content",
       maxWidth: `calc(100vw - ${pad * 2}px)`,
     };
   })();
-  const openUpward = (() => {
-    if (typeof window === "undefined") return false;
-    const r = anchorRect;
-    if (!r) return false;
-    const pad = 12;
-    const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
-    const desiredBottomTop = r.top + r.height + 2;
-    return desiredBottomTop + estimatedHeight > window.innerHeight - pad;
-  })();
-  const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
   const sheet: React.CSSProperties = {
     ...popover,
     background: "#fff",
@@ -1815,6 +1817,7 @@ function PlannedExercisesEditor({
     opacity: popoverVisible ? 1 : 0,
     transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
     overflow: "hidden",
+    zIndex: 81,
   };
   const actionBtn: React.CSSProperties = {
     width: "100%",
@@ -1893,80 +1896,86 @@ function PlannedExercisesEditor({
       })}
 
       {menuIndex != null ? (
-        <div style={overlay} onClick={close} role="dialog" aria-modal="true">
-          <div style={sheet} onClick={(e) => e.stopPropagation()}>
-            {err ? (
-              <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
-                {err}
-              </div>
-            ) : null}
-
-            {mode === "menu" ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
-                  Заменить
-                </button>
-                <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
-                  Удалить
-                </button>
-                <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
-                  Заблокировать
-                </button>
-              </div>
-            ) : null}
-
-            {mode === "confirm_remove" ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={subText}>Удалить упражнение из этого плана?</div>
-                <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
-                  Да, удалить
-                </button>
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                  Назад
-                </button>
-              </div>
-            ) : null}
-
-            {mode === "confirm_ban" ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={subText}>Убрать упражнение из будущих генераций?</div>
-                <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
-                  Да, больше не предлагать
-                </button>
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                  Назад
-                </button>
-              </div>
-            ) : null}
-
-            {mode === "replace" ? (
-              <div style={{ display: "grid", gap: 8, maxHeight: 420, overflow: "auto" }}>
-                <div style={subTitle}>Выбери замену</div>
-                {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
-                {alts.map((a) => (
-                  <button
-                    key={a.exerciseId}
-                    type="button"
-                    style={actionBtn}
-                    disabled={loading}
-                    onClick={() => void applyReplace(a.exerciseId)}
-                  >
-                    <div style={{ fontWeight: 900 }}>{a.name}</div>
-                    <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
-                      {a.hint || ""}
-                      {typeof a.suggestedWeight === "number" && Number.isFinite(a.suggestedWeight) && a.suggestedWeight > 0
-                        ? ` • реком. ${a.suggestedWeight} кг`
-                        : ""}
+        typeof document !== "undefined"
+          ? createPortal(
+              <>
+                <div style={overlay} onClick={close} role="presentation" />
+                <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                  {err ? (
+                    <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
+                      {err}
                     </div>
-                  </button>
-                ))}
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                  Назад
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
+                  ) : null}
+
+                  {mode === "menu" ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
+                        Заменить
+                      </button>
+                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
+                        Удалить
+                      </button>
+                      <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
+                        Заблокировать
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {mode === "confirm_remove" ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={subText}>Удалить упражнение из этого плана?</div>
+                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
+                        Да, удалить
+                      </button>
+                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                        Назад
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {mode === "confirm_ban" ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <div style={subText}>Убрать упражнение из будущих генераций?</div>
+                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
+                        Да, больше не предлагать
+                      </button>
+                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                        Назад
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {mode === "replace" ? (
+                    <div style={{ display: "grid", gap: 8, maxHeight: 420, overflow: "auto" }}>
+                      <div style={subTitle}>Выбери замену</div>
+                      {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
+                      {alts.map((a) => (
+                        <button
+                          key={a.exerciseId}
+                          type="button"
+                          style={actionBtn}
+                          disabled={loading}
+                          onClick={() => void applyReplace(a.exerciseId)}
+                        >
+                          <div style={{ fontWeight: 900 }}>{a.name}</div>
+                          <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                            {a.hint || ""}
+                            {typeof a.suggestedWeight === "number" && Number.isFinite(a.suggestedWeight) && a.suggestedWeight > 0
+                              ? ` • реком. ${a.suggestedWeight} кг`
+                              : ""}
+                          </div>
+                        </button>
+                      ))}
+                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
+                        Назад
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </>,
+              document.body
+            )
+          : null
       ) : null}
     </div>
   );
