@@ -358,11 +358,13 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 	              const items = plannedByDate[key] || [];
 	              const isToday = sameDate(day, today);
 	              const hasCompleted = items.some((w) => w.status === "completed");
+	              const completedItem = items.find((w) => w.status === "completed");
 	              const scheduledItem = items.find((w) => w.status === "scheduled");
 	              const primaryPlanned = scheduledItem ?? items[0] ?? null;
 	              const plannedTag = (() => {
-	                if (!scheduledItem) return "";
-	                const p: any = scheduledItem.plan || {};
+	                const tagItem = scheduledItem ?? completedItem;
+	                if (!tagItem) return "";
+	                const p: any = tagItem.plan || {};
 	                const raw = String(p.dayLabel || p.title || ""); 
 	                return dayCodeShort(raw);
 	              })();
@@ -398,7 +400,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 	                  onClick={() => openDate(day)}
 	                >
 	                  <div style={cal.dateNum}>{day.getDate()}</div>
-	                  {cellState === "planned" && plannedTag ? (
+	                  {(cellState === "planned" || cellState === "completed") && plannedTag ? (
 	                    <div style={cal.workoutTag}>{plannedTag}</div>
 	                  ) : null}
 	                  {showTime && timeStyle && (
@@ -1288,11 +1290,11 @@ const cal: Record<string, CSSProperties> = {
   },
   dateNum: { fontSize: 13, fontWeight: 800, color: "#111" },
   workoutTag: {
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: "rgba(11,18,32,0.55)",
+    fontSize: 11,
+    fontWeight: 400,
+    letterSpacing: 0.2,
+    textTransform: "none",
+    color: "rgba(0,0,0,.75)",
     marginTop: -2,
     pointerEvents: "none",
   },
