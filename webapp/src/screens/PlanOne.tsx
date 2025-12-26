@@ -226,6 +226,11 @@ export default function PlanOne() {
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const [paywall, setPaywall] = useState(false);
   const effectivePlan = needsCheckIn ? null : plan;
+
+  // When there are no planned workouts, we immediately show the loader while the auto-generation effect kicks in.
+  // This avoids a UI "flash" where the user briefly sees the empty-state button after navigating from dashboard.
+  const shouldAutoGenerateWeek =
+    !plannedLoading && !weekGenerating && remainingPlanned.length === 0 && !sub.locked && !initialPlanRequested;
   
   // Формируем понятное название тренировки на русском
   const planTitle = useMemo(() => {
@@ -401,7 +406,7 @@ export default function PlanOne() {
     }
   };
 
-  if (plannedLoading || weekGenerating || showLoader) {
+  if (plannedLoading || weekGenerating || showLoader || shouldAutoGenerateWeek) {
     return (
       <WorkoutLoader
         steps={steps}
