@@ -22,6 +22,13 @@ const defaultScheduleTime = () => {
   return hour < 12 ? "18:00" : "09:00";
 };
 
+const formatPlannedDateTime = (iso: string) => {
+  const dt = new Date(iso);
+  const date = dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return `${date} ${time}`;
+};
+
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 
 export type Exercise = {
@@ -730,6 +737,11 @@ export default function PlanOne() {
                   <div style={pick.schemeInfo}>
                     <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
                     {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                    {w.status === "scheduled" && w.scheduledFor ? (
+                      <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
+                        📅 {formatPlannedDateTime(w.scheduledFor)}
+                      </span>
+                    ) : null}
                   </div>
 
                   {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
@@ -2864,6 +2876,15 @@ const pick: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 4,
+  },
+  infoChipScheduled: {
+    background: "#22c55e",
+    border: "1px solid rgba(0,0,0,0.06)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+    color: "#ffffff",
+    fontWeight: 800,
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
   },
   schemeDescription: {
     fontSize: 14,

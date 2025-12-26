@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  cancelPlannedWorkout,
   getScheduleOverview,
   updatePlannedWorkout,
   saveScheduleDates,
@@ -262,17 +261,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       });
       setPlanned((prev) => mergePlanned(prev, updated));
       await reload();
-      setModal((prev) =>
-        prev
-          ? {
-              ...prev,
-              workout: updated,
-              date: toDateInput(updated.scheduledFor),
-              time: toTimeInput(updated.scheduledFor),
-              saving: false,
-            }
-          : prev
-      );
+      setModal(null);
     } catch (err) {
       console.error("update planned workout failed", err);
       setModal((prev) =>
@@ -281,37 +270,6 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           : prev
       );
     }
-  };
-
-  const handleModalCancel = async () => {
-    if (!modal) return;
-    const workoutId = modal.workout.id;
-    setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
-    try {
-      await cancelPlannedWorkout(workoutId);
-      setPlanned((prev) => prev.filter((w) => w.id !== workoutId));
-      await reload();
-      setModal(null);
-    } catch (err) {
-      console.error("cancel planned workout failed", err);
-      setModal((prev) =>
-        prev
-          ? { ...prev, saving: false, error: "Не удалось удалить. Попробуй снова." }
-          : prev
-      );
-    }
-  };
-
-  const handleStart = (workout: PlannedWorkout) => {
-    if (!workout.plan) return;
-    try {
-      localStorage.setItem("current_plan", JSON.stringify(workout.plan));
-      localStorage.setItem("planned_workout_id", workout.id);
-    } catch {}
-    setModal(null);
-    nav("/workout/session", {
-      state: { plan: workout.plan, plannedWorkoutId: workout.id },
-    });
   };
 
   const handleRetry = async () => {
@@ -530,8 +488,6 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
             setModal((prev) => (prev ? { ...prev, time: val } : prev))
           }
           onSave={handleModalSave}
-          onCancel={handleModalCancel}
-          onStart={() => handleStart(modal.workout)}
         />
       )}
     </div>
@@ -740,9 +696,7 @@ function PlanPreviewModal({
   onClose,
   onDateChange,
   onTimeChange,
-  onSave: _onSave,
-  onCancel,
-  onStart,
+  onSave,
 }: {
   workout: PlannedWorkout;
   date: string;
@@ -753,8 +707,6 @@ function PlanPreviewModal({
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   onSave: () => void;
-  onCancel: () => void;
-  onStart: () => void;
 }) {
   const plan = workout.plan || {};
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
@@ -785,34 +737,12 @@ function PlanPreviewModal({
   };
 
   const handleSaveEdit = async () => {
-  const when = parseLocalDateTime(editDate, editTime);
-  if (!when) return;
-  
-  try {
-    // Сохраняем в БД через API
-    const updated = await updatePlannedWorkout(workout.id, {
-      scheduledFor: when.toISOString(),
-      scheduledTime: editTime,
-    });
-    
-    // Обновляем состояние в родительском компоненте
-    onDateChange(toDateInput(updated.scheduledFor));
-    onTimeChange(toTimeInput(updated.scheduledFor));
-    
-    // Обновляем локальное состояние
-    setEditDate(toDateInput(updated.scheduledFor));
-    setEditTime(toTimeInput(updated.scheduledFor));
-    
-    // Перезагружаем данные расписания
-    try {
-      window.dispatchEvent(new CustomEvent("schedule_updated"));
-    } catch {}
-    
+    const when = parseLocalDateTime(editDate, editTime);
+    if (!when) return;
+    onDateChange(editDate);
+    onTimeChange(editTime);
     setIsEditing(false);
-  } catch (err) {
-    console.error("update failed", err);
-  }
-	};
+  };
 
   const wrapStyle: CSSProperties = {
     ...modalStyles.wrap,
@@ -941,13 +871,10 @@ function PlanPreviewModal({
             type="button"
             className="schedule-checkin-btn"
             style={modalStyles.startBtn}
-            onClick={onStart}
-            disabled={saving || workout.status === "completed"}
+            onClick={onSave}
+            disabled={saving}
           >
-            {workout.status === "completed" ? "✓ Завершена" : "Начать тренировку"}
-          </button>
-          <button type="button" style={modalStyles.deleteBtn} onClick={onCancel} disabled={saving}>
-            Удалить
+            {saving ? "Сохраняем..." : "Сохранить"}
           </button>
         </div>
       </div>
