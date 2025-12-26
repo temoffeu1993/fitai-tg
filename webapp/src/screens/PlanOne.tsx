@@ -88,6 +88,7 @@ export default function PlanOne() {
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
   const [initialPlanRequested, setInitialPlanRequested] = useState(false);
+  const [initialWeekRequested, setInitialWeekRequested] = useState(false);
   const [needsCheckIn, setNeedsCheckIn] = useState(false);
 
   const isAdmin = useMemo(() => {
@@ -230,7 +231,7 @@ export default function PlanOne() {
   // When there are no planned workouts, we immediately show the loader while the auto-generation effect kicks in.
   // This avoids a UI "flash" where the user briefly sees the empty-state button after navigating from dashboard.
   const shouldAutoGenerateWeek =
-    !plannedLoading && !weekGenerating && remainingPlanned.length === 0 && !sub.locked && !initialPlanRequested;
+    !plannedLoading && !weekGenerating && remainingPlanned.length === 0 && !sub.locked && !initialWeekRequested;
   
   // Формируем понятное название тренировки на русском
   const planTitle = useMemo(() => {
@@ -288,17 +289,17 @@ export default function PlanOne() {
     if (remainingPlanned.length > 0) return;
     if (weekGenerating) return;
     if (sub.locked) return;
-    if (initialPlanRequested) return;
+    if (initialWeekRequested) return;
 
     console.log("🚀 No workouts left: generating new week plan");
-    setInitialPlanRequested(true);
+    setInitialWeekRequested(true);
     setWeekGenerating(true);
     kickProgress();
     refresh({ force: true })
       .then(() => loadPlanned())
       .catch(() => {})
       .finally(() => setWeekGenerating(false));
-  }, [plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialPlanRequested, kickProgress, refresh, loadPlanned]);
+  }, [plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialWeekRequested, kickProgress, refresh, loadPlanned]);
 
   useEffect(() => {
     const onPlanCompleted = () => {
@@ -601,6 +602,7 @@ export default function PlanOne() {
       setPaywall(true);
       return;
     }
+    setInitialWeekRequested(true);
     setWeekGenerating(true);
     kickProgress();
     try {
