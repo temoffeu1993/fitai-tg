@@ -1604,6 +1604,7 @@ function PlannedExercisesEditor({
   const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number } | null>(
     null
   );
+  const [popoverVisible, setPopoverVisible] = useState(false);
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1620,13 +1621,19 @@ function PlannedExercisesEditor({
     } catch {}
   };
 
-  const close = () => {
+  const closeImmediate = () => {
+    setPopoverVisible(false);
     setMenuIndex(null);
     setMode("menu");
     setAnchorRect(null);
     setAlts([]);
     setLoading(false);
     setErr(null);
+  };
+
+  const close = () => {
+    setPopoverVisible(false);
+    window.setTimeout(() => closeImmediate(), 120);
   };
 
   useEffect(() => {
@@ -1645,6 +1652,16 @@ function PlannedExercisesEditor({
       window.removeEventListener("resize", onResize);
     };
   }, [menuIndex]);
+
+  useEffect(() => {
+    if (menuIndex == null) {
+      setPopoverVisible(false);
+      return;
+    }
+    setPopoverVisible(false);
+    const raf = window.requestAnimationFrame(() => setPopoverVisible(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [menuIndex, mode]);
 
   const current = menuIndex != null ? displayItems[menuIndex] : null;
   const currentId = current?.exerciseId || null;
@@ -1752,43 +1769,58 @@ function PlannedExercisesEditor({
   const overlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
-    background: "rgba(255,255,255,0.02)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
+    background: "transparent",
     zIndex: 80,
   };
-  const popoverWidth = mode === "replace" ? 340 : 280;
   const popover: React.CSSProperties = (() => {
     const pad = 12;
     if (typeof window === "undefined") {
-      return { position: "fixed", left: pad, top: 120, width: popoverWidth };
+      return { position: "fixed", left: pad, top: 120, width: "max-content" };
     }
-    const safeWidth = Math.max(220, Math.min(popoverWidth, window.innerWidth - pad * 2));
     const r = anchorRect;
     const desiredTop = r ? r.top + r.height + 8 : 120;
-    const desiredLeft = r ? r.left + r.width - safeWidth : pad;
-    const left = Math.max(pad, Math.min(window.innerWidth - safeWidth - pad, desiredLeft));
+    const right = r ? Math.max(pad, window.innerWidth - (r.left + r.width)) : pad;
     const top = Math.max(pad, Math.min(window.innerHeight - 420 - pad, desiredTop));
-    return { position: "fixed", left, top, width: safeWidth };
+    return {
+      position: "fixed",
+      right,
+      top,
+      width: "max-content",
+      maxWidth: `calc(100vw - ${pad * 2}px)`,
+    };
   })();
   const sheet: React.CSSProperties = {
     ...popover,
-    background: "#fff",
-    borderRadius: 18,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-    padding: 10,
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,0.10)",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+    padding: 8,
+    transformOrigin: "top right",
+    transform: popoverVisible ? "scaleY(1)" : "scaleY(0.92)",
+    opacity: popoverVisible ? 1 : 0,
+    transition: "transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease",
   };
   const actionBtn: React.CSSProperties = {
     width: "100%",
-    padding: "10px 10px",
-    borderRadius: 12,
+    padding: "10px 12px",
+    borderRadius: 10,
     border: "1px solid rgba(0,0,0,0.08)",
-    background: "rgba(15,23,42,0.03)",
-    fontWeight: 800,
+    background: "rgba(255,255,255,0.6)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 600,
     cursor: "pointer",
     textAlign: "left",
+    whiteSpace: "nowrap",
   };
-  const dangerBtn: React.CSSProperties = { ...actionBtn, background: "rgba(239,68,68,.08)", borderColor: "rgba(239,68,68,.2)" };
+  const dangerBtn: React.CSSProperties = {
+    ...actionBtn,
+    background: "rgba(239,68,68,.08)",
+    borderColor: "rgba(239,68,68,.2)",
+    color: "#7f1d1d",
+  };
   const subTitle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#0B1220" };
   const subText: React.CSSProperties = { fontSize: 12, color: "#475569", fontWeight: 700 };
 
