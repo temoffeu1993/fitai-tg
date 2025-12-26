@@ -138,8 +138,12 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
-  const pendingWorkouts = useMemo(
-    () => planned.filter((w) => w.status === "pending"),
+  // Match PlanOne: list only workouts that are visible there (have scheduledFor and not completed/cancelled).
+  const pickableWorkouts = useMemo(
+    () =>
+      planned
+        .filter((w) => w && w.id && w.scheduledFor)
+        .filter((w) => w.status !== "cancelled" && w.status !== "completed"),
     [planned]
   );
 
@@ -189,10 +193,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       return;
     }
     const initialTime = scheduleDates[key]?.time ?? defaultTimeSuggestion();
-    const firstPending = pendingWorkouts[0]?.id ?? null;
+    const firstPickable = pickableWorkouts[0]?.id ?? null;
     setModal({
       workout: null,
-      selectedWorkoutId: firstPending,
+      selectedWorkoutId: firstPickable,
       date: key,
       time: initialTime,
       saving: false,
@@ -220,7 +224,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     const { workout, date, time, selectedWorkoutId } = modal;
     if (workout?.status === "completed") return;
     const effectiveWorkout =
-      workout ?? pendingWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
+      workout ?? pickableWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
     if (!effectiveWorkout) {
       setModal((prev) =>
         prev ? { ...prev, error: "Выбери тренировку" } : prev
@@ -465,7 +469,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
         <PlanPreviewModal
           workout={modal.workout}
           selectedWorkoutId={modal.selectedWorkoutId}
-          availableWorkouts={pendingWorkouts}
+          availableWorkouts={pickableWorkouts}
           date={modal.date}
           time={modal.time}
           saving={modal.saving}
