@@ -1910,10 +1910,10 @@ function PlannedExercisesEditor({
                   {mode === "menu" ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
-                        Заменить
+                        🔀 Заменить
                       </button>
                       <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
-                        Удалить
+                        🗑️ Удалить
                       </button>
                       <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
                         Заблокировать
