@@ -5,10 +5,23 @@ import {
   cancelPlannedWorkout,
   getScheduleOverview,
   updatePlannedWorkout,
-  saveScheduleDates,
   PlannedWorkout,
   ScheduleByDate,
 } from "@/api/schedule";
+
+const workoutLabelRU = (raw: string) => {
+  const key = String(raw || "").trim().toLowerCase();
+  if (!key) return "Тренировка";
+  if (key === "push") return "Грудь, плечи и трицепс";
+  if (key === "pull") return "Спина и бицепс";
+  if (key === "upper" || key === "верх") return "Верхняя часть тела";
+  if (key === "lower" || key === "низ") return "Нижняя часть тела";
+  if (key.includes("груд") && key.includes("триц")) return "Грудь, плечи и трицепс";
+  if (key.includes("спин") && key.includes("биц")) return "Спина и бицепс";
+  if (key.includes("верх")) return "Верхняя часть тела";
+  if (key.includes("низ")) return "Нижняя часть тела";
+  return raw;
+};
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const defaultTimeSuggestion = () => {
@@ -28,7 +41,8 @@ const normalizeScheduleDates = (dates: Record<string, { time?: string }> | null 
 };
 
 type ModalState = {
-  workout: PlannedWorkout;
+  workout: PlannedWorkout | null;
+  selectedWorkoutId: string | null;
   date: string;
   time: string;
   saving: boolean;
@@ -44,9 +58,6 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [monthOffset, setMonthOffset] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
-  const [slotEditor, setSlotEditor] = useState<{ iso: string; time: string } | null>(null);
-  const [slotSaving, setSlotSaving] = useState(false);
-  const [slotError, setSlotError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -93,7 +104,14 @@ export default function Schedule() {
     const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
     const date = w.status === "pending" ? todayKey : toDateInput(w.scheduledFor);
     const time = w.status === "pending" ? initialTime : toTimeInput(w.scheduledFor);
-    setModal({ workout: w, date, time, saving: false, error: null });
+    setModal({
+      workout: w,
+      selectedWorkoutId: w.id,
+      date,
+      time,
+      saving: false,
+      error: null,
+    });
 
     requestedPlannedIdRef.current = null;
     nav(".", { replace: true, state: null });
@@ -122,6 +140,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
+  const pendingWorkouts = useMemo(
+    () => planned.filter((w) => w.status === "pending"),
+    [planned]
+  );
 
   const upcoming = useMemo(() => {
     const nowTs = Date.now();
@@ -169,9 +191,15 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       return;
     }
     const initialTime = scheduleDates[key]?.time ?? defaultTimeSuggestion();
-    setSlotEditor({ iso: key, time: initialTime });
-    setSlotError(null);
-    setSlotSaving(false);
+    const firstPending = pendingWorkouts[0]?.id ?? null;
+    setModal({
+      workout: null,
+      selectedWorkoutId: firstPending,
+      date: key,
+      time: initialTime,
+      saving: false,
+      error: null,
+    });
   };
 
   const openWorkout = (workout: PlannedWorkout) => {
@@ -181,6 +209,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     const time = workout.status === "pending" ? initialTime : toTimeInput(workout.scheduledFor);
     setModal({
       workout,
+      selectedWorkoutId: workout.id,
       date,
       time,
       saving: false,
@@ -188,64 +217,18 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     });
   };
 
-  const handleSlotTimeChange = (value: string) => {
-    setSlotError(null);
-    setSlotEditor((prev) => (prev ? { ...prev, time: value } : prev));
-  };
-
-  const handleSlotSave = async () => {
-    if (!slotEditor) return;
-    if (!isValidTime(slotEditor.time)) {
-      setSlotError("Некорректное время");
-      return;
-    }
-    const next: ScheduleByDate = { ...scheduleDates, [slotEditor.iso]: { time: slotEditor.time } };
-    setSlotSaving(true);
-    try {
-      await saveScheduleDates(next);
-      setScheduleDates(next);
-      setSlotEditor(null);
-      setSlotError(null);
-      try {
-        window.dispatchEvent(new CustomEvent("schedule_updated"));
-      } catch {}
-    } catch (err) {
-      console.error("save slot failed", err);
-      setSlotError("Не удалось сохранить. Попробуй снова.");
-    } finally {
-      setSlotSaving(false);
-    }
-  };
-
-  const handleSlotDelete = async () => {
-    if (!slotEditor) return;
-    const next: ScheduleByDate = { ...scheduleDates };
-    delete next[slotEditor.iso];
-    setSlotSaving(true);
-    try {
-      await saveScheduleDates(next);
-      setScheduleDates(next);
-      setSlotEditor(null);
-      setSlotError(null);
-      try {
-        window.dispatchEvent(new CustomEvent("schedule_updated"));
-      } catch {}
-    } catch (err) {
-      console.error("delete slot failed", err);
-      setSlotError("Не удалось удалить. Попробуй ещё раз.");
-    } finally {
-      setSlotSaving(false);
-    }
-  };
-
-  const closeSlotEditor = () => {
-    setSlotEditor(null);
-    setSlotError(null);
-  };
-
   const handleModalSave = async () => {
     if (!modal) return;
-    const { workout, date, time } = modal;
+    const { workout, date, time, selectedWorkoutId } = modal;
+    if (workout?.status === "completed") return;
+    const effectiveWorkout =
+      workout ?? pendingWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
+    if (!effectiveWorkout) {
+      setModal((prev) =>
+        prev ? { ...prev, error: "Выбери тренировку" } : prev
+      );
+      return;
+    }
     const when = parseLocalDateTime(date, time);
     if (!when) {
       setModal((prev) =>
@@ -255,7 +238,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
-      const updated = await updatePlannedWorkout(workout.id, {
+      const updated = await updatePlannedWorkout(effectiveWorkout.id, {
         status: "scheduled",
         scheduledFor: when.toISOString(),
         scheduledTime: time,
@@ -275,7 +258,8 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
   const handleModalDelete = async () => {
     if (!modal) return;
-    const workoutId = modal.workout.id;
+    const workoutId = modal.workout?.id;
+    if (!workoutId) return;
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
       await cancelPlannedWorkout(workoutId);
@@ -479,23 +463,11 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
       <div style={{ height: 80 }} />
 
-      {slotEditor && (
-        <SlotModal
-          iso={slotEditor.iso}
-          time={slotEditor.time}
-          hasExisting={Boolean(scheduleDates[slotEditor.iso])}
-          saving={slotSaving}
-          error={slotError}
-          onClose={closeSlotEditor}
-          onChange={handleSlotTimeChange}
-          onSave={handleSlotSave}
-          onDelete={handleSlotDelete}
-        />
-      )}
-
       {modal && (
         <PlanPreviewModal
           workout={modal.workout}
+          selectedWorkoutId={modal.selectedWorkoutId}
+          availableWorkouts={pendingWorkouts}
           date={modal.date}
           time={modal.time}
           saving={modal.saving}
@@ -506,6 +478,9 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           }
           onTimeChange={(val) =>
             setModal((prev) => (prev ? { ...prev, time: val } : prev))
+          }
+          onSelectWorkout={(id) =>
+            setModal((prev) => (prev ? { ...prev, selectedWorkoutId: id, error: null } : prev))
           }
           onSave={handleModalSave}
           onDelete={handleModalDelete}
@@ -710,6 +685,8 @@ function Wheel({
 
 function PlanPreviewModal({
   workout,
+  selectedWorkoutId,
+  availableWorkouts,
   date,
   time,
   saving,
@@ -717,10 +694,13 @@ function PlanPreviewModal({
   onClose,
   onDateChange,
   onTimeChange,
+  onSelectWorkout,
   onSave,
   onDelete,
 }: {
-  workout: PlannedWorkout;
+  workout: PlannedWorkout | null;
+  selectedWorkoutId: string | null;
+  availableWorkouts: PlannedWorkout[];
   date: string;
   time: string;
   saving: boolean;
@@ -728,11 +708,14 @@ function PlanPreviewModal({
   onClose: () => void;
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
+  onSelectWorkout: (id: string) => void;
   onSave: () => void;
   onDelete: () => void;
 }) {
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
-  const canDelete = workout.status === "scheduled";
+  const canDelete = workout?.status === "scheduled";
+  const needsPick = !workout;
+  const readOnly = workout?.status === "completed";
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMotion("open"));
@@ -805,8 +788,8 @@ function PlanPreviewModal({
 	            ✕
 	          </button>
 	        </div>
-	        <div style={modalStyles.dtRow}>
-	          <div style={modalStyles.dtChip}>
+		        <div style={modalStyles.dtRow}>
+		          <div style={modalStyles.dtChip}>
 	            <div style={modalStyles.dtChipLabel}>Дата</div>
 	            <div style={modalStyles.dtChipValue}>
 	              {new Date(date).toLocaleDateString("ru-RU", {
@@ -833,10 +816,49 @@ function PlanPreviewModal({
 	              style={modalStyles.dtInputOverlay}
 	              aria-label="Выбрать время"
 	            />
-	          </div>
-	        </div>
+		          </div>
+		        </div>
 
-        {error && <div style={modalStyles.error}>{error}</div>}
+		        {needsPick ? (
+		          <div style={modalStyles.workoutsList}>
+		            {availableWorkouts.length ? (
+		              availableWorkouts.map((w) => {
+		                const p: any = w.plan || {};
+		                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+		                const label = workoutLabelRU(rawLabel);
+		                const selected = w.id === selectedWorkoutId;
+		                return (
+		                  <button
+		                    key={w.id}
+		                    type="button"
+		                    style={{
+		                      ...modalStyles.workoutRow,
+		                      ...(selected ? modalStyles.workoutRowSelected : null),
+		                    }}
+		                    onClick={() => onSelectWorkout(w.id)}
+		                  >
+		                    <span style={modalStyles.radioCircle}>
+		                      <span
+		                        style={{
+		                          ...modalStyles.radioDot,
+		                          transform: selected ? "scale(1)" : "scale(0)",
+		                          opacity: selected ? 1 : 0,
+		                        }}
+		                      />
+		                    </span>
+		                    <span style={modalStyles.workoutTitle}>{label}</span>
+		                  </button>
+		                );
+		              })
+		            ) : (
+		              <div style={modalStyles.emptyWorkouts}>
+		                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+		              </div>
+		            )}
+		          </div>
+		        ) : null}
+
+	        {error && <div style={modalStyles.error}>{error}</div>}
 
 	        {/* Кнопки */}
 	        <div style={modalStyles.actions}>
@@ -845,7 +867,7 @@ function PlanPreviewModal({
 	            className="schedule-checkin-btn"
 	            style={modalStyles.startBtn}
 	            onClick={onSave}
-	            disabled={saving}
+	            disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
 	          >
 	            {saving ? "Сохраняем..." : "Сохранить"}
 	          </button>
@@ -854,7 +876,7 @@ function PlanPreviewModal({
 	              type="button"
 	              style={modalStyles.deleteBtn}
 	              onClick={onDelete}
-	              disabled={saving}
+	              disabled={saving || readOnly}
 	            >
 	              Удалить
 	            </button>
@@ -1531,6 +1553,46 @@ const modalStyles: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
   },
+
+  workoutsList: { display: "grid", gap: 8, marginTop: 6 },
+  workoutRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  workoutRowSelected: {
+    borderColor: "rgba(15, 23, 42, 0.35)",
+    boxShadow: "0 0 0 2px rgba(15,23,42,0.08), 0 2px 6px rgba(0,0,0,0.08)",
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.18)",
+    background: "rgba(255,255,255,0.85)",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background: "#0f172a",
+    transition: "all 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+  },
+  workoutTitle: { fontSize: 14, fontWeight: 800, color: "#0f172a", lineHeight: 1.15 },
+  emptyWorkouts: { fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)", padding: "10px 6px" },
 
   // Секция упражнений
   section: { margin: "0 16px", display: "grid", gap: 10 },
