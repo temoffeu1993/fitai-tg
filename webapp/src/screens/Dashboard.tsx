@@ -167,7 +167,16 @@ export default function Dashboard() {
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
   const [plannedCount, setPlannedCount] = useState<number | null>(() => readPlannedWorkoutsCount());
-  const [robotReady, setRobotReady] = useState(false);
+  const [robotReady, setRobotReady] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const img = new Image();
+      img.src = ROBOT_SRC;
+      return Boolean(img.complete && img.naturalWidth > 0);
+    } catch {
+      return false;
+    }
+  });
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -198,6 +207,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     let cancelled = false;
+    if (robotReady) return;
     const img = new Image();
     img.decoding = "sync";
     img.src = ROBOT_SRC;
@@ -216,7 +226,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [robotReady]);
 
   const refreshPlannedCount = useCallback(async () => {
     if (!onbDone) {
@@ -315,6 +325,38 @@ export default function Dashboard() {
 
   const workoutsCtaLabel =
     onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
+
+  if (!robotReady) {
+    return (
+      <div
+        style={{
+          ...s.page,
+          display: "grid",
+          placeItems: "center",
+          padding: 16,
+          background: "transparent",
+          minHeight: "100vh",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 720,
+            borderRadius: 20,
+            padding: 20,
+            background: "#0f172a",
+            color: "#fff",
+            boxShadow: cardShadow,
+            textAlign: "center",
+            fontWeight: 700,
+            fontSize: 16,
+          }}
+        >
+          Загружаем…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={s.page}>
@@ -421,15 +463,11 @@ export default function Dashboard() {
               src={ROBOT_SRC}
               alt="ИИ-тренер"
               className="robot"
-              style={{
-                ...s.robot,
-                opacity: robotReady ? 1 : 0,
-              }}
+              style={s.robot}
               loading="eager"
               fetchPriority="high"
               decoding="sync"
               draggable={false}
-              onLoad={() => setRobotReady(true)}
             />
           </div>
         </div>
