@@ -2880,8 +2880,8 @@ const pick: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   infoChipScheduled: {
-    background: "rgba(143,227,143,.25)",
-    border: "1px solid rgba(72,160,72,.45)",
+    background: "rgba(255,230,128,.25)",
+    border: "1px solid rgba(255,179,107,.4)",
     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
     color: "#334155",
     fontWeight: 600,

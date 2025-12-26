@@ -276,6 +276,20 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
   };
 
+  const handleModalStart = () => {
+    if (!modal?.workout) return;
+    if (modal.workout.status !== "scheduled") return;
+    const workoutDate = toDateKey(parseIsoDate(modal.workout.scheduledFor));
+    setModal(null);
+    nav("/check-in", {
+      state: {
+        workoutDate,
+        plannedWorkoutId: modal.workout.id,
+        returnTo: "/schedule",
+      },
+    });
+  };
+
   const handleRetry = async () => {
     setLoading(true);
     try {
@@ -487,6 +501,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           }
           onSave={handleModalSave}
           onDelete={handleModalDelete}
+          onStart={handleModalStart}
         />
       )}
     </div>
@@ -700,6 +715,7 @@ function PlanPreviewModal({
   onSelectWorkout,
   onSave,
   onDelete,
+  onStart,
 }: {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
@@ -714,11 +730,13 @@ function PlanPreviewModal({
   onSelectWorkout: (id: string) => void;
   onSave: () => void;
   onDelete: () => void;
+  onStart: () => void;
 }) {
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
+  const canStart = workout?.status === "scheduled";
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMotion("open"));
@@ -879,15 +897,27 @@ function PlanPreviewModal({
 
 	        {/* Кнопки */}
 	        <div style={modalStyles.actions}>
-	          <button
-	            type="button"
-	            className="schedule-checkin-btn"
-	            style={modalStyles.startBtn}
-	            onClick={onSave}
-	            disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-	          >
-	            {saving ? "Сохраняем..." : "Сохранить"}
-	          </button>
+	          {canStart ? (
+	            <button
+	              type="button"
+	              className="schedule-checkin-btn"
+	              style={modalStyles.startBtn}
+	              onClick={onStart}
+	              disabled={saving || readOnly}
+	            >
+	              Начать тренировку
+	            </button>
+	          ) : (
+	            <button
+	              type="button"
+	              className="schedule-checkin-btn"
+	              style={modalStyles.startBtn}
+	              onClick={onSave}
+	              disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
+	            >
+	              {saving ? "Сохраняем..." : "Сохранить"}
+	            </button>
+	          )}
 	          {canDelete ? (
 	            <button
 	              type="button"
