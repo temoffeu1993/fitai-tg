@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import robotImg from "./assets/robot.png";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
@@ -76,6 +77,31 @@ function LoadingScreen({ text = "Загружаем твоего фитнес-т
   );
 }
 
+async function preloadImage(src: string): Promise<void> {
+  if (!src || typeof window === "undefined") return;
+  await new Promise<void>((resolve) => {
+    try {
+      const img = new Image();
+      img.decoding = "sync";
+      img.src = src;
+      const done = () => resolve();
+      if (img.complete && img.naturalWidth > 0) return resolve();
+      const anyImg = img as any;
+      if (typeof anyImg.decode === "function") {
+        anyImg.decode().then(done).catch(() => {
+          img.onload = done;
+          img.onerror = done;
+        });
+      } else {
+        img.onload = done;
+        img.onerror = done;
+      }
+    } catch {
+      resolve();
+    }
+  });
+}
+
 const loader = {
   wrap: {
     minHeight: "100vh",
@@ -133,7 +159,7 @@ if (isDev && !tg?.initData) {
     "profile",
     JSON.stringify({ first_name: "Dev", username: "dev" })
   );
-  root.render(<App />);
+  preloadImage(robotImg).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
@@ -158,6 +184,7 @@ async function auth() {
 
     const { token } = await r.json();
     localStorage.setItem("token", token);
+    await preloadImage(robotImg);
     root.render(<App />);
   } catch (e: any) {
     root.render(<LoadingScreen text={`Ошибка: ${e?.message || String(e)}`} />);
