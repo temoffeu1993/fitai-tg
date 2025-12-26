@@ -22,6 +22,8 @@ const defaultScheduleTime = () => {
   return hour < 12 ? "18:00" : "09:00";
 };
 
+const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
+
 export type Exercise = {
   name: string; sets: number;
   reps?: number|string; restSec?: number; cues?: string;
@@ -125,6 +127,9 @@ export default function PlanOne() {
       const list = await getPlannedWorkouts();
       const next = Array.isArray(list) ? list : [];
       setPlannedWorkouts(next);
+      try {
+        localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next.length));
+      } catch {}
       try {
         window.dispatchEvent(new CustomEvent("planned_workouts_updated", { detail: { count: next.length } }));
       } catch {

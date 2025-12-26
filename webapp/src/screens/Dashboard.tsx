@@ -8,6 +8,7 @@ import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
 
 const HISTORY_KEY = "history_sessions_v1";
+const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const RANK_TIERS = [
   { min: 0, name: "Новичок" },
   { min: 5, name: "Импульс" },
@@ -67,6 +68,18 @@ function readHistorySnapshot(): HistorySnapshot {
     return { total: raw.length, lastCompletedAt: last, xp };
   } catch {
     return { total: 0, lastCompletedAt: null, xp: 0 };
+  }
+}
+
+function readPlannedWorkoutsCount(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PLANNED_WORKOUTS_COUNT_KEY);
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
   }
 }
 
@@ -153,7 +166,7 @@ export default function Dashboard() {
   });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
-  const [plannedCount, setPlannedCount] = useState<number | null>(null);
+  const [plannedCount, setPlannedCount] = useState<number | null>(() => readPlannedWorkoutsCount());
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -188,7 +201,11 @@ export default function Dashboard() {
     }
     try {
       const planned = await getPlannedWorkouts();
-      setPlannedCount(Array.isArray(planned) ? planned.length : 0);
+      const next = Array.isArray(planned) ? planned.length : 0;
+      setPlannedCount(next);
+      try {
+        localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next));
+      } catch {}
     } catch {
       setPlannedCount(null);
     }
