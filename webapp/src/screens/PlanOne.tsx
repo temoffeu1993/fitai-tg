@@ -1792,11 +1792,27 @@ function PlannedExercisesEditor({
     zIndex: 80,
   };
   const pad = 12;
-  const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
-  const openUpward =
-    typeof window !== "undefined" &&
-    !!anchorRect &&
-    anchorRect.top + anchorRect.height + 2 + estimatedHeight > window.innerHeight - pad;
+  const estimatedHeight = mode === "replace" ? 260 : mode === "menu" ? 168 : 200;
+  const replaceMaxHeight = (() => {
+    if (typeof window === "undefined" || !anchorRect) return 260;
+    const below = window.innerHeight - pad - (anchorRect.top + anchorRect.height + 2);
+    const above = anchorRect.top - pad - 2;
+    const target = 260;
+    if (below >= 180) return Math.min(target, below);
+    if (above >= 180) return Math.min(target, above);
+    return Math.max(160, Math.min(target, Math.max(below, above)));
+  })();
+  const openUpward = (() => {
+    if (typeof window === "undefined" || !anchorRect) return false;
+    const below = window.innerHeight - pad - (anchorRect.top + anchorRect.height + 2);
+    const above = anchorRect.top - pad - 2;
+    if (mode === "replace") {
+      if (below >= 180) return false;
+      if (above >= 180) return true;
+      return above > below;
+    }
+    return anchorRect.top + anchorRect.height + 2 + estimatedHeight > window.innerHeight - pad && above > 120;
+  })();
   const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
   const isOpen = popoverPhase === "open";
   const isOpening = popoverPhase === "opening";
@@ -1812,8 +1828,7 @@ function PlannedExercisesEditor({
     const r = anchorRect;
     const rightEdge = r ? r.left + r.width : pad;
     const preferredWidth = mode === "replace" ? Math.min(360, window.innerWidth - pad * 2) : null;
-    const minLeft = pad + (preferredWidth ?? 240);
-    const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
+    const left = Math.max(pad, Math.min(window.innerWidth - pad, rightEdge));
     const top = r
       ? openUpward
         ? r.top - 2
@@ -1979,7 +1994,7 @@ function PlannedExercisesEditor({
                   ) : null}
 
                   {mode === "replace" ? (
-                    <div style={{ display: "grid", gap: 8, maxHeight: 420, overflow: "auto" }}>
+                    <div style={{ display: "grid", gap: 8, maxHeight: replaceMaxHeight, overflow: "auto" }}>
                       <div style={subTitle}>Выбери замену</div>
                       {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
                       {alts.map((a) => (
