@@ -21,6 +21,7 @@ type PlannedWorkoutRow = {
   id: string;
   plan: any;
   scheduled_for: string;
+  workout_date?: string;
   status: string;
   result_session_id: string | null;
   created_at: string;
@@ -214,7 +215,7 @@ schedule.patch(
     }
 
     const existingRows = await q<PlannedWorkoutRow>(
-      `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+      `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, created_at, updated_at
          FROM planned_workouts
         WHERE user_id = $1 AND id = $2
         LIMIT 1`,
@@ -256,6 +257,12 @@ schedule.patch(
       }
       fields.push(`status = $${idx++}`);
       values.push(nextStatus);
+
+      // When unscheduling back to pending, reset scheduled_for to the original generated day
+      // (workout_date at 00:00) so it stays visible in PlanOne (which filters by scheduled_for range).
+      if (nextStatus === "pending" && !scheduledDate) {
+        fields.push(`scheduled_for = workout_date::timestamp`);
+      }
     }
 
     if (fields.length === 0) {
