@@ -4208,17 +4208,19 @@ plan.post(
 
       console.log("✓ Saved session:", result[0].id);
 
-      if (plannedWorkoutId) {
-        await q(
-          `UPDATE planned_workouts
-              SET status = 'completed',
-                  result_session_id = $3,
-                  updated_at = NOW()
-            WHERE id = $1 AND user_id = $2`,
-          [plannedWorkoutId, userId, result[0].id]
-        );
-        console.log("✓ Planned workout completed:", plannedWorkoutId);
-      } else {
+	      if (plannedWorkoutId) {
+	        await q(
+	          `UPDATE planned_workouts
+	              SET scheduled_for = CASE WHEN status = 'pending' THEN $4 ELSE scheduled_for END,
+	                  status = 'completed',
+	                  result_session_id = $3,
+	                  completed_at = $4,
+	                  updated_at = NOW()
+	            WHERE id = $1 AND user_id = $2`,
+	          [plannedWorkoutId, userId, result[0].id, completedAt]
+	        );
+	        console.log("✓ Planned workout completed:", plannedWorkoutId);
+	      } else {
         const finishedAt: string = result[0].finished_at;
         await q(
           `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id)

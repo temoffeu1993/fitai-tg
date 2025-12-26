@@ -1777,19 +1777,20 @@ workoutGeneration.post(
         [uid, payload, payload, finishedAt.toISOString(), startedAt.toISOString(), finishedAt.toISOString()]
       );
 
-      if (plannedWorkoutId) {
-        await q(
-          `UPDATE planned_workouts
-              SET status = 'completed',
-                  result_session_id = $3,
-                  completed_at = $4,
-                  plan = $5::jsonb,
-                  data = $5::jsonb,
-                  updated_at = NOW()
-            WHERE id = $1 AND user_id = $2`,
-          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString(), JSON.stringify(payload)]
-        );
-      } else {
+	      if (plannedWorkoutId) {
+	        await q(
+	          `UPDATE planned_workouts
+	              SET scheduled_for = CASE WHEN status = 'pending' THEN $4 ELSE scheduled_for END,
+	                  status = 'completed',
+	                  result_session_id = $3,
+	                  completed_at = $4,
+	                  plan = $5::jsonb,
+	                  data = $5::jsonb,
+	                  updated_at = NOW()
+	            WHERE id = $1 AND user_id = $2`,
+	          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString(), JSON.stringify(payload)]
+	        );
+	      } else {
         await q(
           `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id, workout_date, data, completed_at)
            VALUES ($1, $2::jsonb, $3, 'completed', $4, $5, $2::jsonb, $3)`,
