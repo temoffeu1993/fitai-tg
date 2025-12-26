@@ -395,7 +395,7 @@ export default function Dashboard() {
           Я делаю каждую тренировку эффективной с учётом твоего состояния, цели, опыта и истории тренировок.
         </p>
         <button
-          className={onbDone && highlightGenerateBtn ? "highlight-pulse" : undefined}
+          className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
           style={{
             ...s.ctaMain,
             ...(onbDone ? {} : s.disabledBtn),
@@ -700,10 +700,12 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: "clamp(20px, 5.5vw, 24px)",
     lineHeight: 1.12,
     fontWeight: 900,
-    color: "#fff",
-    background: "#0f172a",
-    border: "1px solid #0b1220",
-    boxShadow: "none",
+    color: "rgba(255,255,255,.96)",
+    background: "rgba(15,23,42,0.55)",
+    border: "1px solid transparent",
+    boxShadow: "0 10px 28px rgba(0,0,0,.22)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     cursor: "pointer",
     width: "100%",
     textAlign: "center",
