@@ -1650,10 +1650,11 @@ const modalStyles: Record<string, CSSProperties> = {
   emptyWorkouts: { fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)", padding: "10px 6px" },
   scheduledTitle: {
     marginTop: 2,
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: 800,
     color: "#0f172a",
     lineHeight: 1.2,
+    letterSpacing: "-0.02em",
   },
 
   // Секция упражнений
