@@ -1604,7 +1604,7 @@ function PlannedExercisesEditor({
   const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_ban">("menu");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  const [popoverVisible, setPopoverVisible] = useState(false);
+  const [popoverPhase, setPopoverPhase] = useState<"closed" | "opening" | "open" | "closing">("closed");
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1617,7 +1617,7 @@ function PlannedExercisesEditor({
   };
 
   const closeImmediate = () => {
-    setPopoverVisible(false);
+    setPopoverPhase("closed");
     setMenuIndex(null);
     setMode("menu");
     setAnchorEl(null);
@@ -1628,8 +1628,8 @@ function PlannedExercisesEditor({
   };
 
   const close = () => {
-    setPopoverVisible(false);
-    window.setTimeout(() => closeImmediate(), 120);
+    setPopoverPhase("closing");
+    window.setTimeout(() => closeImmediate(), 160);
   };
 
   useEffect(() => {
@@ -1664,11 +1664,11 @@ function PlannedExercisesEditor({
 
   useEffect(() => {
     if (menuIndex == null) {
-      setPopoverVisible(false);
+      setPopoverPhase("closed");
       return;
     }
-    setPopoverVisible(false);
-    const raf = window.requestAnimationFrame(() => setPopoverVisible(true));
+    setPopoverPhase("opening");
+    const raf = window.requestAnimationFrame(() => setPopoverPhase("open"));
     return () => window.cancelAnimationFrame(raf);
   }, [menuIndex, mode]);
 
@@ -1788,6 +1788,15 @@ function PlannedExercisesEditor({
     !!anchorRect &&
     anchorRect.top + anchorRect.height + 2 + estimatedHeight > window.innerHeight - pad;
   const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
+  const isOpen = popoverPhase === "open";
+  const isOpening = popoverPhase === "opening";
+  const isClosing = popoverPhase === "closing";
+  const sheetTransform = (() => {
+    if (isOpen || isClosing) return `${baseTranslate} scaleY(1)`;
+    if (isOpening) return `${baseTranslate} scaleY(0)`;
+    return `${baseTranslate} scaleY(0)`;
+  })();
+  const sheetOpacity = isOpen ? 1 : 0;
   const popover: React.CSSProperties = (() => {
     if (typeof window === "undefined") return { position: "fixed", left: pad, top: 120 };
     const r = anchorRect;
@@ -1813,9 +1822,11 @@ function PlannedExercisesEditor({
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
     padding: 8,
     transformOrigin: openUpward ? "bottom right" : "top right",
-    transform: popoverVisible ? `${baseTranslate} scaleY(1)` : `${baseTranslate} scaleY(0)`,
-    opacity: popoverVisible ? 1 : 0,
-    transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
+    transform: sheetTransform,
+    opacity: sheetOpacity,
+    transition: isClosing
+      ? "opacity 160ms ease"
+      : "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
     overflow: "hidden",
     zIndex: 81,
   };
