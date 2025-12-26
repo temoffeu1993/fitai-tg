@@ -2016,12 +2016,6 @@ function PlannedExercisesEditor({
                           onClick={() => void applyReplace(a.exerciseId)}
                         >
                           <div style={{ fontWeight: 900 }}>{a.name}</div>
-                          <div style={{ fontSize: 11, fontWeight: 400, color: "#4a5568", lineHeight: 1.3, marginTop: 4 }}>
-                            {a.hint || ""}
-                            {typeof a.suggestedWeight === "number" && Number.isFinite(a.suggestedWeight) && a.suggestedWeight > 0
-                              ? ` • реком. ${a.suggestedWeight} кг`
-                              : ""}
-                          </div>
                         </button>
                       ))}
                       <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
