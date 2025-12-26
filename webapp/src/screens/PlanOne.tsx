@@ -1778,7 +1778,8 @@ function PlannedExercisesEditor({
       return { position: "fixed", left: pad, top: 120, width: "max-content" };
     }
     const r = anchorRect;
-    const desiredTop = r ? r.top + r.height + 8 : 120;
+    // Attach the menu right under the dots button (minimal gap) to feel like it "unfolds" from it.
+    const desiredTop = r ? r.top + r.height + 2 : 120;
     const right = r ? Math.max(pad, window.innerWidth - (r.left + r.width)) : pad;
     const top = Math.max(pad, Math.min(window.innerHeight - 420 - pad, desiredTop));
     return {
@@ -1791,15 +1792,16 @@ function PlannedExercisesEditor({
   })();
   const sheet: React.CSSProperties = {
     ...popover,
-    background: "rgba(255,255,255,0.9)",
+    background: "#fff",
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.10)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
     padding: 8,
     transformOrigin: "top right",
-    transform: popoverVisible ? "scaleY(1)" : "scaleY(0.92)",
+    transform: popoverVisible ? "scaleY(1)" : "scaleY(0)",
     opacity: popoverVisible ? 1 : 0,
-    transition: "transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease",
+    transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
+    overflow: "hidden",
   };
   const actionBtn: React.CSSProperties = {
     width: "100%",
@@ -1808,7 +1810,7 @@ function PlannedExercisesEditor({
     border: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(255,255,255,0.6)",
     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    color: "#475569",
+    color: "#0B1220",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
@@ -1819,7 +1821,14 @@ function PlannedExercisesEditor({
     ...actionBtn,
     background: "rgba(239,68,68,.08)",
     borderColor: "rgba(239,68,68,.2)",
-    color: "#7f1d1d",
+    color: "#0B1220",
+  };
+  const softBtn: React.CSSProperties = {
+    ...actionBtn,
+    background: "transparent",
+    boxShadow: "none",
+    border: "1px solid rgba(0,0,0,0.08)",
+    fontWeight: 500,
   };
   const subTitle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#0B1220" };
   const subText: React.CSSProperties = { fontSize: 12, color: "#475569", fontWeight: 700 };
@@ -1886,7 +1895,7 @@ function PlannedExercisesEditor({
                 <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
                   Удалить
                 </button>
-                <button type="button" style={dangerBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
+                <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
                   Заблокировать
                 </button>
               </div>
