@@ -1689,9 +1689,9 @@ function PlannedExercisesEditor({
     setLoading(true);
     setErr(null);
     try {
-      const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 12 });
+      const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 3 });
       const list = Array.isArray(res?.alternatives) ? res.alternatives : [];
-      setAlts(list);
+      setAlts(list.slice(0, 3));
       setMode("replace");
     } catch (e) {
       console.error(e);
