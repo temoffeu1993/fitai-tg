@@ -241,19 +241,19 @@ export default function PlanOne() {
     
     // Если есть dayLabel, используем его как базу
     if (label.toLowerCase().includes("push")) {
-      return "Грудь, Плечи, Трицепс";
+      return "Грудь, плечи и трицепс";
     }
     if (label.toLowerCase().includes("pull")) {
-      return "Спина, Бицепс";
+      return "Спина и бицепс";
     }
     if (label.toLowerCase().includes("leg")) {
       return "Ноги и Ягодицы";
     }
     if (label.toLowerCase().includes("upper")) {
-      return "Верх тела";
+      return "Верхняя часть тела";
     }
     if (label.toLowerCase().includes("lower")) {
-      return "Низ тела";
+      return "Нижняя часть тела";
     }
     if (label.toLowerCase().includes("full body")) {
       return "Всё тело";
@@ -539,11 +539,11 @@ export default function PlanOne() {
 
   const dayLabelRU = (label: string) => {
     const v = String(label || "").toLowerCase();
-    if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Пуш";
-    if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Пул";
+    if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Грудь, плечи и трицепс";
+    if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Спина и бицепс";
     if (v.includes("leg") || v.includes("ног")) return "Ноги и ягодицы";
-    if (v.includes("upper") || v.includes("верх")) return "Верх тела";
-    if (v.includes("lower") || v.includes("низ")) return "Низ тела";
+    if (v.includes("upper") || v.includes("верх")) return "Верхняя часть тела";
+    if (v.includes("lower") || v.includes("низ")) return "Нижняя часть тела";
     if (v.includes("full")) return "Всё тело";
     if (v.includes("recovery") || v.includes("восстанов")) return "Восстановление";
     return label || "Тренировка";
@@ -594,7 +594,7 @@ export default function PlanOne() {
     return dayLabelRU(rawLabel);
   })();
 
-  const startCtaLabel = "Начать тренировку";
+  const startCtaLabel = "🏁 Начать тренировку";
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
@@ -652,7 +652,7 @@ export default function PlanOne() {
             {startCtaLabel}
           </button>
           <button type="button" style={s.secondaryBtn} onClick={() => nav("/schedule")}>
-            Запланировать
+            📅 Запланировать
           </button>
         </div>
 
@@ -801,7 +801,7 @@ export default function PlanOne() {
               });
             }}
           >
-            Начать тренировку
+            🏁 Начать тренировку
           </button>
 
           <button
@@ -809,7 +809,7 @@ export default function PlanOne() {
             style={s.secondaryBtn}
             onClick={handleScheduleOpen}
         >
-          Запланировать
+          📅 Запланировать
         </button>
       </div>
 
