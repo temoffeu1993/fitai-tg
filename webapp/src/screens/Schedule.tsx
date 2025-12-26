@@ -740,7 +740,7 @@ function PlanPreviewModal({
   onClose,
   onDateChange,
   onTimeChange,
-  onSave,
+  onSave: _onSave,
   onCancel,
   onStart,
 }: {
@@ -757,15 +757,23 @@ function PlanPreviewModal({
   onStart: () => void;
 }) {
   const plan = workout.plan || {};
-  const warmup = Array.isArray(plan.warmup) ? plan.warmup : [];
-  const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];
-  const cooldown = Array.isArray(plan.cooldown) ? plan.cooldown : [];
-  const statusLabel = workout.status === "completed" ? "Выполнена" : "Запланирована";
+  const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
 
   // Новое состояние для редактирования
   const [isEditing, setIsEditing] = useState(false);
   const [editDate, setEditDate] = useState(date);
   const [editTime, setEditTime] = useState(time);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setMotion("open"));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (motion === "closing") return;
+    setMotion("closing");
+    window.setTimeout(() => onClose(), 160);
+  }, [motion, onClose]);
 
   const handleEditToggle = () => {
     if (workout.status === "completed") return;
@@ -804,32 +812,40 @@ function PlanPreviewModal({
   } catch (err) {
     console.error("update failed", err);
   }
-};
+	};
 
-  // Вычисляем время тренировки
-  const totalExercises = exercises.length;
-  const estimatedMinutes = plan.duration || Math.max(25, Math.min(90, Math.round(totalExercises * 3.5)));
-  
-  // Локация (если есть в плане, иначе дефолт)
-  const location = plan.location || "Дома";
+  const wrapStyle: CSSProperties = {
+    ...modalStyles.wrap,
+    background: motion === "open" ? "rgba(0,0,0,.4)" : "rgba(0,0,0,0)",
+    transition: "background 180ms ease",
+  };
+
+  const cardStyle: CSSProperties = {
+    ...modalStyles.card,
+    opacity: motion === "closing" ? 0 : motion === "enter" ? 0 : 1,
+    transform: motion === "enter" ? "translateY(20px) scale(0.98)" : "translateY(0) scale(1)",
+    transition:
+      "opacity 160ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease",
+    willChange: "opacity, transform",
+  };
 
   return (
-    <div style={modalStyles.wrap} role="dialog" aria-modal="true" onClick={(e) => {
-      if (e.target === e.currentTarget) onClose();
-    }}>
-      <div style={modalStyles.card}>
-        {/* Hero-шапка */}
-        <div style={modalStyles.heroHeader}>
-          <div style={modalStyles.heroTop}>
-            <span style={modalStyles.heroPill}>{statusLabel}</span>
-            <button style={modalStyles.heroClose} onClick={onClose} type="button">
-              ✕
-            </button>
-          </div>
-          <div style={modalStyles.heroTitle}>{plan.title || "Тренировка"}</div>
-          <div style={modalStyles.heroSubtitle}>Краткий превью запланированной тренировки</div>
+    <div
+      style={wrapStyle}
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) requestClose();
+      }}
+    >
+      <div style={cardStyle}>
+        <div style={modalStyles.topRow}>
+          <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
+            ✕
+          </button>
         </div>
-
+        <div style={modalStyles.title}>{plan.title || "Тренировка"}</div>
+        <div style={modalStyles.subtitle}>Выбери дату и время, чтобы запланировать тренировку</div>
         {/* Дата/время карточка */}
         <div style={modalStyles.dateTimeCard}>
           {!isEditing ? (
@@ -838,10 +854,10 @@ function PlanPreviewModal({
                 <div style={modalStyles.dateTimeRow}>
                   <span style={modalStyles.dateTimeIcon}>📅</span>
                   <span style={modalStyles.dateTimeText}>
-                    {new Date(date).toLocaleDateString("ru-RU", { 
-                      weekday: "long", 
-                      day: "numeric", 
-                      month: "long" 
+                    {new Date(date).toLocaleDateString("ru-RU", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
                     })}
                   </span>
                 </div>
@@ -851,11 +867,7 @@ function PlanPreviewModal({
                 </div>
               </div>
               {workout.status !== "completed" && (
-                <button 
-                  style={modalStyles.editBtn} 
-                  onClick={handleEditToggle}
-                  type="button"
-                >
+                <button style={modalStyles.editBtn} onClick={handleEditToggle} type="button">
                   ✏️
                 </button>
               )}
@@ -880,34 +892,11 @@ function PlanPreviewModal({
                   style={modalStyles.dateTimeInput}
                 />
               </div>
-              <button
-                style={modalStyles.saveEditBtn}
-                onClick={handleSaveEdit}
-                type="button"
-              >
+              <button style={modalStyles.saveEditBtn} onClick={handleSaveEdit} type="button">
                 Сохранить изменения
               </button>
             </div>
           )}
-        </div>
-
-        {/* Статистика */}
-        <div style={modalStyles.statsGrid}>
-          <div style={modalStyles.statBox}>
-            <div style={modalStyles.statIcon}>⚡</div>
-            <div style={modalStyles.statLabel}>Упражнений</div>
-            <div style={modalStyles.statValue}>{totalExercises}</div>
-          </div>
-          <div style={modalStyles.statBox}>
-            <div style={modalStyles.statIcon}>🕒</div>
-            <div style={modalStyles.statLabel}>Минут</div>
-            <div style={modalStyles.statValue}>{estimatedMinutes}</div>
-          </div>
-          <div style={modalStyles.statBox}>
-            <div style={modalStyles.statIcon}>📍</div>
-            <div style={modalStyles.statLabel}>Локация</div>
-            <div style={modalStyles.statValue}>{location}</div>
-          </div>
         </div>
 
         {error && <div style={modalStyles.error}>{error}</div>}
@@ -915,19 +904,14 @@ function PlanPreviewModal({
         {/* Кнопки */}
         <div style={modalStyles.actions}>
           <button
-  type="button"
-  style={modalStyles.startBtn}
-  onClick={onStart}
+            type="button"
+            style={modalStyles.startBtn}
+            onClick={onStart}
             disabled={saving || workout.status === "completed"}
           >
             {workout.status === "completed" ? "✓ Завершена" : "Начать тренировку"}
           </button>
-          <button
-            type="button"
-            style={modalStyles.deleteBtn}
-            onClick={onCancel}
-            disabled={saving}
-          >
+          <button type="button" style={modalStyles.deleteBtn} onClick={onCancel} disabled={saving}>
             Удалить
           </button>
         </div>
@@ -1541,26 +1525,40 @@ const modalStyles: Record<string, CSSProperties> = {
   wrap: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,.4)",
     display: "grid",
     placeItems: "center",
     zIndex: 2000,
     padding: 16,
   },
 
-  // 1) Сам блок модала — стекло как чипы «План/Выполнено/Прогресс»
+  // Сам блок модала
   card: {
-  width: "min(92vw, 460px)",
-  maxHeight: "90vh",
-  overflowY: "auto",
-  background: "linear-gradient(135deg, #ECE3FF 0%, #D9C2F0 45%, #FFD8C2 100%)",
-  border: "1px solid rgba(0,0,0,0.08)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  borderRadius: 20,
-  display: "grid",
-  gap: 14,
-  overflow: "hidden",
+    width: "min(92vw, 460px)",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    overflowX: "hidden",
+    background: "var(--tg-theme-bg-color, #f5f6fb)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
+    borderRadius: 20,
+    display: "grid",
+    gap: 12,
+    padding: "14px 16px 16px",
   },
+
+  topRow: { display: "flex", justifyContent: "flex-end" },
+  closeBtn: {
+    border: "none",
+    background: "transparent",
+    color: "#1b1b1b",
+    cursor: "pointer",
+    fontSize: 18,
+    lineHeight: 1,
+    padding: 6,
+    borderRadius: 10,
+  },
+  title: { fontSize: 18, fontWeight: 800, color: "#111", lineHeight: 1.15 },
+  subtitle: { marginTop: -6, fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)" },
 
   // ===== Дата/время блок (как было) =====
   dateTimeDisplay: {
@@ -1598,56 +1596,15 @@ const modalStyles: Record<string, CSSProperties> = {
     marginTop: 4,
   },
 
-  // 2) Верхняя часть — чёрная
-  heroHeader: {
-    position: "relative",
-    padding: 16,
-    background: "#000",
-    color: "#fff",
-  },
-  heroTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  heroPill: {
-    background: "rgba(255,255,255,.18)",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.24)",
-    backdropFilter: "blur(6px)",
-  },
-  heroClose: {
-    background: "rgba(255,255,255,.18)",
-    border: "1px solid rgba(255,255,255,.24)",
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    fontSize: 16,
-    color: "#fff",
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-    backdropFilter: "blur(6px)",
-  },
-  heroTitle: { fontSize: 20, fontWeight: 800, marginTop: 4, lineHeight: 1.2, color: "#fff" },
-  heroSubtitle: { fontSize: 13, opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.9)" },
-
   // Дата/время карточка
   dateTimeCard: {
-  margin: "0 16px",
-  background: "rgba(255, 255, 255, 0.60)",
-  border: "1px solid rgba(0,0,0,0.08)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  backdropFilter: "blur(8px)",
-  borderRadius: 14,
-  padding: 12,
-  display: "grid",
-  gap: 10,
+    background: "rgba(255, 255, 255, 0.85)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius: 14,
+    padding: 12,
+    display: "grid",
+    gap: 10,
   },
   dateTimeRow: { display: "flex", alignItems: "center", gap: 10 },
   dateTimeIcon: { fontSize: 18, flexShrink: 0 },
@@ -1662,36 +1619,6 @@ const modalStyles: Record<string, CSSProperties> = {
     color: "#1b1b1b",
     fontFamily: "inherit",
     boxShadow: "0 2px 8px rgba(0,0,0,.06)",
-  },
-
-  // 3) Чипы «Упражнений/Минут/Локация» — как «План/Выполнено/Прогресс»
-  statsGrid: {
-    margin: "0 16px",
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 12,
-  },
-  statBox: {
-    background: "rgba(255, 255, 255, 0.60)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
-    gap: 4,
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-  },
-  statIcon: { fontSize: 20, color: "#111" },
-  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
-  statLabel: {
-    fontSize: 11,
-    color: "rgba(0,0,0,.75)",
-    letterSpacing: 0.2,
-    textTransform: "none",
   },
 
   // Секция упражнений
@@ -1727,8 +1654,8 @@ const modalStyles: Record<string, CSSProperties> = {
     borderRadius: 10,
   },
 
-  // 4) Низ модала — кнопки
-  actions: { margin: "0 16px 16px", display: "grid", gap: 8 },
+  // Низ модала — кнопки
+  actions: { marginTop: 6, display: "grid", gap: 8 },
 
   // «Начать тренировку» — стекло + фон как кнопки пролистывания месяца
   startBtn: {
