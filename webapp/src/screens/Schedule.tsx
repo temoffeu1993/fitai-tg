@@ -21,6 +21,18 @@ const dayLabelRU = (label: string) => {
   return label || "Тренировка";
 };
 
+const dayCodeShort = (label: string) => {
+  const v = String(label || "").toLowerCase();
+  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "push";
+  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "pull";
+  if (v.includes("leg") || v.includes("ног")) return "legs";
+  if (v.includes("upper") || v.includes("верх")) return "upper";
+  if (v.includes("lower") || v.includes("низ")) return "lower";
+  if (v.includes("full")) return "full";
+  if (v.includes("recovery") || v.includes("восстанов")) return "recovery";
+  return "";
+};
+
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const defaultTimeSuggestion = () => {
   const hour = new Date().getHours();
@@ -138,14 +150,8 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
-  // Match PlanOne: list only workouts that are visible there (have scheduledFor and not completed/cancelled).
-  const pickableWorkouts = useMemo(
-    () =>
-      planned
-        .filter((w) => w && w.id && w.scheduledFor)
-        .filter((w) => w.status !== "cancelled" && w.status !== "completed"),
-    [planned]
-  );
+  // For picking in the calendar, show only not-yet-scheduled workouts.
+  const pendingWorkouts = useMemo(() => planned.filter((w) => w.status === "pending"), [planned]);
 
   const upcoming = useMemo(() => {
     const nowTs = Date.now();
@@ -193,10 +199,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       return;
     }
     const initialTime = scheduleDates[key]?.time ?? defaultTimeSuggestion();
-    const firstPickable = pickableWorkouts[0]?.id ?? null;
+    const firstPending = pendingWorkouts[0]?.id ?? null;
     setModal({
       workout: null,
-      selectedWorkoutId: firstPickable,
+      selectedWorkoutId: firstPending,
       date: key,
       time: initialTime,
       saving: false,
@@ -224,7 +230,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     const { workout, date, time, selectedWorkoutId } = modal;
     if (workout?.status === "completed") return;
     const effectiveWorkout =
-      workout ?? pickableWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
+      workout ?? pendingWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
     if (!effectiveWorkout) {
       setModal((prev) =>
         prev ? { ...prev, error: "Выбери тренировку" } : prev
@@ -361,8 +367,14 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
               const isToday = sameDate(day, today);
               const slotEntry = scheduleDates[key];
               const hasCompleted = items.some((w) => w.status === "completed");
-              const scheduledItem = items.find((w) => w.status === "scheduled");
-              const primaryPlanned = scheduledItem ?? items[0] ?? null;
+	              const scheduledItem = items.find((w) => w.status === "scheduled");
+	              const primaryPlanned = scheduledItem ?? items[0] ?? null;
+	              const plannedTag = (() => {
+	                if (!scheduledItem) return "";
+	                const p: any = scheduledItem.plan || {};
+	                const raw = String(p.dayLabel || p.title || ""); 
+	                return dayCodeShort(raw);
+	              })();
               let displayTime = primaryPlanned
                 ? formatTime(primaryPlanned.scheduledFor)
                 : slotEntry?.time ?? null;
@@ -399,15 +411,18 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                     ...(cellState === "planned" ? cal.planned : {}),
                     ...(cellState === "completed" ? cal.completed : {}),
                   }}
-                  onClick={() => openDate(day)}
-                >
-                  <div style={cal.dateNum}>{day.getDate()}</div>
-                  {showTime && timeStyle && (
-                    <div style={timeStyle}>
-                      <span style={cal.timeLineTop}>{timeTop}</span>
-                      <span style={cal.timeLineBottom}>{timeBottom}</span>
-                    </div>
-                  )}
+	                  onClick={() => openDate(day)}
+	                >
+	                  <div style={cal.dateNum}>{day.getDate()}</div>
+	                  {cellState === "planned" && plannedTag ? (
+	                    <div style={cal.workoutTag}>{plannedTag}</div>
+	                  ) : null}
+	                  {showTime && timeStyle && (
+	                    <div style={timeStyle}>
+	                      <span style={cal.timeLineTop}>{timeTop}</span>
+	                      <span style={cal.timeLineBottom}>{timeBottom}</span>
+	                    </div>
+	                  )}
                   {cellState === "completed" && (
                     <div style={cal.checkMark}>✓</div>
                   )}
@@ -469,7 +484,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
         <PlanPreviewModal
           workout={modal.workout}
           selectedWorkoutId={modal.selectedWorkoutId}
-          availableWorkouts={pickableWorkouts}
+          availableWorkouts={pendingWorkouts}
           date={modal.date}
           time={modal.time}
           saving={modal.saving}
@@ -794,7 +809,16 @@ function PlanPreviewModal({
 	            ✕
 	          </button>
 	        </div>
-		        <div style={modalStyles.dtRow}>
+	        {!needsPick ? (
+	          <div style={modalStyles.scheduledTitle}>
+	            {(() => {
+	              const p: any = (workout as any)?.plan || {};
+	              const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+	              return dayLabelRU(rawLabel);
+	            })()}
+	          </div>
+	        ) : null}
+	        <div style={modalStyles.dtRow}>
 		          <div style={modalStyles.dtChip}>
 	            <div style={modalStyles.dtChipLabel}>Дата</div>
 	            <div style={modalStyles.dtChipValue}>
@@ -1279,6 +1303,15 @@ const cal: Record<string, CSSProperties> = {
     borderColor: "rgba(72,160,72,.45)",
   },
   dateNum: { fontSize: 13, fontWeight: 800, color: "#111" },
+  workoutTag: {
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    color: "rgba(11,18,32,0.55)",
+    marginTop: -2,
+    pointerEvents: "none",
+  },
   timeText: {
     position: "absolute",
     left: 8,
@@ -1622,6 +1655,13 @@ const modalStyles: Record<string, CSSProperties> = {
     letterSpacing: "-0.02em",
   },
   emptyWorkouts: { fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)", padding: "10px 6px" },
+  scheduledTitle: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#0f172a",
+    lineHeight: 1.2,
+  },
 
   // Секция упражнений
   section: { margin: "0 16px", display: "grid", gap: 10 },
