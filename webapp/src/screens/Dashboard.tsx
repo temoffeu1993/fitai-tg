@@ -1,6 +1,8 @@
 // webapp/src/screens/Dashboard.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+import { getPlannedWorkouts } from "@/api/schedule";
 
 import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
@@ -151,6 +153,7 @@ export default function Dashboard() {
   });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
+  const [plannedCount, setPlannedCount] = useState<number | null>(null);
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -177,6 +180,34 @@ export default function Dashboard() {
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
     };
   }, []);
+
+  const refreshPlannedCount = useCallback(async () => {
+    if (!onbDone) {
+      setPlannedCount(null);
+      return;
+    }
+    try {
+      const planned = await getPlannedWorkouts();
+      setPlannedCount(Array.isArray(planned) ? planned.length : 0);
+    } catch {
+      setPlannedCount(null);
+    }
+  }, [onbDone]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    refreshPlannedCount();
+    window.addEventListener("focus", refreshPlannedCount);
+    window.addEventListener("planned_workouts_updated" as any, refreshPlannedCount);
+    window.addEventListener("schedule_updated" as any, refreshPlannedCount);
+    window.addEventListener("plan_completed" as any, refreshPlannedCount);
+    return () => {
+      window.removeEventListener("focus", refreshPlannedCount);
+      window.removeEventListener("planned_workouts_updated" as any, refreshPlannedCount);
+      window.removeEventListener("schedule_updated" as any, refreshPlannedCount);
+      window.removeEventListener("plan_completed" as any, refreshPlannedCount);
+    };
+  }, [refreshPlannedCount]);
 
   // Убрать подсветку через 10 секунд
   useEffect(() => {
@@ -240,6 +271,9 @@ export default function Dashboard() {
   const subtitle = "Я персональный ИИ фитнес тренер";
 
   const goOnb = () => navigate("/onb/age-sex");
+
+  const workoutsCtaLabel =
+    onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
 
   return (
     <div style={s.page}>
@@ -395,7 +429,7 @@ export default function Dashboard() {
         <button
           className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
           style={{
-            ...s.ctaBig,
+            ...s.ctaMain,
             ...(onbDone ? {} : s.disabledBtn),
             border: "1px solid transparent",
           }}
@@ -408,7 +442,7 @@ export default function Dashboard() {
           disabled={!onbDone}
           aria-disabled={!onbDone}
         >
-          Сгенерировать тренировку
+          {workoutsCtaLabel}
         </button>
       </section>
 
@@ -690,6 +724,23 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(0px)",
     cursor: "pointer",
     alignSelf: "flex-start",
+  },
+
+  ctaMain: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#000",
+    background: "rgba(255, 255, 255, 1)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 0px 0px rgba(0,0,0,0.08)",
+    cursor: "pointer",
+    width: "100%",
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    alignSelf: "center",
   },
 
   // визуально выключенные элементы

@@ -480,6 +480,7 @@ workoutGeneration.post(
       const workout = weekPlan[i];
       
       const workoutData = {
+        _origin: "generator",
         schemeId: scheme.id,
         schemeName: workout.schemeName,
         dayIndex: workout.dayIndex,
@@ -516,12 +517,40 @@ workoutGeneration.post(
            data = $3::jsonb,
            plan = $3::jsonb,
            status = 'scheduled', 
-           updated_at = now()`,
+           updated_at = now()
+         WHERE planned_workouts.status <> 'completed'`,
         [uid, i, workoutData]
       );
       console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
     }
     console.log(`✅ All workouts saved to planned_workouts`);
+
+    // Cleanup: cancel leftover auto-generated scheduled workouts not in the newly generated week.
+    // This prevents "old" generated workouts from sticking around after a regenerate
+    // (e.g., when daysPerWeek decreased).
+    await q(
+      `WITH keep_dates AS (
+         SELECT (CURRENT_DATE + make_interval(days => gs))::date AS d
+           FROM generate_series(0, $2 - 1) AS gs
+       )
+       UPDATE planned_workouts pw
+          SET status = 'cancelled',
+              updated_at = now()
+        WHERE pw.user_id = $1
+          AND pw.status = 'scheduled'
+          AND pw.workout_date >= CURRENT_DATE
+          AND pw.workout_date < CURRENT_DATE + INTERVAL '14 days'
+          AND (
+            pw.data->>'_origin' = 'generator'
+            OR pw.plan->>'_origin' = 'generator'
+            OR (
+              (pw.data ? 'schemeId' OR pw.plan ? 'schemeId')
+              AND pw.scheduled_for::time = '00:00:00'
+            )
+          )
+          AND NOT EXISTS (SELECT 1 FROM keep_dates k WHERE k.d = pw.workout_date)`,
+      [uid, weekPlan.length]
+    );
     
     // Return TODAY's workout (day 0) for compatibility with old frontend
     const todayWorkout = weekPlan[0];
@@ -949,6 +978,7 @@ workoutGeneration.post(
       const workout = weekPlan[i];
       
       const workoutData = {
+        _origin: "generator",
         schemeId: scheme.id,
         schemeName: workout.schemeName,
         dayIndex: workout.dayIndex,
@@ -982,10 +1012,36 @@ workoutGeneration.post(
            data = $3::jsonb,
            plan = $3::jsonb,
            status = 'scheduled', 
-           updated_at = now()`,
+           updated_at = now()
+         WHERE planned_workouts.status <> 'completed'`,
         [uid, i, workoutData]
       );
     }
+
+    // Cleanup leftover auto-generated workouts not in new plan window
+    await q(
+      `WITH keep_dates AS (
+         SELECT (CURRENT_DATE + make_interval(days => gs))::date AS d
+           FROM generate_series(0, $2 - 1) AS gs
+       )
+       UPDATE planned_workouts pw
+          SET status = 'cancelled',
+              updated_at = now()
+        WHERE pw.user_id = $1
+          AND pw.status = 'scheduled'
+          AND pw.workout_date >= CURRENT_DATE
+          AND pw.workout_date < CURRENT_DATE + INTERVAL '14 days'
+          AND (
+            pw.data->>'_origin' = 'generator'
+            OR pw.plan->>'_origin' = 'generator'
+            OR (
+              (pw.data ? 'schemeId' OR pw.plan ? 'schemeId')
+              AND pw.scheduled_for::time = '00:00:00'
+            )
+          )
+          AND NOT EXISTS (SELECT 1 FROM keep_dates k WHERE k.d = pw.workout_date)`,
+      [uid, weekPlan.length]
+    );
     
     res.json({
       ok: true,

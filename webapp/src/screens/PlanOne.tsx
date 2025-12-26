@@ -123,7 +123,13 @@ export default function PlanOne() {
     setPlannedError(null);
     try {
       const list = await getPlannedWorkouts();
-      setPlannedWorkouts(Array.isArray(list) ? list : []);
+      const next = Array.isArray(list) ? list : [];
+      setPlannedWorkouts(next);
+      try {
+        window.dispatchEvent(new CustomEvent("planned_workouts_updated", { detail: { count: next.length } }));
+      } catch {
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      }
     } catch (err) {
       console.error("Failed to load planned workouts", err);
       setPlannedError("Не удалось загрузить тренировки недели");
