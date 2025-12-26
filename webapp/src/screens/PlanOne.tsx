@@ -1829,7 +1829,7 @@ function PlannedExercisesEditor({
     const rightEdge = r ? r.left + r.width : pad;
     const preferredWidth =
       mode === "replace"
-        ? Math.min(320, window.innerWidth - pad * 2)
+        ? Math.min(280, window.innerWidth - pad * 2)
         : Math.min(280, window.innerWidth - pad * 2);
     // Keep the menu fully within the viewport even when the dots button is near the left edge.
     const minLeft = pad + preferredWidth;
@@ -2016,7 +2016,7 @@ function PlannedExercisesEditor({
                           onClick={() => void applyReplace(a.exerciseId)}
                         >
                           <div style={{ fontWeight: 900 }}>{a.name}</div>
-                          <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                          <div style={{ fontSize: 11, color: "#4a5568", lineHeight: 1.3, marginTop: 4 }}>
                             {a.hint || ""}
                             {typeof a.suggestedWeight === "number" && Number.isFinite(a.suggestedWeight) && a.suggestedWeight > 0
                               ? ` • реком. ${a.suggestedWeight} кг`
