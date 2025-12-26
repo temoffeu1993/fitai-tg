@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { loadHistory } from "@/lib/history";
@@ -1602,25 +1602,38 @@ function PlannedExercisesEditor({
   const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_ban">("menu");
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const menuBtnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [popoverPhase, setPopoverPhase] = useState<"closed" | "opening" | "open" | "closing">("closed");
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const openMenu = (idx: number, el?: HTMLElement | null) => {
+  const recomputeAnchorRect = useCallback(
+    (idx: number | null) => {
+      if (idx == null) {
+        setAnchorRect(null);
+        return;
+      }
+      try {
+        const el = menuBtnRefs.current[idx];
+        if (el) setAnchorRect(el.getBoundingClientRect());
+      } catch {}
+    },
+    []
+  );
+
+  const openMenu = (idx: number) => {
     setErr(null);
     setMode("menu");
     setMenuIndex(idx);
-    setAnchorEl(el ?? null);
+    recomputeAnchorRect(idx);
   };
 
   const closeImmediate = () => {
     setPopoverPhase("closed");
     setMenuIndex(null);
     setMode("menu");
-    setAnchorEl(null);
     setAnchorRect(null);
     setAlts([]);
     setLoading(false);
@@ -1638,9 +1651,7 @@ function PlannedExercisesEditor({
       if (e.key === "Escape") close();
     };
     const update = () => {
-      try {
-        if (anchorEl) setAnchorRect(anchorEl.getBoundingClientRect());
-      } catch {}
+      recomputeAnchorRect(menuIndex);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", update, true);
@@ -1650,17 +1661,15 @@ function PlannedExercisesEditor({
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [menuIndex, anchorEl]);
+  }, [menuIndex, recomputeAnchorRect]);
 
   useLayoutEffect(() => {
     if (menuIndex == null) {
       setAnchorRect(null);
       return;
     }
-    try {
-      if (anchorEl) setAnchorRect(anchorEl.getBoundingClientRect());
-    } catch {}
-  }, [menuIndex, mode, anchorEl]);
+    recomputeAnchorRect(menuIndex);
+  }, [menuIndex, mode, recomputeAnchorRect]);
 
   useEffect(() => {
     if (menuIndex == null) {
@@ -1801,7 +1810,10 @@ function PlannedExercisesEditor({
   const popover: React.CSSProperties = (() => {
     if (typeof window === "undefined") return { position: "fixed", left: pad, top: 120 };
     const r = anchorRect;
-    const left = r ? r.left + r.width : pad;
+    const rightEdge = r ? r.left + r.width : pad;
+    const preferredWidth = mode === "replace" ? Math.min(360, window.innerWidth - pad * 2) : null;
+    const minLeft = pad + (preferredWidth ?? 240);
+    const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
     const top = r
       ? openUpward
         ? r.top - 2
@@ -1811,7 +1823,7 @@ function PlannedExercisesEditor({
       position: "fixed",
       left,
       top,
-      width: "max-content",
+      width: preferredWidth ?? "max-content",
       maxWidth: `calc(100vw - ${pad * 2}px)`,
     };
   })();
@@ -1879,10 +1891,13 @@ function PlannedExercisesEditor({
               <button
                 type="button"
                 style={menuBtn}
+                ref={(el) => {
+                  menuBtnRefs.current[i] = el;
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isOpen) close();
-                  else openMenu(i, e.currentTarget as any);
+                  else openMenu(i);
                 }}
                 aria-label="Опции"
               >
@@ -1911,7 +1926,13 @@ function PlannedExercisesEditor({
         typeof document !== "undefined"
           ? createPortal(
               <>
-                <div style={overlay} onClick={close} role="presentation" />
+                <div
+                  style={overlay}
+                  role="presentation"
+                  onPointerDown={(e) => {
+                    if (e.target === e.currentTarget) close();
+                  }}
+                />
                 <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
                   {err ? (
                     <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
@@ -1965,7 +1986,11 @@ function PlannedExercisesEditor({
                         <button
                           key={a.exerciseId}
                           type="button"
-                          style={actionBtn}
+                          style={{
+                            ...actionBtn,
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                          }}
                           disabled={loading}
                           onClick={() => void applyReplace(a.exerciseId)}
                         >
