@@ -2,13 +2,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getPlannedWorkouts } from "@/api/schedule";
-
 import robotImg from "../assets/robot.png";
 const ROBOT_SRC = robotImg;
 
 const HISTORY_KEY = "history_sessions_v1";
-const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const RANK_TIERS = [
   { min: 0, name: "Новичок" },
   { min: 5, name: "Импульс" },
@@ -68,18 +65,6 @@ function readHistorySnapshot(): HistorySnapshot {
     return { total: raw.length, lastCompletedAt: last, xp };
   } catch {
     return { total: 0, lastCompletedAt: null, xp: 0 };
-  }
-}
-
-function readPlannedWorkoutsCount(): number | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(PLANNED_WORKOUTS_COUNT_KEY);
-    if (raw == null) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  } catch {
-    return null;
   }
 }
 
@@ -166,7 +151,6 @@ export default function Dashboard() {
   });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
-  const [plannedCount, setPlannedCount] = useState<number | null>(() => readPlannedWorkoutsCount());
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -193,39 +177,6 @@ export default function Dashboard() {
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
     };
   }, []);
-
-
-  const refreshPlannedCount = useCallback(async () => {
-    if (!onbDone) {
-      setPlannedCount(null);
-      return;
-    }
-    try {
-      const planned = await getPlannedWorkouts();
-      const next = Array.isArray(planned) ? planned.length : 0;
-      setPlannedCount(next);
-      try {
-        localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next));
-      } catch {}
-    } catch {
-      setPlannedCount(null);
-    }
-  }, [onbDone]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    refreshPlannedCount();
-    window.addEventListener("focus", refreshPlannedCount);
-    window.addEventListener("planned_workouts_updated" as any, refreshPlannedCount);
-    window.addEventListener("schedule_updated" as any, refreshPlannedCount);
-    window.addEventListener("plan_completed" as any, refreshPlannedCount);
-    return () => {
-      window.removeEventListener("focus", refreshPlannedCount);
-      window.removeEventListener("planned_workouts_updated" as any, refreshPlannedCount);
-      window.removeEventListener("schedule_updated" as any, refreshPlannedCount);
-      window.removeEventListener("plan_completed" as any, refreshPlannedCount);
-    };
-  }, [refreshPlannedCount]);
 
   // Убрать подсветку через 10 секунд
   useEffect(() => {
@@ -290,8 +241,7 @@ export default function Dashboard() {
 
   const goOnb = () => navigate("/onb/age-sex");
 
-  const workoutsCtaLabel =
-    onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
+  const workoutsCtaLabel = "Выбрать тренировку";
 
   return (
     <div style={s.page}>
@@ -760,8 +710,6 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: "none",
     letterSpacing: "normal",
     whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
     alignSelf: "center",
   },
 
