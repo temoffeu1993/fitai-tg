@@ -177,15 +177,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     (w) => w.status === "completed" && sameMonth(parseIsoDate(w.scheduledFor), view)
   ).length;
 
-  // слоты расписания без тренировки
-  const slotOnlyCountInViewMonth = Object.keys(scheduleDates).filter((iso) => {
-    const d = parseIsoDate(iso);
-    if (!sameMonth(d, view)) return false;
-    const items = plannedByDate[iso] || [];
-    return items.length === 0;
-  }).length;
-
-  const totalTrainingsInViewMonth = plannedInViewMonth + slotOnlyCountInViewMonth;
+  const totalTrainingsInViewMonth = plannedInViewMonth + completedInViewMonth;
   const progressDenominator = totalTrainingsInViewMonth;
   const progressPct = progressDenominator > 0
     ? Math.round((completedInViewMonth / progressDenominator) * 100)
@@ -270,12 +262,12 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     if (!workoutId) return;
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
-      await cancelPlannedWorkout(workoutId);
-      setPlanned((prev) => prev.filter((w) => w.id !== workoutId));
+      const updated = await updatePlannedWorkout(workoutId, { status: "pending" });
+      setPlanned((prev) => mergePlanned(prev, updated));
       await reload();
       setModal(null);
     } catch (err) {
-      console.error("cancel planned workout failed", err);
+      console.error("unschedule planned workout failed", err);
       setModal((prev) =>
         prev
           ? { ...prev, saving: false, error: "Не удалось удалить. Попробуй снова." }
@@ -362,11 +354,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           <div style={cal.grid}>
             {days.map((day, idx) => {
               if (!day) return <div key={`empty-${idx}`} />;
-              const key = toDateKey(day);
-              const items = plannedByDate[key] || [];
-              const isToday = sameDate(day, today);
-              const slotEntry = scheduleDates[key];
-              const hasCompleted = items.some((w) => w.status === "completed");
+	              const key = toDateKey(day);
+	              const items = plannedByDate[key] || [];
+	              const isToday = sameDate(day, today);
+	              const hasCompleted = items.some((w) => w.status === "completed");
 	              const scheduledItem = items.find((w) => w.status === "scheduled");
 	              const primaryPlanned = scheduledItem ?? items[0] ?? null;
 	              const plannedTag = (() => {
@@ -375,28 +366,22 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 	                const raw = String(p.dayLabel || p.title || ""); 
 	                return dayCodeShort(raw);
 	              })();
-              let displayTime = primaryPlanned
-                ? formatTime(primaryPlanned.scheduledFor)
-                : slotEntry?.time ?? null;
-              let extraCount = primaryPlanned ? Math.max(items.length - 1, 0) : 0;
-              const cellState = hasCompleted
-                ? "completed"
-                : primaryPlanned
-                ? "planned"
-                : slotEntry
-                ? "slot"
-                : "empty";
-              if (cellState === "completed") {
-                displayTime = null;
-                extraCount = 0;
-              }
-              const showTime = displayTime && (cellState === "planned" || cellState === "slot");
-              const timeStyle =
-                cellState === "planned"
-                  ? { ...cal.timeText, ...cal.timeTextPlanned }
-                  : cellState === "slot"
-                  ? { ...cal.timeText, ...cal.timeTextSlot }
-                  : null;
+	              let displayTime = primaryPlanned ? formatTime(primaryPlanned.scheduledFor) : null;
+	              let extraCount = primaryPlanned ? Math.max(items.length - 1, 0) : 0;
+	              const cellState = hasCompleted
+	                ? "completed"
+	                : primaryPlanned
+	                ? "planned"
+	                : "empty";
+	              if (cellState === "completed") {
+	                displayTime = null;
+	                extraCount = 0;
+	              }
+	              const showTime = displayTime && cellState === "planned";
+	              const timeStyle =
+	                cellState === "planned"
+	                  ? { ...cal.timeText, ...cal.timeTextPlanned }
+	                  : null;
               const [timeHours, timeMinutes] = displayTime ? displayTime.split(":") : ["", ""];
               const timeTop = timeHours ? `${timeHours}:` : "";
               const timeBottom = timeMinutes ?? "";
@@ -404,13 +389,12 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                 <button
                   key={key}
                   type="button"
-                  style={{
-                    ...cal.cell,
-                    ...(isToday ? cal.today : {}),
-                    ...(cellState === "slot" ? cal.slot : {}),
-                    ...(cellState === "planned" ? cal.planned : {}),
-                    ...(cellState === "completed" ? cal.completed : {}),
-                  }}
+	                  style={{
+	                    ...cal.cell,
+	                    ...(isToday ? cal.today : {}),
+	                    ...(cellState === "planned" ? cal.planned : {}),
+	                    ...(cellState === "completed" ? cal.completed : {}),
+	                  }}
 	                  onClick={() => openDate(day)}
 	                >
 	                  <div style={cal.dateNum}>{day.getDate()}</div>
