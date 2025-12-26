@@ -1613,12 +1613,10 @@ function PlannedExercisesEditor({
   const goMode = useCallback(
     (next: "menu" | "replace" | "confirm_remove" | "confirm_ban") => {
       if (next === mode) return;
-      setPanelPhase("leaving");
-      window.setTimeout(() => {
-        setMode(next);
-        setPanelPhase("entering");
-        window.requestAnimationFrame(() => setPanelPhase("idle"));
-      }, 120);
+      // Avoid "lag": switch immediately, animate only the entering state.
+      setMode(next);
+      setPanelPhase("entering");
+      window.requestAnimationFrame(() => setPanelPhase("idle"));
     },
     [mode]
   );
