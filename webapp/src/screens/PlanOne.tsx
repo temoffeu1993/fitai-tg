@@ -1605,9 +1605,23 @@ function PlannedExercisesEditor({
   const menuBtnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [popoverPhase, setPopoverPhase] = useState<"closed" | "opening" | "open" | "closing">("closed");
+  const [panelPhase, setPanelPhase] = useState<"idle" | "leaving" | "entering">("idle");
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const goMode = useCallback(
+    (next: "menu" | "replace" | "confirm_remove" | "confirm_ban") => {
+      if (next === mode) return;
+      setPanelPhase("leaving");
+      window.setTimeout(() => {
+        setMode(next);
+        setPanelPhase("entering");
+        window.requestAnimationFrame(() => setPanelPhase("idle"));
+      }, 120);
+    },
+    [mode]
+  );
 
   const recomputeAnchorRect = useCallback(
     (idx: number | null) => {
@@ -1626,6 +1640,7 @@ function PlannedExercisesEditor({
   const openMenu = (idx: number) => {
     setErr(null);
     setMode("menu");
+    setPanelPhase("idle");
     setMenuIndex(idx);
     recomputeAnchorRect(idx);
   };
@@ -1679,7 +1694,7 @@ function PlannedExercisesEditor({
     setPopoverPhase("opening");
     const raf = window.requestAnimationFrame(() => setPopoverPhase("open"));
     return () => window.cancelAnimationFrame(raf);
-  }, [menuIndex, mode]);
+  }, [menuIndex]);
 
   const current = menuIndex != null ? displayItems[menuIndex] : null;
   const currentId = current?.exerciseId || null;
@@ -1692,7 +1707,7 @@ function PlannedExercisesEditor({
       const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 3 });
       const list = Array.isArray(res?.alternatives) ? res.alternatives : [];
       setAlts(list.slice(0, 3));
-      setMode("replace");
+      goMode("replace");
     } catch (e) {
       console.error(e);
       setErr("Не удалось загрузить варианты замены. Попробуй ещё раз.");
@@ -1863,6 +1878,12 @@ function PlannedExercisesEditor({
     overflow: "hidden",
     zIndex: 81,
   };
+  const panelStyle: React.CSSProperties = {
+    opacity: panelPhase === "idle" ? 1 : 0,
+    transform: panelPhase === "idle" ? "translateY(0)" : panelPhase === "entering" ? "translateY(6px)" : "translateY(-6px)",
+    transition: "opacity 160ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+    willChange: "opacity, transform",
+  };
   const actionBtn: React.CSSProperties = {
     width: "100%",
     padding: "10px 12px",
@@ -1965,64 +1986,71 @@ function PlannedExercisesEditor({
                     </div>
                   ) : null}
 
-                  {mode === "menu" ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
-                        🔀 Заменить
-                      </button>
-                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
-                        🗑️ Удалить
-                      </button>
-                      <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
-                        Заблокировать
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {mode === "confirm_remove" ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <div style={subText}>Удалить упражнение из этого плана?</div>
-                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
-                        Да, удалить
-                      </button>
-                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                        Назад
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {mode === "confirm_ban" ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      <div style={subText}>Убрать упражнение из будущих генераций?</div>
-                      <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
-                        Да, больше не предлагать
-                      </button>
-                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                        Назад
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {mode === "replace" ? (
-                    <div style={{ display: "grid", gap: 8, maxHeight: replaceMaxHeight, overflow: "auto" }}>
-                      <div style={subTitle}>Выбери замену</div>
-                      {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
-                      {alts.map((a) => (
+                  <div style={panelStyle}>
+                    {mode === "menu" ? (
+                      <div style={{ display: "grid", gap: 8 }}>
                         <button
-                          key={a.exerciseId}
                           type="button"
-                          style={actionBtnWrap}
-                          disabled={loading}
-                          onClick={() => void applyReplace(a.exerciseId)}
+                          style={actionBtn}
+                          disabled={loading || !currentId}
+                          onClick={() => void fetchAlternatives()}
                         >
-                          <div style={{ fontWeight: 900 }}>{a.name}</div>
+                          🔀 Заменить
                         </button>
-                      ))}
-                      <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                        Назад
-                      </button>
-                    </div>
-                  ) : null}
+                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => goMode("confirm_remove")}>
+                          🗑️ Удалить
+                        </button>
+                        <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => goMode("confirm_ban")}>
+                          Заблокировать
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {mode === "confirm_remove" ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={subText}>Удалить упражнение из этого плана?</div>
+                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
+                          Да, удалить
+                        </button>
+                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                          Назад
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {mode === "confirm_ban" ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div style={subText}>Убрать упражнение из будущих генераций?</div>
+                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
+                          Да, больше не предлагать
+                        </button>
+                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                          Назад
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {mode === "replace" ? (
+                      <div style={{ display: "grid", gap: 8, maxHeight: replaceMaxHeight, overflow: "auto" }}>
+                        <div style={subTitle}>Выбери замену</div>
+                        {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
+                        {alts.map((a) => (
+                          <button
+                            key={a.exerciseId}
+                            type="button"
+                            style={actionBtnWrap}
+                            disabled={loading}
+                            onClick={() => void applyReplace(a.exerciseId)}
+                          >
+                            <div style={{ fontWeight: 900 }}>{a.name}</div>
+                          </button>
+                        ))}
+                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                          Назад
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </>,
               document.body
