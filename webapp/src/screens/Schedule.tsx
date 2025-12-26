@@ -9,18 +9,16 @@ import {
   ScheduleByDate,
 } from "@/api/schedule";
 
-const workoutLabelRU = (raw: string) => {
-  const key = String(raw || "").trim().toLowerCase();
-  if (!key) return "Тренировка";
-  if (key === "push") return "Грудь, плечи и трицепс";
-  if (key === "pull") return "Спина и бицепс";
-  if (key === "upper" || key === "верх") return "Верхняя часть тела";
-  if (key === "lower" || key === "низ") return "Нижняя часть тела";
-  if (key.includes("груд") && key.includes("триц")) return "Грудь, плечи и трицепс";
-  if (key.includes("спин") && key.includes("биц")) return "Спина и бицепс";
-  if (key.includes("верх")) return "Верхняя часть тела";
-  if (key.includes("низ")) return "Нижняя часть тела";
-  return raw;
+const dayLabelRU = (label: string) => {
+  const v = String(label || "").toLowerCase();
+  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Грудь, плечи и трицепс";
+  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Спина и бицепс";
+  if (v.includes("leg") || v.includes("ног")) return "Ноги и ягодицы";
+  if (v.includes("upper") || v.includes("верх")) return "Верхняя часть тела";
+  if (v.includes("lower") || v.includes("низ")) return "Нижняя часть тела";
+  if (v.includes("full")) return "Всё тело";
+  if (v.includes("recovery") || v.includes("восстанов")) return "Восстановление";
+  return label || "Тренировка";
 };
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
@@ -778,11 +776,15 @@ function PlanPreviewModal({
 	          @media (hover:hover){
 	            .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
 	          }
-          .schedule-checkin-btn:focus-visible{
-            outline:3px solid rgba(15, 23, 42, 0.18);
-            outline-offset:2px;
-          }
-        `}</style>
+	          .schedule-checkin-btn:focus-visible{
+	            outline:3px solid rgba(15, 23, 42, 0.18);
+	            outline-offset:2px;
+	          }
+	          .schedule-scheme-card:hover{
+	            transform: translateY(-2px);
+	            box-shadow: 0 4px 12px rgba(15,23,42,0.14);
+	          }
+	        `}</style>
 	        <div style={modalStyles.topRow}>
 	          <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
 	            ✕
@@ -819,44 +821,45 @@ function PlanPreviewModal({
 		          </div>
 		        </div>
 
-		        {needsPick ? (
-		          <div style={modalStyles.workoutsList}>
-		            {availableWorkouts.length ? (
-		              availableWorkouts.map((w) => {
-		                const p: any = w.plan || {};
-		                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-		                const label = workoutLabelRU(rawLabel);
-		                const selected = w.id === selectedWorkoutId;
-		                return (
-		                  <button
-		                    key={w.id}
-		                    type="button"
-		                    style={{
-		                      ...modalStyles.workoutRow,
-		                      ...(selected ? modalStyles.workoutRowSelected : null),
-		                    }}
-		                    onClick={() => onSelectWorkout(w.id)}
-		                  >
-		                    <span style={modalStyles.radioCircle}>
-		                      <span
-		                        style={{
-		                          ...modalStyles.radioDot,
-		                          transform: selected ? "scale(1)" : "scale(0)",
-		                          opacity: selected ? 1 : 0,
-		                        }}
-		                      />
-		                    </span>
-		                    <span style={modalStyles.workoutTitle}>{label}</span>
-		                  </button>
-		                );
-		              })
-		            ) : (
-		              <div style={modalStyles.emptyWorkouts}>
-		                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
-		              </div>
-		            )}
-		          </div>
-		        ) : null}
+			        {needsPick ? (
+			          <div style={modalStyles.workoutsList}>
+			            {availableWorkouts.length ? (
+			              availableWorkouts.map((w) => {
+			                const p: any = w.plan || {};
+			                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+			                const label = dayLabelRU(rawLabel);
+			                const selected = w.id === selectedWorkoutId;
+			                return (
+			                  <button
+			                    key={w.id}
+			                    type="button"
+			                    className="schedule-scheme-card"
+			                    style={{
+			                      ...modalStyles.workoutRow,
+			                      ...(selected ? modalStyles.workoutRowSelected : null),
+			                    }}
+			                    onClick={() => onSelectWorkout(w.id)}
+			                  >
+			                    <div style={modalStyles.radioCircle}>
+			                      <div
+			                        style={{
+			                          ...modalStyles.radioDot,
+			                          transform: selected ? "scale(1)" : "scale(0)",
+			                          opacity: selected ? 1 : 0,
+			                        }}
+			                      />
+			                    </div>
+			                    <div style={modalStyles.workoutTitle}>{label}</div>
+			                  </button>
+			                );
+			              })
+			            ) : (
+			              <div style={modalStyles.emptyWorkouts}>
+			                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+			              </div>
+			            )}
+			          </div>
+			        ) : null}
 
 	        {error && <div style={modalStyles.error}>{error}</div>}
 
@@ -937,14 +940,22 @@ function SoftGlowStyles() {
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
   return list
-    .filter((item) => item && item.id && item.scheduledFor && item.status !== "cancelled")
+    .filter((item) => {
+      if (!item || !item.id) return false;
+      if (item.status === "cancelled") return false;
+      // Pending workouts may not have a scheduled time yet; keep them for picking.
+      if (item.status === "pending") return true;
+      return Boolean(item.scheduledFor);
+    })
     .map((item) => ({
       ...item,
       status: item.status || "scheduled",
     }))
-    .sort(
-      (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
-    );
+    .sort((a, b) => {
+      const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      return at - bt;
+    });
 }
 
 function mergePlanned(list: PlannedWorkout[], updated: PlannedWorkout) {
@@ -1556,42 +1567,56 @@ const modalStyles: Record<string, CSSProperties> = {
 
   workoutsList: { display: "grid", gap: 8, marginTop: 6 },
   workoutRow: {
+    position: "relative",
     width: "100%",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 12px",
-    borderRadius: 14,
+    padding: 18,
+    borderRadius: 16,
     background: "rgba(255,255,255,0.6)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
+    transition: "all 0.3s ease",
     textAlign: "left",
   },
   workoutRowSelected: {
-    borderColor: "rgba(15, 23, 42, 0.35)",
-    boxShadow: "0 0 0 2px rgba(15,23,42,0.08), 0 2px 6px rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.85)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
+    transform: "translateY(-2px)",
   },
   radioCircle: {
-    width: 22,
-    height: 22,
+    position: "absolute",
+    top: 20,
+    left: 20,
+    width: 24,
+    height: 24,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.18)",
-    background: "rgba(255,255,255,0.85)",
+    border: "2px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
-    flexShrink: 0,
+    transition: "all 0.3s ease",
   },
   radioDot: {
     width: 12,
     height: 12,
     borderRadius: "50%",
     background: "#0f172a",
-    transition: "all 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
-  workoutTitle: { fontSize: 14, fontWeight: 800, color: "#0f172a", lineHeight: 1.15 },
+  workoutTitle: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginTop: 0,
+    marginLeft: 36,
+    marginRight: 0,
+    marginBottom: 0,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+  },
   emptyWorkouts: { fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)", padding: "10px 6px" },
 
   // Секция упражнений
