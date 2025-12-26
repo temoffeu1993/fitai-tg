@@ -1485,8 +1485,8 @@ const modalStyles: Record<string, CSSProperties> = {
     gap: 6,
     minHeight: 58,
   },
-  dtChipLabel: { fontSize: 11, fontWeight: 700, color: "rgba(17,24,39,0.65)" },
-  dtChipValue: { fontSize: 12, fontWeight: 500, color: "#0B1220", lineHeight: 1.1 },
+  dtChipLabel: { fontSize: 11, fontWeight: 400, color: "rgba(0,0,0,.75)", letterSpacing: 0.2, textTransform: "none" },
+  dtChipValue: { fontSize: 18, fontWeight: 800, color: "#111", lineHeight: 1.1 },
   dtInputOverlay: {
     position: "absolute",
     inset: 0,
