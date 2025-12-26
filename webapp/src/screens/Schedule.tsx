@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
+  cancelPlannedWorkout,
   getScheduleOverview,
   updatePlannedWorkout,
   saveScheduleDates,
@@ -272,6 +273,25 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
   };
 
+  const handleModalDelete = async () => {
+    if (!modal) return;
+    const workoutId = modal.workout.id;
+    setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
+    try {
+      await cancelPlannedWorkout(workoutId);
+      setPlanned((prev) => prev.filter((w) => w.id !== workoutId));
+      await reload();
+      setModal(null);
+    } catch (err) {
+      console.error("cancel planned workout failed", err);
+      setModal((prev) =>
+        prev
+          ? { ...prev, saving: false, error: "Не удалось удалить. Попробуй снова." }
+          : prev
+      );
+    }
+  };
+
   const handleRetry = async () => {
     setLoading(true);
     try {
@@ -488,6 +508,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
             setModal((prev) => (prev ? { ...prev, time: val } : prev))
           }
           onSave={handleModalSave}
+          onDelete={handleModalDelete}
         />
       )}
     </div>
@@ -697,6 +718,7 @@ function PlanPreviewModal({
   onDateChange,
   onTimeChange,
   onSave,
+  onDelete,
 }: {
   workout: PlannedWorkout;
   date: string;
@@ -707,8 +729,10 @@ function PlanPreviewModal({
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   onSave: () => void;
+  onDelete: () => void;
 }) {
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
+  const canDelete = workout.status === "scheduled";
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMotion("open"));
@@ -814,21 +838,31 @@ function PlanPreviewModal({
 
         {error && <div style={modalStyles.error}>{error}</div>}
 
-        {/* Кнопки */}
-        <div style={modalStyles.actions}>
-          <button
-            type="button"
-            className="schedule-checkin-btn"
-            style={modalStyles.startBtn}
-            onClick={onSave}
-            disabled={saving}
-          >
-            {saving ? "Сохраняем..." : "Сохранить"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+	        {/* Кнопки */}
+	        <div style={modalStyles.actions}>
+	          <button
+	            type="button"
+	            className="schedule-checkin-btn"
+	            style={modalStyles.startBtn}
+	            onClick={onSave}
+	            disabled={saving}
+	          >
+	            {saving ? "Сохраняем..." : "Сохранить"}
+	          </button>
+	          {canDelete ? (
+	            <button
+	              type="button"
+	              style={modalStyles.deleteBtn}
+	              onClick={onDelete}
+	              disabled={saving}
+	            >
+	              Удалить
+	            </button>
+	          ) : null}
+	        </div>
+	      </div>
+	    </div>
+	  );
 }
 
 function Loader() {
