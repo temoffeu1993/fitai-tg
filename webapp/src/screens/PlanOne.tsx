@@ -1830,9 +1830,9 @@ function PlannedExercisesEditor({
     const preferredWidth =
       mode === "replace"
         ? Math.min(280, window.innerWidth - pad * 2)
-        : Math.min(240, window.innerWidth - pad * 2);
+        : null;
     // Keep the menu fully within the viewport even when the dots button is near the left edge.
-    const minLeft = pad + preferredWidth;
+    const minLeft = pad + (preferredWidth ?? 0);
     const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
     const top = r
       ? openUpward
@@ -1843,7 +1843,7 @@ function PlannedExercisesEditor({
       position: "fixed",
       left,
       top,
-      width: preferredWidth,
+      width: preferredWidth ?? "max-content",
       maxWidth: `calc(100vw - ${pad * 2}px)`,
     };
   })();
