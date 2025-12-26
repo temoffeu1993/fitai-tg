@@ -1778,22 +1778,31 @@ function PlannedExercisesEditor({
       return { position: "fixed", left: pad, top: 120, width: "max-content" };
     }
     const r = anchorRect;
-    // Attach the menu right under the dots button (minimal gap) to feel like it "unfolds" from it.
-    const desiredTop = r ? r.top + r.height + 2 : 120;
-    const right = r ? Math.max(pad, window.innerWidth - (r.left + r.width)) : pad;
     const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
-    const wouldOverflowBottom = desiredTop + estimatedHeight > window.innerHeight - pad;
-    const top = wouldOverflowBottom && r
-      ? Math.max(pad, r.top - estimatedHeight - 2)
-      : Math.max(pad, desiredTop);
+    const desiredBottomTop = r ? r.top + r.height + 2 : 120;
+    const desiredTopTop = r ? r.top - 2 : 120;
+    const openUpward = Boolean(r) && desiredBottomTop + estimatedHeight > window.innerHeight - pad;
+    const top = openUpward ? Math.max(pad, desiredTopTop) : Math.max(pad, desiredBottomTop);
+    const rightEdge = r ? r.left + r.width : pad;
+    const left = Math.max(pad, Math.min(window.innerWidth - pad, rightEdge));
     return {
       position: "fixed",
-      right,
       top,
+      left,
       width: "max-content",
       maxWidth: `calc(100vw - ${pad * 2}px)`,
     };
   })();
+  const openUpward = (() => {
+    if (typeof window === "undefined") return false;
+    const r = anchorRect;
+    if (!r) return false;
+    const pad = 12;
+    const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
+    const desiredBottomTop = r.top + r.height + 2;
+    return desiredBottomTop + estimatedHeight > window.innerHeight - pad;
+  })();
+  const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
   const sheet: React.CSSProperties = {
     ...popover,
     background: "#fff",
@@ -1801,17 +1810,8 @@ function PlannedExercisesEditor({
     border: "1px solid rgba(0,0,0,0.10)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
     padding: 8,
-    transformOrigin: (() => {
-      if (typeof window === "undefined") return "top right";
-      const r = anchorRect;
-      if (!r) return "top right";
-      const desiredTop = r.top + r.height + 2;
-      const pad = 12;
-      const estimatedHeight = mode === "replace" ? 420 : mode === "menu" ? 168 : 200;
-      const wouldOverflowBottom = desiredTop + estimatedHeight > window.innerHeight - pad;
-      return wouldOverflowBottom ? "bottom right" : "top right";
-    })(),
-    transform: popoverVisible ? "scaleY(1)" : "scaleY(0)",
+    transformOrigin: openUpward ? "bottom right" : "top right",
+    transform: popoverVisible ? `${baseTranslate} scaleY(1)` : `${baseTranslate} scaleY(0)`,
     opacity: popoverVisible ? 1 : 0,
     transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
     overflow: "hidden",
