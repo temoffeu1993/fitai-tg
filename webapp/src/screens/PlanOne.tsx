@@ -1827,8 +1827,13 @@ function PlannedExercisesEditor({
     if (typeof window === "undefined") return { position: "fixed", left: pad, top: 120 };
     const r = anchorRect;
     const rightEdge = r ? r.left + r.width : pad;
-    const preferredWidth = mode === "replace" ? Math.min(360, window.innerWidth - pad * 2) : null;
-    const left = Math.max(pad, Math.min(window.innerWidth - pad, rightEdge));
+    const preferredWidth =
+      mode === "replace"
+        ? Math.min(360, window.innerWidth - pad * 2)
+        : Math.min(240, window.innerWidth - pad * 2);
+    // Keep the menu fully within the viewport even when the dots button is near the left edge.
+    const minLeft = pad + preferredWidth;
+    const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
     const top = r
       ? openUpward
         ? r.top - 2
@@ -1838,7 +1843,7 @@ function PlannedExercisesEditor({
       position: "fixed",
       left,
       top,
-      width: preferredWidth ?? "max-content",
+      width: preferredWidth,
       maxWidth: `calc(100vw - ${pad * 2}px)`,
     };
   })();
@@ -1870,7 +1875,8 @@ function PlannedExercisesEditor({
     fontWeight: 600,
     cursor: "pointer",
     textAlign: "left",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
+    wordBreak: "break-word",
   };
   const dangerBtn: React.CSSProperties = {
     ...actionBtn,
