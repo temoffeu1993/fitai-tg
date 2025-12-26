@@ -167,6 +167,7 @@ export default function Dashboard() {
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
   const [plannedCount, setPlannedCount] = useState<number | null>(() => readPlannedWorkoutsCount());
+  const [robotReady, setRobotReady] = useState(false);
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -191,6 +192,29 @@ export default function Dashboard() {
     return () => {
       window.removeEventListener("focus", updateIdentity);
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const img = new Image();
+    img.decoding = "sync";
+    img.src = ROBOT_SRC;
+    const done = () => {
+      if (!cancelled) setRobotReady(true);
+    };
+    if (typeof (img as any).decode === "function") {
+      (img as any).decode().then(done).catch(() => {
+        img.onload = done;
+        img.onerror = done;
+      });
+    } else {
+      img.onload = done;
+      img.onerror = done;
+    }
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -397,11 +421,15 @@ export default function Dashboard() {
               src={ROBOT_SRC}
               alt="ИИ-тренер"
               className="robot"
-              style={s.robot}
+              style={{
+                ...s.robot,
+                opacity: robotReady ? 1 : 0,
+              }}
               loading="eager"
               fetchPriority="high"
               decoding="sync"
               draggable={false}
+              onLoad={() => setRobotReady(true)}
             />
           </div>
         </div>
