@@ -152,6 +152,9 @@ schedule.get(
          FROM planned_workouts
         WHERE user_id = $1
           AND status <> 'cancelled'
+          AND status <> 'completed'
+          AND scheduled_for >= CURRENT_DATE
+          AND scheduled_for < CURRENT_DATE + INTERVAL '14 days'
         ORDER BY scheduled_for ASC`,
       [userId]
     );
