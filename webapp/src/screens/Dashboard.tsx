@@ -749,7 +749,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: "clamp(22px, 6vw, 28px)",
     lineHeight: 1.12,
     fontWeight: 900,
-    color: "#000",
+    color: "#0f172a",
     background: "rgba(255, 255, 255, 1)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 0px 0px rgba(0,0,0,0.08)",
