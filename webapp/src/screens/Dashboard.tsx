@@ -728,9 +728,10 @@ const s: Record<string, React.CSSProperties> = {
 
   ctaMain: {
     borderRadius: 16,
-    padding: "16px 18px",
-    fontSize: 18,
-    fontWeight: 800,
+    padding: "18px 18px",
+    fontSize: "clamp(22px, 6vw, 28px)",
+    lineHeight: 1.12,
+    fontWeight: 900,
     color: "#000",
     background: "rgba(255, 255, 255, 1)",
     border: "1px solid rgba(0,0,0,0.08)",
