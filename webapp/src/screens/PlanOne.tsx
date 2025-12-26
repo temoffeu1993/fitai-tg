@@ -1862,7 +1862,7 @@ function PlannedExercisesEditor({
   })();
   const sheet: React.CSSProperties = {
     ...popover,
-    background: "var(--app-gradient, #f5f6fb)",
+    background: "var(--tg-theme-bg-color, #f5f6fb)",
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.10)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
