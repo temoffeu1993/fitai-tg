@@ -1829,8 +1829,8 @@ function PlannedExercisesEditor({
     const rightEdge = r ? r.left + r.width : pad;
     const preferredWidth =
       mode === "replace"
-        ? Math.min(360, window.innerWidth - pad * 2)
-        : Math.min(240, window.innerWidth - pad * 2);
+        ? Math.min(320, window.innerWidth - pad * 2)
+        : Math.min(280, window.innerWidth - pad * 2);
     // Keep the menu fully within the viewport even when the dots button is near the left edge.
     const minLeft = pad + preferredWidth;
     const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
@@ -1875,6 +1875,10 @@ function PlannedExercisesEditor({
     fontWeight: 600,
     cursor: "pointer",
     textAlign: "left",
+    whiteSpace: "nowrap",
+  };
+  const actionBtnWrap: React.CSSProperties = {
+    ...actionBtn,
     whiteSpace: "normal",
     wordBreak: "break-word",
   };
@@ -2007,11 +2011,7 @@ function PlannedExercisesEditor({
                         <button
                           key={a.exerciseId}
                           type="button"
-                          style={{
-                            ...actionBtn,
-                            whiteSpace: "normal",
-                            wordBreak: "break-word",
-                          }}
+                          style={actionBtnWrap}
                           disabled={loading}
                           onClick={() => void applyReplace(a.exerciseId)}
                         >
