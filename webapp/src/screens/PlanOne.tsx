@@ -2011,7 +2011,7 @@ function PlannedExercisesEditor({
                           Да, удалить
                         </button>
                         <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
-                          Назад
+                          ← Назад
                         </button>
                       </div>
                     ) : null}
@@ -2023,7 +2023,7 @@ function PlannedExercisesEditor({
                           Да, больше не предлагать
                         </button>
                         <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
-                          Назад
+                          ← Назад
                         </button>
                       </div>
                     ) : null}
@@ -2044,7 +2044,7 @@ function PlannedExercisesEditor({
                           </button>
                         ))}
                         <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
-                          Назад
+                          ← Назад
                         </button>
                       </div>
                     ) : null}
