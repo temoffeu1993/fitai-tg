@@ -511,12 +511,12 @@ workoutGeneration.post(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, plan, scheduled_for, status)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'scheduled')
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET 
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'scheduled', 
+           status = 'pending', 
            updated_at = now()
          WHERE planned_workouts.status <> 'completed'`,
         [uid, i, workoutData]
@@ -537,7 +537,7 @@ workoutGeneration.post(
           SET status = 'cancelled',
               updated_at = now()
         WHERE pw.user_id = $1
-          AND pw.status = 'scheduled'
+          AND pw.status IN ('scheduled','pending')
           AND pw.workout_date >= CURRENT_DATE
           AND pw.workout_date < CURRENT_DATE + INTERVAL '14 days'
           AND (
@@ -879,12 +879,12 @@ workoutGeneration.post(
     await q(
       `INSERT INTO planned_workouts 
        (user_id, workout_date, data, plan, scheduled_for, status)
-       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'scheduled')
+       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
        ON CONFLICT (user_id, workout_date) 
        DO UPDATE SET 
          data = $2::jsonb,
          plan = $2::jsonb,
-         status = 'scheduled', 
+         status = 'pending', 
          updated_at = now()`,
       [uid, workoutData]
     );
@@ -1006,12 +1006,12 @@ workoutGeneration.post(
         `INSERT INTO planned_workouts 
          (user_id, workout_date, data, plan, scheduled_for, status)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'scheduled')
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
          ON CONFLICT (user_id, workout_date) 
          DO UPDATE SET 
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'scheduled', 
+           status = 'pending', 
            updated_at = now()
          WHERE planned_workouts.status <> 'completed'`,
         [uid, i, workoutData]
@@ -1028,7 +1028,7 @@ workoutGeneration.post(
           SET status = 'cancelled',
               updated_at = now()
         WHERE pw.user_id = $1
-          AND pw.status = 'scheduled'
+          AND pw.status IN ('scheduled','pending')
           AND pw.workout_date >= CURRENT_DATE
           AND pw.workout_date < CURRENT_DATE + INTERVAL '14 days'
           AND (

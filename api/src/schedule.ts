@@ -231,6 +231,7 @@ schedule.patch(
     const values: any[] = [];
     let idx = 1;
     let scheduledDate: Date | null = null;
+    const nextStatusRaw = body.status;
 
     if (typeof body.scheduledFor === "string" && body.scheduledFor.trim()) {
       const dt = new Date(body.scheduledFor);
@@ -245,6 +246,16 @@ schedule.patch(
     if (typeof body.plan === "object" && body.plan) {
       fields.push(`plan = $${idx++}::jsonb`);
       values.push(JSON.stringify(body.plan));
+    }
+
+    if (typeof nextStatusRaw === "string" && nextStatusRaw.trim()) {
+      const nextStatus = nextStatusRaw.trim();
+      const allowed = new Set(["scheduled", "pending", "cancelled", "completed"]);
+      if (!allowed.has(nextStatus)) {
+        return res.status(400).json({ error: "invalid_status" });
+      }
+      fields.push(`status = $${idx++}`);
+      values.push(nextStatus);
     }
 
     if (fields.length === 0) {

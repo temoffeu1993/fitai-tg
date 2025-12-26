@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   cancelPlannedWorkout,
   getScheduleOverview,
@@ -37,6 +37,7 @@ type ModalState = {
 
 export default function Schedule() {
   const nav = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planned, setPlanned] = useState<PlannedWorkout[]>([]);
@@ -71,6 +72,32 @@ export default function Schedule() {
       active = false;
     };
   }, [reload]);
+
+  // If navigated from PlanOne with a specific planned workout, open its scheduling modal.
+  const requestedPlannedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = (location.state as any)?.plannedWorkoutId;
+    if (typeof id === "string" && id.trim()) {
+      requestedPlannedIdRef.current = id.trim();
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    const id = requestedPlannedIdRef.current;
+    if (!id) return;
+    if (!planned.length) return;
+    const w = planned.find((x) => x.id === id);
+    if (!w) return;
+
+    const todayKey = toDateKey(stripTime(new Date()));
+    const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
+    const date = w.status === "pending" ? todayKey : toDateInput(w.scheduledFor);
+    const time = w.status === "pending" ? initialTime : toTimeInput(w.scheduledFor);
+    setModal({ workout: w, date, time, saving: false, error: null });
+
+    requestedPlannedIdRef.current = null;
+    nav(".", { replace: true, state: null });
+  }, [planned, scheduleDates, nav]);
 
   useEffect(() => {
     const handler = () => {
@@ -112,8 +139,8 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   const sameMonth = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
-  const plannedInViewMonth = planned.filter((w) =>
-    sameMonth(parseIsoDate(w.scheduledFor), view)
+  const plannedInViewMonth = planned.filter(
+    (w) => w.status === "scheduled" && sameMonth(parseIsoDate(w.scheduledFor), view)
   ).length;
 
   const completedInViewMonth = planned.filter(
@@ -148,10 +175,14 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   };
 
   const openWorkout = (workout: PlannedWorkout) => {
+    const todayKey = toDateKey(stripTime(new Date()));
+    const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
+    const date = workout.status === "pending" ? todayKey : toDateInput(workout.scheduledFor);
+    const time = workout.status === "pending" ? initialTime : toTimeInput(workout.scheduledFor);
     setModal({
       workout,
-      date: toDateInput(workout.scheduledFor),
-      time: toTimeInput(workout.scheduledFor),
+      date,
+      time,
       saving: false,
       error: null,
     });
@@ -225,6 +256,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
       const updated = await updatePlannedWorkout(workout.id, {
+        status: "scheduled",
         scheduledFor: when.toISOString(),
         scheduledTime: time,
       });
@@ -957,7 +989,7 @@ function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] 
     .filter((item) => item && item.id && item.scheduledFor && item.status !== "cancelled")
     .map((item) => ({
       ...item,
-      status: item.status === "pending" ? "scheduled" : item.status || "scheduled",
+      status: item.status || "scheduled",
     }))
     .sort(
       (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
@@ -975,7 +1007,7 @@ function mergePlanned(list: PlannedWorkout[], updated: PlannedWorkout) {
 
 function groupByDate(list: PlannedWorkout[]) {
   const map: Record<string, PlannedWorkout[]> = {};
-  list.forEach((item) => {
+  list.filter((item) => item.status !== "pending").forEach((item) => {
     const key = toDateKey(new Date(item.scheduledFor));
     if (!map[key]) map[key] = [];
     map[key].push(item);

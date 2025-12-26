@@ -626,6 +626,11 @@ export default function PlanOne() {
     });
   };
 
+  const handleScheduleSelected = () => {
+    if (!selectedPlanned) return;
+    nav("/schedule", { state: { plannedWorkoutId: selectedPlanned.id } });
+  };
+
   return (
     <div style={s.page}>
       <SoftGlowStyles />
@@ -653,7 +658,12 @@ export default function PlanOne() {
           >
             {startCtaLabel}
           </button>
-          <button type="button" style={s.secondaryBtn} onClick={() => nav("/schedule")}>
+          <button
+            type="button"
+            style={{ ...s.secondaryBtn, opacity: selectedPlanned ? 1 : 0.6, cursor: selectedPlanned ? "pointer" : "not-allowed" }}
+            onClick={handleScheduleSelected}
+            disabled={!selectedPlanned}
+          >
             📅 Запланировать
           </button>
         </div>

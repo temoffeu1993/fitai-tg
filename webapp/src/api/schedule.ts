@@ -64,7 +64,7 @@ export async function createPlannedWorkout(input: {
 
 export async function updatePlannedWorkout(
   id: string,
-  input: { scheduledFor?: string; scheduledTime?: string; plan?: any }
+  input: { scheduledFor?: string; scheduledTime?: string; plan?: any; status?: PlannedWorkout["status"] }
 ): Promise<PlannedWorkout> {
   const r = await apiFetch(`/api/planned-workouts/${id}`, {
     method: "PATCH",
