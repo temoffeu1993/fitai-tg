@@ -6,7 +6,6 @@ import {
   getPlannedWorkouts,
   removePlannedWorkoutExercise,
   replacePlannedWorkoutExercise,
-  skipPlannedWorkoutExercise,
   type PlannedWorkout,
 } from "@/api/schedule";
 import { getMesocycleCurrent, submitCheckIn, type CheckInPayload } from "@/api/plan";
@@ -1601,24 +1600,51 @@ function PlannedExercisesEditor({
   const plan: any = plannedWorkout?.plan || {};
   const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
-  const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_skip" | "confirm_ban">("menu");
+  const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_ban">("menu");
+  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number } | null>(
+    null
+  );
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const openMenu = (idx: number) => {
+  const openMenu = (idx: number, el?: HTMLElement | null) => {
     setErr(null);
     setMode("menu");
     setMenuIndex(idx);
+    try {
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      }
+    } catch {}
   };
 
   const close = () => {
     setMenuIndex(null);
     setMode("menu");
+    setAnchorRect(null);
     setAlts([]);
     setLoading(false);
     setErr(null);
   };
+
+  useEffect(() => {
+    if (menuIndex == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    const onScroll = () => close();
+    const onResize = () => close();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [menuIndex]);
 
   const current = menuIndex != null ? displayItems[menuIndex] : null;
   const currentId = current?.exerciseId || null;
@@ -1689,30 +1715,6 @@ function PlannedExercisesEditor({
     }
   };
 
-  const applySkip = async () => {
-    if (menuIndex == null) return;
-    setLoading(true);
-    setErr(null);
-    try {
-      const pw = await skipPlannedWorkoutExercise({
-        plannedWorkoutId: plannedWorkout.id,
-        index: menuIndex,
-        reason: "user_skip",
-        source: "user",
-      });
-      onUpdated(pw);
-      close();
-      try {
-        window.dispatchEvent(new Event("schedule_updated" as any));
-      } catch {}
-    } catch (e) {
-      console.error(e);
-      setErr("Не удалось пропустить упражнение. Попробуй ещё раз.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const applyBan = async () => {
     if (!currentId) return;
     setLoading(true);
@@ -1750,25 +1752,36 @@ function PlannedExercisesEditor({
   const overlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.35)",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    padding: 14,
-    zIndex: 50,
+    background: "rgba(255,255,255,0.02)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    zIndex: 80,
   };
+  const popoverWidth = mode === "replace" ? 340 : 280;
+  const popover: React.CSSProperties = (() => {
+    const pad = 12;
+    if (typeof window === "undefined") {
+      return { position: "fixed", left: pad, top: 120, width: popoverWidth };
+    }
+    const safeWidth = Math.max(220, Math.min(popoverWidth, window.innerWidth - pad * 2));
+    const r = anchorRect;
+    const desiredTop = r ? r.top + r.height + 8 : 120;
+    const desiredLeft = r ? r.left + r.width - safeWidth : pad;
+    const left = Math.max(pad, Math.min(window.innerWidth - safeWidth - pad, desiredLeft));
+    const top = Math.max(pad, Math.min(window.innerHeight - 420 - pad, desiredTop));
+    return { position: "fixed", left, top, width: safeWidth };
+  })();
   const sheet: React.CSSProperties = {
-    width: "min(820px, 100%)",
+    ...popover,
     background: "#fff",
     borderRadius: 18,
     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-    padding: 14,
+    padding: 10,
   };
-  const sheetTitle: React.CSSProperties = { fontWeight: 900, fontSize: 14, color: "#0B1220" };
   const actionBtn: React.CSSProperties = {
     width: "100%",
-    padding: "12px 12px",
-    borderRadius: 14,
+    padding: "10px 10px",
+    borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
     background: "rgba(15,23,42,0.03)",
     fontWeight: 800,
@@ -1776,11 +1789,14 @@ function PlannedExercisesEditor({
     textAlign: "left",
   };
   const dangerBtn: React.CSSProperties = { ...actionBtn, background: "rgba(239,68,68,.08)", borderColor: "rgba(239,68,68,.2)" };
+  const subTitle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#0B1220" };
+  const subText: React.CSSProperties = { fontSize: 12, color: "#475569", fontWeight: 700 };
 
   return (
     <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
       {displayItems.map((it, i) => {
         const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
+        const isOpen = menuIndex === i;
         return (
           <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1790,6 +1806,18 @@ function PlannedExercisesEditor({
               {it.cues ? <div style={{ fontSize: 11, color: "#4a5568", lineHeight: 1.3 }}>{it.cues}</div> : null}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+              <button
+                type="button"
+                style={menuBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isOpen) close();
+                  else openMenu(i, e.currentTarget as any);
+                }}
+                aria-label="Опции"
+              >
+                {isOpen ? "✕" : "⋮"}
+              </button>
               <span
                 style={{
                   background: "rgba(255,255,255,0.6)",
@@ -1804,9 +1832,6 @@ function PlannedExercisesEditor({
               >
                 💪 {it.sets}×{formatReps(it.reps)}
               </span>
-              <button type="button" style={menuBtn} onClick={() => openMenu(i)} aria-label="Опции">
-                ⋮
-              </button>
             </div>
           </div>
         );
@@ -1815,13 +1840,6 @@ function PlannedExercisesEditor({
       {menuIndex != null ? (
         <div style={overlay} onClick={close} role="dialog" aria-modal="true">
           <div style={sheet} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-              <div style={sheetTitle}>{current?.name || "Упражнение"}</div>
-              <button type="button" onClick={close} style={{ ...menuBtn, padding: "8px 10px" }}>
-                ✕
-              </button>
-            </div>
-
             {err ? (
               <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
                 {err}
@@ -1829,27 +1847,22 @@ function PlannedExercisesEditor({
             ) : null}
 
             {mode === "menu" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+              <div style={{ display: "grid", gap: 8 }}>
                 <button type="button" style={actionBtn} disabled={loading || !currentId} onClick={() => void fetchAlternatives()}>
-                  Заменить упражнение
-                </button>
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("confirm_skip")}>
-                  Пропустить в этой тренировке
+                  Заменить
                 </button>
                 <button type="button" style={dangerBtn} disabled={loading} onClick={() => setMode("confirm_remove")}>
-                  Удалить из этой тренировки
+                  Удалить
                 </button>
                 <button type="button" style={dangerBtn} disabled={loading || !currentId} onClick={() => setMode("confirm_ban")}>
-                  Больше не предлагать это упражнение
+                  Заблокировать
                 </button>
               </div>
             ) : null}
 
             {mode === "confirm_remove" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
-                  Удалить упражнение из этого плана?
-                </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={subText}>Удалить упражнение из этого плана?</div>
                 <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
                   Да, удалить
                 </button>
@@ -1859,25 +1872,9 @@ function PlannedExercisesEditor({
               </div>
             ) : null}
 
-            {mode === "confirm_skip" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
-                  Отметить упражнение как пропущенное в этой тренировке?
-                </div>
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => void applySkip()}>
-                  Да, пропустить
-                </button>
-                <button type="button" style={actionBtn} disabled={loading} onClick={() => setMode("menu")}>
-                  Назад
-                </button>
-              </div>
-            ) : null}
-
             {mode === "confirm_ban" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
-                  Убрать упражнение из будущих генераций? (Можно вернуть в профиле)
-                </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={subText}>Убрать упражнение из будущих генераций?</div>
                 <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
                   Да, больше не предлагать
                 </button>
@@ -1888,8 +1885,8 @@ function PlannedExercisesEditor({
             ) : null}
 
             {mode === "replace" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#0B1220" }}>Выбери замену</div>
+              <div style={{ display: "grid", gap: 8, maxHeight: 420, overflow: "auto" }}>
+                <div style={subTitle}>Выбери замену</div>
                 {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
                 {alts.map((a) => (
                   <button
