@@ -290,6 +290,13 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     });
   };
 
+  const handleModalDetails = () => {
+    const sessionId = modal?.workout?.resultSessionId ? String(modal.workout.resultSessionId) : null;
+    if (!sessionId) return;
+    setModal(null);
+    nav(`/workout/result?sessionId=${encodeURIComponent(sessionId)}`);
+  };
+
   const handleRetry = async () => {
     setLoading(true);
     try {
@@ -502,6 +509,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           onSave={handleModalSave}
           onDelete={handleModalDelete}
           onStart={handleModalStart}
+          onDetails={handleModalDetails}
         />
       )}
     </div>
@@ -716,6 +724,7 @@ function PlanPreviewModal({
   onSave,
   onDelete,
   onStart,
+  onDetails,
 }: {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
@@ -731,12 +740,38 @@ function PlanPreviewModal({
   onSave: () => void;
   onDelete: () => void;
   onStart: () => void;
+  onDetails: () => void;
 }) {
   const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
+  const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const performed = useMemo(() => {
+    const p: any = (workout as any)?.plan || {};
+    const list: any[] = Array.isArray(p.exercises) ? p.exercises : [];
+    return list
+      .map((ex) => {
+        const name = String(ex?.name || ex?.exerciseName || "Упражнение");
+        const setsArr = Array.isArray(ex?.sets) ? ex.sets : [];
+        const performedSets = setsArr.filter((s: any) => Number(s?.reps ?? 0) > 0);
+        const setsCount = performedSets.length || (typeof ex?.sets === "number" ? Number(ex.sets) : 0);
+        const repsSample = performedSets.slice(0, 3).map((s: any) => s?.reps).filter(Boolean);
+        const weightSample = performedSets.slice(0, 3).map((s: any) => s?.weight).filter((v: any) => v != null && v !== "");
+        const meta = (() => {
+          const parts: string[] = [];
+          if (setsCount) parts.push(`${setsCount} подх.`);
+          if (repsSample.length) parts.push(`${repsSample.join("/") } повтор`);
+          if (weightSample.length) parts.push(`${weightSample[0]} вес`);
+          return parts.join(" • ");
+        })();
+        return { name, meta };
+      })
+      .filter((x) => x.name);
+  }, [workout]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMotion("open"));
@@ -897,7 +932,17 @@ function PlanPreviewModal({
 
 	        {/* Кнопки */}
 	        <div style={modalStyles.actions}>
-	          {canStart ? (
+	          {canDetails ? (
+	            <button
+	              type="button"
+	              className="schedule-checkin-btn"
+	              style={modalStyles.startBtn}
+	              onClick={onDetails}
+	              disabled={saving}
+	            >
+	              Подробнее
+	            </button>
+	          ) : canStart ? (
 	            <button
 	              type="button"
 	              className="schedule-checkin-btn"
@@ -918,6 +963,32 @@ function PlanPreviewModal({
 	              {saving ? "Сохраняем..." : "Сохранить"}
 	            </button>
 	          )}
+	          {readOnly ? (
+	            <button
+	              type="button"
+	              style={modalStyles.detailsToggle}
+	              onClick={() => setDetailsOpen((v) => !v)}
+	              disabled={!performed.length}
+	            >
+	              {detailsOpen ? "Скрыть выполненное ▲" : "Показать выполненное ▼"}
+	            </button>
+	          ) : null}
+
+	          {readOnly && detailsOpen ? (
+	            <div style={modalStyles.detailsPanel}>
+	              {performed.length ? (
+	                performed.map((x, i) => (
+	                  <div key={`${x.name}-${i}`} style={modalStyles.detailsRow}>
+	                    <div style={modalStyles.detailsName}>{x.name}</div>
+	                    {x.meta ? <div style={modalStyles.detailsMeta}>{x.meta}</div> : null}
+	                  </div>
+	                ))
+	              ) : (
+	                <div style={modalStyles.emptyWorkouts}>Нет данных о выполнении</div>
+	              )}
+	            </div>
+	          ) : null}
+
 	          {canDelete ? (
 	            <button
 	              type="button"
@@ -1686,6 +1757,32 @@ const modalStyles: Record<string, CSSProperties> = {
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
   },
+  detailsToggle: {
+    border: "none",
+    background: "transparent",
+    color: "rgba(17,24,39,0.72)",
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "6px 8px",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  detailsPanel: {
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    borderRadius: 14,
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    padding: 10,
+    display: "grid",
+    gap: 8,
+    maxHeight: 220,
+    overflowY: "auto",
+  },
+  detailsRow: { display: "grid", gap: 2 },
+  detailsName: { fontSize: 13.5, fontWeight: 800, color: "#0f172a", lineHeight: 1.15 },
+  detailsMeta: { fontSize: 12, fontWeight: 600, color: "rgba(0,0,0,.6)" },
 
   // Секция упражнений
   section: { margin: "0 16px", display: "grid", gap: 10 },
