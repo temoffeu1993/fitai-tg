@@ -647,7 +647,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   block: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
-  blockTitle: { margin: 0, fontSize: 24, fontWeight: 900 },
+  blockTitle: { margin: 0, fontSize: 20, fontWeight: 800 },
   blockText: { margin: "8px 0 12px", color: "#444", fontSize: 15, fontWeight: 450, lineHeight: 1.4 },
 
   primaryBtn: {
