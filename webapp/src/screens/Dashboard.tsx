@@ -663,7 +663,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   block: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
-  blockTitle: { margin: 0, fontSize: 17, fontWeight: 600 },
+  blockTitle: { margin: 0, fontSize: 20, fontWeight: 800 },
   blockText: { margin: "8px 0 12px", color: "#444", fontSize: 15, fontWeight: 450, lineHeight: 1.4 },
 
   primaryBtn: {
@@ -697,9 +697,9 @@ const s: Record<string, React.CSSProperties> = {
   ctaMain: {
     borderRadius: 16,
     padding: "18px 18px",
-    fontSize: 20,
+    fontSize: 17,
     lineHeight: 1.12,
-    fontWeight: 800,
+    fontWeight: 600,
     color: "#0f172a",
     background: "rgba(255,255,255,0.7)",
     border: "1px solid transparent",
@@ -710,7 +710,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     textAlign: "left",
     textTransform: "none",
-    letterSpacing: "-0.02em",
+    letterSpacing: "normal",
     whiteSpace: "nowrap",
     alignSelf: "center",
   },
