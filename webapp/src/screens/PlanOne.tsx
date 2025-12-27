@@ -652,29 +652,6 @@ export default function PlanOne() {
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
-        <div style={s.heroCtas}>
-          <button
-            type="button"
-            style={{
-              ...s.primaryBtn,
-              opacity: canStart ? 1 : 0.6,
-              cursor: canStart ? "pointer" : "not-allowed",
-            }}
-            onClick={handleStartSelected}
-            disabled={!canStart}
-          >
-            {startCtaLabel}
-          </button>
-          <button
-            type="button"
-            style={{ ...s.secondaryBtn, opacity: selectedPlanned ? 1 : 0.6, cursor: selectedPlanned ? "pointer" : "not-allowed" }}
-            onClick={handleScheduleSelected}
-            disabled={!selectedPlanned}
-          >
-            📅 Запланировать
-          </button>
-        </div>
-
         {/* regenerate button removed by request */}
       </section>
 
@@ -787,7 +764,43 @@ export default function PlanOne() {
         </section>
       )}
 
-      <div style={{ height: 16 }} />
+      {remainingPlanned.length ? (
+        <>
+          <div style={{ height: 120 }} />
+          <div style={s.floatingActionsWrap}>
+            <div style={s.floatingActionsInner}>
+              <button
+                type="button"
+                className="planone-cta-btn tap-primary"
+                style={{
+                  ...s.floatingBtn,
+                  opacity: selectedPlanned ? 1 : 0.6,
+                  cursor: selectedPlanned ? "pointer" : "not-allowed",
+                }}
+                onClick={handleScheduleSelected}
+                disabled={!selectedPlanned}
+              >
+                🗓️ в план
+              </button>
+              <button
+                type="button"
+                className="planone-cta-btn tap-primary"
+                style={{
+                  ...s.floatingBtn,
+                  opacity: canStart ? 1 : 0.6,
+                  cursor: canStart ? "pointer" : "not-allowed",
+                }}
+                onClick={handleStartSelected}
+                disabled={!canStart}
+              >
+                🚀 начать
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div style={{ height: 16 }} />
+      )}
     </div>
   );
 
@@ -2317,6 +2330,38 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
+  floatingActionsWrap: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
+    padding: "0 16px",
+    zIndex: 30,
+    pointerEvents: "none",
+  },
+  floatingActionsInner: {
+    pointerEvents: "auto",
+    maxWidth: 720,
+    margin: "0 auto",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+  },
+  floatingBtn: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    width: "100%",
+    border: "1px solid #0f172a",
+    background: "#0f172a",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 17,
+    cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    WebkitTapHighlightColor: "transparent",
+    whiteSpace: "nowrap",
+  },
+
   block: {
     marginTop: 16,
     padding: 0,
@@ -2781,6 +2826,23 @@ const pickStyles = `
   .scheme-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(15,23,42,0.14);
+  }
+
+  .planone-cta-btn {
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  }
+  .planone-cta-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99) !important;
+    background-color: #0b1220 !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+    filter: brightness(0.99) !important;
+  }
+  @media (hover: hover) {
+    .planone-cta-btn:hover:not(:disabled) { filter: brightness(1.03); }
+  }
+  .planone-cta-btn:focus-visible {
+    outline: 3px solid rgba(15, 23, 42, 0.18);
+    outline-offset: 2px;
   }
 `;
 
