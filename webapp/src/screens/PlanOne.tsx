@@ -652,6 +652,35 @@ export default function PlanOne() {
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
+        <div style={s.heroActionRow}>
+          <button
+            type="button"
+            className="tap-primary"
+            style={{
+              ...s.heroActionChip,
+              opacity: selectedPlanned ? 1 : 0.6,
+              cursor: selectedPlanned ? "pointer" : "not-allowed",
+            }}
+            onClick={handleScheduleSelected}
+            disabled={!selectedPlanned}
+          >
+            🗓️ в план
+          </button>
+          <button
+            type="button"
+            className="tap-primary"
+            style={{
+              ...s.heroActionChip,
+              opacity: canStart ? 1 : 0.6,
+              cursor: canStart ? "pointer" : "not-allowed",
+            }}
+            onClick={handleStartSelected}
+            disabled={!canStart}
+          >
+            🚀 начать
+          </button>
+        </div>
+
         {/* regenerate button removed by request */}
       </section>
 
@@ -764,43 +793,7 @@ export default function PlanOne() {
         </section>
       )}
 
-      {remainingPlanned.length ? (
-        <>
-          <div style={{ height: 120 }} />
-          <div style={s.floatingActionsWrap}>
-            <div style={s.floatingActionsInner}>
-              <button
-                type="button"
-                className="planone-cta-btn tap-primary"
-                style={{
-                  ...s.floatingBtn,
-                  opacity: selectedPlanned ? 1 : 0.6,
-                  cursor: selectedPlanned ? "pointer" : "not-allowed",
-                }}
-                onClick={handleScheduleSelected}
-                disabled={!selectedPlanned}
-              >
-                🗓️ в план
-              </button>
-              <button
-                type="button"
-                className="planone-cta-btn tap-primary"
-                style={{
-                  ...s.floatingBtn,
-                  opacity: canStart ? 1 : 0.6,
-                  cursor: canStart ? "pointer" : "not-allowed",
-                }}
-                onClick={handleStartSelected}
-                disabled={!canStart}
-              >
-                🚀 начать
-              </button>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div style={{ height: 16 }} />
-      )}
+      <div style={{ height: 16 }} />
     </div>
   );
 
@@ -2290,6 +2283,27 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     width: "100%",
   },
+  heroActionRow: {
+    marginTop: 14,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  heroActionChip: {
+    background: "rgba(255,255,255,.08)",
+    padding: "10px 12px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.12)",
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
+    textTransform: "none",
+    letterSpacing: 0.3,
+    whiteSpace: "nowrap",
+    textAlign: "center",
+  },
   loaderBox: {
     marginTop: 12,
     padding: 14,
@@ -2328,38 +2342,6 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
-  },
-
-  floatingActionsWrap: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
-    padding: "0 16px",
-    zIndex: 30,
-    pointerEvents: "none",
-  },
-  floatingActionsInner: {
-    pointerEvents: "auto",
-    maxWidth: 720,
-    margin: "0 auto",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  },
-  floatingBtn: {
-    borderRadius: 16,
-    padding: "16px 18px",
-    width: "100%",
-    border: "1px solid #0f172a",
-    background: "#0f172a",
-    color: "#fff",
-    fontWeight: 800,
-    fontSize: 17,
-    cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
-    WebkitTapHighlightColor: "transparent",
-    whiteSpace: "nowrap",
   },
 
   block: {
@@ -2826,23 +2808,6 @@ const pickStyles = `
   .scheme-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(15,23,42,0.14);
-  }
-
-  .planone-cta-btn {
-    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
-  }
-  .planone-cta-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.99) !important;
-    background-color: #0b1220 !important;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
-    filter: brightness(0.99) !important;
-  }
-  @media (hover: hover) {
-    .planone-cta-btn:hover:not(:disabled) { filter: brightness(1.03); }
-  }
-  .planone-cta-btn:focus-visible {
-    outline: 3px solid rgba(15, 23, 42, 0.18);
-    outline-offset: 2px;
   }
 `;
 
