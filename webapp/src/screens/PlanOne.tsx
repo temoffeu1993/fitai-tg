@@ -774,7 +774,7 @@ export default function PlanOne() {
             })}
           </div>
           </section>
-          <div style={{ height: 120 }} />
+          <div style={{ height: "calc(72px + env(safe-area-inset-bottom, 0px))" }} />
         </>
       ) : (
         <section style={s.blockWhite}>
