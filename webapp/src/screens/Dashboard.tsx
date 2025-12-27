@@ -3,9 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import robotImg from "../assets/robot.png";
-import giryaImg from "../assets/girya.png";
 const ROBOT_SRC = robotImg;
-const GIRYA_SRC = giryaImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const RANK_TIERS = [
@@ -376,13 +374,10 @@ export default function Dashboard() {
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
       <section style={{ ...s.block, ...s.chipSurface, ...(onbDone ? {} : s.disabledBtn) }}>
-        <div style={s.smartHeaderRow}>
-          <div style={s.smartHeaderLeft}>
-            <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
-            <p style={s.blockText}>Каждая тренировка адаптируется под твое состояние и прогрессию</p>
-          </div>
-          <img src={GIRYA_SRC} alt="Гиря" style={s.smartHeaderImg} draggable={false} />
-        </div>
+        <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
+        <p style={s.blockText}>
+          Каждая тренировка адаптируется под твое состояние и прогрессию
+        </p>
         <button
           className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
           style={{
@@ -613,22 +608,6 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   robot: { position: "absolute", right: "3%", bottom: -20, width: "60vw", pointerEvents: "none", filter: "none" },
-
-  smartHeaderRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  smartHeaderLeft: { minWidth: 0, flex: 1 },
-  smartHeaderImg: {
-    width: 72,
-    height: 72,
-    objectFit: "contain",
-    flex: "0 0 auto",
-    opacity: 0.95,
-    alignSelf: "center",
-  },
 
   /* Чипы */
   statsRow: {
