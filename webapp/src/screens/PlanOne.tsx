@@ -709,73 +709,76 @@ export default function PlanOne() {
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
-                  <div style={pick.cardImageWrap} aria-hidden>
-                    <img src={WORKOUT_CARD_BG_SRC} alt="" style={pick.cardImage} draggable={false} />
-                    <div style={pick.cardImageFade} />
+                  <div style={pick.cardBg} aria-hidden>
+                    <img src={WORKOUT_CARD_BG_SRC} alt="" style={pick.cardBgImg} draggable={false} />
+                    <div style={pick.cardBgOverlay} />
+                    <div style={pick.cardBgBottomFade} />
                   </div>
 
-                  {isRecommended ? (
-                    <div style={pick.recommendedBadge}>
-                      <span style={{ fontSize: 12 }}>⭐</span>
-                      <span>Начни с этой</span>
-                    </div>
-                  ) : null}
-
-                  <div style={{ ...pick.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)" }}>
-                    <div
-                      style={{
-                        ...pick.radioDot,
-                        transform: isSelected ? "scale(1)" : "scale(0)",
-                        opacity: isSelected ? 1 : 0,
-                      }}
-                    />
-                  </div>
-
-                  <div style={pick.schemeName}>{label}</div>
-
-                  {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
-
-                  <div style={pick.actionRow} onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      style={pick.actionBtn}
-                      onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
-                    >
-                      {expanded ? "Свернуть" : "Подробнее"}{" "}
-                      <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      style={pick.actionBtn}
-                      onClick={() => {
-                        setSelectedPlannedId(w.id);
-                        nav("/schedule", { state: { plannedWorkoutId: w.id } });
-                      }}
-                    >
-                      🗓️ запланировать
-                    </button>
-                  </div>
-
-                  {expanded ? (
-                    <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
-                      <div style={pick.schemeInfo}>
-                        <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
-                        {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
-                        {w.status === "scheduled" && w.scheduledFor ? (
-                          <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
-                            📅 {formatPlannedDateTime(w.scheduledFor)}
-                          </span>
-                        ) : null}
+                  <div style={pick.cardContent}>
+                    {isRecommended ? (
+                      <div style={pick.recommendedBadge}>
+                        <span style={{ fontSize: 12 }}>⭐</span>
+                        <span>Начни с этой</span>
                       </div>
-                      <PlannedExercisesEditor
-                        plannedWorkout={w}
-                        displayItems={mappedExercises}
-                        onUpdated={(pw) => {
-                          setPlannedWorkouts((prev) => prev.map((x) => (x.id === pw.id ? pw : x)));
+                    ) : null}
+
+                    <div style={{ ...pick.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)" }}>
+                      <div
+                        style={{
+                          ...pick.radioDot,
+                          transform: isSelected ? "scale(1)" : "scale(0)",
+                          opacity: isSelected ? 1 : 0,
                         }}
                       />
                     </div>
-                  ) : null}
+
+                    <div style={pick.schemeName}>{label}</div>
+
+                    {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
+
+                    <div style={pick.actionRow} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        style={pick.actionBtn}
+                        onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
+                      >
+                        {expanded ? "Свернуть" : "Подробнее"}{" "}
+                        <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        style={pick.actionBtn}
+                        onClick={() => {
+                          setSelectedPlannedId(w.id);
+                          nav("/schedule", { state: { plannedWorkoutId: w.id } });
+                        }}
+                      >
+                        🗓️ запланировать
+                      </button>
+                    </div>
+
+                    {expanded ? (
+                      <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
+                        <div style={pick.schemeInfo}>
+                          <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
+                          {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                          {w.status === "scheduled" && w.scheduledFor ? (
+                            <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
+                              📅 {formatPlannedDateTime(w.scheduledFor)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <PlannedExercisesEditor
+                          plannedWorkout={w}
+                          displayItems={mappedExercises}
+                          onUpdated={(pw) => {
+                            setPlannedWorkouts((prev) => prev.map((x) => (x.id === pw.id ? pw : x)));
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -2838,7 +2841,6 @@ const pick: Record<string, React.CSSProperties> = {
   schemeCard: {
     position: "relative",
     padding: 18,
-    paddingRight: "clamp(128px, 36vw, 168px)",
     borderRadius: 16,
     background: "rgba(255,255,255,0.6)",
     border: "1px solid rgba(0,0,0,0.08)",
@@ -2855,33 +2857,43 @@ const pick: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
     transform: "translateY(-2px)",
   },
-  cardImageWrap: {
+  cardBg: {
     position: "absolute",
-    top: 10,
-    bottom: 10,
-    right: 10,
-    width: "clamp(92px, 30vw, 132px)",
-    borderRadius: 14,
-    overflow: "hidden",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     pointerEvents: "none",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    background: "rgba(255,255,255,0.35)",
+    zIndex: 0,
   },
-  cardImage: {
-    width: "100%",
+  cardBgImg: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: "min(66%, 320px)",
     height: "100%",
     objectFit: "cover",
     objectPosition: "center",
     display: "block",
   },
-  cardImageFade: {
+  cardBgOverlay: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "linear-gradient(to right, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.86) 42%, rgba(255,255,255,0.18) 100%)",
+  },
+  cardBgBottomFade: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     height: 26,
-    background: "linear-gradient(to top, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0) 100%)",
+    background: "linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0) 100%)",
+  },
+  cardContent: {
+    position: "relative",
+    zIndex: 1,
   },
   recommendedBadge: {
     position: "absolute",
