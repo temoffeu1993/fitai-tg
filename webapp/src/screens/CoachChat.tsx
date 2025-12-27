@@ -521,16 +521,17 @@ export default function CoachChat() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    height: "var(--app-height, 100vh)",
-    maxWidth: 720,
-    margin: "0 auto",
+    position: "fixed",
+    inset: 0,
+    zIndex: 50,
     display: "flex",
-    flexDirection: "column",
-    boxSizing: "border-box",
+    justifyContent: "center",
     overflow: "hidden",
     overscrollBehavior: "none",
+    background: "transparent",
   },
   screen: {
+    width: "min(720px, 100%)",
     height: "100%",
     minHeight: 0,
     display: "grid",
