@@ -15,9 +15,6 @@ import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
-import chelpush1Img from "../assets/chelpush1.png";
-
-const WORKOUT_CARD_BG_SRC = chelpush1Img;
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -709,14 +706,6 @@ export default function PlanOne() {
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
-                  <div style={pick.cardBg} aria-hidden>
-                    <div style={pick.cardBgImgWrap}>
-                      <img src={WORKOUT_CARD_BG_SRC} alt="" style={pick.cardBgImg} draggable={false} />
-                      <div style={pick.cardBgImgFade} />
-                    </div>
-                    <div style={pick.cardBgOverlay} />
-                  </div>
-
                   {isRecommended ? (
                     <div style={pick.recommendedBadge}>
                       <span style={{ fontSize: 12 }}>⭐</span>
@@ -2849,51 +2838,12 @@ const pick: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
     transition: "all 0.3s ease",
-    overflow: "hidden",
   },
   schemeCardSelected: {
     background: "rgba(255,255,255,0.85)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
     transform: "translateY(-2px)",
-  },
-  cardBg: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    pointerEvents: "none",
-    zIndex: 0,
-  },
-  cardBgImgWrap: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: "min(66%, 320px)",
-    height: "clamp(150px, 26vw, 190px)",
-    overflow: "hidden",
-  },
-  cardBgImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    objectPosition: "center",
-    display: "block",
-  },
-  cardBgImgFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 26,
-    background: "linear-gradient(to top, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 100%)",
-  },
-  cardBgOverlay: {
-    position: "absolute",
-    inset: 0,
-    background:
-      "linear-gradient(to right, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.86) 42%, rgba(255,255,255,0.18) 100%)",
   },
   recommendedBadge: {
     position: "absolute",
