@@ -68,12 +68,24 @@ export default function CoachChat() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
+    const prevWindowScrollY = window.scrollY || 0;
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     const rootEl = document.getElementById("root");
+    const prevRootScrollTop = rootEl ? (rootEl as any).scrollTop ?? 0 : 0;
     const prevRootOverflowY = rootEl?.style.overflowY;
     const prevRootOverscroll = rootEl?.style.overscrollBehavior;
     const prevRootTouchAction = rootEl?.style.touchAction;
+
+    // Важно: если предыдущий экран был проскроллен, то новый экран может открыться "со сдвигом".
+    // Сбрасываем скролл, но вернём его обратно при выходе.
+    try {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      if (rootEl) (rootEl as any).scrollTop = 0;
+    } catch {}
+
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     if (rootEl) {
@@ -89,6 +101,10 @@ export default function CoachChat() {
         rootEl.style.overscrollBehavior = prevRootOverscroll ?? "";
         rootEl.style.touchAction = prevRootTouchAction ?? "";
       }
+      try {
+        if (rootEl) (rootEl as any).scrollTop = prevRootScrollTop;
+        window.scrollTo(0, prevWindowScrollY);
+      } catch {}
     };
   }, []);
 
