@@ -318,23 +318,7 @@ export default function Dashboard() {
               <div className="heroSubtitle" style={s.heroSubtitle}>{subtitle}</div>
 
               <div style={s.heroCtaWrap}>
-                {/* В HERO кнопка только после онбординга, без анимации */}
-                {onbDone ? (
-                  <button
-                    className="heroCTA"
-                    style={s.ctaGenerate}
-                    onClick={goOnb}
-                    aria-label={heroCtaLabel}
-                  >
-                    <span style={s.heroCtaWords}>
-                      {"Редактировать анкету".split(" ").map((word, idx) => (
-                        <span key={`${word}-${idx}`} style={s.heroCtaWord}>
-                          {word}
-                        </span>
-                      ))}
-                    </span>
-                  </button>
-                ) : null}
+                {/* removed: edit profile CTA in hero */}
               </div>
             </div>
 
