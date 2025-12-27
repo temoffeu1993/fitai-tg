@@ -15,6 +15,9 @@ import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
+import chelpush1Img from "../assets/chelpush1.png";
+
+const WORKOUT_CARD_BG_SRC = chelpush1Img;
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -2831,7 +2834,10 @@ const pick: Record<string, React.CSSProperties> = {
     position: "relative",
     padding: 18,
     borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
+    backgroundImage: `linear-gradient(0deg, rgba(255,255,255,0.72), rgba(255,255,255,0.72)), url(${WORKOUT_CARD_BG_SRC})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     backdropFilter: "blur(8px)",
@@ -2840,7 +2846,7 @@ const pick: Record<string, React.CSSProperties> = {
     transition: "all 0.3s ease",
   },
   schemeCardSelected: {
-    background: "rgba(255,255,255,0.85)",
+    backgroundImage: `linear-gradient(0deg, rgba(255,255,255,0.86), rgba(255,255,255,0.86)), url(${WORKOUT_CARD_BG_SRC})`,
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
     transform: "translateY(-2px)",
