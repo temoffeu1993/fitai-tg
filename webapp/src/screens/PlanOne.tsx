@@ -652,6 +652,20 @@ export default function PlanOne() {
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
+        <button
+          type="button"
+          className="planone-start-btn"
+          style={{
+            ...s.heroStartBtn,
+            opacity: canStart ? 1 : 0.6,
+            cursor: canStart ? "pointer" : "not-allowed",
+          }}
+          onClick={handleStartSelected}
+          disabled={!canStart}
+        >
+          🏁 начать
+        </button>
+
         {/* regenerate button removed by request */}
       </section>
 
@@ -773,26 +787,6 @@ export default function PlanOne() {
           </button>
         </section>
       )}
-
-      {remainingPlanned.length ? (
-        <div style={s.floatingStartWrap}>
-          <div style={s.floatingStartInner}>
-            <button
-              type="button"
-              className="planone-start-btn"
-              style={{
-                ...s.floatingStartBtn,
-                opacity: canStart ? 1 : 0.6,
-                cursor: canStart ? "pointer" : "not-allowed",
-              }}
-              onClick={handleStartSelected}
-              disabled={!canStart}
-            >
-              🏁 начать
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       <div style={{ height: 16 }} />
     </div>
@@ -2324,31 +2318,20 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
-  floatingStartWrap: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
-    padding: "0 16px",
-    zIndex: 30,
-    pointerEvents: "none",
-  },
-  floatingStartInner: {
-    pointerEvents: "auto",
-    maxWidth: 720,
-    margin: "0 auto",
-  },
-  floatingStartBtn: {
+  heroStartBtn: {
+    marginTop: 14,
+    width: "100%",
     borderRadius: 16,
     padding: "16px 18px",
-    width: "100%",
-    border: "1px solid #0f172a",
-    background: "#0f172a",
+    border: "1px solid rgba(255,255,255,.12)",
+    background: "rgba(255,255,255,.08)",
     color: "#fff",
     fontWeight: 800,
     fontSize: 17,
     cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.14)",
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
     WebkitTapHighlightColor: "transparent",
     whiteSpace: "nowrap",
   },
