@@ -25,7 +25,6 @@ import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
-import DebugPanel from "./components/DebugPanel";
 import FloatingCoachChat from "./components/FloatingCoachChat";
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
@@ -198,21 +197,7 @@ export default function App() {
 
         <FloatingCoachChat />
         
-        {/* Debug Panel - только для админа */}
-        {(() => {
-          try {
-            const tgUserId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            // Артем - единственный админ
-            const ADMIN_ID = 243055515;
-            
-            if (tgUserId === ADMIN_ID) {
-              return <DebugPanel />;
-            }
-          } catch (err) {
-            console.error("Failed to check admin status:", err);
-          }
-          return null;
-        })()}
+        {/* Debug Panel временно убран */}
       </OnboardingProvider>
     </BrowserRouter>
     </ErrorBoundary>

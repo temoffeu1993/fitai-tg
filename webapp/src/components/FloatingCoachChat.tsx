@@ -21,6 +21,11 @@ export default function FloatingCoachChat() {
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const scrollLockRef = useRef<{
+    scrollY: number;
+    body: Partial<CSSStyleDeclaration>;
+    html: Partial<CSSStyleDeclaration>;
+  } | null>(null);
 
   const canSend = useMemo(() => Boolean(text.trim()) && !sending, [text, sending]);
 
@@ -58,6 +63,62 @@ export default function FloatingCoachChat() {
     })();
     return () => {
       canceled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      const prev = scrollLockRef.current;
+      if (prev) {
+        document.body.style.position = prev.body.position || "";
+        document.body.style.top = prev.body.top || "";
+        document.body.style.left = prev.body.left || "";
+        document.body.style.right = prev.body.right || "";
+        document.body.style.width = prev.body.width || "";
+        document.body.style.overflow = prev.body.overflow || "";
+        document.documentElement.style.overflow = prev.html.overflow || "";
+        window.scrollTo(0, prev.scrollY || 0);
+        scrollLockRef.current = null;
+      }
+      return;
+    }
+
+    const scrollY = window.scrollY || 0;
+    scrollLockRef.current = {
+      scrollY,
+      body: {
+        position: document.body.style.position,
+        top: document.body.style.top,
+        left: document.body.style.left,
+        right: document.body.style.right,
+        width: document.body.style.width,
+        overflow: document.body.style.overflow,
+      },
+      html: {
+        overflow: document.documentElement.style.overflow,
+      },
+    };
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      const prev = scrollLockRef.current;
+      if (!prev) return;
+      document.body.style.position = prev.body.position || "";
+      document.body.style.top = prev.body.top || "";
+      document.body.style.left = prev.body.left || "";
+      document.body.style.right = prev.body.right || "";
+      document.body.style.width = prev.body.width || "";
+      document.body.style.overflow = prev.body.overflow || "";
+      document.documentElement.style.overflow = prev.html.overflow || "";
+      window.scrollTo(0, prev.scrollY || 0);
+      scrollLockRef.current = null;
     };
   }, [open]);
 
@@ -193,16 +254,18 @@ const s: Record<string, CSSProperties> = {
     position: "fixed",
     inset: 0,
     zIndex: 9999,
-    padding: 14,
-    display: "grid",
-    placeItems: "end",
-    alignContent: "end",
-    justifyContent: "end",
+    padding: 0,
+    display: "block",
     background: "transparent",
+    overscrollBehavior: "contain",
   },
   card: {
+    position: "fixed",
+    right: 10,
+    bottom: 240,
     width: "min(92vw, 420px)",
     height: "min(72vh, 520px)",
+    maxHeight: "calc(100vh - 260px)",
     background: "rgba(255,255,255,0.62)",
     border: "1px solid rgba(0,0,0,0.08)",
     boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
@@ -239,6 +302,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
+    overscrollBehavior: "contain",
   },
   hint: { fontSize: 12, color: "rgba(0,0,0,.65)", padding: "6px 2px" },
   error: { fontSize: 12, color: "#b42318", padding: "6px 2px" },
