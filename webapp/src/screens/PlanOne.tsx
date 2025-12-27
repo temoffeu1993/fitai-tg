@@ -2319,7 +2319,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   heroStartBtn: {
-    marginTop: 14,
+    marginTop: 22,
     width: "100%",
     borderRadius: 16,
     padding: "16px 18px",
