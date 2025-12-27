@@ -25,7 +25,6 @@ import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
-import FloatingCoachChat from "./components/FloatingCoachChat";
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
 function StepAgeSex() {
@@ -195,8 +194,6 @@ export default function App() {
           </Route>
         </Routes>
 
-        <FloatingCoachChat />
-        
         {/* Debug Panel временно убран */}
       </OnboardingProvider>
     </BrowserRouter>
