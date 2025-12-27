@@ -376,7 +376,7 @@ export default function Dashboard() {
       <section style={{ ...s.block, ...s.chipSurface, ...(onbDone ? {} : s.disabledBtn) }}>
         <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
         <p style={s.blockText}>
-          Каждая тренировка адаптируется под твое состояние и прогрессию
+          Адаптируются под твое состояние, цель, опыт и прогрессию
         </p>
         <button
           className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
