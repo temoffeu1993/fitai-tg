@@ -402,10 +402,10 @@ export default function Dashboard() {
       <section style={{ ...s.block, ...s.quickActionsWrap }}>
         <div style={s.quickRow}>
           <QuickAction
-            emoji="📅"
-            title="Расписание"
+            emoji="🏋️"
+            title="История"
             hint="Тренировок"
-            onClick={onbDone ? () => navigate("/schedule") : undefined}
+            onClick={onbDone ? () => navigate("/history") : undefined}
             disabled={!onbDone}
           />
           <QuickAction
