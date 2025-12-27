@@ -1,5 +1,5 @@
 // webapp/src/app/LayoutWithNav.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import NavBar, { type NavCurrent, type TabKey } from "@/components/NavBar";
 
@@ -76,6 +76,19 @@ export default function LayoutWithNav() {
   const keyboardOffset = useKeyboardOffset();
 
   const [onbDone, setOnbDone] = useState<boolean>(hasOnbLocal());
+
+  // Фикс: если предыдущий экран был проскроллен, /coach иногда открывается "со сдвигом".
+  // Скроллится не window, а #root (см. styles.css), поэтому сбрасываем именно его ДО отрисовки.
+  useLayoutEffect(() => {
+    if (!pathname.startsWith("/coach")) return;
+    try {
+      const rootEl = document.getElementById("root");
+      if (rootEl) (rootEl as any).scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo(0, 0);
+    } catch {}
+  }, [pathname]);
 
   useEffect(() => {
     const update = () => {
