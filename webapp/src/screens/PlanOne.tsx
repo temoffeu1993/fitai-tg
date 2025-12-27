@@ -748,18 +748,17 @@ export default function PlanOne() {
                     </button>
                   </div>
 
-                  <div style={pick.schemeInfo}>
-                    <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
-                    {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
-                    {w.status === "scheduled" && w.scheduledFor ? (
-                      <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
-                        📅 {formatPlannedDateTime(w.scheduledFor)}
-                      </span>
-                    ) : null}
-                  </div>
-
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
+                      <div style={pick.schemeInfo}>
+                        <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
+                        {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                        {w.status === "scheduled" && w.scheduledFor ? (
+                          <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
+                            📅 {formatPlannedDateTime(w.scheduledFor)}
+                          </span>
+                        ) : null}
+                      </div>
                       <PlannedExercisesEditor
                         plannedWorkout={w}
                         displayItems={mappedExercises}
