@@ -725,6 +725,16 @@ export default function PlanOne() {
 
                   <div style={pick.schemeName}>{label}</div>
 
+                  <div style={pick.schemeInfo}>
+                    <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
+                    {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                    {w.status === "scheduled" && w.scheduledFor ? (
+                      <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
+                        📅 {formatPlannedDateTime(w.scheduledFor)}
+                      </span>
+                    ) : null}
+                  </div>
+
                   {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
 
                   <div style={pick.actionRow} onClick={(e) => e.stopPropagation()}>
@@ -750,15 +760,6 @@ export default function PlanOne() {
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
-                      <div style={pick.schemeInfo}>
-                        <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
-                        {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
-                        {w.status === "scheduled" && w.scheduledFor ? (
-                          <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
-                            📅 {formatPlannedDateTime(w.scheduledFor)}
-                          </span>
-                        ) : null}
-                      </div>
                       <PlannedExercisesEditor
                         plannedWorkout={w}
                         displayItems={mappedExercises}
