@@ -381,7 +381,7 @@ export default function Dashboard() {
         <button
           className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
           style={{
-            ...s.ctaMain,
+            ...s.ctaBig,
             ...(onbDone ? {} : s.disabledBtn),
             border: "1px solid transparent",
           }}
