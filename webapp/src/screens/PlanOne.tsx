@@ -652,35 +652,6 @@ export default function PlanOne() {
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
-        <div style={s.heroActionRow}>
-          <button
-            type="button"
-            className="tap-primary"
-            style={{
-              ...s.heroActionChip,
-              opacity: selectedPlanned ? 1 : 0.6,
-              cursor: selectedPlanned ? "pointer" : "not-allowed",
-            }}
-            onClick={handleScheduleSelected}
-            disabled={!selectedPlanned}
-          >
-            🗓️ в план
-          </button>
-          <button
-            type="button"
-            className="tap-primary"
-            style={{
-              ...s.heroActionChip,
-              opacity: canStart ? 1 : 0.6,
-              cursor: canStart ? "pointer" : "not-allowed",
-            }}
-            onClick={handleStartSelected}
-            disabled={!canStart}
-          >
-            🚀 начать
-          </button>
-        </div>
-
         {/* regenerate button removed by request */}
       </section>
 
@@ -752,17 +723,26 @@ export default function PlanOne() {
 
                   {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
 
-                  <button
-                    type="button"
-                    style={pick.expandBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
-                    }}
-                  >
-                    {expanded ? "Скрыть упражнения" : "Показать упражнения"}{" "}
-                    <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
-                  </button>
+                  <div style={pick.actionRow} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      style={pick.actionBtn}
+                      onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
+                    >
+                      {expanded ? "Свернуть" : "Подробнее"}{" "}
+                      <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      style={pick.actionBtn}
+                      onClick={() => {
+                        setSelectedPlannedId(w.id);
+                        nav("/schedule", { state: { plannedWorkoutId: w.id } });
+                      }}
+                    >
+                      🗓️ запланировать
+                    </button>
+                  </div>
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
@@ -780,6 +760,7 @@ export default function PlanOne() {
             })}
           </div>
           </section>
+          <div style={{ height: 120 }} />
         </>
       ) : (
         <section style={s.blockWhite}>
@@ -792,6 +773,26 @@ export default function PlanOne() {
           </button>
         </section>
       )}
+
+      {remainingPlanned.length ? (
+        <div style={s.floatingStartWrap}>
+          <div style={s.floatingStartInner}>
+            <button
+              type="button"
+              className="planone-start-btn"
+              style={{
+                ...s.floatingStartBtn,
+                opacity: canStart ? 1 : 0.6,
+                cursor: canStart ? "pointer" : "not-allowed",
+              }}
+              onClick={handleStartSelected}
+              disabled={!canStart}
+            >
+              🏁 начать
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div style={{ height: 16 }} />
     </div>
@@ -2283,27 +2284,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     width: "100%",
   },
-  heroActionRow: {
-    marginTop: 14,
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  heroActionChip: {
-    background: "rgba(255,255,255,.08)",
-    padding: "12px 18px",
-    borderRadius: 999,
-    fontSize: 16,
-    fontWeight: 600,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.12)",
-    backdropFilter: "blur(4px)",
-    WebkitBackdropFilter: "blur(4px)",
-    textTransform: "none",
-    letterSpacing: 0,
-    whiteSpace: "nowrap",
-    textAlign: "center",
-  },
   loaderBox: {
     marginTop: 12,
     padding: 14,
@@ -2342,6 +2322,35 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     boxShadow: "0 12px 30px rgba(0,0,0,.35)",
     cursor: "pointer",
+  },
+
+  floatingStartWrap: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: "calc(92px + env(safe-area-inset-bottom, 0px))",
+    padding: "0 16px",
+    zIndex: 30,
+    pointerEvents: "none",
+  },
+  floatingStartInner: {
+    pointerEvents: "auto",
+    maxWidth: 720,
+    margin: "0 auto",
+  },
+  floatingStartBtn: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    width: "100%",
+    border: "1px solid #0f172a",
+    background: "#0f172a",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 17,
+    cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    WebkitTapHighlightColor: "transparent",
+    whiteSpace: "nowrap",
   },
 
   block: {
@@ -2809,6 +2818,26 @@ const pickStyles = `
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(15,23,42,0.14);
   }
+
+  .planone-start-btn {
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .planone-start-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99) !important;
+    background-color: #0b1220 !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+    filter: brightness(0.99) !important;
+  }
+  @media (hover: hover) {
+    .planone-start-btn:hover:not(:disabled) { filter: brightness(1.03); }
+  }
+  .planone-start-btn:focus-visible {
+    outline: 3px solid rgba(15, 23, 42, 0.18);
+    outline-offset: 2px;
+  }
 `;
 
 const pick: Record<string, React.CSSProperties> = {
@@ -2921,7 +2950,14 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     marginLeft: 4,
   },
-  expandBtn: {
+  actionRow: {
+    width: "100%",
+    marginTop: 8,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  actionBtn: {
     width: "100%",
     padding: "10px",
     border: "1px solid rgba(0,0,0,0.08)",
@@ -2934,12 +2970,14 @@ const pick: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    marginTop: 8,
     transition: "all 0.2s",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    textAlign: "center",
+    whiteSpace: "normal",
+    lineHeight: 1.2,
   },
   detailsSection: {
     marginTop: 12,
