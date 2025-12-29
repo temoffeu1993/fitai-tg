@@ -376,7 +376,15 @@ export default function Dashboard() {
       </section>
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.disabledBtn) }}>
+      <section
+        style={{
+          ...s.block,
+          ...s.chipSurface,
+          ...s.smartWorkoutsSurface,
+          ...s.smartWorkoutsBlock,
+          ...(onbDone ? {} : s.disabledBtn),
+        }}
+      >
         <img
           src={MOZG_SRC}
           alt=""
@@ -727,6 +735,10 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     overflow: "hidden",
     minHeight: 150,
+  },
+  smartWorkoutsSurface: {
+    background: "linear-gradient(135deg, rgba(248,250,252,.98) 0%, rgba(226,232,240,.96) 48%, rgba(241,245,249,.98) 100%)",
+    border: "1px solid rgba(15, 23, 42, 0.06)",
   },
   smartWorkoutsBgImg: {
     position: "absolute",
