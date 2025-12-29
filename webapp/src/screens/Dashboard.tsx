@@ -236,7 +236,7 @@ export default function Dashboard() {
     () => [
       { emoji: "🏁", label: "Тренировок", value: String(totalWorkouts) },
       { emoji: "⭐", label: "Опыт", value: experiencePoints ? String(experiencePoints) : "0" },
-      { emoji: "", label: "", value: rankName, bgSrc: RANG_SRC },
+      { emoji: "⚡", label: "", value: rankName, bgSrc: RANG_SRC },
     ],
     [totalWorkouts, experiencePoints, rankName]
   );
@@ -464,12 +464,23 @@ function ChipStatSquare({
       className="chipSquare"
       style={{
         ...s.chipSquare,
-        ...(bgSrc ? { ...s.rankChipSquare, backgroundImage: `url(${bgSrc})` } : {}),
+        ...(bgSrc ? s.rankChipSquare : {}),
         ...(disabled ? s.disabledBtn : {}),
       }}
     >
+      {bgSrc && (
+        <img
+          src={bgSrc}
+          alt=""
+          aria-hidden="true"
+          style={s.rankChipBg}
+          loading="eager"
+          decoding="sync"
+          draggable={false}
+        />
+      )}
       <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 4, placeItems: "center" }}>
-        {emoji ? <div style={{ fontSize: 22 }}>{emoji}</div> : null}
+        <div style={{ fontSize: 22 }}>{emoji}</div>
         {label ? (
           <div
             style={{
@@ -666,12 +677,18 @@ const s: Record<string, React.CSSProperties> = {
   rankChipSquare: {
     position: "relative",
     overflow: "hidden",
-    backgroundColor: "transparent",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "center",
-    backgroundSize: "contain",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
+  },
+  rankChipBg: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    objectPosition: "center",
+    opacity: 1,
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: 0,
   },
 
   chipSurface: {
