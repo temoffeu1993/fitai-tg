@@ -4,10 +4,8 @@ import { useNavigate } from "react-router-dom";
 
 import robotImg from "../assets/robot.png";
 import mozgImg from "../assets/mozg.png";
-import rangImg from "../assets/rang.png";
 const ROBOT_SRC = robotImg;
 const MOZG_SRC = mozgImg;
-const RANG_SRC = rangImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const RANK_TIERS = [
@@ -236,7 +234,7 @@ export default function Dashboard() {
     () => [
       { emoji: "🏁", label: "Тренировок", value: String(totalWorkouts) },
       { emoji: "⭐", label: "Опыт", value: experiencePoints ? String(experiencePoints) : "0" },
-      { emoji: "⚡", label: "", value: rankName, bgSrc: RANG_SRC },
+      { emoji: "⚡", label: "Ранг", value: rankName },
     ],
     [totalWorkouts, experiencePoints, rankName]
   );
@@ -451,60 +449,36 @@ function ChipStatSquare({
   label,
   value,
   disabled,
-  bgSrc,
 }: {
   emoji: string;
   label: string;
   value: string;
   disabled?: boolean;
-  bgSrc?: string;
 }) {
   return (
-    <div
-      className="chipSquare"
-      style={{
-        ...s.chipSquare,
-        ...(bgSrc ? s.rankChipSquare : {}),
-        ...(disabled ? s.disabledBtn : {}),
-      }}
-    >
-      {bgSrc && (
-        <img
-          src={bgSrc}
-          alt=""
-          aria-hidden="true"
-          style={s.rankChipBg}
-          loading="eager"
-          decoding="sync"
-          draggable={false}
-        />
-      )}
-      <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 4, placeItems: "center" }}>
-        <div style={{ fontSize: 22 }}>{emoji}</div>
-        {label ? (
-          <div
-            style={{
-              fontSize: 12,
-              opacity: 0.7,
-              textAlign: "center",
-              whiteSpace: "normal",
-              lineHeight: 1.2,
-            }}
-          >
-            {label}
-          </div>
-        ) : null}
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 600,
-            textAlign: "center",
-            whiteSpace: "normal",
-            lineHeight: 1.2,
-          }}
-        >
-          {value}
-        </div>
+    <div className="chipSquare" style={{ ...s.chipSquare, ...(disabled ? s.disabledBtn : {}) }}>
+      <div style={{ fontSize: 22 }}>{emoji}</div>
+      <div
+        style={{
+          fontSize: 12,
+          opacity: 0.7,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          textAlign: "center",
+          whiteSpace: "normal",
+          lineHeight: 1.2,
+        }}
+      >
+        {value}
       </div>
     </div>
   );
@@ -673,22 +647,6 @@ const s: Record<string, React.CSSProperties> = {
     wordBreak: "break-word",
     whiteSpace: "normal",
     hyphens: "none",
-  },
-  rankChipSquare: {
-    position: "relative",
-    overflow: "hidden",
-  },
-  rankChipBg: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    objectPosition: "center",
-    opacity: 1,
-    pointerEvents: "none",
-    userSelect: "none",
-    zIndex: 0,
   },
 
   chipSurface: {
