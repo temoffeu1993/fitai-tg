@@ -376,7 +376,7 @@ export default function Dashboard() {
       </section>
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.disabledBtn) }}>
+      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.smartWorkoutsDisabled) }}>
         <img
           src={MOZG_SRC}
           alt=""
@@ -395,7 +395,7 @@ export default function Dashboard() {
             style={{
               ...s.ctaBig,
               ...s.smartWorkoutsCta,
-              ...(onbDone ? {} : s.disabledBtn),
+              ...(onbDone ? {} : s.smartWorkoutsCtaDisabled),
               border: "1px solid transparent",
             }}
             onClick={() => {
@@ -729,6 +729,10 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     minHeight: 150,
   },
+  smartWorkoutsDisabled: {
+    cursor: "default",
+    pointerEvents: "none",
+  },
   smartWorkoutsBgImg: {
     position: "absolute",
     inset: 0,
@@ -753,6 +757,10 @@ const s: Record<string, React.CSSProperties> = {
     color: "#fff",
     border: "1px solid rgba(255,255,255,.16)",
     boxShadow: "0 10px 22px rgba(0,0,0,.18)",
+  },
+  smartWorkoutsCtaDisabled: {
+    cursor: "default",
+    pointerEvents: "none",
   },
 
   /* Быстрые действия */
