@@ -376,15 +376,7 @@ export default function Dashboard() {
       </section>
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section
-        style={{
-          ...s.block,
-          ...s.chipSurface,
-          ...s.smartWorkoutsSurface,
-          ...s.smartWorkoutsBlock,
-          ...(onbDone ? {} : s.disabledBtn),
-        }}
-      >
+      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.disabledBtn) }}>
         <img
           src={MOZG_SRC}
           alt=""
@@ -402,6 +394,7 @@ export default function Dashboard() {
             className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
             style={{
               ...s.ctaBig,
+              ...s.smartWorkoutsCta,
               ...(onbDone ? {} : s.disabledBtn),
               border: "1px solid transparent",
             }}
@@ -736,10 +729,6 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     minHeight: 150,
   },
-  smartWorkoutsSurface: {
-    background: "linear-gradient(135deg, rgba(248,250,252,.98) 0%, rgba(226,232,240,.96) 48%, rgba(241,245,249,.98) 100%)",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-  },
   smartWorkoutsBgImg: {
     position: "absolute",
     inset: 0,
@@ -758,6 +747,12 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 1,
     width: "72%",
     maxWidth: 360,
+  },
+  smartWorkoutsCta: {
+    background: "#0f172a",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.16)",
+    boxShadow: "0 10px 22px rgba(0,0,0,.18)",
   },
 
   /* Быстрые действия */
