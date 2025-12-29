@@ -173,7 +173,7 @@ export default function PlanOne() {
 
   const remainingPlanned = useMemo(() => {
     return (plannedWorkouts || [])
-      .filter((w) => w && w.id && w.scheduledFor)
+      .filter((w) => w && w.id)
       .filter((w) => w.status !== "cancelled" && w.status !== "completed");
   }, [plannedWorkouts]);
 
@@ -188,7 +188,19 @@ export default function PlanOne() {
     }
     return remainingPlanned
       .slice()
-      .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())[0].id;
+      .sort((a, b) => {
+        const at = a.scheduledFor
+          ? new Date(a.scheduledFor).getTime()
+          : a.createdAt
+          ? new Date(a.createdAt).getTime()
+          : Number.POSITIVE_INFINITY;
+        const bt = b.scheduledFor
+          ? new Date(b.scheduledFor).getTime()
+          : b.createdAt
+          ? new Date(b.createdAt).getTime()
+          : Number.POSITIVE_INFINITY;
+        return at - bt;
+      })[0].id;
   }, [remainingPlanned]);
 
   useEffect(() => {
