@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import grudImg from "../assets/grud.png";
 import { loadHistory } from "@/lib/history";
 import {
   createPlannedWorkout,
@@ -713,6 +714,7 @@ export default function PlanOne() {
               const { totalExercises, minutes } = workoutChips(p);
               const rawLabel = String(p.dayLabel || p.title || "Тренировка");
               const label = dayLabelRU(rawLabel);
+              const isChestWorkout = /(push|пуш|жим)/.test(rawLabel.toLowerCase());
               const dayDesc = dayDescriptionRU(rawLabel);
               const focusRaw = String(p.dayFocus || p.focus || p.description || "").trim();
               const focus = dayDesc || focusRaw || "Сделал тренировку под твою схему и текущее состояние.";
@@ -733,11 +735,23 @@ export default function PlanOne() {
                   className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
                   style={{
                     ...pick.schemeCard,
+                    ...(isChestWorkout ? pick.schemeCardWithBg : null),
                     ...(isSelected ? pick.schemeCardSelected : null),
                     animationDelay: `${index * 120}ms`,
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
+                  {isChestWorkout ? (
+                    <img
+                      src={grudImg}
+                      alt=""
+                      aria-hidden="true"
+                      style={pick.schemeCardBgImg}
+                      loading="eager"
+                      decoding="sync"
+                      draggable={false}
+                    />
+                  ) : null}
                   {isRecommended ? (
                     <div style={pick.recommendedBadge}>
                       <span style={{ fontSize: 12 }}>⭐</span>
@@ -2871,6 +2885,22 @@ const pick: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(8px)",
     cursor: "pointer",
     transition: "all 0.3s ease",
+  },
+  schemeCardWithBg: {
+    overflow: "hidden",
+  },
+  schemeCardBgImg: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    objectPosition: "right bottom",
+    opacity: 0.28,
+    transform: "scale(1.1)",
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: 0,
   },
   schemeCardSelected: {
     background: "rgba(255,255,255,0.85)",
