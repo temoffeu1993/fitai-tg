@@ -379,6 +379,7 @@ export default function Dashboard() {
       <section
         style={{
           ...s.block,
+          ...s.chipSurface,
           ...s.smartWorkoutsSurface,
           ...s.smartWorkoutsBlock,
           ...(onbDone ? {} : s.disabledBtn),
@@ -395,8 +396,8 @@ export default function Dashboard() {
           draggable={false}
         />
         <div style={s.smartWorkoutsContent}>
-          <h3 style={{ ...s.blockTitle, ...s.smartWorkoutsTitle }}>Умные тренировки</h3>
-          <p style={{ ...s.blockText, ...s.smartWorkoutsText }}>Адаптируются под твое состояние, цель, опыт и прогрессию</p>
+          <h3 style={s.blockTitle}>Умные тренировки</h3>
+          <p style={s.blockText}>Адаптируются под твое состояние, цель, опыт и прогрессию</p>
           <button
             className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
             style={{
@@ -736,9 +737,8 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: 150,
   },
   smartWorkoutsSurface: {
-    background: "linear-gradient(135deg, rgba(2,6,23,.98) 0%, rgba(15,23,42,.98) 45%, rgba(17,24,39,.98) 100%)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    boxShadow: "0 14px 34px rgba(0,0,0,.28)",
+    background: "linear-gradient(135deg, rgba(248,250,252,.98) 0%, rgba(226,232,240,.96) 48%, rgba(241,245,249,.98) 100%)",
+    border: "1px solid rgba(15, 23, 42, 0.06)",
   },
   smartWorkoutsBgImg: {
     position: "absolute",
@@ -747,7 +747,7 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     objectFit: "contain",
     objectPosition: "right bottom",
-    opacity: 0.22,
+    opacity: 0.28,
     transform: "translateX(0%) scale(1.32)",
     pointerEvents: "none",
     userSelect: "none",
@@ -758,12 +758,6 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 1,
     width: "72%",
     maxWidth: 360,
-  },
-  smartWorkoutsTitle: {
-    color: "#fff",
-  },
-  smartWorkoutsText: {
-    color: "rgba(255,255,255,0.78)",
   },
 
   /* Быстрые действия */
