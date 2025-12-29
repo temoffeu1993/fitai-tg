@@ -87,19 +87,19 @@ function rankTitle(total: number, lastCompletedAt: number | null) {
   return RANK_TIERS[tierIndex].name;
 }
 
-let robotPreloaded = false;
-function ensureRobotPreloaded(src: string) {
-  if (robotPreloaded) return;
+const preloadedImages = new Set<string>();
+function ensureImagePreloaded(src: string, key?: string) {
+  if (preloadedImages.has(src)) return;
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!src) return;
-  robotPreloaded = true;
+  preloadedImages.add(src);
 
   try {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
     link.href = src;
-    link.setAttribute("data-preload-img", "robot");
+    link.setAttribute("data-preload-img", key || src);
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
   } catch {}
@@ -109,7 +109,8 @@ function ensureRobotPreloaded(src: string) {
   img.src = src;
 }
 
-ensureRobotPreloaded(ROBOT_SRC);
+ensureImagePreloaded(ROBOT_SRC, "robot");
+ensureImagePreloaded(MOZG_SRC, "mozg");
 
 // имя из Телеграма
 function resolveTelegramName() {
@@ -381,7 +382,7 @@ export default function Dashboard() {
           alt=""
           aria-hidden="true"
           style={s.smartWorkoutsBgImg}
-          loading="lazy"
+          loading="eager"
           decoding="async"
           draggable={false}
         />
@@ -732,9 +733,9 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     height: "100%",
     objectFit: "contain",
-    objectPosition: "right bottom",
+    objectPosition: "80% bottom",
     opacity: 0.28,
-    transform: "scale(1.05)",
+    transform: "scale(1.18)",
     pointerEvents: "none",
     userSelect: "none",
     zIndex: 0,
