@@ -391,7 +391,7 @@ export default function Dashboard() {
           <h3 style={s.blockTitle}>Умные тренировки</h3>
           <p style={s.blockText}>Адаптируются под твое состояние, цель, опыт и прогрессию</p>
           <button
-            className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
+            className={onbDone ? (highlightGenerateBtn ? "highlight-pulse" : undefined) : undefined}
             style={{
               ...s.ctaBig,
               ...s.smartWorkoutsCta,
@@ -755,8 +755,12 @@ const s: Record<string, React.CSSProperties> = {
   smartWorkoutsCta: {
     background: "#0f172a",
     color: "#fff",
+    WebkitTextFillColor: "#fff",
     border: "1px solid rgba(255,255,255,.16)",
     boxShadow: "0 10px 22px rgba(0,0,0,.18)",
+    opacity: 1,
+    filter: "none",
+    textShadow: "none",
   },
   smartWorkoutsCtaDisabled: {
     cursor: "default",
