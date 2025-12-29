@@ -383,7 +383,8 @@ export default function Dashboard() {
           aria-hidden="true"
           style={s.smartWorkoutsBgImg}
           loading="eager"
-          decoding="async"
+          fetchPriority="high"
+          decoding="sync"
           draggable={false}
         />
         <div style={s.smartWorkoutsContent}>

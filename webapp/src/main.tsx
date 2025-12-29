@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
 import robotImg from "./assets/robot.png";
+import mozgImg from "./assets/mozg.png";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
@@ -159,7 +160,7 @@ if (isDev && !tg?.initData) {
     "profile",
     JSON.stringify({ first_name: "Dev", username: "dev" })
   );
-  preloadImage(robotImg).finally(() => root.render(<App />));
+  Promise.all([preloadImage(robotImg), preloadImage(mozgImg)]).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
@@ -184,7 +185,7 @@ async function auth() {
 
     const { token } = await r.json();
     localStorage.setItem("token", token);
-    await preloadImage(robotImg);
+    await Promise.all([preloadImage(robotImg), preloadImage(mozgImg)]);
     root.render(<App />);
   } catch (e: any) {
     root.render(<LoadingScreen text={`Ошибка: ${e?.message || String(e)}`} />);
