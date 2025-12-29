@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { loadHistory } from "@/lib/history";
 import {
   createPlannedWorkout,
-  getPlannedWorkouts,
+  getScheduleOverview,
   removePlannedWorkoutExercise,
   replacePlannedWorkoutExercise,
   type PlannedWorkout,
@@ -30,6 +30,26 @@ const formatPlannedDateTime = (iso: string) => {
 };
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
+
+function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((item) => {
+      if (!item || !item.id) return false;
+      if (item.status === "cancelled") return false;
+      if (item.status === "pending") return true;
+      return Boolean(item.scheduledFor);
+    })
+    .map((item) => ({
+      ...item,
+      status: item.status || "scheduled",
+    }))
+    .sort((a, b) => {
+      const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      return at - bt;
+    });
+}
 
 export type Exercise = {
   name: string; sets: number;
@@ -132,8 +152,8 @@ export default function PlanOne() {
     setPlannedLoading(true);
     setPlannedError(null);
     try {
-      const list = await getPlannedWorkouts();
-      const next = Array.isArray(list) ? list : [];
+      const data = await getScheduleOverview();
+      const next = normalizePlanned(data.plannedWorkouts);
       setPlannedWorkouts(next);
       try {
         localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next.length));
