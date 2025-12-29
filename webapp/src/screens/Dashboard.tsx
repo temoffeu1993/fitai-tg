@@ -736,7 +736,7 @@ const s: Record<string, React.CSSProperties> = {
     objectFit: "contain",
     objectPosition: "right bottom",
     opacity: 0.28,
-    transform: "translateX(6%) scale(1.32)",
+    transform: "translateX(3%) scale(1.32)",
     pointerEvents: "none",
     userSelect: "none",
     zIndex: 0,
