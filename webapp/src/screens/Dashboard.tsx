@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import robotImg from "../assets/robot.png";
+import mozgImg from "../assets/mozg.png";
 const ROBOT_SRC = robotImg;
+const MOZG_SRC = mozgImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const RANK_TIERS = [
@@ -373,29 +375,38 @@ export default function Dashboard() {
       </section>
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section style={{ ...s.block, ...s.chipSurface, ...(onbDone ? {} : s.disabledBtn) }}>
-        <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
-        <p style={s.blockText}>
-          Адаптируются под твое состояние, цель, опыт и прогрессию
-        </p>
-        <button
-          className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
-          style={{
-            ...s.ctaBig,
-            ...(onbDone ? {} : s.disabledBtn),
-            border: "1px solid transparent",
-          }}
-          onClick={() => {
-            if (!onbDone) return;
-            setHighlightGenerateBtn(false);
-            localStorage.removeItem("highlight_generate_btn");
-            navigate("/plan/one");
-          }}
-          disabled={!onbDone}
-          aria-disabled={!onbDone}
-        >
-          {workoutsCtaLabel}
-        </button>
+      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.disabledBtn) }}>
+        <img
+          src={MOZG_SRC}
+          alt=""
+          aria-hidden="true"
+          style={s.smartWorkoutsBgImg}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+        <div style={s.smartWorkoutsContent}>
+          <h3 style={s.blockTitle}>Умные тренировки</h3>
+          <p style={s.blockText}>Адаптируются под твое состояние, цель, опыт и прогрессию</p>
+          <button
+            className={onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined}
+            style={{
+              ...s.ctaBig,
+              ...(onbDone ? {} : s.disabledBtn),
+              border: "1px solid transparent",
+            }}
+            onClick={() => {
+              if (!onbDone) return;
+              setHighlightGenerateBtn(false);
+              localStorage.removeItem("highlight_generate_btn");
+              navigate("/plan/one");
+            }}
+            disabled={!onbDone}
+            aria-disabled={!onbDone}
+          >
+            {workoutsCtaLabel}
+          </button>
+        </div>
       </section>
 
       {/* Быстрые действия */}
@@ -708,6 +719,31 @@ const s: Record<string, React.CSSProperties> = {
   // тонкий бордер для glow-маски
   ctaGlowBorderFix: {
     border: "1px solid transparent",
+  },
+
+  smartWorkoutsBlock: {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 150,
+  },
+  smartWorkoutsBgImg: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    objectPosition: "right bottom",
+    opacity: 0.28,
+    transform: "scale(1.05)",
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: 0,
+  },
+  smartWorkoutsContent: {
+    position: "relative",
+    zIndex: 1,
+    width: "72%",
+    maxWidth: 360,
   },
 
   /* Быстрые действия */
