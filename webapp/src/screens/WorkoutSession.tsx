@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode
 import { saveSession } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
+import { toSessionPlan } from "@/lib/toSessionPlan";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
@@ -68,20 +69,36 @@ export default function WorkoutSession() {
   const checkinSummary = useMemo(() => (loc.state as any)?.checkinSummary ?? null, [loc.state]);
   const plan: Plan | null = useMemo(() => {
     try {
+      const normalize = (candidate: any) => {
+        const c = candidate && typeof candidate === "object" ? candidate : null;
+        const ex0 = Array.isArray(c?.exercises) ? c.exercises[0] : null;
+        const hasSessionShape = ex0 && typeof ex0 === "object" && typeof ex0.name === "string";
+        return hasSessionShape ? c : toSessionPlan(c);
+      };
+
       const fromState = (loc.state as any)?.plan || null;
-      if (fromState) return (fromState as any).plan || fromState;
+      console.log("🔍 Plan recovery - fromState:", fromState);
+      if (fromState) return normalize((fromState as any).plan || fromState) as any;
       const rawCurrent = JSON.parse(localStorage.getItem("current_plan") || "null");
-      if (rawCurrent?.plan || rawCurrent?.exercises) return rawCurrent.plan || rawCurrent;
+      console.log("🔍 Plan recovery - rawCurrent:", rawCurrent);
+      if (rawCurrent?.plan || rawCurrent?.exercises) return normalize(rawCurrent.plan || rawCurrent) as any;
       const rawDraft = JSON.parse(localStorage.getItem("session_draft") || "null");
       const stateWorkoutId = (loc.state as any)?.plannedWorkoutId || null;
       const storedWorkoutId = localStorage.getItem("planned_workout_id") || null;
       const draftWorkoutId = rawDraft?.plannedWorkoutId || null;
+      console.log("🔍 Plan recovery - IDs:", { stateWorkoutId, storedWorkoutId, draftWorkoutId });
+      console.log("🔍 Plan recovery - rawDraft:", rawDraft);
       if (rawDraft?.plan && draftWorkoutId && (draftWorkoutId === stateWorkoutId || draftWorkoutId === storedWorkoutId)) {
-        return rawDraft.plan;
+        console.log("✅ Plan recovered from draft:", rawDraft.plan);
+        return normalize(rawDraft.plan) as any;
       }
       const rawCache = JSON.parse(localStorage.getItem("plan_cache_v2") || "null");
-      if (rawCache?.plan || rawCache?.plan?.exercises) return rawCache.plan || rawCache;
-    } catch {}
+      console.log("🔍 Plan recovery - rawCache:", rawCache);
+      if (rawCache?.plan || rawCache?.plan?.exercises) return normalize(rawCache.plan || rawCache) as any;
+    } catch (e) {
+      console.error("❌ Plan recovery error:", e);
+    }
+    console.log("❌ Plan recovery failed - returning null");
     return null;
   }, [loc.state]);
   const plannedWorkoutId = useMemo(() => {

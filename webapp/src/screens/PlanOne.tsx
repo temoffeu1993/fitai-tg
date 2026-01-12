@@ -16,6 +16,7 @@ import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationPr
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
+import { toSessionPlan } from "@/lib/toSessionPlan";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -677,7 +678,7 @@ export default function PlanOne() {
       return;
     }
     if ((selectedPlanned.plan as any)?.meta?.checkinApplied) {
-      nav("/workout/session", { state: { plan: (selectedPlanned.plan as any), plannedWorkoutId: selectedId } });
+      nav("/workout/session", { state: { plan: toSessionPlan(selectedPlanned.plan as any), plannedWorkoutId: selectedId } });
       return;
     }
     nav("/check-in", {
