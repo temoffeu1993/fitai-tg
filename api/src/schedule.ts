@@ -190,8 +190,18 @@ schedule.post(
 
     const rows = await q<PlannedWorkoutRow>(
       `UPDATE planned_workouts
-          SET plan = COALESCE(base_plan, plan),
-              data = COALESCE(base_plan, plan),
+          SET plan = (COALESCE(base_plan, plan))
+                    #- '{meta,checkinApplied}'
+                    #- '{meta,adaptedAt}'
+                    #- '{meta,action}'
+                    #- '{meta,wasSwapped}'
+                    #- '{meta,swapInfo}',
+              data = (COALESCE(base_plan, plan))
+                    #- '{meta,checkinApplied}'
+                    #- '{meta,adaptedAt}'
+                    #- '{meta,action}'
+                    #- '{meta,wasSwapped}'
+                    #- '{meta,swapInfo}',
               updated_at = now()
         WHERE user_id = $1 AND id = $2
         RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
