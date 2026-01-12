@@ -119,6 +119,15 @@ export default function PlanOne() {
   const [initialWeekRequested, setInitialWeekRequested] = useState(false);
   const [needsCheckIn, setNeedsCheckIn] = useState(false);
 
+  const activeDraft = useMemo(() => readSessionDraft(), []);
+  const activeProgress = useMemo(() => {
+    const d = activeDraft;
+    const items = Array.isArray(d?.items) ? d!.items : [];
+    if (!items.length) return null;
+    const done = items.filter((it: any) => Boolean(it?.done)).length;
+    return Math.max(0, Math.min(100, Math.round((done / items.length) * 100)));
+  }, [activeDraft]);
+
   const isAdmin = useMemo(() => {
     try {
       const raw = localStorage.getItem("profile");
@@ -636,14 +645,6 @@ export default function PlanOne() {
   })();
 
   const startCtaLabel = "🏁 Начать тренировку";
-  const activeDraft = useMemo(() => readSessionDraft(), []);
-  const activeProgress = useMemo(() => {
-    const d = activeDraft;
-    const items = Array.isArray(d?.items) ? d!.items : [];
-    if (!items.length) return null;
-    const done = items.filter((it: any) => Boolean(it?.done)).length;
-    return Math.max(0, Math.min(100, Math.round((done / items.length) * 100)));
-  }, [activeDraft]);
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
