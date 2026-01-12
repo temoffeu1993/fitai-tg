@@ -93,6 +93,19 @@ export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> 
   return data?.plannedWorkout;
 }
 
+export async function resetPlannedWorkout(id: string): Promise<PlannedWorkout> {
+  const r = await apiFetch(`/api/planned-workouts/${id}/reset`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_reset_planned_workout");
+  }
+  const data = await r.json();
+  return data?.plannedWorkout;
+}
+
 export async function replacePlannedWorkoutExercise(args: {
   plannedWorkoutId: string;
   index: number;

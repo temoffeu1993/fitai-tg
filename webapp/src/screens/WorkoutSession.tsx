@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type TouchEvent } from "react";
 import { saveSession } from "@/api/plan";
+import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
@@ -1192,6 +1193,9 @@ export default function WorkoutSession() {
                 style={modal.danger}
                 onClick={() => {
                   setExitConfirm(false);
+                  if (plannedWorkoutId) {
+                    resetPlannedWorkout(plannedWorkoutId).catch(() => {});
+                  }
                   clearActiveWorkout();
                   nav("/plan/one");
                 }}

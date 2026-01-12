@@ -404,10 +404,6 @@ export default function Dashboard() {
               if (!onbDone) return;
               setHighlightGenerateBtn(false);
               localStorage.removeItem("highlight_generate_btn");
-              if (activeDraft?.plannedWorkoutId) {
-                navigate("/workout/session", { state: { plannedWorkoutId: activeDraft.plannedWorkoutId } });
-                return;
-              }
               navigate("/plan/one");
             }}
             disabled={!onbDone}

@@ -179,6 +179,36 @@ schedule.get(
 );
 
 schedule.post(
+  "/planned-workouts/:id/reset",
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = await getUserId(req as any);
+    const { id } = req.params;
+
+    if (!isUUID(id)) {
+      return res.status(400).json({ error: "invalid_id" });
+    }
+
+    const rows = await q<PlannedWorkoutRow>(
+      `UPDATE planned_workouts
+          SET plan = COALESCE(base_plan, plan),
+              data = COALESCE(base_plan, plan),
+              updated_at = now()
+        WHERE user_id = $1 AND id = $2
+        RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+      [userId, id]
+    );
+
+    const updated = rows[0];
+    if (!updated) {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
+  })
+);
+
+schedule.post(
   "/planned-workouts",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
