@@ -431,7 +431,6 @@ schedule.patch(
       return row;
     });
 
-    const userProfile = await buildUserProfile(userId);
     res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
   })
 );
