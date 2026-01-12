@@ -668,11 +668,6 @@ export default function PlanOne() {
   const handleStartSelected = () => {
     if (!selectedPlanned || !startWorkoutDate) return;
     const selectedId = selectedPlanned.id;
-    if (activeDraft?.plannedWorkoutId && activeDraft.plannedWorkoutId !== selectedId) {
-      alert("Сначала заверши или выйди из текущей тренировки, чтобы начать новую.");
-      nav("/workout/session", { state: { plannedWorkoutId: activeDraft.plannedWorkoutId } });
-      return;
-    }
     if (activeDraft?.plannedWorkoutId === selectedId) {
       nav("/workout/session", { state: { plannedWorkoutId: selectedId } });
       return;
@@ -720,7 +715,7 @@ export default function PlanOne() {
 	          onClick={handleStartSelected}
 	          disabled={!canStart}
 	        >
-	          {activeDraft?.plannedWorkoutId ? "→ к тренировке" : "🏁 начать"}
+	          🏁 начать
 	        </button>
 
         {/* regenerate button removed by request */}

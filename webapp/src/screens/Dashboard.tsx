@@ -1,7 +1,6 @@
 // webapp/src/screens/Dashboard.tsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { readSessionDraft } from "@/lib/activeWorkout";
 
 import robotImg from "../assets/robot.png";
 import mozgImg from "../assets/mozg.png";
@@ -245,8 +244,7 @@ export default function Dashboard() {
 
   const goOnb = () => navigate("/onb/age-sex");
 
-  const activeDraft = useMemo(() => readSessionDraft(), []);
-  const workoutsCtaLabel = activeDraft?.plannedWorkoutId ? "К тренировке" : "Выбрать тренировку";
+  const workoutsCtaLabel = "Выбрать тренировку";
 
   return (
     <div style={s.page}>
