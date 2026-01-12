@@ -148,15 +148,18 @@ export default function CheckIn() {
 
   return (
     <div style={styles.page}>
-      {/* Верхний блок с заголовком */}
-      <section style={styles.heroCard}>
-        <div style={styles.heroTitle}>Твоё состояние перед тренировкой</div>
-        <div style={styles.heroSubtitle}>
-          Расскажи как ты себя чувствуешь, и мы адаптируем тренировку под тебя
-        </div>
-      </section>
-
-      <div style={{ height: 16 }} />
+      {!result ? (
+        <>
+          {/* Верхний блок с заголовком */}
+          <section style={styles.heroCard}>
+            <div style={styles.heroTitle}>Твоё состояние перед тренировкой</div>
+            <div style={styles.heroSubtitle}>
+              Расскажи как ты себя чувствуешь, и мы адаптируем тренировку под тебя
+            </div>
+          </section>
+          <div style={{ height: 16 }} />
+        </>
+      ) : null}
 
       {!result ? (
         <CheckInForm
@@ -169,54 +172,56 @@ export default function CheckIn() {
           title="Как ты сегодня? 💬"
         />
       ) : (
-        <section style={styles.summaryCard}>
-          <div style={styles.summaryKicker}>🧠 Анализируем чек-ин</div>
+        <>
+          <section style={styles.summaryCard}>
+            <div style={styles.summaryKicker}>🧠 Анализируем чек-ин</div>
 
-          {summaryPhase === "thinking" ? (
-            <div style={styles.thinkingRow} aria-live="polite">
-              <div style={styles.thinkingDot} />
-              <div style={styles.thinkingText}>
-                Подстраиваем тренировку под самочувствие<span className="thinking-dots" />
-              </div>
-            </div>
-          ) : (
-            <div style={styles.summaryBody}>
-              <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
-              {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
-
-              {summary?.notes?.length ? (
-                <div style={styles.notesList}>
-                  {summary.notes.slice(0, 8).map((t, i) => (
-                    <div key={i} style={styles.noteItem}>
-                      • {t}
-                    </div>
-                  ))}
+            {summaryPhase === "thinking" ? (
+              <div style={styles.thinkingRow} aria-live="polite">
+                <div style={styles.thinkingDot} />
+                <div style={styles.thinkingText}>
+                  Подстраиваем тренировку под самочувствие<span className="thinking-dots" />
                 </div>
-              ) : null}
-
-              <div style={{ height: 14 }} />
-
-              <div style={styles.summaryActions}>
-                <button
-                  type="button"
-                  style={styles.secondaryBtn}
-                  onClick={() => {
-                    setResult(null);
-                    setError(null);
-                  }}
-                  disabled={loading}
-                >
-                  Изменить ответы
-                </button>
-                <button type="button" style={styles.primaryBtn} onClick={goToWorkout} disabled={loading}>
-                  Начать тренировку
-                </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div style={styles.summaryBody}>
+                <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
+                {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
 
-          <style>{thinkingCss}</style>
-        </section>
+                {summary?.notes?.length ? (
+                  <div style={styles.notesList}>
+                    {summary.notes.slice(0, 8).map((t, i) => (
+                      <div key={i} style={styles.noteItem}>
+                        • {t}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <style>{thinkingCss}</style>
+          </section>
+
+          {summaryPhase === "ready" ? (
+            <div style={styles.summaryFooter}>
+              <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading}>
+                Начать тренировку
+              </button>
+              <button
+                type="button"
+                style={styles.summaryBackBtn}
+                onClick={() => {
+                  setResult(null);
+                  setError(null);
+                }}
+                disabled={loading}
+              >
+                Изменить ответы
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -337,30 +342,35 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
     color: "rgba(15, 23, 42, .84)",
   },
-  summaryActions: {
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-    justifyContent: "space-between",
+  summaryFooter: {
+    marginTop: 16,
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 12,
   },
-  primaryBtn: {
-    flex: "1 1 auto",
-    borderRadius: 14,
-    padding: "12px 14px",
+  summaryPrimaryBtn: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    width: "100%",
+    border: "1px solid #0f172a",
     background: "#0f172a",
     color: "#fff",
-    border: "none",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  secondaryBtn: {
-    flex: "0 0 auto",
-    borderRadius: 14,
-    padding: "12px 14px",
-    background: "rgba(15, 23, 42, .06)",
-    color: "#0f172a",
-    border: "1px solid rgba(15, 23, 42, .10)",
     fontWeight: 800,
+    fontSize: 17,
     cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    WebkitTapHighlightColor: "transparent",
+  },
+  summaryBackBtn: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: 700,
+    padding: "14px 16px",
+    cursor: "pointer",
+    textAlign: "center",
+    WebkitTapHighlightColor: "transparent",
   },
 };
