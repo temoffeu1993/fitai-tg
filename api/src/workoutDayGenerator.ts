@@ -1261,7 +1261,7 @@ export async function generateWorkoutDay(args: {
   // NEW: Note if workout was shortened due to time constraints
   // ИСПРАВЛЕНО: используем readiness.effectiveMinutes
   if (wasReducedForTime && readiness.effectiveMinutes) {
-    changeNotes.push(`⏱️ Тренировка сокращена под доступное время (${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`);
+    changeNotes.push(`⏱️ Тренировка сокращена под доступное время (~${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`);
   }
 
   adaptationNotes.push(...changeNotes, ...infoNotes);

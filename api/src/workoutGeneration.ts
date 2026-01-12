@@ -1276,10 +1276,9 @@ workoutGeneration.post(
         notes: decision.notes,
         summary: {
           changed: true,
-          changeNotes: [
-            ...(decision.notes || []),
-            ...((recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || []),
-          ],
+          changeNotes: Array.from(
+            new Set([...(decision.notes || []), ...((recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || [])])
+          ),
           infoNotes: (recoveryWorkout as any)?.infoNotes || [],
           changeMeta: (recoveryWorkout as any)?.changeMeta,
         },
@@ -1418,17 +1417,12 @@ workoutGeneration.post(
           ...(adaptedWorkout.adaptationNotes || []),
         ];
         const changeNotes: string[] = Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : [];
-        const infoNotes: string[] = [
-          ...((decision.notes || []) as string[]),
-          ...(Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []),
-        ];
-        const regenReasonNotes: string[] = [];
-        if (shouldAdaptForTime) regenReasonNotes.push("⏱️ Подстроили тренировку под доступное время.");
-        if (shouldAdaptForMoreTime) regenReasonNotes.push("⏱️ У тебя больше времени — можем сделать тренировку более полной.");
-        if (shouldAdaptForIntent) regenReasonNotes.push("⚖️ Подстроили нагрузку под текущее состояние.");
-        if (hasBlockedExercises) regenReasonNotes.push("🩹 Учли боль/дискомфорт: заменили или убрали потенциально раздражающие упражнения.");
-        if (hasCoreExercisesWhenOptional) regenReasonNotes.push("🧩 При короткой сессии кор сделали опциональным.");
-        const finalChangeNotes = [...changeNotes, ...regenReasonNotes.filter((n) => !changeNotes.includes(n))];
+        const infoNotes: string[] = Array.from(
+          new Set([
+            ...((decision.notes || []) as string[]),
+            ...(Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []),
+          ])
+        );
 
 	        workoutData = {
           schemeId: scheme.id,
@@ -1454,7 +1448,7 @@ workoutGeneration.post(
           totalSets: adaptedWorkout.totalSets,
           estimatedDuration: adaptedWorkout.estimatedDuration,
           adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-          changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
+          changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
           infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
           changeMeta: (adaptedWorkout as any)?.changeMeta,
           warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
@@ -1577,7 +1571,7 @@ workoutGeneration.post(
         });
       }
       
-	      const adaptedWorkout = await generateWorkoutDay({
+      const adaptedWorkout = await generateWorkoutDay({
         scheme,
         dayIndex: finalDayIndex,
         userProfile,
