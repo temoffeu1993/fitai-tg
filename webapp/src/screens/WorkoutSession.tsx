@@ -73,7 +73,10 @@ export default function WorkoutSession() {
       const rawCurrent = JSON.parse(localStorage.getItem("current_plan") || "null");
       if (rawCurrent?.plan || rawCurrent?.exercises) return rawCurrent.plan || rawCurrent;
       const rawDraft = JSON.parse(localStorage.getItem("session_draft") || "null");
-      if (rawDraft?.plan && (rawDraft?.plannedWorkoutId || null) === ((loc.state as any)?.plannedWorkoutId || null)) {
+      const stateWorkoutId = (loc.state as any)?.plannedWorkoutId || null;
+      const storedWorkoutId = localStorage.getItem("planned_workout_id") || null;
+      const draftWorkoutId = rawDraft?.plannedWorkoutId || null;
+      if (rawDraft?.plan && draftWorkoutId && (draftWorkoutId === stateWorkoutId || draftWorkoutId === storedWorkoutId)) {
         return rawDraft.plan;
       }
       const rawCache = JSON.parse(localStorage.getItem("plan_cache_v2") || "null");
