@@ -37,6 +37,11 @@ import {
   type DUPIntensity,
 } from "./mesocycleEngine.js";
 import { computeReadiness, normalizeBlockedPatterns, type Intent, type Readiness } from "./readiness.js";
+import {
+  estimateMainMinutesFromGeneratedExercises,
+  estimateTotalMinutesFromGeneratedExercises,
+  estimateWarmupCooldownMinutes,
+} from "./workoutTime.js";
 
 // ============================================================================
 // TYPES
@@ -115,6 +120,14 @@ export type GeneratedWorkoutDay = {
   totalSets: number;
   estimatedDuration: number;
   adaptationNotes?: string[];
+  changeNotes?: string[];
+  infoNotes?: string[];
+  changeMeta?: {
+    volumeAdjusted?: boolean;
+    deload?: boolean;
+    shortenedForTime?: boolean;
+    trimmedForCaps?: boolean;
+  };
   warnings?: string[];
 };
 
@@ -324,18 +337,7 @@ function removeOneExercise(
   return false; // Не смогли удалить ни одного упражнения безопасно
 }
 
-/**
- * Calculate estimated duration (simplified)
- */
-function estimateDuration(exercises: DayExercise[]): number {
-  let total = 0;
-  for (const ex of exercises) {
-    // each set: ~60s work + rest
-    const setDuration = 60 + ex.restSec;
-    total += ex.sets * setDuration;
-  }
-  return Math.ceil(total / 60); // minutes
-}
+// Duration estimation moved to workoutTime.ts for consistency across generator and API.
 
 /**
  * MAIN: Fit session to time and caps constraints
@@ -354,11 +356,12 @@ function fitSession(args: {
   caps: { maxExercises: number; maxSets: number; minExercises: number };
   dupIntensity?: DUPIntensity;
   intent: Intent;
-}): { trimmed: boolean; logs: string[] } {
+}): { trimmed: boolean; logs: string[]; reasons: { time: boolean; capsSets: boolean; capsExercises: boolean } } {
   const { exercises, required, corePolicy, maxMinutes, caps, dupIntensity, intent } = args;
   
   const logs: string[] = [];
   let trimmed = false;
+  const reasons = { time: false, capsSets: false, capsExercises: false };
   
   // Time buffer: 8% of maxMinutes (or 5 min for null)
   const bufferMin = maxMinutes !== null ? Math.ceil(maxMinutes * 0.08) : 5;
@@ -371,7 +374,7 @@ function fitSession(args: {
     
     const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
     const totalExercises = exercises.length;
-    const est = estimateDuration(exercises);
+    const est = estimateMainMinutesFromGeneratedExercises(exercises);
     
     const overTime = maxMinutes !== null ? est > maxMinutes + bufferMin : false;
     const overSets = totalSets > caps.maxSets;
@@ -399,6 +402,9 @@ function fitSession(args: {
           logs.push(`       → Reduced sets: ${role} role`);
           changed = true;
           trimmed = true;
+          if (overTime) reasons.time = true;
+          if (overSets) reasons.capsSets = true;
+          if (overEx) reasons.capsExercises = true;
           break; // Go to next iteration
         }
       }
@@ -410,6 +416,9 @@ function fitSession(args: {
         logs.push(`       → Removed exercise (coverage-safe)`);
         changed = true;
         trimmed = true;
+        if (overTime) reasons.time = true;
+        if (overSets) reasons.capsSets = true;
+        if (overEx) reasons.capsExercises = true;
       } else {
         logs.push(`       ⚠️  Cannot remove more exercises without breaking required coverage`);
         break; // Не можем урезать дальше
@@ -451,7 +460,7 @@ function fitSession(args: {
     }
   }
 
-  return { trimmed, logs };
+  return { trimmed, logs, reasons };
 }
 
 // ============================================================================
@@ -625,7 +634,7 @@ export function generateRecoverySession(args: {
   
 	  const totalExercises = exercises.length;
 	  const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
-	  const estimatedDuration = totalExercises > 0 ? estimateDuration(exercises) : 0;
+	  const estimatedDuration = totalExercises > 0 ? estimateTotalMinutesFromGeneratedExercises(exercises, { warmupMin: 5, cooldownMin: 4 }) : 0;
 	  
 	  const adaptationNotes = [
 	    "🛌 ВОССТАНОВИТЕЛЬНАЯ СЕССИЯ: фокус на мобильности и расслаблении.",
@@ -675,6 +684,9 @@ export function generateRecoverySession(args: {
 	    totalSets,
 	    estimatedDuration,
 	    adaptationNotes,
+      changeNotes: adaptationNotes,
+      infoNotes: [],
+      changeMeta: { volumeAdjusted: false, deload: false, shortenedForTime: false, trimmedForCaps: false },
 	    warnings: [],
 	  };
 }
@@ -1158,11 +1170,16 @@ export async function generateWorkoutDay(args: {
   console.log(`  Session caps: ${sessionCaps.minExercises}-${sessionCaps.maxExercises} exercises, max ${sessionCaps.maxSets} sets`);
   
   // Fit session to time and caps (coverage-aware, sets-first)
+  const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(effectiveTimeBucket as TimeBucket);
+  const maxMainMinutes =
+    typeof readiness.effectiveMinutes === "number" && Number.isFinite(readiness.effectiveMinutes)
+      ? Math.max(0, Math.round(readiness.effectiveMinutes) - warmupMin - cooldownMin)
+      : null;
   const fitResult = fitSession({
     exercises,
     required: effectiveRequired,
     corePolicy: readiness.corePolicy,
-    maxMinutes: readiness.effectiveMinutes,
+    maxMinutes: maxMainMinutes,
     caps: sessionCaps,
     dupIntensity,
     intent,
@@ -1176,7 +1193,7 @@ export async function generateWorkoutDay(args: {
   // Recalculate after trimming
   const totalExercises = exercises.length;
   const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
-  const estimatedDuration = estimateDuration(exercises);
+  const estimatedDuration = warmupMin + estimateMainMinutesFromGeneratedExercises(exercises) + cooldownMin;
   
   console.log(`\n  ✅ FINAL WORKOUT:`);
   console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
@@ -1196,13 +1213,15 @@ export async function generateWorkoutDay(args: {
   }
 
   // OLD wasReducedForTime logic REMOVED - now handled by fitSession above
-  const wasReducedForTime = fitResult.trimmed; // For compatibility with adaptation notes below
+  const wasReducedForTime = fitResult.reasons.time;
 
   // -------------------------------------------------------------------------
   // STEP 5: Generate adaptation notes and warnings
   // -------------------------------------------------------------------------
   
   const adaptationNotes: string[] = [];
+  const changeNotes: string[] = [];
+  const infoNotes: string[] = [];
   const warnings: string[] = [];
 
   // НОВОЕ: Используем warnings из readiness (единый источник правды)
@@ -1226,17 +1245,15 @@ export async function generateWorkoutDay(args: {
   }, 0);
 
   if (originalSetCount > totalSets || selectedExercises.length > totalExercises) {
-    adaptationNotes.push(
-      `Объём скорректирован до безопасного уровня (${totalSets} подходов, ${totalExercises} упражнений) для вашего опыта.`
-    );
+    changeNotes.push(`Объём скорректирован до безопасного уровня (${totalSets} подходов, ${totalExercises} упражнений) для вашего опыта.`);
   }
 
   if (weekPlanData?.isDeloadWeek) {
-    adaptationNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
+    changeNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
   }
   
   // Используем notes из readiness (без технических деталей типа DUP)
-  adaptationNotes.push(...readiness.notes);
+  infoNotes.push(...readiness.notes);
 
   // УДАЛЕНО: дублирование warnings про стресс/боль
   // Теперь используем только из readiness (единый источник правды)
@@ -1244,10 +1261,10 @@ export async function generateWorkoutDay(args: {
   // NEW: Note if workout was shortened due to time constraints
   // ИСПРАВЛЕНО: используем readiness.effectiveMinutes
   if (wasReducedForTime && readiness.effectiveMinutes) {
-    adaptationNotes.push(
-      `⏱️ Тренировка сокращена под доступное время (${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`
-    );
+    changeNotes.push(`⏱️ Тренировка сокращена под доступное время (${readiness.effectiveMinutes} мин). Убраны менее приоритетные упражнения.`);
   }
+
+  adaptationNotes.push(...changeNotes, ...infoNotes);
 
   // -------------------------------------------------------------------------
   // STEP 6: Generate warmup and cooldown
@@ -1299,6 +1316,14 @@ export async function generateWorkoutDay(args: {
     totalSets,
     estimatedDuration,
     adaptationNotes: adaptationNotes.length > 0 ? adaptationNotes : undefined,
+    changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
+    infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
+    changeMeta: {
+      volumeAdjusted: originalSetCount > totalSets || selectedExercises.length > totalExercises,
+      deload: Boolean(weekPlanData?.isDeloadWeek),
+      shortenedForTime: Boolean(wasReducedForTime),
+      trimmedForCaps: fitResult.reasons.capsSets || fitResult.reasons.capsExercises,
+    },
     warnings: warnings.length > 0 ? warnings : undefined,
   };
 }

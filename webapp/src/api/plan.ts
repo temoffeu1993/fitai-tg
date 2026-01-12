@@ -109,6 +109,17 @@ export async function startWorkout(payload: {
   return parseJson<{
     action: "keep_day" | "swap_day" | "recovery" | "skip";
     notes?: string[];
+    summary?: {
+      changed: boolean;
+      changeNotes: string[];
+      infoNotes: string[];
+      changeMeta?: {
+        volumeAdjusted?: boolean;
+        deload?: boolean;
+        shortenedForTime?: boolean;
+        trimmedForCaps?: boolean;
+      };
+    };
     workout?: any;
     swapInfo?: { from: string; to: string; reason: string[] };
   }>(res, "start_workout");

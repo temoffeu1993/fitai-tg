@@ -7,6 +7,8 @@ import { loadScheduleData, saveScheduleData, upsertScheduleDate } from "./utils/
 import { getExerciseById, isReplacementAllowed } from "./exerciseAlternatives.js";
 import { logExerciseChangeEvent } from "./exerciseChangeEvents.js";
 import { buildUserProfile } from "./userProfile.js";
+import type { TimeBucket } from "./normalizedSchemes.js";
+import { estimateTotalMinutesFromStoredPlanExercises, estimateWarmupCooldownMinutes } from "./workoutTime.js";
 
 function getUserId(req: any) {
   if (req.user?.uid) return req.user.uid;
@@ -57,15 +59,25 @@ const parsePlan = (value: any) => {
   }
 };
 
-const serializePlannedWorkout = (row: PlannedWorkoutRow) => ({
-  id: row.id,
-  plan: parsePlan(row.plan),
+const serializePlannedWorkout = (row: PlannedWorkoutRow, timeBucket?: TimeBucket) => {
+  const plan = parsePlan(row.plan);
+  if (timeBucket) {
+    const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(timeBucket);
+    const est = estimateTotalMinutesFromStoredPlanExercises(plan?.exercises, { warmupMin, cooldownMin });
+    if (typeof est === "number" && Number.isFinite(est) && est > 0) {
+      plan.estimatedDuration = est;
+    }
+  }
+  return {
+    id: row.id,
+    plan,
   scheduledFor: toIsoString(row.scheduled_for),
   status: row.status,
   resultSessionId: row.result_session_id,
   createdAt: toIsoString(row.created_at),
   updatedAt: toIsoString(row.updated_at),
-});
+  };
+};
 
 function resolveExerciseIdFromPlanItem(ex: any): string | null {
   const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
@@ -90,6 +102,7 @@ schedule.get(
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
     const data = await loadScheduleData(userId);
+    const userProfile = await buildUserProfile(userId);
 
     const planned = await q<PlannedWorkoutRow>(
       `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
@@ -100,7 +113,7 @@ schedule.get(
       [userId]
     );
 
-    return res.json({ schedule: data, plannedWorkouts: planned.map(serializePlannedWorkout) });
+    return res.json({ schedule: data, plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile.timeBucket)) });
   })
 );
 
@@ -148,6 +161,7 @@ schedule.get(
   "/planned-workouts",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
+    const userProfile = await buildUserProfile(userId);
     const planned = await q<PlannedWorkoutRow>(
       `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
          FROM planned_workouts
@@ -160,7 +174,7 @@ schedule.get(
       [userId]
     );
 
-    res.json({ plannedWorkouts: planned.map(serializePlannedWorkout) });
+    res.json({ plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile.timeBucket)) });
   })
 );
 
@@ -200,7 +214,8 @@ schedule.post(
       await upsertScheduleDate(userId, isoDate, slotTime);
     }
 
-    res.status(201).json({ plannedWorkout: serializePlannedWorkout(row) });
+    const userProfile = await buildUserProfile(userId);
+    res.status(201).json({ plannedWorkout: serializePlannedWorkout(row, userProfile.timeBucket) });
   })
 );
 
@@ -294,7 +309,8 @@ schedule.patch(
       await upsertScheduleDate(userId, isoDate, slotTime);
     }
 
-    res.json({ plannedWorkout: serializePlannedWorkout(updated) });
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
   })
 );
 
@@ -415,7 +431,8 @@ schedule.patch(
       return row;
     });
 
-    res.json({ plannedWorkout: serializePlannedWorkout(updated) });
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
   })
 );
 
@@ -482,7 +499,8 @@ schedule.delete(
       return row;
     });
 
-    res.json({ plannedWorkout: serializePlannedWorkout(updated) });
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
   })
 );
 
@@ -556,7 +574,8 @@ schedule.patch(
       return row;
     });
 
-    res.json({ plannedWorkout: serializePlannedWorkout(updated) });
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
   })
 );
 
@@ -582,7 +601,8 @@ schedule.delete(
       return res.status(404).json({ error: "not_found" });
     }
 
-    res.json({ plannedWorkout: serializePlannedWorkout(rows[0]) });
+    const userProfile = await buildUserProfile(userId);
+    res.json({ plannedWorkout: serializePlannedWorkout(rows[0], userProfile.timeBucket) });
   })
 );
 

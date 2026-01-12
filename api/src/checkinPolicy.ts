@@ -57,16 +57,10 @@ export function decideStartAction(args: {
   const isBlocked = readiness.blockedDayTypes.includes(currentDayType);
 
   if (!isBlocked) {
-    // День не заблокирован → можем выполнять с адаптацией
+    // День не заблокирован → можно выполнять. Не обещаем изменения объёма/упражнений на этом уровне:
+    // фактические изменения формируются генератором/trim-логикой и возвращаются отдельно.
     const notes: string[] = [];
-    
-    if (readiness.severity === "medium") {
-      notes.push("✅ Тренировка адаптирована под сегодняшнее состояние");
-      notes.push(...readiness.reasons);
-    } else if (readiness.severity === "high") {
-      notes.push("⚠️ Объём и интенсивность снижены для безопасности");
-      notes.push(...readiness.reasons);
-    }
+    if (readiness.reasons.length > 0) notes.push(...readiness.reasons);
 
     console.log(`  ✅ KEEP_DAY (severity: ${readiness.severity}, not blocked)`);
     console.log("==================================================\n");

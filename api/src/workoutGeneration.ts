@@ -42,6 +42,7 @@ import {
   saveWeeklyPlan,
   getCurrentWeekStart,
 } from "./mesocycleDb.js";
+import { estimateTotalMinutesFromStoredPlanExercises, estimateWarmupCooldownMinutes } from "./workoutTime.js";
 
 export const workoutGeneration = Router();
 
@@ -1204,6 +1205,11 @@ workoutGeneration.post(
       return res.json({
         action: "skip",
         notes: decision.notes,
+        summary: {
+          changed: true,
+          changeNotes: decision.notes || [],
+          infoNotes: [],
+        },
         originalDay: basePlan.dayLabel,
       });
     }
@@ -1268,6 +1274,15 @@ workoutGeneration.post(
       return res.json({
         action: "recovery",
         notes: decision.notes,
+        summary: {
+          changed: true,
+          changeNotes: [
+            ...(decision.notes || []),
+            ...((recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || []),
+          ],
+          infoNotes: (recoveryWorkout as any)?.infoNotes || [],
+          changeMeta: (recoveryWorkout as any)?.changeMeta,
+        },
         workout: workoutData,
       });
     }
@@ -1281,37 +1296,24 @@ workoutGeneration.post(
 		      const availableMinutes = readiness.effectiveMinutes;
           const baseWasCheckinApplied = Boolean(basePlan?.meta?.checkinApplied);
 		      const estimateBasePlanMinutes = (plan: any): number | null => {
-		        const rawExercises = plan?.exercises;
-		        const exercises = Array.isArray(rawExercises) ? rawExercises : [];
-		        let totalSec = 0;
-		        let counted = 0;
-		        for (const ex of exercises) {
-		          // `sets` may be a number (planned workouts) OR an array (saved session payload).
-		          const setsCountRaw = Array.isArray(ex?.sets)
-		            ? ex.sets.length
-		            : Number.isFinite(Number(ex?.sets))
-		            ? Number(ex?.sets)
-		            : Number(ex?.totalSets);
-		          const setsCount = Number.isFinite(setsCountRaw) ? Math.round(setsCountRaw) : 0;
-		          if (setsCount <= 0) continue;
-		          const restRaw = ex?.restSec ?? ex?.rest ?? 90;
-		          const restSec = Number.isFinite(Number(restRaw)) ? Math.max(0, Math.round(Number(restRaw))) : 90;
-		          const setDurationSec = 60 + restSec;
-	          totalSec += setsCount * setDurationSec;
-	          counted++;
-	        }
-	        if (counted > 0 && totalSec > 0) return Math.ceil(totalSec / 60);
-	        const totalSetsRaw = Number(plan?.totalSets);
-	        if (Number.isFinite(totalSetsRaw) && totalSetsRaw > 0) return Math.ceil(totalSetsRaw * 2.5);
-	        const totalExRaw = Number(plan?.totalExercises);
-	        if (Number.isFinite(totalExRaw) && totalExRaw > 0) return Math.ceil(totalExRaw * 7.5);
-	        return null;
+            const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(userProfile.timeBucket);
+            const fromExercises = estimateTotalMinutesFromStoredPlanExercises(plan?.exercises, { warmupMin, cooldownMin });
+            if (typeof fromExercises === "number" && Number.isFinite(fromExercises) && fromExercises > 0) return fromExercises;
+            const totalSetsRaw = Number(plan?.totalSets);
+            if (Number.isFinite(totalSetsRaw) && totalSetsRaw > 0) return Math.ceil(totalSetsRaw * 3.25) + warmupMin + cooldownMin;
+            const totalExRaw = Number(plan?.totalExercises);
+            if (Number.isFinite(totalExRaw) && totalExRaw > 0) return Math.ceil(totalExRaw * 9.0) + warmupMin + cooldownMin;
+            return null;
 	      };
 
 		      const estimatedRaw = Number(basePlan?.estimatedDuration);
-		      const baseEstimated = Number.isFinite(estimatedRaw) && estimatedRaw > 0
-		        ? estimatedRaw
-		        : estimateBasePlanMinutes(basePlan);
+          const computedEstimated = estimateBasePlanMinutes(basePlan);
+		      const baseEstimated =
+            typeof computedEstimated === "number" && Number.isFinite(computedEstimated) && computedEstimated > 0
+              ? computedEstimated
+              : Number.isFinite(estimatedRaw) && estimatedRaw > 0
+              ? estimatedRaw
+              : null;
 
 		      const bufferMin =
 		        typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
@@ -1415,6 +1417,18 @@ workoutGeneration.post(
           ...(decision.notes || []),
           ...(adaptedWorkout.adaptationNotes || []),
         ];
+        const changeNotes: string[] = Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : [];
+        const infoNotes: string[] = [
+          ...((decision.notes || []) as string[]),
+          ...(Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []),
+        ];
+        const regenReasonNotes: string[] = [];
+        if (shouldAdaptForTime) regenReasonNotes.push("⏱️ Подстроили тренировку под доступное время.");
+        if (shouldAdaptForMoreTime) regenReasonNotes.push("⏱️ У тебя больше времени — можем сделать тренировку более полной.");
+        if (shouldAdaptForIntent) regenReasonNotes.push("⚖️ Подстроили нагрузку под текущее состояние.");
+        if (hasBlockedExercises) regenReasonNotes.push("🩹 Учли боль/дискомфорт: заменили или убрали потенциально раздражающие упражнения.");
+        if (hasCoreExercisesWhenOptional) regenReasonNotes.push("🧩 При короткой сессии кор сделали опциональным.");
+        const finalChangeNotes = [...changeNotes, ...regenReasonNotes.filter((n) => !changeNotes.includes(n))];
 
 	        workoutData = {
           schemeId: scheme.id,
@@ -1440,6 +1454,9 @@ workoutGeneration.post(
           totalSets: adaptedWorkout.totalSets,
           estimatedDuration: adaptedWorkout.estimatedDuration,
           adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+          changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
+          infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
+          changeMeta: (adaptedWorkout as any)?.changeMeta,
           warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
           meta: {
             adaptedAt: new Date().toISOString(),
@@ -1513,6 +1530,9 @@ workoutGeneration.post(
 	          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
 	          exercises: exercisesWithWeights,
 	          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+            changeNotes: [],
+            infoNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+            changeMeta: { volumeAdjusted: false, deload: false, shortenedForTime: false, trimmedForCaps: false },
 	          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
 	          // Обновляем метаданные
 	          meta: {
@@ -1566,6 +1586,11 @@ workoutGeneration.post(
         dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
         weekPlanData,
       });
+
+      const adaptedChangeNotes: string[] = Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : [];
+      const adaptedInfoNotes: string[] = Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : [];
+      const decisionNotes: string[] = Array.isArray(decision.notes) ? decision.notes : [];
+      const finalChangeNotes = Array.from(new Set([...decisionNotes, ...adaptedChangeNotes]));
       
 	      workoutData = {
         schemeId: scheme.id,
@@ -1591,6 +1616,9 @@ workoutGeneration.post(
         totalSets: adaptedWorkout.totalSets,
         estimatedDuration: adaptedWorkout.estimatedDuration,
         adaptationNotes: adaptedWorkout.adaptationNotes,
+        changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
+        infoNotes: adaptedInfoNotes.length > 0 ? adaptedInfoNotes : undefined,
+        changeMeta: (adaptedWorkout as any)?.changeMeta,
         warnings: adaptedWorkout.warnings,
         // НОВОЕ: метаданные адаптации
         meta: {
@@ -1669,6 +1697,14 @@ workoutGeneration.post(
     res.json({
       action: decision.action,
       notes: combinedNotes.length > 0 ? combinedNotes : undefined,
+      summary: {
+        changed:
+          decision.action !== "keep_day" ||
+          (Array.isArray((workoutData as any)?.changeNotes) && (workoutData as any).changeNotes.length > 0),
+        changeNotes: (workoutData as any)?.changeNotes || [],
+        infoNotes: (workoutData as any)?.infoNotes || [],
+        changeMeta: (workoutData as any)?.changeMeta,
+      },
       workout: workoutData,
       swapInfo,
     });

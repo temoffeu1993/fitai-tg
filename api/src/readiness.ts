@@ -365,7 +365,7 @@ export function computeReadiness(args: {
   if (effectiveMinutes !== null && effectiveMinutes < fallbackTimeBucket) {
     notes.push(
       `⏱️ Доступно ${effectiveMinutes} мин (обычно ${fallbackTimeBucket}). ` +
-      `Тренировка адаптирована: убраны менее приоритетные упражнения.`
+      `Подстроим тренировку под время, чтобы успеть спокойно и без спешки.`
     );
   }
 

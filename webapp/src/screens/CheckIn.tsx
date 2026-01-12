@@ -38,6 +38,11 @@ export default function CheckIn() {
   const [result, setResult] = useState<null | {
     action: "keep_day" | "swap_day" | "recovery";
     notes: string[];
+    summary?: {
+      changed: boolean;
+      changeNotes: string[];
+      infoNotes: string[];
+    };
     workout: any;
     swapInfo?: { from: string; to: string; reason: string[] };
   }>(null);
@@ -53,19 +58,20 @@ export default function CheckIn() {
   useEffect(() => {
     if (!result) return;
     setSummaryPhase("thinking");
-    const t = window.setTimeout(() => setSummaryPhase("ready"), 1100);
+    const t = window.setTimeout(() => setSummaryPhase("ready"), 1700);
     return () => window.clearTimeout(t);
   }, [result]);
 
   const summary = useMemo(() => {
     if (!result) return null;
-    const notes = Array.isArray(result.notes) ? result.notes : [];
+    const notes = Array.isArray(result.summary?.changeNotes) ? result.summary!.changeNotes : [];
+    const changed = result.summary?.changed ?? (notes.length > 0);
     const swap = result.swapInfo;
 
     if (result.action === "recovery") {
       return {
         title: "Режим восстановления",
-        subtitle: notes.length ? "Мы сделали тренировку легче и безопаснее." : "Мы сделали тренировку легче и безопаснее.",
+        subtitle: "Мы сделали тренировку легче и безопаснее.",
         notes: notes.length ? notes : ["Тренировка облегчена: меньше объёма и нагрузки, больше отдыха и контроля."],
       };
     }
@@ -79,7 +85,7 @@ export default function CheckIn() {
       };
     }
 
-    if (notes.length === 0) {
+    if (!changed) {
       return {
         title: "Тренировка по плану",
         subtitle: "Без изменений — можно начинать.",
@@ -132,6 +138,7 @@ export default function CheckIn() {
         notes: Array.isArray(response.notes) ? response.notes : [],
         workout: response.workout,
         swapInfo: response.swapInfo,
+        summary: response.summary,
       });
     } catch (err: any) {
       console.error("CheckIn error:", err);
