@@ -127,6 +127,7 @@ export type GeneratedWorkoutDay = {
     deload?: boolean;
     shortenedForTime?: boolean;
     trimmedForCaps?: boolean;
+    intentAdjusted?: boolean;
   };
   warnings?: string[];
 };
@@ -956,6 +957,7 @@ export async function generateWorkoutDay(args: {
     intent = "light";
     console.log(`  → Intent overridden to 'light' (deload week)`);
   }
+  const intentAdjusted = intent !== "normal";
   
   // Используем timeBucket из readiness (учитывает availableMinutes)
   const effectiveTimeBucket = readiness.timeBucket;
@@ -1251,6 +1253,16 @@ export async function generateWorkoutDay(args: {
   if (weekPlanData?.isDeloadWeek) {
     changeNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
   }
+
+  if (intentAdjusted) {
+    if (intent === "light") {
+      changeNotes.push("⚖️ Нагрузка снижена по самочувствию: делаем мягче и безопаснее.");
+    } else if (intent === "hard") {
+      changeNotes.push("⚖️ Самочувствие позволяет работать интенсивнее: добавили плотности/нагрузки.");
+    } else {
+      changeNotes.push("⚖️ Нагрузка подстроена под самочувствие.");
+    }
+  }
   
   // Используем notes из readiness (без технических деталей типа DUP)
   infoNotes.push(...readiness.notes);
@@ -1323,6 +1335,7 @@ export async function generateWorkoutDay(args: {
       deload: Boolean(weekPlanData?.isDeloadWeek),
       shortenedForTime: Boolean(wasReducedForTime),
       trimmedForCaps: fitResult.reasons.capsSets || fitResult.reasons.capsExercises,
+      intentAdjusted,
     },
     warnings: warnings.length > 0 ? warnings : undefined,
   };

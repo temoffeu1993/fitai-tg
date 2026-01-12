@@ -1694,7 +1694,12 @@ workoutGeneration.post(
       summary: {
         changed:
           decision.action !== "keep_day" ||
-          (Array.isArray((workoutData as any)?.changeNotes) && (workoutData as any).changeNotes.length > 0),
+          (Array.isArray((workoutData as any)?.changeNotes) && (workoutData as any).changeNotes.length > 0) ||
+          Boolean((workoutData as any)?.changeMeta?.intentAdjusted) ||
+          Boolean((workoutData as any)?.changeMeta?.volumeAdjusted) ||
+          Boolean((workoutData as any)?.changeMeta?.shortenedForTime) ||
+          Boolean((workoutData as any)?.changeMeta?.trimmedForCaps) ||
+          Boolean((workoutData as any)?.changeMeta?.deload),
         changeNotes: (workoutData as any)?.changeNotes || [],
         infoNotes: (workoutData as any)?.infoNotes || [],
         changeMeta: (workoutData as any)?.changeMeta,

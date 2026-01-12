@@ -1,6 +1,7 @@
 // webapp/src/screens/Dashboard.tsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { readSessionDraft } from "@/lib/activeWorkout";
 
 import robotImg from "../assets/robot.png";
 import mozgImg from "../assets/mozg.png";
@@ -244,7 +245,8 @@ export default function Dashboard() {
 
   const goOnb = () => navigate("/onb/age-sex");
 
-  const workoutsCtaLabel = "Выбрать тренировку";
+  const activeDraft = useMemo(() => readSessionDraft(), []);
+  const workoutsCtaLabel = activeDraft?.plannedWorkoutId ? "К тренировке" : "Выбрать тренировку";
 
   return (
     <div style={s.page}>
@@ -402,6 +404,10 @@ export default function Dashboard() {
               if (!onbDone) return;
               setHighlightGenerateBtn(false);
               localStorage.removeItem("highlight_generate_btn");
+              if (activeDraft?.plannedWorkoutId) {
+                navigate("/workout/session", { state: { plannedWorkoutId: activeDraft.plannedWorkoutId } });
+                return;
+              }
               navigate("/plan/one");
             }}
             disabled={!onbDone}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
+import { readSessionDraft } from "@/lib/activeWorkout";
 
 function toSessionPlan(workout: any) {
   const w = workout && typeof workout === "object" ? workout : {};
@@ -56,6 +57,14 @@ export default function CheckIn() {
   };
 
   useEffect(() => {
+    if (!plannedWorkoutId) return;
+    const draft = readSessionDraft();
+    if (draft?.plannedWorkoutId === plannedWorkoutId) {
+      nav("/workout/session", { state: { plannedWorkoutId } });
+    }
+  }, [nav, plannedWorkoutId]);
+
+  useEffect(() => {
     if (!result) return;
     setSummaryPhase("thinking");
     const t = window.setTimeout(() => setSummaryPhase("ready"), 1700);
@@ -102,6 +111,17 @@ export default function CheckIn() {
 
   const goToWorkout = () => {
     if (!result) return;
+    try {
+      localStorage.setItem(
+        "current_plan",
+        JSON.stringify({
+          plan: toSessionPlan(result.workout),
+          plannedWorkoutId: plannedWorkoutId || null,
+          checkinSummary: result.summary || null,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    } catch {}
     nav("/workout/session", {
       state: {
         plan: toSessionPlan(result.workout),
@@ -109,6 +129,7 @@ export default function CheckIn() {
         isRecovery: result.action === "recovery",
         swapInfo: result.action === "swap_day" ? result.swapInfo : undefined,
         notes: result.notes,
+        checkinSummary: result.summary || null,
       },
     });
   };

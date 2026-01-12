@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type TouchEvent } from "react";
 import { saveSession } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
+import { clearActiveWorkout } from "@/lib/activeWorkout";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
@@ -64,12 +65,17 @@ type ChangeEvent = {
 export default function WorkoutSession() {
   const nav = useNavigate();
   const loc = useLocation();
+  const checkinSummary = useMemo(() => (loc.state as any)?.checkinSummary ?? null, [loc.state]);
   const plan: Plan | null = useMemo(() => {
     try {
       const fromState = (loc.state as any)?.plan || null;
       if (fromState) return (fromState as any).plan || fromState;
       const rawCurrent = JSON.parse(localStorage.getItem("current_plan") || "null");
       if (rawCurrent?.plan || rawCurrent?.exercises) return rawCurrent.plan || rawCurrent;
+      const rawDraft = JSON.parse(localStorage.getItem("session_draft") || "null");
+      if (rawDraft?.plan && (rawDraft?.plannedWorkoutId || null) === ((loc.state as any)?.plannedWorkoutId || null)) {
+        return rawDraft.plan;
+      }
       const rawCache = JSON.parse(localStorage.getItem("plan_cache_v2") || "null");
       if (rawCache?.plan || rawCache?.plan?.exercises) return rawCache.plan || rawCache;
     } catch {}
@@ -91,6 +97,7 @@ export default function WorkoutSession() {
   const [changes, setChanges] = useState<ChangeEvent[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
+  const [exitConfirm, setExitConfirm] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [exerciseMenu, setExerciseMenu] = useState<{ index: number; mode: "menu" | "replace" | "confirm_remove" | "confirm_skip" | "confirm_ban" } | null>(null);
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
@@ -294,6 +301,7 @@ export default function WorkoutSession() {
     if (!plan) return;
     const draftPayload = {
       title: plan.title,
+      plan,
       items,
       activeIndex,
       changes,
@@ -301,9 +309,11 @@ export default function WorkoutSession() {
       running,
       plannedWorkoutId: plannedWorkoutId || null,
       sessionRpe,
+      checkinSummary,
+      updatedAt: new Date().toISOString(),
     };
     localStorage.setItem("session_draft", JSON.stringify(draftPayload));
-  }, [items, activeIndex, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe]);
+  }, [items, activeIndex, changes, elapsed, running, plan, plannedWorkoutId, sessionRpe, checkinSummary]);
 
   useEffect(() => {
     setActiveIndex((idx) => {
@@ -781,9 +791,7 @@ export default function WorkoutSession() {
           localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 500)));
         } catch {}
 
-        localStorage.removeItem("current_plan");
-        localStorage.removeItem("session_draft");
-        localStorage.removeItem("planned_workout_id");
+        clearActiveWorkout();
         localStorage.removeItem(PLAN_CACHE_KEY);
         try {
           window.dispatchEvent(new CustomEvent("plan_completed"));
@@ -807,7 +815,7 @@ export default function WorkoutSession() {
       <section style={s.heroCard}>
         <div style={s.heroContent}>
           <div style={s.heroHeader}>
-            <button style={btn.back} onClick={() => nav("/plan/one")} aria-label="Назад к генерации">←</button>
+            <button style={btn.back} onClick={() => setExitConfirm(true)} aria-label="Назад к генерации">←</button>
             <span style={s.pill}>Тренировка</span>
             <span style={{ width: 34 }} />
           </div>
@@ -1142,6 +1150,41 @@ export default function WorkoutSession() {
           );
         })()}
       </main>
+
+      {exitConfirm ? (
+        <div style={modal.wrap} role="dialog" aria-modal="true">
+          <div style={modal.card}>
+            <div style={modal.title}>Выйти из тренировки?</div>
+            <div style={modal.text}>Сохранить прогресс (введённые веса и повторы) для продолжения позже?</div>
+            <div style={modal.actions}>
+              <button
+                type="button"
+                style={modal.primary}
+                onClick={() => {
+                  setExitConfirm(false);
+                  nav("/plan/one");
+                }}
+              >
+                Сохранить и выйти
+              </button>
+              <button
+                type="button"
+                style={modal.danger}
+                onClick={() => {
+                  setExitConfirm(false);
+                  clearActiveWorkout();
+                  nav("/plan/one");
+                }}
+              >
+                Выйти без сохранения
+              </button>
+              <button type="button" style={modal.ghost} onClick={() => setExitConfirm(false)}>
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {exerciseMenu ? (
         <div
@@ -1794,6 +1837,26 @@ const modal: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     padding: "10px 14px",
     cursor: "pointer",
+  },
+  text: { fontSize: 14, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
+  actions: { display: "grid", gap: 10, marginTop: 14 },
+  danger: {
+    border: "1px solid rgba(220,38,38,0.35)",
+    background: "rgba(220,38,38,0.07)",
+    color: "#991b1b",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  ghost: {
+    border: "none",
+    background: "transparent",
+    color: "#111827",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
 };
 

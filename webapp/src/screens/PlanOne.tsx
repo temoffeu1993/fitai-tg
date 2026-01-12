@@ -15,6 +15,7 @@ import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
+import { readSessionDraft } from "@/lib/activeWorkout";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -635,6 +636,14 @@ export default function PlanOne() {
   })();
 
   const startCtaLabel = "🏁 Начать тренировку";
+  const activeDraft = useMemo(() => readSessionDraft(), []);
+  const activeProgress = useMemo(() => {
+    const d = activeDraft;
+    const items = Array.isArray(d?.items) ? d!.items : [];
+    if (!items.length) return null;
+    const done = items.filter((it: any) => Boolean(it?.done)).length;
+    return Math.max(0, Math.min(100, Math.round((done / items.length) * 100)));
+  }, [activeDraft]);
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
@@ -656,6 +665,20 @@ export default function PlanOne() {
 
   const handleStartSelected = () => {
     if (!selectedPlanned || !startWorkoutDate) return;
+    const selectedId = selectedPlanned.id;
+    if (activeDraft?.plannedWorkoutId && activeDraft.plannedWorkoutId !== selectedId) {
+      alert("Сначала заверши или выйди из текущей тренировки, чтобы начать новую.");
+      nav("/workout/session", { state: { plannedWorkoutId: activeDraft.plannedWorkoutId } });
+      return;
+    }
+    if (activeDraft?.plannedWorkoutId === selectedId) {
+      nav("/workout/session", { state: { plannedWorkoutId: selectedId } });
+      return;
+    }
+    if ((selectedPlanned.plan as any)?.meta?.checkinApplied) {
+      nav("/workout/session", { state: { plan: (selectedPlanned.plan as any), plannedWorkoutId: selectedId } });
+      return;
+    }
     nav("/check-in", {
       state: {
         workoutDate: startWorkoutDate,
@@ -684,19 +707,19 @@ export default function PlanOne() {
         <div style={s.heroTitle}>Выбери тренировку</div>
         <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
 
-        <button
-          type="button"
-          className="planone-start-btn"
-          style={{
-            ...s.heroStartBtn,
-            opacity: canStart ? 1 : 0.6,
-            cursor: canStart ? "pointer" : "not-allowed",
-          }}
-          onClick={handleStartSelected}
-          disabled={!canStart}
-        >
-          🏁 начать
-        </button>
+	        <button
+	          type="button"
+	          className="planone-start-btn"
+	          style={{
+	            ...s.heroStartBtn,
+	            opacity: canStart ? 1 : 0.6,
+	            cursor: canStart ? "pointer" : "not-allowed",
+	          }}
+	          onClick={handleStartSelected}
+	          disabled={!canStart}
+	        >
+	          {activeDraft?.plannedWorkoutId ? "→ к тренировке" : "🏁 начать"}
+	        </button>
 
         {/* regenerate button removed by request */}
       </section>
@@ -760,6 +783,9 @@ export default function PlanOne() {
                   <div style={pick.schemeInfo}>
                     <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
                     {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
+                    {activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" ? (
+                      <span style={{ ...pick.infoChip, background: "rgba(15,23,42,0.08)" }}>✅ {activeProgress}%</span>
+                    ) : null}
                     {w.status === "scheduled" && w.scheduledFor ? (
                       <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
                         📅 {formatPlannedDateTime(w.scheduledFor)}
