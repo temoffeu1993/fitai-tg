@@ -86,12 +86,6 @@ export default function WorkoutSession() {
     }
   }, [loc.state]);
 
-  // Извлекаем notes/warnings из navigation state
-  const adaptationNotes = useMemo(() => {
-    const fromState = (loc.state as any)?.notes;
-    return Array.isArray(fromState) ? fromState : [];
-  }, [loc.state]);
-
   const [items, setItems] = useState<Item[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [changes, setChanges] = useState<ChangeEvent[]>([]);
@@ -823,10 +817,7 @@ export default function WorkoutSession() {
           </div>
           <div style={s.heroTitle}>{plan.title}</div>
           <div style={s.heroSubtitle}>
-            {adaptationNotes.length > 0 
-              ? adaptationNotes.join(" • ")
-              : "Держи темп. Заполняй подходы по мере выполнения."
-            }
+            Держи темп. Заполняй подходы по мере выполнения.
           </div>
 
           {/* прогресс «лава» */}

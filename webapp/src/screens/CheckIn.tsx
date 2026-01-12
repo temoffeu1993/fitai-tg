@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
@@ -35,12 +35,76 @@ export default function CheckIn() {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<null | {
+    action: "keep_day" | "swap_day" | "recovery";
+    notes: string[];
+    workout: any;
+    swapInfo?: { from: string; to: string; reason: string[] };
+  }>(null);
+  const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
   const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
     workoutDate?: string;
     returnTo?: string;
     plannedWorkoutId?: string;
+  };
+
+  useEffect(() => {
+    if (!result) return;
+    setSummaryPhase("thinking");
+    const t = window.setTimeout(() => setSummaryPhase("ready"), 1100);
+    return () => window.clearTimeout(t);
+  }, [result]);
+
+  const summary = useMemo(() => {
+    if (!result) return null;
+    const notes = Array.isArray(result.notes) ? result.notes : [];
+    const swap = result.swapInfo;
+
+    if (result.action === "recovery") {
+      return {
+        title: "Режим восстановления",
+        subtitle: notes.length ? "Мы сделали тренировку легче и безопаснее." : "Мы сделали тренировку легче и безопаснее.",
+        notes: notes.length ? notes : ["Тренировка облегчена: меньше объёма и нагрузки, больше отдыха и контроля."],
+      };
+    }
+
+    if (result.action === "swap_day") {
+      const label = swap?.from && swap?.to ? `Сегодня: ${swap.from} → ${swap.to}` : "Мы немного переставили день тренировки.";
+      return {
+        title: "Тренировка адаптирована",
+        subtitle: label,
+        notes: notes.length ? notes : ["Тренировка переставлена внутри недели, чтобы лучше соответствовать самочувствию."],
+      };
+    }
+
+    if (notes.length === 0) {
+      return {
+        title: "Тренировка по плану",
+        subtitle: "Без изменений — можно начинать.",
+        notes: [],
+      };
+    }
+
+    return {
+      title: "Тренировка адаптирована",
+      subtitle: "Учли твой чек-ин и обновили план.",
+      notes,
+    };
+  }, [result]);
+
+  const goToWorkout = () => {
+    if (!result) return;
+    nav("/workout/session", {
+      state: {
+        plan: toSessionPlan(result.workout),
+        plannedWorkoutId,
+        isRecovery: result.action === "recovery",
+        swapInfo: result.action === "swap_day" ? result.swapInfo : undefined,
+        notes: result.notes,
+      },
+    });
   };
 
   const handleSubmit = async (payload: CheckInPayload) => {
@@ -60,36 +124,15 @@ export default function CheckIn() {
         // Пропустить тренировку
         alert("💤 Сегодня лучше отдохнуть.\n\n" + (response.notes?.join("\n") || ""));
         nav(returnTo || "/plan/one");
-      } else if (response.action === "recovery") {
-        // Recovery session
-        nav("/workout/session", {
-          state: {
-            plan: toSessionPlan(response.workout),
-            plannedWorkoutId,
-            isRecovery: true,
-            notes: response.notes,
-          },
-        });
-      } else if (response.action === "swap_day") {
-        // Swapped day
-        nav("/workout/session", {
-          state: {
-            plan: toSessionPlan(response.workout),
-            plannedWorkoutId,
-            swapInfo: response.swapInfo,
-            notes: response.notes,
-          },
-        });
-      } else {
-        // Keep day (обычная тренировка)
-        nav("/workout/session", {
-          state: {
-            plan: toSessionPlan(response.workout),
-            plannedWorkoutId,
-            notes: response.notes,
-          },
-        });
+        return;
       }
+
+      setResult({
+        action: response.action,
+        notes: Array.isArray(response.notes) ? response.notes : [],
+        workout: response.workout,
+        swapInfo: response.swapInfo,
+      });
     } catch (err: any) {
       console.error("CheckIn error:", err);
       setError(err.message || "Не удалось обработать чек-ин. Попробуй ещё раз.");
@@ -115,19 +158,91 @@ export default function CheckIn() {
 
       <div style={{ height: 16 }} />
 
-      {/* Форма чек-ина */}
-      <CheckInForm
-        onSubmit={handleSubmit}
-        onBack={handleSkip}
-        loading={loading}
-        error={error}
-        inline={true}
-        submitLabel="Начать тренировку"
-        title="Как ты сегодня? 💬"
-      />
+      {!result ? (
+        <CheckInForm
+          onSubmit={handleSubmit}
+          onBack={handleSkip}
+          loading={loading}
+          error={error}
+          inline={true}
+          submitLabel="Продолжить"
+          title="Как ты сегодня? 💬"
+        />
+      ) : (
+        <section style={styles.summaryCard}>
+          <div style={styles.summaryKicker}>🧠 Анализируем чек-ин</div>
+
+          {summaryPhase === "thinking" ? (
+            <div style={styles.thinkingRow} aria-live="polite">
+              <div style={styles.thinkingDot} />
+              <div style={styles.thinkingText}>
+                Подстраиваем тренировку под самочувствие<span className="thinking-dots" />
+              </div>
+            </div>
+          ) : (
+            <div style={styles.summaryBody}>
+              <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
+              {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
+
+              {summary?.notes?.length ? (
+                <div style={styles.notesList}>
+                  {summary.notes.slice(0, 8).map((t, i) => (
+                    <div key={i} style={styles.noteItem}>
+                      • {t}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div style={{ height: 14 }} />
+
+              <div style={styles.summaryActions}>
+                <button
+                  type="button"
+                  style={styles.secondaryBtn}
+                  onClick={() => {
+                    setResult(null);
+                    setError(null);
+                  }}
+                  disabled={loading}
+                >
+                  Изменить ответы
+                </button>
+                <button type="button" style={styles.primaryBtn} onClick={goToWorkout} disabled={loading}>
+                  Начать тренировку
+                </button>
+              </div>
+            </div>
+          )}
+
+          <style>{thinkingCss}</style>
+        </section>
+      )}
     </div>
   );
 }
+
+const thinkingCss = `
+@keyframes thinkingPulse {
+  0% { opacity: .35; transform: scale(.92); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: .35; transform: scale(.92); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes thinkingDots {
+  0%, 20% { content: ""; }
+  40% { content: "."; }
+  60% { content: ".."; }
+  80%, 100% { content: "..."; }
+}
+.thinking-dots::after {
+  content: "";
+  animation: thinkingDots 1.15s steps(1, end) infinite;
+}
+`;
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -160,5 +275,92 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     lineHeight: 1.5,
     color: "rgba(255,255,255,.85)",
+  },
+  summaryCard: {
+    position: "relative",
+    padding: 18,
+    borderRadius: 24,
+    background: "#ffffff",
+    boxShadow: "0 2px 10px rgba(15, 23, 42, .10)",
+    border: "1px solid rgba(15, 23, 42, .06)",
+  },
+  summaryKicker: {
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+    color: "rgba(15, 23, 42, .72)",
+    textTransform: "uppercase",
+  },
+  thinkingRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  thinkingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+    animation: "thinkingPulse 1.05s ease-in-out infinite",
+    flex: "0 0 auto",
+  },
+  thinkingText: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "rgba(15, 23, 42, .88)",
+  },
+  summaryBody: {
+    paddingTop: 14,
+    animation: "fadeInUp .35s ease-out both",
+  },
+  summaryTitle: {
+    fontSize: 20,
+    fontWeight: 900,
+    color: "#0f172a",
+    letterSpacing: -0.2,
+  },
+  summarySubtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, .70)",
+  },
+  notesList: {
+    marginTop: 12,
+    display: "grid",
+    gap: 8,
+  },
+  noteItem: {
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: "rgba(15, 23, 42, .84)",
+  },
+  summaryActions: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  primaryBtn: {
+    flex: "1 1 auto",
+    borderRadius: 14,
+    padding: "12px 14px",
+    background: "#0f172a",
+    color: "#fff",
+    border: "none",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  secondaryBtn: {
+    flex: "0 0 auto",
+    borderRadius: 14,
+    padding: "12px 14px",
+    background: "rgba(15, 23, 42, .06)",
+    color: "#0f172a",
+    border: "1px solid rgba(15, 23, 42, .10)",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };
