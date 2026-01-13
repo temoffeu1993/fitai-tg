@@ -1175,11 +1175,17 @@ export default function WorkoutSession() {
       {exitConfirm ? (
         <div style={modal.wrap} role="dialog" aria-modal="true">
           <div style={modal.card}>
+            <div style={modal.topRow}>
+              <button style={modal.closeBtn} onClick={() => setExitConfirm(false)} type="button" aria-label="Закрыть">
+                ✕
+              </button>
+            </div>
             <div style={modal.title}>Выйти из тренировки?</div>
             <div style={modal.text}>Сохранить прогресс (введённые веса и повторы) для продолжения позже?</div>
             <div style={modal.actions}>
               <button
                 type="button"
+                className="schedule-checkin-btn"
                 style={modal.primary}
                 onClick={() => {
                   setExitConfirm(false);
@@ -1190,7 +1196,7 @@ export default function WorkoutSession() {
               </button>
               <button
                 type="button"
-                style={modal.danger}
+                style={modal.deleteBtn}
                 onClick={() => {
                   setExitConfirm(false);
                   if (plannedWorkoutId) {
@@ -1202,11 +1208,9 @@ export default function WorkoutSession() {
               >
                 Выйти без сохранения
               </button>
-              <button type="button" style={modal.ghost} onClick={() => setExitConfirm(false)}>
-                Отмена
-              </button>
             </div>
           </div>
+          <style>{exitModalCss}</style>
         </div>
       ) : null}
 
@@ -1805,7 +1809,7 @@ const modal: Record<string, React.CSSProperties> = {
   wrap: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,.35)",
+    background: "rgba(0,0,0,0.15)",
     display: "grid",
     placeItems: "center",
     padding: 16,
@@ -1813,85 +1817,85 @@ const modal: Record<string, React.CSSProperties> = {
     overscrollBehavior: "contain",
   },
   card: {
-    width: "min(92vw, 420px)",
-    borderRadius: 18,
-    background: "#fff",
-    boxShadow: "0 22px 60px rgba(0,0,0,.32)",
-    padding: 20,
+    width: "min(92vw, 460px)",
+    maxHeight: "72vh",
+    overflowY: "auto",
+    overflowX: "hidden",
+    background: "rgba(255,255,255,0.62)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
+    borderRadius: 20,
     display: "grid",
-    gap: 18,
+    gap: 10,
+    padding: "12px 14px 14px",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
   },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: { fontSize: 18, fontWeight: 800 },
-  close: {
+  topRow: { display: "flex", justifyContent: "flex-end" },
+  closeBtn: {
     border: "none",
     background: "transparent",
-    fontSize: 20,
+    color: "#1b1b1b",
     cursor: "pointer",
+    fontSize: 18,
     lineHeight: 1,
-    color: "#555",
+    padding: 6,
+    borderRadius: 10,
   },
-  body: { display: "grid", gap: 12 },
-  label: { display: "grid", gap: 6 },
-  labelText: { fontSize: 12, fontWeight: 600, color: "#555" },
-  input: {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.12)",
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1b1b1b",
-    fontFamily: "inherit",
-  },
-  footer: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  secondary: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    background: "rgba(0,0,0,.06)",
-    color: "#333",
-    cursor: "pointer",
-  },
-  primary: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 5px 16px rgba(0,0,0,.18)",
-    cursor: "pointer",
+  title: {
+    marginTop: 2,
+    fontSize: 26,
+    fontWeight: 800,
+    color: "#0f172a",
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
   },
   text: { fontSize: 14, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
-  actions: { display: "grid", gap: 10 },
-  danger: {
-    border: "1px solid rgba(220,38,38,0.35)",
-    background: "rgba(220,38,38,0.07)",
-    color: "#991b1b",
-    borderRadius: 12,
-    padding: "12px 14px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  ghost: {
+  actions: { marginTop: 6, display: "grid", gap: 8 },
+  primary: {},
+  deleteBtn: {
     border: "none",
+    borderRadius: 14,
+    padding: "12px",
+    fontWeight: 400,
+    fontSize: 14,
     background: "transparent",
-    color: "#111827",
-    borderRadius: 12,
-    padding: "12px 14px",
+    color: "#ff6b6b",
     cursor: "pointer",
-    fontWeight: 700,
   },
 };
+
+const exitModalCss = `
+.schedule-checkin-btn{
+  border-radius:16px;
+  padding:16px 18px;
+  width:100%;
+  border:1px solid #0f172a;
+  background:#0f172a;
+  color:#fff;
+  font-weight:800;
+  font-size:17px;
+  cursor:pointer;
+  box-shadow:0 8px 16px rgba(0,0,0,0.16);
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  user-select:none;
+  transition:transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+.schedule-checkin-btn:active:not(:disabled){
+  transform:translateY(1px) scale(0.99) !important;
+  background-color:#0b1220 !important;
+  box-shadow:0 6px 12px rgba(0,0,0,0.14) !important;
+  filter:brightness(0.99) !important;
+}
+@media (hover:hover){
+  .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
+}
+.schedule-checkin-btn:focus-visible{
+  outline:3px solid rgba(15, 23, 42, 0.18);
+  outline-offset:2px;
+}
+`;
 
 const progressBar = {
   wrap: { display: "grid", gap: 6 } as React.CSSProperties,
