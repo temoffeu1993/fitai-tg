@@ -1174,7 +1174,7 @@ export default function WorkoutSession() {
 
       {exitConfirm ? (
         <div style={modal.wrap} role="dialog" aria-modal="true">
-          <div style={modal.card}>
+          <div style={{ ...modal.card, animation: "exitModalIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both" }}>
             <div style={modal.topRow}>
               <button style={modal.closeBtn} onClick={() => setExitConfirm(false)} type="button" aria-label="Закрыть">
                 ✕
@@ -1866,6 +1866,10 @@ const modal: Record<string, React.CSSProperties> = {
 };
 
 const exitModalCss = `
+@keyframes exitModalIn{
+  0%{ opacity:0; transform: translateY(20px) scale(0.98); }
+  100%{ opacity:1; transform: translateY(0) scale(1); }
+}
 .schedule-checkin-btn{
   border-radius:16px;
   padding:16px 18px;
