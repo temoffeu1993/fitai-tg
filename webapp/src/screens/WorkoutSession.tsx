@@ -11,7 +11,7 @@ const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const SESSION_BG =
-  "linear-gradient(135deg, rgba(236,227,255,.45) 0%, rgba(217,194,240,.45) 45%, rgba(255,216,194,.45) 100%)";
+  "linear-gradient(135deg, rgba(236,227,255,.28) 0%, rgba(255,216,194,.28) 100%)";
 
 type PlanExercise = {
   exerciseId?: string;
@@ -199,8 +199,14 @@ export default function WorkoutSession() {
   );
   const [blockedCheck, setBlockedCheck] = useState<number | null>(null);
   const [finishModal, setFinishModal] = useState(false);
-  const [finishStart, setFinishStart] = useState<string>("");
-  const [finishDuration, setFinishDuration] = useState<string>("");
+  const [finishStart, setFinishStart] = useState<string>(() => {
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - elapsed);
+    return now.toISOString().slice(0, 16);
+  });
+  const [finishDuration, setFinishDuration] = useState<string>(() =>
+    String(Math.max(10, Math.ceil(elapsed / 60)))
+  );
   const [saving, setSaving] = useState(false);
   const blockTimer = useRef<number | null>(null);
   useEffect(() => {
@@ -889,8 +895,35 @@ export default function WorkoutSession() {
           <button type="button" style={btn.ghost} onClick={goPrev} disabled={activeIndex <= 0} data-noswipe="1">
             ←
           </button>
-          <div style={{ fontWeight: 900, color: "#0B1220", opacity: 0.9 }}>
-            Упражнение {Math.min(items.length, activeIndex + 1)} / {items.length || 0}
+          <div style={{ display: "grid", gap: 4, textAlign: "center" }}>
+            <div style={{ fontWeight: 900, color: "#0B1220", opacity: 0.9, fontSize: 14 }}>
+              Упражнение {Math.min(items.length, activeIndex + 1)} / {items.length || 0}
+            </div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "center", alignItems: "center" }}>
+              {items.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => goToIndex(idx)}
+                  style={{
+                    width: idx === activeIndex ? 24 : 8,
+                    height: 8,
+                    borderRadius: 999,
+                    border: "none",
+                    background: items[idx].done
+                      ? "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(16,185,129,0.9))"
+                      : idx === activeIndex
+                        ? "rgba(15,23,42,0.9)"
+                        : "rgba(15,23,42,0.25)",
+                    cursor: "pointer",
+                    padding: 0,
+                    transition: "all 0.2s ease",
+                  }}
+                  aria-label={`Перейти к упражнению ${idx + 1}`}
+                  data-noswipe="1"
+                />
+              ))}
+            </div>
           </div>
           <button
             type="button"
@@ -903,34 +936,65 @@ export default function WorkoutSession() {
           </button>
         </div>
 
-        {restSecLeft != null ? (
-          <div
-            style={{
-              position: "sticky",
-              top: 10,
-              zIndex: 10,
-              background: "rgba(255,255,255,0.85)",
-              border: "1px solid rgba(0,0,0,0.08)",
-              borderRadius: 16,
-              padding: "10px 12px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <div style={{ fontWeight: 900, color: "#0B1220" }}>Отдых: {formatClock(restSecLeft)}</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))} data-noswipe="1">
-                +15с
-              </button>
-              <button type="button" style={btn.ghost} onClick={() => setRestSecLeft(null)} data-noswipe="1">
-                ✕
-              </button>
+        {restSecLeft != null ? (() => {
+          const activeItem = items[activeIndex];
+          const totalRest = activeItem?.restSec || 90;
+          const progressPercent = Math.max(0, Math.min(100, ((totalRest - restSecLeft) / totalRest) * 100));
+          return (
+            <div
+              style={{
+                position: "sticky",
+                top: 10,
+                zIndex: 10,
+                background: "rgba(255,255,255,0.95)",
+                border: "2px solid rgba(34,197,94,0.3)",
+                borderRadius: 18,
+                padding: "14px 16px",
+                display: "grid",
+                gap: 8,
+                backdropFilter: "blur(10px)",
+                boxShadow: "0 8px 24px rgba(34,197,94,0.15)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ fontWeight: 900, color: "#0B1220", fontSize: 18 }}>⏱ Отдых: {formatClock(restSecLeft)}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    style={{ ...btn.ghost, padding: "8px 12px", fontSize: 13 }}
+                    onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))}
+                    data-noswipe="1"
+                  >
+                    +15с
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...btn.ghost, padding: "8px 12px", fontSize: 13 }}
+                    onClick={() => setRestSecLeft(null)}
+                    data-noswipe="1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div style={{
+                width: "100%",
+                height: 6,
+                borderRadius: 999,
+                background: "rgba(34,197,94,0.15)",
+                overflow: "hidden"
+              }}>
+                <div style={{
+                  height: "100%",
+                  width: `${progressPercent}%`,
+                  background: "linear-gradient(90deg, rgba(34,197,94,0.9), rgba(16,185,129,0.9))",
+                  borderRadius: 999,
+                  transition: "width 0.3s ease",
+                }} />
+              </div>
             </div>
-          </div>
-        ) : null}
+          );
+        })() : null}
 
         {(() => {
           const ei = activeIndex;
@@ -979,7 +1043,7 @@ export default function WorkoutSession() {
               </button>
               {blockedCheck === ei && <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>}
               <div style={card.head}>
-                <div>
+                <div style={{ width: "100%" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                     <div style={card.title}>{it.name}</div>
                     <button
@@ -1001,11 +1065,34 @@ export default function WorkoutSession() {
                       ⋮
                     </button>
                   </div>
-                  <div style={card.metaChips}>
-                    <Chip label={`${it.sets.length}×`} />
-                    <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
-                    {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
-                    {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    <div style={card.metaChips}>
+                      <Chip label={`${it.sets.length}×`} />
+                      <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
+                      {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
+                      {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
+                    </div>
+                    {(() => {
+                      const doneSets = it.sets.filter(s => s.done).length;
+                      const totalSets = it.sets.length;
+                      return (
+                        <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: "auto" }}>
+                          {it.sets.map((s, si) => (
+                            <div
+                              key={si}
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                background: s.done ? "rgba(34,197,94,0.9)" : "rgba(148,163,184,0.3)",
+                                transition: "background 0.2s ease",
+                              }}
+                              title={`Сет ${si + 1}: ${s.done ? "выполнен" : "не выполнен"}`}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1039,6 +1126,7 @@ export default function WorkoutSession() {
                         onPlus={() => bump(ei, si, "reps", +1)}
                         disabled={it.done || !!s.done}
                         stepLabel="±1"
+                        hasError={blockedSet?.ei === ei && blockedSet?.si === si && !s.reps}
                       />
                       {showWeightInput ? (
                         <StepperNum
@@ -1049,6 +1137,7 @@ export default function WorkoutSession() {
                           onPlus={() => bump(ei, si, "weight", +weightStep)}
                           disabled={it.done || !!s.done}
                           stepLabel={`±${weightStep}`}
+                          hasError={blockedSet?.ei === ei && blockedSet?.si === si && requiresWeight && !s.weight}
                         />
                       ) : null}
 
@@ -1498,11 +1587,13 @@ function NumInput({
   placeholder,
   onChange,
   disabled,
+  hasError,
 }: {
   value?: number;
   placeholder?: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  hasError?: boolean;
 }) {
   return (
     <div style={num.wrap}>
@@ -1512,7 +1603,10 @@ function NumInput({
         value={value ?? ""}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        style={num.input}
+        style={{
+          ...num.input,
+          ...(hasError ? { border: "2px solid #ef4444", animation: "shake 0.4s ease-in-out" } : {})
+        }}
         disabled={disabled}
       />
     </div>
@@ -1527,6 +1621,7 @@ function StepperNum({
   onPlus,
   disabled,
   stepLabel,
+  hasError,
 }: {
   value?: number;
   placeholder?: string;
@@ -1535,14 +1630,15 @@ function StepperNum({
   onPlus: () => void;
   disabled?: boolean;
   stepLabel?: string;
+  hasError?: boolean;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 44px", gap: 8, alignItems: "center" }} data-noswipe="1">
+    <div style={{ display: "grid", gridTemplateColumns: "52px 1fr 52px", gap: 8, alignItems: "center" }} data-noswipe="1">
       <button type="button" onClick={onMinus} disabled={disabled} style={stepperBtn} aria-label="Минус" data-noswipe="1">
         −
       </button>
       <div style={{ position: "relative" }}>
-        <NumInput value={value} placeholder={placeholder} onChange={onChange} disabled={disabled} />
+        <NumInput value={value} placeholder={placeholder} onChange={onChange} disabled={disabled} hasError={hasError} />
         {stepLabel ? (
           <div style={{ position: "absolute", inset: "auto 10px 6px auto", fontSize: 10, fontWeight: 900, opacity: 0.45 }}>
             {stepLabel}
@@ -1700,12 +1796,29 @@ function formatKg(value: unknown): string | null {
   return `${fixed} кг`;
 }
 
+/* ---------- Design System ---------- */
+const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+};
+
+const radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+};
+
 /* ---------- Стиль ---------- */
 const page = {
   outer: {
     minHeight: "100vh",
     width: "100%",
-    padding: "16px",
+    padding: spacing.lg,
     background: "transparent",
   } as React.CSSProperties,
   inner: {
@@ -1718,13 +1831,13 @@ const page = {
 const s: Record<string, React.CSSProperties> = {
   heroCard: {
     position: "relative",
-    padding: 22,
-    borderRadius: 28,
+    padding: spacing.xl,
+    borderRadius: radius.xl + 8,
     boxShadow: "0 2px 6px rgba(0,0,0,.08)",
     background: "#0f172a",
     color: "#fff",
     overflow: "hidden",
-    marginBottom: 18,
+    marginBottom: spacing.lg + 2,
     minHeight: 280,
   },
   heroContent: {
@@ -1732,13 +1845,13 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 2,
     width: "100%",
     display: "grid",
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   heroHeader: { display: "grid", gridTemplateColumns: "34px 1fr 34px", alignItems: "center" },
   pill: {
     justifySelf: "center",
     background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
+    padding: `${spacing.xs + 2}px ${spacing.md}px`,
     borderRadius: 999,
     fontSize: 12,
     color: "#fff",
@@ -1750,15 +1863,15 @@ const s: Record<string, React.CSSProperties> = {
   heroTitle: { fontSize: 26, fontWeight: 800, lineHeight: 1.2 },
   heroSubtitle: { opacity: 0.9, marginTop: -2 },
   heroCtas: {
-    marginTop: 16,
+    marginTop: spacing.lg,
     display: "grid",
-    gap: 12,
+    gap: spacing.md,
     width: "100%",
   },
   primaryBtn: {
     border: "none",
-    borderRadius: 16,
-    padding: "16px 20px",
+    borderRadius: radius.lg,
+    padding: `${spacing.lg}px ${spacing.xl - 4}px`,
     fontSize: 16,
     fontWeight: 800,
     color: "#000",
@@ -1938,6 +2051,11 @@ const noSpinnersCSS = `
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
 `;
 
 // «лава» прогресс
@@ -2121,8 +2239,8 @@ const card = {
     position: "relative",
     width: "100%",
     boxSizing: "border-box",
-    padding: 14,
-    borderRadius: 20,
+    padding: spacing.md + 2,
+    borderRadius: radius.xl,
     background: "rgba(255,255,255,0.65)",
     boxShadow: "0 16px 30px rgba(0,0,0,.12)",
     border: "1px solid rgba(255,255,255,.4)",
@@ -2160,7 +2278,7 @@ const btn = {
   back: {
     width: 34,
     height: 34,
-    borderRadius: 12,
+    borderRadius: radius.md,
     border: "1px solid rgba(255,255,255,.25)",
     background: "rgba(255,255,255,.12)",
     color: "#fff",
@@ -2169,8 +2287,8 @@ const btn = {
   } as React.CSSProperties,
   ghost: {
     border: "1px solid rgba(0,0,0,.08)",
-    borderRadius: 12,
-    padding: "10px 12px",
+    borderRadius: radius.md,
+    padding: `${spacing.sm + 2}px ${spacing.md}px`,
     background: "rgba(255,255,255,0.7)",
     backdropFilter: "blur(8px)",
     cursor: "pointer",
@@ -2178,8 +2296,8 @@ const btn = {
   } as React.CSSProperties,
   secondary: {
     border: "1px solid rgba(0,0,0,.08)",
-    borderRadius: 12,
-    padding: "10px 12px",
+    borderRadius: radius.md,
+    padding: `${spacing.sm + 2}px ${spacing.md}px`,
     background: "rgba(255,255,255,0.7)",
     cursor: "pointer",
     fontWeight: 700,
@@ -2187,8 +2305,8 @@ const btn = {
   primary: {
     width: "100%",
     border: "none",
-    borderRadius: 16,
-    padding: "16px 20px",
+    borderRadius: radius.lg,
+    padding: `${spacing.lg}px ${spacing.xl - 4}px`,
     fontSize: 16,
     fontWeight: 800,
     color: "#1b1b1b",
@@ -2222,10 +2340,10 @@ const num = {
     width: "100%",
   } as React.CSSProperties,
   input: {
-    height: 40,
+    height: 48,
     width: "100%",
-    padding: "0 10px",
-    borderRadius: 12,
+    padding: `0 ${spacing.sm + 2}px`,
+    borderRadius: radius.md,
     border: "1px solid rgba(0,0,0,.08)",
     fontSize: 16,
     boxSizing: "border-box",
@@ -2237,12 +2355,12 @@ const num = {
 };
 
 const stepperBtn: React.CSSProperties = {
-  height: 40,
-  width: 44,
-  borderRadius: 12,
+  height: 48,
+  width: 52,
+  borderRadius: radius.md,
   border: "1px solid rgba(0,0,0,.10)",
   background: "rgba(255,255,255,0.92)",
-  fontSize: 18,
+  fontSize: 20,
   fontWeight: 900,
   color: "#0f172a",
   cursor: "pointer",
