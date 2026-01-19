@@ -58,13 +58,18 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  -- Привяжем существующие meals к day 1
-  UPDATE nutrition_meals m
-  SET day_id = d.id
-  FROM nutrition_days d
-  WHERE m.day_id IS NULL
-    AND m.plan_id = d.plan_id
-    AND d.day_index = 1;
+  -- Привяжем существующие meals к day 1 (если был старый столбец plan_id)
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='nutrition_meals' AND column_name='plan_id'
+  ) THEN
+    UPDATE nutrition_meals m
+    SET day_id = d.id
+    FROM nutrition_days d
+    WHERE m.day_id IS NULL
+      AND m.plan_id = d.plan_id
+      AND d.day_index = 1;
+  END IF;
 END$$;
 
 -- 3.b) Убираем старый FK после переноса
