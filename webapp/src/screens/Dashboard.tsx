@@ -684,11 +684,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   introTitle: {
     margin: 0,
-    fontSize: 45,
-    lineHeight: 1.15,
+    fontSize: 42,
+    lineHeight: 1.05,
     fontWeight: 700,
-    letterSpacing: -0.4,
-    fontFamily: '"SF Pro Display", system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+    letterSpacing: -0.8,
   },
   introTitleLine: {
     display: "block",
