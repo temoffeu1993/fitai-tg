@@ -214,7 +214,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         onClick={handleNext}
         disabled={age == null || loading || isLeaving}
       >
-        Далее
+        →
       </button>
 
       {onBack ? (
@@ -361,16 +361,17 @@ const s: Record<string, React.CSSProperties> = {
   },
   primaryBtn: {
     marginTop: 18,
-    width: "100%",
+    width: "min(100px, 30vw)",
     borderRadius: 16,
     padding: "16px 18px",
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 500,
-    fontSize: 18,
+    fontWeight: 800,
+    fontSize: 22,
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    alignSelf: "center",
   },
   ageItem: {
     border: "none",
