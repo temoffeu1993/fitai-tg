@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { getPlannedWorkouts } from "@/api/schedule";
 
-import robotImg from "../assets/robonew.png";
+import robotImg from "../assets/morobot.png";
 const ROBOT_SRC = robotImg;
 
 const HISTORY_KEY = "history_sessions_v1";
@@ -654,7 +654,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   introImageWrap: {
     position: "relative",
-    width: "min(420px, 88vw)",
+    width: "min(546px, 88vw)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -665,10 +665,6 @@ const s: Record<string, React.CSSProperties> = {
     maxHeight: "50vh",
     objectFit: "contain",
     transform: "translateY(36px)",
-    WebkitMaskImage:
-      "linear-gradient(180deg, #000 0%, #000 58%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.2) 80%, transparent 100%)",
-    maskImage:
-      "linear-gradient(180deg, #000 0%, #000 58%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.2) 80%, transparent 100%)",
   },
   introFooter: {
     width: "100%",
