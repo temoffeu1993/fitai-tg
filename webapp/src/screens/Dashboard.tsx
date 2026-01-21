@@ -341,7 +341,8 @@ export default function Dashboard() {
         <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
-              <span style={s.introTitleLine}>Меняйся с Моро</span>
+              <span style={s.introTitleLine}>Меняся</span>
+              <span style={s.introTitleLine}>с Моро</span>
             </h1>
             <p style={s.introSubtitle}>
               Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
