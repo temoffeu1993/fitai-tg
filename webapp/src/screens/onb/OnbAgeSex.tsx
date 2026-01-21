@@ -24,6 +24,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
     const prevOverflow = root?.style.overflowY;
     const prevOverscroll = root?.style.overscrollBehaviorY;
     if (root) {
+      root.scrollTop = 0;
       root.style.overflowY = "hidden";
       root.style.overscrollBehaviorY = "none";
     }
