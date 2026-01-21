@@ -29,12 +29,17 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
+      }
+      if (scrollStopTimerRef.current) {
+        window.clearTimeout(scrollStopTimerRef.current);
+        scrollStopTimerRef.current = null;
       }
     };
   }, []);
@@ -76,11 +81,16 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
-    const index = Math.round(list.scrollTop / ITEM_HEIGHT);
-    const nextAge = AGE_MIN + index;
-    if (nextAge !== age && nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
-      setAge(nextAge);
+    if (scrollStopTimerRef.current) {
+      window.clearTimeout(scrollStopTimerRef.current);
     }
+    scrollStopTimerRef.current = window.setTimeout(() => {
+      const index = Math.round(list.scrollTop / ITEM_HEIGHT);
+      const nextAge = AGE_MIN + index;
+      if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
+        setAge(nextAge);
+      }
+    }, 120);
   };
 
   const handleSelect = (value: number) => {
@@ -315,7 +325,7 @@ const s: Record<string, React.CSSProperties> = {
   ageList: {
     maxHeight: "100%",
     overflowY: "auto",
-    scrollSnapType: "y mandatory",
+    scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
   },
