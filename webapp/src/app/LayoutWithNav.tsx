@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import NavBar, { type NavCurrent, type TabKey } from "@/components/NavBar";
+import bgImg from "@/assets/fon.png";
 
 function resolveNavCurrent(pathname: string): NavCurrent {
   if (pathname === "/nutrition/today" || pathname.startsWith("/nutrition/today")) {
@@ -34,11 +35,9 @@ function BgGradient() {
         inset: 0,
         zIndex: 0,
         pointerEvents: "none",
-        background:
-          "radial-gradient(120% 80% at 10% 0%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 60%)," +
-          "radial-gradient(140% 90% at 100% 20%, rgba(230,231,236,0.78) 0%, rgba(230,231,236,0) 62%)," +
-          "radial-gradient(120% 85% at 30% 85%, rgba(232,234,238,0.85) 0%, rgba(232,234,238,0) 60%)," +
-          "linear-gradient(180deg, #f2f3f7 0%, #e9ecf1 60%, #e9edf2 100%)",
+        background: `url(${bgImg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
       }}
     />
   );
