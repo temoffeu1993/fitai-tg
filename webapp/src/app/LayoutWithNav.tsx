@@ -34,7 +34,11 @@ function BgGradient() {
         inset: 0,
         zIndex: 0,
         pointerEvents: "none",
-        background: "#f2f2f7",
+        background:
+          "radial-gradient(120% 80% at 10% 0%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 60%)," +
+          "radial-gradient(140% 90% at 100% 20%, rgba(230,231,236,0.7) 0%, rgba(230,231,236,0) 62%)," +
+          "radial-gradient(120% 85% at 30% 85%, rgba(236,238,242,0.8) 0%, rgba(236,238,242,0) 60%)," +
+          "linear-gradient(180deg, #f4f4f8 0%, #eef0f4 60%, #eef1f5 100%)",
       }}
     />
   );
