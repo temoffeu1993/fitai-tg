@@ -29,17 +29,12 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const scrollStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
-      }
-      if (scrollStopTimerRef.current) {
-        window.clearTimeout(scrollStopTimerRef.current);
-        scrollStopTimerRef.current = null;
       }
     };
   }, []);
@@ -86,13 +81,6 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     if (nextAge !== age && nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
       setAge(nextAge);
     }
-    if (scrollStopTimerRef.current) {
-      window.clearTimeout(scrollStopTimerRef.current);
-    }
-    scrollStopTimerRef.current = window.setTimeout(() => {
-      const snappedIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
-      list.scrollTo({ top: snappedIndex * ITEM_HEIGHT, behavior: "smooth" });
-    }, 220);
   };
 
   const handleSelect = (value: number) => {
@@ -327,7 +315,7 @@ const s: Record<string, React.CSSProperties> = {
   ageList: {
     maxHeight: "100%",
     overflowY: "auto",
-    scrollSnapType: "y proximity",
+    scrollSnapType: "y mandatory",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
   },
