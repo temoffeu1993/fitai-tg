@@ -6,6 +6,8 @@ import robotImg from "./assets/robot.png";
 import morobotImg from "./assets/morobot.png";
 import mozgImg from "./assets/mozg.png";
 import fonImg from "./assets/fon.png";
+import maleRobotImg from "./assets/robonew.png";
+import femaleRobotImg from "./assets/zhennew.png";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
@@ -142,9 +144,14 @@ if (isDev && !tg?.initData) {
     "profile",
     JSON.stringify({ first_name: "Dev", username: "dev" })
   );
-  Promise.all([preloadImage(robotImg), preloadImage(morobotImg), preloadImage(mozgImg), preloadImage(fonImg)]).finally(() =>
-    root.render(<App />)
-  );
+  Promise.all([
+    preloadImage(robotImg),
+    preloadImage(morobotImg),
+    preloadImage(mozgImg),
+    preloadImage(fonImg),
+    preloadImage(maleRobotImg),
+    preloadImage(femaleRobotImg),
+  ]).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
@@ -169,7 +176,14 @@ async function auth() {
 
     const { token } = await r.json();
     localStorage.setItem("token", token);
-    await Promise.all([preloadImage(robotImg), preloadImage(morobotImg), preloadImage(mozgImg), preloadImage(fonImg)]);
+    await Promise.all([
+      preloadImage(robotImg),
+      preloadImage(morobotImg),
+      preloadImage(mozgImg),
+      preloadImage(fonImg),
+      preloadImage(maleRobotImg),
+      preloadImage(femaleRobotImg),
+    ]);
     root.render(<App />);
   } catch (e: any) {
     root.render(<LoadingScreen />);

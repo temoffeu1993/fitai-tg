@@ -94,22 +94,26 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       </div>
 
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
-        <button
-          type="button"
-          style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
-          onClick={() => handleSelect("male")}
-        >
-          <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
-          <span style={s.optionLabel}>Мужской</span>
-        </button>
-        <button
-          type="button"
-          style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
-          onClick={() => handleSelect("female")}
-        >
-          <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
-          <span style={s.optionLabel}>Женский</span>
-        </button>
+        <div style={s.optionItem}>
+          <button
+            type="button"
+            style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
+            onClick={() => handleSelect("male")}
+          >
+            <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
+          </button>
+          <div style={s.optionLabel}>Мужской</div>
+        </div>
+        <div style={s.optionItem}>
+          <button
+            type="button"
+            style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
+            onClick={() => handleSelect("female")}
+          >
+            <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
+          </button>
+          <div style={s.optionLabel}>Женский</div>
+        </div>
       </div>
 
       {onBack ? (
@@ -181,10 +185,16 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 12,
     marginTop: 22,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  },
+  optionItem: {
+    display: "grid",
+    gap: 10,
+    justifyItems: "center",
   },
   optionCard: {
     width: "100%",
-    padding: "14px 14px 16px",
+    padding: "12px",
     borderRadius: 16,
     border: "1px solid rgba(15, 23, 42, 0.08)",
     background: "rgba(255,255,255,0.5)",
@@ -197,7 +207,6 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
     cursor: "pointer",
   },
   optionCardActive: {
@@ -207,12 +216,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   optionImage: {
     width: "100%",
-    maxWidth: 220,
+    maxWidth: 120,
     height: "auto",
     objectFit: "contain",
   },
   optionLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 500,
     lineHeight: 1.2,
   },
