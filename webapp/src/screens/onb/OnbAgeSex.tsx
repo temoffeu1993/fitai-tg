@@ -100,7 +100,12 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       </div>
 
       {onBack ? (
-        <button style={s.backBtn} className="onb-fade onb-fade-delay-3" onClick={onBack} type="button">
+        <button
+          style={s.backBtn}
+          className="onb-fade onb-fade-delay-3"
+          onClick={() => (window.location.href = "/")}
+          type="button"
+        >
           Назад
         </button>
       ) : null}
