@@ -158,7 +158,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
     textAlign: "center",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 16,
   },
   title: {
     margin: 0,
@@ -176,7 +176,7 @@ const s: Record<string, React.CSSProperties> = {
   buttons: {
     display: "grid",
     gap: 12,
-    marginTop: 14,
+    marginTop: 22,
   },
   optionBtn: {
     width: "100%",
