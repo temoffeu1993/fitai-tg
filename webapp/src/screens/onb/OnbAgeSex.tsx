@@ -198,6 +198,11 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     color: "#fff",
   },
+  progressText: {
+    fontSize: 12,
+    color: "rgba(15, 23, 42, 0.55)",
+    textAlign: "center",
+  },
   backBtn: {
     marginTop: "auto",
     width: "100%",
@@ -211,8 +216,3 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
 };
-  progressText: {
-    fontSize: 12,
-    color: "rgba(15, 23, 42, 0.55)",
-    textAlign: "center",
-  },
