@@ -35,12 +35,31 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
+      <style>{`
+        @keyframes onbFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .onb-fade {
+          animation: onbFadeUp 520ms ease-out both;
+        }
+        .onb-fade-delay-1 { animation-delay: 80ms; }
+        .onb-fade-delay-2 { animation-delay: 160ms; }
+        .onb-fade-delay-3 { animation-delay: 240ms; }
+        @media (prefers-reduced-motion: reduce) {
+          .onb-fade,
+          .onb-fade-delay-1,
+          .onb-fade-delay-2,
+          .onb-fade-delay-3 { animation: none !important; }
+        }
+      `}</style>
+
+      <div style={s.header} className="onb-fade onb-fade-delay-1">
         <h1 style={s.title}>Укажите ваш пол</h1>
         <p style={s.subtitle}>Это поможет точнее подобрать рекомендации</p>
       </div>
 
-      <div style={s.buttons}>
+      <div style={s.buttons} className="onb-fade onb-fade-delay-2">
         <button
           type="button"
           style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
@@ -58,7 +77,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       </div>
 
       {onBack ? (
-        <button style={s.backBtn} onClick={onBack} type="button">
+        <button style={s.backBtn} className="onb-fade onb-fade-delay-3" onClick={onBack} type="button">
           Назад
         </button>
       ) : null}
