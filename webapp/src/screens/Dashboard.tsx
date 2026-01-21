@@ -684,9 +684,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   introTitle: {
     margin: 0,
-    fontSize: 28,
+    fontSize: 30,
     lineHeight: 1.15,
-    fontWeight: 900,
+    fontWeight: 950,
     letterSpacing: -0.4,
   },
   introTitleLine: {
@@ -709,8 +709,8 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #0f172a",
     background: "#0f172a",
     color: "#fff",
-    fontWeight: 800,
-    fontSize: 17,
+    fontWeight: 700,
+    fontSize: 18,
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
     WebkitTapHighlightColor: "transparent",
