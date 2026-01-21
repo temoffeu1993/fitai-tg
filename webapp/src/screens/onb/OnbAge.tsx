@@ -149,6 +149,27 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         .age-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
         }
+        .intro-primary-btn {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        }
+        .intro-primary-btn:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99) !important;
+          background-color: #141619 !important;
+          box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+          filter: brightness(0.99) !important;
+        }
+        @media (hover: hover) {
+          .intro-primary-btn:hover:not(:disabled) {
+            filter: brightness(1.03);
+          }
+        }
+        .intro-primary-btn:focus-visible {
+          outline: 3px solid rgba(15, 23, 42, 0.18);
+          outline-offset: 2px;
+        }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade,
           .onb-fade-delay-1,
@@ -156,6 +177,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
           .onb-fade-delay-3 { animation: none !important; }
           .onb-leave { animation: none !important; }
           .age-card { transition: none !important; }
+          .intro-primary-btn { transition: none !important; }
         }
       `}</style>
 
@@ -199,11 +221,11 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       <button
         type="button"
         style={{ ...s.primaryBtn, opacity: age == null || loading ? 0.5 : 1 }}
-        className="onb-fade onb-fade-delay-3"
+        className="onb-fade onb-fade-delay-3 intro-primary-btn"
         onClick={handleNext}
         disabled={age == null || loading || isLeaving}
       >
-        Далее →
+        Далее
       </button>
 
       {onBack ? (
