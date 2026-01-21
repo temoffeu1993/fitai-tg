@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 export type Sex = "male" | "female";
 export type OnbAgeSexData = {
@@ -19,12 +19,19 @@ type Props = {
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
   const [sex, setSex] = useState<Sex | null>((initial?.ageSex?.sex as Sex) ?? null);
 
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    if (root) root.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     const root = document.getElementById("root");
     const prevOverflow = root?.style.overflowY;
     const prevOverscroll = root?.style.overscrollBehaviorY;
     if (root) {
-      root.scrollTop = 0;
       root.style.overflowY = "hidden";
       root.style.overscrollBehaviorY = "none";
     }
