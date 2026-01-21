@@ -97,16 +97,19 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
+    overflow: "hidden",
   },
   header: {
     display: "grid",
     gap: 8,
+    textAlign: "center",
+    alignItems: "center",
   },
   title: {
     margin: 0,
-    fontSize: 42,
-    lineHeight: 1.05,
-    fontWeight: 900,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
     letterSpacing: -0.8,
   },
   subtitle: {
