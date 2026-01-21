@@ -24,7 +24,7 @@ const ITEM_HEIGHT = 56;
 export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [age, setAge] = useState<number | null>(
-    typeof initial?.ageSex?.age === "number" ? initial.ageSex.age : null
+    typeof initial?.ageSex?.age === "number" ? initial.ageSex.age : 30
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
