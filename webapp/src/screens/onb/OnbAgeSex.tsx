@@ -97,14 +97,14 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("male")}
         >
-          Мужской
+          ♂️ Мужской
         </button>
         <button
           type="button"
           style={{ ...s.optionBtn, ...(sex === "female" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("female")}
         >
-          Женский
+          ♀️ Женский
         </button>
       </div>
 
