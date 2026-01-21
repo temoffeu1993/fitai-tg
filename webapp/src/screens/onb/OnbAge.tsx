@@ -19,7 +19,7 @@ type Props = {
 
 const AGE_MIN = 10;
 const AGE_MAX = 80;
-const ITEM_HEIGHT = 48;
+const ITEM_HEIGHT = 52;
 
 export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -319,11 +319,12 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: "min(260px, 78vw)",
+    width: "min(200px, 60vw)",
+    height: ITEM_HEIGHT * 6,
     alignSelf: "center",
   },
   ageList: {
-    maxHeight: ITEM_HEIGHT * 5,
+    maxHeight: "100%",
     overflowY: "auto",
     scrollSnapType: "y mandatory",
     scrollbarWidth: "none",
