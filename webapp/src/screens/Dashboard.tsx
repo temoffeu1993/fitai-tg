@@ -728,7 +728,7 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 600,
+    fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(0,0,0,0.22)",
