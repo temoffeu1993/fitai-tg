@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { getPlannedWorkouts } from "@/api/schedule";
 
-import robotImg from "../assets/robot.png";
+import robotImg from "../assets/robonew.png";
 const ROBOT_SRC = robotImg;
 
 const HISTORY_KEY = "history_sessions_v1";

@@ -114,7 +114,7 @@ const sliderCss = `
 }
 .checkin-primary-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.99) !important;
-  background-color: #0b1220 !important;
+  background-color: #141619 !important;
   box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
   filter: brightness(0.99) !important;
 }
@@ -752,8 +752,8 @@ const modal: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     padding: "16px 18px",
     width: "100%",
-    border: "1px solid #0f172a",
-    background: "#0f172a",
+    border: "1px solid #1f1f1f",
+    background: "#1f1f1f",
     color: "#fff",
     fontWeight: 800,
     fontSize: 17,
