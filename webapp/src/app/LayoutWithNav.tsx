@@ -34,7 +34,7 @@ function BgGradient() {
         inset: 0,
         zIndex: 0,
         pointerEvents: "none",
-        background: "#ffffff",
+        background: "#f2f2f7",
       }}
     />
   );

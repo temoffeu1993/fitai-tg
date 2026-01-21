@@ -29,7 +29,7 @@
   --app-height-stable: 100vh;
 
   /* ЕДИНЫЙ фон приложения. Меняешь только здесь */
-  --app-gradient: #ffffff;
+  --app-gradient: #f2f2f7;
 }
 
 /* html/body прозрачные, без собственного фона */
