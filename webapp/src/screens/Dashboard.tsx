@@ -654,7 +654,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   introImageWrap: {
     position: "relative",
-    width: "min(640px, 90vw)",
+    width: "min(864px, 95vw)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -669,7 +669,7 @@ const s: Record<string, React.CSSProperties> = {
   introFooter: {
     width: "100%",
     display: "grid",
-    gap: 12,
+    gap: 18,
     paddingBottom: 18,
   },
   introTextBlock: {
@@ -677,7 +677,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: -6,
+    marginTop: -14,
   },
   introTitle: {
     margin: 0,
@@ -699,6 +699,7 @@ const s: Record<string, React.CSSProperties> = {
     marginRight: "auto",
   },
   introPrimaryBtn: {
+    marginTop: 6,
     width: "100%",
     maxWidth: 420,
     borderRadius: 22,
