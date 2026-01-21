@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import maleRobotImg from "@/assets/robonew.png";
 import femaleRobotImg from "@/assets/zhennew.png";
@@ -22,6 +22,17 @@ type Props = {
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [sex, setSex] = useState<Sex | null>((initial?.ageSex?.sex as Sex) ?? null);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) {
+        window.clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -47,7 +58,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
   }, []);
 
   const handleSelect = (value: Sex) => {
-    if (loading) return;
+    if (loading || isLeaving) return;
     setSex(value);
     const patch: OnbAgeSexData = {
       profile: { name: initial?.profile?.name || "Спортсмен" },
@@ -57,16 +68,31 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       },
       ...(initial?.body ? { body: initial.body } : {}),
     };
-    onSubmit(patch);
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      onSubmit(patch);
+      return;
+    }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(() => {
+      onSubmit(patch);
+    }, 220);
   };
 
   return (
-    <div style={s.page}>
-        <style>{`
-          @keyframes onbFadeUp {
-            0% { opacity: 0; transform: translateY(14px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+      <style>{`
+        @keyframes onbFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes onbFadeDown {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(12px); }
+        }
+        .onb-leave {
+          animation: onbFadeDown 220ms ease-in both;
+        }
           .onb-fade {
             animation: onbFadeUp 520ms ease-out both;
           }
@@ -80,14 +106,15 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           .gender-card:active:not(:disabled) {
             transform: translateY(1px) scale(0.99);
           }
-          @media (prefers-reduced-motion: reduce) {
-            .onb-fade,
-            .onb-fade-delay-1,
-            .onb-fade-delay-2,
-            .onb-fade-delay-3 { animation: none !important; }
-            .gender-card { transition: none !important; }
-          }
-        `}</style>
+        @media (prefers-reduced-motion: reduce) {
+          .onb-fade,
+          .onb-fade-delay-1,
+          .onb-fade-delay-2,
+          .onb-fade-delay-3 { animation: none !important; }
+          .gender-card { transition: none !important; }
+          .onb-leave { animation: none !important; }
+        }
+      `}</style>
 
       <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
         <div style={s.progressTrack}>
@@ -126,7 +153,18 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <button
           style={s.backBtn}
           className="onb-fade onb-fade-delay-3"
-          onClick={() => navigate("/")}
+          onClick={() => {
+            if (isLeaving) return;
+            const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+            if (prefersReduced) {
+              navigate("/");
+              return;
+            }
+            setIsLeaving(true);
+            leaveTimerRef.current = window.setTimeout(() => {
+              navigate("/");
+            }, 220);
+          }}
           type="button"
         >
           Назад
