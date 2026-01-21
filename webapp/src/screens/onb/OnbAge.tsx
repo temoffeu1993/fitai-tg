@@ -194,7 +194,8 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       </div>
 
       <div style={s.ageWrap} className="onb-fade onb-fade-delay-3">
-        <div style={s.ageHighlight} />
+        <div style={s.ageLineTop} />
+        <div style={s.ageLineBottom} />
         <div style={s.ageFadeTop} />
         <div style={s.ageFadeBottom} />
         <div
@@ -330,16 +331,24 @@ const s: Record<string, React.CSSProperties> = {
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
   },
-  ageHighlight: {
+  ageLineTop: {
     position: "absolute",
     left: 12,
     right: 12,
     top: "50%",
-    height: ITEM_HEIGHT,
-    transform: "translateY(-50%)",
-    borderRadius: 12,
-    borderTop: "1px solid rgba(15, 23, 42, 0.12)",
-    borderBottom: "1px solid rgba(15, 23, 42, 0.12)",
+    height: 1,
+    transform: `translateY(-${ITEM_HEIGHT / 2}px)`,
+    background: "rgba(15, 23, 42, 0.18)",
+    pointerEvents: "none",
+  },
+  ageLineBottom: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    top: "50%",
+    height: 1,
+    transform: `translateY(${ITEM_HEIGHT / 2}px)`,
+    background: "rgba(15, 23, 42, 0.18)",
     pointerEvents: "none",
   },
   ageFadeTop: {
