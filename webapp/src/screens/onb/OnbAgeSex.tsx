@@ -94,26 +94,22 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       </div>
 
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
-        <div style={s.optionItem}>
-          <button
-            type="button"
-            style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
-            onClick={() => handleSelect("male")}
-          >
-            <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
-          </button>
+        <button
+          type="button"
+          style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
+          onClick={() => handleSelect("male")}
+        >
+          <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
           <div style={s.optionLabel}>Мужской</div>
-        </div>
-        <div style={s.optionItem}>
-          <button
-            type="button"
-            style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
-            onClick={() => handleSelect("female")}
-          >
-            <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
-          </button>
+        </button>
+        <button
+          type="button"
+          style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
+          onClick={() => handleSelect("female")}
+        >
+          <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
           <div style={s.optionLabel}>Женский</div>
-        </div>
+        </button>
       </div>
 
       {onBack ? (
@@ -187,14 +183,9 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 22,
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   },
-  optionItem: {
-    display: "grid",
-    gap: 10,
-    justifyItems: "center",
-  },
   optionCard: {
     width: "100%",
-    padding: "12px",
+    padding: "12px 10px 14px",
     borderRadius: 16,
     border: "1px solid rgba(15, 23, 42, 0.08)",
     background: "rgba(255,255,255,0.5)",
@@ -208,6 +199,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
+    gap: 10,
   },
   optionCardActive: {
     background: "#1e1f22",
