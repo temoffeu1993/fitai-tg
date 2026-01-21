@@ -281,6 +281,22 @@ export default function Dashboard() {
     return (
       <div style={s.introPage}>
         <style>{`
+          @keyframes introFadeUp {
+            0% { opacity: 0; transform: translateY(14px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          .intro-fade {
+            animation: introFadeUp 520ms ease-out both;
+          }
+          .intro-fade-delay-1 { animation-delay: 80ms; }
+          .intro-fade-delay-2 { animation-delay: 160ms; }
+          .intro-fade-delay-3 { animation-delay: 240ms; }
+          @media (prefers-reduced-motion: reduce) {
+            .intro-fade,
+            .intro-fade-delay-1,
+            .intro-fade-delay-2,
+            .intro-fade-delay-3 { animation: none !important; }
+          }
           .intro-primary-btn {
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
@@ -308,7 +324,7 @@ export default function Dashboard() {
             }
           }
         `}</style>
-        <section style={s.introHero}>
+        <section style={s.introHero} className="intro-fade intro-fade-delay-1">
           <div style={s.introImageWrap}>
             <img
               src={ROBOT_SRC}
@@ -322,7 +338,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section style={s.introFooter}>
+        <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
               <span style={s.introTitleLine}>Добро пожаловать</span>
@@ -333,7 +349,12 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <button type="button" style={s.introPrimaryBtn} className="intro-primary-btn" onClick={goOnb}>
+          <button
+            type="button"
+            style={s.introPrimaryBtn}
+            className="intro-primary-btn intro-fade intro-fade-delay-3"
+            onClick={goOnb}
+          >
             Начать
           </button>
         </section>
