@@ -88,7 +88,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
         <h1 style={s.title}>Укажите ваш пол</h1>
-        <p style={s.subtitle}>Это поможет сделать план точнее</p>
+        <p style={s.subtitle}>Это поможет точнее подобрать тренировки</p>
       </div>
 
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
