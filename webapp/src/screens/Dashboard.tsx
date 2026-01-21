@@ -683,7 +683,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: 42,
     lineHeight: 1.05,
-    fontWeight: 700,
+    fontWeight: 900,
     letterSpacing: -0.8,
   },
   introTitleLine: {
