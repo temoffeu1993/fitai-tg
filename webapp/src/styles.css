@@ -1,5 +1,13 @@
 * { box-sizing: border-box; }
 
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("./assets/fonts/SF-Pro-Display-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Глобальные переменные и единый градиент */
 :root {
   color-scheme: only light;
