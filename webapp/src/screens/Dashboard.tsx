@@ -322,19 +322,21 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section style={s.introTextBlock}>
-          <h1 style={s.introTitle}>
-            <span style={s.introTitleLine}>Добро пожаловать</span>
-            <span style={s.introTitleLine}>в Моро</span>
-          </h1>
-          <p style={s.introSubtitle}>
-            Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
-          </p>
-        </section>
+        <section style={s.introFooter}>
+          <div style={s.introTextBlock}>
+            <h1 style={s.introTitle}>
+              <span style={s.introTitleLine}>Добро пожаловать</span>
+              <span style={s.introTitleLine}>в Моро</span>
+            </h1>
+            <p style={s.introSubtitle}>
+              Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
+            </p>
+          </div>
 
-        <button type="button" style={s.introPrimaryBtn} className="intro-primary-btn" onClick={goOnb}>
-          Начать
-        </button>
+          <button type="button" style={s.introPrimaryBtn} className="intro-primary-btn" onClick={goOnb}>
+            Начать
+          </button>
+        </section>
       </div>
     );
   }
@@ -630,16 +632,17 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: "100vh",
   },
   introPage: {
-    minHeight: "100vh",
-    padding: "8px 20px 8px",
+    height: "100vh",
+    padding: "8px 20px 12px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
     gap: 12,
     background: "transparent",
     color: "#0f172a",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
+    overflow: "hidden",
   },
   introHero: {
     width: "100%",
@@ -661,18 +664,23 @@ const s: Record<string, React.CSSProperties> = {
     height: "auto",
     maxHeight: "50vh",
     objectFit: "contain",
-    transform: "translateY(36px)",
+    transform: "translateY(24px)",
     WebkitMaskImage:
       "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
     maskImage:
       "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
+  },
+  introFooter: {
+    width: "100%",
+    display: "grid",
+    gap: 12,
+    paddingBottom: 18,
   },
   introTextBlock: {
     width: "100%",
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: "auto",
   },
   introTitle: {
     margin: 0,
@@ -694,7 +702,6 @@ const s: Record<string, React.CSSProperties> = {
     marginRight: "auto",
   },
   introPrimaryBtn: {
-    marginTop: 12,
     width: "100%",
     maxWidth: 420,
     borderRadius: 16,
