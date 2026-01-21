@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
 import { useLayoutEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export type Sex = "male" | "female";
 export type OnbAgeSexData = {
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
+  const navigate = useNavigate();
   const [sex, setSex] = useState<Sex | null>((initial?.ageSex?.sex as Sex) ?? null);
 
   useLayoutEffect(() => {
@@ -103,7 +105,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <button
           style={s.backBtn}
           className="onb-fade onb-fade-delay-3"
-          onClick={() => (window.location.href = "/")}
+          onClick={() => navigate("/")}
           type="button"
         >
           Назад
