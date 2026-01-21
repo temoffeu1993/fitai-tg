@@ -79,12 +79,19 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         }
       `}</style>
 
-      <div style={s.header} className="onb-fade onb-fade-delay-1">
+      <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
+        <div style={s.progressTrack}>
+          <div style={s.progressFill} />
+        </div>
+        <div style={s.progressText}>Шаг 1 из 5</div>
+      </div>
+
+      <div style={s.header} className="onb-fade onb-fade-delay-2">
         <h1 style={s.title}>Укажите ваш пол</h1>
         <p style={s.subtitle}>Это поможет точнее подобрать рекомендации</p>
       </div>
 
-      <div style={s.buttons} className="onb-fade onb-fade-delay-2">
+      <div style={s.buttons} className="onb-fade onb-fade-delay-3">
         <button
           type="button"
           style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
@@ -120,7 +127,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 24px) 20px 32px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -129,11 +136,34 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     overflow: "hidden",
   },
+  progressWrap: {
+    display: "grid",
+    gap: 8,
+    marginTop: 6,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 999,
+    background: "rgba(15, 23, 42, 0.08)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    width: "20%",
+    background: "#1e1f22",
+    borderRadius: 999,
+  },
+  progressText: {
+    fontSize: 12,
+    color: "rgba(15, 23, 42, 0.55)",
+    textAlign: "center",
+  },
   header: {
     display: "grid",
     gap: 8,
     textAlign: "center",
     alignItems: "center",
+    marginTop: 8,
   },
   title: {
     margin: 0,
@@ -151,22 +181,22 @@ const s: Record<string, React.CSSProperties> = {
   buttons: {
     display: "grid",
     gap: 12,
-    marginTop: 8,
+    marginTop: 14,
   },
   optionBtn: {
     width: "100%",
     padding: "16px 18px",
     borderRadius: 16,
     border: "1px solid rgba(15, 23, 42, 0.08)",
-    background: "rgba(255,255,255,0.65)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    background: "rgba(255,255,255,0.5)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
     color: "#1e1f22",
     fontSize: 17,
     fontWeight: 600,
     textAlign: "center",
     cursor: "pointer",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
   },
   optionBtnActive: {
     background: "#1e1f22",
