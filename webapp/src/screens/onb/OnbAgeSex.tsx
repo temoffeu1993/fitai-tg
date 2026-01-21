@@ -88,7 +88,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
         <h1 style={s.title}>Укажите ваш пол</h1>
-        <p style={s.subtitle}>Это поможет точнее подобрать рекомендации</p>
+        <p style={s.subtitle}>Это поможет сделать план точнее</p>
       </div>
 
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
@@ -97,7 +97,6 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("male")}
         >
-          <span style={s.optionIcon}>♂️</span>
           Мужской
         </button>
         <button
@@ -105,7 +104,6 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           style={{ ...s.optionBtn, ...(sex === "female" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("female")}
         >
-          <span style={s.optionIcon}>♀️</span>
           Женский
         </button>
       </div>
@@ -196,13 +194,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
     cursor: "pointer",
-  },
-  optionIcon: {
-    fontSize: 22,
-    fontWeight: 700,
-    lineHeight: 1,
   },
   optionBtnActive: {
     background: "#1e1f22",
