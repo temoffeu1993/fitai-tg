@@ -92,7 +92,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     scrollStopTimerRef.current = window.setTimeout(() => {
       const snappedIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
       list.scrollTo({ top: snappedIndex * ITEM_HEIGHT, behavior: "smooth" });
-    }, 120);
+    }, 220);
   };
 
   const handleSelect = (value: number) => {
@@ -326,8 +326,9 @@ const s: Record<string, React.CSSProperties> = {
   ageList: {
     maxHeight: "100%",
     overflowY: "auto",
-    scrollSnapType: "y mandatory",
+    scrollSnapType: "y proximity",
     scrollbarWidth: "none",
+    WebkitOverflowScrolling: "touch",
   },
   ageHighlight: {
     position: "absolute",
