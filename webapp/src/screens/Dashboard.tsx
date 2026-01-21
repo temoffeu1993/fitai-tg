@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getPlannedWorkouts } from "@/api/schedule";
+
 import robotImg from "../assets/robot.png";
-import mozgImg from "../assets/mozg.png";
 const ROBOT_SRC = robotImg;
-const MOZG_SRC = mozgImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const RANK_TIERS = [
@@ -87,19 +87,19 @@ function rankTitle(total: number, lastCompletedAt: number | null) {
   return RANK_TIERS[tierIndex].name;
 }
 
-const preloadedImages = new Set<string>();
-function ensureImagePreloaded(src: string, key?: string) {
-  if (preloadedImages.has(src)) return;
+let robotPreloaded = false;
+function ensureRobotPreloaded(src: string) {
+  if (robotPreloaded) return;
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!src) return;
-  preloadedImages.add(src);
+  robotPreloaded = true;
 
   try {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
     link.href = src;
-    link.setAttribute("data-preload-img", key || src);
+    link.setAttribute("data-preload-img", "robot");
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
   } catch {}
@@ -109,8 +109,7 @@ function ensureImagePreloaded(src: string, key?: string) {
   img.src = src;
 }
 
-ensureImagePreloaded(ROBOT_SRC, "robot");
-ensureImagePreloaded(MOZG_SRC, "mozg");
+ensureRobotPreloaded(ROBOT_SRC);
 
 // имя из Телеграма
 function resolveTelegramName() {
@@ -154,6 +153,7 @@ export default function Dashboard() {
   });
 
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
+  const [plannedCount, setPlannedCount] = useState<number | null>(null);
   
   // Подсветка кнопки после выбора схемы
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
@@ -180,6 +180,34 @@ export default function Dashboard() {
       window.removeEventListener("onb_updated" as any, onOnbUpdated);
     };
   }, []);
+
+  const refreshPlannedCount = useCallback(async () => {
+    if (!onbDone) {
+      setPlannedCount(null);
+      return;
+    }
+    try {
+      const planned = await getPlannedWorkouts();
+      setPlannedCount(Array.isArray(planned) ? planned.length : 0);
+    } catch {
+      setPlannedCount(null);
+    }
+  }, [onbDone]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    refreshPlannedCount();
+    window.addEventListener("focus", refreshPlannedCount);
+    window.addEventListener("planned_workouts_updated" as any, refreshPlannedCount);
+    window.addEventListener("schedule_updated" as any, refreshPlannedCount);
+    window.addEventListener("plan_completed" as any, refreshPlannedCount);
+    return () => {
+      window.removeEventListener("focus", refreshPlannedCount);
+      window.removeEventListener("planned_workouts_updated" as any, refreshPlannedCount);
+      window.removeEventListener("schedule_updated" as any, refreshPlannedCount);
+      window.removeEventListener("plan_completed" as any, refreshPlannedCount);
+    };
+  }, [refreshPlannedCount]);
 
   // Убрать подсветку через 10 секунд
   useEffect(() => {
@@ -244,7 +272,42 @@ export default function Dashboard() {
 
   const goOnb = () => navigate("/onb/age-sex");
 
-  const workoutsCtaLabel = "Выбрать тренировку";
+  const workoutsCtaLabel =
+    onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
+
+  const smartTrainingDisabled = !onbDone;
+
+  if (!onbDone) {
+    return (
+      <div style={s.introPage}>
+        <section style={s.introHero}>
+          <div style={s.introImageWrap}>
+            <img
+              src={ROBOT_SRC}
+              alt="ИИ-тренер"
+              style={s.introImage}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              draggable={false}
+            />
+            <div style={s.introImageFade} />
+          </div>
+        </section>
+
+        <section style={s.introTextBlock}>
+          <h1 style={s.introTitle}>Добро пожаловать в Моро</h1>
+          <p style={s.introSubtitle}>
+            Персональный ИИ фитнес тренер, умные тренировки, анализ прогресса, план питания.
+          </p>
+        </section>
+
+        <button type="button" style={s.introPrimaryBtn} onClick={goOnb}>
+          Начать
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={s.page}>
@@ -321,7 +384,23 @@ export default function Dashboard() {
               <div className="heroSubtitle" style={s.heroSubtitle}>{subtitle}</div>
 
               <div style={s.heroCtaWrap}>
-                {/* removed: edit profile CTA in hero */}
+                {/* В HERO кнопка только после онбординга, без анимации */}
+                {onbDone ? (
+                  <button
+                    className="heroCTA"
+                    style={s.ctaGenerate}
+                    onClick={goOnb}
+                    aria-label={heroCtaLabel}
+                  >
+                    <span style={s.heroCtaWords}>
+                      {"Редактировать анкету".split(" ").map((word, idx) => (
+                        <span key={`${word}-${idx}`} style={s.heroCtaWord}>
+                          {word}
+                        </span>
+                      ))}
+                    </span>
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -376,50 +455,47 @@ export default function Dashboard() {
       </section>
 
       {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section style={{ ...s.block, ...s.chipSurface, ...s.smartWorkoutsBlock, ...(onbDone ? {} : s.smartWorkoutsDisabled) }}>
-        <img
-          src={MOZG_SRC}
-          alt=""
-          aria-hidden="true"
-          style={s.smartWorkoutsBgImg}
-          loading="eager"
-          fetchPriority="high"
-          decoding="sync"
-          draggable={false}
-        />
-        <div style={s.smartWorkoutsContent}>
-          <h3 style={s.blockTitle}>Умные тренировки</h3>
-          <p style={s.blockText}>Адаптируются под твое состояние, цель, опыт и прогрессию</p>
-          <button
-            className={onbDone ? (highlightGenerateBtn ? "highlight-pulse" : undefined) : undefined}
-            style={{
-              ...s.ctaBig,
-              ...s.smartWorkoutsCta,
-              ...(onbDone ? {} : s.smartWorkoutsCtaDisabled),
-              border: "1px solid transparent",
-            }}
-            onClick={() => {
-              if (!onbDone) return;
-              setHighlightGenerateBtn(false);
-              localStorage.removeItem("highlight_generate_btn");
-              navigate("/plan/one");
-            }}
-            disabled={!onbDone}
-            aria-disabled={!onbDone}
-          >
-            {workoutsCtaLabel}
-          </button>
-        </div>
+      <section
+        style={{ ...s.block, ...s.chipSurface, ...(smartTrainingDisabled ? s.disabledBlock : {}) }}
+        aria-disabled={smartTrainingDisabled}
+      >
+        <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
+        <p style={s.blockText}>
+          Я делаю каждую тренировку эффективной с учётом твоего состояния, цели, опыта и истории тренировок.
+        </p>
+        <button
+          className={
+            onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined
+          }
+          style={{
+            ...s.ctaMain,
+            ...(smartTrainingDisabled ? s.disabledBtn : {}),
+            border: "1px solid transparent",
+          }}
+          onClick={
+            smartTrainingDisabled
+              ? undefined
+              : () => {
+                  setHighlightGenerateBtn(false);
+                  localStorage.removeItem("highlight_generate_btn");
+                  navigate("/plan/one");
+                }
+          }
+          disabled={smartTrainingDisabled}
+          aria-disabled={smartTrainingDisabled}
+        >
+          {workoutsCtaLabel}
+        </button>
       </section>
 
       {/* Быстрые действия */}
       <section style={{ ...s.block, ...s.quickActionsWrap }}>
         <div style={s.quickRow}>
           <QuickAction
-            emoji="🏋️"
-            title="История"
+            emoji="📅"
+            title="Расписание"
             hint="Тренировок"
-            onClick={onbDone ? () => navigate("/history") : undefined}
+            onClick={onbDone ? () => navigate("/schedule") : undefined}
             disabled={!onbDone}
           />
           <QuickAction
@@ -522,6 +598,85 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
     background: "transparent",
     minHeight: "100vh",
+  },
+  introPage: {
+    minHeight: "100vh",
+    padding: "24px 20px 32px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-between",
+    background: "#fff",
+    color: "#0f172a",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
+  },
+  introHero: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    flex: "1 1 auto",
+    paddingTop: 12,
+  },
+  introImageWrap: {
+    position: "relative",
+    width: "min(420px, 88vw)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  introImage: {
+    width: "100%",
+    height: "auto",
+    maxHeight: "56vh",
+    objectFit: "contain",
+  },
+  introImageFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "42%",
+    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 88%)",
+    pointerEvents: "none",
+  },
+  introTextBlock: {
+    width: "100%",
+    textAlign: "center",
+    display: "grid",
+    gap: 10,
+    marginTop: 8,
+  },
+  introTitle: {
+    margin: 0,
+    fontSize: 28,
+    lineHeight: 1.15,
+    fontWeight: 900,
+    letterSpacing: -0.4,
+  },
+  introSubtitle: {
+    margin: 0,
+    fontSize: 15,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, .65)",
+    maxWidth: 320,
+    marginLeft: "auto",
+    marginRight: "auto",
+  },
+  introPrimaryBtn: {
+    marginTop: 16,
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #0f172a",
+    background: "#0f172a",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 17,
+    cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    WebkitTapHighlightColor: "transparent",
   },
 
   heroWrap: { position: "relative", overflow: "visible", marginTop: 0, marginBottom: 10 },
@@ -661,7 +816,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   block: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
-  blockTitle: { margin: 0, fontSize: 20, fontWeight: 800 },
+  blockTitle: { margin: 0, fontSize: 17, fontWeight: 600 },
   blockText: { margin: "8px 0 12px", color: "#444", fontSize: 15, fontWeight: 450, lineHeight: 1.4 },
 
   primaryBtn: {
@@ -695,20 +850,18 @@ const s: Record<string, React.CSSProperties> = {
   ctaMain: {
     borderRadius: 16,
     padding: "18px 18px",
-    fontSize: 17,
-    lineHeight: 1.12,
-    fontWeight: 600,
-    color: "#fff",
-    background: "#0f172a",
-    border: "1px solid transparent",
-    boxShadow: "0 10px 28px rgba(0,0,0,.22)",
+    fontSize: 24,
+    lineHeight: 1.1,
+    fontWeight: 900,
+    color: "#000",
+    background: "rgba(255, 255, 255, 1)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 0px 0px rgba(0,0,0,0.08)",
     cursor: "pointer",
-    width: "fit-content",
-    textAlign: "left",
-    textTransform: "none",
-    letterSpacing: "normal",
-    whiteSpace: "nowrap",
-    alignSelf: "flex-start",
+    width: "100%",
+    textAlign: "center",
+    textTransform: "uppercase",
+    alignSelf: "center",
   },
 
   // визуально выключенные элементы
@@ -718,53 +871,16 @@ const s: Record<string, React.CSSProperties> = {
     filter: "grayscale(10%)",
     pointerEvents: "none",
   },
+  disabledBlock: {
+    opacity: 0.45,
+    cursor: "default",
+    filter: "grayscale(30%) brightness(0.95)",
+    pointerEvents: "none",
+  },
 
   // тонкий бордер для glow-маски
   ctaGlowBorderFix: {
     border: "1px solid transparent",
-  },
-
-  smartWorkoutsBlock: {
-    position: "relative",
-    overflow: "hidden",
-    minHeight: 150,
-  },
-  smartWorkoutsDisabled: {
-    cursor: "default",
-    pointerEvents: "none",
-  },
-  smartWorkoutsBgImg: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    objectPosition: "right bottom",
-    opacity: 0.28,
-    transform: "translateX(0%) scale(1.32)",
-    pointerEvents: "none",
-    userSelect: "none",
-    zIndex: 0,
-  },
-  smartWorkoutsContent: {
-    position: "relative",
-    zIndex: 1,
-    width: "72%",
-    maxWidth: 360,
-  },
-  smartWorkoutsCta: {
-    background: "#0f172a",
-    color: "#fff",
-    WebkitTextFillColor: "#fff",
-    border: "1px solid rgba(255,255,255,.16)",
-    boxShadow: "0 10px 22px rgba(0,0,0,.18)",
-    opacity: 1,
-    filter: "none",
-    textShadow: "none",
-  },
-  smartWorkoutsCtaDisabled: {
-    cursor: "default",
-    pointerEvents: "none",
   },
 
   /* Быстрые действия */
