@@ -732,7 +732,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 14px 24px rgba(0,0,0,0.28)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     WebkitTapHighlightColor: "transparent",
   },
 
