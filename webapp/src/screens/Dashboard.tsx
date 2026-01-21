@@ -280,6 +280,34 @@ export default function Dashboard() {
   if (!onbDone) {
     return (
       <div style={s.introPage}>
+        <style>{`
+          .intro-primary-btn {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+          }
+          .intro-primary-btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.99) !important;
+            background-color: #0b1220 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+            filter: brightness(0.99) !important;
+          }
+          @media (hover: hover) {
+            .intro-primary-btn:hover:not(:disabled) {
+              filter: brightness(1.03);
+            }
+          }
+          .intro-primary-btn:focus-visible {
+            outline: 3px solid rgba(15, 23, 42, 0.18);
+            outline-offset: 2px;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .intro-primary-btn {
+              transition: none !important;
+            }
+          }
+        `}</style>
         <section style={s.introHero}>
           <div style={s.introImageWrap}>
             <img
@@ -305,7 +333,7 @@ export default function Dashboard() {
           </p>
         </section>
 
-        <button type="button" style={s.introPrimaryBtn} onClick={goOnb}>
+        <button type="button" style={s.introPrimaryBtn} className="intro-primary-btn" onClick={goOnb}>
           Начать
         </button>
       </div>
@@ -604,12 +632,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   introPage: {
     minHeight: "100vh",
-    padding: "16px 20px 24px",
+    padding: "8px 20px 20px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 16,
+    gap: 12,
     background: "transparent",
     color: "#0f172a",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
@@ -620,7 +648,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "flex-end",
     flex: "0 0 auto",
-    paddingTop: 4,
+    paddingTop: 0,
   },
   introImageWrap: {
     position: "relative",
@@ -632,17 +660,18 @@ const s: Record<string, React.CSSProperties> = {
   introImage: {
     width: "100%",
     height: "auto",
-    maxHeight: "52vh",
+    maxHeight: "50vh",
     objectFit: "contain",
-    transform: "translateY(-12px)",
+    transform: "translateY(-6px)",
+    mixBlendMode: "multiply",
   },
   introImageFade: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "40%",
-    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.92) 88%)",
+    height: "55%",
+    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.98) 88%)",
     pointerEvents: "none",
   },
   introTextBlock: {
@@ -650,7 +679,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: 0,
+    marginTop: 6,
   },
   introTitle: {
     margin: 0,
@@ -672,7 +701,7 @@ const s: Record<string, React.CSSProperties> = {
     marginRight: "auto",
   },
   introPrimaryBtn: {
-    marginTop: 6,
+    marginTop: 8,
     width: "100%",
     maxWidth: 420,
     borderRadius: 16,
