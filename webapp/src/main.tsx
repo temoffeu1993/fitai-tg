@@ -60,30 +60,17 @@ setTimeout(applyLightTheme, 200);
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-function LoadingScreen({ text = "Загружаем твоего фитнес-тренера" }: { text?: string }) {
+function LoadingScreen() {
   return (
     <div style={loader.wrap}>
       <style>{loader.css}</style>
-      <div style={loader.card}>
-        <div style={loader.emoji}>💪</div>
-        <div style={loader.title}>FitAI</div>
-        <div style={loader.text}>{text}</div>
-        <div className="loader-dots">
-          <span />
-          <span />
-          <span />
-        </div>
+      <div className="boot-loader">
+        <span />
+        <span />
+        <span />
       </div>
     </div>
   );
-}
-
-function shouldShowBootLoader(): boolean {
-  try {
-    return localStorage.getItem("onb_complete") === "1";
-  } catch {
-    return true;
-  }
 }
 
 async function preloadImage(src: string): Promise<void> {
@@ -116,43 +103,28 @@ const loader = {
     minHeight: "100vh",
     display: "grid",
     placeItems: "center",
-    background: "var(--app-gradient, #f5f6fb)",
+    background: "#ffffff",
     position: "relative",
     overflow: "hidden",
     fontFamily: "system-ui, -apple-system, Inter, Roboto",
   } as React.CSSProperties,
-  card: {
-    position: "relative",
-    padding: "32px 36px",
-    borderRadius: 28,
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    textAlign: "center",
-    zIndex: 2,
-  } as React.CSSProperties,
-  emoji: { fontSize: 44, marginBottom: 8 } as React.CSSProperties,
-  title: { fontSize: 24, fontWeight: 800, color: "#1b1b1b" } as React.CSSProperties,
-  text: { marginTop: 6, fontSize: 15, color: "#4b5563" } as React.CSSProperties,
   css: `
-    .loader-dots{
-      margin-top: 18px;
+    .boot-loader{
       display:flex;
-      gap:8px;
+      gap:10px;
+      align-items:center;
       justify-content:center;
     }
-    .loader-dots span{
+    .boot-loader span{
       width:10px;
       height:10px;
       border-radius:50%;
-      background:linear-gradient(135deg,#6a8dff,#8a64ff);
-      animation: pulseDot 1.1s ease-in-out infinite;
+      background:#111;
+      animation: bootPulse 1s ease-in-out infinite;
     }
-    .loader-dots span:nth-child(2){ animation-delay: .15s; }
-    .loader-dots span:nth-child(3){ animation-delay: .3s; }
-    @keyframes pulseDot{ 0%,100%{ transform: scale(.7); opacity:.5; } 50%{ transform: scale(1); opacity:1; } }
+    .boot-loader span:nth-child(2){ animation-delay: .15s; }
+    .boot-loader span:nth-child(3){ animation-delay: .3s; }
+    @keyframes bootPulse{ 0%,100%{ transform: scale(.7); opacity:.35; } 50%{ transform: scale(1); opacity:1; } }
   `,
 };
 
@@ -171,9 +143,7 @@ if (isDev && !tg?.initData) {
   Promise.all([preloadImage(robotImg), preloadImage(mozgImg)]).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
-  if (shouldShowBootLoader()) {
-    root.render(<LoadingScreen />);
-  }
+  root.render(<LoadingScreen />);
   auth();
 }
 
@@ -198,6 +168,6 @@ async function auth() {
     await Promise.all([preloadImage(robotImg), preloadImage(mozgImg)]);
     root.render(<App />);
   } catch (e: any) {
-    root.render(<LoadingScreen text={`Ошибка: ${e?.message || String(e)}`} />);
+    root.render(<LoadingScreen />);
   }
 }
