@@ -319,7 +319,6 @@ export default function Dashboard() {
               decoding="async"
               draggable={false}
             />
-            <div style={s.introImageFade} />
           </div>
         </section>
 
@@ -662,24 +661,16 @@ const s: Record<string, React.CSSProperties> = {
     height: "auto",
     maxHeight: "50vh",
     objectFit: "contain",
-    transform: "translateY(-6px)",
-    mixBlendMode: "multiply",
-  },
-  introImageFade: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "55%",
-    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.98) 88%)",
-    pointerEvents: "none",
+    transform: "translateY(8px)",
+    WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 68%, transparent 100%)",
+    maskImage: "linear-gradient(180deg, #000 0%, #000 68%, transparent 100%)",
   },
   introTextBlock: {
     width: "100%",
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: 6,
+    marginTop: 18,
   },
   introTitle: {
     margin: 0,
@@ -701,7 +692,7 @@ const s: Record<string, React.CSSProperties> = {
     marginRight: "auto",
   },
   introPrimaryBtn: {
-    marginTop: 8,
+    marginTop: 16,
     width: "100%",
     maxWidth: 420,
     borderRadius: 16,
