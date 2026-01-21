@@ -90,7 +90,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
         setAge(nextAge);
       }
-    }, 120);
+    }, 60);
   };
 
   const handleSelect = (value: number) => {
