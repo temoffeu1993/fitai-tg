@@ -320,7 +320,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: "min(75px, 23vw)",
+    width: "min(100px, 30vw)",
     height: ITEM_HEIGHT * 5,
     alignSelf: "center",
   },
