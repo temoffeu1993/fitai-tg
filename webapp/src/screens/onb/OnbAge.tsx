@@ -22,8 +22,8 @@ const AGE_MAX = 80;
 
 export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
-  const [age, setAge] = useState<number>(
-    typeof initial?.ageSex?.age === "number" ? initial.ageSex.age : 18
+  const [age, setAge] = useState<number | null>(
+    typeof initial?.ageSex?.age === "number" ? initial.ageSex.age : null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
@@ -63,11 +63,15 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const handleSelect = (value: number) => {
     if (loading || isLeaving) return;
     setAge(value);
+  };
+
+  const handleNext = () => {
+    if (loading || isLeaving || age == null) return;
     const patch: OnbAgeData = {
       profile: initial?.profile,
       ageSex: {
         sex: (initial?.ageSex?.sex as Sex) || "male",
-        age: value,
+        age,
       },
       ...(initial?.body ? { body: initial.body } : {}),
     };
@@ -145,6 +149,16 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        style={{ ...s.primaryBtn, opacity: age == null || loading ? 0.5 : 1 }}
+        className="onb-fade onb-fade-delay-3"
+        onClick={handleNext}
+        disabled={age == null || loading || isLeaving}
+      >
+        Далее →
+      </button>
 
       {onBack ? (
         <button
@@ -240,6 +254,19 @@ const s: Record<string, React.CSSProperties> = {
     gap: 6,
     maxHeight: 260,
     overflowY: "auto",
+  },
+  primaryBtn: {
+    marginTop: 18,
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   ageItem: {
     border: "none",
