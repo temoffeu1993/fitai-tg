@@ -631,7 +631,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   introPage: {
     minHeight: "100vh",
-    padding: "8px 20px 20px",
+    padding: "8px 20px 8px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -661,16 +661,18 @@ const s: Record<string, React.CSSProperties> = {
     height: "auto",
     maxHeight: "50vh",
     objectFit: "contain",
-    transform: "translateY(28px)",
-    WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 66%, rgba(0,0,0,0.35) 78%, transparent 100%)",
-    maskImage: "linear-gradient(180deg, #000 0%, #000 66%, rgba(0,0,0,0.35) 78%, transparent 100%)",
+    transform: "translateY(36px)",
+    WebkitMaskImage:
+      "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
+    maskImage:
+      "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
   },
   introTextBlock: {
     width: "100%",
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: 42,
+    marginTop: "auto",
   },
   introTitle: {
     margin: 0,
@@ -692,7 +694,7 @@ const s: Record<string, React.CSSProperties> = {
     marginRight: "auto",
   },
   introPrimaryBtn: {
-    marginTop: 38,
+    marginTop: 12,
     width: "100%",
     maxWidth: 420,
     borderRadius: 16,
