@@ -78,6 +78,14 @@ function LoadingScreen({ text = "Загружаем твоего фитнес-т
   );
 }
 
+function shouldShowBootLoader(): boolean {
+  try {
+    return localStorage.getItem("onb_complete") === "1";
+  } catch {
+    return true;
+  }
+}
+
 async function preloadImage(src: string): Promise<void> {
   if (!src || typeof window === "undefined") return;
   await new Promise<void>((resolve) => {
@@ -163,7 +171,9 @@ if (isDev && !tg?.initData) {
   Promise.all([preloadImage(robotImg), preloadImage(mozgImg)]).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
-  root.render(<LoadingScreen />);
+  if (shouldShowBootLoader()) {
+    root.render(<LoadingScreen />);
+  }
   auth();
 }
 
