@@ -686,7 +686,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: 45,
     lineHeight: 1.15,
-    fontWeight: 750,
+    fontWeight: 700,
     letterSpacing: -0.4,
     fontFamily: '"SF Pro Display", system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
   },
