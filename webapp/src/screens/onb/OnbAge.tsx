@@ -19,6 +19,7 @@ type Props = {
 
 const AGE_MIN = 10;
 const AGE_MAX = 80;
+const ITEM_HEIGHT = 48;
 
 export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -27,12 +28,18 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
+      }
+      if (scrollStopTimerRef.current) {
+        window.clearTimeout(scrollStopTimerRef.current);
+        scrollStopTimerRef.current = null;
       }
     };
   }, []);
@@ -59,6 +66,34 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    if (age == null) {
+      list.scrollTop = 0;
+      return;
+    }
+    const index = age - AGE_MIN;
+    list.scrollTop = index * ITEM_HEIGHT;
+  }, [age]);
+
+  const handleListScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const index = Math.round(list.scrollTop / ITEM_HEIGHT);
+    const nextAge = AGE_MIN + index;
+    if (nextAge !== age && nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
+      setAge(nextAge);
+    }
+    if (scrollStopTimerRef.current) {
+      window.clearTimeout(scrollStopTimerRef.current);
+    }
+    scrollStopTimerRef.current = window.setTimeout(() => {
+      const snappedIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
+      list.scrollTo({ top: snappedIndex * ITEM_HEIGHT, behavior: "smooth" });
+    }, 120);
+  };
 
   const handleSelect = (value: number) => {
     if (loading || isLeaving) return;
@@ -136,18 +171,29 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         <p style={s.subtitle}>Возраст нужен, чтобы точнее подобрать рекомендации</p>
       </div>
 
-      <div style={s.ageList} className="onb-fade onb-fade-delay-3">
-        {ages.map((value) => (
-          <button
-            key={value}
-            type="button"
-            className="age-card"
-            style={{ ...s.ageItem, ...(age === value ? s.ageItemActive : {}) }}
-            onClick={() => handleSelect(value)}
-          >
-            {value}
-          </button>
-        ))}
+      <div style={s.ageWrap} className="onb-fade onb-fade-delay-3">
+        <div style={s.ageHighlight} />
+        <div style={s.ageFadeTop} />
+        <div style={s.ageFadeBottom} />
+        <div
+          ref={listRef}
+          style={s.ageList}
+          onScroll={handleListScroll}
+        >
+          <div style={{ height: ITEM_HEIGHT * 2 }} />
+          {ages.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="age-card"
+              style={{ ...s.ageItem, ...(age === value ? s.ageItemActive : {}) }}
+              onClick={() => handleSelect(value)}
+            >
+              {value}
+            </button>
+          ))}
+          <div style={{ height: ITEM_HEIGHT * 2 }} />
+        </div>
       </div>
 
       <button
@@ -241,19 +287,54 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.7)",
   },
-  ageList: {
+  ageWrap: {
     marginTop: 18,
-    padding: "10px 0",
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.45)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
-    display: "grid",
-    gap: 6,
-    maxHeight: 260,
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(245,245,250,0.6) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+    position: "relative",
+    overflow: "hidden",
+  },
+  ageList: {
+    maxHeight: ITEM_HEIGHT * 5,
     overflowY: "auto",
+    scrollSnapType: "y mandatory",
+    scrollbarWidth: "none",
+  },
+  ageHighlight: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    top: "50%",
+    height: ITEM_HEIGHT,
+    transform: "translateY(-50%)",
+    borderRadius: 12,
+    borderTop: "1px solid rgba(15, 23, 42, 0.12)",
+    borderBottom: "1px solid rgba(15, 23, 42, 0.12)",
+    pointerEvents: "none",
+  },
+  ageFadeTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: ITEM_HEIGHT * 2,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  ageFadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: ITEM_HEIGHT * 2,
+    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 1,
   },
   primaryBtn: {
     marginTop: 18,
@@ -271,14 +352,18 @@ const s: Record<string, React.CSSProperties> = {
   ageItem: {
     border: "none",
     background: "transparent",
-    color: "rgba(15, 23, 42, 0.8)",
+    color: "rgba(15, 23, 42, 0.5)",
     fontSize: 18,
     fontWeight: 500,
-    padding: "8px 0",
+    height: ITEM_HEIGHT,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    scrollSnapAlign: "center",
     cursor: "pointer",
   },
   ageItemActive: {
-    color: "#1e1f22",
+    color: "#111",
     fontWeight: 700,
   },
   backBtn: {
