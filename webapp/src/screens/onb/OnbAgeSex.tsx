@@ -1,6 +1,8 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
 import { useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import maleRobotImg from "@/assets/robonew.png";
+import femaleRobotImg from "@/assets/zhennew.png";
 
 export type Sex = "male" | "female";
 export type OnbAgeSexData = {
@@ -94,17 +96,19 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
         <button
           type="button"
-          style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
+          style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
           onClick={() => handleSelect("male")}
         >
-          Мужской
+          <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
+          <span style={s.optionLabel}>Мужской</span>
         </button>
         <button
           type="button"
-          style={{ ...s.optionBtn, ...(sex === "female" ? s.optionBtnActive : {}) }}
+          style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
           onClick={() => handleSelect("female")}
         >
-          Женский
+          <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
+          <span style={s.optionLabel}>Женский</span>
         </button>
       </div>
 
@@ -178,9 +182,9 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     marginTop: 22,
   },
-  optionBtn: {
+  optionCard: {
     width: "100%",
-    padding: "20px 18px",
+    padding: "14px 14px 16px",
     borderRadius: 16,
     border: "1px solid rgba(15, 23, 42, 0.08)",
     background: "rgba(255,255,255,0.5)",
@@ -188,18 +192,29 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(16px)",
     boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
     color: "#1e1f22",
-    fontSize: 18,
-    fontWeight: 500,
     textAlign: "center",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
     cursor: "pointer",
   },
-  optionBtnActive: {
+  optionCardActive: {
     background: "#1e1f22",
     border: "1px solid #1e1f22",
     color: "#fff",
+  },
+  optionImage: {
+    width: "100%",
+    maxWidth: 220,
+    height: "auto",
+    objectFit: "contain",
+  },
+  optionLabel: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.2,
   },
   progressText: {
     fontSize: 12,
