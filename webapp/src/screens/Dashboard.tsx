@@ -664,11 +664,11 @@ const s: Record<string, React.CSSProperties> = {
     height: "auto",
     maxHeight: "50vh",
     objectFit: "contain",
-    transform: "translateY(24px)",
+    transform: "translateY(36px)",
     WebkitMaskImage:
-      "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
+      "linear-gradient(180deg, #000 0%, #000 58%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.2) 80%, transparent 100%)",
     maskImage:
-      "linear-gradient(180deg, #000 0%, #000 60%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0.15) 88%, transparent 100%)",
+      "linear-gradient(180deg, #000 0%, #000 58%, rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.2) 80%, transparent 100%)",
   },
   introFooter: {
     width: "100%",
