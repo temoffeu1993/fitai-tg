@@ -97,14 +97,16 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           style={{ ...s.optionBtn, ...(sex === "male" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("male")}
         >
-          ♂️ Мужской
+          <span style={s.optionIcon}>♂️</span>
+          Мужской
         </button>
         <button
           type="button"
           style={{ ...s.optionBtn, ...(sex === "female" ? s.optionBtnActive : {}) }}
           onClick={() => handleSelect("female")}
         >
-          ♀️ Женский
+          <span style={s.optionIcon}>♀️</span>
+          Женский
         </button>
       </div>
 
@@ -191,7 +193,16 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 500,
     textAlign: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     cursor: "pointer",
+  },
+  optionIcon: {
+    fontSize: 22,
+    fontWeight: 700,
+    lineHeight: 1,
   },
   optionBtnActive: {
     background: "#1e1f22",
