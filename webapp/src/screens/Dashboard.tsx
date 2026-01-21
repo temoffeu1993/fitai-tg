@@ -683,9 +683,9 @@ const s: Record<string, React.CSSProperties> = {
   introImage: {
     width: "100%",
     height: "auto",
-    maxHeight: "58vh",
+    maxHeight: "55vh",
     objectFit: "contain",
-    transform: "translateY(24px) scale(1.05)",
+    transform: "translateY(36px) scale(0.95)",
     transformOrigin: "center bottom",
   },
   introFooter: {
