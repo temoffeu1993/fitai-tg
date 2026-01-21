@@ -138,7 +138,7 @@ export default function LayoutWithNav() {
   }, []);
 
   const current = resolveNavCurrent(pathname);
-  const hideNav = shouldHideNav(pathname);
+  const hideNav = shouldHideNav(pathname) || (!onbDone && (pathname === "/" || pathname.startsWith("/dashboard")));
   const safeTop =
     typeof window !== "undefined"
       ? Number.parseInt(

@@ -296,9 +296,12 @@ export default function Dashboard() {
         </section>
 
         <section style={s.introTextBlock}>
-          <h1 style={s.introTitle}>Добро пожаловать в Моро</h1>
+          <h1 style={s.introTitle}>
+            <span style={s.introTitleLine}>Добро пожаловать</span>
+            <span style={s.introTitleLine}>в Моро</span>
+          </h1>
           <p style={s.introSubtitle}>
-            Персональный ИИ фитнес тренер, умные тренировки, анализ прогресса, план питания.
+            Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
           </p>
         </section>
 
@@ -601,12 +604,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   introPage: {
     minHeight: "100vh",
-    padding: "24px 20px 32px",
+    padding: "16px 20px 24px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "space-between",
-    background: "#fff",
+    justifyContent: "flex-start",
+    gap: 16,
+    background: "transparent",
     color: "#0f172a",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
   },
@@ -615,8 +619,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     alignItems: "flex-end",
-    flex: "1 1 auto",
-    paddingTop: 12,
+    flex: "0 0 auto",
+    paddingTop: 4,
   },
   introImageWrap: {
     position: "relative",
@@ -628,16 +632,17 @@ const s: Record<string, React.CSSProperties> = {
   introImage: {
     width: "100%",
     height: "auto",
-    maxHeight: "56vh",
+    maxHeight: "52vh",
     objectFit: "contain",
+    transform: "translateY(-12px)",
   },
   introImageFade: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "42%",
-    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 88%)",
+    height: "40%",
+    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.92) 88%)",
     pointerEvents: "none",
   },
   introTextBlock: {
@@ -645,7 +650,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: 8,
+    marginTop: 0,
   },
   introTitle: {
     margin: 0,
@@ -654,17 +659,20 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     letterSpacing: -0.4,
   },
+  introTitleLine: {
+    display: "block",
+  },
   introSubtitle: {
     margin: 0,
     fontSize: 15,
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, .65)",
-    maxWidth: 320,
+    maxWidth: 340,
     marginLeft: "auto",
     marginRight: "auto",
   },
   introPrimaryBtn: {
-    marginTop: 16,
+    marginTop: 6,
     width: "100%",
     maxWidth: 420,
     borderRadius: 16,
