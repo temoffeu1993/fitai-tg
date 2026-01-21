@@ -62,24 +62,32 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
   return (
     <div style={s.page}>
-      <style>{`
-        @keyframes onbFadeUp {
-          0% { opacity: 0; transform: translateY(14px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .onb-fade {
-          animation: onbFadeUp 520ms ease-out both;
-        }
-        .onb-fade-delay-1 { animation-delay: 80ms; }
-        .onb-fade-delay-2 { animation-delay: 160ms; }
-        .onb-fade-delay-3 { animation-delay: 240ms; }
-        @media (prefers-reduced-motion: reduce) {
-          .onb-fade,
-          .onb-fade-delay-1,
-          .onb-fade-delay-2,
-          .onb-fade-delay-3 { animation: none !important; }
-        }
-      `}</style>
+        <style>{`
+          @keyframes onbFadeUp {
+            0% { opacity: 0; transform: translateY(14px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          .onb-fade {
+            animation: onbFadeUp 520ms ease-out both;
+          }
+          .onb-fade-delay-1 { animation-delay: 80ms; }
+          .onb-fade-delay-2 { animation-delay: 160ms; }
+          .onb-fade-delay-3 { animation-delay: 240ms; }
+          .gender-card {
+            transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+            will-change: transform, background, border-color;
+          }
+          .gender-card:active:not(:disabled) {
+            transform: translateY(1px) scale(0.99);
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .onb-fade,
+            .onb-fade-delay-1,
+            .onb-fade-delay-2,
+            .onb-fade-delay-3 { animation: none !important; }
+            .gender-card { transition: none !important; }
+          }
+        `}</style>
 
       <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
         <div style={s.progressTrack}>
@@ -97,6 +105,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <button
           type="button"
           style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
+          className="gender-card"
           onClick={() => handleSelect("male")}
         >
           <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
@@ -105,6 +114,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <button
           type="button"
           style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
+          className="gender-card"
           onClick={() => handleSelect("female")}
         >
           <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
