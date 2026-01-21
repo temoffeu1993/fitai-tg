@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type Sex = "male" | "female";
 export type OnbAgeSexData = {
@@ -18,6 +18,22 @@ type Props = {
 
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
   const [sex, setSex] = useState<Sex | null>((initial?.ageSex?.sex as Sex) ?? null);
+
+  useEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+    }
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+      }
+    };
+  }, []);
 
   const handleSelect = (value: Sex) => {
     if (loading) return;
