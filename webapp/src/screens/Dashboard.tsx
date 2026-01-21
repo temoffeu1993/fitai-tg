@@ -703,7 +703,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   introTitle: {
     margin: 0,
-    fontSize: 42,
+    fontSize: "clamp(30px, 7.5vw, 38px)",
     lineHeight: 1.05,
     fontWeight: 900,
     letterSpacing: -0.8,
