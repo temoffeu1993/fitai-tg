@@ -106,7 +106,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "24px 20px 32px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 24px) 20px 32px",
     display: "flex",
     flexDirection: "column",
     gap: 18,
