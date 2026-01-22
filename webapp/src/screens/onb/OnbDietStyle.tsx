@@ -198,14 +198,16 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         })}
       </div>
 
-      {stylesSel.includes("Другое") && (
-        <input
-          value={styleOther}
-          onChange={(e) => setStyleOther(e.target.value)}
-          placeholder="Уточни свой вариант"
-          style={s.input}
-        />
-      )}
+      <div style={s.inputWrap}>
+        {stylesSel.includes("Другое") && (
+          <input
+            value={styleOther}
+            onChange={(e) => setStyleOther(e.target.value)}
+            placeholder="Уточни свой вариант"
+            style={s.input}
+          />
+        )}
+      </div>
 
       <div style={s.actions}>
         <button
@@ -305,6 +307,9 @@ const s: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 10,
     width: "100%",
+  },
+  inputWrap: {
+    minHeight: 58,
   },
   tile: {
     borderRadius: 16,
