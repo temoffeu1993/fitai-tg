@@ -171,9 +171,11 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           }}
           onClick={() => setExperience("beginner")}
         >
+          <div style={s.cardText}>
+            <div style={s.cardTitle}>Новичек</div>
+            <div style={s.cardSubtitle}>занимаешься меньше 6 мес</div>
+          </div>
           <img src={beginnerImg} alt="Новичек" style={s.cardImage} />
-          <div style={s.cardTitle}>Новичек</div>
-          <div style={s.cardSubtitle}>занимаешься меньше 6 мес</div>
         </button>
 
         <button
@@ -190,9 +192,11 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           }}
           onClick={() => setExperience("intermediate")}
         >
+          <div style={s.cardText}>
+            <div style={s.cardTitle}>Средний уровень</div>
+            <div style={s.cardSubtitle}>6 месяцев - 2 года регулярных тренировок</div>
+          </div>
           <img src={intermediateImg} alt="Средний уровень" style={s.cardImage} />
-          <div style={s.cardTitle}>Средний уровень</div>
-          <div style={s.cardSubtitle}>6 месяцев - 2 года регулярных тренировок</div>
         </button>
 
         <button
@@ -209,9 +213,11 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           }}
           onClick={() => setExperience("advanced")}
         >
+          <div style={s.cardText}>
+            <div style={s.cardTitle}>Продвинутый</div>
+            <div style={s.cardSubtitle}>2+ года, знаю технику и принципы</div>
+          </div>
           <img src={advancedImg} alt="Продвинутый" style={s.cardImage} />
-          <div style={s.cardTitle}>Продвинутый</div>
-          <div style={s.cardSubtitle}>2+ года, знаю технику и принципы</div>
         </button>
       </div>
 
@@ -315,7 +321,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   card: {
     width: "100%",
-    padding: "18px 10px 16px",
+    padding: "14px 12px",
     borderRadius: 18,
     border: "1px solid var(--exp-border)",
     background: "var(--exp-bg)",
@@ -325,14 +331,20 @@ const s: Record<string, React.CSSProperties> = {
     color: "var(--exp-color)",
     textAlign: "center",
     display: "grid",
-    gap: 6,
-    justifyItems: "center",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    alignItems: "center",
+    gap: 8,
     cursor: "pointer",
-    minHeight: 250,
+    minHeight: 140,
+  },
+  cardText: {
+    display: "grid",
+    gap: 6,
+    textAlign: "left",
   },
   cardImage: {
-    width: "100%",
-    maxWidth: 120,
+    width: 86,
+    maxWidth: 86,
     height: "auto",
     objectFit: "contain",
   },
@@ -345,7 +357,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.35,
     color: "inherit",
     opacity: 0.75,
-    maxWidth: 180,
+    maxWidth: 140,
   },
   primaryBtn: {
     marginTop: 18,
