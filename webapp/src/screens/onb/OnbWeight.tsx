@@ -197,6 +197,8 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
 
       <div style={s.trackWrap} className="onb-fade onb-fade-delay-3">
         <div style={s.trackIndicator} />
+        <div style={s.trackFadeLeft} />
+        <div style={s.trackFadeRight} />
         <div
           ref={listRef}
           style={s.trackList}
@@ -344,6 +346,26 @@ const s: Record<string, React.CSSProperties> = {
     width: ITEM_WIDTH * 6,
     alignSelf: "center",
   },
+  trackFadeLeft: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: ITEM_WIDTH * 1.5,
+    background: "linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  trackFadeRight: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: ITEM_WIDTH * 1.5,
+    background: "linear-gradient(270deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
   trackIndicator: {
     position: "absolute",
     top: 0,
@@ -363,6 +385,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
     paddingRight: `calc(50% - ${ITEM_WIDTH / 2}px)`,
+    position: "relative",
+    zIndex: 0,
   },
   trackItem: {
     width: ITEM_WIDTH,
