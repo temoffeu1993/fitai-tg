@@ -175,6 +175,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
           outline: 3px solid rgba(15, 23, 42, 0.18);
           outline-offset: 2px;
         }
+        .weight-track-list::-webkit-scrollbar { display: none; }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade,
           .onb-fade-delay-1,
@@ -206,7 +207,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.trackIndicator} />
         <div style={s.trackFadeLeft} />
         <div style={s.trackFadeRight} />
-        <div ref={listRef} style={s.trackList} onScroll={handleListScroll}>
+        <div ref={listRef} style={s.trackList} className="weight-track-list" onScroll={handleListScroll}>
           {ticks.map((tick) => (
             <button
               key={tick.index}
@@ -406,6 +407,7 @@ const s: Record<string, React.CSSProperties> = {
     paddingRight: `calc(50% - ${ITEM_WIDTH / 2}px)`,
     position: "relative",
     zIndex: 0,
+    scrollbarWidth: "none",
   },
   trackItem: {
     width: ITEM_WIDTH,
