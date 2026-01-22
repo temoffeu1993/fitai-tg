@@ -341,7 +341,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: ITEM_WIDTH * 5,
+    width: ITEM_WIDTH * 6,
     alignSelf: "center",
   },
   trackIndicator: {
