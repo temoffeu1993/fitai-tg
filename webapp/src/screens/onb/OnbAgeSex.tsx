@@ -149,27 +149,41 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         </button>
       </div>
 
-      {onBack ? (
+      <div style={s.actions}>
         <button
-          style={s.backBtn}
-          className="onb-fade onb-fade-delay-3"
-          onClick={() => {
-            if (isLeaving) return;
-            const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-            if (prefersReduced) {
-              navigate("/");
-              return;
-            }
-            setIsLeaving(true);
-            leaveTimerRef.current = window.setTimeout(() => {
-              navigate("/");
-            }, 220);
-          }}
           type="button"
+          style={{ ...s.primaryBtn, opacity: sex == null || loading ? 0.5 : 1 }}
+          className="onb-fade onb-fade-delay-3 intro-primary-btn"
+          onClick={() => {
+            if (!sex) return;
+            handleSelect(sex);
+          }}
+          disabled={sex == null || loading}
         >
-          Назад
+          Далее
         </button>
-      ) : null}
+        {onBack ? (
+          <button
+            style={s.backBtn}
+            className="onb-fade onb-fade-delay-3"
+            onClick={() => {
+              if (isLeaving) return;
+              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              if (prefersReduced) {
+                navigate("/");
+                return;
+              }
+              setIsLeaving(true);
+              leaveTimerRef.current = window.setTimeout(() => {
+                navigate("/");
+              }, 220);
+            }}
+            type="button"
+          >
+            Назад
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -231,6 +245,23 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 22,
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   },
+  actions: {
+    marginTop: 18,
+    display: "grid",
+    gap: 10,
+  },
+  primaryBtn: {
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
   optionCard: {
     width: "100%",
     padding: "12px 10px 14px",
@@ -271,7 +302,6 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   backBtn: {
-    marginTop: "auto",
     width: "100%",
     border: "none",
     background: "transparent",
