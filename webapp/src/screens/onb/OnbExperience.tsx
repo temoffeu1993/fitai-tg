@@ -347,6 +347,7 @@ const s: Record<string, React.CSSProperties> = {
     height: "auto",
     objectFit: "contain",
     alignSelf: "end",
+    justifySelf: "end",
   },
   cardTitle: {
     fontSize: 16,
