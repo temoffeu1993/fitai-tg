@@ -21,9 +21,7 @@ import intermediateImg from "@/assets/sredne.png";
 import advancedImg from "@/assets/profi.png";
 
 export default function OnbExperience({ initial, loading, onSubmit, onBack }: Props) {
-  const [experience, setExperience] = useState<Experience | null>(
-    (initial?.experience as Experience) ?? null
-  );
+  const [experience, setExperience] = useState<Experience | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
@@ -330,6 +328,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) auto",
     alignItems: "end",
+    alignContent: "end",
     gap: 8,
     cursor: "pointer",
     minHeight: 120,
@@ -348,6 +347,7 @@ const s: Record<string, React.CSSProperties> = {
     objectFit: "contain",
     alignSelf: "end",
     justifySelf: "end",
+    marginTop: "auto",
   },
   cardTitle: {
     fontSize: 16,
