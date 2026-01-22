@@ -91,9 +91,8 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
       if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
         setWeight(nextWeight);
-        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
       }
-    }, 80);
+    }, 60);
   };
 
   const handleNext = () => {
