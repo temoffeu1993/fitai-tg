@@ -317,7 +317,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     marginTop: 12,
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gridTemplateColumns: "1fr",
   },
   card: {
     width: "100%",
