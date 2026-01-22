@@ -167,7 +167,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         >
           <div style={s.cardText}>
             <div style={s.cardTitle}>Новичок</div>
-            <div style={s.cardSubtitle}>Тренируюсь менее 6 месяцев.</div>
+            <div style={s.cardSubtitle}>Тренируюсь менее 6 месяцев</div>
           </div>
           <img src={beginnerImg} alt="Новичек" style={s.cardImage} />
         </button>
@@ -188,7 +188,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         >
           <div style={s.cardText}>
             <div style={s.cardTitle}>Средний уровень</div>
-            <div style={s.cardSubtitle}>Тренируюсь регулярно от 6 месяцев до 2 лет.</div>
+            <div style={s.cardSubtitle}>Тренируюсь регулярно от 6 месяцев до 2 лет</div>
           </div>
           <img src={intermediateImg} alt="Средний уровень" style={s.cardImage} />
         </button>
@@ -210,7 +210,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           <div style={s.cardText}>
             <div style={s.cardTitle}>Продвинутый</div>
             <div style={s.cardSubtitle}>
-              Тренируюсь более 2 лет, уверенно знаю технику и основные принципы тренировок.
+              Тренируюсь более 2 лет, уверенно знаю технику
             </div>
           </div>
           <img src={advancedImg} alt="Продвинутый" style={s.cardImage} />
