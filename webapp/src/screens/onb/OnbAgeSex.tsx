@@ -21,7 +21,7 @@ type Props = {
 
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
-  const [sex, setSex] = useState<Sex | null>((initial?.ageSex?.sex as Sex) ?? null);
+  const [sex, setSex] = useState<Sex | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
