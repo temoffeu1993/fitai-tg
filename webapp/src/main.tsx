@@ -66,6 +66,16 @@ setTimeout(applyLightTheme, 200);
 
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
+const hideBootSplash = () => {
+  const el = document.getElementById("boot-splash");
+  if (el) {
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
+    window.setTimeout(() => {
+      el.remove();
+    }, 120);
+  }
+};
 
 function LoadingScreen() {
   return (
@@ -157,10 +167,14 @@ if (isDev && !tg?.initData) {
     preloadImage(beginnerImg),
     preloadImage(intermediateImg),
     preloadImage(advancedImg),
-  ]).finally(() => root.render(<App />));
+  ]).finally(() => {
+    root.render(<App />);
+    window.requestAnimationFrame(hideBootSplash);
+  });
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
+  window.requestAnimationFrame(hideBootSplash);
   auth();
 }
 
@@ -194,7 +208,9 @@ async function auth() {
       preloadImage(advancedImg),
     ]);
     root.render(<App />);
+    window.requestAnimationFrame(hideBootSplash);
   } catch (e: any) {
     root.render(<LoadingScreen />);
+    window.requestAnimationFrame(hideBootSplash);
   }
 }
