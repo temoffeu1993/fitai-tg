@@ -32,6 +32,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
   const suppressSyncRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -92,17 +93,25 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
+    lastScrollTopRef.current = list.scrollTop;
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
     }
-    scrollStopTimerRef.current = window.setTimeout(() => {
-      const rawIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
+    const checkStop = () => {
+      const currentTop = list.scrollTop;
+      if (Math.abs(currentTop - lastScrollTopRef.current) > 0.5) {
+        lastScrollTopRef.current = currentTop;
+        scrollStopTimerRef.current = window.setTimeout(checkStop, 80);
+        return;
+      }
+      const rawIndex = Math.round(currentTop / ITEM_HEIGHT);
       const majorIndex = Math.round(rawIndex / TICKS_PER_CM) * TICKS_PER_CM;
       const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
       if (nextHeight >= HEIGHT_MIN && nextHeight <= HEIGHT_MAX) {
         setHeightFromScroll(nextHeight);
       }
-    }, 80);
+    };
+    scrollStopTimerRef.current = window.setTimeout(checkStop, 80);
   };
 
   const handleNext = () => {
