@@ -1,5 +1,5 @@
 // webapp/src/screens/Dashboard.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getPlannedWorkouts } from "@/api/schedule";
@@ -159,6 +159,22 @@ export default function Dashboard() {
   const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
     () => localStorage.getItem("highlight_generate_btn") === "1"
   );
+
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    if (!root || onbDone) return;
+    const prevOverflow = root.style.overflowY;
+    const prevOverscroll = root.style.overscrollBehaviorY;
+    root.style.overflowY = "hidden";
+    root.style.overscrollBehaviorY = "none";
+    requestAnimationFrame(() => {
+      root.scrollTop = root.scrollHeight;
+    });
+    return () => {
+      root.style.overflowY = prevOverflow;
+      root.style.overscrollBehaviorY = prevOverscroll;
+    };
+  }, [onbDone]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
