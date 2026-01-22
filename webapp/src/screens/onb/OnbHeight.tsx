@@ -82,7 +82,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
       return;
     }
     const index = (height - HEIGHT_MIN) * TICKS_PER_CM;
-    const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+    const offset = ITEM_HEIGHT / 2;
     list.scrollTop = index * ITEM_HEIGHT - offset;
   }, [height]);
 
@@ -105,7 +105,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
         scrollStopTimerRef.current = window.setTimeout(checkStop, 80);
         return;
       }
-      const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+      const offset = ITEM_HEIGHT / 2;
       const rawIndex = Math.round((currentTop + offset) / ITEM_HEIGHT);
       const majorIndex = Math.round(rawIndex / TICKS_PER_CM) * TICKS_PER_CM;
       const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
@@ -243,7 +243,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
                   setHeightFromScroll(nextHeight);
                   const list = listRef.current;
                   if (!list) return;
-                  const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+                  const offset = ITEM_HEIGHT / 2;
                   list.scrollTo({ top: majorIndex * ITEM_HEIGHT - offset, behavior: "smooth" });
                 }
               }}
