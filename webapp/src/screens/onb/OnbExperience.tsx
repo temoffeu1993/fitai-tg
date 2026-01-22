@@ -256,7 +256,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 20px",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -376,7 +376,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   actions: {
     marginTop: "auto",
-    paddingTop: 18,
+    paddingTop: 12,
     display: "grid",
     gap: 10,
   },
