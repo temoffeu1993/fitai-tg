@@ -102,13 +102,15 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
           animation: onbFadeDown 220ms ease-in both;
         }
         .freq-item {
+          appearance: none;
+          -webkit-tap-highlight-color: transparent;
           transition: color 220ms ease, transform 160ms ease;
         }
         .freq-item:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
-          background: inherit;
-          border-color: inherit;
-          color: inherit;
+          background: inherit !important;
+          border-color: inherit !important;
+          color: inherit !important;
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
