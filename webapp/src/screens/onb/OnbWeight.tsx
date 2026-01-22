@@ -419,13 +419,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   tickBetween: {
     position: "absolute",
-    left: "50%",
+    left: 0,
     right: 0,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-end",
     height: 14,
-    padding: "0 6px",
+    padding: "0 8px",
   },
   tickMinor: {
     width: 2,
