@@ -18,8 +18,6 @@ type Props = {
 
 const MIN_DAYS = 2;
 const MAX_DAYS = 6;
-const ITEM_HEIGHT = 56;
-
 export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(
@@ -27,18 +25,12 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const scrollStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
-      }
-      if (scrollStopTimerRef.current) {
-        window.clearTimeout(scrollStopTimerRef.current);
-        scrollStopTimerRef.current = null;
       }
     };
   }, []);
@@ -65,32 +57,6 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
       }
     };
   }, []);
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    if (daysPerWeek == null) {
-      list.scrollTop = 0;
-      return;
-    }
-    const index = daysPerWeek - MIN_DAYS;
-    list.scrollTop = index * ITEM_HEIGHT;
-  }, [daysPerWeek]);
-
-  const handleListScroll = () => {
-    const list = listRef.current;
-    if (!list) return;
-    if (scrollStopTimerRef.current) {
-      window.clearTimeout(scrollStopTimerRef.current);
-    }
-    scrollStopTimerRef.current = window.setTimeout(() => {
-      const index = Math.round(list.scrollTop / ITEM_HEIGHT);
-      const nextValue = MIN_DAYS + index;
-      if (nextValue >= MIN_DAYS && nextValue <= MAX_DAYS) {
-        setDaysPerWeek(nextValue);
-      }
-    }, 60);
-  };
 
   const handleNext = () => {
     if (loading || isLeaving || daysPerWeek == null) return;
@@ -185,26 +151,18 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         <p style={s.subtitle}>Чтобы составить реалистичный план и распределить нагрузку по неделе</p>
       </div>
 
-      <div style={s.pickerWrap} className="onb-fade onb-fade-delay-3">
-        <div style={s.pickerLineTop} />
-        <div style={s.pickerLineBottom} />
-        <div style={s.pickerFadeTop} />
-        <div style={s.pickerFadeBottom} />
-        <div ref={listRef} style={s.pickerList} onScroll={handleListScroll}>
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
-          {days.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className="freq-item"
-              style={{ ...s.pickerItem, ...(daysPerWeek === value ? s.pickerItemActive : {}) }}
-              onClick={() => setDaysPerWeek(value)}
-            >
-              {value}
-            </button>
-          ))}
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
-        </div>
+      <div style={s.tiles} className="onb-fade onb-fade-delay-3">
+        {days.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className="freq-item"
+            style={{ ...s.tile, ...(daysPerWeek === value ? s.tileActive : {}) }}
+            onClick={() => setDaysPerWeek(value)}
+          >
+            {value}
+          </button>
+        ))}
       </div>
 
       <div style={s.actions}>
@@ -299,85 +257,32 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.7)",
   },
-  pickerWrap: {
+  tiles: {
     marginTop: 18,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    position: "relative",
-    overflow: "hidden",
-    width: "min(100px, 30vw)",
-    height: ITEM_HEIGHT * 5,
-    alignSelf: "center",
-  },
-  pickerList: {
-    maxHeight: "100%",
-    overflowY: "auto",
-    scrollSnapType: "y proximity",
-    scrollbarWidth: "none",
-    WebkitOverflowScrolling: "touch",
-  },
-  pickerLineTop: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(-${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
-  },
-  pickerLineBottom: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
-  },
-  pickerFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: ITEM_HEIGHT * 2,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  pickerFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: ITEM_HEIGHT * 2,
-    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  pickerItem: {
-    border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.5)",
-    fontSize: 24,
-    fontWeight: 500,
-    height: ITEM_HEIGHT,
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gap: 10,
     width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    scrollSnapAlign: "center",
+  },
+  tile: {
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    color: "rgba(15, 23, 42, 0.7)",
+    fontSize: 20,
+    fontWeight: 600,
+    aspectRatio: "1 / 1",
+    display: "grid",
+    placeItems: "center",
     cursor: "pointer",
   },
-  pickerItemActive: {
-    color: "#111",
-    fontWeight: 700,
+  tileActive: {
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    color: "#fff",
   },
   primaryBtn: {
     marginTop: 18,
