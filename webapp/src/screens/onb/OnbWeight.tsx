@@ -19,7 +19,7 @@ type Props = {
 
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 36;
+const ITEM_WIDTH = 56;
 const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
@@ -343,7 +343,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: ITEM_WIDTH * 5,
+    width: "min(540px, 92vw)",
     alignSelf: "center",
   },
   trackFadeLeft: {
@@ -424,7 +424,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "flex-end",
     height: 14,
-    padding: "0 6px",
+    padding: "0 8px",
   },
   tickMinor: {
     width: 2,
