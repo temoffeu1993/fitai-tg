@@ -30,6 +30,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [restrictions, setRestrictions] = useState<string[]>(
     initial?.dietPrefs?.restrictions ?? initial?.preferences?.dislike ?? []
   );
+  const [restrictionOther, setRestrictionOther] = useState<string>(
+    initial?.dietPrefs?.restrictionOther ?? ""
+  );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
@@ -68,6 +71,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const toggle = (value: string) => {
     if (value === "Нет") {
       setRestrictions([]);
+      setRestrictionOther("");
       return;
     }
     setRestrictions((prev) =>
@@ -77,12 +81,18 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (loading || isLeaving) return;
-    const dislikes = restrictions.length === 0 ? [] : restrictions;
+    const dislikes = (() => {
+      if (restrictions.length === 0) return [];
+      if (restrictions.includes("Другое") && restrictionOther.trim()) {
+        return Array.from(new Set([...restrictions.filter((r) => r !== "Другое"), restrictionOther.trim()]));
+      }
+      return restrictions;
+    })();
     onSubmit({
       preferences: { dislike: dislikes },
       dietPrefs: {
         restrictions: dislikes,
-        restrictionOther: "",
+        restrictionOther: restrictionOther.trim(),
         styles: [],
         styleOther: "",
         budgetLevel: "medium",
@@ -193,6 +203,15 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           );
         })}
       </div>
+
+      {restrictions.includes("Другое") && (
+        <input
+          value={restrictionOther}
+          onChange={(e) => setRestrictionOther(e.target.value)}
+          placeholder="Например: морепродукты"
+          style={s.input}
+        />
+      )}
 
       <div style={s.actions}>
         <button
@@ -311,6 +330,17 @@ const s: Record<string, React.CSSProperties> = {
     background: "#1e1f22",
     border: "1px solid #1e1f22",
     color: "#fff",
+  },
+  input: {
+    marginTop: 12,
+    width: "100%",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "rgba(255,255,255,0.8)",
+    padding: "12px 14px",
+    fontSize: 16,
+    color: "#0f172a",
+    outline: "none",
   },
   primaryBtn: {
     marginTop: 18,
