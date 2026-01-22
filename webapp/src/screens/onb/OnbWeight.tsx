@@ -470,8 +470,6 @@ const s: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
-    scrollSnapType: "x proximity",
-    scrollSnapStop: "always",
     WebkitOverflowScrolling: "touch",
     padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
