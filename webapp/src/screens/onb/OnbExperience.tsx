@@ -165,8 +165,8 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             ["--exp-bg" as never]:
               experience === "beginner"
                 ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
-            ["--exp-border" as never]: experience === "beginner" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            ["--exp-border" as never]: experience === "beginner" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "beginner" ? "#fff" : "#1e1f22",
           }}
           onClick={() => setExperience("beginner")}
@@ -186,8 +186,8 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             ["--exp-bg" as never]:
               experience === "intermediate"
                 ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
-            ["--exp-border" as never]: experience === "intermediate" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            ["--exp-border" as never]: experience === "intermediate" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "intermediate" ? "#fff" : "#1e1f22",
           }}
           onClick={() => setExperience("intermediate")}
@@ -207,8 +207,8 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             ["--exp-bg" as never]:
               experience === "advanced"
                 ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
-            ["--exp-border" as never]: experience === "advanced" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            ["--exp-border" as never]: experience === "advanced" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "advanced" ? "#fff" : "#1e1f22",
           }}
           onClick={() => setExperience("advanced")}
@@ -327,7 +327,8 @@ const s: Record<string, React.CSSProperties> = {
     background: "var(--exp-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "var(--exp-color)",
     textAlign: "center",
     display: "grid",
