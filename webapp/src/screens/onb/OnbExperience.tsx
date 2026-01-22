@@ -333,8 +333,8 @@ const s: Record<string, React.CSSProperties> = {
     alignContent: "end",
     gap: 8,
     cursor: "pointer",
-    height: 130,
-    minHeight: 130,
+    height: 190,
+    minHeight: 190,
     overflow: "visible",
   },
   cardText: {
