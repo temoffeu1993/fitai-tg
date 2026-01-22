@@ -20,7 +20,6 @@ type Props = {
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
 const ITEM_WIDTH = 56;
-const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -199,7 +198,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.trackFadeLeft} />
         <div style={s.trackFadeRight} />
         <div ref={listRef} style={s.trackList} onScroll={handleListScroll}>
-          {values.map((value) => (
+          {values.map((value, idx) => (
             <button
               key={value}
               type="button"
@@ -207,18 +206,17 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               style={s.trackItem}
               onClick={() => setWeight(value)}
             >
-              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
+              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>
+                {idx % 5 === 0 ? value : ""}
+              </div>
               <div style={s.tickRow}>
-                <span style={{ ...s.tickMajor, ...(weight === value ? s.tickMajorActive : {}) }} />
-                {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
-                  <span
-                    key={`${value}-minor-${idx}`}
-                    style={{
-                      ...s.tickMinor,
-                      left: `${((idx + 1) / TICKS_PER_KG) * 100}%`,
-                    }}
-                  />
-                ))}
+                <span
+                  style={{
+                    ...s.tickMark,
+                    ...(idx % 5 === 0 ? s.tickMarkMajor : {}),
+                    ...(weight === value ? s.tickMarkActive : {}),
+                  }}
+                />
               </div>
             </button>
           ))}
@@ -408,29 +406,23 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "flex-end",
     justifyContent: "center",
   },
-  tickMajor: {
-    width: 3,
+  tickMark: {
+    width: 2,
     borderRadius: 999,
-    height: 18,
+    height: 12,
     background: "rgba(15, 23, 42, 0.35)",
   },
-  tickMajorActive: {
-    height: 26,
-    background: "rgba(15, 23, 42, 0.75)",
+  tickMarkMajor: {
+    height: 22,
   },
-  tickMinor: {
-    position: "absolute",
-    bottom: 0,
-    width: 2,
-    height: 12,
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.25)",
-    transform: "translateX(-50%)",
+  tickMarkActive: {
+    background: "rgba(15, 23, 42, 0.75)",
   },
   tickLabel: {
     fontSize: 18,
     color: "rgba(15, 23, 42, 0.45)",
     fontWeight: 500,
+    height: 22,
   },
   tickLabelActive: {
     color: "#111",
