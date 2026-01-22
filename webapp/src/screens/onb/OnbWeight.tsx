@@ -17,14 +17,15 @@ type Props = {
   onBack?: () => void;
 };
 
-const WEIGHT_MIN = 40;
+const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 24;
+const ITEM_WIDTH = 28;
+const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [weight, setWeight] = useState<number | null>(
-    typeof initial?.body?.weight === "number" ? initial.body.weight : 75
+    typeof initial?.body?.weight === "number" ? initial.body.weight : 80
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
@@ -89,6 +90,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       const nextWeight = WEIGHT_MIN + index;
       if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
         setWeight(nextWeight);
+        list.scrollTo({ left: index * ITEM_WIDTH, behavior: "smooth" });
       }
     }, 60);
   };
@@ -209,8 +211,13 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               style={s.trackItem}
               onClick={() => setWeight(value)}
             >
-              <div style={{ ...s.tick, ...(value % 5 === 0 ? s.tickMajor : s.tickMinor) }} />
-              {value % 5 === 0 ? <div style={s.tickLabel}>{value}</div> : null}
+              <div style={s.tickMajor} />
+              <div style={s.tickMinorRow}>
+                {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
+                  <span key={`${value}-t-${idx}`} style={s.tickMinor} />
+                ))}
+              </div>
+              <div style={s.tickLabel}>{value}</div>
             </button>
           ))}
           <div style={{ width: ITEM_WIDTH * 6 }} />
@@ -349,7 +356,7 @@ const s: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
-    scrollSnapType: "x proximity",
+    scrollSnapType: "x mandatory",
     WebkitOverflowScrolling: "touch",
     padding: "14px 0 18px",
   },
@@ -364,17 +371,22 @@ const s: Record<string, React.CSSProperties> = {
     gap: 6,
     cursor: "pointer",
   },
-  tick: {
+  tickMajor: {
     width: 2,
     borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.25)",
-  },
-  tickMinor: {
-    height: 10,
-  },
-  tickMajor: {
     height: 18,
     background: "rgba(15, 23, 42, 0.6)",
+  },
+  tickMinorRow: {
+    display: "flex",
+    gap: 4,
+    marginTop: 4,
+  },
+  tickMinor: {
+    width: 1,
+    height: 8,
+    borderRadius: 999,
+    background: "rgba(15, 23, 42, 0.25)",
   },
   tickLabel: {
     fontSize: 12,
