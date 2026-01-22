@@ -106,6 +106,9 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         }
         .freq-item:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
+          background: inherit;
+          border-color: inherit;
+          color: inherit;
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
