@@ -21,6 +21,7 @@ const HEIGHT_MIN = 140;
 const HEIGHT_MAX = 210;
 const ITEM_HEIGHT = 12;
 const TICKS_PER_CM = 5;
+const EDGE_SPACER = ITEM_HEIGHT * TICKS_PER_CM * 2 - ITEM_HEIGHT / 2;
 
 export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -228,6 +229,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.heightFadeTop} />
         <div style={s.heightFadeBottom} />
         <div ref={listRef} style={s.heightList} className="height-list" onScroll={handleListScroll}>
+          <div style={{ height: EDGE_SPACER }} />
           {ticks.map((tick) => (
             <button
               key={tick.index}
@@ -265,6 +267,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
               </div>
             </button>
           ))}
+          <div style={{ height: EDGE_SPACER }} />
         </div>
       </div>
 
@@ -397,8 +400,6 @@ const s: Record<string, React.CSSProperties> = {
     scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
-    paddingTop: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
-    paddingBottom: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
   },
   heightIndicator: {
     position: "absolute",
