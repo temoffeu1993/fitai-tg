@@ -376,7 +376,7 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     overflow: "hidden",
     width: "min(140px, 36vw)",
-    height: ITEM_HEIGHT * TICKS_PER_CM * 5,
+    height: ITEM_HEIGHT * TICKS_PER_CM * 4,
     alignSelf: "center",
   },
   heightList: {
@@ -431,7 +431,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     textAlign: "center",
     cursor: "pointer",
-    gap: 10,
+    gap: 6,
   },
   heightItemActive: {
     color: "#111",
