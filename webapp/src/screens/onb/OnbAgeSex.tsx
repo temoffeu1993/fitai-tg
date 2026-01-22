@@ -335,7 +335,7 @@ const s: Record<string, React.CSSProperties> = {
     objectFit: "contain",
   },
   optionLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 500,
     lineHeight: 1.2,
   },

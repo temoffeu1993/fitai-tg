@@ -354,7 +354,7 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translateY(21px)",
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 500,
   },
   cardSubtitle: {

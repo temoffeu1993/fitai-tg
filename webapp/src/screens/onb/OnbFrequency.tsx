@@ -173,7 +173,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
                   ? "#1e1f22"
                   : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
               ["--tile-border" as never]: daysPerWeek === value ? "#1e1f22" : "rgba(255,255,255,0.6)",
-              ["--tile-color" as never]: daysPerWeek === value ? "#fff" : "rgba(15, 23, 42, 0.7)",
+              ["--tile-color" as never]: daysPerWeek === value ? "#fff" : "#1e1f22",
               ...(daysPerWeek === value ? s.tileActive : {}),
             }}
             onClick={() => setDaysPerWeek(value)}
