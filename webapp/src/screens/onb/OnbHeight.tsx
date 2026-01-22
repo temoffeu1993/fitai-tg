@@ -382,6 +382,7 @@ const s: Record<string, React.CSSProperties> = {
   heightList: {
     maxHeight: "100%",
     overflowY: "auto",
+    overflowX: "hidden",
     scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
