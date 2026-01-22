@@ -168,6 +168,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
                 : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
             ["--exp-border" as never]: experience === "beginner" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "beginner" ? "#fff" : "#1e1f22",
+            ["--exp-card-min-height" as never]: experience === "beginner" ? "120px" : "72px",
+            ["--exp-image-opacity" as never]: experience === "beginner" ? "1" : "0",
+            ["--exp-image-transform" as never]: experience === "beginner" ? "translateY(-8px)" : "translateY(6px)",
+            ["--exp-image-max-height" as never]: experience === "beginner" ? "120px" : "0px",
           }}
           onClick={() => setExperience("beginner")}
         >
@@ -189,6 +193,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
                 : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
             ["--exp-border" as never]: experience === "intermediate" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "intermediate" ? "#fff" : "#1e1f22",
+            ["--exp-card-min-height" as never]: experience === "intermediate" ? "120px" : "72px",
+            ["--exp-image-opacity" as never]: experience === "intermediate" ? "1" : "0",
+            ["--exp-image-transform" as never]: experience === "intermediate" ? "translateY(-8px)" : "translateY(6px)",
+            ["--exp-image-max-height" as never]: experience === "intermediate" ? "120px" : "0px",
           }}
           onClick={() => setExperience("intermediate")}
         >
@@ -210,6 +218,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
                 : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
             ["--exp-border" as never]: experience === "advanced" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--exp-color" as never]: experience === "advanced" ? "#fff" : "#1e1f22",
+            ["--exp-card-min-height" as never]: experience === "advanced" ? "120px" : "72px",
+            ["--exp-image-opacity" as never]: experience === "advanced" ? "1" : "0",
+            ["--exp-image-transform" as never]: experience === "advanced" ? "translateY(-8px)" : "translateY(6px)",
+            ["--exp-image-max-height" as never]: experience === "advanced" ? "120px" : "0px",
           }}
           onClick={() => setExperience("advanced")}
         >
@@ -336,7 +348,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "end",
     gap: 8,
     cursor: "pointer",
-    minHeight: 120,
+    minHeight: "var(--exp-card-min-height)",
     overflow: "visible",
   },
   cardText: {
@@ -348,9 +360,13 @@ const s: Record<string, React.CSSProperties> = {
   cardImage: {
     width: "100%",
     maxWidth: 120,
+    maxHeight: "var(--exp-image-max-height)",
     height: "auto",
     objectFit: "contain",
     alignSelf: "end",
+    opacity: "var(--exp-image-opacity)",
+    transform: "var(--exp-image-transform)",
+    transition: "opacity 180ms ease, transform 180ms ease, max-height 180ms ease",
   },
   cardTitle: {
     fontSize: 16,
