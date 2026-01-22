@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbExperience.tsx
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
@@ -12,317 +12,367 @@ type Props = {
   initial?: Partial<OnbExperienceData>;
   loading?: boolean;
   onSubmit: (patch: OnbExperienceData) => void;
-  onBack?: () => void; // назад к предыдущему экрану
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void; // нижнее меню
+  onBack?: () => void;
+  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
-export default function OnbExperience({ initial, loading, onSubmit, onBack, onTabChange }: Props) {
+import beginnerImg from "@/assets/novii.png";
+import intermediateImg from "@/assets/sredne.png";
+import advancedImg from "@/assets/profi.png";
+
+export default function OnbExperience({ initial, loading, onSubmit, onBack }: Props) {
   const [experience, setExperience] = useState<Experience>(
     (initial?.experience as Experience) ?? "beginner"
   );
-  const [daysPerWeek, setDaysPerWeek] = useState<number>(initial?.schedule?.daysPerWeek ?? 3);
-  const [minutesPerSession, setMinutesPerSession] = useState<number>(
-    initial?.schedule?.minutesPerSession ?? 60
-  );
-  const canNext = Boolean(experience && daysPerWeek && minutesPerSession);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
 
-  function handleNext() {
-    if (!canNext || loading) return;
-    onSubmit({ experience, schedule: { daysPerWeek, minutesPerSession } });
-  }
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) {
+        window.clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.style.scrollBehavior = "auto";
+      root.scrollTop = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
+      }
+    };
+  }, []);
+
+  const handleNext = () => {
+    if (loading || isLeaving || !experience) return;
+    const patch: OnbExperienceData = {
+      experience,
+      schedule: {
+        daysPerWeek: initial?.schedule?.daysPerWeek ?? 3,
+        minutesPerSession: initial?.schedule?.minutesPerSession ?? 60,
+      },
+    };
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      onSubmit(patch);
+      return;
+    }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(() => {
+      onSubmit(patch);
+    }, 220);
+  };
 
   return (
-    <div style={s.page}>
-      {/* HERO — чёрный, как в OnbAgeSex/Dashboard */}
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>Шаг 2 из 5</span>
-          <span style={s.pill}>Анкета</span>
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+      <style>{`
+        @keyframes onbFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes onbFadeDown {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(12px); }
+        }
+        .onb-fade {
+          animation: onbFadeUp 520ms ease-out both;
+        }
+        .onb-fade-delay-1 { animation-delay: 80ms; }
+        .onb-fade-delay-2 { animation-delay: 160ms; }
+        .onb-fade-delay-3 { animation-delay: 240ms; }
+        .onb-leave {
+          animation: onbFadeDown 220ms ease-in both;
+        }
+        .exp-card {
+          appearance: none;
+          outline: none;
+          transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+          will-change: transform, background, border-color;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .exp-card:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99);
+          background: var(--exp-bg) !important;
+          border-color: var(--exp-border) !important;
+          color: var(--exp-color) !important;
+        }
+        .intro-primary-btn {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        }
+        .intro-primary-btn:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99) !important;
+          background-color: #141619 !important;
+          box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+          filter: brightness(0.99) !important;
+        }
+        @media (hover: hover) {
+          .intro-primary-btn:hover:not(:disabled) {
+            filter: brightness(1.03);
+          }
+        }
+        .intro-primary-btn:focus-visible {
+          outline: 3px solid rgba(15, 23, 42, 0.18);
+          outline-offset: 2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .onb-fade,
+          .onb-fade-delay-1,
+          .onb-fade-delay-2,
+          .onb-fade-delay-3 { animation: none !important; }
+          .onb-leave { animation: none !important; }
+          .exp-card { transition: none !important; }
+          .intro-primary-btn { transition: none !important; }
+        }
+      `}</style>
+
+      <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
+        <div style={s.progressTrack}>
+          <div style={s.progressFill} />
         </div>
+        <div style={s.progressText}>Шаг 5 из 5</div>
+      </div>
 
-        <div style={s.heroKicker}>Режим</div>
-        <div style={s.heroTitle}>Опыт и частота ⏱️</div>
-        <div style={s.heroSubtitle}>Выбери свой опыт и сколько раз в неделю тренироваться.</div>
-      </section>
+      <div style={s.header} className="onb-fade onb-fade-delay-2">
+        <h1 style={s.title}>Уровень подготовки</h1>
+        <p style={s.subtitle}>Чтобы тренировки соответствовали вашему опыту.</p>
+      </div>
 
-      {/* Опыт — широкие стеклянные чипы с подзаголовком */}
-      <section style={s.block}>
-        <div style={s.blockTitle}>🎓 Твой опыт тренировок</div>
-        <div style={ux.row3Equal}>
-          <ChipWide
-            label="Новичок"
-            sub="0-6 месяцев опыта или перерыв"
-            active={experience === "beginner"}
-            onClick={() => setExperience("beginner")}
-          />
-          <ChipWide
-            label="Средний уровень"
-            sub="6 месяцев - 2 года регулярных тренировок"
-            active={experience === "intermediate"}
-            onClick={() => setExperience("intermediate")}
-          />
-          <ChipWide
-            label="Продвинутый"
-            sub="2+ года, знаю технику и принципы"
-            active={experience === "advanced"}
-            onClick={() => setExperience("advanced")}
-          />
-        </div>
-      </section>
-
-      {/* Частота и длительность тренировок */}
-      <section style={ux.grid2Equal}>
-        <div style={ux.cardMini}>
-          <div style={ux.cardMiniTitle}>📅 Сколько раз в неделю?</div>
-          <div style={ux.rowChips}>
-            {[2, 3, 4, 5].map((d) => (
-              <Chip key={d} label={`${d}`} active={daysPerWeek === d} onClick={() => setDaysPerWeek(d)} />
-            ))}
-            <Chip label="6+" active={daysPerWeek >= 6} onClick={() => setDaysPerWeek(6)} />
-          </div>
-        </div>
-
-        <div style={ux.cardMini}>
-          <div style={ux.cardMiniTitle}>⏱️ Длительность тренировки</div>
-          <div style={ux.rowChips}>
-            {[45, 60, 90].map((m) => (
-              <Chip
-                key={m}
-                label={`${m}`}
-                active={minutesPerSession === m}
-                onClick={() => setMinutesPerSession(m)}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA — градиент как в приложении, тень как у чипов пола */}
-      <button
-        onClick={handleNext}
-        disabled={!canNext || !!loading}
-        className="tap-primary"
-        style={{
-          ...s.primaryBtn,
-          opacity: !canNext || loading ? 0.6 : 1,
-          cursor: !canNext || loading ? "default" : "pointer",
-        }}
-      >
-        {loading ? "Сохранение…" : "Далее →"}
-      </button>
-
-      {onBack && (
-        <button type="button" onClick={onBack} style={s.backTextBtn}>
-          Назад
+      <div style={s.cards} className="onb-fade onb-fade-delay-3">
+        <button
+          type="button"
+          className="exp-card"
+          style={{
+            ...s.card,
+            ["--exp-bg" as never]:
+              experience === "beginner"
+                ? "#1e1f22"
+                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
+            ["--exp-border" as never]: experience === "beginner" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+            ["--exp-color" as never]: experience === "beginner" ? "#fff" : "#1e1f22",
+          }}
+          onClick={() => setExperience("beginner")}
+        >
+          <img src={beginnerImg} alt="Новичек" style={s.cardImage} />
+          <div style={s.cardTitle}>Новичек</div>
+          <div style={s.cardSubtitle}>занимаешься меньше 6 мес</div>
         </button>
-      )}
 
-      {/* Нижнее меню при необходимости: onTabChange?.("home" | ...) */}
-      {/* Можно оставить здесь-хук, визуально меню управляется общим NavBar. */}
+        <button
+          type="button"
+          className="exp-card"
+          style={{
+            ...s.card,
+            ["--exp-bg" as never]:
+              experience === "intermediate"
+                ? "#1e1f22"
+                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
+            ["--exp-border" as never]: experience === "intermediate" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+            ["--exp-color" as never]: experience === "intermediate" ? "#fff" : "#1e1f22",
+          }}
+          onClick={() => setExperience("intermediate")}
+        >
+          <img src={intermediateImg} alt="Средний уровень" style={s.cardImage} />
+          <div style={s.cardTitle}>Средний уровень</div>
+          <div style={s.cardSubtitle}>6 месяцев - 2 года регулярных тренировок</div>
+        </button>
 
-      <div style={{ height: 76 }} />
+        <button
+          type="button"
+          className="exp-card"
+          style={{
+            ...s.card,
+            ["--exp-bg" as never]:
+              experience === "advanced"
+                ? "#1e1f22"
+                : "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)",
+            ["--exp-border" as never]: experience === "advanced" ? "#1e1f22" : "rgba(255,255,255,0.6)",
+            ["--exp-color" as never]: experience === "advanced" ? "#fff" : "#1e1f22",
+          }}
+          onClick={() => setExperience("advanced")}
+        >
+          <img src={advancedImg} alt="Продвинутый" style={s.cardImage} />
+          <div style={s.cardTitle}>Продвинутый</div>
+          <div style={s.cardSubtitle}>2+ года, знаю технику и принципы</div>
+        </button>
+      </div>
+
+      <div style={s.actions}>
+        <button
+          type="button"
+          style={{ ...s.primaryBtn, opacity: loading ? 0.6 : 1 }}
+          className="onb-fade onb-fade-delay-3 intro-primary-btn"
+          onClick={handleNext}
+          disabled={loading || isLeaving}
+        >
+          Далее
+        </button>
+        {onBack ? (
+          <button
+            type="button"
+            style={s.backBtn}
+            className="onb-fade onb-fade-delay-3"
+            onClick={() => {
+              if (isLeaving) return;
+              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              if (prefersReduced) {
+                onBack();
+                return;
+              }
+              setIsLeaving(true);
+              leaveTimerRef.current = window.setTimeout(() => {
+                onBack();
+              }, 220);
+            }}
+          >
+            Назад
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
-
-/* ---------- primitives, в стиле OnbAgeSex ---------- */
-function Chip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ ...ux.chip, ...(active ? ux.chipActive : {}) }}
-    >
-      <span style={{ ...(active ? ux.chipTextActive : ux.chipText) }}>{label}</span>
-    </button>
-  );
-}
-
-function ChipWide({
-  label,
-  sub,
-  active,
-  onClick,
-}: {
-  label: string;
-  sub: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ ...ux.chipWide, ...(active ? ux.chipWideActive : {}) }}
-    >
-      <div style={{ ...(active ? ux.chipWideLabelActive : ux.chipWideLabel) }}>{label}</div>
-      <div style={{ ...(active ? ux.chipWideSubActive : ux.chipWideSub) }}>{sub}</div>
-    </button>
-  );
-}
-
-/* ---------- styles ---------- */
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
 
 const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    padding: 16,
-    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "transparent",
     minHeight: "100vh",
-  },
-
-  heroCard: {
-    position: "relative",
-    padding: 22,
-    borderRadius: 28,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#0f172a",
-    color: "#fff",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    background: "transparent",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    color: "#0f172a",
     overflow: "hidden",
-    marginBottom: 14,
   },
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pill: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
+  progressWrap: {
+    display: "grid",
+    gap: 8,
+    marginTop: 6,
+  },
+  progressTrack: {
+    height: 6,
     borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
+    background: "rgba(15, 23, 42, 0.08)",
+    overflow: "hidden",
   },
-  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
-  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
-  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)" },
-
-  block: {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.1)",
-    backdropFilter: "blur(10px)",
-  },
-  blockTitle: { fontSize: 15, fontWeight: 800, color: "#0B1220", marginBottom: 10 },
-
-  primaryBtn: {
-    marginTop: 16,
+  progressFill: {
+    height: "100%",
     width: "100%",
-    border: "none",
-    borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#fff",
-    background: "#0f172a",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    background: "#1e1f22",
+    borderRadius: 999,
   },
-
-  backTextBtn: {
-    marginTop: 10,
+  progressText: {
+    fontSize: 12,
+    color: "rgba(15, 23, 42, 0.55)",
+    textAlign: "center",
+  },
+  header: {
+    display: "grid",
+    gap: 8,
+    textAlign: "center",
+    alignItems: "center",
+    marginTop: 16,
+  },
+  title: {
+    margin: 0,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 16,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.7)",
+  },
+  cards: {
+    display: "grid",
+    gap: 12,
+    marginTop: 12,
+  },
+  card: {
+    width: "100%",
+    padding: "16px 14px",
+    borderRadius: 18,
+    border: "1px solid var(--exp-border)",
+    background: "var(--exp-bg)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+    color: "var(--exp-color)",
+    textAlign: "center",
+    display: "grid",
+    gap: 8,
+    justifyItems: "center",
+    cursor: "pointer",
+  },
+  cardImage: {
+    width: "100%",
+    maxWidth: 160,
+    height: "auto",
+    objectFit: "contain",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    lineHeight: 1.35,
+    color: "inherit",
+    opacity: 0.75,
+    maxWidth: 240,
+  },
+  primaryBtn: {
+    marginTop: 18,
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
+  actions: {
+    marginTop: "auto",
+    paddingTop: 18,
+    display: "grid",
+    gap: 10,
+  },
+  backBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#111827",
-    fontSize: 15,
+    color: "#1e1f22",
+    fontSize: 16,
     fontWeight: 600,
-    padding: "12px 16px",
+    padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
   },
-};
-
-const ux: Record<string, React.CSSProperties> = {
-  row3Equal: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 10,
-    alignItems: "stretch",
-  },
-
-  grid2Equal: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 12,
-    marginTop: 12,
-    alignItems: "stretch",
-  },
-
-  cardMini: {
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 16,
-    boxShadow: cardShadow,
-    border: "1px solid rgba(0,0,0,.06)",
-    backdropFilter: "blur(10px)",
-    padding: 12,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    height: "100%",
-  },
-  cardMiniTitle: { fontSize: 13.5, fontWeight: 800, color: "#0B1220", textAlign: "center" },
-
-  rowChips: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))",
-    gap: 8,
-    width: "100%",
-  },
-
-  chip: {
-    padding: "10px 12px",
-    background: "#f6f7fb",
-    borderRadius: 12,
-    border: "0px solid rgba(0,0,0,.06)",
-    cursor: "pointer",
-    fontWeight: 800,
-    width: "100%",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    transition: "transform .06s ease",
-  },
-  chipActive: {
-    background: "#0f172a",
-    color: "#fff",
-    border: "none",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  },
-  chipText: { color: "#111827", letterSpacing: 0.4 },
-  chipTextActive: { color: "#fff", letterSpacing: 0.4 },
-
-  chipWide: {
-    display: "grid",
-    justifyItems: "center",
-    padding: "12px",
-    minHeight: 72,
-    background: "rgba(255,255,255,0.9)",
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,.06)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(6px)",
-    cursor: "pointer",
-    gap: 2,
-  },
-  chipWideActive: {
-    background: "#0f172a",
-    color: "#fff",
-    border: "none",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  },
-  chipWideLabel: { fontSize: 14, fontWeight: 850, color: "#111827" },
-  chipWideLabelActive: { fontSize: 14, fontWeight: 900, color: "#fff" },
-  chipWideSub: { fontSize: 11.5, color: "#6B7280" },
-  chipWideSubActive: { fontSize: 11.5, color: "rgba(255,255,255,0.8)" },
 };
