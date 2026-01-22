@@ -101,12 +101,14 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
-        .freq-item {
+        .gender-card {
           appearance: none;
+          outline: none;
           -webkit-tap-highlight-color: transparent;
-          transition: color 220ms ease, transform 160ms ease;
+          transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+          will-change: transform, background, border-color;
         }
-        .freq-item:active:not(:disabled) {
+        .gender-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
           background: inherit !important;
           border-color: inherit !important;
@@ -152,7 +154,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Сколько дней в неделю готов тренироваться</h1>
+        <h1 style={s.title}>Сколько дней в неделю готов тренироваться?</h1>
         <p style={s.subtitle}>Чтобы составить реалистичный план и распределить нагрузку по неделе</p>
       </div>
 
@@ -161,7 +163,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
           <button
             key={value}
             type="button"
-            className="freq-item"
+            className="gender-card"
             style={{ ...s.tile, ...(daysPerWeek === value ? s.tileActive : {}) }}
             onClick={() => setDaysPerWeek(value)}
           >
