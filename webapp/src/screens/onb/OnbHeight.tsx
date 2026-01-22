@@ -19,7 +19,7 @@ type Props = {
 
 const HEIGHT_MIN = 140;
 const HEIGHT_MAX = 210;
-const ITEM_HEIGHT = 16;
+const ITEM_HEIGHT = 12;
 const TICKS_PER_CM = 5;
 
 export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props) {
@@ -432,17 +432,16 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     background: "transparent",
     color: "rgba(15, 23, 42, 0.5)",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 500,
     height: ITEM_HEIGHT,
     width: "100%",
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
     cursor: "pointer",
-    gap: 8,
+    gap: 6,
   },
   heightItemActive: {
     color: "#111",
@@ -450,8 +449,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   tickRow: {
     position: "relative",
-    width: 30,
-    height: 10,
+    width: 36,
+    height: 12,
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
@@ -469,9 +468,9 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(15, 23, 42, 0.75)",
   },
   tickLabel: {
-    minWidth: 30,
+    minWidth: 36,
     textAlign: "right",
-    fontSize: 16,
+    fontSize: 18,
     color: "rgba(15, 23, 42, 0.45)",
     fontWeight: 500,
   },
@@ -481,7 +480,7 @@ const s: Record<string, React.CSSProperties> = {
   tickLabelActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 20,
+    fontSize: 22,
   },
   primaryBtn: {
     marginTop: 18,
