@@ -398,7 +398,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 6,
+    gap: 10,
     cursor: "pointer",
     scrollSnapAlign: "center",
   },
