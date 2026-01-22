@@ -326,12 +326,12 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 6,
   },
   valueNumber: {
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: 700,
     color: "#111",
   },
   valueUnit: {
-    fontSize: 16,
+    fontSize: 20,
     color: "rgba(15, 23, 42, 0.7)",
   },
   trackWrap: {
