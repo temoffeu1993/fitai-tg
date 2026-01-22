@@ -198,27 +198,29 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.trackIndicator} />
         <div style={s.trackFadeLeft} />
         <div style={s.trackFadeRight} />
-        <div
-          ref={listRef}
-          style={s.trackList}
-          onScroll={handleListScroll}
-        >
-          {values.map((value, idx) => (
-            <div key={value} style={s.trackItem}>
-              <button type="button" style={s.trackHit} onClick={() => setWeight(value)}>
-                <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
-                <div style={s.tickRow}>
-                  <span style={s.tickMajor} />
-                </div>
-              </button>
-              {idx < values.length - 1 ? (
-                <div style={s.minorGroup}>
-                  {Array.from({ length: TICKS_PER_KG - 1 }, (_, minorIdx) => (
-                    <span key={`${value}-t-${minorIdx}`} style={s.tickMinor} />
-                  ))}
-                </div>
-              ) : null}
-            </div>
+        <div ref={listRef} style={s.trackList} onScroll={handleListScroll}>
+          {values.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="weight-track"
+              style={s.trackItem}
+              onClick={() => setWeight(value)}
+            >
+              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
+              <div style={s.tickRow}>
+                <span style={{ ...s.tickMajor, ...(weight === value ? s.tickMajorActive : {}) }} />
+                {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
+                  <span
+                    key={`${value}-minor-${idx}`}
+                    style={{
+                      ...s.tickMinor,
+                      left: `${((idx + 1) / TICKS_PER_KG) * 100}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            </button>
           ))}
         </div>
       </div>
@@ -394,14 +396,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "flex-end",
     gap: 14,
     scrollSnapAlign: "center",
-  },
-  trackHit: {
     border: "none",
-    background: "transparent",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 14,
     cursor: "pointer",
     padding: 0,
   },
@@ -411,28 +406,26 @@ const s: Record<string, React.CSSProperties> = {
     height: 18,
     display: "flex",
     alignItems: "flex-end",
+    justifyContent: "center",
   },
   tickMajor: {
-    position: "absolute",
-    left: "50%",
-    transform: "translateX(-50%)",
     width: 3,
     borderRadius: 999,
-    height: 26,
-    background: "rgba(15, 23, 42, 0.7)",
+    height: 18,
+    background: "rgba(15, 23, 42, 0.35)",
   },
-  minorGroup: {
-    width: "100%",
-    display: "flex",
-    justifyContent: "space-evenly",
-    alignItems: "flex-end",
-    height: 14,
+  tickMajorActive: {
+    height: 26,
+    background: "rgba(15, 23, 42, 0.75)",
   },
   tickMinor: {
+    position: "absolute",
+    bottom: 0,
     width: 2,
     height: 12,
     borderRadius: 999,
     background: "rgba(15, 23, 42, 0.25)",
+    transform: "translateX(-50%)",
   },
   tickLabel: {
     fontSize: 18,
