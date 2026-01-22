@@ -348,7 +348,7 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: "end",
     justifySelf: "end",
     marginTop: "auto",
-    transform: "translateY(6px)",
+    transform: "translateY(16px)",
   },
   cardTitle: {
     fontSize: 16,
