@@ -107,15 +107,13 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           .onb-fade-delay-3 { animation-delay: 240ms; }
           .gender-card {
             appearance: none;
+            outline: none;
             transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
             will-change: transform, background, border-color;
             -webkit-tap-highlight-color: transparent;
           }
           .gender-card:active:not(:disabled) {
             transform: translateY(1px) scale(0.99);
-            background: inherit;
-            border-color: inherit;
-            color: inherit;
           }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
@@ -164,7 +162,15 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
       <div style={s.buttons} className="onb-fade onb-fade-delay-3">
         <button
           type="button"
-          style={{ ...s.optionCard, ...(sex === "male" ? s.optionCardActive : {}) }}
+          style={{
+            ...s.optionCard,
+            ["--gender-bg" as never]:
+              sex === "male"
+                ? "#1e1f22"
+                : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+            ["--gender-border" as never]: sex === "male" ? "#1e1f22" : "rgba(255,255,255,0.45)",
+            ["--gender-color" as never]: sex === "male" ? "#fff" : "#1e1f22",
+          }}
           className="gender-card"
           onClick={() => handleSelect("male")}
         >
@@ -173,7 +179,15 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         </button>
         <button
           type="button"
-          style={{ ...s.optionCard, ...(sex === "female" ? s.optionCardActive : {}) }}
+          style={{
+            ...s.optionCard,
+            ["--gender-bg" as never]:
+              sex === "female"
+                ? "#1e1f22"
+                : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+            ["--gender-border" as never]: sex === "female" ? "#1e1f22" : "rgba(255,255,255,0.45)",
+            ["--gender-color" as never]: sex === "female" ? "#fff" : "#1e1f22",
+          }}
           className="gender-card"
           onClick={() => handleSelect("female")}
         >
@@ -297,12 +311,12 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     padding: "12px 10px 14px",
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.45)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid var(--gender-border)",
+    background: "var(--gender-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
-    color: "#1e1f22",
+    color: "var(--gender-color)",
     textAlign: "center",
     display: "flex",
     flexDirection: "column",
@@ -310,11 +324,6 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     cursor: "pointer",
     gap: 10,
-  },
-  optionCardActive: {
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
-    color: "#fff",
   },
   optionImage: {
     width: "100%",
