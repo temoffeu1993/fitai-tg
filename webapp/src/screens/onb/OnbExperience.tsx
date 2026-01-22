@@ -175,15 +175,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             <div style={s.cardTitle}>Новичек</div>
             <div style={s.cardSubtitle}>занимаешься меньше 6 мес</div>
           </div>
-          <img
-            src={beginnerImg}
-            alt="Новичек"
-            style={{
-              ...s.cardImage,
-              transform: "scale(1.4) translateY(-6px)",
-              transformOrigin: "bottom right",
-            }}
-          />
+          <img src={beginnerImg} alt="Новичек" style={s.cardImage} />
         </button>
 
         <button
@@ -345,7 +337,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
     cursor: "pointer",
     minHeight: 140,
-    overflow: "visible",
   },
   cardText: {
     display: "grid",
@@ -353,20 +344,21 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "left",
   },
   cardImage: {
-    width: 86,
-    maxWidth: 86,
+    width: "100%",
+    maxWidth: 120,
     height: "auto",
     objectFit: "contain",
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   cardSubtitle: {
     fontSize: 12,
     lineHeight: 1.35,
     color: "inherit",
-    opacity: 0.75,
+    opacity: 0.65,
+    fontWeight: 400,
     maxWidth: 140,
   },
   primaryBtn: {
