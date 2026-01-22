@@ -21,8 +21,8 @@ import intermediateImg from "@/assets/sredne.png";
 import advancedImg from "@/assets/profi.png";
 
 export default function OnbExperience({ initial, loading, onSubmit, onBack }: Props) {
-  const [experience, setExperience] = useState<Experience>(
-    (initial?.experience as Experience) ?? "beginner"
+  const [experience, setExperience] = useState<Experience | null>(
+    (initial?.experience as Experience) ?? null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
