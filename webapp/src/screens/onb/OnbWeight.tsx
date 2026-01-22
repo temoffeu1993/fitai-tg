@@ -93,7 +93,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
         setWeight(nextWeight);
         list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
       }
-    }, 180);
+    }, 260);
   };
 
   useEffect(() => {
