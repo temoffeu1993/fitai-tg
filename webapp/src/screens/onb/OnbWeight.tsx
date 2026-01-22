@@ -541,7 +541,8 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   actions: {
-    marginTop: 18,
+    marginTop: "auto",
+    paddingTop: 18,
     display: "grid",
     gap: 10,
   },

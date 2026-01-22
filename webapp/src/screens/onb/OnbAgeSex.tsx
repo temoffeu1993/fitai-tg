@@ -271,7 +271,8 @@ const s: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   },
   actions: {
-    marginTop: 18,
+    marginTop: "auto",
+    paddingTop: 18,
     display: "grid",
     gap: 10,
   },
