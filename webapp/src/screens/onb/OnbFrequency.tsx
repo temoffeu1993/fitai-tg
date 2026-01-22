@@ -110,9 +110,9 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         }
         .gender-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
-          background: inherit !important;
-          border-color: inherit !important;
-          color: inherit !important;
+          background: var(--tile-bg) !important;
+          border-color: var(--tile-border) !important;
+          color: var(--tile-color) !important;
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
@@ -166,7 +166,16 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
             key={value}
             type="button"
             className="gender-card"
-            style={{ ...s.tile, ...(daysPerWeek === value ? s.tileActive : {}) }}
+            style={{
+              ...s.tile,
+              ["--tile-bg" as never]:
+                daysPerWeek === value
+                  ? "#1e1f22"
+                  : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+              ["--tile-border" as never]: daysPerWeek === value ? "#1e1f22" : "rgba(255,255,255,0.6)",
+              ["--tile-color" as never]: daysPerWeek === value ? "#fff" : "rgba(15, 23, 42, 0.7)",
+              ...(daysPerWeek === value ? s.tileActive : {}),
+            }}
             onClick={() => setDaysPerWeek(value)}
           >
             {value}
@@ -275,12 +284,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   tile: {
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid var(--tile-border)",
+    background: "var(--tile-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
-    color: "rgba(15, 23, 42, 0.7)",
+    color: "var(--tile-color)",
     fontSize: 20,
     fontWeight: 600,
     aspectRatio: "1 / 1",
