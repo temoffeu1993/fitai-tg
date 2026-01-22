@@ -90,7 +90,6 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       const nextWeight = WEIGHT_MIN + index;
       if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
         setWeight(nextWeight);
-        list.scrollTo({ left: index * ITEM_WIDTH, behavior: "smooth" });
       }
     }, 60);
   };
@@ -382,7 +381,7 @@ const s: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
-    scrollSnapType: "x mandatory",
+    scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
