@@ -147,7 +147,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Сколько тренировок в неделю?</h1>
+        <h1 style={s.title}>Сколько дней в неделю готов тренироваться</h1>
         <p style={s.subtitle}>Чтобы составить реалистичный план и распределить нагрузку по неделе</p>
       </div>
 
