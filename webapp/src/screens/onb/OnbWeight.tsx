@@ -19,7 +19,7 @@ type Props = {
 
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 40;
+const ITEM_WIDTH = 36;
 const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
@@ -343,7 +343,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: ITEM_WIDTH * 6,
+    width: ITEM_WIDTH * 5,
     alignSelf: "center",
   },
   trackFadeLeft: {
@@ -411,35 +411,36 @@ const s: Record<string, React.CSSProperties> = {
     position: "absolute",
     left: "50%",
     transform: "translateX(-50%)",
-    width: 2,
+    width: 3,
     borderRadius: 999,
-    height: 22,
+    height: 26,
     background: "rgba(15, 23, 42, 0.7)",
   },
   tickBetween: {
     position: "absolute",
-    left: "50%",
-    width: "50%",
+    left: 0,
+    right: 0,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    height: 12,
+    height: 14,
+    padding: "0 6px",
   },
   tickMinor: {
-    width: 1,
-    height: 10,
+    width: 2,
+    height: 12,
     borderRadius: 999,
     background: "rgba(15, 23, 42, 0.25)",
   },
   tickLabel: {
-    fontSize: 16,
+    fontSize: 18,
     color: "rgba(15, 23, 42, 0.45)",
     fontWeight: 500,
   },
   tickLabelActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 20,
+    fontSize: 22,
   },
   primaryBtn: {
     marginTop: 18,
