@@ -42,14 +42,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
     const prevOverscroll = root?.style.overscrollBehaviorY;
     const prevScrollBehavior = root?.style.scrollBehavior;
     if (root) {
-      root.style.overflowY = "hidden";
-      root.style.overscrollBehaviorY = "none";
+      root.style.overflowY = "auto";
+      root.style.overscrollBehaviorY = "auto";
       root.style.scrollBehavior = "auto";
-      root.scrollTop = 0;
     }
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    window.scrollTo(0, 0);
     return () => {
       if (root) {
         root.style.overflowY = prevOverflow || "";
