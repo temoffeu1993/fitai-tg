@@ -82,7 +82,8 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
       return;
     }
     const index = (height - HEIGHT_MIN) * TICKS_PER_CM;
-    list.scrollTop = index * ITEM_HEIGHT;
+    const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+    list.scrollTop = index * ITEM_HEIGHT - offset;
   }, [height]);
 
   const setHeightFromScroll = (nextHeight: number) => {
@@ -104,7 +105,8 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
         scrollStopTimerRef.current = window.setTimeout(checkStop, 80);
         return;
       }
-      const rawIndex = Math.round(currentTop / ITEM_HEIGHT);
+      const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+      const rawIndex = Math.round((currentTop + offset) / ITEM_HEIGHT);
       const majorIndex = Math.round(rawIndex / TICKS_PER_CM) * TICKS_PER_CM;
       const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
       if (nextHeight >= HEIGHT_MIN && nextHeight <= HEIGHT_MAX) {
@@ -239,7 +241,10 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
                 const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
                 if (nextHeight >= HEIGHT_MIN && nextHeight <= HEIGHT_MAX) {
                   setHeightFromScroll(nextHeight);
-                  listRef.current?.scrollTo({ top: majorIndex * ITEM_HEIGHT, behavior: "smooth" });
+                  const list = listRef.current;
+                  if (!list) return;
+                  const offset = list.clientHeight / 2 - ITEM_HEIGHT / 2;
+                  list.scrollTo({ top: majorIndex * ITEM_HEIGHT - offset, behavior: "smooth" });
                 }
               }}
             >
