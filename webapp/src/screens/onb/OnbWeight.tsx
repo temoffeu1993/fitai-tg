@@ -19,7 +19,7 @@ type Props = {
 
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 36;
+const ITEM_WIDTH = 40;
 const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
@@ -210,7 +210,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               style={s.trackItem}
               onClick={() => setWeight(value)}
             >
-              <div style={s.tickLabel}>{value}</div>
+              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
               <div style={s.tickRow}>
                 <span style={s.tickMajor} />
                 <div style={s.tickBetween}>
@@ -341,6 +341,8 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
+    width: ITEM_WIDTH * 5,
+    alignSelf: "center",
   },
   trackIndicator: {
     position: "absolute",
@@ -349,7 +351,7 @@ const s: Record<string, React.CSSProperties> = {
     left: "50%",
     width: 2,
     transform: "translateX(-50%)",
-    background: "rgba(15, 23, 42, 0.18)",
+    background: "rgba(15, 23, 42, 0.25)",
     pointerEvents: "none",
   },
   trackList: {
@@ -358,7 +360,7 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
     scrollSnapType: "x mandatory",
     WebkitOverflowScrolling: "touch",
-    padding: "14px 0 18px",
+    padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
     paddingRight: `calc(50% - ${ITEM_WIDTH / 2}px)`,
   },
@@ -387,8 +389,8 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translateX(-50%)",
     width: 2,
     borderRadius: 999,
-    height: 18,
-    background: "rgba(15, 23, 42, 0.6)",
+    height: 22,
+    background: "rgba(15, 23, 42, 0.7)",
   },
   tickBetween: {
     position: "absolute",
@@ -401,13 +403,19 @@ const s: Record<string, React.CSSProperties> = {
   },
   tickMinor: {
     width: 1,
-    height: 8,
+    height: 10,
     borderRadius: 999,
     background: "rgba(15, 23, 42, 0.25)",
   },
   tickLabel: {
-    fontSize: 12,
-    color: "rgba(15, 23, 42, 0.5)",
+    fontSize: 16,
+    color: "rgba(15, 23, 42, 0.45)",
+    fontWeight: 500,
+  },
+  tickLabelActive: {
+    color: "#111",
+    fontWeight: 700,
+    fontSize: 20,
   },
   primaryBtn: {
     marginTop: 18,
