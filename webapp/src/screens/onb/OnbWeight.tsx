@@ -212,7 +212,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               onClick={() => setWeight(value)}
             >
               <div style={s.tickMajor} />
-              <div style={s.tickMinorRow}>
+              <div style={s.tickBetween}>
                 {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
                   <span key={`${value}-t-${idx}`} style={s.tickMinor} />
                 ))}
@@ -377,10 +377,13 @@ const s: Record<string, React.CSSProperties> = {
     height: 18,
     background: "rgba(15, 23, 42, 0.6)",
   },
-  tickMinorRow: {
+  tickBetween: {
     display: "flex",
     gap: 4,
-    marginTop: 4,
+    alignItems: "flex-end",
+    height: 12,
+    marginTop: -6,
+    marginBottom: -2,
   },
   tickMinor: {
     width: 1,
