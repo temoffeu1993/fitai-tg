@@ -1,10 +1,10 @@
 // webapp/src/screens/onb/OnbDiet.tsx
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export type Budget = "low" | "medium" | "high";
 
-const RESTRICTIONS = ["Лактоза", "Глютен", "Орехи", "Свинина", "Другое"] as const;
-const STYLES = ["Всеядный", "Вегетарианец", "Веган", "Халяль", "Кошер", "Другое"] as const;
+const OPTIONS = ["Лактоза", "Орехи", "Глютен", "Свинина", "Другое", "Нет"] as const;
 
 export type OnbDietData = {
   preferences: { dislike: string[] };
@@ -26,338 +26,319 @@ type Props = {
 };
 
 export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
+  const navigate = useNavigate();
   const [restrictions, setRestrictions] = useState<string[]>(
     initial?.dietPrefs?.restrictions ?? initial?.preferences?.dislike ?? []
   );
-  const [restrictionOther, setRestrictionOther] = useState<string>(initial?.dietPrefs?.restrictionOther ?? "");
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
 
-  const [stylesSel, setStylesSel] = useState<string[]>(initial?.dietPrefs?.styles ?? []);
-  const [styleOther, setStyleOther] = useState<string>(initial?.dietPrefs?.styleOther ?? "");
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) {
+        window.clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+    };
+  }, []);
 
-  const [budget, setBudget] = useState<Budget>(initial?.dietPrefs?.budgetLevel ?? "medium");
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.style.scrollBehavior = "auto";
+      root.scrollTop = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
+      }
+    };
+  }, []);
 
-  const canNext = useMemo(() => {
-    if (restrictions.includes("Другое") && !restrictionOther.trim()) return false;
-    if (stylesSel.includes("Другое") && !styleOther.trim()) return false;
-    return true;
-  }, [restrictions, restrictionOther, stylesSel, styleOther]);
+  const toggle = (value: string) => {
+    if (value === "Нет") {
+      setRestrictions([]);
+      return;
+    }
+    setRestrictions((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
+  };
 
-  function toggle(list: string[], value: string, setter: (v: string[]) => void) {
-    setter(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
-  }
-  function clearRestrictions() {
-    setRestrictions([]);
-    setRestrictionOther("");
-  }
-
-  function handleNext() {
-    if (!canNext || loading) return;
-
-    const outRestrictions: string[] = (() => {
-      const base = restrictions.filter((r) => r !== "Другое");
-      if (restrictions.includes("Другое") && restrictionOther.trim()) base.push(restrictionOther.trim());
-      return Array.from(new Set(base));
-    })();
-
-    const outStyles: string[] = (() => {
-      const base = stylesSel.filter((s) => s !== "Другое");
-      if (stylesSel.includes("Другое") && styleOther.trim()) base.push(styleOther.trim());
-      return Array.from(new Set(base));
-    })();
-
+  const handleNext = () => {
+    if (loading || isLeaving) return;
+    const dislikes = restrictions.length === 0 ? [] : restrictions;
     onSubmit({
-      preferences: { dislike: outRestrictions },
+      preferences: { dislike: dislikes },
       dietPrefs: {
-        restrictions: outRestrictions,
-        restrictionOther: restrictionOther.trim(),
-        styles: outStyles,
-        styleOther: styleOther.trim(),
-        budgetLevel: budget,
+        restrictions: dislikes,
+        restrictionOther: "",
+        styles: [],
+        styleOther: "",
+        budgetLevel: "medium",
       },
     });
-  }
+  };
 
   return (
-    <div style={st.page}>
-      {/* HERO — чёрный, как на других онбординг-экранах */}
-      <section style={st.heroCard}>
-        <div style={st.heroHeader}>
-          <span style={st.pill}>Шаг 3 из 5</span>
-          <span style={st.pill}>Анкета</span>
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+      <style>{`
+        @keyframes onbFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes onbFadeDown {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(12px); }
+        }
+        .onb-fade {
+          animation: onbFadeUp 520ms ease-out both;
+        }
+        .onb-fade-delay-1 { animation-delay: 80ms; }
+        .onb-fade-delay-2 { animation-delay: 160ms; }
+        .onb-fade-delay-3 { animation-delay: 240ms; }
+        .onb-leave {
+          animation: onbFadeDown 220ms ease-in both;
+        }
+        .gender-card {
+          appearance: none;
+          outline: none;
+          -webkit-tap-highlight-color: transparent;
+          transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+          will-change: transform, background, border-color;
+        }
+        .gender-card:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99);
+          background: var(--tile-bg) !important;
+          border-color: var(--tile-border) !important;
+          color: var(--tile-color) !important;
+        }
+        .intro-primary-btn {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        }
+        .intro-primary-btn:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99) !important;
+          background-color: #141619 !important;
+          box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
+          filter: brightness(0.99) !important;
+        }
+        @media (hover: hover) {
+          .intro-primary-btn:hover:not(:disabled) {
+            filter: brightness(1.03);
+          }
+        }
+        .intro-primary-btn:focus-visible {
+          outline: 3px solid rgba(15, 23, 42, 0.18);
+          outline-offset: 2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .onb-fade,
+          .onb-fade-delay-1,
+          .onb-fade-delay-2,
+          .onb-fade-delay-3 { animation: none !important; }
+          .onb-leave { animation: none !important; }
+          .intro-primary-btn { transition: none !important; }
+        }
+      `}</style>
+
+      <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
+        <div style={s.progressTrack}>
+          <div style={s.progressFill} />
         </div>
+        <div style={s.progressText}>Шаг 5 из 5</div>
+      </div>
 
-        <div style={st.heroKicker}>Питание</div>
-        <div style={st.heroTitle}>Здоровье и питание 🥗</div>
-        <div style={st.heroSubtitle}>Учту ограничения и предпочтения. План будет комфортным.</div>
-      </section>
+      <div style={s.header} className="onb-fade onb-fade-delay-2">
+        <h1 style={s.title}>Исключения в питании</h1>
+        <p style={s.subtitle}>
+          Выберите, что нельзя или не нравится — учтем это в плане питания
+        </p>
+      </div>
 
-      {/* Ряд 1: Бюджет */}
-      <section style={st.cardGlass}>
-        <div style={st.blockTitle}>💸 Ваш бюджет на продукты</div>
-        <div style={st.row3Equal}>
-          <Chip label="Низкий"  active={budget === "low"}    onClick={() => setBudget("low")} />
-          <Chip label="Средний" active={budget === "medium"} onClick={() => setBudget("medium")} />
-          <Chip label="Высокий" active={budget === "high"}   onClick={() => setBudget("high")} />
-        </div>
-      </section>
+      <div style={s.tiles} className="onb-fade onb-fade-delay-3">
+        {OPTIONS.map((value) => {
+          const isActive = value === "Нет" ? restrictions.length === 0 : restrictions.includes(value);
+          return (
+            <button
+              key={value}
+              type="button"
+              className="gender-card"
+              style={{
+                ...s.tile,
+                ["--tile-bg" as never]:
+                  isActive
+                    ? "#1e1f22"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
+                ["--tile-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.6)",
+                ["--tile-color" as never]: isActive ? "#fff" : "#1e1f22",
+                ...(isActive ? s.tileActive : {}),
+              }}
+              onClick={() => toggle(value)}
+            >
+              {value}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Ряд 2: Непереносимости + Стиль питания */}
-      <section style={st.grid2Cols}>
-        <div style={st.cardGlass}>
-          <div style={st.blockTitle}>🚫 Что нельзя или не любишь?</div>
-          <div style={st.wrapGridEven}>
-            {RESTRICTIONS.map((r) => (
-              <ChipSm
-                key={r}
-                label={r}
-                active={restrictions.includes(r)}
-                onClick={() => toggle(restrictions, r, setRestrictions)}
-              />
-            ))}
-            <ChipSm label="Нет" active={restrictions.length === 0} onClick={clearRestrictions} />
-          </div>
-
-          {restrictions.includes("Другое") && (
-            <input
-              value={restrictionOther}
-              onChange={(e) => setRestrictionOther(e.target.value)}
-              placeholder="Например: морепродукты"
-              style={{ ...st.inputGlass, marginTop: 12 }}
-            />
-          )}
-        </div>
-
-        <div style={st.cardGlass}>
-          <div style={st.blockTitle}>🍽️ Выбери свой стиль питания</div>
-          <div style={st.wrapGridEven}>
-            {STYLES.map((s) => (
-              <ChipSm
-                key={s}
-                label={s}
-                active={stylesSel.includes(s)}
-                onClick={() => toggle(stylesSel, s, setStylesSel)}
-              />
-            ))}
-          </div>
-
-          {stylesSel.includes("Другое") && (
-            <input
-              value={styleOther}
-              onChange={(e) => setStyleOther(e.target.value)}
-              placeholder="Уточни свой вариант"
-              style={{ ...st.inputGlass, marginTop: 12 }}
-            />
-          )}
-        </div>
-      </section>
-
-      {/* CTA — стили «как пункты меню»: без тени */}
-      <button
-        onClick={handleNext}
-        disabled={!canNext || !!loading}
-        className="tap-primary"
-        style={{
-          ...st.primaryBtn,
-          opacity: !canNext || loading ? 0.6 : 1,
-          cursor: !canNext || loading ? "default" : "pointer",
-        }}
-      >
-        {loading ? "Сохранение…" : "Далее →"}
-      </button>
-
-      {onBack && (
-        <button type="button" onClick={onBack} style={st.backTextBtn}>
-          Назад
+      <div style={s.actions}>
+        <button
+          type="button"
+          style={{ ...s.primaryBtn, opacity: loading ? 0.5 : 1 }}
+          className="onb-fade onb-fade-delay-3 intro-primary-btn"
+          onClick={handleNext}
+          disabled={loading || isLeaving}
+        >
+          Далее
         </button>
-      )}
-
-      <div style={{ height: 76 }} />
+        {onBack ? (
+          <button
+            style={s.backBtn}
+            className="onb-fade onb-fade-delay-3"
+            onClick={() => {
+              if (isLeaving) return;
+              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              if (prefersReduced) {
+                navigate("/onb/duration");
+                return;
+              }
+              setIsLeaving(true);
+              leaveTimerRef.current = window.setTimeout(() => {
+                navigate("/onb/duration");
+              }, 220);
+            }}
+            type="button"
+          >
+            Назад
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-/* ---- UI primitives ---- */
-function Chip({
-  label,
-  active,
-  onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} style={{ ...st.chip, ...(active ? st.chipActive : {}) }}>
-      <span style={{ ...st.chipText, ...(active ? st.chipTextActive : {}) }}>{label}</span>
-    </button>
-  );
-}
-
-function ChipSm({
-  label,
-  active,
-  onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} style={{ ...st.chipSm, ...(active ? st.chipSmActive : {}) }}>
-      <span style={{ ...st.chipSmText, ...(active ? st.chipSmTextActive : {}) }}>{label}</span>
-    </button>
-  );
-}
-
-/* ---- Styles ---- */
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
-
-const st: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    padding: 16,
-    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "transparent",
     minHeight: "100vh",
-  },
-
-  /* HERO чёрный */
-  heroCard: {
-    position: "relative",
-    padding: 22,
-    borderRadius: 28,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#0f172a",
-    color: "#fff",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    background: "transparent",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    color: "#0f172a",
     overflow: "hidden",
-    marginBottom: 14,
   },
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pill: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
+  progressWrap: {
+    display: "grid",
+    gap: 8,
+    marginTop: 6,
+  },
+  progressTrack: {
+    height: 6,
     borderRadius: 999,
+    background: "rgba(15, 23, 42, 0.08)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    width: "100%",
+    background: "#1e1f22",
+    borderRadius: 999,
+  },
+  progressText: {
     fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-  },
-  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
-  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
-  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)" },
-
-  /* Карточки — белое стекло */
-  cardGlass: {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.1)",
-    backdropFilter: "blur(10px)",
-  },
-
-  blockTitle: { fontSize: 15, fontWeight: 800, color: "#0B1220", marginBottom: 10 },
-
-  grid2Cols: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: 12,
-    alignItems: "stretch",
-    marginTop: 12,
-  },
-  row2Equal: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 },
-  row3Equal: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
-    gap: 8,
-    marginTop: 12,
-  },
-  wrapGridEven: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-    gap: 8,
-    marginTop: 12,
-  },
-
-  /* Чипы */
-  chip: {
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.08)",
-    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
-    backdropFilter: "blur(6px)",
-    cursor: "pointer",
-    fontWeight: 800,
-    width: "100%",
+    color: "rgba(15, 23, 42, 0.55)",
     textAlign: "center",
-    transition: "transform .06s ease",
   },
-  /* Активные пункты: темный фон */
-  chipActive: {
-    background: "#0f172a",
-    color: "#fff",
-    border: "none",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  },
-  chipText: { color: "#111827", letterSpacing: 0.3 },
-  chipTextActive: { color: "#fff" },
-
-  chipSm: {
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,.08)",
-    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
-    backdropFilter: "blur(6px)",
-    cursor: "pointer",
+  header: {
+    display: "grid",
+    gap: 8,
     textAlign: "center",
-    width: "100%",
-    boxSizing: "border-box",
-    fontWeight: 800,
-  },
-  /* Активные Sm: темный фон как у больших чипов */
-  chipSmActive: {
-    background: "#0f172a",
-    color: "#fff",
-    border: "none",
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-  },
-  chipSmText: { fontSize: 12, color: "#111827", fontWeight: 800 },
-  chipSmTextActive: { color: "#fff" },
-
-  /* Поля ввода — стекло */
-  inputGlass: {
-    width: "100%",
-    maxWidth: "100%",
-    border: "1px solid rgba(0,0,0,.08)",
-    borderRadius: 12,
-    padding: "12px",
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px rgba(0,0,0,.06)",
-    backdropFilter: "blur(6px)",
-    fontSize: 16,
-    color: "#111",
-  },
-
-  /* CTA как пункты меню: без тени и бордюра */
-  primaryBtn: {
+    alignItems: "center",
     marginTop: 16,
-    width: "100%",
-    border: "none",
-    borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 850,
-    color: "#fff",
-    background: "#0f172a",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
   },
-
-  backTextBtn: {
-    marginTop: 10,
+  title: {
+    margin: 0,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 16,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.7)",
+  },
+  tiles: {
+    marginTop: 18,
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 10,
+    width: "100%",
+  },
+  tile: {
+    borderRadius: 16,
+    border: "1px solid var(--tile-border)",
+    background: "var(--tile-bg)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    color: "var(--tile-color)",
+    fontSize: 16,
+    fontWeight: 500,
+    padding: "18px 10px",
+    textAlign: "center",
+    cursor: "pointer",
+  },
+  tileActive: {
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    color: "#fff",
+  },
+  primaryBtn: {
+    marginTop: 18,
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
+  actions: {
+    marginTop: "auto",
+    paddingTop: 18,
+    display: "grid",
+    gap: 10,
+  },
+  backBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#111827",
-    fontSize: 15,
+    color: "#1e1f22",
+    fontSize: 16,
     fontWeight: 600,
-    padding: "12px 16px",
+    padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
   },
