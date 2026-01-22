@@ -21,6 +21,7 @@ import OnbAgeSex from "./screens/onb/OnbAgeSex";
 import OnbAge from "./screens/onb/OnbAge";
 import OnbExperience from "./screens/onb/OnbExperience";
 import OnbWeight from "./screens/onb/OnbWeight";
+import OnbHeight from "./screens/onb/OnbHeight";
 import OnbDiet from "./screens/onb/OnbDiet";
 import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
@@ -68,9 +69,24 @@ function StepWeight() {
       initial={draft}
       onSubmit={(p) => {
         patch(p);
-        nav("/onb/experience");
+        nav("/onb/height");
       }}
       onBack={() => nav("/onb/age")}
+    />
+  );
+}
+
+function StepHeight() {
+  const { draft, patch } = useOnboarding();
+  const nav = useNavigate();
+  return (
+    <OnbHeight
+      initial={draft}
+      onSubmit={(p) => {
+        patch(p);
+        nav("/onb/experience");
+      }}
+      onBack={() => nav("/onb/weight")}
     />
   );
 }
@@ -85,7 +101,7 @@ function StepExperience() {
         patch(p);
         nav("/onb/diet");
       }}
-      onBack={() => nav("/onb/age-sex")}
+      onBack={() => nav("/onb/height")}
     />
   );
 }
@@ -221,6 +237,7 @@ export default function App() {
             <Route path="/onb/age-sex" element={<StepAgeSex />} />
             <Route path="/onb/age" element={<StepAge />} />
             <Route path="/onb/weight" element={<StepWeight />} />
+            <Route path="/onb/height" element={<StepHeight />} />
             <Route path="/onb/experience" element={<StepExperience />} />
             <Route path="/onb/diet" element={<StepDiet />} />
             <Route path="/onb/motivation" element={<StepMotivation />} />
