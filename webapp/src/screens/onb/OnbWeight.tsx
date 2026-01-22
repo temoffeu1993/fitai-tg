@@ -19,7 +19,7 @@ type Props = {
 
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 28;
+const ITEM_WIDTH = 36;
 const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
@@ -211,13 +211,13 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               style={s.trackItem}
               onClick={() => setWeight(value)}
             >
-              <div style={s.tickMajor} />
+              <div style={s.tickLabel}>{value}</div>
               <div style={s.tickBetween}>
+                <span style={s.tickMajor} />
                 {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
                   <span key={`${value}-t-${idx}`} style={s.tickMinor} />
                 ))}
               </div>
-              <div style={s.tickLabel}>{value}</div>
             </button>
           ))}
           <div style={{ width: ITEM_WIDTH * 6 }} />
@@ -379,11 +379,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   tickBetween: {
     display: "flex",
-    gap: 4,
+    gap: 6,
     alignItems: "flex-end",
-    height: 12,
-    marginTop: -6,
-    marginBottom: -2,
+    height: 18,
   },
   tickMinor: {
     width: 1,
