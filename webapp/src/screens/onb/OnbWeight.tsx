@@ -19,7 +19,8 @@ type Props = {
 
 const WEIGHT_MIN = 20;
 const WEIGHT_MAX = 150;
-const ITEM_WIDTH = 56;
+const ITEM_WIDTH = 12;
+const TICKS_PER_KG = 5;
 
 export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       list.scrollLeft = 0;
       return;
     }
-    const index = weight - WEIGHT_MIN;
+    const index = (weight - WEIGHT_MIN) * TICKS_PER_KG;
     list.scrollLeft = index * ITEM_WIDTH;
   }, [weight]);
 
@@ -85,12 +86,14 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       window.clearTimeout(scrollStopTimerRef.current);
     }
     scrollStopTimerRef.current = window.setTimeout(() => {
-      const index = Math.round(list.scrollLeft / ITEM_WIDTH);
-      const nextWeight = WEIGHT_MIN + index;
+      const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
+      const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
+      const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
       if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
         setWeight(nextWeight);
+        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
       }
-    }, 60);
+    }, 80);
   };
 
   const handleNext = () => {
@@ -117,7 +120,14 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
     }, 220);
   };
 
-  const values = Array.from({ length: WEIGHT_MAX - WEIGHT_MIN + 1 }, (_, i) => WEIGHT_MIN + i);
+  const ticks = Array.from(
+    { length: (WEIGHT_MAX - WEIGHT_MIN) * TICKS_PER_KG + 1 },
+    (_, i) => ({
+      index: i,
+      value: WEIGHT_MIN + i / TICKS_PER_KG,
+      isMajor: i % TICKS_PER_KG === 0,
+    })
+  );
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -198,23 +208,36 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
         <div style={s.trackFadeLeft} />
         <div style={s.trackFadeRight} />
         <div ref={listRef} style={s.trackList} onScroll={handleListScroll}>
-          {values.map((value, idx) => (
+          {ticks.map((tick) => (
             <button
-              key={value}
+              key={tick.index}
               type="button"
               className="weight-track"
               style={s.trackItem}
-              onClick={() => setWeight(value)}
+              onClick={() => {
+                const majorIndex = Math.round(tick.index / TICKS_PER_KG) * TICKS_PER_KG;
+                const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
+                if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
+                  setWeight(nextWeight);
+                  listRef.current?.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
+                }
+              }}
             >
-              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>
-                {idx % 5 === 0 ? value : ""}
+              <div
+                style={{
+                  ...s.tickLabel,
+                  ...(tick.isMajor ? {} : s.tickLabelEmpty),
+                  ...(weight === tick.value ? s.tickLabelActive : {}),
+                }}
+              >
+                {tick.isMajor ? tick.value : ""}
               </div>
               <div style={s.tickRow}>
                 <span
                   style={{
                     ...s.tickMark,
-                    ...(idx % 5 === 0 ? s.tickMarkMajor : {}),
-                    ...(weight === value ? s.tickMarkActive : {}),
+                    ...(tick.isMajor ? s.tickMarkMajor : {}),
+                    ...(weight === tick.value ? s.tickMarkActive : {}),
                   }}
                 />
               </div>
@@ -340,7 +363,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: "min(432px, 74vw)",
+    width: ITEM_WIDTH * TICKS_PER_KG * 5,
     alignSelf: "center",
   },
   trackFadeLeft: {
@@ -348,7 +371,7 @@ const s: Record<string, React.CSSProperties> = {
     top: 0,
     bottom: 0,
     left: 0,
-    width: ITEM_WIDTH * 1.5,
+    width: ITEM_WIDTH * TICKS_PER_KG,
     background: "linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -358,7 +381,7 @@ const s: Record<string, React.CSSProperties> = {
     top: 0,
     bottom: 0,
     right: 0,
-    width: ITEM_WIDTH * 1.5,
+    width: ITEM_WIDTH * TICKS_PER_KG,
     background: "linear-gradient(270deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -423,6 +446,9 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.45)",
     fontWeight: 500,
     height: 22,
+  },
+  tickLabelEmpty: {
+    color: "transparent",
   },
   tickLabelActive: {
     color: "#111",
