@@ -91,9 +91,28 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
       if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
         setWeight(nextWeight);
+        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
       }
-    }, 60);
+    }, 180);
   };
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const onScrollEnd = () => {
+      const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
+      const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
+      const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
+      if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
+        setWeight(nextWeight);
+        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
+      }
+    };
+    list.addEventListener("scrollend", onScrollEnd);
+    return () => {
+      list.removeEventListener("scrollend", onScrollEnd);
+    };
+  }, []);
 
   const handleNext = () => {
     if (loading || isLeaving || weight == null) return;
@@ -401,6 +420,7 @@ const s: Record<string, React.CSSProperties> = {
     overflowY: "hidden",
     whiteSpace: "nowrap",
     scrollSnapType: "x proximity",
+    scrollSnapStop: "always",
     WebkitOverflowScrolling: "touch",
     padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
