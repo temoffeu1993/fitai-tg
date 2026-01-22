@@ -204,25 +204,21 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
           onScroll={handleListScroll}
         >
           {values.map((value, idx) => (
-            <button
-              key={value}
-              type="button"
-              className="weight-track"
-              style={s.trackItem}
-              onClick={() => setWeight(value)}
-            >
-              <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
-              <div style={s.tickRow}>
-                <span style={s.tickMajor} />
-                {idx < values.length - 1 ? (
-                  <div style={s.tickBetween}>
-                    {Array.from({ length: TICKS_PER_KG - 1 }, (_, minorIdx) => (
-                      <span key={`${value}-t-${minorIdx}`} style={s.tickMinor} />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </button>
+            <div key={value} style={s.trackItem}>
+              <button type="button" style={s.trackHit} onClick={() => setWeight(value)}>
+                <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
+                <div style={s.tickRow}>
+                  <span style={s.tickMajor} />
+                </div>
+              </button>
+              {idx < values.length - 1 ? (
+                <div style={s.minorGroup}>
+                  {Array.from({ length: TICKS_PER_KG - 1 }, (_, minorIdx) => (
+                    <span key={`${value}-t-${minorIdx}`} style={s.tickMinor} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       </div>
@@ -392,14 +388,22 @@ const s: Record<string, React.CSSProperties> = {
   trackItem: {
     width: ITEM_WIDTH,
     background: "transparent",
-    border: "none",
     display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 14,
-    cursor: "pointer",
     scrollSnapAlign: "center",
+  },
+  trackHit: {
+    border: "none",
+    background: "transparent",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 14,
+    cursor: "pointer",
+    padding: 0,
   },
   tickRow: {
     position: "relative",
@@ -417,15 +421,12 @@ const s: Record<string, React.CSSProperties> = {
     height: 26,
     background: "rgba(15, 23, 42, 0.7)",
   },
-  tickBetween: {
-    position: "absolute",
-    left: 0,
-    right: 0,
+  minorGroup: {
+    width: "100%",
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
     alignItems: "flex-end",
     height: 14,
-    padding: "0 8px",
   },
   tickMinor: {
     width: 2,
