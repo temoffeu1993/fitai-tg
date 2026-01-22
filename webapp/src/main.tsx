@@ -8,6 +8,9 @@ import mozgImg from "./assets/mozg.png";
 import fonImg from "./assets/fon.png";
 import maleRobotImg from "./assets/robonew.png";
 import femaleRobotImg from "./assets/zhennew.png";
+import beginnerImg from "./assets/novii.png";
+import intermediateImg from "./assets/sredne.png";
+import advancedImg from "./assets/profi.png";
 
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
@@ -151,6 +154,9 @@ if (isDev && !tg?.initData) {
     preloadImage(fonImg),
     preloadImage(maleRobotImg),
     preloadImage(femaleRobotImg),
+    preloadImage(beginnerImg),
+    preloadImage(intermediateImg),
+    preloadImage(advancedImg),
   ]).finally(() => root.render(<App />));
 } else {
   // реальная авторизация через Telegram
@@ -183,6 +189,9 @@ async function auth() {
       preloadImage(fonImg),
       preloadImage(maleRobotImg),
       preloadImage(femaleRobotImg),
+      preloadImage(beginnerImg),
+      preloadImage(intermediateImg),
+      preloadImage(advancedImg),
     ]);
     root.render(<App />);
   } catch (e: any) {
