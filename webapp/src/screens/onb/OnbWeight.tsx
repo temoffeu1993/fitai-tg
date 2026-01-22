@@ -31,6 +31,8 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
   const leaveTimerRef = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
+  const snapAnimRef = useRef<number | null>(null);
+  const suppressSyncRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -41,6 +43,10 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       if (scrollStopTimerRef.current) {
         window.clearTimeout(scrollStopTimerRef.current);
         scrollStopTimerRef.current = null;
+      }
+      if (snapAnimRef.current) {
+        window.cancelAnimationFrame(snapAnimRef.current);
+        snapAnimRef.current = null;
       }
     };
   }, []);
@@ -75,38 +81,81 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       list.scrollLeft = 0;
       return;
     }
+    if (suppressSyncRef.current) {
+      suppressSyncRef.current = false;
+      return;
+    }
     const index = (weight - WEIGHT_MIN) * TICKS_PER_KG;
     list.scrollLeft = index * ITEM_WIDTH;
   }, [weight]);
 
+  const setWeightFromScroll = (nextWeight: number) => {
+    suppressSyncRef.current = true;
+    setWeight(nextWeight);
+  };
+
+  const cancelSnapAnimation = () => {
+    if (snapAnimRef.current) {
+      window.cancelAnimationFrame(snapAnimRef.current);
+      snapAnimRef.current = null;
+    }
+  };
+
+  const smoothScrollTo = (targetLeft: number) => {
+    const list = listRef.current;
+    if (!list) return;
+    cancelSnapAnimation();
+    const startLeft = list.scrollLeft;
+    const distance = targetLeft - startLeft;
+    if (Math.abs(distance) < 0.5) {
+      list.scrollLeft = targetLeft;
+      return;
+    }
+    const duration = 320;
+    const startTime = window.performance?.now?.() ?? Date.now();
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      list.scrollLeft = startLeft + distance * eased;
+      if (t < 1) {
+        snapAnimRef.current = window.requestAnimationFrame(step);
+      } else {
+        snapAnimRef.current = null;
+      }
+    };
+    snapAnimRef.current = window.requestAnimationFrame(step);
+  };
+
+  const snapToNearest = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
+    const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
+    const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
+    if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
+      setWeightFromScroll(nextWeight);
+      smoothScrollTo(majorIndex * ITEM_WIDTH);
+    }
+  };
+
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
+    cancelSnapAnimation();
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
     }
     scrollStopTimerRef.current = window.setTimeout(() => {
-      const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
-      const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
-      const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
-      if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
-        setWeight(nextWeight);
-        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
-      }
-    }, 260);
+      snapToNearest();
+    }, 220);
   };
 
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
     const onScrollEnd = () => {
-      const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
-      const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
-      const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
-      if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
-        setWeight(nextWeight);
-        list.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
-      }
+      snapToNearest();
     };
     list.addEventListener("scrollend", onScrollEnd);
     return () => {
@@ -237,8 +286,8 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
                 const majorIndex = Math.round(tick.index / TICKS_PER_KG) * TICKS_PER_KG;
                 const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
                 if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
-                  setWeight(nextWeight);
-                  listRef.current?.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
+                  setWeightFromScroll(nextWeight);
+                  smoothScrollTo(majorIndex * ITEM_WIDTH);
                 }
               }}
             >
