@@ -217,37 +217,39 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         </div>
       </div>
 
-      <button
-        type="button"
-        style={{ ...s.primaryBtn, opacity: age == null || loading ? 0.5 : 1 }}
-        className="onb-fade onb-fade-delay-3 intro-primary-btn"
-        onClick={handleNext}
-        disabled={age == null || loading || isLeaving}
-      >
-        Далее
-      </button>
-
-      {onBack ? (
+      <div style={s.actions}>
         <button
-          style={s.backBtn}
-          className="onb-fade onb-fade-delay-3"
-          onClick={() => {
-            if (isLeaving) return;
-            const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-            if (prefersReduced) {
-              navigate("/onb/age-sex");
-              return;
-            }
-            setIsLeaving(true);
-            leaveTimerRef.current = window.setTimeout(() => {
-              navigate("/onb/age-sex");
-            }, 220);
-          }}
           type="button"
+          style={{ ...s.primaryBtn, opacity: age == null || loading ? 0.5 : 1 }}
+          className="onb-fade onb-fade-delay-3 intro-primary-btn"
+          onClick={handleNext}
+          disabled={age == null || loading || isLeaving}
         >
-          Назад
+          Далее
         </button>
-      ) : null}
+
+        {onBack ? (
+          <button
+            style={s.backBtn}
+            className="onb-fade onb-fade-delay-3"
+            onClick={() => {
+              if (isLeaving) return;
+              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              if (prefersReduced) {
+                navigate("/onb/age-sex");
+                return;
+              }
+              setIsLeaving(true);
+              leaveTimerRef.current = window.setTimeout(() => {
+                navigate("/onb/age-sex");
+              }, 220);
+            }}
+            type="button"
+          >
+            Назад
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -382,6 +384,11 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
+  actions: {
+    marginTop: 18,
+    display: "grid",
+    gap: 10,
+  },
   ageItem: {
     border: "none",
     background: "transparent",
@@ -402,7 +409,6 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   backBtn: {
-    marginTop: "auto",
     width: "100%",
     border: "none",
     background: "transparent",
