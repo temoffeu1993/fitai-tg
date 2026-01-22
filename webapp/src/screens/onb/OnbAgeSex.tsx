@@ -114,6 +114,9 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           }
           .gender-card:active:not(:disabled) {
             transform: translateY(1px) scale(0.99);
+            background: var(--gender-bg) !important;
+            border-color: var(--gender-border) !important;
+            color: var(--gender-color) !important;
           }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
