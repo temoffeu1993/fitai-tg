@@ -202,7 +202,6 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
           style={s.trackList}
           onScroll={handleListScroll}
         >
-          <div style={{ width: ITEM_WIDTH * 6 }} />
           {values.map((value) => (
             <button
               key={value}
@@ -212,15 +211,16 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               onClick={() => setWeight(value)}
             >
               <div style={s.tickLabel}>{value}</div>
-              <div style={s.tickBetween}>
+              <div style={s.tickRow}>
                 <span style={s.tickMajor} />
-                {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
-                  <span key={`${value}-t-${idx}`} style={s.tickMinor} />
-                ))}
+                <div style={s.tickBetween}>
+                  {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
+                    <span key={`${value}-t-${idx}`} style={s.tickMinor} />
+                  ))}
+                </div>
               </div>
             </button>
           ))}
-          <div style={{ width: ITEM_WIDTH * 6 }} />
         </div>
       </div>
 
@@ -359,6 +359,8 @@ const s: Record<string, React.CSSProperties> = {
     scrollSnapType: "x mandatory",
     WebkitOverflowScrolling: "touch",
     padding: "14px 0 18px",
+    paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
+    paddingRight: `calc(50% - ${ITEM_WIDTH / 2}px)`,
   },
   trackItem: {
     width: ITEM_WIDTH,
@@ -370,18 +372,32 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "flex-end",
     gap: 6,
     cursor: "pointer",
+    scrollSnapAlign: "center",
+  },
+  tickRow: {
+    position: "relative",
+    width: "100%",
+    height: 18,
+    display: "flex",
+    alignItems: "flex-end",
   },
   tickMajor: {
+    position: "absolute",
+    left: "50%",
+    transform: "translateX(-50%)",
     width: 2,
     borderRadius: 999,
     height: 18,
     background: "rgba(15, 23, 42, 0.6)",
   },
   tickBetween: {
+    position: "absolute",
+    left: "50%",
+    width: "50%",
     display: "flex",
-    gap: 6,
+    justifyContent: "space-between",
     alignItems: "flex-end",
-    height: 18,
+    height: 12,
   },
   tickMinor: {
     width: 1,
