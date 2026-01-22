@@ -31,7 +31,6 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
   const leaveTimerRef = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
-  const snapAnimRef = useRef<number | null>(null);
   const suppressSyncRef = useRef(false);
 
   useEffect(() => {
@@ -43,10 +42,6 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
       if (scrollStopTimerRef.current) {
         window.clearTimeout(scrollStopTimerRef.current);
         scrollStopTimerRef.current = null;
-      }
-      if (snapAnimRef.current) {
-        window.cancelAnimationFrame(snapAnimRef.current);
-        snapAnimRef.current = null;
       }
     };
   }, []);
@@ -94,74 +89,21 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
     setWeight(nextWeight);
   };
 
-  const cancelSnapAnimation = () => {
-    if (snapAnimRef.current) {
-      window.cancelAnimationFrame(snapAnimRef.current);
-      snapAnimRef.current = null;
-    }
-  };
-
-  const smoothScrollTo = (targetLeft: number) => {
-    const list = listRef.current;
-    if (!list) return;
-    cancelSnapAnimation();
-    const startLeft = list.scrollLeft;
-    const distance = targetLeft - startLeft;
-    if (Math.abs(distance) < 0.5) {
-      list.scrollLeft = targetLeft;
-      return;
-    }
-    const duration = 320;
-    const startTime = window.performance?.now?.() ?? Date.now();
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const t = Math.min(1, elapsed / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      list.scrollLeft = startLeft + distance * eased;
-      if (t < 1) {
-        snapAnimRef.current = window.requestAnimationFrame(step);
-      } else {
-        snapAnimRef.current = null;
-      }
-    };
-    snapAnimRef.current = window.requestAnimationFrame(step);
-  };
-
-  const snapToNearest = () => {
-    const list = listRef.current;
-    if (!list) return;
-    const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
-    const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
-    const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
-    if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
-      setWeightFromScroll(nextWeight);
-      smoothScrollTo(majorIndex * ITEM_WIDTH);
-    }
-  };
-
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
-    cancelSnapAnimation();
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
     }
     scrollStopTimerRef.current = window.setTimeout(() => {
-      snapToNearest();
-    }, 220);
+      const rawIndex = Math.round(list.scrollLeft / ITEM_WIDTH);
+      const majorIndex = Math.round(rawIndex / TICKS_PER_KG) * TICKS_PER_KG;
+      const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
+      if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
+        setWeightFromScroll(nextWeight);
+      }
+    }, 80);
   };
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const onScrollEnd = () => {
-      snapToNearest();
-    };
-    list.addEventListener("scrollend", onScrollEnd);
-    return () => {
-      list.removeEventListener("scrollend", onScrollEnd);
-    };
-  }, []);
 
   const handleNext = () => {
     if (loading || isLeaving || weight == null) return;
@@ -281,13 +223,13 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               key={tick.index}
               type="button"
               className="weight-track"
-              style={s.trackItem}
+              style={{ ...s.trackItem, scrollSnapAlign: tick.isMajor ? "center" : "none" }}
               onClick={() => {
                 const majorIndex = Math.round(tick.index / TICKS_PER_KG) * TICKS_PER_KG;
                 const nextWeight = WEIGHT_MIN + majorIndex / TICKS_PER_KG;
                 if (nextWeight >= WEIGHT_MIN && nextWeight <= WEIGHT_MAX) {
                   setWeightFromScroll(nextWeight);
-                  smoothScrollTo(majorIndex * ITEM_WIDTH);
+                  listRef.current?.scrollTo({ left: majorIndex * ITEM_WIDTH, behavior: "smooth" });
                 }
               }}
             >
@@ -470,6 +412,7 @@ const s: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
+    scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     padding: "16px 0 20px",
     paddingLeft: `calc(50% - ${ITEM_WIDTH / 2}px)`,
@@ -486,7 +429,6 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 14,
-    scrollSnapAlign: "center",
     border: "none",
     cursor: "pointer",
     padding: 0,
