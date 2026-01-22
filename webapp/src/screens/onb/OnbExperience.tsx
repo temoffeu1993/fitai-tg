@@ -146,7 +146,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Уровень подготовки</h1>
+        <h1 style={s.title}>Выберите уровень подготовки</h1>
         <p style={s.subtitle}>Чтобы тренировки соответствовали вашему опыту.</p>
       </div>
 
