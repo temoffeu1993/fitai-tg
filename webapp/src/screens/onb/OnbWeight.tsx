@@ -204,7 +204,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
           style={s.trackList}
           onScroll={handleListScroll}
         >
-          {values.map((value) => (
+          {values.map((value, idx) => (
             <button
               key={value}
               type="button"
@@ -215,11 +215,13 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
               <div style={{ ...s.tickLabel, ...(weight === value ? s.tickLabelActive : {}) }}>{value}</div>
               <div style={s.tickRow}>
                 <span style={s.tickMajor} />
-                <div style={s.tickBetween}>
-                  {Array.from({ length: TICKS_PER_KG - 1 }, (_, idx) => (
-                    <span key={`${value}-t-${idx}`} style={s.tickMinor} />
-                  ))}
-                </div>
+                {idx < values.length - 1 ? (
+                  <div style={s.tickBetween}>
+                    {Array.from({ length: TICKS_PER_KG - 1 }, (_, minorIdx) => (
+                      <span key={`${value}-t-${minorIdx}`} style={s.tickMinor} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </button>
           ))}
