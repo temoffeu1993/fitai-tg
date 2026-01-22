@@ -105,13 +105,18 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           .onb-fade-delay-1 { animation-delay: 80ms; }
           .onb-fade-delay-2 { animation-delay: 160ms; }
           .onb-fade-delay-3 { animation-delay: 240ms; }
-        .gender-card {
-          transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
-          will-change: transform, background, border-color;
-        }
-        .gender-card:active:not(:disabled) {
-          transform: translateY(1px) scale(0.99);
-        }
+          .gender-card {
+            appearance: none;
+            transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+            will-change: transform, background, border-color;
+            -webkit-tap-highlight-color: transparent;
+          }
+          .gender-card:active:not(:disabled) {
+            transform: translateY(1px) scale(0.99);
+            background: inherit;
+            border-color: inherit;
+            color: inherit;
+          }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
