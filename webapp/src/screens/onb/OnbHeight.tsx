@@ -19,7 +19,8 @@ type Props = {
 
 const HEIGHT_MIN = 140;
 const HEIGHT_MAX = 210;
-const ITEM_HEIGHT = 56;
+const ITEM_HEIGHT = 12;
+const TICKS_PER_CM = 5;
 
 export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
       suppressSyncRef.current = false;
       return;
     }
-    const index = height - HEIGHT_MIN;
+    const index = (height - HEIGHT_MIN) * TICKS_PER_CM;
     list.scrollTop = index * ITEM_HEIGHT;
   }, [height]);
 
@@ -95,8 +96,9 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
       window.clearTimeout(scrollStopTimerRef.current);
     }
     scrollStopTimerRef.current = window.setTimeout(() => {
-      const index = Math.round(list.scrollTop / ITEM_HEIGHT);
-      const nextHeight = HEIGHT_MIN + index;
+      const rawIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
+      const majorIndex = Math.round(rawIndex / TICKS_PER_CM) * TICKS_PER_CM;
+      const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
       if (nextHeight >= HEIGHT_MIN && nextHeight <= HEIGHT_MAX) {
         setHeightFromScroll(nextHeight);
       }
@@ -127,7 +129,14 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
     }, 220);
   };
 
-  const heights = Array.from({ length: HEIGHT_MAX - HEIGHT_MIN + 1 }, (_, i) => HEIGHT_MIN + i);
+  const ticks = Array.from(
+    { length: (HEIGHT_MAX - HEIGHT_MIN) * TICKS_PER_CM + 1 },
+    (_, i) => ({
+      index: i,
+      value: HEIGHT_MIN + i / TICKS_PER_CM,
+      isMajor: i % TICKS_PER_CM === 0,
+    })
+  );
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -206,28 +215,45 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
       </div>
 
       <div style={s.heightWrap} className="onb-fade onb-fade-delay-3">
-        <div style={s.heightLineTop} />
-        <div style={s.heightLineBottom} />
+        <div style={s.heightIndicator} />
         <div style={s.heightFadeTop} />
         <div style={s.heightFadeBottom} />
         <div ref={listRef} style={s.heightList} className="height-list" onScroll={handleListScroll}>
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
-          {heights.map((value) => (
+          {ticks.map((tick) => (
             <button
-              key={value}
+              key={tick.index}
               type="button"
               className="height-item"
-              style={{ ...s.heightItem, ...(height === value ? s.heightItemActive : {}) }}
+              style={{ ...s.heightItem, scrollSnapAlign: tick.isMajor ? "center" : "none" }}
               onClick={() => {
-                if (loading || isLeaving) return;
-                setHeightFromScroll(value);
-                listRef.current?.scrollTo({ top: (value - HEIGHT_MIN) * ITEM_HEIGHT, behavior: "smooth" });
+                const majorIndex = Math.round(tick.index / TICKS_PER_CM) * TICKS_PER_CM;
+                const nextHeight = HEIGHT_MIN + majorIndex / TICKS_PER_CM;
+                if (nextHeight >= HEIGHT_MIN && nextHeight <= HEIGHT_MAX) {
+                  setHeightFromScroll(nextHeight);
+                  listRef.current?.scrollTo({ top: majorIndex * ITEM_HEIGHT, behavior: "smooth" });
+                }
               }}
             >
-              {value}
+              <div
+                style={{
+                  ...s.tickLabel,
+                  ...(tick.isMajor ? {} : s.tickLabelEmpty),
+                  ...(height === tick.value ? s.tickLabelActive : {}),
+                }}
+              >
+                {tick.isMajor ? tick.value : ""}
+              </div>
+              <div style={s.tickRow}>
+                <span
+                  style={{
+                    ...s.tickMark,
+                    ...(tick.isMajor ? s.tickMarkMajor : {}),
+                    ...(height === tick.value ? s.tickMarkActive : {}),
+                  }}
+                />
+              </div>
             </button>
           ))}
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
         </div>
       </div>
 
@@ -349,8 +375,8 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: "min(120px, 32vw)",
-    height: ITEM_HEIGHT * 5,
+    width: "min(140px, 36vw)",
+    height: ITEM_HEIGHT * TICKS_PER_CM * 5,
     alignSelf: "center",
   },
   heightList: {
@@ -359,25 +385,17 @@ const s: Record<string, React.CSSProperties> = {
     scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
+    paddingTop: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
+    paddingBottom: `calc(50% - ${ITEM_HEIGHT / 2}px)`,
   },
-  heightLineTop: {
+  heightIndicator: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
     top: "50%",
-    height: 1,
-    transform: `translateY(-${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
-  },
-  heightLineBottom: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
+    height: 2,
+    transform: "translateY(-50%)",
+    background: "rgba(15, 23, 42, 0.25)",
     pointerEvents: "none",
   },
   heightFadeTop: {
@@ -385,7 +403,7 @@ const s: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     top: 0,
-    height: ITEM_HEIGHT * 2,
+    height: ITEM_HEIGHT * TICKS_PER_CM * 2,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -395,7 +413,7 @@ const s: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    height: ITEM_HEIGHT * 2,
+    height: ITEM_HEIGHT * TICKS_PER_CM * 2,
     background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 1,
@@ -404,7 +422,7 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     background: "transparent",
     color: "rgba(15, 23, 42, 0.5)",
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 500,
     height: ITEM_HEIGHT,
     width: "100%",
@@ -412,12 +430,47 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
-    scrollSnapAlign: "center",
     cursor: "pointer",
+    gap: 10,
   },
   heightItemActive: {
     color: "#111",
     fontWeight: 700,
+  },
+  tickRow: {
+    position: "relative",
+    width: 36,
+    height: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  tickMark: {
+    height: 2,
+    borderRadius: 999,
+    width: 12,
+    background: "rgba(15, 23, 42, 0.35)",
+  },
+  tickMarkMajor: {
+    width: 22,
+  },
+  tickMarkActive: {
+    background: "rgba(15, 23, 42, 0.75)",
+  },
+  tickLabel: {
+    minWidth: 36,
+    textAlign: "right",
+    fontSize: 18,
+    color: "rgba(15, 23, 42, 0.45)",
+    fontWeight: 500,
+  },
+  tickLabelEmpty: {
+    color: "transparent",
+  },
+  tickLabelActive: {
+    color: "#111",
+    fontWeight: 700,
+    fontSize: 22,
   },
   primaryBtn: {
     marginTop: 18,
