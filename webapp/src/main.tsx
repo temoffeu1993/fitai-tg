@@ -127,11 +127,14 @@ function LoadingScreen() {
 function DebugOverlay() {
   if (!debugEnabled) return null;
   const times = ((window as any).__BOOT_TIMES__ as string[] | undefined) ?? [];
+  const nav = ((window as any).__BOOT_NAV__ as string[] | undefined) ?? [];
   return (
     <div style={debugUi.wrap}>
       <div style={debugUi.title}>Boot debug</div>
       <div style={debugUi.list}>
-        {times.length ? times.map((line) => <div key={line}>{line}</div>) : "no marks yet"}
+        {(times.length || nav.length)
+          ? [...nav, ...times].map((line) => <div key={line}>{line}</div>)
+          : "no marks yet"}
       </div>
     </div>
   );
@@ -220,6 +223,27 @@ async function preloadImage(src: string): Promise<void> {
     }
   });
 }
+
+const captureNavigationTiming = () => {
+  if (!debugEnabled || typeof performance === "undefined") return;
+  try {
+    const entry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (!entry) return;
+    const lines = [
+      `nav:dns ${Math.max(0, entry.domainLookupEnd - entry.domainLookupStart).toFixed(0)}ms`,
+      `nav:tcp ${Math.max(0, entry.connectEnd - entry.connectStart).toFixed(0)}ms`,
+      `nav:ssl ${Math.max(0, entry.connectEnd - entry.secureConnectionStart).toFixed(0)}ms`,
+      `nav:ttfb ${Math.max(0, entry.responseStart - entry.requestStart).toFixed(0)}ms`,
+      `nav:download ${Math.max(0, entry.responseEnd - entry.responseStart).toFixed(0)}ms`,
+      `nav:domInteractive ${Math.max(0, entry.domInteractive).toFixed(0)}ms`,
+    ];
+    (window as any).__BOOT_NAV__ = lines;
+  } catch (err) {
+    console.warn("navigation timing failed", err);
+  }
+};
+
+captureNavigationTiming();
 
 const loader = {
   wrap: {
