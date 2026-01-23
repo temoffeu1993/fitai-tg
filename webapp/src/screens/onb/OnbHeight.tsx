@@ -403,12 +403,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   heightIndicator: {
     position: "absolute",
-    left: 14,
-    right: 14,
     top: "50%",
-    height: 2,
+    left: 12,
+    width: 0,
+    height: 0,
     transform: "translateY(-50%)",
-    background: "rgba(15, 23, 42, 0.25)",
+    borderTop: "6px solid transparent",
+    borderBottom: "6px solid transparent",
+    borderLeft: "8px solid rgba(15, 23, 42, 0.35)",
     pointerEvents: "none",
   },
   heightFadeTop: {

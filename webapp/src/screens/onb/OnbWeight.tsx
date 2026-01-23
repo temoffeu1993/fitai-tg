@@ -408,7 +408,7 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translateX(-50%)",
     borderLeft: "6px solid transparent",
     borderRight: "6px solid transparent",
-    borderTop: "8px solid rgba(15, 23, 42, 0.35)",
+    borderBottom: "8px solid rgba(15, 23, 42, 0.35)",
     pointerEvents: "none",
   },
   trackList: {
