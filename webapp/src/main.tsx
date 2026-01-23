@@ -174,7 +174,6 @@ if (isDev && !tg?.initData) {
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
-  window.requestAnimationFrame(hideBootSplash);
   auth();
 }
 
@@ -211,6 +210,5 @@ async function auth() {
     window.requestAnimationFrame(hideBootSplash);
   } catch (e: any) {
     root.render(<LoadingScreen />);
-    window.requestAnimationFrame(hideBootSplash);
   }
 }
