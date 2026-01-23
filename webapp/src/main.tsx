@@ -169,7 +169,6 @@ const debugUi = {
 
 const attachBootDebugTap = () => {
   if (typeof window === "undefined") return;
-  if (debugEnabled) return;
   let count = 0;
   let timer: number | null = null;
   const reset = () => {
@@ -187,7 +186,8 @@ const attachBootDebugTap = () => {
     if (count >= 5) {
       reset();
       try {
-        window.localStorage.setItem("boot_debug", "1");
+        const next = window.localStorage.getItem("boot_debug") === "1" ? "0" : "1";
+        window.localStorage.setItem("boot_debug", next);
       } catch (err) {
         console.warn("boot_debug storage failed", err);
       }
