@@ -31,6 +31,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const [styleOther, setStyleOther] = useState<string>(initial?.dietPrefs?.styleOther ?? "");
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const otherInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -63,6 +64,16 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       }
     };
   }, []);
+
+  useEffect(() => {
+    const root = document.getElementById("root");
+    if (!root) return;
+    if (stylesSel.includes("Другое")) {
+      root.style.overflowY = "auto";
+      root.style.overscrollBehaviorY = "contain";
+      root.style.scrollBehavior = "smooth";
+    }
+  }, [stylesSel]);
 
   const toggle = (value: string) => {
     setStylesSel((prev) =>
@@ -210,10 +221,14 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       <div style={s.inputWrap}>
         {stylesSel.includes("Другое") && (
           <input
+            ref={otherInputRef}
             value={styleOther}
             onChange={(e) => setStyleOther(e.target.value)}
             placeholder="Уточни свой вариант"
             style={s.input}
+            onFocus={() => {
+              otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
           />
         )}
       </div>
