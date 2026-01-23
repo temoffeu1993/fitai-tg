@@ -12,6 +12,11 @@ import beginnerImg from "./assets/novii.png";
 import intermediateImg from "./assets/sredne.png";
 import advancedImg from "./assets/profi.png";
 
+const debugEnabled = (() => {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).has("debug");
+})();
+
 const timeMark = (label: string) => {
   try {
     if (typeof performance === "undefined") return;
@@ -20,6 +25,15 @@ const timeMark = (label: string) => {
     const last = entries[entries.length - 1];
     if (last) {
       console.log(`[perf] ${label}: ${last.startTime.toFixed(0)}ms`);
+      if (debugEnabled) {
+        const list = (window as any).__BOOT_TIMES__ as string[] | undefined;
+        const next = `${label}: ${last.startTime.toFixed(0)}ms`;
+        if (list) {
+          list.push(next);
+        } else {
+          (window as any).__BOOT_TIMES__ = [next];
+        }
+      }
     }
   } catch (err) {
     console.warn("perf mark failed", err);
@@ -108,6 +122,46 @@ function LoadingScreen() {
   );
 }
 
+function DebugOverlay() {
+  if (!debugEnabled) return null;
+  const times = ((window as any).__BOOT_TIMES__ as string[] | undefined) ?? [];
+  return (
+    <div style={debugUi.wrap}>
+      <div style={debugUi.title}>Boot debug</div>
+      <div style={debugUi.list}>
+        {times.length ? times.map((line) => <div key={line}>{line}</div>) : "no marks yet"}
+      </div>
+    </div>
+  );
+}
+
+const debugUi = {
+  wrap: {
+    position: "fixed",
+    left: 12,
+    right: 12,
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(15, 23, 42, 0.85)",
+    color: "#fff",
+    fontSize: 12,
+    lineHeight: 1.35,
+    zIndex: 9999,
+    maxHeight: "45vh",
+    overflow: "auto",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+  } as React.CSSProperties,
+  title: {
+    fontWeight: 700,
+    marginBottom: 6,
+  } as React.CSSProperties,
+  list: {
+    display: "grid",
+    gap: 4,
+  } as React.CSSProperties,
+};
+
 async function preloadImage(src: string): Promise<void> {
   if (!src || typeof window === "undefined") return;
   await new Promise<void>((resolve) => {
@@ -186,7 +240,12 @@ if (isDev && !tg?.initData) {
   ];
   Promise.all(critical.map(preloadImage)).finally(() => {
     timeMark("boot:critical-images-ready");
-    root.render(<App />);
+    root.render(
+      <>
+        <App />
+        <DebugOverlay />
+      </>
+    );
     timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
     void Promise.all(rest.map(preloadImage));
@@ -230,7 +289,12 @@ async function auth() {
     ];
     await Promise.all(critical.map(preloadImage));
     timeMark("boot:critical-images-ready");
-    root.render(<App />);
+    root.render(
+      <>
+        <App />
+        <DebugOverlay />
+      </>
+    );
     timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
     void Promise.all(rest.map(preloadImage));
