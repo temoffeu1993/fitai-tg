@@ -308,6 +308,9 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+    outline: "none",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   optionCard: {
