@@ -14,7 +14,9 @@ import advancedImg from "./assets/profi.png";
 
 const debugEnabled = (() => {
   if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).has("debug");
+  const byQuery = new URLSearchParams(window.location.search).has("debug");
+  const byStorage = window.localStorage.getItem("boot_debug") === "1";
+  return byQuery || byStorage;
 })();
 
 const timeMark = (label: string) => {
@@ -161,6 +163,38 @@ const debugUi = {
     gap: 4,
   } as React.CSSProperties,
 };
+
+const attachBootDebugTap = () => {
+  if (typeof window === "undefined") return;
+  if (debugEnabled) return;
+  let count = 0;
+  let timer: number | null = null;
+  const reset = () => {
+    count = 0;
+    if (timer) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+  };
+  const handler = () => {
+    count += 1;
+    if (count === 1) {
+      timer = window.setTimeout(reset, 1200);
+    }
+    if (count >= 5) {
+      reset();
+      try {
+        window.localStorage.setItem("boot_debug", "1");
+      } catch (err) {
+        console.warn("boot_debug storage failed", err);
+      }
+      window.location.reload();
+    }
+  };
+  window.addEventListener("click", handler);
+};
+
+attachBootDebugTap();
 
 async function preloadImage(src: string): Promise<void> {
   if (!src || typeof window === "undefined") return;
