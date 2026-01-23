@@ -1,36 +1,78 @@
 // webapp/src/App.tsx
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import LayoutWithNav from "./app/LayoutWithNav";
 import OnboardingProvider, { useOnboarding } from "./app/OnboardingProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-import Dashboard from "./screens/Dashboard";
-import PlanOne from "./screens/PlanOne";
-import CheckIn from "./screens/CheckIn";
-import Nutrition from "./screens/Nutrition";
-import Profile from "./screens/Profile";
-import WorkoutSession from "./screens/WorkoutSession";
-import WorkoutResult from "./screens/WorkoutResult";
-import CoachChat from "./screens/CoachChat";
-import History from "@/screens/History";
-import NutritionToday from "@/screens/NutritionToday";
-import Schedule from "./screens/Schedule";
-import Progress from "./screens/Progress";
+const Dashboard = lazy(() => import("./screens/Dashboard"));
+const PlanOne = lazy(() => import("./screens/PlanOne"));
+const CheckIn = lazy(() => import("./screens/CheckIn"));
+const Nutrition = lazy(() => import("./screens/Nutrition"));
+const Profile = lazy(() => import("./screens/Profile"));
+const WorkoutSession = lazy(() => import("./screens/WorkoutSession"));
+const WorkoutResult = lazy(() => import("./screens/WorkoutResult"));
+const CoachChat = lazy(() => import("./screens/CoachChat"));
+const History = lazy(() => import("./screens/History"));
+const NutritionToday = lazy(() => import("./screens/NutritionToday"));
+const Schedule = lazy(() => import("./screens/Schedule"));
+const Progress = lazy(() => import("./screens/Progress"));
 
-import OnbAgeSex from "./screens/onb/OnbAgeSex";
-import OnbAge from "./screens/onb/OnbAge";
-import OnbExperience from "./screens/onb/OnbExperience";
-import OnbWeight from "./screens/onb/OnbWeight";
-import OnbHeight from "./screens/onb/OnbHeight";
-import OnbFrequency from "./screens/onb/OnbFrequency";
-import OnbDuration from "./screens/onb/OnbDuration";
-import OnbDietStyle from "./screens/onb/OnbDietStyle";
-import OnbDiet from "./screens/onb/OnbDiet";
-import OnbMotivation from "./screens/onb/OnbMotivation";
-import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
+const OnbAgeSex = lazy(() => import("./screens/onb/OnbAgeSex"));
+const OnbAge = lazy(() => import("./screens/onb/OnbAge"));
+const OnbExperience = lazy(() => import("./screens/onb/OnbExperience"));
+const OnbWeight = lazy(() => import("./screens/onb/OnbWeight"));
+const OnbHeight = lazy(() => import("./screens/onb/OnbHeight"));
+const OnbFrequency = lazy(() => import("./screens/onb/OnbFrequency"));
+const OnbDuration = lazy(() => import("./screens/onb/OnbDuration"));
+const OnbDietStyle = lazy(() => import("./screens/onb/OnbDietStyle"));
+const OnbDiet = lazy(() => import("./screens/onb/OnbDiet"));
+const OnbMotivation = lazy(() => import("./screens/onb/OnbMotivation"));
+const OnbSchemeSelection = lazy(() => import("./screens/onb/OnbSchemeSelection"));
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
+
+const RouteLoader = () => (
+  <div
+    style={{
+      minHeight: "100vh",
+      display: "grid",
+      placeItems: "center",
+      background: "transparent",
+    }}
+  >
+    <style>{`
+      @keyframes bootPulse {
+        0%,100% { transform: scale(.7); opacity: .35; }
+        50% { transform: scale(1); opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .route-loader-dot { animation: none !important; }
+      }
+    `}</style>
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <span className="route-loader-dot" style={dotStyle} />
+      <span className="route-loader-dot" style={{ ...dotStyle, animationDelay: ".15s" }} />
+      <span className="route-loader-dot" style={{ ...dotStyle, animationDelay: ".3s" }} />
+    </div>
+  </div>
+);
+
+const dotStyle: React.CSSProperties = {
+  width: 10,
+  height: 10,
+  borderRadius: 999,
+  background: "#111",
+  animation: "bootPulse 1s ease-in-out infinite",
+};
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
 function StepAgeSex() {
@@ -267,38 +309,40 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <OnboardingProvider>
-          <Routes>
-	          <Route element={<LayoutWithNav />}>
-	            <Route path="/" element={<Dashboard />} />
-	            <Route path="/coach" element={<CoachChat />} />
-	            <Route path="/plan/one" element={<PlanOne />} />
-	            <Route path="/check-in" element={<CheckIn />} />
-	            <Route path="/nutrition" element={<Nutrition />} />
-	            <Route path="/profile" element={<Profile />} />
-            <Route path="/workout/session" element={<WorkoutSession />} />
-            <Route path="/workout/result" element={<WorkoutResult />} />
-             <Route path="/history" element={<History />} />
-             <Route path="/nutrition/today" element={<NutritionToday />} />
-             <Route path="/schedule" element={<Schedule />} />
-             <Route path="/progress" element={<Progress />} />
+          <Suspense fallback={<RouteLoader />}>
+            <Routes>
+              <Route element={<LayoutWithNav />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/coach" element={<CoachChat />} />
+                <Route path="/plan/one" element={<PlanOne />} />
+                <Route path="/check-in" element={<CheckIn />} />
+                <Route path="/nutrition" element={<Nutrition />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/workout/session" element={<WorkoutSession />} />
+                <Route path="/workout/result" element={<WorkoutResult />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/nutrition/today" element={<NutritionToday />} />
+                <Route path="/schedule" element={<Schedule />} />
+                <Route path="/progress" element={<Progress />} />
 
-            <Route path="/onb/age-sex" element={<StepAgeSex />} />
-            <Route path="/onb/age" element={<StepAge />} />
-            <Route path="/onb/weight" element={<StepWeight />} />
-            <Route path="/onb/height" element={<StepHeight />} />
-            <Route path="/onb/experience" element={<StepExperience />} />
-            <Route path="/onb/frequency" element={<StepFrequency />} />
-            <Route path="/onb/duration" element={<StepDuration />} />
-            <Route path="/onb/diet" element={<StepDiet />} />
-            <Route path="/onb/diet-style" element={<StepDietStyle />} />
-            <Route path="/onb/motivation" element={<StepMotivation />} />
-            <Route path="/onb/scheme" element={<StepSchemeSelection />} />
-          </Route>
-        </Routes>
+                <Route path="/onb/age-sex" element={<StepAgeSex />} />
+                <Route path="/onb/age" element={<StepAge />} />
+                <Route path="/onb/weight" element={<StepWeight />} />
+                <Route path="/onb/height" element={<StepHeight />} />
+                <Route path="/onb/experience" element={<StepExperience />} />
+                <Route path="/onb/frequency" element={<StepFrequency />} />
+                <Route path="/onb/duration" element={<StepDuration />} />
+                <Route path="/onb/diet" element={<StepDiet />} />
+                <Route path="/onb/diet-style" element={<StepDietStyle />} />
+                <Route path="/onb/motivation" element={<StepMotivation />} />
+                <Route path="/onb/scheme" element={<StepSchemeSelection />} />
+              </Route>
+            </Routes>
+          </Suspense>
 
-        {/* Debug Panel временно убран */}
-      </OnboardingProvider>
-    </BrowserRouter>
+          {/* Debug Panel временно убран */}
+        </OnboardingProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }

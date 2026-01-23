@@ -172,9 +172,22 @@ if (isDev && !tg?.initData) {
     void Promise.all(rest.map(preloadImage));
   });
 } else {
+  const critical = [robotImg, morobotImg, fonImg];
+  const rest = [
+    mozgImg,
+    maleRobotImg,
+    femaleRobotImg,
+    beginnerImg,
+    intermediateImg,
+    advancedImg,
+  ];
+  root.render(<App />);
+  Promise.all(critical.map(preloadImage)).finally(() => {
+    window.requestAnimationFrame(hideBootSplash);
+  });
+  void Promise.all(rest.map(preloadImage));
   // реальная авторизация через Telegram
-  root.render(<LoadingScreen />);
-  auth();
+  void auth();
 }
 
 // --- авторизация через Telegram API ---
@@ -205,10 +218,7 @@ async function auth() {
       advancedImg,
     ];
     await Promise.all(critical.map(preloadImage));
-    root.render(<App />);
-    window.requestAnimationFrame(hideBootSplash);
-    void Promise.all(rest.map(preloadImage));
   } catch (e: any) {
-    root.render(<LoadingScreen />);
+    console.warn("auth failed", e);
   }
 }
