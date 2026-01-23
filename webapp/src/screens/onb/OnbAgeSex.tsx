@@ -24,6 +24,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
   const [sex, setSex] = useState<Sex | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const [imagesReady, setImagesReady] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -31,6 +32,34 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const preload = (src: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+        const done = () => resolve();
+        const anyImg = img as any;
+        if (typeof anyImg.decode === "function") {
+          anyImg.decode().then(done).catch(() => {
+            img.onload = done;
+            img.onerror = done;
+          });
+        } else {
+          img.onload = done;
+          img.onerror = done;
+        }
+      });
+
+    Promise.all([preload(maleRobotImg), preload(femaleRobotImg)]).then(() => {
+      if (!cancelled) setImagesReady(true);
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -172,7 +201,10 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
         <p style={s.subtitle}>Это поможет точнее подобрать тренировки</p>
       </div>
 
-      <div style={s.buttons} className="onb-fade onb-fade-delay-3">
+      <div
+        style={{ ...s.buttons, ...(imagesReady ? undefined : s.buttonsHidden) }}
+        className="onb-fade onb-fade-delay-3"
+      >
         <button
           type="button"
           style={{
@@ -187,7 +219,14 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           className="gender-card"
           onClick={() => handleSelect("male")}
         >
-          <img src={maleRobotImg} alt="Мужской" style={s.optionImage} />
+          <img
+            src={maleRobotImg}
+            alt="Мужской"
+            style={s.optionImage}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
           <div style={s.optionLabel}>Мужской</div>
         </button>
         <button
@@ -204,7 +243,14 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           className="gender-card"
           onClick={() => handleSelect("female")}
         >
-          <img src={femaleRobotImg} alt="Женский" style={s.optionImage} />
+          <img
+            src={femaleRobotImg}
+            alt="Женский"
+            style={s.optionImage}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
           <div style={s.optionLabel}>Женский</div>
         </button>
       </div>
@@ -301,6 +347,10 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     marginTop: 22,
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  },
+  buttonsHidden: {
+    opacity: 0,
+    pointerEvents: "none",
   },
   actions: {
     marginTop: "auto",
