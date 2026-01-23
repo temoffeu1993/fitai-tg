@@ -82,7 +82,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
     const restrictions = initial?.dietPrefs?.restrictions ?? initial?.preferences?.dislike ?? [];
 
-    onSubmit({
+    const patch: OnbDietStyleData = {
       preferences: { dislike: restrictions },
       dietPrefs: {
         restrictions,
@@ -91,7 +91,16 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         styleOther: styleOther.trim(),
         budgetLevel: initial?.dietPrefs?.budgetLevel ?? "medium",
       },
-    });
+    };
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      onSubmit(patch);
+      return;
+    }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(() => {
+      onSubmit(patch);
+    }, 220);
   };
 
   return (

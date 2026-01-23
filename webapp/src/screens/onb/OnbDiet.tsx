@@ -88,7 +88,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       }
       return restrictions;
     })();
-    onSubmit({
+    const patch: OnbDietData = {
       preferences: { dislike: dislikes },
       dietPrefs: {
         restrictions: dislikes,
@@ -97,7 +97,16 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         styleOther: "",
         budgetLevel: "medium",
       },
-    });
+    };
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      onSubmit(patch);
+      return;
+    }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(() => {
+      onSubmit(patch);
+    }, 220);
   };
 
   return (
