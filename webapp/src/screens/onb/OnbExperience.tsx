@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbExperience.tsx
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
@@ -24,6 +24,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
   const [experience, setExperience] = useState<Experience | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const [imagesReady, setImagesReady] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -50,6 +51,34 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         root.style.overscrollBehaviorY = prevOverscroll || "";
         root.style.scrollBehavior = prevScrollBehavior || "";
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const preload = (src: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+        const done = () => resolve();
+        const anyImg = img as any;
+        if (typeof anyImg.decode === "function") {
+          anyImg.decode().then(done).catch(() => {
+            img.onload = done;
+            img.onerror = done;
+          });
+        } else {
+          img.onload = done;
+          img.onerror = done;
+        }
+      });
+
+    Promise.all([preload(beginnerImg), preload(intermediateImg), preload(advancedImg)]).then(() => {
+      if (!cancelled) setImagesReady(true);
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -150,7 +179,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         <p style={s.subtitle}>Чтобы тренировки соответствовали вашему опыту.</p>
       </div>
 
-      <div style={s.cards} className="onb-fade onb-fade-delay-3">
+      <div
+        style={{ ...s.cards, ...(imagesReady ? undefined : s.cardsHidden) }}
+        className="onb-fade onb-fade-delay-3"
+      >
         <button
           type="button"
           className="exp-card"
@@ -169,7 +201,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             <div style={s.cardTitle}>Новичок</div>
             <div style={s.cardSubtitle}>Тренируюсь менее 6 месяцев</div>
           </div>
-          <img src={beginnerImg} alt="Новичек" style={s.cardImage} />
+          <img
+            src={beginnerImg}
+            alt="Новичек"
+            style={s.cardImage}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
         </button>
 
         <button
@@ -190,7 +229,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             <div style={s.cardTitle}>Средний уровень</div>
             <div style={s.cardSubtitle}>Тренируюсь регулярно от 6 месяцев до 2 лет</div>
           </div>
-          <img src={intermediateImg} alt="Средний уровень" style={s.cardImage} />
+          <img
+            src={intermediateImg}
+            alt="Средний уровень"
+            style={s.cardImage}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
         </button>
 
         <button
@@ -213,7 +259,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
               Тренируюсь более 2 лет, уверенно знаю технику
             </div>
           </div>
-          <img src={advancedImg} alt="Продвинутый" style={s.cardImage} />
+          <img
+            src={advancedImg}
+            alt="Продвинутый"
+            style={s.cardImage}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
         </button>
       </div>
 
@@ -314,6 +367,9 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     marginTop: 12,
     gridTemplateColumns: "1fr",
+  },
+  cardsHidden: {
+    opacity: 0,
   },
   card: {
     width: "100%",
