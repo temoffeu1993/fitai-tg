@@ -321,9 +321,9 @@ const s: Record<string, React.CSSProperties> = {
   progressFill: {
     height: "100%",
     width: "60%",
-    background: "linear-gradient(180deg, #2fe3b6 0%, #18c39a 100%)",
+    background: "#1e1f22",
     borderRadius: 999,
-    boxShadow: "0 2px 6px rgba(23, 195, 154, 0.4), inset 0 1px 0 rgba(255,255,255,0.6)",
+    boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
   },
   progressText: {
     fontSize: 12,
@@ -402,13 +402,13 @@ const s: Record<string, React.CSSProperties> = {
   trackIndicator: {
     position: "absolute",
     left: "50%",
-    bottom: 10,
+    top: 8,
     width: 0,
     height: 0,
     transform: "translateX(-50%)",
     borderLeft: "6px solid transparent",
     borderRight: "6px solid transparent",
-    borderTop: "8px solid #2fe3b6",
+    borderTop: "8px solid rgba(15, 23, 42, 0.35)",
     pointerEvents: "none",
   },
   trackList: {
