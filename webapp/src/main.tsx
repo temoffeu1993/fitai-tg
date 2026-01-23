@@ -263,8 +263,10 @@ if (isDev && !tg?.initData) {
     "profile",
     JSON.stringify({ first_name: "Dev", username: "dev" })
   );
-  const critical = [robotImg, morobotImg, fonImg];
-  const rest = [
+  const allImages = [
+    robotImg,
+    morobotImg,
+    fonImg,
     mozgImg,
     maleRobotImg,
     femaleRobotImg,
@@ -272,7 +274,7 @@ if (isDev && !tg?.initData) {
     intermediateImg,
     advancedImg,
   ];
-  Promise.all(critical.map(preloadImage)).finally(() => {
+  Promise.all(allImages.map(preloadImage)).finally(() => {
     timeMark("boot:critical-images-ready");
     root.render(
       <>
@@ -282,8 +284,6 @@ if (isDev && !tg?.initData) {
     );
     timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
-    void Promise.all(rest.map(preloadImage));
-    timeMark("boot:rest-images-start");
   });
 } else {
   // реальная авторизация через Telegram
@@ -312,8 +312,10 @@ async function auth() {
     timeMark("auth:response-ok");
     const { token } = await r.json();
     localStorage.setItem("token", token);
-    const critical = [robotImg, morobotImg, fonImg];
-    const rest = [
+    const allImages = [
+      robotImg,
+      morobotImg,
+      fonImg,
       mozgImg,
       maleRobotImg,
       femaleRobotImg,
@@ -321,7 +323,7 @@ async function auth() {
       intermediateImg,
       advancedImg,
     ];
-    await Promise.all(critical.map(preloadImage));
+    await Promise.all(allImages.map(preloadImage));
     timeMark("boot:critical-images-ready");
     root.render(
       <>
@@ -331,8 +333,6 @@ async function auth() {
     );
     timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
-    void Promise.all(rest.map(preloadImage));
-    timeMark("boot:rest-images-start");
   } catch (e: any) {
     root.render(<LoadingScreen />);
     timeMark("auth:failed");
