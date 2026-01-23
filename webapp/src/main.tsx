@@ -12,6 +12,22 @@ import beginnerImg from "./assets/novii.png";
 import intermediateImg from "./assets/sredne.png";
 import advancedImg from "./assets/profi.png";
 
+const timeMark = (label: string) => {
+  try {
+    if (typeof performance === "undefined") return;
+    performance.mark(label);
+    const entries = performance.getEntriesByName(label);
+    const last = entries[entries.length - 1];
+    if (last) {
+      console.log(`[perf] ${label}: ${last.startTime.toFixed(0)}ms`);
+    }
+  } catch (err) {
+    console.warn("perf mark failed", err);
+  }
+};
+
+timeMark("boot:main-start");
+
 // инициализация Telegram WebApp SDK
 const tg = (window as any)?.Telegram?.WebApp;
 
@@ -44,6 +60,7 @@ if (import.meta.hot) {
     window.removeEventListener("resize", syncViewportHeight);
   });
 }
+timeMark("boot:telegram-ready");
 const applyLightTheme = () => {
   const root = document.documentElement;
   root.style.setProperty("--tg-theme-bg-color", "#f5f6f8");
@@ -63,6 +80,7 @@ tg?.onEvent?.("themeChanged", applyLightTheme);
 tg?.onEvent?.("viewportChanged", applyLightTheme);
 setTimeout(applyLightTheme, 50);
 setTimeout(applyLightTheme, 200);
+timeMark("boot:theme-applied");
 
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
@@ -167,13 +185,17 @@ if (isDev && !tg?.initData) {
     advancedImg,
   ];
   Promise.all(critical.map(preloadImage)).finally(() => {
+    timeMark("boot:critical-images-ready");
     root.render(<App />);
+    timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
     void Promise.all(rest.map(preloadImage));
+    timeMark("boot:rest-images-start");
   });
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
+  timeMark("boot:loading-screen-rendered");
   auth();
 }
 
@@ -185,6 +207,7 @@ async function auth() {
     "";
 
   try {
+    timeMark("auth:request-start");
     const r = await fetch(`${import.meta.env.VITE_API_URL}/auth/telegram`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -193,6 +216,7 @@ async function auth() {
 
     if (!r.ok) throw new Error(await r.text());
 
+    timeMark("auth:response-ok");
     const { token } = await r.json();
     localStorage.setItem("token", token);
     const critical = [robotImg, morobotImg, fonImg];
@@ -205,10 +229,14 @@ async function auth() {
       advancedImg,
     ];
     await Promise.all(critical.map(preloadImage));
+    timeMark("boot:critical-images-ready");
     root.render(<App />);
+    timeMark("boot:app-rendered");
     window.requestAnimationFrame(hideBootSplash);
     void Promise.all(rest.map(preloadImage));
+    timeMark("boot:rest-images-start");
   } catch (e: any) {
     root.render(<LoadingScreen />);
+    timeMark("auth:failed");
   }
 }
