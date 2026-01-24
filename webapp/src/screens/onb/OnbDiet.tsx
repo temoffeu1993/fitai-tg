@@ -357,9 +357,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               ["--tile-color" as never]: "#fff",
               ...s.tileActive,
               width: "auto",
-              flex: "0 1 auto",
-              alignSelf: "flex-start",
               maxWidth: "100%",
+              flex: "0 0 auto",
+              alignSelf: "flex-start",
+              display: "inline-flex",
+              whiteSpace: "normal",
+              wordBreak: "break-word",
             }}
             onClick={() => {
               setRestrictionOther("");
