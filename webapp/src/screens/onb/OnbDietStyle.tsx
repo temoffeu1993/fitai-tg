@@ -454,7 +454,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     maxWidth: 420,
     borderRadius: 22,
-    padding: "12px 14px 14px",
+    padding: "44px 16px 16px",
     background: "rgba(255,255,255,0.7)",
     border: "1px solid rgba(255,255,255,0.6)",
     backdropFilter: "blur(18px)",
@@ -467,7 +467,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   sheetClose: {
     position: "absolute",
-    top: 10,
+    top: 12,
     right: 12,
     width: 30,
     height: 30,
