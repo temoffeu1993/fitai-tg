@@ -177,9 +177,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       );
       setRestrictionOtherDraft(restrictionOther);
       setOtherOpen(true);
-      window.setTimeout(() => {
+      requestAnimationFrame(() => {
         otherInputRef.current?.focus();
-      }, 0);
+      });
       return;
     }
     setRestrictions((prev) =>
@@ -276,10 +276,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           filter: brightness(0.99) !important;
         }
         .sheet-fade {
-          animation: none;
+          animation: sheetFadeIn 120ms ease-out both;
         }
         .sheet-card {
-          animation: none;
+          animation: sheetPop 140ms ease-out both;
         }
         @keyframes sheetFadeIn {
           0% { opacity: 0; }
@@ -356,6 +356,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               ["--tile-border" as never]: "#1e1f22",
               ["--tile-color" as never]: "#fff",
               ...s.tileActive,
+              width: "fit-content",
+              justifySelf: "start",
+              maxWidth: "100%",
             }}
             onClick={() => {
               setRestrictionOther("");
@@ -409,15 +412,15 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               keyboardOffset > 0
                 ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0) 55%)"
                 : "rgba(255,255,255,0)",
-            opacity: otherOpen ? 1 : 0,
-            pointerEvents: otherOpen ? "auto" : "none",
+            opacity: keyboardOffset > 0 ? 1 : 0,
+            pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
-          className=""
+          className={keyboardOffset > 0 ? "sheet-fade" : ""}
           onClick={() => setOtherOpen(false)}
         >
           <div
             style={s.sheet}
-            className=""
+            className={keyboardOffset > 0 ? "sheet-card" : ""}
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -514,8 +517,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   tiles: {
     marginTop: 18,
-    display: "flex",
-    flexWrap: "wrap",
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: 10,
     width: "100%",
   },
@@ -530,11 +533,9 @@ const s: Record<string, React.CSSProperties> = {
     color: "var(--tile-color)",
     fontSize: 16,
     fontWeight: 500,
-    padding: "18px 14px",
+    padding: "18px 10px",
     textAlign: "center",
     cursor: "pointer",
-    flex: "0 1 auto",
-    minWidth: "calc(33.333% - 10px)",
   },
   tileActive: {
     background: "#1e1f22",
