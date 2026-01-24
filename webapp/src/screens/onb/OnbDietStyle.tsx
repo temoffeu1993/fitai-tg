@@ -249,7 +249,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
       <div style={s.inputWrap}>
         {styleOther.trim() ? (
-          <div style={s.tiles} className="onb-fade onb-fade-delay-3">
+          <div style={s.tilesExtra} className="onb-fade onb-fade-delay-3">
             <button
               type="button"
               className="gender-card"
@@ -399,6 +399,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   tiles: {
     marginTop: 18,
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+    width: "100%",
+  },
+  tilesExtra: {
+    marginTop: 10,
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 10,
