@@ -75,7 +75,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (root) {
       root.style.overflowY = "hidden";
       root.style.overscrollBehaviorY = "none";
-      root.style.scrollBehavior = "smooth";
+      root.style.scrollBehavior = "auto";
     }
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
