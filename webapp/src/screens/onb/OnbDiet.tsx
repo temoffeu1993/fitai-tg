@@ -35,8 +35,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
-  const [otherOpen, setOtherOpen] = useState(false);
-  const otherInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -46,14 +44,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (!otherOpen) return;
-    const id = window.setTimeout(() => {
-      otherInputRef.current?.focus();
-    }, 60);
-    return () => window.clearTimeout(id);
-  }, [otherOpen]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -82,25 +72,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (value === "Нет") {
       setRestrictions([]);
       setRestrictionOther("");
-      setOtherOpen(false);
-      return;
-    }
-    if (value === "Другое") {
-      setRestrictions((prev) => (prev.includes(value) ? prev : [...prev, value]));
-      setOtherOpen(true);
       return;
     }
     setRestrictions((prev) =>
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
-  };
-
-  const handleOtherDone = () => {
-    if (!restrictionOther.trim()) {
-      setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
-      setRestrictionOther("");
-    }
-    setOtherOpen(false);
   };
 
   const handleNext = () => {
@@ -237,27 +213,14 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         })}
       </div>
 
-      {otherOpen ? (
-        <div style={s.sheetOverlay} onClick={handleOtherDone}>
-          <div style={s.sheet} onClick={(e) => e.stopPropagation()}>
-            <div style={s.sheetHandle} />
-            <div style={s.sheetTitle}>Уточни свой вариант</div>
-            <input
-              ref={otherInputRef}
-              value={restrictionOther}
-              onChange={(e) => setRestrictionOther(e.target.value)}
-              placeholder="Например: морепродукты"
-              style={s.sheetInput}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleOtherDone();
-              }}
-            />
-            <button type="button" style={s.sheetBtn} onClick={handleOtherDone}>
-              Готово
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {restrictions.includes("Другое") && (
+        <input
+          value={restrictionOther}
+          onChange={(e) => setRestrictionOther(e.target.value)}
+          placeholder="Например: морепродукты"
+          style={s.input}
+        />
+      )}
 
       <div style={s.actions}>
         <button
@@ -378,62 +341,16 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     color: "#fff",
   },
-  sheetOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15, 23, 42, 0.25)",
-    backdropFilter: "blur(2px)",
-    WebkitBackdropFilter: "blur(2px)",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    padding: "0 16px",
-    zIndex: 20,
-  },
-  sheet: {
-    width: "100%",
-    maxWidth: 720,
-    borderRadius: 20,
-    padding: "14px 16px 18px",
-    marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
-    background: "rgba(255,255,255,0.92)",
-    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.2)",
-    display: "grid",
-    gap: 12,
-  },
-  sheetHandle: {
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.2)",
-    margin: "0 auto",
-  },
-  sheetTitle: {
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: 600,
-    color: "#0f172a",
-  },
-  sheetInput: {
+  input: {
+    marginTop: 12,
     width: "100%",
     borderRadius: 14,
-    border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "#fff",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "rgba(255,255,255,0.8)",
     padding: "12px 14px",
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
-  },
-  sheetBtn: {
-    width: "100%",
-    borderRadius: 14,
-    padding: "12px 16px",
-    border: "none",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
   },
   primaryBtn: {
     marginTop: 18,
