@@ -291,7 +291,6 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       {otherOpen ? (
         <div style={s.sheetWrap} className="sheet-fade">
           <div style={s.sheet} className="sheet-card">
-            <div style={s.sheetHandle} />
             <input
               ref={otherInputRef}
               value={styleOther}
@@ -442,13 +441,6 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     pointerEvents: "auto",
-  },
-  sheetHandle: {
-    width: 46,
-    height: 5,
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.2)",
-    margin: "0 auto",
   },
   sheetInput: {
     width: "100%",
