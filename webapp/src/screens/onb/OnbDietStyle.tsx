@@ -363,9 +363,9 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
             transform:
               keyboardOffset > 0
                 ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-                : "translateY(100%)",
-            opacity: keyboardOffset > 0 || otherFocused ? 1 : 0,
-            pointerEvents: keyboardOffset > 0 || otherFocused ? "auto" : "none",
+                : "translateY(0)",
+            opacity: keyboardOffset > 0 ? 1 : 0,
+            pointerEvents: "auto",
           }}
           className="sheet-fade"
         >
