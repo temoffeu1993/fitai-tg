@@ -444,8 +444,10 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     maxWidth: 720,
     margin: "0 auto",
-    background:
-      "linear-gradient(180deg, rgba(245,246,248,0) 0%, rgba(245,246,248,0.9) 24%, rgba(245,246,248,0.98) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(245,247,250,0.8) 100%)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "0 -12px 30px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
     zIndex: 5,
   },
   backBtn: {
