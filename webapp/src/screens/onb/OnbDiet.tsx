@@ -270,7 +270,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           filter: brightness(0.99) !important;
         }
         .sheet-fade {
-          animation: none;
+          animation: sheetFadeIn 120ms ease-out both;
         }
         .sheet-card {
           animation: sheetPop 140ms ease-out both;
@@ -401,12 +401,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             ...s.sheetWrap,
             background:
               keyboardOffset > 0
-                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(15, 23, 42, 0.16) 60%)"
-                : s.sheetWrap.background,
+                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0) 55%)"
+                : "rgba(255,255,255,0)",
             opacity: keyboardOffset > 0 ? 1 : 0,
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
-          className=""
+          className={keyboardOffset > 0 ? "sheet-fade" : ""}
           onClick={() => setOtherOpen(false)}
         >
           <div
@@ -544,11 +544,11 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "rgba(15, 23, 42, 0.16)",
+    background: "rgba(255,255,255,0)",
     backdropFilter: "blur(2px)",
     WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "auto",
-    transition: "opacity 160ms ease",
+    transition: "opacity 160ms ease, backdrop-filter 220ms ease",
   },
   sheet: {
     width: "100%",
