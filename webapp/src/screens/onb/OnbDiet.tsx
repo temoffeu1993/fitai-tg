@@ -313,8 +313,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
       </div>
       {otherOpen ? (
-        <div style={s.sheetWrap} className="sheet-fade">
-          <div style={s.sheet} className="sheet-card">
+        <div style={s.sheetWrap} className="sheet-fade" onClick={() => setOtherOpen(false)}>
+          <div style={s.sheet} className="sheet-card" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               style={s.sheetClose}
