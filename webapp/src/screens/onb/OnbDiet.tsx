@@ -270,7 +270,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           filter: brightness(0.99) !important;
         }
         .sheet-fade {
-          animation: sheetFadeIn 120ms ease-out both;
+          animation: none;
         }
         .sheet-card {
           animation: sheetPop 140ms ease-out both;
@@ -406,7 +406,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             opacity: keyboardOffset > 0 ? 1 : 0,
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
-          className={keyboardOffset > 0 ? "sheet-fade" : ""}
+          className=""
           onClick={() => setOtherOpen(false)}
         >
           <div
