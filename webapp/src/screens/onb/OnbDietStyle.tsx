@@ -245,30 +245,25 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
             </button>
           );
         })}
-      </div>
-
-      <div style={s.inputWrap}>
         {styleOther.trim() ? (
-          <div style={s.tilesExtra} className="onb-fade onb-fade-delay-3">
-            <button
-              type="button"
-              className="gender-card"
-              style={{
-                ...s.tile,
-                ["--tile-bg" as never]: "#1e1f22",
-                ["--tile-border" as never]: "#1e1f22",
-                ["--tile-color" as never]: "#fff",
-                ...s.tileActive,
-              }}
-              onClick={() => {
-                setStyleOther("");
-                setStylesSel((prev) => prev.filter((item) => item !== "Другое"));
-                setOtherOpen(false);
-              }}
-            >
-              {styleOther.trim()}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="gender-card"
+            style={{
+              ...s.tile,
+              ["--tile-bg" as never]: "#1e1f22",
+              ["--tile-border" as never]: "#1e1f22",
+              ["--tile-color" as never]: "#fff",
+              ...s.tileActive,
+            }}
+            onClick={() => {
+              setStyleOther("");
+              setStylesSel((prev) => prev.filter((item) => item !== "Другое"));
+              setOtherOpen(false);
+            }}
+          >
+            {styleOther.trim()}
+          </button>
         ) : null}
       </div>
 
@@ -399,13 +394,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   tiles: {
     marginTop: 18,
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-    width: "100%",
-  },
-  tilesExtra: {
-    marginTop: 10,
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 10,
