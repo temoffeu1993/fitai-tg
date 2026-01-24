@@ -41,7 +41,21 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
   const otherScrollYRef = useRef(0);
-  const bodyOverflowRef = useRef<{ html: string; body: string }>({ html: "", body: "" });
+  const bodyOverflowRef = useRef<{
+    htmlOverflow: string;
+    bodyOverflow: string;
+    htmlHeight: string;
+    bodyHeight: string;
+    htmlOverscroll: string;
+    bodyOverscroll: string;
+  }>({
+    htmlOverflow: "",
+    bodyOverflow: "",
+    htmlHeight: "",
+    bodyHeight: "",
+    htmlOverscroll: "",
+    bodyOverscroll: "",
+  });
 
   useEffect(() => {
     return () => {
@@ -55,11 +69,19 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   useEffect(() => {
     if (!otherOpen) return;
     bodyOverflowRef.current = {
-      html: document.documentElement.style.overflow,
-      body: document.body.style.overflow,
+      htmlOverflow: document.documentElement.style.overflow,
+      bodyOverflow: document.body.style.overflow,
+      htmlHeight: document.documentElement.style.height,
+      bodyHeight: document.body.style.height,
+      htmlOverscroll: document.documentElement.style.overscrollBehavior,
+      bodyOverscroll: document.body.style.overscrollBehavior,
     };
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.documentElement.style.height = "100%";
+    document.body.style.height = "100%";
+    document.documentElement.style.overscrollBehavior = "none";
+    document.body.style.overscrollBehavior = "none";
     const focusInput = () => {
       if (!otherInputRef.current) return;
       otherInputRef.current.focus();
@@ -85,8 +107,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
       window.clearTimeout(retryId);
-      document.documentElement.style.overflow = bodyOverflowRef.current.html;
-      document.body.style.overflow = bodyOverflowRef.current.body;
+      document.documentElement.style.overflow = bodyOverflowRef.current.htmlOverflow;
+      document.body.style.overflow = bodyOverflowRef.current.bodyOverflow;
+      document.documentElement.style.height = bodyOverflowRef.current.htmlHeight;
+      document.body.style.height = bodyOverflowRef.current.bodyHeight;
+      document.documentElement.style.overscrollBehavior = bodyOverflowRef.current.htmlOverscroll;
+      document.body.style.overscrollBehavior = bodyOverflowRef.current.bodyOverscroll;
       if (vv) {
         vv.removeEventListener("resize", updateOffset);
         vv.removeEventListener("scroll", updateOffset);
@@ -146,14 +172,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       setRestrictions((prev) =>
         prev.includes("Другое") ? prev : [...prev, "Другое"]
       );
-      if (otherInputRef.current) {
-        otherInputRef.current.focus();
-      } else {
-        requestAnimationFrame(() => {
-          otherInputRef.current?.focus();
-        });
-      }
       setOtherOpen(true);
+      requestAnimationFrame(() => {
+        otherInputRef.current?.focus();
+      });
       return;
     }
     setRestrictions((prev) =>
@@ -394,6 +416,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               onChange={(e) => setRestrictionOther(e.target.value)}
               placeholder="Например: морепродукты"
               style={s.sheetInput}
+              autoFocus
               onFocus={() => setOtherFocused(true)}
               onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {
