@@ -254,10 +254,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             </button>
           );
         })}
-      </div>
-
-      {restrictionOther.trim() ? (
-        <div style={s.tilesExtra} className="onb-fade onb-fade-delay-3">
+        {restrictionOther.trim() ? (
           <button
             type="button"
             className="gender-card"
@@ -276,8 +273,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           >
             {restrictionOther.trim()}
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <div style={s.actions}>
         <button
@@ -411,13 +408,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     width: "100%",
   },
-  tilesExtra: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: 10,
-    width: "100%",
-  },
   tile: {
     borderRadius: 18,
     border: "1px solid var(--tile-border)",
@@ -458,7 +448,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     maxWidth: 420,
     borderRadius: 22,
-    padding: "56px 16px 16px",
+    padding: "44px 16px 16px",
     background: "rgba(255,255,255,0.7)",
     border: "1px solid rgba(255,255,255,0.6)",
     backdropFilter: "blur(18px)",
