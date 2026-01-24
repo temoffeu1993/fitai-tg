@@ -72,7 +72,12 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   useEffect(() => {
     if (!otherOpen) return;
     const id = window.setTimeout(() => {
-      otherInputRef.current?.focus();
+      if (!otherInputRef.current) return;
+      if ("preventScroll" in HTMLInputElement.prototype) {
+        otherInputRef.current.focus({ preventScroll: true });
+      } else {
+        otherInputRef.current.focus();
+      }
     }, 0);
     const vv = window.visualViewport;
     const updateOffset = () => {
@@ -355,7 +360,6 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
               onChange={(e) => setStyleOther(e.target.value)}
               placeholder="Уточни свой вариант"
               style={s.sheetInput}
-              autoFocus
               onFocus={() => setOtherFocused(true)}
               onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {

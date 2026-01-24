@@ -53,7 +53,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   useEffect(() => {
     if (!otherOpen) return;
     const id = window.setTimeout(() => {
-      otherInputRef.current?.focus();
+      if (!otherInputRef.current) return;
+      if ("preventScroll" in HTMLInputElement.prototype) {
+        otherInputRef.current.focus({ preventScroll: true });
+      } else {
+        otherInputRef.current.focus();
+      }
     }, 0);
     const vv = window.visualViewport;
     const updateOffset = () => {
@@ -364,7 +369,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               onChange={(e) => setRestrictionOther(e.target.value)}
               placeholder="Например: морепродукты"
               style={s.sheetInput}
-              autoFocus
               onFocus={() => setOtherFocused(true)}
               onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {
