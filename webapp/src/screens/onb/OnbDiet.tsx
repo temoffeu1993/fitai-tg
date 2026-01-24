@@ -372,9 +372,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             transform:
               keyboardOffset > 0
                 ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-                : "translateY(0)",
+                : "translateY(100%)",
             opacity: keyboardOffset > 0 ? 1 : 0,
-            visibility: keyboardOffset > 0 ? "visible" : "hidden",
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
           className="sheet-fade"
