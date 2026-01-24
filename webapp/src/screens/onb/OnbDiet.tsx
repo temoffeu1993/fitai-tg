@@ -51,8 +51,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (!restrictions.includes("Другое")) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-      otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 80);
+      otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => {
+        window.scrollBy({ top: -40, behavior: "smooth" });
+      }, 120);
+    }, 120);
     return () => window.clearTimeout(id);
   }, [restrictions]);
 
