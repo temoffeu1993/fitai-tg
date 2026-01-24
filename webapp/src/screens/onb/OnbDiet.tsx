@@ -315,6 +315,14 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       {otherOpen ? (
         <div style={s.sheetWrap} className="sheet-fade">
           <div style={s.sheet} className="sheet-card">
+            <button
+              type="button"
+              style={s.sheetClose}
+              onClick={() => setOtherOpen(false)}
+              aria-label="Закрыть"
+            >
+              ✕
+            </button>
             <input
               ref={otherInputRef}
               value={restrictionOther}
@@ -447,6 +455,23 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     pointerEvents: "auto",
+    position: "relative",
+  },
+  sheetClose: {
+    position: "absolute",
+    top: 10,
+    right: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    border: "none",
+    background: "rgba(15, 23, 42, 0.08)",
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
   },
   sheetInput: {
     width: "100%",
