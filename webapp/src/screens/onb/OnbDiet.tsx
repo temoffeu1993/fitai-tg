@@ -40,6 +40,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
+  const otherScrollYRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -52,6 +53,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   useEffect(() => {
     if (!otherOpen) return;
+    otherScrollYRef.current = window.scrollY || 0;
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.top = `-${otherScrollYRef.current}px`;
     const id = window.setTimeout(() => {
       if (!otherInputRef.current) return;
       otherInputRef.current.focus();
@@ -70,6 +75,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     }
     return () => {
       window.clearTimeout(id);
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      window.scrollTo(0, otherScrollYRef.current);
       if (vv) {
         vv.removeEventListener("resize", updateOffset);
         vv.removeEventListener("scroll", updateOffset);
