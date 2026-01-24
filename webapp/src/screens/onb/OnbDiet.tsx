@@ -276,10 +276,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           filter: brightness(0.99) !important;
         }
         .sheet-fade {
-          animation: sheetFadeIn 120ms ease-out both;
+          animation: none;
         }
         .sheet-card {
-          animation: sheetPop 140ms ease-out both;
+          animation: none;
         }
         @keyframes sheetFadeIn {
           0% { opacity: 0; }
@@ -405,6 +405,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div
           style={{
             ...s.sheetWrap,
+            visibility: keyboardOffset > 0 ? "visible" : "hidden",
             background:
               keyboardOffset > 0
                 ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0) 55%)"
@@ -412,12 +413,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             opacity: keyboardOffset > 0 ? 1 : 0,
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
-          className={keyboardOffset > 0 ? "sheet-fade" : ""}
+          className=""
           onClick={() => setOtherOpen(false)}
         >
           <div
             style={s.sheet}
-            className={keyboardOffset > 0 ? "sheet-card" : ""}
+            className=""
             onClick={(event) => event.stopPropagation()}
           >
             <button
