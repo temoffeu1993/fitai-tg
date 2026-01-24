@@ -51,8 +51,10 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     const prevOverflow = root?.style.overflowY;
     const prevOverscroll = root?.style.overscrollBehaviorY;
     const prevScrollBehavior = root?.style.scrollBehavior;
+    const prevOverflowX = root?.style.overflowX;
     if (root) {
       root.style.overflowY = "hidden";
+      root.style.overflowX = "hidden";
       root.style.overscrollBehaviorY = "none";
       root.style.scrollBehavior = "auto";
       root.scrollTop = 0;
@@ -63,6 +65,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     return () => {
       if (root) {
         root.style.overflowY = prevOverflow || "";
+        root.style.overflowX = prevOverflowX || "";
         root.style.overscrollBehaviorY = prevOverscroll || "";
         root.style.scrollBehavior = prevScrollBehavior || "";
       }
@@ -73,11 +76,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     if (!otherOpen) return;
     const id = window.setTimeout(() => {
       if (!otherInputRef.current) return;
-      if ("preventScroll" in HTMLInputElement.prototype) {
-        otherInputRef.current.focus({ preventScroll: true });
-      } else {
-        otherInputRef.current.focus();
-      }
+      otherInputRef.current.focus();
     }, 0);
     const vv = window.visualViewport;
     const updateOffset = () => {
