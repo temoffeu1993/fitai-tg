@@ -146,6 +146,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         prev.includes("Другое") ? prev : [...prev, "Другое"]
       );
       setOtherOpen(true);
+      if (otherInputRef.current) {
+        otherInputRef.current.focus();
+      } else {
+        requestAnimationFrame(() => {
+          otherInputRef.current?.focus();
+        });
+      }
       return;
     }
     setRestrictions((prev) =>
@@ -365,52 +372,50 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
       </div>
-      {otherOpen ? (
-        <div
-          style={{
-            ...s.sheetWrap,
-            transform:
-              keyboardOffset > 0
-                ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-                : "translateY(100%)",
-            opacity: keyboardOffset > 0 ? 1 : 0,
-            pointerEvents: keyboardOffset > 0 ? "auto" : "none",
-          }}
-          className="sheet-fade"
-        >
-          <div style={s.sheet} className="sheet-card">
-            <input
-              ref={otherInputRef}
-              value={restrictionOther}
-              onChange={(e) => setRestrictionOther(e.target.value)}
-              placeholder="Например: морепродукты"
-              style={s.sheetInput}
-              onFocus={() => setOtherFocused(true)}
-              onBlur={() => setOtherFocused(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleOtherSave();
-              }}
-            />
-            <button
-              type="button"
-              style={s.sheetPrimary}
-              className="intro-primary-btn"
-              onClick={handleOtherSave}
-              aria-label="Сохранить"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
-              style={s.sheetClose}
-              onClick={() => setOtherOpen(false)}
-              aria-label="Закрыть"
-            >
-              ✕
-            </button>
-          </div>
+      <div
+        style={{
+          ...s.sheetWrap,
+          transform:
+            otherOpen && keyboardOffset > 0
+              ? `translateY(-${Math.max(0, keyboardOffset)}px)`
+              : "translateY(100%)",
+          opacity: otherOpen && keyboardOffset > 0 ? 1 : 0,
+          pointerEvents: otherOpen && keyboardOffset > 0 ? "auto" : "none",
+        }}
+        className="sheet-fade"
+      >
+        <div style={s.sheet} className="sheet-card">
+          <input
+            ref={otherInputRef}
+            value={restrictionOther}
+            onChange={(e) => setRestrictionOther(e.target.value)}
+            placeholder="Например: морепродукты"
+            style={s.sheetInput}
+            onFocus={() => setOtherFocused(true)}
+            onBlur={() => setOtherFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleOtherSave();
+            }}
+          />
+          <button
+            type="button"
+            style={s.sheetPrimary}
+            className="intro-primary-btn"
+            onClick={handleOtherSave}
+            aria-label="Сохранить"
+          >
+            ✓
+          </button>
+          <button
+            type="button"
+            style={s.sheetClose}
+            onClick={() => setOtherOpen(false)}
+            aria-label="Закрыть"
+          >
+            ✕
+          </button>
         </div>
-      ) : null}
+      </div>
     </>
   );
 }
