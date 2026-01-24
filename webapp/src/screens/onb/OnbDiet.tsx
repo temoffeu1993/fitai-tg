@@ -521,13 +521,12 @@ const s: Record<string, React.CSSProperties> = {
     flex: 1,
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.7)",
-    background: "rgba(255,255,255,0.6)",
+    background: "rgba(240, 242, 246, 0.9)",
     padding: "12px 16px",
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.35)",
+    caretColor: "#0f172a",
   },
   sheetCheck: {
     width: "100%",
