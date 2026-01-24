@@ -304,7 +304,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           />
           <button
             type="button"
-            style={s.checkBtn}
+            style={{
+              ...s.checkBtn,
+              ...(otherSaved ? s.checkBtnActive : s.checkBtnInactive),
+            }}
             className="other-save"
             onClick={handleOtherSave}
             aria-label="Сохранить"
@@ -457,21 +460,28 @@ const s: Record<string, React.CSSProperties> = {
     width: 46,
     height: 46,
     borderRadius: 18,
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
     display: "grid",
     placeItems: "center",
     cursor: "pointer",
     transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
   },
+  checkBtnInactive: {
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+  },
+  checkBtnActive: {
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
+  },
   checkIcon: {
     fontSize: 18,
     fontWeight: 700,
-    color: "#fff",
+    color: "rgba(15, 23, 42, 0.45)",
   },
   checkIconActive: {
     color: "#fff",
