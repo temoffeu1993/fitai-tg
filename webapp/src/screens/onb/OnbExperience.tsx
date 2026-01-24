@@ -318,7 +318,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
-    overflowY: "auto",
+    overflow: "hidden",
   },
   progressWrap: {
     display: "grid",
@@ -440,7 +440,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     position: "sticky",
-    bottom: 0,
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
     background: "linear-gradient(180deg, rgba(245,246,248,0) 0%, rgba(245,246,248,0.92) 28%, rgba(245,246,248,0.98) 100%)",
     paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
     zIndex: 2,
