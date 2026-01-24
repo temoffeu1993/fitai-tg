@@ -79,10 +79,15 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
     document.body.style.top = `-${otherScrollYRef.current}px`;
-    const id = window.setTimeout(() => {
+    const focusInput = () => {
       if (!otherInputRef.current) return;
       otherInputRef.current.focus();
-    }, 0);
+    };
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(focusInput);
+    });
+    const retryId = window.setTimeout(focusInput, 160);
     const vv = window.visualViewport;
     const updateOffset = () => {
       if (!vv) return;
@@ -96,7 +101,9 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       vv.addEventListener("scroll", updateOffset);
     }
     return () => {
-      window.clearTimeout(id);
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(retryId);
       document.body.style.position = "";
       document.body.style.width = "";
       document.body.style.top = "";
@@ -353,11 +360,12 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         <div
           style={{
             ...s.sheetWrap,
-            transform: keyboardOffset
-              ? `translateY(-${Math.max(0, keyboardOffset - 2)}px)`
-              : "translateY(8px)",
-            opacity: keyboardOffset ? 1 : 0,
-            pointerEvents: keyboardOffset ? "auto" : "none",
+            transform:
+              keyboardOffset > 0
+                ? `translateY(-${Math.max(0, keyboardOffset)}px)`
+                : "translateY(100%)",
+            opacity: keyboardOffset > 0 || otherFocused ? 1 : 0,
+            pointerEvents: keyboardOffset > 0 || otherFocused ? "auto" : "none",
           }}
           className="sheet-fade"
         >
