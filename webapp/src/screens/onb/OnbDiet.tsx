@@ -463,6 +463,8 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
   },
   sheetCheck: {
     width: "100%",
