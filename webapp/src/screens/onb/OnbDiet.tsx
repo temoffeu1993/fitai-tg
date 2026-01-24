@@ -33,6 +33,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [restrictionOther, setRestrictionOther] = useState<string>(
     initial?.dietPrefs?.restrictionOther ?? ""
   );
+  const [restrictionOtherDraft, setRestrictionOtherDraft] = useState<string>(
+    initial?.dietPrefs?.restrictionOther ?? ""
+  );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
@@ -172,6 +175,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       setRestrictions((prev) =>
         prev.includes("Другое") ? prev : [...prev, "Другое"]
       );
+      setRestrictionOtherDraft(restrictionOther);
       setOtherOpen(true);
       requestAnimationFrame(() => {
         otherInputRef.current?.focus();
@@ -184,12 +188,14 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   };
 
   const handleOtherSave = () => {
-    if (restrictionOther.trim()) {
+    if (restrictionOtherDraft.trim()) {
+      setRestrictionOther(restrictionOtherDraft.trim());
       setOtherOpen(false);
       return;
     }
     setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
     setRestrictionOther("");
+    setRestrictionOtherDraft("");
     setOtherOpen(false);
   };
 
@@ -424,8 +430,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             </button>
             <input
               ref={otherInputRef}
-              value={restrictionOther}
-              onChange={(e) => setRestrictionOther(e.target.value)}
+              value={restrictionOtherDraft}
+              onChange={(e) => setRestrictionOtherDraft(e.target.value)}
               placeholder="Например: морепродукты"
               style={s.sheetInput}
               autoFocus
@@ -508,8 +514,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   tiles: {
     marginTop: 18,
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    display: "flex",
+    flexWrap: "wrap",
     gap: 10,
     width: "100%",
   },
@@ -524,9 +530,11 @@ const s: Record<string, React.CSSProperties> = {
     color: "var(--tile-color)",
     fontSize: 16,
     fontWeight: 500,
-    padding: "18px 10px",
+    padding: "18px 12px",
     textAlign: "center",
     cursor: "pointer",
+    flex: "1 1 calc(33.333% - 10px)",
+    minWidth: 0,
   },
   tileActive: {
     background: "#1e1f22",
