@@ -37,6 +37,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
   const [otherOpen, setOtherOpen] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -52,7 +53,24 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
     }, 80);
-    return () => window.clearTimeout(id);
+    const vv = window.visualViewport;
+    const updateOffset = () => {
+      const height = vv?.height ?? window.innerHeight;
+      const offset = Math.max(0, window.innerHeight - height);
+      setKeyboardOffset(offset);
+    };
+    updateOffset();
+    if (vv) {
+      vv.addEventListener("resize", updateOffset);
+      vv.addEventListener("scroll", updateOffset);
+    }
+    return () => {
+      window.clearTimeout(id);
+      if (vv) {
+        vv.removeEventListener("resize", updateOffset);
+        vv.removeEventListener("scroll", updateOffset);
+      }
+    };
   }, [otherOpen]);
 
   useLayoutEffect(() => {
@@ -310,8 +328,19 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
       </div>
       {otherOpen ? (
-        <div style={s.sheetWrap} className="sheet-fade" onClick={() => setOtherOpen(false)}>
-          <div style={s.sheet} className="sheet-card" onClick={(e) => e.stopPropagation()}>
+        <div
+          style={s.sheetWrap}
+          className="sheet-fade"
+          onClick={() => setOtherOpen(false)}
+        >
+          <div
+            style={{
+              ...s.sheet,
+              transform: keyboardOffset ? `translateY(-${keyboardOffset + 12}px)` : "translateY(0)",
+            }}
+            className="sheet-card"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               style={s.sheetClose}
@@ -437,7 +466,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "0 16px",
     zIndex: 20,
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "center",
     background: "rgba(15, 23, 42, 0.16)",
     backdropFilter: "blur(2px)",
@@ -458,6 +487,8 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     pointerEvents: "auto",
     position: "relative",
+    marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    transition: "transform 220ms ease",
   },
   sheetClose: {
     position: "absolute",
