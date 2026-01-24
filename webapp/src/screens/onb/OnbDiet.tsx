@@ -356,10 +356,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               ["--tile-border" as never]: "#1e1f22",
               ["--tile-color" as never]: "#fff",
               ...s.tileActive,
-              width: "auto",
+              gridColumn: "1 / -1",
+              justifySelf: "start",
+              width: "fit-content",
               maxWidth: "100%",
-              flex: "0 0 auto",
-              alignSelf: "flex-start",
               display: "inline-flex",
               whiteSpace: "nowrap",
             }}
