@@ -41,25 +41,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
   const otherScrollYRef = useRef(0);
-  const bodyLockedRef = useRef(false);
-
-  const lockBody = () => {
-    if (bodyLockedRef.current) return;
-    otherScrollYRef.current = window.scrollY || 0;
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-    document.body.style.top = `-${otherScrollYRef.current}px`;
-    bodyLockedRef.current = true;
-  };
-
-  const unlockBody = () => {
-    if (!bodyLockedRef.current) return;
-    document.body.style.position = "";
-    document.body.style.width = "";
-    document.body.style.top = "";
-    window.scrollTo(0, otherScrollYRef.current);
-    bodyLockedRef.current = false;
-  };
+  const bodyOverflowRef = useRef<{ html: string; body: string }>({ html: "", body: "" });
 
   useEffect(() => {
     return () => {
@@ -72,7 +54,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   useEffect(() => {
     if (!otherOpen) return;
-    lockBody();
+    bodyOverflowRef.current = {
+      html: document.documentElement.style.overflow,
+      body: document.body.style.overflow,
+    };
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
     const focusInput = () => {
       if (!otherInputRef.current) return;
       otherInputRef.current.focus();
@@ -98,7 +85,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
       window.clearTimeout(retryId);
-      unlockBody();
+      document.documentElement.style.overflow = bodyOverflowRef.current.html;
+      document.body.style.overflow = bodyOverflowRef.current.body;
       if (vv) {
         vv.removeEventListener("resize", updateOffset);
         vv.removeEventListener("scroll", updateOffset);
@@ -158,7 +146,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       setRestrictions((prev) =>
         prev.includes("Другое") ? prev : [...prev, "Другое"]
       );
-      lockBody();
       if (otherInputRef.current) {
         otherInputRef.current.focus();
       } else {
