@@ -257,8 +257,25 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
 
       {restrictionOther.trim() ? (
-        <div style={s.otherChipWrap}>
-          <div style={s.otherChip}>{restrictionOther.trim()}</div>
+        <div style={s.tiles} className="onb-fade onb-fade-delay-3">
+          <button
+            type="button"
+            className="gender-card"
+            style={{
+              ...s.tile,
+              ["--tile-bg" as never]: "#1e1f22",
+              ["--tile-border" as never]: "#1e1f22",
+              ["--tile-color" as never]: "#fff",
+              ...s.tileActive,
+            }}
+            onClick={() => {
+              setRestrictionOther("");
+              setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
+              setOtherOpen(false);
+            }}
+          >
+            {restrictionOther.trim()}
+          </button>
         </div>
       ) : null}
 
@@ -400,21 +417,6 @@ const s: Record<string, React.CSSProperties> = {
     background: "#1e1f22",
     border: "1px solid #1e1f22",
     color: "#fff",
-  },
-  otherChipWrap: {
-    marginTop: 12,
-    display: "grid",
-    justifyItems: "start",
-  },
-  otherChip: {
-    padding: "10px 14px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    fontSize: 14,
-    color: "#1e1f22",
   },
   sheetWrap: {
     position: "fixed",
