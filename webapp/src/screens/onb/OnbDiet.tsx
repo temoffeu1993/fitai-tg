@@ -372,18 +372,18 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
       </div>
-      <div
-        style={{
-          ...s.sheetWrap,
-          transform:
-            otherOpen && keyboardOffset > 0
-              ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-              : "translateY(100%)",
-          opacity: otherOpen && keyboardOffset > 0 ? 1 : 0,
-          pointerEvents: otherOpen && keyboardOffset > 0 ? "auto" : "none",
-        }}
-        className="sheet-fade"
-      >
+        <div
+          style={{
+            ...s.sheetWrap,
+            transform:
+              otherOpen && keyboardOffset > 0
+                ? `translateY(-${Math.max(0, keyboardOffset)}px)`
+                : "translateY(0)",
+            opacity: otherOpen && keyboardOffset > 0 ? 1 : 0,
+            pointerEvents: otherOpen && keyboardOffset > 0 ? "auto" : "none",
+          }}
+          className="sheet-fade"
+        >
         <div style={s.sheet} className="sheet-card">
           <input
             ref={otherInputRef}
