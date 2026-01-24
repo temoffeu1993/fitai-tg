@@ -171,8 +171,8 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
               ["--tile-bg" as never]:
                 daysPerWeek === value
                   ? "#1e1f22"
-                  : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
-              ["--tile-border" as never]: daysPerWeek === value ? "#1e1f22" : "rgba(255,255,255,0.6)",
+                  : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+              ["--tile-border" as never]: daysPerWeek === value ? "#1e1f22" : "rgba(255,255,255,0.4)",
               ["--tile-color" as never]: daysPerWeek === value ? "#fff" : "#1e1f22",
               ...(daysPerWeek === value ? s.tileActive : {}),
             }}
@@ -283,12 +283,13 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
   },
   tile: {
-    borderRadius: 16,
+    borderRadius: 18,
     border: "1px solid var(--tile-border)",
     background: "var(--tile-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "var(--tile-color)",
     fontSize: 20,
     fontWeight: 600,
