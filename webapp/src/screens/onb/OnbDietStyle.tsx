@@ -448,7 +448,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(15, 23, 42, 0.16)",
     backdropFilter: "blur(2px)",
     WebkitBackdropFilter: "blur(2px)",
-    pointerEvents: "none",
+    pointerEvents: "auto",
   },
   sheet: {
     width: "100%",
