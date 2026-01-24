@@ -32,6 +32,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
+  const [otherSaved, setOtherSaved] = useState(Boolean(initial?.dietPrefs?.styleOther));
 
   useEffect(() => {
     return () => {
@@ -66,19 +67,73 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   }, []);
 
   useEffect(() => {
+    if (!stylesSel.includes("Другое")) return;
     const root = document.getElementById("root");
-    if (!root) return;
-    if (stylesSel.includes("Другое")) {
-      root.style.overflowY = "auto";
-      root.style.overscrollBehaviorY = "contain";
-      root.style.scrollBehavior = "smooth";
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.style.scrollBehavior = "auto";
     }
+    const id = window.setTimeout(() => {
+      otherInputRef.current?.focus();
+      scrollInputAboveKeyboard();
+    }, 120);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", scrollInputAboveKeyboard);
+      vv.addEventListener("scroll", scrollInputAboveKeyboard);
+    }
+    return () => {
+      window.clearTimeout(id);
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
+      }
+      if (vv) {
+        vv.removeEventListener("resize", scrollInputAboveKeyboard);
+        vv.removeEventListener("scroll", scrollInputAboveKeyboard);
+      }
+    };
   }, [stylesSel]);
+
+  const scrollInputAboveKeyboard = () => {
+    const el = otherInputRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const viewportHeight = vv?.height ?? window.innerHeight;
+    const padding = 24;
+    const overlap = rect.bottom - (viewportHeight - padding);
+    if (overlap > 0) {
+      const root = document.getElementById("root");
+      if (root && root.scrollHeight > root.clientHeight) {
+        root.scrollBy({ top: overlap, behavior: "smooth" });
+      } else {
+        window.scrollBy({ top: overlap, behavior: "smooth" });
+      }
+    }
+  };
 
   const toggle = (value: string) => {
     setStylesSel((prev) =>
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
+  };
+
+  const handleOtherSave = () => {
+    if (styleOther.trim()) {
+      setOtherSaved(true);
+      otherInputRef.current?.blur();
+      return;
+    }
+    setOtherSaved(false);
+    setStylesSel((prev) => prev.filter((item) => item !== "Другое"));
+    setStyleOther("");
+    otherInputRef.current?.blur();
   };
 
   const handleNext = () => {
@@ -146,6 +201,11 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           background: var(--tile-bg) !important;
           border-color: var(--tile-border) !important;
           color: var(--tile-color) !important;
+        }
+        .other-save:active {
+          transform: translateY(1px) scale(0.99);
+          box-shadow: 0 6px 14px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.2);
+          filter: brightness(0.98);
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
@@ -220,16 +280,34 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
       <div style={s.inputWrap}>
         {stylesSel.includes("Другое") && (
-          <input
-            ref={otherInputRef}
-            value={styleOther}
-            onChange={(e) => setStyleOther(e.target.value)}
-            placeholder="Уточни свой вариант"
-            style={s.input}
-            onFocus={() => {
-              otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
-          />
+          <div style={s.otherRow}>
+            <input
+              ref={otherInputRef}
+              value={styleOther}
+              onChange={(e) => {
+                setStyleOther(e.target.value);
+                setOtherSaved(false);
+              }}
+              placeholder="Уточни свой вариант"
+              style={{ ...s.input, ...(otherSaved ? s.inputSaved : null) }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleOtherSave();
+              }}
+              onFocus={scrollInputAboveKeyboard}
+            />
+            <button
+              type="button"
+              style={{
+                ...s.checkBtn,
+                ...(otherSaved ? s.checkBtnActive : s.checkBtnInactive),
+              }}
+              className="other-save"
+              onClick={handleOtherSave}
+              aria-label="Сохранить"
+            >
+              <span style={{ ...s.checkIcon, ...(otherSaved ? s.checkIconActive : {}) }}>✓</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -335,6 +413,13 @@ const s: Record<string, React.CSSProperties> = {
   inputWrap: {
     minHeight: 58,
   },
+  otherRow: {
+    marginTop: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 10,
+    alignItems: "center",
+  },
   tile: {
     borderRadius: 18,
     border: "1px solid var(--tile-border)",
@@ -356,7 +441,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#fff",
   },
   input: {
-    marginTop: 12,
     width: "100%",
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.6)",
@@ -365,6 +449,40 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
+  },
+  inputSaved: {
+    background: "rgba(255,255,255,0.6)",
+    color: "rgba(15, 23, 42, 0.7)",
+  },
+  checkBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 18,
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
+  },
+  checkBtnInactive: {
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+  },
+  checkBtnActive: {
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
+  },
+  checkIcon: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "rgba(15, 23, 42, 0.45)",
+  },
+  checkIconActive: {
+    color: "#fff",
   },
   primaryBtn: {
     marginTop: 18,
