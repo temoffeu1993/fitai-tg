@@ -90,7 +90,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     }
   }, [otherOpen, otherFocused, keyboardOffset]);
 
-  const showOtherBar = otherOpen && (keyboardOffset > 0 || otherFocused);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -346,7 +345,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
       </div>
-      {showOtherBar ? (
+      {otherOpen ? (
         <div
           style={{
             ...s.sheetWrap,

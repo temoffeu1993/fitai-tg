@@ -109,7 +109,6 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     }
   }, [otherOpen, otherFocused, keyboardOffset]);
 
-  const showOtherBar = otherOpen && (keyboardOffset > 0 || otherFocused);
 
   const toggle = (value: string) => {
     if (value === "Другое") {
@@ -337,7 +336,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         ) : null}
       </div>
       </div>
-      {showOtherBar ? (
+      {otherOpen ? (
         <div
           style={{
             ...s.sheetWrap,
