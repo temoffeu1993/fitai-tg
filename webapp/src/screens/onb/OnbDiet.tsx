@@ -35,6 +35,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const otherInputRef = useRef<HTMLInputElement | null>(null);
+  const [otherSaved, setOtherSaved] = useState(Boolean(initial?.dietPrefs?.restrictionOther));
 
   useEffect(() => {
     return () => {
@@ -44,6 +46,15 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!restrictions.includes("Другое")) return;
+    const id = window.setTimeout(() => {
+      otherInputRef.current?.focus();
+      otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [restrictions]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -72,11 +83,22 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (value === "Нет") {
       setRestrictions([]);
       setRestrictionOther("");
+      setOtherSaved(false);
       return;
     }
     setRestrictions((prev) =>
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
+  };
+
+  const handleOtherSave = () => {
+    if (restrictionOther.trim()) {
+      setOtherSaved(true);
+      return;
+    }
+    setOtherSaved(false);
+    setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
+    setRestrictionOther("");
   };
 
   const handleNext = () => {
@@ -214,12 +236,24 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
 
       {restrictions.includes("Другое") && (
-        <input
-          value={restrictionOther}
-          onChange={(e) => setRestrictionOther(e.target.value)}
-          placeholder="Например: морепродукты"
-          style={s.input}
-        />
+        <div style={s.otherRow}>
+          <input
+            ref={otherInputRef}
+            value={restrictionOther}
+            onChange={(e) => {
+              setRestrictionOther(e.target.value);
+              setOtherSaved(false);
+            }}
+            placeholder="Например: морепродукты"
+            style={s.input}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleOtherSave();
+            }}
+          />
+          <button type="button" style={s.checkBtn} onClick={handleOtherSave} aria-label="Сохранить">
+            <span style={{ ...s.checkIcon, ...(otherSaved ? s.checkIconActive : {}) }}>✓</span>
+          </button>
+        </div>
       )}
 
       <div style={s.actions}>
@@ -341,8 +375,14 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     color: "#fff",
   },
-  input: {
+  otherRow: {
     marginTop: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 10,
+    alignItems: "center",
+  },
+  input: {
     width: "100%",
     borderRadius: 14,
     border: "1px solid rgba(255,255,255,0.6)",
@@ -351,6 +391,24 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
+  },
+  checkBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    border: "1px solid rgba(15, 23, 42, 0.15)",
+    background: "rgba(255,255,255,0.85)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+  },
+  checkIcon: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "rgba(15, 23, 42, 0.4)",
+  },
+  checkIconActive: {
+    color: "#1e1f22",
   },
   primaryBtn: {
     marginTop: 18,
