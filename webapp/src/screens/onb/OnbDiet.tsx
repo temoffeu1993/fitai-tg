@@ -554,7 +554,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   sheetClose: {
     position: "absolute",
-    top: 14,
+    top: 10,
     right: 14,
     width: 28,
     height: 28,
@@ -574,6 +574,7 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(15, 23, 42, 0.12)",
     background: "rgba(255,255,255,0.9)",
     padding: "12px 16px",
+    marginTop: 6,
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
