@@ -373,50 +373,44 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
       </div>
-        <div
-          style={{
-            ...s.sheetWrap,
-            transform:
-              otherOpen && keyboardOffset > 0
-                ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-                : "translateY(0)",
-            opacity: otherOpen ? (keyboardOffset > 0 ? 1 : 0.01) : 0,
-            pointerEvents: otherOpen && keyboardOffset > 0 ? "auto" : "none",
-          }}
-          className={otherOpen && keyboardOffset > 0 ? "sheet-fade" : ""}
-        >
-        <div style={s.sheet} className="sheet-card">
-          <input
-            ref={otherInputRef}
-            value={restrictionOther}
-            onChange={(e) => setRestrictionOther(e.target.value)}
-            placeholder="Например: морепродукты"
-            style={s.sheetInput}
-            onFocus={() => setOtherFocused(true)}
-            onBlur={() => setOtherFocused(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleOtherSave();
-            }}
-          />
-          <button
-            type="button"
-            style={s.sheetPrimary}
-            className="intro-primary-btn"
-            onClick={handleOtherSave}
-            aria-label="Сохранить"
+      {otherOpen ? (
+        <div style={s.sheetWrap} className="sheet-fade" onClick={() => setOtherOpen(false)}>
+          <div
+            style={s.sheet}
+            className="sheet-card"
+            onClick={(event) => event.stopPropagation()}
           >
-            ✓
-          </button>
-          <button
-            type="button"
-            style={s.sheetClose}
-            onClick={() => setOtherOpen(false)}
-            aria-label="Закрыть"
-          >
-            ✕
-          </button>
+            <button
+              type="button"
+              style={s.sheetClose}
+              onClick={() => setOtherOpen(false)}
+              aria-label="Закрыть"
+            >
+              ✕
+            </button>
+            <input
+              ref={otherInputRef}
+              value={restrictionOther}
+              onChange={(e) => setRestrictionOther(e.target.value)}
+              placeholder="Например: морепродукты"
+              style={s.sheetInput}
+              onFocus={() => setOtherFocused(true)}
+              onBlur={() => setOtherFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleOtherSave();
+              }}
+            />
+            <button
+              type="button"
+              style={s.sheetPrimary}
+              className="intro-primary-btn"
+              onClick={handleOtherSave}
+            >
+              Сохранить
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </>
   );
 }
@@ -508,35 +502,43 @@ const s: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
-    padding: "0",
+    padding: "0 16px",
     zIndex: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    background: "rgba(15, 23, 42, 0.16)",
+    backdropFilter: "blur(2px)",
+    WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "auto",
-    transition: "transform 180ms ease, opacity 120ms ease",
   },
   sheet: {
     width: "100%",
-    maxWidth: "100%",
-    borderRadius: "22px 22px 0 0",
-    padding: "12px 16px",
-    background: "#fff",
-    border: "1px solid rgba(15, 23, 42, 0.08)",
-    boxShadow: "0 -8px 18px rgba(15, 23, 42, 0.12)",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
+    maxWidth: 420,
+    borderRadius: 22,
+    padding: "22px 16px 16px",
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
+    display: "grid",
+    gap: 12,
     pointerEvents: "auto",
+    position: "relative",
   },
   sheetClose: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     border: "none",
-    background: "rgba(15, 23, 42, 0.08)",
-    color: "rgba(15, 23, 42, 0.7)",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.5)",
     fontSize: 18,
     fontWeight: 700,
     cursor: "pointer",
@@ -544,10 +546,10 @@ const s: Record<string, React.CSSProperties> = {
     placeItems: "center",
   },
   sheetInput: {
-    flex: 1,
+    width: "100%",
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.7)",
-    background: "rgba(240, 242, 246, 0.9)",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
     padding: "12px 16px",
     fontSize: 16,
     color: "#0f172a",
@@ -566,17 +568,16 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
   sheetPrimary: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    padding: 0,
-    border: "none",
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 700,
+    fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 10px 20px rgba(15, 23, 42, 0.18)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   primaryBtn: {
     marginTop: 18,
