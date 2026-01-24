@@ -353,7 +353,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           </button>
         ) : null}
       </div>
-      {otherFocused ? <div style={s.actionsSpacer} aria-hidden="true" /> : null}
     </div>
   );
 }
@@ -363,7 +362,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 140px)",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -371,9 +370,6 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
     overflow: "hidden",
-  },
-  actionsSpacer: {
-    height: "calc(env(safe-area-inset-bottom, 0px) + 260px)",
   },
   progressWrap: {
     display: "grid",
@@ -509,10 +505,19 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   actions: {
-    marginTop: "auto",
-    paddingTop: 18,
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
     gap: 10,
+    maxWidth: 720,
+    margin: "0 auto",
+    background: "rgba(245,246,248,0.9)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    zIndex: 5,
   },
   backBtn: {
     width: "100%",
