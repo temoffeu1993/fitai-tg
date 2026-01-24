@@ -137,7 +137,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           .gender-card {
             appearance: none;
             outline: none;
-            transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+            transition: background 220ms ease, color 220ms ease, transform 160ms ease, box-shadow 220ms ease;
             will-change: transform, background, border-color;
             -webkit-tap-highlight-color: transparent;
           }
