@@ -361,8 +361,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               flex: "0 0 auto",
               alignSelf: "flex-start",
               display: "inline-flex",
-              whiteSpace: "normal",
-              wordBreak: "break-word",
+              whiteSpace: "nowrap",
             }}
             onClick={() => {
               setRestrictionOther("");
