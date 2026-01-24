@@ -375,13 +375,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   optionCard: {
     width: "100%",
-    padding: "12px 10px 14px",
-    borderRadius: 16,
+    padding: "14px 12px",
+    borderRadius: 18,
     border: "1px solid var(--gender-border)",
     background: "var(--gender-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.55)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "var(--gender-color)",
     textAlign: "center",
     display: "flex",
