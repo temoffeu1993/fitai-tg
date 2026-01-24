@@ -47,18 +47,37 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     };
   }, []);
 
+  const scrollInputAboveKeyboard = () => {
+    const el = otherInputRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const viewportHeight = vv?.height ?? window.innerHeight;
+    const padding = 24;
+    const overlap = rect.bottom - (viewportHeight - padding);
+    if (overlap > 0) {
+      window.scrollBy({ top: overlap, behavior: "smooth" });
+    }
+  };
+
   useEffect(() => {
     if (!restrictions.includes("Другое")) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-      const el = otherInputRef.current;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const target = rect.top + window.scrollY - 140;
-        window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
-      }
+      scrollInputAboveKeyboard();
     }, 120);
-    return () => window.clearTimeout(id);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", scrollInputAboveKeyboard);
+      vv.addEventListener("scroll", scrollInputAboveKeyboard);
+    }
+    return () => {
+      window.clearTimeout(id);
+      if (vv) {
+        vv.removeEventListener("resize", scrollInputAboveKeyboard);
+        vv.removeEventListener("scroll", scrollInputAboveKeyboard);
+      }
+    };
   }, [restrictions]);
 
   useLayoutEffect(() => {
@@ -254,6 +273,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleOtherSave();
             }}
+            onFocus={scrollInputAboveKeyboard}
           />
           <button type="button" style={s.checkBtn} onClick={handleOtherSave} aria-label="Сохранить">
             <span style={{ ...s.checkIcon, ...(otherSaved ? s.checkIconActive : {}) }}>✓</span>
