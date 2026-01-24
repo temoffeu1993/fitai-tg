@@ -188,6 +188,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           border-color: var(--tile-border) !important;
           color: var(--tile-color) !important;
         }
+        .other-save:active {
+          transform: translateY(1px) scale(0.99);
+          box-shadow: 0 6px 14px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.2);
+          filter: brightness(0.98);
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -275,7 +280,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
             }}
             onFocus={scrollInputAboveKeyboard}
           />
-          <button type="button" style={s.checkBtn} onClick={handleOtherSave} aria-label="Сохранить">
+          <button
+            type="button"
+            style={s.checkBtn}
+            className="other-save"
+            onClick={handleOtherSave}
+            aria-label="Сохранить"
+          >
             <span style={{ ...s.checkIcon, ...(otherSaved ? s.checkIconActive : {}) }}>✓</span>
           </button>
         </div>
@@ -425,10 +436,12 @@ const s: Record<string, React.CSSProperties> = {
     background: "#1e1f22",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.12)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
     display: "grid",
     placeItems: "center",
     cursor: "pointer",
+    transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
   },
   checkIcon: {
     fontSize: 18,
