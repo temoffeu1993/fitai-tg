@@ -329,28 +329,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
       {otherOpen ? (
         <div
-          style={s.sheetWrap}
+          style={{
+            ...s.sheetWrap,
+            bottom: keyboardOffset ? Math.max(8, keyboardOffset + 8) : 12,
+          }}
           className="sheet-fade"
-          onClick={() => setOtherOpen(false)}
         >
-          <div
-            style={{
-              ...s.sheet,
-              transform: keyboardOffset
-                ? `translateY(-${Math.round(keyboardOffset / 2 + 24)}px)`
-                : "translateY(0)",
-            }}
-            className="sheet-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              style={s.sheetClose}
-              onClick={() => setOtherOpen(false)}
-              aria-label="Закрыть"
-            >
-              ✕
-            </button>
+          <div style={s.sheet} className="sheet-card">
             <input
               ref={otherInputRef}
               value={restrictionOther}
@@ -367,8 +352,17 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               style={s.sheetPrimary}
               className="intro-primary-btn"
               onClick={handleOtherSave}
+              aria-label="Сохранить"
             >
-              Сохранить
+              ✓
+            </button>
+            <button
+              type="button"
+              style={s.sheetClose}
+              onClick={() => setOtherOpen(false)}
+              aria-label="Закрыть"
+            >
+              ✕
             </button>
           </div>
         </div>
@@ -464,57 +458,48 @@ const s: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
-    top: 0,
-    bottom: 0,
+    bottom: 12,
     padding: "0 16px",
     zIndex: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "rgba(15, 23, 42, 0.16)",
-    backdropFilter: "blur(2px)",
-    WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "auto",
   },
   sheet: {
     width: "100%",
-    maxWidth: 420,
-    borderRadius: 22,
-    padding: "40px 16px 16px",
-    background: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
-    display: "grid",
-    gap: 10,
+    maxWidth: 520,
+    borderRadius: 999,
+    padding: "10px 12px",
+    background: "rgba(255,255,255,0.85)",
+    border: "1px solid rgba(255,255,255,0.7)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.16)",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
     pointerEvents: "auto",
-    position: "relative",
-    transition: "transform 220ms ease",
   },
   sheetClose: {
-    position: "absolute",
-    top: 12,
-    right: 16,
-    width: 28,
-    height: 28,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.5)",
-    fontSize: 16,
+    background: "rgba(15, 23, 42, 0.08)",
+    color: "rgba(15, 23, 42, 0.7)",
+    fontSize: 18,
     fontWeight: 700,
     cursor: "pointer",
     display: "grid",
     placeItems: "center",
   },
   sheetInput: {
-    width: "100%",
-    borderRadius: 14,
+    flex: 1,
+    borderRadius: 999,
     border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.9)",
-    marginTop: 12,
-    padding: "12px 14px",
+    background: "rgba(255,255,255,0.95)",
+    padding: "12px 16px",
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
@@ -533,16 +518,17 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
   sheetPrimary: {
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
-    border: "1px solid #1e1f22",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    padding: 0,
+    border: "none",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 500,
+    fontWeight: 700,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    boxShadow: "0 10px 20px rgba(15, 23, 42, 0.18)",
   },
   primaryBtn: {
     marginTop: 18,
