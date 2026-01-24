@@ -131,7 +131,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   return (
     <>
       <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
-      <style>{`
+        <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
           100% { opacity: 1; transform: translateY(0); }
@@ -191,7 +191,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           .onb-leave { animation: none !important; }
           .intro-primary-btn { transition: none !important; }
         }
-      `}</style>
+        `}</style>
 
       <div style={s.progressWrap} className="onb-fade onb-fade-delay-1">
         <div style={s.progressTrack}>
@@ -272,6 +272,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
             Назад
           </button>
         ) : null}
+      </div>
       </div>
       {otherOpen ? (
         <div style={s.sheetWrap}>
