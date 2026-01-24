@@ -349,7 +349,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div
           style={{
             ...s.sheetWrap,
-            bottom: Math.max(0, keyboardOffset - 2),
+            transform: keyboardOffset
+              ? `translateY(-${Math.max(0, keyboardOffset - 2)}px)`
+              : "translateY(8px)",
+            opacity: keyboardOffset ? 1 : 0,
+            pointerEvents: keyboardOffset ? "auto" : "none",
           }}
           className="sheet-fade"
         >
@@ -478,13 +482,14 @@ const s: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
-    bottom: 12,
+    bottom: 0,
     padding: "0 16px",
     zIndex: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     pointerEvents: "auto",
+    transition: "transform 180ms ease, opacity 120ms ease",
   },
   sheet: {
     width: "100%",
