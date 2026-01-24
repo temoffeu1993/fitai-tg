@@ -180,10 +180,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   };
 
   return (
-    <div
-      style={{ ...s.page, ...(otherFocused ? s.pageWithKeyboard : null) }}
-      className={isLeaving ? "onb-leave" : undefined}
-    >
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
       <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
@@ -356,6 +353,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           </button>
         ) : null}
       </div>
+      {otherFocused ? <div style={s.actionsSpacer} aria-hidden="true" /> : null}
     </div>
   );
 }
@@ -374,8 +372,8 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     overflow: "hidden",
   },
-  pageWithKeyboard: {
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 260px)",
+  actionsSpacer: {
+    height: "calc(env(safe-area-inset-bottom, 0px) + 260px)",
   },
   progressWrap: {
     display: "grid",
