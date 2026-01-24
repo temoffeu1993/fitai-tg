@@ -77,7 +77,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     const vv = window.visualViewport;
     const updateOffset = () => {
       if (!vv) return;
-      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      const offsetTop = Math.max(0, vv.offsetTop || 0);
+      const offset = Math.max(0, window.innerHeight - (vv.height + offsetTop));
       setKeyboardOffset(offset);
     };
     updateOffset();
@@ -107,6 +108,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       setOtherOpen(false);
     }
   }, [otherOpen, otherFocused, keyboardOffset]);
+
+  const showOtherBar = otherOpen && (keyboardOffset > 0 || otherFocused);
 
   const toggle = (value: string) => {
     if (value === "Другое") {
@@ -334,11 +337,11 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         ) : null}
       </div>
       </div>
-      {otherOpen ? (
+      {showOtherBar ? (
         <div
           style={{
             ...s.sheetWrap,
-            bottom: keyboardOffset,
+            bottom: Math.max(0, keyboardOffset - 2),
           }}
           className="sheet-fade"
         >

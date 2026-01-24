@@ -58,7 +58,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     const vv = window.visualViewport;
     const updateOffset = () => {
       if (!vv) return;
-      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      const offsetTop = Math.max(0, vv.offsetTop || 0);
+      const offset = Math.max(0, window.innerHeight - (vv.height + offsetTop));
       setKeyboardOffset(offset);
     };
     updateOffset();
@@ -88,6 +89,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       setOtherOpen(false);
     }
   }, [otherOpen, otherFocused, keyboardOffset]);
+
+  const showOtherBar = otherOpen && (keyboardOffset > 0 || otherFocused);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -343,11 +346,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
       </div>
-      {otherOpen ? (
+      {showOtherBar ? (
         <div
           style={{
             ...s.sheetWrap,
-            bottom: keyboardOffset,
+            bottom: Math.max(0, keyboardOffset - 2),
           }}
           className="sheet-fade"
         >
