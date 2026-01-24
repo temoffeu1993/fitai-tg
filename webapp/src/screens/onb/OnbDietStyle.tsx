@@ -174,6 +174,20 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
         }
+        .sheet-fade {
+          animation: sheetFadeIn 220ms ease-out both;
+        }
+        .sheet-card {
+          animation: sheetPop 240ms ease-out both;
+        }
+        @keyframes sheetFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes sheetPop {
+          0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
         @media (hover: hover) {
           .intro-primary-btn:hover:not(:disabled) {
             filter: brightness(1.03);
@@ -275,8 +289,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       </div>
       </div>
       {otherOpen ? (
-        <div style={s.sheetWrap}>
-          <div style={s.sheet}>
+        <div style={s.sheetWrap} className="sheet-fade">
+          <div style={s.sheet} className="sheet-card">
             <div style={s.sheetHandle} />
             <input
               ref={otherInputRef}
@@ -288,8 +302,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
                 if (e.key === "Enter") handleOtherSave();
               }}
             />
-            <button type="button" style={s.sheetCheck} onClick={handleOtherSave} aria-label="Сохранить">
-              ✓
+            <button type="button" style={s.sheetPrimary} onClick={handleOtherSave}>
+              Сохранить
             </button>
           </div>
         </div>
@@ -403,16 +417,21 @@ const s: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
-    padding: "0 16px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    padding: "0 16px",
     zIndex: 20,
     display: "flex",
+    alignItems: "center",
     justifyContent: "center",
+    background: "rgba(15, 23, 42, 0.16)",
+    backdropFilter: "blur(2px)",
+    WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "none",
   },
   sheet: {
     width: "100%",
-    maxWidth: 720,
+    maxWidth: 420,
     borderRadius: 22,
     padding: "12px 14px 14px",
     background: "rgba(255,255,255,0.7)",
@@ -451,6 +470,18 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 600,
     cursor: "pointer",
+  },
+  sheetPrimary: {
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   primaryBtn: {
     marginTop: 18,
