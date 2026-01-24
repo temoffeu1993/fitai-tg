@@ -129,7 +129,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   };
 
   return (
-    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+    <>
+      <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
       <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
@@ -272,27 +273,27 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           </button>
         ) : null}
       </div>
-    </div>
-    {otherOpen ? (
-      <div style={s.sheetWrap}>
-        <div style={s.sheet}>
-          <div style={s.sheetHandle} />
-          <input
-            ref={otherInputRef}
-            value={styleOther}
-            onChange={(e) => setStyleOther(e.target.value)}
-            placeholder="Уточни свой вариант"
-            style={s.sheetInput}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleOtherSave();
-            }}
-          />
-          <button type="button" style={s.sheetCheck} onClick={handleOtherSave} aria-label="Сохранить">
-            ✓
-          </button>
+      {otherOpen ? (
+        <div style={s.sheetWrap}>
+          <div style={s.sheet}>
+            <div style={s.sheetHandle} />
+            <input
+              ref={otherInputRef}
+              value={styleOther}
+              onChange={(e) => setStyleOther(e.target.value)}
+              placeholder="Уточни свой вариант"
+              style={s.sheetInput}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleOtherSave();
+              }}
+            />
+            <button type="button" style={s.sheetCheck} onClick={handleOtherSave} aria-label="Сохранить">
+              ✓
+            </button>
+          </div>
         </div>
-      </div>
-    ) : null}
+      ) : null}
+    </>
   );
 }
 
