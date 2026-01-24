@@ -51,10 +51,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (!restrictions.includes("Другое")) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-      otherInputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.setTimeout(() => {
-        window.scrollBy({ top: -40, behavior: "smooth" });
-      }, 120);
+      const el = otherInputRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const target = rect.top + window.scrollY - 140;
+        window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      }
     }, 120);
     return () => window.clearTimeout(id);
   }, [restrictions]);
