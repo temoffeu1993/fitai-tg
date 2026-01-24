@@ -56,12 +56,26 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     const padding = 24;
     const overlap = rect.bottom - (viewportHeight - padding);
     if (overlap > 0) {
-      window.scrollBy({ top: overlap, behavior: "smooth" });
+      const root = document.getElementById("root");
+      if (root && root.scrollHeight > root.clientHeight) {
+        root.scrollBy({ top: overlap, behavior: "smooth" });
+      } else {
+        window.scrollBy({ top: overlap, behavior: "smooth" });
+      }
     }
   };
 
   useEffect(() => {
     if (!restrictions.includes("Другое")) return;
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "auto";
+      root.style.overscrollBehaviorY = "contain";
+      root.style.scrollBehavior = "smooth";
+    }
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
       scrollInputAboveKeyboard();
@@ -73,6 +87,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     }
     return () => {
       window.clearTimeout(id);
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
+      }
       if (vv) {
         vv.removeEventListener("resize", scrollInputAboveKeyboard);
         vv.removeEventListener("scroll", scrollInputAboveKeyboard);
@@ -156,7 +175,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   };
 
   return (
-    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+    <div
+      style={{ ...s.page, ...(restrictions.includes("Другое") ? s.pageWithKeyboard : null) }}
+      className={isLeaving ? "onb-leave" : undefined}
+    >
       <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
@@ -341,6 +363,9 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
     overflow: "hidden",
+  },
+  pageWithKeyboard: {
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 260px)",
   },
   progressWrap: {
     display: "grid",
