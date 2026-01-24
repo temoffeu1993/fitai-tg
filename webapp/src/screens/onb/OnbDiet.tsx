@@ -399,6 +399,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div
           style={{
             ...s.sheetWrap,
+            background:
+              keyboardOffset > 0
+                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(15, 23, 42, 0.16) 60%)"
+                : s.sheetWrap.background,
             opacity: keyboardOffset > 0 ? 1 : 0,
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
