@@ -398,9 +398,13 @@ const s: Record<string, React.CSSProperties> = {
   checkBtn: {
     width: 46,
     height: 46,
-    borderRadius: 14,
-    border: "1px solid rgba(15, 23, 42, 0.15)",
-    background: "rgba(255,255,255,0.85)",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     display: "grid",
     placeItems: "center",
     cursor: "pointer",
