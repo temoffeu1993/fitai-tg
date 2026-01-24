@@ -71,7 +71,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     if (!otherOpen) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-    }, 80);
+    }, 0);
     const vv = window.visualViewport;
     const updateOffset = () => {
       if (!vv) return;
@@ -344,6 +344,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
               onChange={(e) => setStyleOther(e.target.value)}
               placeholder="Уточни свой вариант"
               style={s.sheetInput}
+              autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleOtherSave();
               }}

@@ -52,7 +52,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (!otherOpen) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-    }, 80);
+    }, 0);
     const vv = window.visualViewport;
     const updateOffset = () => {
       if (!vv) return;
@@ -357,6 +357,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               onChange={(e) => setRestrictionOther(e.target.value)}
               placeholder="Например: морепродукты"
               style={s.sheetInput}
+              autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleOtherSave();
               }}
