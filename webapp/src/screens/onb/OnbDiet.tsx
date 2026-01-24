@@ -37,6 +37,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
   const [otherSaved, setOtherSaved] = useState(Boolean(initial?.dietPrefs?.restrictionOther));
+  const [otherFocused, setOtherFocused] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -72,8 +73,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     const prevOverscroll = root?.style.overscrollBehaviorY;
     const prevScrollBehavior = root?.style.scrollBehavior;
     if (root) {
-      root.style.overflowY = "auto";
-      root.style.overscrollBehaviorY = "contain";
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
       root.style.scrollBehavior = "smooth";
     }
     const id = window.setTimeout(() => {
@@ -137,11 +138,15 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const handleOtherSave = () => {
     if (restrictionOther.trim()) {
       setOtherSaved(true);
+      otherInputRef.current?.blur();
+      setOtherFocused(false);
       return;
     }
     setOtherSaved(false);
     setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
     setRestrictionOther("");
+    otherInputRef.current?.blur();
+    setOtherFocused(false);
   };
 
   const handleNext = () => {
@@ -176,7 +181,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   return (
     <div
-      style={{ ...s.page, ...(restrictions.includes("Другое") ? s.pageWithKeyboard : null) }}
+      style={{ ...s.page, ...(otherFocused ? s.pageWithKeyboard : null) }}
       className={isLeaving ? "onb-leave" : undefined}
     >
       <style>{`
@@ -301,6 +306,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               if (e.key === "Enter") handleOtherSave();
             }}
             onFocus={scrollInputAboveKeyboard}
+            onFocusCapture={() => setOtherFocused(true)}
+            onBlur={() => setOtherFocused(false)}
           />
           <button
             type="button"
