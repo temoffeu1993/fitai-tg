@@ -38,6 +38,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const otherInputRef = useRef<HTMLInputElement | null>(null);
   const [otherOpen, setOtherOpen] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [otherFocused, setOtherFocused] = useState(false);
+  const hasOtherFocusRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -72,6 +74,20 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       }
     };
   }, [otherOpen]);
+
+  useEffect(() => {
+    if (!otherOpen) {
+      hasOtherFocusRef.current = false;
+      setOtherFocused(false);
+      return;
+    }
+    if (otherFocused) {
+      hasOtherFocusRef.current = true;
+    }
+    if (hasOtherFocusRef.current && !otherFocused && keyboardOffset === 0) {
+      setOtherOpen(false);
+    }
+  }, [otherOpen, otherFocused, keyboardOffset]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -331,7 +347,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div
           style={{
             ...s.sheetWrap,
-            bottom: keyboardOffset ? Math.max(8, keyboardOffset + 8) : 12,
+            bottom: keyboardOffset,
           }}
           className="sheet-fade"
         >
@@ -343,6 +359,8 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
               placeholder="Например: морепродукты"
               style={s.sheetInput}
               autoFocus
+              onFocus={() => setOtherFocused(true)}
+              onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleOtherSave();
               }}

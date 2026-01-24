@@ -34,6 +34,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const otherInputRef = useRef<HTMLInputElement | null>(null);
   const [otherOpen, setOtherOpen] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [otherFocused, setOtherFocused] = useState(false);
+  const hasOtherFocusRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -91,6 +93,20 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       }
     };
   }, [otherOpen]);
+
+  useEffect(() => {
+    if (!otherOpen) {
+      hasOtherFocusRef.current = false;
+      setOtherFocused(false);
+      return;
+    }
+    if (otherFocused) {
+      hasOtherFocusRef.current = true;
+    }
+    if (hasOtherFocusRef.current && !otherFocused && keyboardOffset === 0) {
+      setOtherOpen(false);
+    }
+  }, [otherOpen, otherFocused, keyboardOffset]);
 
   const toggle = (value: string) => {
     if (value === "Другое") {
@@ -322,7 +338,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         <div
           style={{
             ...s.sheetWrap,
-            bottom: keyboardOffset ? Math.max(8, keyboardOffset + 8) : 12,
+            bottom: keyboardOffset,
           }}
           className="sheet-fade"
         >
@@ -334,6 +350,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
               placeholder="Уточни свой вариант"
               style={s.sheetInput}
               autoFocus
+              onFocus={() => setOtherFocused(true)}
+              onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleOtherSave();
               }}
