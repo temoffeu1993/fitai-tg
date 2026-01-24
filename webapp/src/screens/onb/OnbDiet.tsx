@@ -333,7 +333,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
                 if (e.key === "Enter") handleOtherSave();
               }}
             />
-            <button type="button" style={s.sheetPrimary} onClick={handleOtherSave}>
+            <button
+              type="button"
+              style={s.sheetPrimary}
+              className="intro-primary-btn"
+              onClick={handleOtherSave}
+            >
               Сохранить
             </button>
           </div>
