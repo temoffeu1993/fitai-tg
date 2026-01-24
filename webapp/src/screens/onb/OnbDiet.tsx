@@ -396,10 +396,18 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       </div>
       </div>
       {otherOpen ? (
-        <div style={s.sheetWrap} className="sheet-fade" onClick={() => setOtherOpen(false)}>
+        <div
+          style={{
+            ...s.sheetWrap,
+            opacity: keyboardOffset > 0 ? 1 : 0,
+            pointerEvents: keyboardOffset > 0 ? "auto" : "none",
+          }}
+          className={keyboardOffset > 0 ? "sheet-fade" : ""}
+          onClick={() => setOtherOpen(false)}
+        >
           <div
             style={s.sheet}
-            className="sheet-card"
+            className={keyboardOffset > 0 ? "sheet-card" : ""}
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -536,6 +544,7 @@ const s: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(2px)",
     WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "auto",
+    transition: "opacity 160ms ease",
   },
   sheet: {
     width: "100%",
