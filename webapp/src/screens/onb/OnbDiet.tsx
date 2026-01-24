@@ -177,9 +177,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       );
       setRestrictionOtherDraft(restrictionOther);
       setOtherOpen(true);
-      requestAnimationFrame(() => {
+      window.setTimeout(() => {
         otherInputRef.current?.focus();
-      });
+      }, 0);
       return;
     }
     setRestrictions((prev) =>
@@ -405,13 +405,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div
           style={{
             ...s.sheetWrap,
-            visibility: keyboardOffset > 0 ? "visible" : "hidden",
             background:
               keyboardOffset > 0
                 ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0) 55%)"
                 : "rgba(255,255,255,0)",
-            opacity: keyboardOffset > 0 ? 1 : 0,
-            pointerEvents: keyboardOffset > 0 ? "auto" : "none",
+            opacity: otherOpen ? 1 : 0,
+            pointerEvents: otherOpen ? "auto" : "none",
           }}
           className=""
           onClick={() => setOtherOpen(false)}
