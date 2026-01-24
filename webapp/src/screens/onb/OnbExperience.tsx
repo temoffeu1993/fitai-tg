@@ -439,6 +439,11 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 12,
     display: "grid",
     gap: 10,
+    position: "sticky",
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    background: "linear-gradient(180deg, rgba(245,246,248,0) 0%, rgba(245,246,248,0.92) 28%, rgba(245,246,248,0.98) 100%)",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    zIndex: 2,
   },
   backBtn: {
     width: "100%",
