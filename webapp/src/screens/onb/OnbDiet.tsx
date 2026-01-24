@@ -36,8 +36,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
-  const [otherSaved, setOtherSaved] = useState(Boolean(initial?.dietPrefs?.restrictionOther));
-  const [otherFocused, setOtherFocused] = useState(false);
+  const [otherOpen, setOtherOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -48,57 +47,13 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     };
   }, []);
 
-  const scrollInputAboveKeyboard = () => {
-    const el = otherInputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const vv = window.visualViewport;
-    const viewportHeight = vv?.height ?? window.innerHeight;
-    const padding = 24;
-    const overlap = rect.bottom - (viewportHeight - padding);
-    if (overlap > 0) {
-      const root = document.getElementById("root");
-      if (root && root.scrollHeight > root.clientHeight) {
-        root.scrollBy({ top: overlap, behavior: "smooth" });
-      } else {
-        window.scrollBy({ top: overlap, behavior: "smooth" });
-      }
-    }
-  };
-
   useEffect(() => {
-    if (!restrictions.includes("Другое")) return;
-    const root = document.getElementById("root");
-    const prevOverflow = root?.style.overflowY;
-    const prevOverscroll = root?.style.overscrollBehaviorY;
-    const prevScrollBehavior = root?.style.scrollBehavior;
-    if (root) {
-      root.style.overflowY = "hidden";
-      root.style.overscrollBehaviorY = "none";
-      root.style.scrollBehavior = "smooth";
-    }
+    if (!otherOpen) return;
     const id = window.setTimeout(() => {
       otherInputRef.current?.focus();
-      scrollInputAboveKeyboard();
-    }, 120);
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", scrollInputAboveKeyboard);
-      vv.addEventListener("scroll", scrollInputAboveKeyboard);
-    }
-    return () => {
-      window.clearTimeout(id);
-      if (root) {
-        root.style.overflowY = prevOverflow || "";
-        root.style.overscrollBehaviorY = prevOverscroll || "";
-        root.style.scrollBehavior = prevScrollBehavior || "";
-      }
-      if (vv) {
-        vv.removeEventListener("resize", scrollInputAboveKeyboard);
-        vv.removeEventListener("scroll", scrollInputAboveKeyboard);
-      }
-    };
-  }, [restrictions]);
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [otherOpen]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -127,7 +82,14 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (value === "Нет") {
       setRestrictions([]);
       setRestrictionOther("");
-      setOtherSaved(false);
+      setOtherOpen(false);
+      return;
+    }
+    if (value === "Другое") {
+      setRestrictions((prev) =>
+        prev.includes("Другое") ? prev : [...prev, "Другое"]
+      );
+      setOtherOpen(true);
       return;
     }
     setRestrictions((prev) =>
@@ -137,16 +99,12 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleOtherSave = () => {
     if (restrictionOther.trim()) {
-      setOtherSaved(true);
-      otherInputRef.current?.blur();
-      setOtherFocused(false);
+      setOtherOpen(false);
       return;
     }
-    setOtherSaved(false);
     setRestrictions((prev) => prev.filter((item) => item !== "Другое"));
     setRestrictionOther("");
-    otherInputRef.current?.blur();
-    setOtherFocused(false);
+    setOtherOpen(false);
   };
 
   const handleNext = () => {
@@ -180,10 +138,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   };
 
   return (
-    <div
-      style={{ ...s.page, ...(otherFocused ? s.pageWithKeyboard : null) }}
-      className={isLeaving ? "onb-leave" : undefined}
-    >
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
       <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
@@ -214,11 +169,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           background: var(--tile-bg) !important;
           border-color: var(--tile-border) !important;
           color: var(--tile-color) !important;
-        }
-        .other-save:active {
-          transform: translateY(1px) scale(0.99);
-          box-shadow: 0 6px 14px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.2);
-          filter: brightness(0.98);
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
@@ -291,38 +241,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         })}
       </div>
 
-      {restrictions.includes("Другое") && (
-        <div style={s.otherRow}>
-          <input
-            ref={otherInputRef}
-            value={restrictionOther}
-            onChange={(e) => {
-              setRestrictionOther(e.target.value);
-              setOtherSaved(false);
-            }}
-            placeholder="Например: морепродукты"
-            style={{ ...s.input, ...(otherSaved ? s.inputSaved : null) }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleOtherSave();
-            }}
-            onFocus={scrollInputAboveKeyboard}
-            onFocusCapture={() => setOtherFocused(true)}
-            onBlur={() => setOtherFocused(false)}
-          />
-          <button
-            type="button"
-            style={{
-              ...s.checkBtn,
-              ...(otherSaved ? s.checkBtnActive : s.checkBtnInactive),
-            }}
-            className="other-save"
-            onClick={handleOtherSave}
-            aria-label="Сохранить"
-          >
-            <span style={{ ...s.checkIcon, ...(otherSaved ? s.checkIconActive : {}) }}>✓</span>
-          </button>
+      {restrictionOther.trim() ? (
+        <div style={s.otherChipWrap}>
+          <div style={s.otherChip}>{restrictionOther.trim()}</div>
         </div>
-      )}
+      ) : null}
 
       <div style={s.actions}>
         <button
@@ -357,6 +280,26 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         ) : null}
       </div>
     </div>
+    {otherOpen ? (
+      <div style={s.sheetWrap}>
+        <div style={s.sheet}>
+          <div style={s.sheetHandle} />
+          <input
+            ref={otherInputRef}
+            value={restrictionOther}
+            onChange={(e) => setRestrictionOther(e.target.value)}
+            placeholder="Например: морепродукты"
+            style={s.sheetInput}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleOtherSave();
+            }}
+          />
+          <button type="button" style={s.sheetCheck} onClick={handleOtherSave} aria-label="Сохранить">
+            ✓
+          </button>
+        </div>
+      </div>
+    ) : null}
   );
 }
 
@@ -373,9 +316,6 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
     overflow: "hidden",
-  },
-  pageWithKeyboard: {
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 260px)",
   },
   progressWrap: {
     display: "grid",
@@ -446,56 +386,73 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     color: "#fff",
   },
-  otherRow: {
+  otherChipWrap: {
     marginTop: 12,
     display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 10,
-    alignItems: "center",
+    justifyItems: "start",
   },
-  input: {
+  otherChip: {
+    padding: "10px 14px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    fontSize: 14,
+    color: "#1e1f22",
+  },
+  sheetWrap: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: "0 16px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    zIndex: 20,
+    display: "flex",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: 720,
+    borderRadius: 22,
+    padding: "12px 14px 14px",
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
+    display: "grid",
+    gap: 10,
+    pointerEvents: "auto",
+  },
+  sheetHandle: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    background: "rgba(15, 23, 42, 0.2)",
+    margin: "0 auto",
+  },
+  sheetInput: {
     width: "100%",
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "rgba(255,255,255,0.8)",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
     padding: "12px 14px",
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
   },
-  checkBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 18,
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    transition: "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
-  },
-  checkBtnInactive: {
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-  },
-  checkBtnActive: {
-    border: "1px solid #1e1f22",
+  sheetCheck: {
+    width: "100%",
+    borderRadius: 14,
+    padding: "12px 16px",
+    border: "none",
     background: "#1e1f22",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
-  },
-  checkIcon: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "rgba(15, 23, 42, 0.45)",
-  },
-  checkIconActive: {
     color: "#fff",
-  },
-  inputSaved: {
-    background: "rgba(255,255,255,0.6)",
-    color: "rgba(15, 23, 42, 0.7)",
+    fontSize: 16,
+    fontWeight: 600,
+    cursor: "pointer",
   },
   primaryBtn: {
     marginTop: 18,
