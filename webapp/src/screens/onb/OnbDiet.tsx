@@ -270,10 +270,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
           filter: brightness(0.99) !important;
         }
         .sheet-fade {
-          animation: sheetFadeIn 220ms ease-out both;
+          animation: sheetFadeIn 120ms ease-out both;
         }
         .sheet-card {
-          animation: sheetPop 240ms ease-out both;
+          animation: sheetPop 140ms ease-out both;
         }
         @keyframes sheetFadeIn {
           0% { opacity: 0; }
