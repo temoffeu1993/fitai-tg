@@ -137,14 +137,14 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
           .gender-card {
             appearance: none;
             outline: none;
-            transition: background 220ms ease, color 220ms ease, transform 160ms ease, box-shadow 220ms ease;
+            transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
             will-change: transform, background, border-color;
             -webkit-tap-highlight-color: transparent;
           }
           .gender-card:active:not(:disabled) {
             transform: translateY(1px) scale(0.99);
             background: var(--gender-bg) !important;
-            border-color: transparent !important;
+            border-color: var(--gender-border) !important;
             color: var(--gender-color) !important;
           }
         .intro-primary-btn {
@@ -212,8 +212,8 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
             ["--gender-bg" as never]:
               sex === "male"
                 ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
-            ["--gender-border" as never]: sex === "male" ? "#1e1f22" : "rgba(255,255,255,0.45)",
+                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            ["--gender-border" as never]: sex === "male" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--gender-color" as never]: sex === "male" ? "#fff" : "#1e1f22",
           }}
           className="gender-card"
@@ -236,8 +236,8 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
             ["--gender-bg" as never]:
               sex === "female"
                 ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)",
-            ["--gender-border" as never]: sex === "female" ? "#1e1f22" : "rgba(255,255,255,0.45)",
+                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            ["--gender-border" as never]: sex === "female" ? "#1e1f22" : "rgba(255,255,255,0.4)",
             ["--gender-color" as never]: sex === "female" ? "#fff" : "#1e1f22",
           }}
           className="gender-card"
@@ -381,7 +381,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "var(--gender-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.55)",
     color: "var(--gender-color)",
     textAlign: "center",
     display: "flex",
