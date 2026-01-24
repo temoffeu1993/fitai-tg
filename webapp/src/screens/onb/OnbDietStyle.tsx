@@ -74,8 +74,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     }, 80);
     const vv = window.visualViewport;
     const updateOffset = () => {
-      const height = vv?.height ?? window.innerHeight;
-      const offset = Math.max(0, window.innerHeight - height);
+      if (!vv) return;
+      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
       setKeyboardOffset(offset);
     };
     updateOffset();
@@ -323,7 +323,9 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           <div
             style={{
               ...s.sheet,
-              transform: keyboardOffset ? `translateY(-${keyboardOffset + 12}px)` : "translateY(0)",
+              transform: keyboardOffset
+                ? `translateY(-${Math.round(keyboardOffset / 2 + 24)}px)`
+                : "translateY(0)",
             }}
             className="sheet-card"
             onClick={(e) => e.stopPropagation()}
@@ -456,7 +458,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "0 16px",
     zIndex: 20,
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "center",
     background: "rgba(15, 23, 42, 0.16)",
     backdropFilter: "blur(2px)",
@@ -477,7 +479,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     pointerEvents: "auto",
     position: "relative",
-    marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
     transition: "transform 220ms ease",
   },
   sheetClose: {
