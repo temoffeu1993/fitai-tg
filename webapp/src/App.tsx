@@ -1,5 +1,6 @@
 // webapp/src/App.tsx
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import LayoutWithNav from "./app/LayoutWithNav";
 import OnboardingProvider, { useOnboarding } from "./app/OnboardingProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -34,8 +35,19 @@ import { apiFetch } from "@/lib/apiClient";
 
 /* --- Обёртки шагов онбординга: сохраняют драфт и роутят дальше --- */
 function StepAgeSex() {
-  const { draft, patch } = useOnboarding();
+  const { draft, patch, reset } = useOnboarding();
   const nav = useNavigate();
+  useEffect(() => {
+    const DRAFT_KEY = "onb_draft_v1";
+    const IN_PROGRESS_KEY = "onb_in_progress_v1";
+    try {
+      if (!sessionStorage.getItem(IN_PROGRESS_KEY)) {
+        sessionStorage.removeItem(DRAFT_KEY);
+        reset();
+        sessionStorage.setItem(IN_PROGRESS_KEY, "1");
+      }
+    } catch {}
+  }, [reset]);
   return (
     <OnbAgeSex
       initial={draft}
@@ -251,6 +263,10 @@ function StepSchemeSelection() {
         
         console.log("🎯 Resetting onboarding context...");
         reset();
+        try {
+          sessionStorage.removeItem("onb_draft_v1");
+          sessionStorage.removeItem("onb_in_progress_v1");
+        } catch {}
         
         console.log("🔄 Redirecting to /...");
         setTimeout(() => {
