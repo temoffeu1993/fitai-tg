@@ -27,9 +27,15 @@ type Props = {
 
 export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
-  const [restrictions, setRestrictions] = useState<string[]>(
+  const initialRestrictions = (
     initial?.dietPrefs?.restrictions ?? initial?.preferences?.dislike ?? []
-  );
+  ).filter((item) => {
+    if (item === "Другое") {
+      return Boolean(initial?.dietPrefs?.restrictionOther?.trim());
+    }
+    return true;
+  });
+  const [restrictions, setRestrictions] = useState<string[]>(initialRestrictions);
   const [restrictionOther, setRestrictionOther] = useState<string>(
     initial?.dietPrefs?.restrictionOther ?? ""
   );
