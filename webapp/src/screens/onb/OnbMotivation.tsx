@@ -323,7 +323,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
   robot: {
-    width: 104,
+    width: 120,
     height: "auto",
     objectFit: "contain",
   },
