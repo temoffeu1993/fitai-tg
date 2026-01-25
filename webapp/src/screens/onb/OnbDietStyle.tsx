@@ -40,6 +40,21 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
   const otherScrollYRef = useRef(0);
+  const bodyOverflowRef = useRef<{
+    htmlOverflow: string;
+    bodyOverflow: string;
+    htmlHeight: string;
+    bodyHeight: string;
+    htmlOverscroll: string;
+    bodyOverscroll: string;
+  }>({
+    htmlOverflow: "",
+    bodyOverflow: "",
+    htmlHeight: "",
+    bodyHeight: "",
+    htmlOverscroll: "",
+    bodyOverscroll: "",
+  });
 
   useEffect(() => {
     return () => {
@@ -78,10 +93,20 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
   useEffect(() => {
     if (!otherOpen) return;
-    otherScrollYRef.current = window.scrollY || 0;
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
-    document.body.style.top = `-${otherScrollYRef.current}px`;
+    bodyOverflowRef.current = {
+      htmlOverflow: document.documentElement.style.overflow,
+      bodyOverflow: document.body.style.overflow,
+      htmlHeight: document.documentElement.style.height,
+      bodyHeight: document.body.style.height,
+      htmlOverscroll: document.documentElement.style.overscrollBehavior,
+      bodyOverscroll: document.body.style.overscrollBehavior,
+    };
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.height = "100%";
+    document.body.style.height = "100%";
+    document.documentElement.style.overscrollBehavior = "none";
+    document.body.style.overscrollBehavior = "none";
     const focusInput = () => {
       if (!otherInputRef.current) return;
       otherInputRef.current.focus();
@@ -107,10 +132,12 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
       window.clearTimeout(retryId);
-      document.body.style.position = "";
-      document.body.style.width = "";
-      document.body.style.top = "";
-      window.scrollTo(0, otherScrollYRef.current);
+      document.documentElement.style.overflow = bodyOverflowRef.current.htmlOverflow;
+      document.body.style.overflow = bodyOverflowRef.current.bodyOverflow;
+      document.documentElement.style.height = bodyOverflowRef.current.htmlHeight;
+      document.body.style.height = bodyOverflowRef.current.bodyHeight;
+      document.documentElement.style.overscrollBehavior = bodyOverflowRef.current.htmlOverscroll;
+      document.body.style.overscrollBehavior = bodyOverflowRef.current.bodyOverscroll;
       if (vv) {
         vv.removeEventListener("resize", updateOffset);
         vv.removeEventListener("scroll", updateOffset);
@@ -372,12 +399,29 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         <div
           style={{
             ...s.sheetWrap,
+            background:
+              keyboardOffset > 0
+                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0) 55%)"
+                : "rgba(255,255,255,0)",
             opacity: keyboardOffset > 0 ? 1 : 0,
             pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
           className={keyboardOffset > 0 ? "sheet-fade" : ""}
+          onClick={() => setOtherOpen(false)}
         >
-          <div style={s.sheet} className="sheet-card">
+          <div
+            style={s.sheet}
+            className={keyboardOffset > 0 ? "sheet-card" : ""}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              style={s.sheetClose}
+              onClick={() => setOtherOpen(false)}
+              aria-label="Закрыть"
+            >
+              ✕
+            </button>
             <input
               ref={otherInputRef}
               value={styleOtherDraft}
@@ -396,17 +440,8 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
               style={s.sheetPrimary}
               className="intro-primary-btn"
               onClick={handleOtherSave}
-              aria-label="Сохранить"
             >
-              ✓
-            </button>
-            <button
-              type="button"
-              style={s.sheetClose}
-              onClick={() => setOtherOpen(false)}
-              aria-label="Закрыть"
-            >
-              ✕
+              Сохранить
             </button>
           </div>
         </div>
@@ -505,37 +540,44 @@ const s: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
     padding: "0 16px",
     zIndex: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    background: "rgba(255,255,255,0)",
+    backdropFilter: "blur(2px)",
+    WebkitBackdropFilter: "blur(2px)",
     pointerEvents: "auto",
-    transition: "transform 180ms ease, opacity 120ms ease",
+    transition: "opacity 160ms ease, backdrop-filter 220ms ease",
   },
   sheet: {
     width: "100%",
-    maxWidth: 520,
-    borderRadius: 999,
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(255,255,255,0.7)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.16)",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
+    maxWidth: 420,
+    borderRadius: 22,
+    padding: "36px 16px 16px",
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
+    display: "grid",
+    gap: 12,
     pointerEvents: "auto",
+    position: "relative",
   },
   sheetClose: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    position: "absolute",
+    top: 8,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     border: "none",
-    background: "rgba(15, 23, 42, 0.08)",
-    color: "rgba(15, 23, 42, 0.7)",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.5)",
     fontSize: 18,
     fontWeight: 700,
     cursor: "pointer",
@@ -543,16 +585,16 @@ const s: Record<string, React.CSSProperties> = {
     placeItems: "center",
   },
   sheetInput: {
-    flex: 1,
-    borderRadius: 999,
+    width: "100%",
+    borderRadius: 14,
     border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.95)",
+    background: "rgba(255,255,255,0.9)",
     padding: "12px 16px",
+    marginTop: 8,
     fontSize: 16,
     color: "#0f172a",
     outline: "none",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    caretColor: "#0f172a",
   },
   sheetCheck: {
     width: "100%",
@@ -566,17 +608,16 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
   sheetPrimary: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    padding: 0,
-    border: "none",
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 700,
+    fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 10px 20px rgba(15, 23, 42, 0.18)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   primaryBtn: {
     marginTop: 18,
