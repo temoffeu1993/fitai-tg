@@ -184,8 +184,10 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
     setOtherOpen(false);
   };
 
+  const hasSelection = stylesSel.some((item) => item !== "Другое") || Boolean(styleOther.trim());
+
   const handleNext = () => {
-    if (loading || isLeaving) return;
+    if (loading || isLeaving || !hasSelection) return;
     const outStyles = (() => {
       if (!stylesSel.length) return [];
       if (stylesSel.includes("Другое") && styleOther.trim()) {
@@ -365,10 +367,10 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
       <div style={s.actions}>
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: loading ? 0.5 : 1 }}
+          style={{ ...s.primaryBtn, opacity: loading || !hasSelection ? 0.5 : 1 }}
           className="onb-fade onb-fade-delay-3 intro-primary-btn"
           onClick={handleNext}
-          disabled={loading || isLeaving}
+          disabled={loading || isLeaving || !hasSelection}
         >
           Далее
         </button>
@@ -525,7 +527,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "var(--tile-color)",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 500,
     padding: "18px 10px",
     textAlign: "center",
