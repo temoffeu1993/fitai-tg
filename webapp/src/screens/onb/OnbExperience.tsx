@@ -1,6 +1,9 @@
 // webapp/src/screens/onb/OnbExperience.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import robotImg from "@/assets/robonew.png";
+import beginnerImg from "@/assets/novii.png";
+import intermediateImg from "@/assets/sredne.png";
+import advancedImg from "@/assets/profi.png";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
@@ -38,6 +41,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
   const [bubbleText, setBubbleText] = useState<string>(
     initial?.experience ? EXP_TEXT[initial.experience] : DEFAULT_BUBBLE
   );
+  const [imagesReady, setImagesReady] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -45,6 +49,34 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const preload = (src: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+        const done = () => resolve();
+        const anyImg = img as any;
+        if (typeof anyImg.decode === "function") {
+          anyImg.decode().then(done).catch(() => {
+            img.onload = done;
+            img.onerror = done;
+          });
+        } else {
+          img.onload = done;
+          img.onerror = done;
+        }
+      });
+
+    Promise.all([preload(beginnerImg), preload(intermediateImg), preload(advancedImg)]).then(() => {
+      if (!cancelled) setImagesReady(true);
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -157,6 +189,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           border-right: 8px solid rgba(255,255,255,0.9);
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
+        @keyframes robotSwap {
+          0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .robot-swap {
+          animation: robotSwap 240ms ease-out;
+          will-change: opacity, transform;
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -193,6 +233,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           .onb-leave { animation: none !important; }
           .exp-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
+          .robot-swap { animation: none !important; }
         }
       `}</style>
 
@@ -204,7 +245,21 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
-        <img src={robotImg} alt="Moro" style={s.robot} />
+        <img
+          key={experience ?? "base"}
+          src={
+            experience === "beginner"
+              ? beginnerImg
+              : experience === "intermediate"
+              ? intermediateImg
+              : experience === "advanced"
+              ? advancedImg
+              : robotImg
+          }
+          alt="Moro"
+          style={{ ...s.robot, ...(imagesReady ? undefined : s.robotHidden) }}
+          className="robot-swap"
+        />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>{bubbleText}</span>
         </div>
@@ -318,6 +373,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 120,
     height: "auto",
     objectFit: "contain",
+  },
+  robotHidden: {
+    opacity: 0,
   },
   bubble: {
     position: "relative",
