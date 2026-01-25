@@ -65,7 +65,9 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
       schedule: {
         ...(initial?.schedule || {}),
         daysPerWeek,
-        minutesPerSession: initial?.schedule?.minutesPerSession ?? 60,
+        ...(typeof initial?.schedule?.minutesPerSession === "number"
+          ? { minutesPerSession: initial.schedule.minutesPerSession }
+          : {}),
       },
     };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
