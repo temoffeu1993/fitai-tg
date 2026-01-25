@@ -2,9 +2,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import robotImg from "@/assets/robonew.png";
 import muscleRobotImg from "@/assets/morobot.png";
-import slimRobotImg from "@/assets/hudoi.png";
-import toneRobotImg from "@/assets/forma.png";
-import healthRobotImg from "@/assets/heals.png";
+import slimRobotImg from "@/assets/hudoi.webp";
+import toneRobotImg from "@/assets/forma.webp";
+import healthRobotImg from "@/assets/heals.webp";
 
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
