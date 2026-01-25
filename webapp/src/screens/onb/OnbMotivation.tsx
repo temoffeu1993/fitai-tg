@@ -5,14 +5,13 @@ import robotImg from "@/assets/robonew.png";
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
 const GOALS: Array<{ value: Goal; label: string }> = [
-  { value: "lose_weight", label: "Снижение веса" },
-  { value: "build_muscle", label: "Набор мышечной массы" },
-  { value: "athletic_body", label: "Рельеф и тонус" },
+  { value: "lose_weight", label: "Сбросить лишнее" },
+  { value: "build_muscle", label: "Набрать мышцы" },
+  { value: "athletic_body", label: "Подтянуться и быть в форме" },
   { value: "health_wellness", label: "Здоровье и самочувствие" },
 ];
 
-const DEFAULT_BUBBLE =
-  "Чтобы я мог составить идеальную программу тренировок и питания, выбери свой главный приоритет на ближайшее время";
+const DEFAULT_BUBBLE = "Зачем вам тренировки?";
 
 const GOAL_TEXT: Record<Goal, string> = {
   lose_weight:
@@ -175,17 +174,13 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 5 из 5</div>
-      </div>
-
-      <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Какая у вас цель?</h1>
+        {/* progress text removed */}
       </div>
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
         <img src={robotImg} alt="Moro" style={s.robot} />
         <div style={s.bubble} className="speech-bubble">
-          {bubbleText}
+          <span style={s.bubbleHeadline}>{DEFAULT_BUBBLE}</span>
         </div>
       </div>
 
@@ -285,19 +280,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.55)",
     textAlign: "center",
   },
-  header: {
-    display: "grid",
-    gap: 6,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  title: {
-    margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
-    letterSpacing: -0.8,
-  },
   robotRow: {
     display: "grid",
     gridTemplateColumns: "auto 1fr",
@@ -321,6 +303,12 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+  },
+  bubbleHeadline: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.3,
+    color: "#0f172a",
   },
   cards: {
     marginTop: 10,
