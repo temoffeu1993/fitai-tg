@@ -176,7 +176,7 @@ function StepDietStyle() {
         patch(p);
         nav("/onb/motivation");
       }}
-      onBack={() => nav("/onb/diet")}
+      onBack={() => nav("/onb/diet-style")}
     />
   );
 }
