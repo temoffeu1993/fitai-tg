@@ -271,6 +271,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div style={s.actions}>
+        <div style={s.actionsBg} aria-hidden="true" />
         <button
           type="button"
           style={{ ...s.primaryBtn, opacity: loading ? 0.6 : 1 }}
@@ -440,11 +441,18 @@ const s: Record<string, React.CSSProperties> = {
     right: 0,
     bottom: 0,
     padding: "18px 20px calc(env(safe-area-inset-bottom, 0px) + 18px)",
-    transform: "translateY(6px)",
     display: "grid",
     gap: 10,
     maxWidth: "100%",
     margin: "0",
+    zIndex: 5,
+  },
+  actionsBg: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: -6,
+    top: -12,
     background: "rgba(255,255,255,0.18)",
     border: "1px solid rgba(255,255,255,0.25)",
     borderTop: "1px solid rgba(15, 23, 42, 0.08)",
@@ -453,7 +461,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(18px)",
     boxShadow:
       "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
-    zIndex: 5,
+    pointerEvents: "none",
   },
   backBtn: {
     width: "100%",
