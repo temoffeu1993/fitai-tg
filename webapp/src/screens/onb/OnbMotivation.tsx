@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import robotImg from "@/assets/robonew.png";
 
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
@@ -11,17 +11,13 @@ const GOALS: Array<{ value: Goal; label: string }> = [
   { value: "health_wellness", label: "Здоровье и самочувствие" },
 ];
 
-const DEFAULT_BUBBLE = "Зачем вам тренировки?";
+const DEFAULT_BUBBLE = "Зачем вам\nтренировки?";
 
 const GOAL_TEXT: Record<Goal, string> = {
-  lose_weight:
-    "Мы сфокусируемся на жиросжигании и уменьшении объемов, чтобы ты видел результат и в зеркале, и на весах",
-  build_muscle:
-    "Сделаем упор на силовые тренировки, чтобы заполнить рукава футболок мышцами и построить крепкий атлетичный каркас",
-  athletic_body:
-    "Будем работать над качеством тела: уберем «мягкость», подтянем проблемные зоны и прорисуем красивый спортивный силуэт",
-  health_wellness:
-    "Займемся умным движением: исправим осанку, снимем зажимы в шее и пояснице, чтобы вернуть тебе бодрость.",
+  lose_weight: "Оставим всё лишнее в прошлом",
+  build_muscle: "Футболкам придется потесниться",
+  athletic_body: "Сделаем из тела шедевр",
+  health_wellness: "Ваша спина скажет вам спасибо",
 };
 
 export type OnbMotivationData = {
@@ -53,6 +49,29 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.style.scrollBehavior = "auto";
+      root.scrollTop = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
       }
     };
   }, []);
@@ -180,7 +199,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
         <img src={robotImg} alt="Moro" style={s.robot} />
         <div style={s.bubble} className="speech-bubble">
-          <span style={s.bubbleHeadline}>{DEFAULT_BUBBLE}</span>
+          <span style={s.bubbleText}>{bubbleText}</span>
         </div>
       </div>
 
@@ -288,7 +307,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
   robot: {
-    width: 84,
+    width: 104,
     height: "auto",
     objectFit: "contain",
   },
@@ -304,11 +323,12 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
   },
-  bubbleHeadline: {
+  bubbleText: {
     fontSize: 18,
     fontWeight: 500,
     lineHeight: 1.3,
     color: "#0f172a",
+    whiteSpace: "pre-line",
   },
   cards: {
     marginTop: 10,
@@ -325,8 +345,8 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "#1e1f22",
-    fontSize: 16,
-    fontWeight: 600,
+    fontSize: 18,
+    fontWeight: 500,
     padding: "16px 16px",
     textAlign: "left",
     height: 64,
@@ -338,8 +358,8 @@ const s: Record<string, React.CSSProperties> = {
     textOverflow: "ellipsis",
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 600,
+    fontSize: 18,
+    fontWeight: 500,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -359,14 +379,9 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     maxWidth: "100%",
     margin: "0",
-    background: "rgba(255,255,255,0.18)",
-    border: "1px solid rgba(255,255,255,0.25)",
-    borderTop: "1px solid rgba(15, 23, 42, 0.08)",
-    borderRadius: "22px 22px 0 0",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow:
-      "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
     zIndex: 5,
   },
   primaryBtn: {
