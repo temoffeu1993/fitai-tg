@@ -2,6 +2,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import robotImg from "@/assets/robonew.png";
 import muscleRobotImg from "@/assets/morobot.png";
+import slimRobotImg from "@/assets/hudoi.png";
+import toneRobotImg from "@/assets/forma.png";
+import healthRobotImg from "@/assets/heals.png";
 
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
@@ -44,6 +47,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   const [bubbleText, setBubbleText] = useState<string>(
     initial?.motivation?.goal ? GOAL_TEXT[initial.motivation.goal] : DEFAULT_BUBBLE
   );
+  const [imagesReady, setImagesReady] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -51,6 +55,40 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const preload = (src: string) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+        const done = () => resolve();
+        const anyImg = img as any;
+        if (typeof anyImg.decode === "function") {
+          anyImg.decode().then(done).catch(() => {
+            img.onload = done;
+            img.onerror = done;
+          });
+        } else {
+          img.onload = done;
+          img.onerror = done;
+        }
+      });
+
+    Promise.all([
+      preload(robotImg),
+      preload(muscleRobotImg),
+      preload(slimRobotImg),
+      preload(toneRobotImg),
+      preload(healthRobotImg),
+    ]).then(() => {
+      if (!cancelled) setImagesReady(true);
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -218,10 +256,30 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
         <img
-          key={goal === "build_muscle" ? "muscle" : "base"}
-          src={goal === "build_muscle" ? muscleRobotImg : robotImg}
+          key={
+            goal === "build_muscle"
+              ? "muscle"
+              : goal === "lose_weight"
+              ? "slim"
+              : goal === "athletic_body"
+              ? "tone"
+              : goal === "health_wellness"
+              ? "health"
+              : "base"
+          }
+          src={
+            goal === "build_muscle"
+              ? muscleRobotImg
+              : goal === "lose_weight"
+              ? slimRobotImg
+              : goal === "athletic_body"
+              ? toneRobotImg
+              : goal === "health_wellness"
+              ? healthRobotImg
+              : robotImg
+          }
           alt="Moro"
-          style={s.robot}
+          style={{ ...s.robot, ...(imagesReady ? undefined : s.robotHidden) }}
           className="robot-swap"
         />
         <div style={s.bubble} className="speech-bubble">
@@ -337,6 +395,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 120,
     height: "auto",
     objectFit: "contain",
+  },
+  robotHidden: {
+    opacity: 0,
   },
   bubble: {
     position: "relative",
