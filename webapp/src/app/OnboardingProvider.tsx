@@ -11,6 +11,7 @@ type Ctx = {
 const OnbCtx = createContext<Ctx | null>(null);
 
 const KEY = "onb_draft_v1";
+const IN_PROGRESS_KEY = "onb_in_progress_v1";
 
 export default function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [draft, setDraft] = useState<Draft>(() => {
@@ -22,7 +23,14 @@ export default function OnboardingProvider({ children }: { children: React.React
   }, [draft]);
 
   useEffect(() => {
-    try { localStorage.removeItem(KEY); } catch {}
+    try {
+      if (!sessionStorage.getItem(IN_PROGRESS_KEY)) {
+        sessionStorage.removeItem(KEY);
+        setDraft({});
+        sessionStorage.setItem(IN_PROGRESS_KEY, "1");
+      }
+      localStorage.removeItem(KEY);
+    } catch {}
   }, []);
 
   const value = useMemo<Ctx>(
