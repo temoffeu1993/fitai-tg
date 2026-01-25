@@ -183,7 +183,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 2 из 5</div>
+        <div style={s.progressText}>Шаг 2 из 10</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">

@@ -173,7 +173,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 5 из 5</div>
+        <div style={s.progressText}>Шаг 5 из 10</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
