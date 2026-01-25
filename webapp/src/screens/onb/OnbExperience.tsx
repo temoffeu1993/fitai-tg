@@ -271,7 +271,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div style={s.actions}>
-        <div style={s.actionsBg} aria-hidden="true" />
+        <div style={s.actionsBg} className="onb-fade onb-fade-delay-3" aria-hidden="true" />
         <button
           type="button"
           style={{ ...s.primaryBtn, opacity: loading ? 0.6 : 1 }}
