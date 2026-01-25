@@ -6,10 +6,10 @@ import muscleRobotImg from "@/assets/morobot.png";
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
 const GOALS: Array<{ value: Goal; label: string }> = [
-  { value: "lose_weight", label: "Сбросить лишнее" },
-  { value: "build_muscle", label: "Набрать мышцы" },
-  { value: "athletic_body", label: "Подтянуться" },
-  { value: "health_wellness", label: "Здоровье и самочувствие" },
+  { value: "lose_weight", label: "🔥 Сбросить лишнее" },
+  { value: "build_muscle", label: "💪🏻 Набрать мышцы" },
+  { value: "athletic_body", label: "⚡️ Подтянуться и быть в форме" },
+  { value: "health_wellness", label: "🧘‍♂️ Здоровье и самочувствие" },
 ];
 
 const DEFAULT_BUBBLE = "Зачем вам\nтренировки?";
@@ -359,7 +359,7 @@ const s: Record<string, React.CSSProperties> = {
   cards: {
     marginTop: 10,
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "1fr",
     gap: 10,
   },
   card: {
@@ -379,15 +379,16 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
-    whiteSpace: "normal",
+    whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 500,
-    whiteSpace: "normal",
-    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   cardActive: {
     background: "#1e1f22",
