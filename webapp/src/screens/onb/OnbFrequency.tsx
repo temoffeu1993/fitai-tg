@@ -255,7 +255,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressFill: {
     height: "100%",
-    width: "100%",
+    width: "60%",
     background: "#1e1f22",
     borderRadius: 999,
     boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
