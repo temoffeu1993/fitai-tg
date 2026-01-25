@@ -125,6 +125,13 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
         }
+        .intro-primary-btn:disabled {
+          background-color: #1e1f22 !important;
+          border-color: #1e1f22 !important;
+          color: #fff !important;
+          box-shadow: 0 6px 10px rgba(0,0,0,0.24) !important;
+          filter: none !important;
+        }
         @media (hover: hover) {
           .intro-primary-btn:hover:not(:disabled) {
             filter: brightness(1.03);
