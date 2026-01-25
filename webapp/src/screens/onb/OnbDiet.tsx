@@ -327,7 +327,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 5 из 5</div>
+        <div style={s.progressText}>Шаг 8 из 10</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
@@ -507,6 +507,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     background: "#1e1f22",
     borderRadius: 999,
+    boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
   },
   progressText: {
     fontSize: 12,
