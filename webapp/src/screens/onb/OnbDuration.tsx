@@ -23,7 +23,7 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
   const [minutesPerSession, setMinutesPerSession] = useState<number | null>(
     typeof initial?.schedule?.minutesPerSession === "number"
       ? initial.schedule.minutesPerSession
-      : 60
+      : null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);

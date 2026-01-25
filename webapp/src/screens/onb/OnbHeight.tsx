@@ -26,7 +26,7 @@ const EDGE_SPACER = ITEM_HEIGHT * TICKS_PER_CM * 2 - ITEM_HEIGHT / 2;
 export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [height, setHeight] = useState<number | null>(
-    typeof initial?.body?.height === "number" ? initial.body.height : 170
+    typeof initial?.body?.height === "number" ? initial.body.height : 180
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);

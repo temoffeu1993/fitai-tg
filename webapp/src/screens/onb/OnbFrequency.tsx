@@ -21,7 +21,7 @@ const MAX_DAYS = 6;
 export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(
-    typeof initial?.schedule?.daysPerWeek === "number" ? initial.schedule.daysPerWeek : 3
+    typeof initial?.schedule?.daysPerWeek === "number" ? initial.schedule.daysPerWeek : null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
