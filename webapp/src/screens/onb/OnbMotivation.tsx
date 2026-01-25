@@ -5,17 +5,13 @@ export type Goal =
   | "lose_weight"
   | "build_muscle"
   | "athletic_body"
-  | "lower_body_focus"
-  | "strength"
   | "health_wellness";
 
 const GOALS: Array<{ value: Goal; label: string }> = [
-  { value: "lose_weight", label: "Похудеть" },
-  { value: "build_muscle", label: "Набрать мышечную массу" },
-  { value: "athletic_body", label: "Рельеф тела" },
-  { value: "strength", label: "Стать сильнее" },
-  { value: "lower_body_focus", label: "Выносливость и энергия" },
-  { value: "health_wellness", label: "Здоровье и осанка" },
+  { value: "lose_weight", label: "Снижение веса" },
+  { value: "build_muscle", label: "Набор мышечной массы" },
+  { value: "athletic_body", label: "Рельеф и тонус" },
+  { value: "health_wellness", label: "Здоровье и самочувствие" },
 ];
 
 export type OnbMotivationData = {
