@@ -11,6 +11,9 @@ import femaleRobotImg from "./assets/zhennew.png";
 import beginnerImg from "./assets/novii.png";
 import intermediateImg from "./assets/sredne.png";
 import advancedImg from "./assets/profi.png";
+import slimRobotImg from "./assets/hudoi.webp";
+import toneRobotImg from "./assets/forma.webp";
+import healthRobotImg from "./assets/heals.webp";
 
 const debugEnabled = (() => {
   if (typeof window === "undefined") return false;
@@ -297,6 +300,9 @@ if (isDev && !tg?.initData) {
     beginnerImg,
     intermediateImg,
     advancedImg,
+    slimRobotImg,
+    toneRobotImg,
+    healthRobotImg,
   ];
   Promise.all(allImages.map(preloadImage)).finally(() => {
     timeMark("boot:critical-images-ready");
@@ -346,6 +352,9 @@ async function auth() {
       beginnerImg,
       intermediateImg,
       advancedImg,
+      slimRobotImg,
+      toneRobotImg,
+      healthRobotImg,
     ];
     await Promise.all(allImages.map(preloadImage));
     timeMark("boot:critical-images-ready");
