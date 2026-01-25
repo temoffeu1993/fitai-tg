@@ -29,6 +29,9 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const navigate = useNavigate();
   const [stylesSel, setStylesSel] = useState<string[]>(initial?.dietPrefs?.styles ?? []);
   const [styleOther, setStyleOther] = useState<string>(initial?.dietPrefs?.styleOther ?? "");
+  const [styleOtherDraft, setStyleOtherDraft] = useState<string>(
+    initial?.dietPrefs?.styleOther ?? ""
+  );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,6 +136,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const toggle = (value: string) => {
     if (value === "Другое") {
       setStylesSel((prev) => (prev.includes("Другое") ? prev : [...prev, "Другое"]));
+      setStyleOtherDraft(styleOther);
       setOtherOpen(true);
       return;
     }
@@ -142,12 +146,14 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   };
 
   const handleOtherSave = () => {
-    if (styleOther.trim()) {
+    if (styleOtherDraft.trim()) {
+      setStyleOther(styleOtherDraft.trim());
       setOtherOpen(false);
       return;
     }
     setStylesSel((prev) => prev.filter((item) => item !== "Другое"));
     setStyleOther("");
+    setStyleOtherDraft("");
     setOtherOpen(false);
   };
 
@@ -311,6 +317,12 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
               ["--tile-border" as never]: "#1e1f22",
               ["--tile-color" as never]: "#fff",
               ...s.tileActive,
+              gridColumn: "1 / -1",
+              justifySelf: "start",
+              width: "fit-content",
+              maxWidth: "100%",
+              display: "inline-flex",
+              whiteSpace: "nowrap",
             }}
             onClick={() => {
               setStyleOther("");
@@ -360,22 +372,19 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
         <div
           style={{
             ...s.sheetWrap,
-            transform:
-              keyboardOffset > 0
-                ? `translateY(-${Math.max(0, keyboardOffset)}px)`
-                : "translateY(0)",
             opacity: keyboardOffset > 0 ? 1 : 0,
-            pointerEvents: "auto",
+            pointerEvents: keyboardOffset > 0 ? "auto" : "none",
           }}
-          className="sheet-fade"
+          className={keyboardOffset > 0 ? "sheet-fade" : ""}
         >
           <div style={s.sheet} className="sheet-card">
             <input
               ref={otherInputRef}
-              value={styleOther}
-              onChange={(e) => setStyleOther(e.target.value)}
+              value={styleOtherDraft}
+              onChange={(e) => setStyleOtherDraft(e.target.value)}
               placeholder="Уточни свой вариант"
               style={s.sheetInput}
+              autoFocus
               onFocus={() => setOtherFocused(true)}
               onBlur={() => setOtherFocused(false)}
               onKeyDown={(e) => {
