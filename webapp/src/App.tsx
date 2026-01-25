@@ -204,7 +204,7 @@ function StepMotivation() {
         // Переходим к выбору схемы тренировок
         nav("/onb/scheme");
       }}
-      onBack={() => nav("/onb/diet")}
+      onBack={() => nav("/onb/diet-style")}
     />
   );
 }
