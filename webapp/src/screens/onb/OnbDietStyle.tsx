@@ -265,6 +265,13 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
         }
+        .intro-primary-btn:disabled {
+          background-color: #1e1f22 !important;
+          border-color: #1e1f22 !important;
+          color: #fff !important;
+          box-shadow: 0 6px 10px rgba(0,0,0,0.24) !important;
+          filter: none !important;
+        }
         .sheet-fade {
           animation: sheetFadeIn 220ms ease-out both;
         }
