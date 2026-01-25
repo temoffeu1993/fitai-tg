@@ -174,6 +174,9 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
         }
+        .intro-primary-btn:disabled {
+          opacity: 1 !important;
+        }
         @media (hover: hover) {
           .intro-primary-btn:hover:not(:disabled) {
             filter: brightness(1.03);
@@ -248,7 +251,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       <div style={s.actions} className="onb-fade onb-fade-delay-3">
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: loading || !goal ? 0.6 : 1 }}
+          style={s.primaryBtn}
           className="intro-primary-btn"
           onClick={handleNext}
           disabled={loading || isLeaving || !goal}
@@ -410,6 +413,9 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+    outline: "none",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
