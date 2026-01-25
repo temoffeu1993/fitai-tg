@@ -182,10 +182,9 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div
-        style={{ ...s.cardsWrap, ...(imagesReady ? undefined : s.cardsHidden) }}
+        style={{ ...s.cards, ...(imagesReady ? undefined : s.cardsHidden) }}
         className="onb-fade onb-fade-delay-3"
       >
-        <div style={s.cards}>
         <button
           type="button"
           className="exp-card"
@@ -271,7 +270,6 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
             fetchPriority="high"
           />
         </button>
-        </div>
       </div>
 
       <div style={s.actions} className="onb-fade onb-fade-delay-3">
@@ -315,7 +313,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 140px)",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -366,15 +364,10 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.7)",
   },
-  cardsWrap: {
-    marginTop: 12,
-    maxHeight: "calc(100vh - 380px)",
-    overflowY: "auto",
-    paddingBottom: 8,
-  },
   cards: {
     display: "grid",
     gap: 10,
+    marginTop: 12,
     gridTemplateColumns: "1fr",
   },
   cardsHidden: {
@@ -453,7 +446,14 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     maxWidth: "100%",
     margin: "0",
-    background: "transparent",
+    background: "rgba(255,255,255,0.18)",
+    border: "1px solid rgba(255,255,255,0.25)",
+    borderTop: "1px solid rgba(15, 23, 42, 0.08)",
+    borderRadius: "22px 22px 0 0",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow:
+      "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
     zIndex: 5,
   },
   backBtn: {
