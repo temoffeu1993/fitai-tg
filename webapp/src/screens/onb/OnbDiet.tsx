@@ -166,14 +166,17 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   const toggle = (value: string) => {
     if (value === "Нет") {
-      setRestrictions([]);
+      setRestrictions(["Нет"]);
       setRestrictionOther("");
+      setRestrictionOtherDraft("");
       setOtherOpen(false);
       return;
     }
     if (value === "Другое") {
       setRestrictions((prev) =>
-        prev.includes("Другое") ? prev : [...prev, "Другое"]
+        prev.includes("Другое")
+          ? prev.filter((item) => item !== "Нет")
+          : [...prev.filter((item) => item !== "Нет"), "Другое"]
       );
       setRestrictionOtherDraft(restrictionOther);
       setOtherOpen(true);
@@ -183,7 +186,9 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       return;
     }
     setRestrictions((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev.filter((item) => item !== "Нет"), value]
     );
   };
 
@@ -203,6 +208,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     if (loading || isLeaving) return;
     const dislikes = (() => {
       if (restrictions.length === 0) return [];
+      if (restrictions.includes("Нет")) return [];
       if (restrictions.includes("Другое") && restrictionOther.trim()) {
         return Array.from(new Set([...restrictions.filter((r) => r !== "Другое"), restrictionOther.trim()]));
       }
@@ -324,7 +330,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
       <div style={s.tiles} className="onb-fade onb-fade-delay-3">
         {OPTIONS.map((value) => {
-          const isActive = value === "Нет" ? restrictions.length === 0 : restrictions.includes(value);
+          const isActive = restrictions.includes(value);
           return (
             <button
               key={value}
