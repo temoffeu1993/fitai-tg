@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import robotImg from "@/assets/robonew.png";
+import muscleRobotImg from "@/assets/morobot.png";
 
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
@@ -123,6 +124,10 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           0% { opacity: 1; transform: translateY(0); }
           100% { opacity: 0; transform: translateY(12px); }
         }
+        @keyframes robotSwap {
+          0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .onb-fade {
           animation: onbFadeUp 520ms ease-out both;
         }
@@ -178,6 +183,10 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           outline: 3px solid rgba(15, 23, 42, 0.18);
           outline-offset: 2px;
         }
+        .robot-swap {
+          animation: robotSwap 240ms ease-out;
+          will-change: opacity, transform;
+        }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade,
           .onb-fade-delay-1,
@@ -186,6 +195,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           .onb-leave { animation: none !important; }
           .goal-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
+          .robot-swap { animation: none !important; }
         }
       `}</style>
 
@@ -197,7 +207,13 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       </div>
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
-        <img src={robotImg} alt="Moro" style={s.robot} />
+        <img
+          key={goal === "build_muscle" ? "muscle" : "base"}
+          src={goal === "build_muscle" ? muscleRobotImg : robotImg}
+          alt="Moro"
+          style={s.robot}
+          className="robot-swap"
+        />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>{bubbleText}</span>
         </div>
