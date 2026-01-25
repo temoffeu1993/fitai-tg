@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnboardingWizard.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import OnbAgeSex, { OnbAgeSexData } from "./OnbAgeSex";
 import OnbExperience, { OnbExperienceData } from "./OnbExperience";
 import OnbDiet, { OnbDietData } from "./OnbDiet";
@@ -17,15 +17,29 @@ type OnbAll =
 export default function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [acc, setAcc] = useState<OnbAll>(() => {
-    try { return JSON.parse(localStorage.getItem("onb") || "{}"); } catch { return {}; }
+    try {
+      const raw = sessionStorage.getItem("onb") || "{}";
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem("onb")) {
+        localStorage.removeItem("onb");
+      }
+    } catch {}
+  }, []);
 
   const goBack = () => setStep((s) => Math.max(0, s - 1));
   const saveLocal = (next: OnbAll) => {
     const merged = { ...acc, ...next };
     setAcc(merged);
-    localStorage.setItem("onb", JSON.stringify(merged));
+    sessionStorage.setItem("onb", JSON.stringify(merged));
   };
 
   async function persistAndContinueToSchemeSelection() {
@@ -119,6 +133,9 @@ export default function OnboardingWizard() {
     
     // Даём время событиям обработаться перед редиректом
     console.log("⏳ Waiting 150ms before redirect...");
+    try {
+      sessionStorage.removeItem("onb");
+    } catch {}
     setTimeout(() => {
       console.log("🔄 Redirecting to /...");
       window.location.pathname = "/";

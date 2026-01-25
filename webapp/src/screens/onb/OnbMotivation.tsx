@@ -33,8 +33,8 @@ type Props = {
 
 export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Props) {
   // Цель
-  const [goal, setGoal] = useState<Goal>(initial?.motivation?.goal ?? "lose_weight");
-  const canNext = true; // Всегда можно перейти дальше
+  const [goal, setGoal] = useState<Goal | null>(initial?.motivation?.goal ?? null);
+  const canNext = Boolean(goal);
   
   const goalInfo: Record<Goal, string[]> = {
     lose_weight: ["похудеть и улучшить композицию тела", "сбросить лишний вес, подтянуть фигуру"],
@@ -49,7 +49,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   };
 
   function handleNext() {
-    if (!canNext || loading) return;
+    if (!canNext || loading || !goal) return;
 
     onSubmit({
       motivation: {
@@ -89,28 +89,30 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           <Chip label="🩺 Здоровье и самочувствие" active={goal === "health_wellness"} onClick={() => setGoal("health_wellness")} />
         </div>
 
-        <div style={st.goalInfo}>
-          <div style={st.goalInfoTitle}>Что это значит</div>
-          <div style={st.goalInfoList}>
-            {goalInfo[goal].map((t) => (
-              <div key={t} style={st.goalInfoItem}>
-                {t}
-              </div>
-            ))}
+        {goal ? (
+          <div style={st.goalInfo}>
+            <div style={st.goalInfoTitle}>Что это значит</div>
+            <div style={st.goalInfoList}>
+              {goalInfo[goal].map((t) => (
+                <div key={t} style={st.goalInfoItem}>
+                  {t}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
       {/* CTA — увеличенный размер как просили */}
       <button
         type="button"
         onClick={handleNext}
-        disabled={!!loading}
+        disabled={!!loading || !canNext}
         className="soft-glow tap-primary"
         style={{
           ...st.primaryBtn,
-          opacity: loading ? 0.6 : 1,
-          cursor: loading ? "default" : "pointer",
+          opacity: loading || !canNext ? 0.6 : 1,
+          cursor: loading || !canNext ? "default" : "pointer",
         }}
       >
         {loading ? "Сохранение…" : "Далее →"}
