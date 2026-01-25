@@ -1,11 +1,8 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
 import { useEffect, useRef, useState } from "react";
+import robotImg from "@/assets/robonew.png";
 
-export type Goal =
-  | "lose_weight"
-  | "build_muscle"
-  | "athletic_body"
-  | "health_wellness";
+export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
 const GOALS: Array<{ value: Goal; label: string }> = [
   { value: "lose_weight", label: "Снижение веса" },
@@ -13,6 +10,20 @@ const GOALS: Array<{ value: Goal; label: string }> = [
   { value: "athletic_body", label: "Рельеф и тонус" },
   { value: "health_wellness", label: "Здоровье и самочувствие" },
 ];
+
+const DEFAULT_BUBBLE =
+  "Чтобы я мог составить идеальную программу тренировок и питания, выбери свой главный приоритет на ближайшее время";
+
+const GOAL_TEXT: Record<Goal, string> = {
+  lose_weight:
+    "Мы сфокусируемся на жиросжигании и уменьшении объемов, чтобы ты видел результат и в зеркале, и на весах",
+  build_muscle:
+    "Сделаем упор на силовые тренировки, чтобы заполнить рукава футболок мышцами и построить крепкий атлетичный каркас",
+  athletic_body:
+    "Будем работать над качеством тела: уберем «мягкость», подтянем проблемные зоны и прорисуем красивый спортивный силуэт",
+  health_wellness:
+    "Займемся умным движением: исправим осанку, снимем зажимы в шее и пояснице, чтобы вернуть тебе бодрость.",
+};
 
 export type OnbMotivationData = {
   motivation: {
@@ -34,6 +45,9 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
   const [goal, setGoal] = useState<Goal | null>(initial?.motivation?.goal ?? null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+  const [bubbleText, setBubbleText] = useState<string>(
+    initial?.motivation?.goal ? GOAL_TEXT[initial.motivation.goal] : DEFAULT_BUBBLE
+  );
 
   useEffect(() => {
     return () => {
@@ -43,6 +57,25 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       }
     };
   }, []);
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const target = goal ? GOAL_TEXT[goal] : DEFAULT_BUBBLE;
+    if (prefersReduced) {
+      setBubbleText(target);
+      return;
+    }
+    let index = 0;
+    setBubbleText("");
+    const id = window.setInterval(() => {
+      index += 1;
+      setBubbleText(target.slice(0, index));
+      if (index >= target.length) {
+        window.clearInterval(id);
+      }
+    }, 14);
+    return () => window.clearInterval(id);
+  }, [goal]);
 
   const handleNext = () => {
     if (loading || isLeaving || !goal) return;
@@ -94,6 +127,18 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           border-color: var(--goal-border) !important;
           color: var(--goal-color) !important;
         }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -135,9 +180,13 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
         <h1 style={s.title}>Какая у вас цель?</h1>
-        <p style={s.subtitle}>
-          От цели зависит план тренировок, питание и темп прогресса
-        </p>
+      </div>
+
+      <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
+        <img src={robotImg} alt="Moro" style={s.robot} />
+        <div style={s.bubble} className="speech-bubble">
+          {bubbleText}
+        </div>
       </div>
 
       <div style={s.cards} className="onb-fade onb-fade-delay-3">
@@ -206,7 +255,7 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: "0 auto",
     minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 140px)",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -244,21 +293,39 @@ const s: Record<string, React.CSSProperties> = {
   },
   title: {
     margin: 0,
-    fontSize: 30,
+    fontSize: 34,
     lineHeight: 1.1,
-    fontWeight: 650,
-    letterSpacing: -0.5,
+    fontWeight: 700,
+    letterSpacing: -0.8,
   },
-  subtitle: {
-    margin: 0,
-    fontSize: 16,
-    lineHeight: 1.45,
-    color: "rgba(15, 23, 42, 0.7)",
+  robotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+  },
+  robot: {
+    width: 84,
+    height: "auto",
+    objectFit: "contain",
+  },
+  bubble: {
+    position: "relative",
+    padding: "12px 14px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
+    color: "#0f172a",
+    fontSize: 14,
+    lineHeight: 1.4,
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   cards: {
     marginTop: 10,
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "1fr",
     gap: 10,
   },
   card: {
@@ -272,12 +339,22 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     fontSize: 16,
     fontWeight: 600,
-    padding: "20px 14px",
-    textAlign: "center",
+    padding: "16px 16px",
+    textAlign: "left",
+    height: 64,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: 600,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   cardActive: {
     background: "#1e1f22",
@@ -292,10 +369,16 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
     gap: 10,
-    maxWidth: 720,
-    margin: "0 auto",
-    background:
-      "linear-gradient(180deg, rgba(245,246,248,0) 0%, rgba(245,246,248,0.9) 24%, rgba(245,246,248,0.98) 100%)",
+    maxWidth: "100%",
+    margin: "0",
+    background: "rgba(255,255,255,0.18)",
+    border: "1px solid rgba(255,255,255,0.25)",
+    borderTop: "1px solid rgba(15, 23, 42, 0.08)",
+    borderRadius: "22px 22px 0 0",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow:
+      "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
     zIndex: 5,
   },
   primaryBtn: {
