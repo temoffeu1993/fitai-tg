@@ -5,7 +5,7 @@ export type Experience = "beginner" | "intermediate" | "advanced";
 
 export type OnbExperienceData = {
   experience: Experience;
-  schedule: { daysPerWeek: number; minutesPerSession: number };
+  schedule?: { daysPerWeek: number; minutesPerSession: number };
 };
 
 type Props = {
@@ -84,12 +84,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
 
   const handleNext = () => {
     if (loading || isLeaving || !experience) return;
+    const schedule =
+      typeof initial?.schedule?.daysPerWeek === "number" &&
+      typeof initial?.schedule?.minutesPerSession === "number"
+        ? initial.schedule
+        : undefined;
     const patch: OnbExperienceData = {
       experience,
-      schedule: {
-        daysPerWeek: initial?.schedule?.daysPerWeek ?? 3,
-        minutesPerSession: initial?.schedule?.minutesPerSession ?? 60,
-      },
+      ...(schedule ? { schedule } : {}),
     };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
