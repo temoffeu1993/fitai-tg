@@ -210,8 +210,11 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
     setOtherOpen(false);
   };
 
+  const hasSelection =
+    restrictions.some((item) => item !== "Другое") || Boolean(restrictionOther.trim());
+
   const handleNext = () => {
-    if (loading || isLeaving) return;
+    if (loading || isLeaving || !hasSelection) return;
     const dislikes = (() => {
       if (restrictions.length === 0) return [];
       if (restrictions.includes("Нет")) return [];
@@ -389,10 +392,10 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
       <div style={s.actions}>
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: loading ? 0.5 : 1 }}
+          style={{ ...s.primaryBtn, opacity: loading || !hasSelection ? 0.5 : 1 }}
           className="onb-fade onb-fade-delay-3 intro-primary-btn"
           onClick={handleNext}
-          disabled={loading || isLeaving}
+          disabled={loading || isLeaving || !hasSelection}
         >
           Далее
         </button>
