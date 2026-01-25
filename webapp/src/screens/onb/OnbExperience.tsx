@@ -442,10 +442,16 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
     gap: 10,
-    maxWidth: 720,
-    margin: "0 auto",
-    background:
-      "linear-gradient(180deg, rgba(245,246,248,0) 0%, rgba(245,246,248,0.9) 24%, rgba(245,246,248,0.98) 100%)",
+    maxWidth: "100%",
+    margin: "0",
+    background: "rgba(255,255,255,0.72)",
+    border: "1px solid rgba(255,255,255,0.7)",
+    borderTop: "1px solid rgba(15, 23, 42, 0.08)",
+    borderRadius: "22px 22px 0 0",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow:
+      "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
     zIndex: 5,
   },
   backBtn: {
