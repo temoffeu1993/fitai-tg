@@ -14,12 +14,16 @@ const KEY = "onb_draft_v1";
 
 export default function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [draft, setDraft] = useState<Draft>(() => {
-    try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; }
+    try { return JSON.parse(sessionStorage.getItem(KEY) || "{}"); } catch { return {}; }
   });
 
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(draft)); } catch {}
+    try { sessionStorage.setItem(KEY, JSON.stringify(draft)); } catch {}
   }, [draft]);
+
+  useEffect(() => {
+    try { localStorage.removeItem(KEY); } catch {}
+  }, []);
 
   const value = useMemo<Ctx>(
     () => ({
