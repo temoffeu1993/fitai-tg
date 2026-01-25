@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbExperience.tsx
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import robotImg from "@/assets/robonew.png";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
@@ -16,15 +17,27 @@ type Props = {
   onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
-import beginnerImg from "@/assets/novii.png";
-import intermediateImg from "@/assets/sredne.png";
-import advancedImg from "@/assets/profi.png";
+const OPTIONS: Array<{ value: Experience; label: string }> = [
+  { value: "beginner", label: "🐣 Я новичок" },
+  { value: "intermediate", label: "🏃‍♂️ Любитель, занимаюсь, но без системы" },
+  { value: "advanced", label: "💪 Опытный, тренируюсь регулярно, знаю технику" },
+];
+
+const DEFAULT_BUBBLE = "Как у вас сейчас со спортом?";
+
+const EXP_TEXT: Record<Experience, string> = {
+  beginner: "Все чемпионы когда-то начинали! Начнем плавно, без стресса",
+  intermediate: "Отлично! Фундамент есть, теперь добавим систему",
+  advanced: "Супер! Значит, пропустим теорию и поработаем мощно",
+};
 
 export default function OnbExperience({ initial, loading, onSubmit, onBack }: Props) {
   const [experience, setExperience] = useState<Experience | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
-  const [imagesReady, setImagesReady] = useState(false);
+  const [bubbleText, setBubbleText] = useState<string>(
+    initial?.experience ? EXP_TEXT[initial.experience] : DEFAULT_BUBBLE
+  );
 
   useEffect(() => {
     return () => {
@@ -41,10 +54,14 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
     const prevOverscroll = root?.style.overscrollBehaviorY;
     const prevScrollBehavior = root?.style.scrollBehavior;
     if (root) {
-      root.style.overflowY = "auto";
-      root.style.overscrollBehaviorY = "auto";
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
       root.style.scrollBehavior = "auto";
+      root.scrollTop = 0;
     }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
     return () => {
       if (root) {
         root.style.overflowY = prevOverflow || "";
@@ -55,32 +72,23 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const preload = (src: string) =>
-      new Promise<void>((resolve) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.src = src;
-        const done = () => resolve();
-        const anyImg = img as any;
-        if (typeof anyImg.decode === "function") {
-          anyImg.decode().then(done).catch(() => {
-            img.onload = done;
-            img.onerror = done;
-          });
-        } else {
-          img.onload = done;
-          img.onerror = done;
-        }
-      });
-
-    Promise.all([preload(beginnerImg), preload(intermediateImg), preload(advancedImg)]).then(() => {
-      if (!cancelled) setImagesReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const target = experience ? EXP_TEXT[experience] : DEFAULT_BUBBLE;
+    if (prefersReduced) {
+      setBubbleText(target);
+      return;
+    }
+    let index = 0;
+    setBubbleText("");
+    const id = window.setInterval(() => {
+      index += 1;
+      setBubbleText(target.slice(0, index));
+      if (index >= target.length) {
+        window.clearInterval(id);
+      }
+    }, 14);
+    return () => window.clearInterval(id);
+  }, [experience]);
 
   const handleNext = () => {
     if (loading || isLeaving || !experience) return;
@@ -137,6 +145,18 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           border-color: var(--exp-border) !important;
           color: var(--exp-color) !important;
         }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -148,6 +168,13 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           background-color: #141619 !important;
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
+        }
+        .intro-primary-btn:disabled {
+          background-color: #1e1f22 !important;
+          border-color: #1e1f22 !important;
+          color: #fff !important;
+          box-shadow: 0 6px 10px rgba(0,0,0,0.24) !important;
+          filter: none !important;
         }
         @media (hover: hover) {
           .intro-primary-btn:hover:not(:disabled) {
@@ -176,109 +203,46 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         <div style={s.progressText}>Шаг 5 из 10</div>
       </div>
 
-      <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Выберите уровень подготовки</h1>
-        <p style={s.subtitle}>Чтобы тренировки соответствовали вашему опыту.</p>
+      <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
+        <img src={robotImg} alt="Moro" style={s.robot} />
+        <div style={s.bubble} className="speech-bubble">
+          <span style={s.bubbleText}>{bubbleText}</span>
+        </div>
       </div>
 
-      <div
-        style={{ ...s.cards, ...(imagesReady ? undefined : s.cardsHidden) }}
-        className="onb-fade onb-fade-delay-3"
-      >
-        <button
-          type="button"
-          className="exp-card"
-          style={{
-            ...s.card,
-            ["--exp-bg" as never]:
-              experience === "beginner"
-                ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-            ["--exp-border" as never]: experience === "beginner" ? "#1e1f22" : "rgba(255,255,255,0.4)",
-            ["--exp-color" as never]: experience === "beginner" ? "#fff" : "#1e1f22",
-          }}
-          onClick={() => setExperience("beginner")}
-        >
-          <div style={s.cardText}>
-            <div style={s.cardTitle}>Новичок</div>
-            <div style={s.cardSubtitle}>Тренируюсь менее 6 месяцев</div>
-          </div>
-          <img
-            src={beginnerImg}
-            alt="Новичек"
-            style={s.cardImage}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-          />
-        </button>
-
-        <button
-          type="button"
-          className="exp-card"
-          style={{
-            ...s.card,
-            ["--exp-bg" as never]:
-              experience === "intermediate"
-                ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-            ["--exp-border" as never]: experience === "intermediate" ? "#1e1f22" : "rgba(255,255,255,0.4)",
-            ["--exp-color" as never]: experience === "intermediate" ? "#fff" : "#1e1f22",
-          }}
-          onClick={() => setExperience("intermediate")}
-        >
-          <div style={s.cardText}>
-            <div style={s.cardTitle}>Средний уровень</div>
-            <div style={s.cardSubtitle}>Тренируюсь регулярно от 6 месяцев до 2 лет</div>
-          </div>
-          <img
-            src={intermediateImg}
-            alt="Средний уровень"
-            style={s.cardImage}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-          />
-        </button>
-
-        <button
-          type="button"
-          className="exp-card"
-          style={{
-            ...s.card,
-            ["--exp-bg" as never]:
-              experience === "advanced"
-                ? "#1e1f22"
-                : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-            ["--exp-border" as never]: experience === "advanced" ? "#1e1f22" : "rgba(255,255,255,0.4)",
-            ["--exp-color" as never]: experience === "advanced" ? "#fff" : "#1e1f22",
-          }}
-          onClick={() => setExperience("advanced")}
-        >
-          <div style={s.cardText}>
-            <div style={s.cardTitle}>Продвинутый</div>
-            <div style={s.cardSubtitle}>
-              Тренируюсь более 2 лет, уверенно знаю технику
-            </div>
-          </div>
-          <img
-            src={advancedImg}
-            alt="Продвинутый"
-            style={s.cardImage}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-          />
-        </button>
+      <div style={s.cards} className="onb-fade onb-fade-delay-3">
+        {OPTIONS.map((item) => {
+          const isActive = experience === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              className="exp-card"
+              style={{
+                ...s.card,
+                ["--exp-bg" as never]:
+                  isActive
+                    ? "#1e1f22"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                ["--exp-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                ["--exp-color" as never]: isActive ? "#fff" : "#1e1f22",
+                ...(isActive ? s.cardActive : {}),
+              }}
+              onClick={() => setExperience(item.value)}
+            >
+              <div style={s.cardTitle}>{item.label}</div>
+            </button>
+          );
+        })}
       </div>
 
       <div style={s.actions} className="onb-fade onb-fade-delay-3">
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: loading ? 0.6 : 1 }}
-          className="onb-fade onb-fade-delay-3 intro-primary-btn"
+          style={s.primaryBtn}
+          className="intro-primary-btn"
           onClick={handleNext}
-          disabled={loading || isLeaving}
+          disabled={loading || isLeaving || !experience}
         >
           Далее
         </button>
@@ -286,7 +250,6 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           <button
             type="button"
             style={s.backBtn}
-            className="onb-fade onb-fade-delay-3"
             onClick={() => {
               if (isLeaving) return;
               const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -316,7 +279,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 140px)",
     display: "flex",
     flexDirection: "column",
-    gap: 18,
+    gap: 12,
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
@@ -345,97 +308,68 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.55)",
     textAlign: "center",
   },
-  header: {
+  robotRow: {
     display: "grid",
-    gap: 8,
-    textAlign: "center",
+    gridTemplateColumns: "auto 1fr",
     alignItems: "center",
-    marginTop: 16,
+    gap: 12,
   },
-  title: {
-    margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
-    letterSpacing: -0.8,
+  robot: {
+    width: 120,
+    height: "auto",
+    objectFit: "contain",
   },
-  subtitle: {
-    margin: 0,
-    fontSize: 16,
-    lineHeight: 1.45,
-    color: "rgba(15, 23, 42, 0.7)",
+  bubble: {
+    position: "relative",
+    padding: "12px 14px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
+    color: "#0f172a",
+    fontSize: 14,
+    lineHeight: 1.4,
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+  },
+  bubbleText: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.3,
+    color: "#0f172a",
+    whiteSpace: "pre-line",
   },
   cards: {
+    marginTop: 6,
     display: "grid",
-    gap: 10,
-    marginTop: 12,
     gridTemplateColumns: "1fr",
-  },
-  cardsHidden: {
-    opacity: 0,
+    gap: 10,
   },
   card: {
-    width: "100%",
-    padding: "14px 12px",
     borderRadius: 18,
-    border: "1px solid var(--exp-border)",
-    background: "var(--exp-bg)",
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    color: "var(--exp-color)",
-    textAlign: "center",
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    alignItems: "end",
-    alignContent: "end",
-    gap: 8,
-    cursor: "pointer",
-    height: 190,
-    minHeight: 190,
-    overflow: "visible",
-  },
-  cardText: {
-    display: "grid",
-    gap: 6,
+    color: "#1e1f22",
+    fontSize: 18,
+    fontWeight: 500,
+    padding: "16px 16px",
     textAlign: "left",
-    alignSelf: "end",
-  },
-  cardImage: {
-    width: "100%",
-    maxWidth: 120,
-    height: "auto",
-    objectFit: "contain",
-    alignSelf: "end",
-    justifySelf: "end",
-    marginTop: "auto",
-    transform: "translateY(21px)",
+    height: 64,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 500,
   },
-  cardSubtitle: {
-    fontSize: 16,
-    lineHeight: 1.35,
-    color: "inherit",
-    opacity: 0.65,
-    fontWeight: 400,
-    maxWidth: 140,
-  },
-  primaryBtn: {
-    marginTop: 18,
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
-    border: "1px solid #1e1f22",
+  cardActive: {
     background: "#1e1f22",
+    border: "1px solid #1e1f22",
     color: "#fff",
-    fontWeight: 500,
-    fontSize: 18,
-    cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   actions: {
     position: "fixed",
@@ -447,15 +381,25 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     maxWidth: "100%",
     margin: "0",
-    background: "rgba(255,255,255,0.18)",
-    border: "1px solid rgba(255,255,255,0.25)",
-    borderTop: "1px solid rgba(15, 23, 42, 0.08)",
-    borderRadius: "22px 22px 0 0",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow:
-      "0 -10px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
     zIndex: 5,
+  },
+  primaryBtn: {
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+    outline: "none",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
     width: "100%",
