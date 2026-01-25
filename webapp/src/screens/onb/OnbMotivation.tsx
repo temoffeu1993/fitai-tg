@@ -298,7 +298,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 140px)",
     display: "flex",
     flexDirection: "column",
-    gap: 18,
+    gap: 12,
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
@@ -331,7 +331,7 @@ const s: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "auto 1fr",
     alignItems: "center",
     gap: 12,
-    marginTop: 4,
+    marginTop: 0,
   },
   robot: {
     width: 120,
@@ -358,7 +358,7 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
   },
   cards: {
-    marginTop: 10,
+    marginTop: 6,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
