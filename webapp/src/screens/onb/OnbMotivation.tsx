@@ -213,7 +213,6 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 10 из 10</div>
       </div>
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
@@ -319,6 +318,7 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     borderRadius: 999,
     background: "#1e1f22",
+    boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
   },
   progressText: {
     fontSize: 12,
