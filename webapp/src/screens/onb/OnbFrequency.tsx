@@ -210,12 +210,12 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
               if (isLeaving) return;
               const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
               if (prefersReduced) {
-                navigate("/onb/place");
+                onBack();
                 return;
               }
               setIsLeaving(true);
               leaveTimerRef.current = window.setTimeout(() => {
-                navigate("/onb/experience");
+                onBack();
               }, 220);
             }}
             type="button"
