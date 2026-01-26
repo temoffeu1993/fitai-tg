@@ -357,8 +357,7 @@ export default function Dashboard() {
         <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
-              <span style={s.introTitleLine}>Меняйся</span>
-              <span style={s.introTitleLine}>с Моро</span>
+              <span style={s.introTitleLine}>Меняйся с Моро</span>
             </h1>
             <p style={s.introSubtitle}>
               Быть в форме проще, чем кажется. Я создам маршрут к твоей цели без лишних действий
@@ -728,7 +727,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlignLast: "left",
   },
   introTitleLine: {
-    display: "block",
+    display: "inline",
   },
   introSubtitle: {
     margin: 0,
