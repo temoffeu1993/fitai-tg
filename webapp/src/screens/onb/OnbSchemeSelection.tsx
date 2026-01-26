@@ -1,6 +1,15 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 import { useEffect, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
+import { useOnboarding } from "@/app/OnboardingProvider";
+import {
+  getSchemeDisplayData,
+  type UserContext,
+  type SplitType,
+  type Location,
+  type UserGoal,
+  type ExperienceLevel,
+} from "@/utils/getSchemeDisplayData";
 
 type Props = {
   onComplete: () => void;
@@ -8,6 +17,7 @@ type Props = {
 };
 
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
+  const { draft } = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +26,18 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+
+  // Build user context from onboarding draft
+  const userContext: UserContext = {
+    goal: (draft.motivation?.goal || "athletic_body") as UserGoal,
+    experience: (draft.experience?.level || "beginner") as ExperienceLevel,
+    location: (draft.trainingPlace?.place || "gym") as Location,
+    sex: draft.ageSex?.sex as "male" | "female" | undefined,
+    age: draft.ageSex?.age,
+    bmi: draft.body?.weight && draft.body?.height
+      ? draft.body.weight / ((draft.body.height / 100) ** 2)
+      : undefined,
+  };
 
   useEffect(() => {
     loadRecommendations();
@@ -38,7 +60,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       const data = await getSchemeRecommendations();
       setRecommended(data.recommended);
       setAlternatives(data.alternatives);
-      // По умолчанию выбираем рекомендованную
       setSelectedId(data.recommended.id);
     } catch (err: any) {
       console.error("Failed to load recommendations:", err);
@@ -117,40 +138,22 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   async function handleConfirm() {
     if (!selectedId) return;
-    
-    console.log("🚀 handleConfirm: starting...");
-    
+
     try {
       setSaving(true);
       setError(null);
-      
-      console.log("📡 Saving scheme to API:", selectedId);
+
       await selectScheme(selectedId);
-      console.log("✅ Scheme saved to API");
-      
-      // Сохраняем флаг в localStorage
+
       localStorage.setItem("scheme_selected", "1");
-      console.log("💾 scheme_selected flag saved");
-      
-      // Оповещаем систему
+
       try {
         window.dispatchEvent(new Event("scheme_selected"));
-        console.log("📢 scheme_selected event dispatched");
       } catch {}
-      
-      console.log("🎉 Calling onComplete()...");
-      console.log("🔍 onComplete type:", typeof onComplete);
-      console.log("🔍 onComplete is:", onComplete);
-      
-      try {
-        onComplete();
-        console.log("✅ onComplete() executed successfully");
-      } catch (err) {
-        console.error("❌ ERROR in onComplete():", err);
-        throw err;
-      }
+
+      onComplete();
     } catch (err: any) {
-      console.error("❌ Failed to select scheme:", err);
+      console.error("Failed to select scheme:", err);
       setError(err.message || "Не удалось сохранить выбор");
     } finally {
       setSaving(false);
@@ -167,7 +170,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           </div>
           <div style={s.heroTitle}>Подбираем схему тренировок...</div>
           <div style={s.heroSubtitle}>Анализируем твои данные</div>
-          
+
           <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
             <Spinner />
           </div>
@@ -192,31 +195,51 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   const allSchemes = [recommended, ...alternatives];
 
+  // Get marketing data for recommended scheme
+  const recommendedDisplay = getSchemeDisplayData(
+    {
+      id: recommended.id,
+      splitType: recommended.splitType as SplitType,
+      intensity: recommended.intensity,
+      daysPerWeek: recommended.daysPerWeek,
+      locations: recommended.equipmentRequired as Location[],
+      targetSex: recommended.targetSex,
+    },
+    userContext
+  );
+
   return (
     <div style={s.page}>
       <SoftGlowStyles />
-      
+
       {/* HERO */}
       <section style={s.heroCard}>
         <div style={s.heroHeader}>
           <span style={s.pill}>Шаг 5 из 5</span>
           <span style={s.pill}>Анкета</span>
         </div>
-        
+
         <div style={s.heroKicker}>Схема тренировок</div>
-        <div style={s.heroTitle}>Выбери программу 🏋️</div>
+        <div style={s.heroTitle}>Выбери программу</div>
         <div style={s.heroSubtitle}>
-          Мы подобрали для тебя 3 варианта на основе твоих данных. Одна рекомендована тренером.
+          Мы подобрали для тебя 3 варианта на основе твоих данных.
         </div>
       </section>
 
+      {/* Insight Box - Reason */}
+      <div style={s.insightBox}>
+        <div style={s.insightIcon}>💡</div>
+        <div style={s.insightText}>{recommendedDisplay.reason}</div>
+      </div>
+
       {/* Схемы */}
-      <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
+      <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
         {allSchemes.map((scheme, i) => (
           <SchemeCard
             key={scheme.id}
             index={i}
             scheme={scheme}
+            userContext={userContext}
             isSelected={selectedId === scheme.id}
             onSelect={() => setSelectedId(scheme.id)}
           />
@@ -233,35 +256,31 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           position: "relative",
           cursor: "pointer",
           textAlign: "left",
-          // INLINE СТИЛИ для 100% гарантии
           outline: "none",
           transition: "none",
           userSelect: "none",
         }}
         onTouchStart={(e) => {
-          // Предотвращаем любые визуальные эффекты
           e.currentTarget.style.background = "rgba(255,255,255,0.6)";
           e.currentTarget.style.opacity = "1";
         }}
         onTouchEnd={(e) => {
-          // Возвращаем оригинальный фон
           e.currentTarget.style.background = "rgba(255,255,255,0.6)";
           e.currentTarget.style.opacity = "1";
         }}
       >
-        {/* Радио-кнопка - точно как в схемах */}
         <div style={{...s.radioCircle, borderColor: accepted ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
           <div style={{...s.radioDot, transform: accepted ? "scale(1)" : "scale(0)", opacity: accepted ? 1 : 0}} />
         </div>
 
         <span style={s.termsText}>
           Я ознакомился и согласен с Условиями использования приложения{" "}
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowTerms(true);
-            }} 
+            }}
             style={s.inlineLink}
           >
             Подробнее
@@ -280,7 +299,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           cursor: !selectedId || !accepted || saving ? "default" : "pointer",
         }}
       >
-        {saving ? "Сохраняем..." : "Перейти к тренировкам →"}
+        {saving ? "Сохраняем..." : "Перейти к тренировкам"}
       </button>
 
       {onBack && (
@@ -326,17 +345,34 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
 function SchemeCard({
   scheme,
+  userContext,
   isSelected,
   onSelect,
   index,
 }: {
   scheme: WorkoutScheme;
+  userContext: UserContext;
   isSelected: boolean;
   onSelect: () => void;
   index: number;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const displayName = scheme.name;
+
+  // Get marketing display data
+  const displayData = getSchemeDisplayData(
+    {
+      id: scheme.id,
+      splitType: scheme.splitType as SplitType,
+      intensity: scheme.intensity,
+      daysPerWeek: scheme.daysPerWeek,
+      locations: scheme.equipmentRequired as Location[],
+      targetSex: scheme.targetSex,
+    },
+    userContext
+  );
+
+  // Technical name for transparency
+  const technicalName = scheme.russianName || scheme.name;
 
   return (
     <div
@@ -348,7 +384,7 @@ function SchemeCard({
       }}
       onClick={onSelect}
     >
-      {/* Бейдж "Рекомендовано тренером" */}
+      {/* Badge */}
       {scheme.isRecommended && (
         <div style={s.recommendedBadge}>
           <span style={{ fontSize: 12 }}>⭐</span>
@@ -356,29 +392,32 @@ function SchemeCard({
         </div>
       )}
 
-      {/* Радио-кнопка (минималистичная) */}
+      {/* Radio button */}
       <div style={{...s.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
         <div style={{...s.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0}} />
       </div>
 
-      {/* Название */}
-      <div style={s.schemeName}>{displayName}</div>
-      
-      {/* Краткая инфо */}
+      {/* Marketing Title - Big and Bold */}
+      <div style={s.marketingTitle}>{displayData.title}</div>
+
+      {/* Technical Name - Small and Gray */}
+      <div style={s.technicalName}>{technicalName}</div>
+
+      {/* Info chips */}
       <div style={s.schemeInfo}>
         <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
         <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
         <span style={s.infoChip}>
-          {scheme.intensity === "low" ? "🟢 Лёгкая" : 
-           scheme.intensity === "moderate" ? "🟡 Средняя" : 
+          {scheme.intensity === "low" ? "🟢 Лёгкая" :
+           scheme.intensity === "moderate" ? "🟡 Средняя" :
            "🔴 Высокая"}
         </span>
       </div>
 
-      {/* Описание */}
-      <div style={s.schemeDescription}>{scheme.description}</div>
+      {/* Marketing Description */}
+      <div style={s.schemeDescription}>{displayData.description}</div>
 
-      {/* Разворачиваемая секция с деталями */}
+      {/* Expand button */}
       <button
         type="button"
         onClick={(e) => {
@@ -390,15 +429,15 @@ function SchemeCard({
         {expanded ? "Свернуть детали ▲" : "Показать детали ▼"}
       </button>
 
-      <div style={{ 
-        display: "grid", 
-        gridTemplateRows: expanded ? "1fr" : "0fr", 
+      <div style={{
+        display: "grid",
+        gridTemplateRows: expanded ? "1fr" : "0fr",
         transition: "grid-template-rows 0.3s ease-out",
-        overflow: "hidden" 
+        overflow: "hidden"
       }}>
         <div style={{ minHeight: 0 }}>
           <div style={s.detailsSection}>
-            {/* Дни недели */}
+            {/* Days structure */}
             <div style={s.detailBlock}>
               <div style={s.detailTitle}>📋 Структура недели</div>
               <div style={s.daysList}>
@@ -413,7 +452,7 @@ function SchemeCard({
               </div>
             </div>
 
-            {/* Преимущества */}
+            {/* Benefits */}
             {scheme.benefits && scheme.benefits.length > 0 && (
               <div style={s.detailBlock}>
                 <div style={s.detailTitle}>✨ Преимущества</div>
@@ -425,7 +464,7 @@ function SchemeCard({
               </div>
             )}
 
-            {/* Заметки */}
+            {/* Notes */}
             {scheme.notes && (
               <div style={s.detailBlock}>
                 <div style={s.detailTitle}>💬 Примечание</div>
@@ -469,7 +508,7 @@ function SoftGlowStyles() {
       animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
       @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
       @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
-      
+
       @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(24px) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -486,8 +525,6 @@ function SoftGlowStyles() {
 }
 
 /* ---------- Styles ---------- */
-const GRAD = "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
-
 const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
@@ -521,6 +558,30 @@ const s: Record<string, React.CSSProperties> = {
   heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
   heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
   heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)", lineHeight: 1.4 },
+
+  // Insight Box - The "Lamp" with personalized reason
+  insightBox: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 16,
+    background: "linear-gradient(135deg, rgba(255,243,205,0.9) 0%, rgba(255,237,179,0.9) 100%)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,193,7,0.3)",
+    boxShadow: "0 2px 8px rgba(255,193,7,0.15)",
+    marginTop: 4,
+  },
+  insightIcon: {
+    fontSize: 24,
+    lineHeight: 1,
+    flexShrink: 0,
+  },
+  insightText: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#78350f",
+    lineHeight: 1.5,
+  },
 
   schemeCard: {
     position: "relative",
@@ -557,7 +618,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
     zIndex: 10,
   },
-  
+
   radioCircle: {
     position: "absolute",
     top: 20,
@@ -569,7 +630,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(255,255,255,0.5)",
     display: "grid",
     placeItems: "center",
-    transition: "all 0.3s ease", // Оставляем анимацию для кружочка как было
+    transition: "all 0.3s ease",
   },
   radioDot: {
     width: 12,
@@ -579,22 +640,32 @@ const s: Record<string, React.CSSProperties> = {
     transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
 
-  schemeName: {
-    fontSize: 20,
-    fontWeight: 800,
+  // Marketing Title - Big and Bold
+  marketingTitle: {
+    fontSize: 22,
+    fontWeight: 850,
     color: "#0f172a",
     marginTop: 0,
     marginLeft: 36,
     marginRight: 0,
-    marginBottom: 8,
+    marginBottom: 4,
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
   },
-  
+
+  // Technical Name - Small and Gray
+  technicalName: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "#64748b",
+    marginLeft: 36,
+    marginBottom: 10,
+  },
+
   schemeInfo: {
     display: "flex",
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
     marginLeft: 36,
     flexWrap: "wrap",
   },
@@ -619,11 +690,11 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: "#475569",
     lineHeight: 1.6,
-    marginBottom: 16,
+    marginBottom: 14,
     fontWeight: 500,
     marginLeft: 4,
   },
-  
+
   expandBtn: {
     width: "100%",
     padding: "10px",
@@ -743,7 +814,7 @@ const s: Record<string, React.CSSProperties> = {
 
   termsRow: {
     marginTop: 16,
-    padding: "16px 20px 16px 64px", // Отступ слева под радио-кнопку
+    padding: "16px 20px 16px 64px",
     background: "rgba(255,255,255,0.6)",
     borderRadius: 12,
     border: "1px solid rgba(0,0,0,0.08)",
