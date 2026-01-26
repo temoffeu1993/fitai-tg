@@ -361,7 +361,7 @@ export default function Dashboard() {
             </h1>
             <p style={s.introSubtitle}>
               Быть в форме проще, чем кажется. Я создам маршрут к твоей цели без лишних действий
-              и стресса. Следуй плану и кайфуй от результата.
+              и стресса. Следуй плану, кайфуй от результата.
             </p>
           </div>
 
@@ -723,8 +723,8 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.05,
     fontWeight: 900,
     letterSpacing: -0.8,
-    textAlign: "justify",
-    textAlignLast: "left",
+    textAlign: "center",
+    textAlignLast: "center",
   },
   introTitleLine: {
     display: "inline",
