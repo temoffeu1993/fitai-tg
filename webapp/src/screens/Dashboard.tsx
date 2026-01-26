@@ -715,7 +715,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: -14,
+    marginTop: -22,
   },
   introTitle: {
     margin: 0,
