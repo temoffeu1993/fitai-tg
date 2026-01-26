@@ -736,6 +736,8 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 340,
     marginLeft: "auto",
     marginRight: "auto",
+    textAlign: "justify",
+    textAlignLast: "left",
   },
   introPrimaryBtn: {
     marginTop: 6,
