@@ -287,6 +287,7 @@ export default function Dashboard() {
   const subtitle = "Я персональный ИИ фитнес тренер";
 
   const goOnb = () => navigate("/onb/age-sex");
+  const [introLeaving, setIntroLeaving] = useState(false);
 
   const workoutsCtaLabel =
     onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
@@ -295,11 +296,15 @@ export default function Dashboard() {
 
   if (!onbDone) {
     return (
-      <div style={s.introPage}>
+      <div style={s.introPage} className={introLeaving ? "intro-leave" : undefined}>
         <style>{`
           @keyframes introFadeUp {
             0% { opacity: 0; transform: translateY(14px); }
             100% { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes introFadeDown {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(12px); }
           }
           .intro-fade {
             animation: introFadeUp 520ms ease-out both;
@@ -307,11 +312,15 @@ export default function Dashboard() {
           .intro-fade-delay-1 { animation-delay: 80ms; }
           .intro-fade-delay-2 { animation-delay: 160ms; }
           .intro-fade-delay-3 { animation-delay: 240ms; }
+          .intro-leave {
+            animation: introFadeDown 220ms ease-in both;
+          }
           @media (prefers-reduced-motion: reduce) {
             .intro-fade,
             .intro-fade-delay-1,
             .intro-fade-delay-2,
             .intro-fade-delay-3 { animation: none !important; }
+            .intro-leave { animation: none !important; }
           }
           .intro-primary-btn {
             -webkit-tap-highlight-color: transparent;
@@ -369,7 +378,18 @@ export default function Dashboard() {
             type="button"
             style={s.introPrimaryBtn}
             className="intro-primary-btn intro-fade intro-fade-delay-3"
-            onClick={goOnb}
+            onClick={() => {
+              if (introLeaving) return;
+              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              if (prefersReduced) {
+                goOnb();
+                return;
+              }
+              setIntroLeaving(true);
+              window.setTimeout(() => {
+                goOnb();
+              }, 220);
+            }}
           >
             Начать
           </button>
