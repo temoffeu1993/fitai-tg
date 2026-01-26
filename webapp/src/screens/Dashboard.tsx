@@ -357,13 +357,11 @@ export default function Dashboard() {
         <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
-              <span style={s.introTitleLine}>Меняйся с Моро</span>
+              <span style={s.introTitleLine}>Меняйся вместе с Моро</span>
             </h1>
             <p style={s.introSubtitle}>
-              Быть в форме проще, чем кажется.
-              <br />
-              Создам маршрут к твоей цели без лишних действий и стресса. Следуй плану, кайфуй
-              от результата.
+              Быть в форме проще, чем кажется. Я создам маршрут к твоей цели без лишних действий
+              и стресса. Следуй плану и кайфуй от результата.
             </p>
           </div>
 
@@ -710,17 +708,15 @@ const s: Record<string, React.CSSProperties> = {
   introFooter: {
     width: "100%",
     display: "grid",
-    gap: 24,
-    paddingBottom: 24,
-    zIndex: 3,
-    marginTop: -48,
+    gap: 18,
+    paddingBottom: 18,
   },
   introTextBlock: {
     width: "100%",
     textAlign: "center",
     display: "grid",
-    gap: 12,
-    marginTop: -52,
+    gap: 10,
+    marginTop: -22,
   },
   introTitle: {
     margin: 0,
@@ -730,7 +726,6 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: -0.8,
     textAlign: "center",
     textAlignLast: "center",
-    transform: "translateY(-14px)",
   },
   introTitleLine: {
     display: "inline",
@@ -738,16 +733,16 @@ const s: Record<string, React.CSSProperties> = {
   introSubtitle: {
     margin: 0,
     fontSize: 15,
-    lineHeight: 1.5,
+    lineHeight: 1.45,
     color: "rgba(15, 23, 42, .65)",
-    maxWidth: 320,
+    maxWidth: 340,
     marginLeft: "auto",
     marginRight: "auto",
-    textAlign: "left",
+    textAlign: "justify",
     textAlignLast: "left",
   },
   introPrimaryBtn: {
-    marginTop: 0,
+    marginTop: 6,
     width: "100%",
     maxWidth: 420,
     borderRadius: 22,
