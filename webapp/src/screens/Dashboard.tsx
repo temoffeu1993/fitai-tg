@@ -715,7 +715,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 12,
-    marginTop: -28,
+    marginTop: -36,
   },
   introTitle: {
     margin: 0,
@@ -734,7 +734,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.5,
     color: "rgba(15, 23, 42, .65)",
-    maxWidth: 320,
+    maxWidth: 300,
     marginLeft: "auto",
     marginRight: "auto",
     textAlign: "center",
