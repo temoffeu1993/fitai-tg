@@ -42,6 +42,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
     initial?.experience ? EXP_TEXT[initial.experience] : DEFAULT_BUBBLE
   );
   const [imagesReady, setImagesReady] = useState(false);
+  const [bubbleReady, setBubbleReady] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -108,15 +109,18 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
     const target = experience ? EXP_TEXT[experience] : DEFAULT_BUBBLE;
     if (prefersReduced) {
       setBubbleText(target);
+      setBubbleReady(true);
       return;
     }
     let index = 0;
     setBubbleText("");
+    setBubbleReady(false);
     const id = window.setInterval(() => {
       index += 1;
       setBubbleText(target.slice(0, index));
       if (index >= target.length) {
         window.clearInterval(id);
+        setBubbleReady(true);
       }
     }, 14);
     return () => window.clearInterval(id);
@@ -265,7 +269,10 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         </div>
       </div>
 
-      <div style={s.cards} className="onb-fade onb-fade-delay-3">
+      <div
+        style={{ ...s.cards, ...(bubbleReady ? undefined : s.cardsHidden) }}
+        className="onb-fade onb-fade-delay-3"
+      >
         {OPTIONS.map((item) => {
           const isActive = experience === item.value;
           return (
@@ -401,6 +408,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
+  },
+  cardsHidden: {
+    opacity: 0,
+    pointerEvents: "none",
   },
   card: {
     borderRadius: 18,
