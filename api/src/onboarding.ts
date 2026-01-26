@@ -25,15 +25,29 @@ onboarding.post(
 
     const d: any = data;
 
+    const trainingPlace = d?.trainingPlace?.place ?? null;
     const equipmentList =
       Array.isArray(d?.equipmentItems)   ? d.equipmentItems :
       Array.isArray(d?.equipment?.items) ? d.equipment.items :
       Array.isArray(d?.equipment)        ? d.equipment :
-      [];
+      (trainingPlace === "home_with_gear"
+        ? ["dumbbells", "bands"]
+        : trainingPlace === "home_no_equipment"
+        ? ["bodyweight"]
+        : trainingPlace === "gym"
+        ? ["machines"]
+        : []);
 
     const equipment =
       equipmentList.length ? equipmentList :
       ["gym_full"];
+
+    const environment = (() => {
+      if (trainingPlace === "gym") return { location: "gym", bodyweightOnly: false };
+      if (trainingPlace === "home_no_equipment") return { location: "home", bodyweightOnly: true };
+      if (trainingPlace === "home_with_gear") return { location: "home", bodyweightOnly: false };
+      return d?.environment ?? { location: "gym", bodyweightOnly: false };
+    })();
 
     const experience = d?.experience?.level ?? d?.experience ?? null;
 
@@ -59,7 +73,8 @@ onboarding.post(
       experience,
       equipment,
       equipmentItems: equipment,
-      environment: d?.environment ?? { location: "gym", bodyweightOnly: false },
+      environment,
+      trainingPlace: trainingPlace ? { place: trainingPlace } : d?.trainingPlace ?? null,
       health: d?.health ?? null,
       lifestyle: d?.lifestyle ?? null,
       dietPrefs: d?.dietPrefs ?? null,

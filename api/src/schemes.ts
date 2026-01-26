@@ -35,6 +35,7 @@ function mapGoalToNew(oldGoal: string): Goal {
     lose_weight: "lose_weight",
     build_muscle: "build_muscle",
     athletic_body: "athletic_body",
+    tone_up: "athletic_body",
     lower_body_focus: "lower_body_focus",
     strength: "strength",
     health_wellness: "health_wellness",
@@ -52,7 +53,14 @@ function mapGoalToNew(oldGoal: string): Goal {
 // HELPER: Map equipment to new format
 // ============================================================================
 
-function mapEquipmentToNew(location?: string, equipmentList?: string[]): Equipment {
+function mapEquipmentToNew(
+  trainingPlace?: string | null,
+  location?: string,
+  equipmentList?: string[]
+): Equipment {
+  if (trainingPlace === "gym") return "gym_full";
+  if (trainingPlace === "home_no_equipment") return "bodyweight";
+  if (trainingPlace === "home_with_gear") return "limited";
   // If gym location or has barbell/machines
   if (location === "gym" || equipmentList?.includes("barbell") || equipmentList?.includes("machines")) {
     return "gym_full";
@@ -125,8 +133,10 @@ schemes.post(
     
     // Extract other params
     const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;
+    const trainingPlace = data.trainingPlace?.place || summary.trainingPlace?.place || null;
     const location = data.location?.type || summary.location || "gym";
-    const equipmentList = data.equipment?.available || [];
+    const equipmentList =
+      data.equipment?.available || summary.equipmentItems || summary.equipment || [];
     
     // Extract age and body metrics
     const age = data.ageSex?.age || summary.ageSex?.age || 30;
@@ -138,7 +148,7 @@ schemes.post(
     const bmi = weight / (heightM * heightM);
     
     // Map to new format
-    const equipment = mapEquipmentToNew(location, equipmentList);
+    const equipment = mapEquipmentToNew(trainingPlace, location, equipmentList);
     const timeBucket = calculateTimeBucket(minutesPerSession);
     
     // Build constraints based on age and BMI

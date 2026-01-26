@@ -59,6 +59,7 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
     lose_weight: "lose_weight",
     build_muscle: "build_muscle",
     athletic_body: "athletic_body",
+    tone_up: "athletic_body",
     lower_body_focus: "lower_body_focus",
     strength: "strength",
     health_wellness: "health_wellness",
@@ -70,11 +71,19 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
   const goal: Goal = goalMap[oldGoal] || "health_wellness";
 
   // Map equipment
+  const trainingPlace = data.trainingPlace?.place || summary.trainingPlace?.place || null;
   const location = data.location?.type || summary.location || "gym";
-  const equipmentList = data.equipment?.available || [];
+  const equipmentList =
+    data.equipment?.available || summary.equipmentItems || summary.equipment || [];
   let equipment: Equipment = "gym_full";
 
-  if (location === "gym" || equipmentList.includes("barbell") || equipmentList.includes("machines")) {
+  if (trainingPlace === "gym") {
+    equipment = "gym_full";
+  } else if (trainingPlace === "home_no_equipment") {
+    equipment = "bodyweight";
+  } else if (trainingPlace === "home_with_gear") {
+    equipment = "limited";
+  } else if (location === "gym" || equipmentList.includes("barbell") || equipmentList.includes("machines")) {
     equipment = "gym_full";
   } else if (equipmentList.includes("dumbbells")) {
     equipment = "dumbbells";
@@ -111,4 +120,3 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
     excludedExerciseIds,
   };
 }
-

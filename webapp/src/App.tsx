@@ -177,7 +177,7 @@ function StepDiet() {
         patch(p);
         nav("/onb/diet-style");
       }}
-      onBack={() => nav("/onb/experience")}
+      onBack={() => nav("/onb/duration")}
     />
   );
 }
@@ -192,7 +192,7 @@ function StepDietStyle() {
         patch(p);
         nav("/onb/motivation");
       }}
-      onBack={() => nav("/onb/diet-style")}
+      onBack={() => nav("/onb/diet")}
     />
   );
 }

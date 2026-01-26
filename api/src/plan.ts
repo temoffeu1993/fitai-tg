@@ -2112,6 +2112,24 @@ function rebalanceDurationBreakdown(
 }
 
 function describeEquipment(onboarding: any) {
+  const place =
+    onboarding?.trainingPlace?.place ||
+    onboarding?.environment?.location ||
+    onboarding?.location?.type ||
+    "gym";
+
+  if (place === "home_no_equipment") {
+    return "дом: тренировки без инвентаря, только вес тела";
+  }
+  if (place === "home_with_gear") {
+    return "дом: есть резинки и гантели, базовый инвентарь";
+  }
+  if (place === "home") {
+    const bodyweightOnly = Boolean(onboarding?.environment?.bodyweightOnly);
+    return bodyweightOnly
+      ? "дом: тренировки без инвентаря, только вес тела"
+      : "дом: есть базовый инвентарь (гантели/резинки)";
+  }
   return "полностью оборудованный тренажёрный зал: свободные веса (гантели, штанги, гири), силовые стойки, машины Смита, блочные тренажёры, кроссоверы, тренажёры для ног, кардиооборудование. считай что доступен весь стандартный инвентарь хорошо оснащённого зала";
 }
 
