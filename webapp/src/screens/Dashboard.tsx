@@ -362,7 +362,7 @@ export default function Dashboard() {
             <p style={s.introSubtitle}>
               Быть в форме проще, чем кажется.
               <br />
-              Я создам маршрут к твоей цели без лишних действий и стресса. Следуй плану, кайфуй
+              Создам маршрут к твоей цели без лишних действий и стресса. Следуй плану, кайфуй
               от результата.
             </p>
           </div>
@@ -713,7 +713,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 24,
     paddingBottom: 24,
     zIndex: 3,
-    marginTop: -28,
+    marginTop: -48,
   },
   introTextBlock: {
     width: "100%",
