@@ -296,8 +296,8 @@ const s: Record<string, React.CSSProperties> = {
     color: "var(--tile-color)",
     fontSize: 18,
     fontWeight: 500,
-    padding: "18px 14px",
-    textAlign: "center",
+    padding: "18px 16px",
+    textAlign: "left",
     cursor: "pointer",
   },
   tileActive: {
