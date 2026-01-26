@@ -14,7 +14,7 @@ import {
   getCandidateSchemes,
   rankSchemes,
   type ConstraintTag,
-  type Equipment,
+  type Location,
   type ExperienceLevel,
   type Goal,
   type NormalizedWorkoutScheme,
@@ -75,7 +75,7 @@ type CaseResult = {
   mapped: {
     experience: ExperienceLevel;
     goal: Goal;
-    equipment: Equipment;
+    location: Location;
     timeBucket: TimeBucket;
     constraints: ConstraintTag[];
   };
@@ -173,13 +173,14 @@ function mapExperience(raw: RawExperience): ExperienceLevel {
   return expMap[raw] ?? "beginner";
 }
 
-function mapEquipmentToNew(location: "gym" | "home", equipmentList: string[]): Equipment {
+function mapLocationFromInputs(location: "gym" | "home", equipmentList: string[]): Location {
   if (location === "gym" || equipmentList.includes("barbell") || equipmentList.includes("machines")) {
-    return "gym_full";
+    return "gym";
   }
-  if (equipmentList.includes("dumbbells")) return "dumbbells";
-  if (equipmentList.includes("bands")) return "limited";
-  return "bodyweight";
+  if (equipmentList.includes("dumbbells") || equipmentList.includes("bands")) {
+    return "home_with_gear";
+  }
+  return "home_no_equipment";
 }
 
 function calculateTimeBucket(minutes: number): TimeBucket {
@@ -436,7 +437,7 @@ function selectFirstNWithCandidates(pool: OnboardingVariation[], n: number): Onb
   for (const v of pool) {
     const mappedExperience = mapExperience(v.experienceRaw);
     const mappedGoal = mapGoalToNew(v.goalRaw);
-    const equipment = mapEquipmentToNew(v.location, v.equipmentList);
+    const location = mapLocationFromInputs(v.location, v.equipmentList);
     const timeBucket = calculateTimeBucket(v.minutesPerSession);
     const bmi = calcBmi(v.heightCm, v.weightKg);
     const constraints = buildConstraintsFromAgeBmi(v.age, bmi);
@@ -445,7 +446,7 @@ function selectFirstNWithCandidates(pool: OnboardingVariation[], n: number): Onb
       goal: mappedGoal,
       daysPerWeek: v.daysPerWeek,
       timeBucket,
-      equipment,
+      location,
       sex: v.sex,
       constraints,
       age: v.age,
@@ -478,7 +479,7 @@ function main() {
     const bmi = calcBmi(variation.heightCm, variation.weightKg);
     const experience = mapExperience(variation.experienceRaw);
     const goal = mapGoalToNew(variation.goalRaw);
-    const equipment = mapEquipmentToNew(variation.location, variation.equipmentList);
+    const location = mapLocationFromInputs(variation.location, variation.equipmentList);
     const timeBucket = calculateTimeBucket(variation.minutesPerSession);
     const constraints = buildConstraintsFromAgeBmi(variation.age, bmi);
 
@@ -487,7 +488,7 @@ function main() {
       goal,
       daysPerWeek: variation.daysPerWeek,
       timeBucket,
-      equipment,
+      location,
       sex: variation.sex,
       constraints,
       age: variation.age,
@@ -503,7 +504,7 @@ function main() {
       goal,
       daysPerWeek: variation.daysPerWeek,
       timeBucket,
-      equipment,
+      location,
       sex: variation.sex,
       constraints: [], // TODO: маппинг health/injuries в constraint tags
     };
@@ -688,7 +689,7 @@ function main() {
     results.push({
       variation,
       bmi,
-      mapped: { experience, goal, equipment, timeBucket, constraints },
+      mapped: { experience, goal, location, timeBucket, constraints },
       scheme: {
         recommended: {
           id: recommended.id,
@@ -741,4 +742,3 @@ function main() {
 }
 
 main();
-

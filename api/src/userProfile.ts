@@ -1,6 +1,6 @@
 import { q } from "./db.js";
 import { AppError } from "./middleware/errorHandler.js";
-import { NORMALIZED_SCHEMES, type ExperienceLevel, type Goal, type Equipment, type TimeBucket } from "./normalizedSchemes.js";
+import { NORMALIZED_SCHEMES, type ExperienceLevel, type Goal, type Location, type TimeBucket } from "./normalizedSchemes.js";
 import type { UserProfile } from "./workoutDayGenerator.js";
 
 /**
@@ -70,25 +70,26 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
   };
   const goal: Goal = goalMap[oldGoal] || "health_wellness";
 
-  // Map equipment
+  // Resolve location
   const trainingPlace = data.trainingPlace?.place || summary.trainingPlace?.place || null;
   const location = data.location?.type || summary.location || "gym";
   const equipmentList =
     data.equipment?.available || summary.equipmentItems || summary.equipment || [];
-  let equipment: Equipment = "gym_full";
-
+  let resolvedLocation: Location = "gym";
   if (trainingPlace === "gym") {
-    equipment = "gym_full";
+    resolvedLocation = "gym";
   } else if (trainingPlace === "home_no_equipment") {
-    equipment = "bodyweight";
+    resolvedLocation = "home_no_equipment";
   } else if (trainingPlace === "home_with_gear") {
-    equipment = "limited";
-  } else if (location === "gym" || equipmentList.includes("barbell") || equipmentList.includes("machines")) {
-    equipment = "gym_full";
-  } else if (equipmentList.includes("dumbbells")) {
-    equipment = "dumbbells";
-  } else {
-    equipment = "bodyweight";
+    resolvedLocation = "home_with_gear";
+  } else if (location === "home_no_equipment") {
+    resolvedLocation = "home_no_equipment";
+  } else if (location === "home_with_gear") {
+    resolvedLocation = "home_with_gear";
+  } else if (location === "home") {
+    resolvedLocation = equipmentList.some((item) => ["dumbbells", "bands"].includes(item))
+      ? "home_with_gear"
+      : "home_no_equipment";
   }
 
   // Calculate time bucket
@@ -115,7 +116,7 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
     goal,
     daysPerWeek,
     timeBucket,
-    equipment,
+    location: resolvedLocation,
     sex,
     excludedExerciseIds,
   };

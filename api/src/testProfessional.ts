@@ -24,129 +24,129 @@ const REAL_USERS: TestUser[] = [
   {
     id: 1,
     name: "Новичок М, набор массы, 3д/60мин",
-    profile: { experience: "beginner", goal: "build_muscle", daysPerWeek: 3, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "beginner", goal: "build_muscle", daysPerWeek: 3, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 2,
     name: "Новичок Ж, похудение, 3д/45мин",
-    profile: { experience: "beginner", goal: "lose_weight", daysPerWeek: 3, timeBucket: 45, equipment: "gym_full", sex: "female" },
+    profile: { experience: "beginner", goal: "lose_weight", daysPerWeek: 3, timeBucket: 45, location: "gym", sex: "female" },
     checkin: { energy: "medium", sleep: "ok", stress: "medium", pain: [], soreness: [] },
   },
   {
     id: 3,
     name: "Новичок М, здоровье, 2д/60мин",
-    profile: { experience: "beginner", goal: "health_wellness", daysPerWeek: 2, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "beginner", goal: "health_wellness", daysPerWeek: 2, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 4,
     name: "Новичок Ж, набор массы, 4д/60мин",
-    profile: { experience: "beginner", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "beginner", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
   },
 
   // ========== INTERMEDIATE (средний уровень) ==========
   {
     id: 5,
     name: "Средний М, набор массы, 4д/90мин",
-    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
     checkin: { energy: "high", sleep: "good", stress: "low", pain: [], soreness: [] },
   },
   {
     id: 6,
     name: "Средний М, набор массы, 5д/60мин",
-    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 5, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 7,
     name: "Средний М, сила, 4д/90мин",
-    profile: { experience: "intermediate", goal: "strength", daysPerWeek: 4, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "strength", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 8,
     name: "Средний Ж, ягодицы, 4д/60мин",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 9,
     name: "Средний Ж, ягодицы, 5д/60мин",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 10,
     name: "Средний М, похудение, 5д/45мин",
-    profile: { experience: "intermediate", goal: "lose_weight", daysPerWeek: 5, timeBucket: 45, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "lose_weight", daysPerWeek: 5, timeBucket: 45, location: "gym", sex: "male" },
     checkin: { energy: "low", sleep: "poor", stress: "high", pain: [], soreness: ["legs"] },
   },
   {
     id: 11,
     name: "Средний М, атлетика, 5д/60мин",
-    profile: { experience: "intermediate", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 12,
     name: "Средний Ж, набор массы, 3д/90мин",
-    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 3, timeBucket: 90, equipment: "gym_full", sex: "female" },
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 3, timeBucket: 90, location: "gym", sex: "female" },
   },
 
   // ========== ADVANCED (продвинутые) ==========
   {
     id: 13,
     name: "Продвинутый М, набор массы, 6д/90мин",
-    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 90, location: "gym", sex: "male" },
     checkin: { energy: "high", sleep: "good", stress: "low", pain: [], soreness: [] },
   },
   {
     id: 14,
     name: "Продвинутый М, сила, 5д/90мин",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 15,
     name: "Продвинутый М, сила, 4д/90мин",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 4, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "strength", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 16,
     name: "Продвинутый Ж, ягодицы, 5д/60мин",
-    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 17,
     name: "Продвинутый Ж, ягодицы, 6д/60мин",
-    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 6, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 6, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 18,
     name: "Продвинутый М, набор массы, 5д/90мин",
-    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 5, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 19,
     name: "Продвинутый М, атлетика, 5д/60мин",
-    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 20,
     name: "Продвинутый Ж, набор массы, 6д/60мин",
-    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 60, location: "gym", sex: "female" },
   },
 
   // ========== С БОЛЯМИ/ПРОБЛЕМАМИ ==========
   {
     id: 21,
     name: "Средний М, набор, боль в плече",
-    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "male" },
     checkin: { energy: "medium", sleep: "ok", stress: "medium", pain: [{ location: "shoulder", level: 6 }], soreness: [] },
   },
   {
     id: 22,
     name: "Средний Ж, ягодицы, боль в колене",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
     checkin: { energy: "low", sleep: "fair", stress: "medium", pain: [{ location: "knee", level: 5 }], soreness: [] },
   },
   {
     id: 23,
     name: "Продвинутый М, сила, боль в пояснице",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
     checkin: { energy: "medium", sleep: "ok", stress: "low", pain: [{ location: "lower_back", level: 4 }], soreness: [] },
   },
 
@@ -154,7 +154,7 @@ const REAL_USERS: TestUser[] = [
   {
     id: 24,
     name: "Продвинутый М, набор, 6д/90мин максимум",
-    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 90, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 6, timeBucket: 90, location: "gym", sex: "male" },
     checkin: { energy: "high", sleep: "excellent", stress: "low", pain: [], soreness: [] },
   },
 
@@ -162,35 +162,35 @@ const REAL_USERS: TestUser[] = [
   {
     id: 25,
     name: "Новичок Ж, здоровье, 2д/45мин минимум",
-    profile: { experience: "beginner", goal: "health_wellness", daysPerWeek: 2, timeBucket: 45, equipment: "gym_full", sex: "female" },
+    profile: { experience: "beginner", goal: "health_wellness", daysPerWeek: 2, timeBucket: 45, location: "gym", sex: "female" },
   },
 
   // ========== МИКС ==========
   {
     id: 26,
     name: "Средний М, похудение, 4д/60мин",
-    profile: { experience: "intermediate", goal: "lose_weight", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "intermediate", goal: "lose_weight", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 27,
     name: "Продвинутый Ж, похудение, 6д/45мин",
-    profile: { experience: "advanced", goal: "lose_weight", daysPerWeek: 6, timeBucket: 45, equipment: "gym_full", sex: "female" },
+    profile: { experience: "advanced", goal: "lose_weight", daysPerWeek: 6, timeBucket: 45, location: "gym", sex: "female" },
   },
   {
     id: 28,
     name: "Новичок М, атлетика, 3д/60мин",
-    profile: { experience: "beginner", goal: "athletic_body", daysPerWeek: 3, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "beginner", goal: "athletic_body", daysPerWeek: 3, timeBucket: 60, location: "gym", sex: "male" },
   },
   {
     id: 29,
     name: "Средний Ж, набор, плохой сон + стресс",
-    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, equipment: "gym_full", sex: "female" },
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
     checkin: { energy: "low", sleep: "poor", stress: "very_high", pain: [], soreness: ["shoulders", "back"] },
   },
   {
     id: 30,
     name: "Продвинутый М, атлетика, 6д/60мин",
-    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 6, timeBucket: 60, equipment: "gym_full", sex: "male" },
+    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 6, timeBucket: 60, location: "gym", sex: "male" },
   },
 ];
 

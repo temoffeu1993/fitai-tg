@@ -3,7 +3,7 @@
 // NORMALIZED WORKOUT SCHEMES (replace your current workoutSchemes file)
 // Philosophy:
 // - Keep a compact set of archetypes (20–35), not 150+ duplicates
-// - Personalization happens via: days/time/goal/experience/equipment/constraints
+// - Personalization happens via: days/time/goal/experience/location/constraints
 // - Each day has required movement patterns; code fills exercises inside those slots
 // - Chronic/medical: do NOT model as "schemes per disease". Use constraint tags.
 // ============================================================================
@@ -18,12 +18,7 @@ export type Goal =
   | "health_wellness"
   | "lower_body_focus";
 
-export type Equipment =
-  | "gym_full"
-  | "dumbbells"
-  | "bodyweight"
-  | "limited" // e.g., bands + a pair of dumbbells
-  ;
+export type Location = "gym" | "home_no_equipment" | "home_with_gear";
 
 export type TimeBucket = 45 | 60 | 90; // 90 means "90+"
 
@@ -87,7 +82,7 @@ export type NormalizedWorkoutScheme = {
   // Targeting
   goals: Goal[];
   experienceLevels: ExperienceLevel[];
-  equipment: Equipment[];
+  locations: Location[];
   intensity: "low" | "moderate" | "high";
   targetSex?: "male" | "female" | "any";
   
@@ -127,7 +122,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["lose_weight", "health_wellness", "athletic_body", "build_muscle"],
     experienceLevels: ["beginner", "intermediate"],
-    equipment: ["gym_full", "dumbbells", "limited", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "low",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -170,7 +165,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["lose_weight", "health_wellness", "athletic_body"],
     experienceLevels: ["beginner"],
-    equipment: ["gym_full", "dumbbells", "limited", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "low",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -211,7 +206,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["lower_body_focus", "build_muscle", "athletic_body", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells"],
+    locations: ["gym", "home_with_gear"],
     intensity: "moderate",
     targetSex: "female",
     contraindications: ["medical_clearance_required"],
@@ -251,7 +246,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["strength", "build_muscle"],
     experienceLevels: ["advanced", "intermediate"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required", "avoid_heavy_spinal_loading"],
@@ -293,7 +288,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["health_wellness", "strength", "build_muscle"],
     experienceLevels: ["advanced", "intermediate"],
-    equipment: ["gym_full", "dumbbells", "limited"],
+    locations: ["gym", "home_with_gear"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -338,7 +333,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["lose_weight", "health_wellness", "athletic_body", "build_muscle", "strength"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells", "limited", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -385,7 +380,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["build_muscle", "strength", "athletic_body", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells"],
+    locations: ["gym", "home_with_gear"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -432,7 +427,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["build_muscle", "strength", "athletic_body"],
     experienceLevels: ["intermediate", "advanced", "beginner"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required", "beginner_simplicity"],
@@ -481,7 +476,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["lose_weight", "health_wellness", "athletic_body"],
     experienceLevels: ["beginner", "intermediate"],
-    equipment: ["gym_full", "dumbbells", "limited", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -534,7 +529,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["build_muscle", "strength", "athletic_body", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells"],
+    locations: ["gym", "home_with_gear"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -589,7 +584,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["strength", "build_muscle"],
     experienceLevels: ["intermediate", "advanced"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -644,7 +639,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["lower_body_focus", "build_muscle", "athletic_body", "lose_weight"],
     experienceLevels: ["intermediate", "advanced", "beginner"],
-    equipment: ["gym_full", "dumbbells"],
+    locations: ["gym", "home_with_gear"],
     intensity: "high",
     targetSex: "female",
     contraindications: ["medical_clearance_required"],
@@ -701,7 +696,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["lose_weight", "athletic_body", "health_wellness"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells", "limited", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -760,7 +755,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["build_muscle", "strength", "athletic_body"],
     experienceLevels: ["intermediate", "advanced"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -825,7 +820,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["lower_body_focus", "athletic_body", "lose_weight", "build_muscle"],
     experienceLevels: ["intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells"],
+    locations: ["gym", "home_with_gear"],
     intensity: "high",
     targetSex: "female",
     contraindications: ["medical_clearance_required"],
@@ -888,7 +883,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["athletic_body", "health_wellness", "lose_weight", "strength"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    equipment: ["gym_full", "dumbbells", "bodyweight"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -955,7 +950,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60, 90],
     goals: ["build_muscle", "strength"],
     experienceLevels: ["intermediate", "advanced"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -986,7 +981,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [45, 60],
     goals: ["build_muscle", "strength"],
     experienceLevels: ["advanced", "intermediate"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -1015,7 +1010,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     timeBuckets: [60, 90],
     goals: ["build_muscle"],
     experienceLevels: ["advanced", "intermediate"],
-    equipment: ["gym_full"],
+    locations: ["gym"],
     intensity: "high",
     targetSex: "any",
     contraindications: ["medical_clearance_required", "beginner_simplicity"],
@@ -1046,7 +1041,7 @@ export type SchemeUser = {
   goal: Goal;
   daysPerWeek: number;
   timeBucket: TimeBucket; // 45/60/90
-  equipment: Equipment;
+  location: Location;
   constraints?: ConstraintTag[];
   sex?: "male" | "female";
   age?: number; // used for scheme ranking (50+ avoid high intensity)
@@ -1061,7 +1056,10 @@ export function getCandidateSchemes(user: SchemeUser): NormalizedWorkoutScheme[]
     .filter(s => s.timeBuckets.includes(user.timeBucket))
     .filter(s => s.goals.includes(user.goal))
     .filter(s => s.experienceLevels.includes(user.experience))
-    .filter(s => s.equipment.includes(user.equipment) || s.equipment.includes("limited"))
+    .filter(s => {
+      if (s.locations.includes(user.location)) return true;
+      return user.location === "home_with_gear" && s.locations.includes("home_no_equipment");
+    })
     .filter(s => !(s.contraindications ?? []).some(tag => constraints.includes(tag)))
     .filter(s => {
       if (!s.targetSex || s.targetSex === "any" || !user.sex) return true;

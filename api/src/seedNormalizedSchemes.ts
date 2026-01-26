@@ -50,7 +50,7 @@ async function seedSchemes() {
           scheme.splitType,
           scheme.experienceLevels,
           scheme.goals,
-          scheme.equipment,
+          scheme.locations,
           JSON.stringify(scheme.days.map(d => ({
             day: d.day,
             label: d.label,

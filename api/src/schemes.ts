@@ -14,7 +14,7 @@ import {
   type SchemeUser,
   type ExperienceLevel,
   type Goal,
-  type Equipment,
+  type Location,
   type TimeBucket,
   type ConstraintTag,
 } from "./normalizedSchemes.js";
@@ -50,34 +50,27 @@ function mapGoalToNew(oldGoal: string): Goal {
 }
 
 // ============================================================================
-// HELPER: Map equipment to new format
+// HELPER: Resolve training location from onboarding payload
 // ============================================================================
 
-function mapEquipmentToNew(
+function resolveLocation(
   trainingPlace?: string | null,
   location?: string,
   equipmentList?: string[]
-): Equipment {
-  if (trainingPlace === "gym") return "gym_full";
-  if (trainingPlace === "home_no_equipment") return "bodyweight";
-  if (trainingPlace === "home_with_gear") return "limited";
-  // If gym location or has barbell/machines
-  if (location === "gym" || equipmentList?.includes("barbell") || equipmentList?.includes("machines")) {
-    return "gym_full";
+): Location {
+  if (trainingPlace === "gym") return "gym";
+  if (trainingPlace === "home_no_equipment") return "home_no_equipment";
+  if (trainingPlace === "home_with_gear") return "home_with_gear";
+  if (location === "gym") return "gym";
+  if (location === "home_no_equipment") return "home_no_equipment";
+  if (location === "home_with_gear") return "home_with_gear";
+  if (location === "home") {
+    if (equipmentList?.some((item) => ["dumbbells", "bands"].includes(item))) {
+      return "home_with_gear";
+    }
+    return "home_no_equipment";
   }
-  
-  // If has dumbbells
-  if (equipmentList?.includes("dumbbells")) {
-    return "dumbbells";
-  }
-  
-  // If bodyweight only
-  if (equipmentList?.includes("bodyweight") || location === "home") {
-    return "bodyweight";
-  }
-  
-  // Default to gym_full
-  return "gym_full";
+  return "gym";
 }
 
 // ============================================================================
@@ -148,7 +141,7 @@ schemes.post(
     const bmi = weight / (heightM * heightM);
     
     // Map to new format
-    const equipment = mapEquipmentToNew(trainingPlace, location, equipmentList);
+    const resolvedLocation = resolveLocation(trainingPlace, location, equipmentList);
     const timeBucket = calculateTimeBucket(minutesPerSession);
     
     // Build constraints based on age and BMI
@@ -173,7 +166,7 @@ schemes.post(
       goal,
       daysPerWeek,
       timeBucket,
-      equipment,
+      location: resolvedLocation,
       sex: sex as "male" | "female" | undefined,
       constraints,
       age, // added for ranking logic
@@ -243,7 +236,7 @@ schemes.post(
         splitType: scheme.splitType,
         experienceLevels: scheme.experienceLevels,
         goals: scheme.goals,
-        equipmentRequired: scheme.equipment,
+        equipmentRequired: scheme.locations,
         dayLabels: scheme.days.map(d => ({
           day: d.day,
           label: d.label,

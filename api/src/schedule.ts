@@ -399,12 +399,12 @@ schedule.patch(
 
       // Ensure replacement stays consistent for this user (level/equipment + blacklist).
       const equipmentAvailable =
-        userProfile.equipment === "gym_full"
+        userProfile.location === "gym"
           ? (["gym_full"] as any)
-          : userProfile.equipment === "dumbbells"
-            ? (["dumbbell", "bench", "bodyweight"] as any)
-            : userProfile.equipment === "bodyweight"
-              ? (["bodyweight", "pullup_bar", "bands"] as any)
+          : userProfile.location === "home_no_equipment"
+            ? (["bodyweight", "pullup_bar", "bands"] as any)
+            : userProfile.location === "home_with_gear"
+              ? (["dumbbell", "bench", "bodyweight", "kettlebell", "bands"] as any)
               : (["gym_full"] as any);
       const ok = isReplacementAllowed({
         fromExerciseId,

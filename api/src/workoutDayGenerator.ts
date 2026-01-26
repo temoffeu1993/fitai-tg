@@ -13,7 +13,7 @@
 // ============================================================================
 
 import type { Exercise, JointFlag, Equipment as LibraryEquipment, Experience, ExerciseKind, Pattern, MuscleGroup } from "./exerciseLibrary.js";
-import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Equipment, TimeBucket } from "./normalizedSchemes.js";
+import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Location, TimeBucket } from "./normalizedSchemes.js";
 import type { ProgressionRecommendation } from "./progressionEngine.js";
 import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
 import { buildDaySlots } from "./dayPatternMap.js";
@@ -53,7 +53,7 @@ export type UserProfile = {
   goal: Goal;
   daysPerWeek: number;
   timeBucket: TimeBucket;
-  equipment: Equipment;
+  location: Location;
   sex?: "male" | "female";
   constraints?: string[]; // constraint tags from user
   excludedExerciseIds?: string[]; // user-level blacklist
@@ -962,14 +962,13 @@ export async function generateWorkoutDay(args: {
   // Используем timeBucket из readiness (учитывает availableMinutes)
   const effectiveTimeBucket = readiness.timeBucket;
 
-  // КРИТИЧНО: map equipment правильно (dumbbells → dumbbell + bench, etc.)
-  // ВАЖНО: строки типизированы Equipment → LibraryEquipment[], TypeScript проверит совпадение
+  // КРИТИЧНО: map location в доступное оборудование (home_with_gear → dumbbell + bench, etc.)
+  // ВАЖНО: строки типизированы Location → LibraryEquipment[], TypeScript проверит совпадение
   // Без as - если имя не совпадёт, TypeScript упадёт на компиляции
-  function mapEquipmentToAvailable(equipment: Equipment): LibraryEquipment[] {
-    if (equipment === "gym_full") return ["gym_full"];
-    if (equipment === "dumbbells") return ["dumbbell", "bench", "bodyweight"];
-    if (equipment === "bodyweight") return ["bodyweight", "pullup_bar", "bands"];
-    if (equipment === "limited") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"];
+  function mapLocationToAvailable(location: Location): LibraryEquipment[] {
+    if (location === "gym") return ["gym_full"];
+    if (location === "home_no_equipment") return ["bodyweight", "pullup_bar", "bands"];
+    if (location === "home_with_gear") return ["dumbbell", "kettlebell", "bands", "bodyweight", "bench"];
     // Fallback: если не распознали, считаем gym_full
     return ["gym_full"];
   }
@@ -977,7 +976,7 @@ export async function generateWorkoutDay(args: {
   // Build constraints
   const constraints: UserConstraints = {
     experience: userProfile.experience,
-    equipmentAvailable: mapEquipmentToAvailable(userProfile.equipment),
+    equipmentAvailable: mapLocationToAvailable(userProfile.location),
     avoid: readiness.avoidFlags, // НОВОЕ: используем из readiness
   };
 
@@ -1421,7 +1420,7 @@ export function recommendScheme(userProfile: UserProfile): {
     goal: userProfile.goal,
     daysPerWeek: userProfile.daysPerWeek,
     timeBucket: userProfile.timeBucket,
-    equipment: userProfile.equipment,
+    location: userProfile.location,
     sex: userProfile.sex,
     constraints: [], // TODO: map from userProfile.constraints
   });
@@ -1436,7 +1435,7 @@ export function recommendScheme(userProfile: UserProfile): {
       goal: userProfile.goal,
       daysPerWeek: userProfile.daysPerWeek,
       timeBucket: userProfile.timeBucket,
-      equipment: userProfile.equipment,
+      location: userProfile.location,
       sex: userProfile.sex,
     },
     candidates

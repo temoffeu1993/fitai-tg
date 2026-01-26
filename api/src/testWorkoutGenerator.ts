@@ -29,7 +29,7 @@ const user1: UserProfile = {
   goal: "lose_weight",
   daysPerWeek: 3,
   timeBucket: 45,
-  equipment: "gym_full",
+  location: "gym",
   sex: "female",
 };
 
@@ -152,7 +152,7 @@ const user2: UserProfile = {
   goal: "build_muscle",
   daysPerWeek: 4,
   timeBucket: 60,
-  equipment: "gym_full",
+  location: "gym",
   sex: "male",
 };
 
@@ -195,7 +195,7 @@ const user3: UserProfile = {
   goal: "lower_body_focus",
   daysPerWeek: 4,
   timeBucket: 60,
-  equipment: "gym_full",
+  location: "gym",
   sex: "female",
 };
 

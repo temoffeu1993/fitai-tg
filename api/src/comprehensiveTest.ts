@@ -26,7 +26,7 @@ const testCases = [
       goal: "lose_weight" as const,
       daysPerWeek: 3,
       timeBucket: 45,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "female" as const,
     },
     checkins: [
@@ -44,7 +44,7 @@ const testCases = [
       goal: "build_muscle" as const,
       daysPerWeek: 4,
       timeBucket: 90,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "male" as const,
     },
     checkins: [
@@ -62,7 +62,7 @@ const testCases = [
       goal: "strength" as const,
       daysPerWeek: 4,
       timeBucket: 90,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "male" as const,
     },
     checkins: [
@@ -80,7 +80,7 @@ const testCases = [
       goal: "general_fitness" as const,
       daysPerWeek: 3,
       timeBucket: 60,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "female" as const,
     },
     checkins: [
@@ -97,7 +97,7 @@ const testCases = [
       goal: "build_muscle" as const,
       daysPerWeek: 3,
       timeBucket: 60,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "male" as const,
     },
     checkins: [
@@ -116,7 +116,7 @@ const testCases = [
       goal: "lose_weight" as const,
       daysPerWeek: 4,
       timeBucket: 45,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "female" as const,
     },
     checkins: [
@@ -133,7 +133,7 @@ const testCases = [
       goal: "strength" as const,
       daysPerWeek: 5,
       timeBucket: 90,
-      equipment: "gym_full" as const,
+      location: "gym" as const,
       sex: "male" as const,
     },
     checkins: [
@@ -161,7 +161,7 @@ for (const testCase of testCases) {
   console.log(`\n🎯 ПРОФИЛЬ:`);
   console.log(`   Опыт: ${profile.experience} | Цель: ${profile.goal}`);
   console.log(`   Дней: ${profile.daysPerWeek} | Время: ${profile.timeBucket} мин`);
-  console.log(`   Оборудование: ${profile.equipment} | Пол: ${profile.sex || "not specified"}`);
+  console.log(`   Локация: ${profile.location} | Пол: ${profile.sex || "not specified"}`);
   
   const { recommended: scheme, alternatives } = recommendScheme(profile);
   
@@ -384,4 +384,3 @@ if (issuesFound.length > 0) {
 }
 
 console.log(`\n${"=".repeat(100)}`);
-
