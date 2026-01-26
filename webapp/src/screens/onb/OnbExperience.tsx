@@ -271,7 +271,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
 
       <div
         style={{ ...s.cards, ...(bubbleReady ? undefined : s.cardsHidden) }}
-        className="onb-fade onb-fade-delay-3"
+        className={bubbleReady ? "onb-fade onb-fade-delay-3" : undefined}
       >
         {OPTIONS.map((item) => {
           const isActive = experience === item.value;
