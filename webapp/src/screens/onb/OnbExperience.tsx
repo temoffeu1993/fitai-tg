@@ -41,6 +41,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
   const [bubbleText, setBubbleText] = useState<string>(
     initial?.experience ? EXP_TEXT[initial.experience] : DEFAULT_BUBBLE
   );
+  const [optionsAnimated, setOptionsAnimated] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const [bubbleReady, setBubbleReady] = useState(false);
 
@@ -110,6 +111,9 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
     if (prefersReduced) {
       setBubbleText(target);
       setBubbleReady(true);
+      if (!optionsAnimated) {
+        setOptionsAnimated(true);
+      }
       return;
     }
     let index = 0;
@@ -121,10 +125,13 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
       if (index >= target.length) {
         window.clearInterval(id);
         setBubbleReady(true);
+        if (!optionsAnimated) {
+          setOptionsAnimated(true);
+        }
       }
     }, 14);
     return () => window.clearInterval(id);
-  }, [experience]);
+  }, [experience, optionsAnimated]);
 
   const handleNext = () => {
     if (loading || isLeaving || !experience) return;
@@ -180,6 +187,16 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           background: var(--exp-bg) !important;
           border-color: var(--exp-border) !important;
           color: var(--exp-color) !important;
+        }
+        .exp-options-ready {
+          animation: onbFadeUp 520ms ease-out both !important;
+        }
+        .exp-options-ready .exp-card {
+          animation: none !important;
+          transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+        }
+        .exp-options-static {
+          animation: none !important;
         }
         .speech-bubble:before {
           content: "";
@@ -271,7 +288,13 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
 
       <div
         style={{ ...s.cards, ...(bubbleReady ? undefined : s.cardsHidden) }}
-        className={bubbleReady ? "onb-fade onb-fade-delay-3" : undefined}
+        className={
+          bubbleReady
+            ? optionsAnimated
+              ? "exp-options-ready exp-options-static"
+              : "onb-fade onb-fade-delay-3 exp-options-ready"
+            : undefined
+        }
       >
         {OPTIONS.map((item) => {
           const isActive = experience === item.value;
