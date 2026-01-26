@@ -199,11 +199,11 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const recommendedDisplay = getSchemeDisplayData(
     {
       id: recommended.id,
+      name: recommended.name,
       splitType: recommended.splitType as SplitType,
       intensity: recommended.intensity,
       daysPerWeek: recommended.daysPerWeek,
       locations: recommended.equipmentRequired as Location[],
-      targetSex: recommended.targetSex,
     },
     userContext
   );
@@ -362,11 +362,11 @@ function SchemeCard({
   const displayData = getSchemeDisplayData(
     {
       id: scheme.id,
+      name: scheme.name,
       splitType: scheme.splitType as SplitType,
       intensity: scheme.intensity,
       daysPerWeek: scheme.daysPerWeek,
       locations: scheme.equipmentRequired as Location[],
-      targetSex: scheme.targetSex,
     },
     userContext
   );
