@@ -730,6 +730,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: -0.8,
     textAlign: "center",
     textAlignLast: "center",
+    transform: "translateY(-14px)",
   },
   introTitleLine: {
     display: "inline",
