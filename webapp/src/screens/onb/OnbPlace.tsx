@@ -1,45 +1,39 @@
-// webapp/src/screens/onb/OnbAge.tsx
+// webapp/src/screens/onb/OnbPlace.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { Sex } from "./OnbAgeSex";
+export type TrainingPlace = "gym" | "home_no_equipment" | "home_with_gear";
 
-export type OnbAgeData = {
-  profile?: { name: string };
-  ageSex: { sex: Sex; age: number };
-  body?: { height?: number; weight?: number };
+export type OnbPlaceData = {
+  trainingPlace?: { place: TrainingPlace };
 };
 
 type Props = {
-  initial?: Partial<OnbAgeData>;
+  initial?: Partial<OnbPlaceData>;
   loading?: boolean;
-  onSubmit: (patch: OnbAgeData) => void;
+  onSubmit: (patch: OnbPlaceData) => void;
   onBack?: () => void;
 };
 
-const AGE_MIN = 10;
-const AGE_MAX = 80;
-const ITEM_HEIGHT = 56;
+const OPTIONS: Array<{ value: TrainingPlace; label: string }> = [
+  { value: "gym", label: "В тренажерном зале" },
+  { value: "home_no_equipment", label: "Дома, без инвентаря" },
+  { value: "home_with_gear", label: "Дома, с резинками и гантелями" },
+];
 
-export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
+export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) {
   const navigate = useNavigate();
-  const [age, setAge] = useState<number | null>(
-    typeof initial?.ageSex?.age === "number" ? initial.ageSex.age : 30
+  const [place, setPlace] = useState<TrainingPlace | null>(
+    initial?.trainingPlace?.place ?? null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const scrollStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = null;
-      }
-      if (scrollStopTimerRef.current) {
-        window.clearTimeout(scrollStopTimerRef.current);
-        scrollStopTimerRef.current = null;
       }
     };
   }, []);
@@ -67,47 +61,9 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     };
   }, []);
 
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    if (age == null) {
-      list.scrollTop = 0;
-      return;
-    }
-    const index = age - AGE_MIN;
-    list.scrollTop = index * ITEM_HEIGHT;
-  }, [age]);
-
-  const handleListScroll = () => {
-    const list = listRef.current;
-    if (!list) return;
-    if (scrollStopTimerRef.current) {
-      window.clearTimeout(scrollStopTimerRef.current);
-    }
-    scrollStopTimerRef.current = window.setTimeout(() => {
-      const index = Math.round(list.scrollTop / ITEM_HEIGHT);
-      const nextAge = AGE_MIN + index;
-      if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
-        setAge(nextAge);
-      }
-    }, 60);
-  };
-
-  const handleSelect = (value: number) => {
-    if (loading || isLeaving) return;
-    setAge(value);
-  };
-
   const handleNext = () => {
-    if (loading || isLeaving || age == null) return;
-    const patch: OnbAgeData = {
-      profile: initial?.profile,
-      ageSex: {
-        sex: (initial?.ageSex?.sex as Sex) || "male",
-        age,
-      },
-      ...(initial?.body ? { body: initial.body } : {}),
-    };
+    if (loading || isLeaving || !place) return;
+    const patch: OnbPlaceData = { trainingPlace: { place } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
       onSubmit(patch);
@@ -118,8 +74,6 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       onSubmit(patch);
     }, 220);
   };
-
-  const ages = Array.from({ length: AGE_MAX - AGE_MIN + 1 }, (_, i) => AGE_MIN + i);
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -141,11 +95,18 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
-        .age-card {
+        .place-card {
+          appearance: none;
+          outline: none;
+          -webkit-tap-highlight-color: transparent;
           transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+          will-change: transform, background, border-color;
         }
-        .age-card:active:not(:disabled) {
+        .place-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
+          background: var(--tile-bg) !important;
+          border-color: var(--tile-border) !important;
+          color: var(--tile-color) !important;
         }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
@@ -158,6 +119,13 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
           background-color: #141619 !important;
           box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
           filter: brightness(0.99) !important;
+        }
+        .intro-primary-btn:disabled {
+          background-color: #1e1f22 !important;
+          border-color: #1e1f22 !important;
+          color: #fff !important;
+          box-shadow: 0 6px 10px rgba(0,0,0,0.24) !important;
+          filter: none !important;
         }
         @media (hover: hover) {
           .intro-primary-btn:hover:not(:disabled) {
@@ -174,7 +142,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
           .onb-fade-delay-2,
           .onb-fade-delay-3 { animation: none !important; }
           .onb-leave { animation: none !important; }
-          .age-card { transition: none !important; }
+          .place-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
         }
       `}</style>
@@ -183,51 +151,50 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 2 из 11</div>
+        <div style={s.progressText}>Шаг 6 из 11</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Сколько вам лет?</h1>
-        <p style={s.subtitle}>Возраст нужен, чтобы точнее подобрать рекомендации</p>
+        <h1 style={s.title}>Где планируете тренироваться?</h1>
+        <p style={s.subtitle}>Нужно, чтобы адаптировать программу под ваши условия</p>
       </div>
 
-      <div style={s.ageWrap} className="onb-fade onb-fade-delay-3">
-        <div style={s.ageLineTop} />
-        <div style={s.ageLineBottom} />
-        <div style={s.ageFadeTop} />
-        <div style={s.ageFadeBottom} />
-        <div
-          ref={listRef}
-          style={s.ageList}
-          onScroll={handleListScroll}
-        >
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
-          {ages.map((value) => (
+      <div style={s.tiles} className="onb-fade onb-fade-delay-3">
+        {OPTIONS.map((item) => {
+          const isActive = place === item.value;
+          return (
             <button
-              key={value}
+              key={item.value}
               type="button"
-              className="age-card"
-              style={{ ...s.ageItem, ...(age === value ? s.ageItemActive : {}) }}
-              onClick={() => handleSelect(value)}
+              className="place-card"
+              style={{
+                ...s.tile,
+                ["--tile-bg" as never]:
+                  isActive
+                    ? "#1e1f22"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                ["--tile-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                ["--tile-color" as never]: isActive ? "#fff" : "#1e1f22",
+                ...(isActive ? s.tileActive : {}),
+              }}
+              onClick={() => setPlace(item.value)}
             >
-              {value}
+              {item.label}
             </button>
-          ))}
-          <div style={{ height: ITEM_HEIGHT * 2 }} />
-        </div>
+          );
+        })}
       </div>
 
       <div style={s.actions}>
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: age == null || loading ? 0.5 : 1 }}
+          style={{ ...s.primaryBtn, opacity: place == null || loading ? 0.5 : 1 }}
           className="onb-fade onb-fade-delay-3 intro-primary-btn"
           onClick={handleNext}
-          disabled={age == null || loading || isLeaving}
+          disabled={place == null || loading || isLeaving}
         >
           Далее
         </button>
-
         {onBack ? (
           <button
             style={s.backBtn}
@@ -236,12 +203,12 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
               if (isLeaving) return;
               const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
               if (prefersReduced) {
-                navigate("/onb/age-sex");
+                navigate("/onb/experience");
                 return;
               }
               setIsLeaving(true);
               leaveTimerRef.current = window.setTimeout(() => {
-                navigate("/onb/age-sex");
+                navigate("/onb/experience");
               }, 220);
             }}
             type="button"
@@ -281,7 +248,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressFill: {
     height: "100%",
-    width: "18.2%",
+    width: "54.5%",
     background: "#1e1f22",
     borderRadius: 999,
     boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
@@ -311,66 +278,32 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.7)",
   },
-  ageWrap: {
+  tiles: {
     marginTop: 18,
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 10,
+    width: "100%",
+  },
+  tile: {
     borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    position: "relative",
-    overflow: "hidden",
-    width: "min(100px, 30vw)",
-    height: ITEM_HEIGHT * 5,
-    alignSelf: "center",
+    border: "1px solid var(--tile-border)",
+    background: "var(--tile-bg)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    color: "var(--tile-color)",
+    fontSize: 18,
+    fontWeight: 500,
+    padding: "18px 14px",
+    textAlign: "center",
+    cursor: "pointer",
   },
-  ageList: {
-    maxHeight: "100%",
-    overflowY: "auto",
-    scrollSnapType: "y proximity",
-    scrollbarWidth: "none",
-    WebkitOverflowScrolling: "touch",
-  },
-  ageLineTop: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(-${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
-  },
-  ageLineBottom: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
-  },
-  ageFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: ITEM_HEIGHT * 2,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  ageFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: ITEM_HEIGHT * 2,
-    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 1,
+  tileActive: {
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    color: "#fff",
   },
   primaryBtn: {
     marginTop: 18,
@@ -390,25 +323,6 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 18,
     display: "grid",
     gap: 10,
-  },
-  ageItem: {
-    border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.5)",
-    fontSize: 24,
-    fontWeight: 500,
-    height: ITEM_HEIGHT,
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    scrollSnapAlign: "center",
-    cursor: "pointer",
-  },
-  ageItemActive: {
-    color: "#111",
-    fontWeight: 700,
   },
   backBtn: {
     width: "100%",
