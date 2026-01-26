@@ -695,6 +695,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 1,
   },
   introImage: {
     width: "100%",
@@ -709,13 +710,14 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 24,
     paddingBottom: 24,
+    zIndex: 3,
   },
   introTextBlock: {
     width: "100%",
     textAlign: "center",
     display: "grid",
     gap: 12,
-    marginTop: -36,
+    marginTop: -52,
   },
   introTitle: {
     margin: 0,
@@ -734,11 +736,11 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.5,
     color: "rgba(15, 23, 42, .65)",
-    maxWidth: 300,
+    maxWidth: 320,
     marginLeft: "auto",
     marginRight: "auto",
-    textAlign: "center",
-    textAlignLast: "center",
+    textAlign: "left",
+    textAlignLast: "left",
   },
   introPrimaryBtn: {
     marginTop: 0,
