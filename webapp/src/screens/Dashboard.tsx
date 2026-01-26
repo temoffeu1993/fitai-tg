@@ -357,11 +357,11 @@ export default function Dashboard() {
         <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
-              <span style={s.introTitleLine}>Меняйся вместе с Моро</span>
+              <span style={s.introTitleLine}>Меняйся</span>
+              <span style={s.introTitleLine}>с Моро</span>
             </h1>
             <p style={s.introSubtitle}>
-              Быть в форме проще, чем кажется. Я создам маршрут к твоей цели без лишних действий
-              и стресса. Следуй плану и кайфуй от результата.
+              Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
             </p>
           </div>
 
@@ -695,7 +695,6 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1,
   },
   introImage: {
     width: "100%",
@@ -716,7 +715,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     display: "grid",
     gap: 10,
-    marginTop: -22,
+    marginTop: -14,
   },
   introTitle: {
     margin: 0,
@@ -724,11 +723,9 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.05,
     fontWeight: 900,
     letterSpacing: -0.8,
-    textAlign: "center",
-    textAlignLast: "center",
   },
   introTitleLine: {
-    display: "inline",
+    display: "block",
   },
   introSubtitle: {
     margin: 0,
@@ -738,8 +735,6 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: 340,
     marginLeft: "auto",
     marginRight: "auto",
-    textAlign: "justify",
-    textAlignLast: "left",
   },
   introPrimaryBtn: {
     marginTop: 6,
