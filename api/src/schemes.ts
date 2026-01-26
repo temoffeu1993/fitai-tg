@@ -314,7 +314,7 @@ schemes.post(
           selectedScheme.splitType,
           selectedScheme.experienceLevels,
           selectedScheme.goals,
-          selectedScheme.equipment,
+          selectedScheme.locations,
           JSON.stringify(selectedScheme.days.map(d => ({
             day: d.day,
             label: d.label,

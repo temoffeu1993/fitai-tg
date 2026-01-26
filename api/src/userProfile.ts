@@ -87,7 +87,7 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
   } else if (location === "home_with_gear") {
     resolvedLocation = "home_with_gear";
   } else if (location === "home") {
-    resolvedLocation = equipmentList.some((item) => ["dumbbells", "bands"].includes(item))
+    resolvedLocation = equipmentList.some((item: string) => ["dumbbells", "bands"].includes(item))
       ? "home_with_gear"
       : "home_no_equipment";
   }
