@@ -16,9 +16,9 @@ type Props = {
 };
 
 const OPTIONS: Array<{ value: TrainingPlace; label: string }> = [
-  { value: "gym", label: "В тренажерном зале" },
-  { value: "home_no_equipment", label: "Дома, без инвентаря" },
-  { value: "home_with_gear", label: "Дома, с резинками и гантелями" },
+  { value: "gym", label: "🏋️‍♂️ В тренажерном зале" },
+  { value: "home_no_equipment", label: "🏠 Дома, без инвентаря" },
+  { value: "home_with_gear", label: "💪 Дома, с резинками и гантелями" },
 ];
 
 export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) {
