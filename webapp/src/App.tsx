@@ -30,6 +30,7 @@ import OnbDuration from "./screens/onb/OnbDuration";
 import OnbDietStyle from "./screens/onb/OnbDietStyle";
 import OnbDiet from "./screens/onb/OnbDiet";
 import OnbMotivation from "./screens/onb/OnbMotivation";
+import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -213,7 +214,7 @@ function StepDietStyle() {
   );
 }
 
-// --- обновлённый предпоследний шаг (мотивация) ---
+// --- шаг мотивация ---
 function StepMotivation() {
   const { draft, patch } = useOnboarding();
   const nav = useNavigate();
@@ -233,10 +234,23 @@ function StepMotivation() {
           localStorage.setItem("onb_summary", JSON.stringify(merged));
         }
 
-        // Переходим к выбору схемы тренировок
-        nav("/onb/scheme");
+        // Переходим к экрану анализа
+        nav("/onb/analysis");
       }}
       onBack={() => nav("/onb/diet-style")}
+    />
+  );
+}
+
+// --- шаг анализа профиля ---
+function StepAnalysis() {
+  const { draft } = useOnboarding();
+  const nav = useNavigate();
+  return (
+    <OnbAnalysis
+      draft={draft}
+      onSubmit={() => nav("/onb/scheme")}
+      onBack={() => nav("/onb/motivation")}
     />
   );
 }
@@ -342,6 +356,7 @@ export default function App() {
             <Route path="/onb/diet" element={<StepDiet />} />
             <Route path="/onb/diet-style" element={<StepDietStyle />} />
             <Route path="/onb/motivation" element={<StepMotivation />} />
+            <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
           </Route>
         </Routes>
