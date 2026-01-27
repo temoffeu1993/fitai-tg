@@ -1,29 +1,33 @@
-// webapp/src/screens/onb/OnbDuration.tsx
+// webapp/src/screens/onb/OnbWorkday.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
-import type { Experience } from "./OnbExperience";
+export type WorkdayStyle =
+  | "sedentary"
+  | "balanced"
+  | "on_feet"
+  | "heavy_work";
 
-export type OnbDurationData = {
-  experience?: Experience;
-  schedule?: { daysPerWeek?: number; minutesPerSession?: number };
+export type OnbWorkdayData = {
+  lifestyle?: { workStyle: WorkdayStyle };
 };
 
 type Props = {
-  initial?: Partial<OnbDurationData>;
+  initial?: Partial<OnbWorkdayData>;
   loading?: boolean;
-  onSubmit: (patch: OnbDurationData) => void;
+  onSubmit: (patch: OnbWorkdayData) => void;
   onBack?: () => void;
 };
 
-const OPTIONS = [45, 60, 90] as const;
+const OPTIONS: Array<{ value: WorkdayStyle; label: string }> = [
+  { value: "sedentary", label: "Сижу за столом. Работаю головой, а не телом" },
+  { value: "balanced", label: "Ищу баланс. Работа сидячая, но я стараюсь двигаться" },
+  { value: "on_feet", label: "Весь день на ногах. Почти не присаживаюсь" },
+  { value: "heavy_work", label: "Тяжёлый труд. Моя работа это уже тренировка" },
+];
 
-export default function OnbDuration({ initial, loading, onSubmit, onBack }: Props) {
-  const navigate = useNavigate();
-  const [minutesPerSession, setMinutesPerSession] = useState<number | null>(
-    typeof initial?.schedule?.minutesPerSession === "number"
-      ? initial.schedule.minutesPerSession
-      : null
+export default function OnbWorkday({ initial, loading, onSubmit, onBack }: Props) {
+  const [workStyle, setWorkStyle] = useState<WorkdayStyle | null>(
+    initial?.lifestyle?.workStyle ?? null
   );
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
@@ -61,14 +65,8 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
   }, []);
 
   const handleNext = () => {
-    if (loading || isLeaving || minutesPerSession == null) return;
-    const patch: OnbDurationData = {
-      experience: initial?.experience,
-      schedule: {
-        ...(initial?.schedule || {}),
-        minutesPerSession,
-      },
-    };
+    if (loading || isLeaving || !workStyle) return;
+    const patch: OnbWorkdayData = { lifestyle: { workStyle } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
       onSubmit(patch);
@@ -100,14 +98,14 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
-        .gender-card {
+        .workday-card {
           appearance: none;
           outline: none;
           -webkit-tap-highlight-color: transparent;
           transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
           will-change: transform, background, border-color;
         }
-        .gender-card:active:not(:disabled) {
+        .workday-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
           background: var(--tile-bg) !important;
           border-color: var(--tile-border) !important;
@@ -147,6 +145,7 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
           .onb-fade-delay-2,
           .onb-fade-delay-3 { animation: none !important; }
           .onb-leave { animation: none !important; }
+          .workday-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
         }
       `}</style>
@@ -155,64 +154,58 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 9 из 12</div>
+        <div style={s.progressText}>Шаг 6 из 12</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Сколько времени готовы уделять на тренировку?</h1>
-        <p style={s.subtitle}>Нужно, чтобы подобрать план и объем под вас</p>
+        <h1 style={s.title}>Как проходит ваш обычный день?</h1>
+        <p style={s.subtitle}>
+          Это поможет нам настроить программу так, чтобы вам хватало сил и на работу, и на спорт.
+        </p>
       </div>
 
       <div style={s.tiles} className="onb-fade onb-fade-delay-3">
-        {OPTIONS.map((value) => (
-          <button
-            key={value}
-            type="button"
-            className="gender-card"
-            style={{
-              ...s.tile,
-              ["--tile-bg" as never]:
-                minutesPerSession === value
-                  ? "#1e1f22"
-                  : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-              ["--tile-border" as never]: minutesPerSession === value ? "#1e1f22" : "rgba(255,255,255,0.4)",
-              ["--tile-color" as never]: minutesPerSession === value ? "#fff" : "#1e1f22",
-              ...(minutesPerSession === value ? s.tileActive : {}),
-            }}
-            onClick={() => setMinutesPerSession(value)}
-          >
-            {value} минут
-          </button>
-        ))}
+        {OPTIONS.map((item) => {
+          const isActive = workStyle === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              className="workday-card"
+              style={{
+                ...s.tile,
+                ["--tile-bg" as never]:
+                  isActive
+                    ? "#1e1f22"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                ["--tile-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                ["--tile-color" as never]: isActive ? "#fff" : "#1e1f22",
+                ...(isActive ? s.tileActive : {}),
+              }}
+              onClick={() => setWorkStyle(item.value)}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
 
       <div style={s.actions}>
         <button
           type="button"
-          style={{ ...s.primaryBtn, opacity: minutesPerSession == null || loading ? 0.5 : 1 }}
+          style={{ ...s.primaryBtn, opacity: workStyle == null || loading ? 0.5 : 1 }}
           className="onb-fade onb-fade-delay-3 intro-primary-btn"
           onClick={handleNext}
-          disabled={minutesPerSession == null || loading || isLeaving}
+          disabled={workStyle == null || loading || isLeaving}
         >
           Далее
         </button>
         {onBack ? (
           <button
             style={s.backBtn}
-            className="onb-fade onb-fade-delay-3"
-            onClick={() => {
-              if (isLeaving) return;
-              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-              if (prefersReduced) {
-                navigate("/onb/frequency");
-                return;
-              }
-              setIsLeaving(true);
-              leaveTimerRef.current = window.setTimeout(() => {
-                navigate("/onb/frequency");
-              }, 220);
-            }}
             type="button"
+            onClick={onBack}
+            className="onb-fade onb-fade-delay-3"
           >
             Назад
           </button>
@@ -226,8 +219,7 @@ const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    minHeight: "100vh",
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px 32px",
+    padding: "16px 16px 28px",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -249,7 +241,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressFill: {
     height: "100%",
-    width: "75%",
+    width: "50%",
     background: "#1e1f22",
     borderRadius: 999,
     boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
@@ -268,72 +260,59 @@ const s: Record<string, React.CSSProperties> = {
   },
   title: {
     margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
-    letterSpacing: -0.8,
+    fontSize: 28,
+    lineHeight: 1.15,
+    fontWeight: 600,
+    letterSpacing: -0.6,
   },
   subtitle: {
     margin: 0,
-    fontSize: 16,
-    lineHeight: 1.45,
+    fontSize: 15,
     color: "rgba(15, 23, 42, 0.7)",
+    lineHeight: 1.5,
   },
   tiles: {
-    marginTop: 18,
     display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: 10,
-    width: "100%",
+    gap: 12,
+    marginTop: 6,
   },
   tile: {
-    borderRadius: 18,
-    border: "1px solid var(--tile-border)",
-    background: "var(--tile-bg)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    color: "var(--tile-color)",
-    fontSize: 18,
+    width: "100%",
+    borderRadius: 20,
+    padding: "16px 18px",
+    fontSize: 16,
     fontWeight: 500,
-    padding: "18px 10px",
-    textAlign: "center",
-    cursor: "pointer",
+    border: "1px solid rgba(255,255,255,0.4)",
+    color: "#1e1f22",
+    textAlign: "left",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    backdropFilter: "blur(10px)",
   },
   tileActive: {
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
-    color: "#fff",
-  },
-  primaryBtn: {
-    marginTop: 18,
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    fontWeight: 500,
-    fontSize: 18,
-    cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    boxShadow: "0 14px 28px rgba(15,23,42,0.16)",
   },
   actions: {
-    marginTop: "auto",
-    paddingTop: 18,
     display: "grid",
     gap: 10,
+    marginTop: 12,
   },
-  backBtn: {
-    width: "100%",
+  primaryBtn: {
+    borderRadius: 999,
     border: "none",
-    background: "transparent",
-    color: "#1e1f22",
+    padding: "14px 18px",
     fontSize: 16,
     fontWeight: 600,
-    padding: "14px 16px",
-    cursor: "pointer",
-    textAlign: "center",
+    background: "#1e1f22",
+    color: "#fff",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.18)",
+  },
+  backBtn: {
+    border: "none",
+    background: "none",
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: 500,
   },
 };

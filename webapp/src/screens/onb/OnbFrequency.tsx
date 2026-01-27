@@ -159,7 +159,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 7 из 11</div>
+        <div style={s.progressText}>Шаг 8 из 12</div>
       </div>
 
       <div style={s.header} className="onb-fade onb-fade-delay-2">
@@ -255,7 +255,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressFill: {
     height: "100%",
-    width: "63.6%",
+    width: "66.7%",
     background: "#1e1f22",
     borderRadius: 999,
     boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",

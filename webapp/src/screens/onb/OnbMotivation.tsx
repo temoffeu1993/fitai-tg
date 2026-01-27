@@ -251,7 +251,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         <div style={s.progressTrack}>
           <div style={s.progressFill} />
         </div>
-        <div style={s.progressText}>Шаг 11 из 11</div>
+        <div style={s.progressText}>Шаг 12 из 12</div>
       </div>
 
       <div style={s.robotRow} className="onb-fade onb-fade-delay-2">
