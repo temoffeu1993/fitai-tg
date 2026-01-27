@@ -31,6 +31,7 @@ import OnbDietStyle from "./screens/onb/OnbDietStyle";
 import OnbDiet from "./screens/onb/OnbDiet";
 import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
+import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -234,12 +235,18 @@ function StepMotivation() {
           localStorage.setItem("onb_summary", JSON.stringify(merged));
         }
 
-        // Переходим к экрану анализа
-        nav("/onb/analysis");
+        // Переходим к экрану анимации анализа
+        nav("/onb/analysis-loading");
       }}
       onBack={() => nav("/onb/diet-style")}
     />
   );
+}
+
+// --- экран анимации анализа ---
+function StepAnalysisLoading() {
+  const nav = useNavigate();
+  return <OnbAnalysisLoading onDone={() => nav("/onb/analysis")} />;
 }
 
 // --- шаг анализа профиля ---
@@ -356,6 +363,7 @@ export default function App() {
             <Route path="/onb/diet" element={<StepDiet />} />
             <Route path="/onb/diet-style" element={<StepDietStyle />} />
             <Route path="/onb/motivation" element={<StepMotivation />} />
+            <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
           </Route>

@@ -43,6 +43,7 @@ type Props = {
 export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Props) {
   const [goal, setGoal] = useState<Goal | null>(initial?.motivation?.goal ?? null);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [fadeToBlack, setFadeToBlack] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
   const [bubbleText, setBubbleText] = useState<string>(
     initial?.motivation?.goal ? GOAL_TEXT[initial.motivation.goal] : DEFAULT_BUBBLE
@@ -145,10 +146,11 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
       onSubmit(patch);
       return;
     }
+    setFadeToBlack(true);
     setIsLeaving(true);
     leaveTimerRef.current = window.setTimeout(() => {
       onSubmit(patch);
-    }, 220);
+    }, 280);
   };
 
   return (
@@ -165,6 +167,10 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
         @keyframes robotSwap {
           0% { opacity: 0; transform: translateY(8px) scale(0.98); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes blackoutIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
         .onb-fade {
           animation: onbFadeUp 520ms ease-out both;
@@ -235,6 +241,17 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           animation: robotSwap 240ms ease-out;
           will-change: opacity, transform;
         }
+        .blackout {
+          position: fixed;
+          inset: 0;
+          background: #000;
+          opacity: 0;
+          pointer-events: none;
+          z-index: 40;
+        }
+        .blackout.blackout--on {
+          animation: blackoutIn 280ms ease-in forwards;
+        }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade,
           .onb-fade-delay-1,
@@ -244,6 +261,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           .goal-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
           .robot-swap { animation: none !important; }
+          .blackout.blackout--on { animation: none !important; opacity: 1 !important; }
         }
       `}</style>
 
@@ -344,6 +362,11 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           </button>
         ) : null}
       </div>
+
+      <div
+        aria-hidden
+        className={`blackout${fadeToBlack ? " blackout--on" : ""}`}
+      />
     </div>
   );
 }
