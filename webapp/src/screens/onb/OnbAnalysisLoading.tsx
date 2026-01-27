@@ -83,8 +83,8 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
     >
       <style>{`
         .analysis-loader {
-          --ring-size: 230px;
-          --mascot-size: 148px;
+          --ring-size: 270px;
+          --mascot-size: 176px;
           --text-size: 20px;
           opacity: 0;
         }
@@ -94,26 +94,23 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         .analysis-loader.onb-out .loader-content {
           animation: screenOut 260ms ease-in forwards;
         }
-        .ring {
+        .aura {
           position: absolute;
-          inset: -8px;
+          width: var(--ring-size);
+          height: var(--ring-size);
           border-radius: 50%;
-          border: 2px solid rgba(88, 255, 255, 0.65);
-          background: conic-gradient(
-            from 0deg,
-            rgba(88, 255, 255, 0.95),
-            rgba(136, 102, 255, 0.85),
-            rgba(88, 255, 255, 0.95)
+          background: radial-gradient(
+            circle,
+            rgba(120, 255, 230, 0.4) 0%,
+            rgba(120, 255, 230, 0.18) 45%,
+            rgba(120, 255, 230, 0) 70%
           );
-          -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
-          mask: radial-gradient(closest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
-          box-shadow:
-            0 0 18px rgba(88, 255, 255, 0.55),
-            0 0 40px rgba(136, 102, 255, 0.4);
-          animation: ringSpin 3.4s linear infinite, ringPulse 1.7s ease-in-out infinite;
+          filter: blur(18px);
+          opacity: 0.75;
+          animation: auraPulse 2.8s ease-in-out infinite;
         }
-        .ring.ring--hide {
-          animation: ringDisappear 420ms ease-out forwards;
+        .aura.aura--fade {
+          animation: auraOut 700ms ease-out forwards;
         }
         .mascot {
           width: var(--mascot-size);
@@ -121,6 +118,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
           z-index: 2;
           filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.55));
           transition: transform 220ms ease, opacity 220ms ease;
+          animation: mascotFloat 3.6s ease-in-out infinite;
         }
         .mascot.mascot--ascend {
           animation: mascotAscend 920ms ease-in-out forwards;
@@ -136,33 +134,34 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         .status-text.done {
           animation: textDone 1200ms ease-in-out both;
         }
-        @keyframes ringSpin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes mascotFloat {
+          0% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-8px) scale(1.01); }
+          100% { transform: translateY(0) scale(1); }
         }
-        @keyframes ringPulse {
-          0% { opacity: 0.7; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.02); }
-          100% { opacity: 0.75; transform: scale(0.98); }
+        @keyframes auraPulse {
+          0% { opacity: 0.55; transform: scale(0.96); }
+          50% { opacity: 0.85; transform: scale(1.02); }
+          100% { opacity: 0.6; transform: scale(0.96); }
         }
-        @keyframes ringDisappear {
-          0% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(0.7); }
+        @keyframes auraOut {
+          0% { opacity: 0.75; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.15); }
         }
         @keyframes mascotAscend {
           0% { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-26px) scale(1.18); }
+          100% { opacity: 0; transform: translateY(-32px) scale(1.28); }
         }
         @keyframes textSwap {
           0% { opacity: 0; transform: translateY(6px); }
           100% { opacity: 1; transform: translateY(0); }
         }
         @keyframes textDone {
-          0% { opacity: 0; transform: scale(1.35); }
+          0% { opacity: 0; transform: scale(1.6); }
           25% { opacity: 1; transform: scale(1); }
-          55% { opacity: 1; transform: scale(0.82); }
-          80% { opacity: 1; transform: scale(1.18); }
-          100% { opacity: 0; transform: scale(1.18); }
+          55% { opacity: 1; transform: scale(0.92); }
+          80% { opacity: 1; transform: scale(1.9); }
+          100% { opacity: 0; transform: scale(2.2); }
         }
         @keyframes screenIn {
           0% { opacity: 0; }
@@ -174,17 +173,18 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         }
         @media (max-width: 380px) {
           .analysis-loader {
-            --ring-size: 200px;
-            --mascot-size: 132px;
+            --ring-size: 230px;
+            --mascot-size: 156px;
             --text-size: 18px;
           }
         }
         @media (prefers-reduced-motion: reduce) {
           .analysis-loader.onb-in,
           .analysis-loader.onb-out .loader-content,
-          .ring,
+          .aura,
           .status-text,
           .status-text.done,
+          .mascot,
           .mascot.mascot--ascend {
             animation: none !important;
           }
@@ -193,7 +193,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
 
       <div style={s.content} className="loader-content">
         <div style={s.orbWrap}>
-          <div className={`ring${isDone ? " ring--hide" : ""}`} />
+          <div className={`aura${isDone ? " aura--fade" : ""}`} />
           <img
             src={healthRobotImg}
             alt="Moro"

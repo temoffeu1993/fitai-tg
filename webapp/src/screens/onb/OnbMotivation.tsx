@@ -153,8 +153,10 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
     }, 280);
   };
 
+  const shouldFadeOut = isLeaving && !fadeToBlack;
+
   return (
-    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+    <div style={s.page} className={shouldFadeOut ? "onb-leave" : undefined}>
       <style>{`
         @keyframes onbFadeUp {
           0% { opacity: 0; transform: translateY(14px); }
