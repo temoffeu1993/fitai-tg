@@ -237,11 +237,15 @@ function calculateTargetCalories(
     // Minimum floor to prevent metabolic slowdown
     const targetCalories = Math.round(tdee * (1 - deficitPercent / 100));
     const minimumCalories = bmi >= 25 ? 1400 : 1200;
+    const finalCalories = Math.max(targetCalories, minimumCalories);
+
+    // Recalculate actual percent change if floor was applied
+    const actualPercentChange = Math.round(((finalCalories - tdee) / tdee) * 100);
 
     return {
-      value: Math.max(targetCalories, minimumCalories),
+      value: finalCalories,
       type: 'deficit',
-      percentChange: -deficitPercent,
+      percentChange: actualPercentChange,
     };
   }
 
