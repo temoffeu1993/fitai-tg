@@ -45,8 +45,33 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
   }, []);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setReady(true), 30);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    let done = false;
+    const finish = () => {
+      if (cancelled || done) return;
+      done = true;
+      setReady(true);
+    };
+
+    const img = new Image();
+    img.decoding = "async";
+    img.src = healthRobotImg;
+    const anyImg = img as any;
+    if (typeof anyImg.decode === "function") {
+      anyImg.decode().then(finish).catch(() => {
+        img.onload = finish;
+        img.onerror = finish;
+      });
+    } else {
+      img.onload = finish;
+      img.onerror = finish;
+    }
+
+    const fallback = window.setTimeout(finish, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -83,9 +108,9 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
     >
       <style>{`
         .analysis-loader {
-          --ring-size: 270px;
-          --mascot-size: 176px;
-          --text-size: 20px;
+          --ring-size: 300px;
+          --mascot-size: 196px;
+          --text-size: 34px;
         }
         .loader-content {
           opacity: 0;
@@ -103,13 +128,15 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
           border-radius: 50%;
           background: radial-gradient(
             circle,
-            rgba(120, 255, 230, 0.4) 0%,
-            rgba(120, 255, 230, 0.18) 45%,
-            rgba(120, 255, 230, 0) 70%
+            rgba(120, 255, 230, 0.28) 0%,
+            rgba(120, 255, 230, 0.12) 45%,
+            rgba(120, 255, 230, 0) 72%
           );
-          filter: blur(18px);
-          opacity: 0.75;
+          filter: blur(22px);
+          opacity: 0.55;
+          transform: translateY(14px);
           animation: auraPulse 2.8s ease-in-out infinite;
+          z-index: 1;
         }
         .aura.aura--fade {
           animation: auraOut 700ms ease-out forwards;
@@ -127,8 +154,9 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         }
         .status-text {
           font-size: var(--text-size);
-          font-weight: 600;
-          letter-spacing: 0.2px;
+          font-weight: 700;
+          line-height: 1.1;
+          letter-spacing: -0.8px;
           color: #f8fafc;
           text-shadow: 0 0 10px rgba(88, 255, 255, 0.18);
           animation: textSwap 360ms ease-out both;
@@ -138,7 +166,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         }
         @keyframes mascotFloat {
           0% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-8px) scale(1.01); }
+          50% { transform: translateY(-16px) scale(1.015); }
           100% { transform: translateY(0) scale(1); }
         }
         @keyframes auraPulse {
@@ -175,9 +203,9 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
         }
         @media (max-width: 380px) {
           .analysis-loader {
-            --ring-size: 230px;
-            --mascot-size: 156px;
-            --text-size: 18px;
+            --ring-size: 250px;
+            --mascot-size: 172px;
+            --text-size: 28px;
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -242,9 +270,10 @@ const s: Record<string, React.CSSProperties> = {
     placeItems: "center",
   },
   textWrap: {
-    minHeight: 32,
+    minHeight: 56,
     display: "grid",
     placeItems: "center",
     paddingBottom: 8,
+    marginTop: 10,
   },
 };

@@ -20,6 +20,7 @@ type Props = {
 export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [reveal, setReveal] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
   // Build user context and analyze
@@ -65,8 +66,20 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 
   // Staggered content reveal
   useEffect(() => {
-    const timer = setTimeout(() => setShowContent(true), 100);
-    return () => clearTimeout(timer);
+    const prefersReduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)"
+    )?.matches;
+    if (prefersReduced) {
+      setReveal(true);
+      setShowContent(true);
+      return;
+    }
+    const t1 = window.setTimeout(() => setReveal(true), 30);
+    const t2 = window.setTimeout(() => setShowContent(true), 200);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, []);
 
   const handleNext = () => {
@@ -148,6 +161,18 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           animation: countUp 600ms ease-out both;
           animation-delay: 300ms;
         }
+        .analysis-blackout {
+          position: fixed;
+          inset: 0;
+          background: #000;
+          opacity: 1;
+          pointer-events: none;
+          z-index: 30;
+          transition: opacity 420ms ease;
+        }
+        .analysis-blackout.reveal {
+          opacity: 0;
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -160,6 +185,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave, .count-up { animation: none !important; }
+          .analysis-blackout { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
         }
       `}</style>
@@ -339,6 +365,11 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </button>
         )}
       </div>
+
+      <div
+        aria-hidden
+        className={`analysis-blackout${reveal ? " reveal" : ""}`}
+      />
     </div>
   );
 }
