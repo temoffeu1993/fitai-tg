@@ -349,7 +349,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       </div>
 
       {/* Actions */}
-      <div style={s.actions}>
+      <div
+        style={s.actions}
+        className={showContent ? "onb-fade onb-fade-delay-5" : ""}
+      >
         <button
           type="button"
           style={s.primaryBtn}
