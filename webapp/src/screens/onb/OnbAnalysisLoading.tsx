@@ -111,6 +111,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
           --ring-size: 300px;
           --mascot-size: 196px;
           --text-size: 34px;
+          --text-box-height: 88px;
         }
         .loader-content {
           opacity: 0;
@@ -206,6 +207,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
             --ring-size: 250px;
             --mascot-size: 172px;
             --text-size: 28px;
+            --text-box-height: 72px;
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -270,7 +272,7 @@ const s: Record<string, React.CSSProperties> = {
     placeItems: "center",
   },
   textWrap: {
-    minHeight: 56,
+    height: "var(--text-box-height)",
     display: "grid",
     placeItems: "center",
     paddingBottom: 8,
