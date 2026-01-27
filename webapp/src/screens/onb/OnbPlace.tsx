@@ -203,12 +203,12 @@ export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) 
               if (isLeaving) return;
               const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
               if (prefersReduced) {
-                navigate("/onb/experience");
+                onBack();
                 return;
               }
               setIsLeaving(true);
               leaveTimerRef.current = window.setTimeout(() => {
-                navigate("/onb/experience");
+                onBack();
               }, 220);
             }}
             type="button"
