@@ -194,21 +194,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         }
       `}</style>
 
-      {/* Progress */}
-      <div
-        style={s.progressWrap}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
-      >
-        <div style={s.progressTrack}>
-          <div style={s.progressFill} />
-        </div>
-        <div style={s.progressText}>Анализ профиля</div>
-      </div>
-
       {/* Header */}
       <div
         style={s.header}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
       >
         <h1 style={s.title}>{userName} персональные метрики</h1>
         <p style={s.subtitle}>На основе твоих ответов</p>
@@ -219,7 +208,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 1: Calories - Main Card */}
         <div
           style={s.mainCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>⛽️</span>
@@ -244,7 +233,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 2: Macros (Protein/Fat/Carbs) */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -274,7 +263,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 3: Health Grid (Water + BMI) */}
         <div
           style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
           {/* Water Card */}
           <div style={s.smallCard}>
@@ -305,7 +294,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 4: Time Investment */}
         <div
           style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
           <div style={s.investmentHeader}>
             <span style={s.cardIcon}>⏳</span>
@@ -326,7 +315,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 5: Timeline */}
         <div
           style={s.timelineCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
           <div style={s.timelineHeader}>
             <span style={s.cardIcon}>🚀</span>
@@ -355,7 +344,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
       >
         <button
           type="button"
