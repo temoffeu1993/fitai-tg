@@ -160,7 +160,7 @@ export default function OnbWorkday({ initial, loading, onSubmit, onBack }: Props
       <div style={s.header} className="onb-fade onb-fade-delay-2">
         <h1 style={s.title}>Как проходит ваш обычный день?</h1>
         <p style={s.subtitle}>
-          Это поможет нам настроить программу так, чтобы вам хватало сил и на работу, и на спорт.
+          Учтём ваш ритм жизни, чтобы тренировки давали энергию, а не отнимали её
         </p>
       </div>
 
