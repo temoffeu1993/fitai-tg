@@ -86,9 +86,11 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
           --ring-size: 270px;
           --mascot-size: 176px;
           --text-size: 20px;
+        }
+        .loader-content {
           opacity: 0;
         }
-        .analysis-loader.onb-in {
+        .analysis-loader.onb-in .loader-content {
           animation: screenIn 360ms ease-out forwards;
         }
         .analysis-loader.onb-out .loader-content {

@@ -150,7 +150,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
     setIsLeaving(true);
     leaveTimerRef.current = window.setTimeout(() => {
       onSubmit(patch);
-    }, 280);
+    }, 420);
   };
 
   const shouldFadeOut = isLeaving && !fadeToBlack;
@@ -252,7 +252,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
           z-index: 40;
         }
         .blackout.blackout--on {
-          animation: blackoutIn 280ms ease-in forwards;
+          animation: blackoutIn 420ms ease-in forwards;
         }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade,
