@@ -54,6 +54,11 @@ export interface AnalysisResult {
     description: string;
     percentChange: number; // e.g., -15 or +10
   };
+  macros: {
+    protein: number;      // grams
+    fat: number;          // grams
+    carbs: number;        // grams
+  };
   water: {
     liters: number;
     glasses: number;      // ~250ml glasses
@@ -272,36 +277,90 @@ function calculateTargetCalories(
 }
 
 /**
+ * Calculate macros (protein, fat, carbs)
+ * Uses effective weight for protein calculation (prevents overestimation at high BMI)
+ */
+function calculateMacros(
+  targetCalories: number,
+  weight: number,
+  height: number,
+  goal: GoalType,
+  bmi: number
+): AnalysisResult['macros'] {
+  // Calculate effective weight for protein
+  // For high BMI users, we use adjusted weight to avoid excessive protein targets
+  // Formula: idealWeight + (currentWeight - idealWeight) * 0.25
+  let effectiveWeight: number;
+  if (bmi >= 30) {
+    const idealWeight = Math.round(height - 100); // Simplified ideal weight
+    effectiveWeight = idealWeight + (weight - idealWeight) * 0.25;
+  } else if (bmi >= 27) {
+    const idealWeight = Math.round(height - 100);
+    effectiveWeight = idealWeight + (weight - idealWeight) * 0.5;
+  } else {
+    effectiveWeight = weight;
+  }
+
+  // Protein: 1.8-2.2g per kg depending on goal
+  let proteinPerKg: number;
+  if (goal === 'build_muscle') {
+    proteinPerKg = 2.2; // Maximum for muscle growth
+  } else if (goal === 'lose_weight') {
+    proteinPerKg = 2.0; // High to preserve muscle during deficit
+  } else if (goal === 'athletic_body') {
+    proteinPerKg = 1.8; // Moderate-high for recomp
+  } else {
+    proteinPerKg = 1.6; // Adequate for health
+  }
+
+  const protein = Math.round(effectiveWeight * proteinPerKg);
+
+  // Fat: 0.8-1.0g per kg (minimum for hormones, ~25-30% of calories)
+  // Slightly higher for women (hormonal health)
+  const fatPerKg = goal === 'lose_weight' ? 0.8 : 1.0;
+  const fat = Math.round(effectiveWeight * fatPerKg);
+
+  // Carbs: remaining calories
+  // Protein = 4 cal/g, Fat = 9 cal/g, Carbs = 4 cal/g
+  const proteinCalories = protein * 4;
+  const fatCalories = fat * 9;
+  const remainingCalories = targetCalories - proteinCalories - fatCalories;
+  const carbs = Math.max(50, Math.round(remainingCalories / 4)); // Minimum 50g for brain function
+
+  return { protein, fat, carbs };
+}
+
+/**
  * Calculate water intake
- * Base: 33ml per kg, adjusted for activity and goal
+ * Base: 33ml per kg, adjusted for activity, goal, and workout duration
  */
 function calculateWater(
   weight: number,
   activityLevel: ActivityLevel,
   goal: GoalType,
-  workoutDays: number
+  workoutDays: number,
+  minutesPerSession: number = 60
 ): { liters: number; glasses: number } {
   // Base: 33ml per kg
-  let multiplier = 0.033;
+  let baseWater = weight * 0.033;
 
-  // Increase for active lifestyle
+  // Add for active lifestyle
   if (activityLevel === 'on_feet' || activityLevel === 'heavy_work') {
-    multiplier += 0.005;
+    baseWater += 0.3; // +300ml
   }
 
-  // Increase for frequent training
-  if (workoutDays >= 5) {
-    multiplier += 0.004;
-  } else if (workoutDays >= 4) {
-    multiplier += 0.002;
-  }
-
-  // Increase for fat loss (helps metabolism)
+  // Add for fat loss (helps metabolism)
   if (goal === 'lose_weight') {
-    multiplier += 0.003;
+    baseWater += 0.2; // +200ml
   }
 
-  const liters = Math.round(weight * multiplier * 10) / 10;
+  // Add for workout duration (spread over week)
+  // ~250ml per 30 min of training, averaged daily
+  const trainingWaterPerDay = (workoutDays * minutesPerSession * (250 / 30)) / 7;
+  baseWater += trainingWaterPerDay / 1000; // convert ml to liters
+
+  // Cap at reasonable maximum (4L)
+  const liters = Math.min(4.0, Math.round(baseWater * 10) / 10);
   const glasses = Math.round(liters / 0.25); // 250ml glasses
 
   return { liters, glasses };
@@ -520,13 +579,28 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
       calorieDescription = 'Баланс для поддержания формы.';
   }
 
-  // 7. Calculate water
-  const water = calculateWater(user.weight, user.activityLevel, user.goal, user.workoutDays);
+  // 7. Calculate macros
+  const macros = calculateMacros(
+    calorieResult.value,
+    user.weight,
+    user.height,
+    user.goal,
+    bmi.value
+  );
 
-  // 8. Calculate investment
+  // 8. Calculate water (now includes minutesPerSession)
+  const water = calculateWater(
+    user.weight,
+    user.activityLevel,
+    user.goal,
+    user.workoutDays,
+    minutesPerSession
+  );
+
+  // 9. Calculate investment
   const investment = calculateInvestment(user.workoutDays, minutesPerSession);
 
-  // 9. Generate timeline
+  // 10. Generate timeline
   const timeline = generateTimeline(user.goal, user.sex);
 
   return {
@@ -538,6 +612,7 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
       description: calorieDescription,
       percentChange: calorieResult.percentChange,
     },
+    macros,
     water,
     bmi,
     investment,

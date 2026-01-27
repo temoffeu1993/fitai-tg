@@ -211,7 +211,37 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           <p style={s.calorieDescription}>{analysis.calories.description}</p>
         </div>
 
-        {/* BLOCK 2: Health Grid (Water + BMI) */}
+        {/* BLOCK 2: Macros (Protein/Fat/Carbs) */}
+        <div
+          style={s.macrosCard}
+          className={showContent ? "onb-fade onb-fade-delay-3" : ""}
+        >
+          <div style={s.macrosHeader}>
+            <span style={s.cardIcon}>🍽️</span>
+            <span style={s.cardLabel}>БЖУ в день</span>
+          </div>
+          <div style={s.macrosGrid}>
+            <div style={s.macroItem}>
+              <div style={s.macroValue}>{analysis.macros.protein}</div>
+              <div style={s.macroLabel}>Белки</div>
+              <div style={s.macroUnit}>г</div>
+            </div>
+            <div style={s.macroDivider} />
+            <div style={s.macroItem}>
+              <div style={s.macroValue}>{analysis.macros.fat}</div>
+              <div style={s.macroLabel}>Жиры</div>
+              <div style={s.macroUnit}>г</div>
+            </div>
+            <div style={s.macroDivider} />
+            <div style={s.macroItem}>
+              <div style={s.macroValue}>{analysis.macros.carbs}</div>
+              <div style={s.macroLabel}>Углеводы</div>
+              <div style={s.macroUnit}>г</div>
+            </div>
+          </div>
+        </div>
+
+        {/* BLOCK 3: Health Grid (Water + BMI) */}
         <div
           style={s.gridRow}
           className={showContent ? "onb-fade onb-fade-delay-4" : ""}
@@ -242,7 +272,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 3: Time Investment */}
+        {/* BLOCK 4: Time Investment */}
         <div
           style={s.investmentCard}
           className={showContent ? "onb-fade onb-fade-delay-4" : ""}
@@ -263,7 +293,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 4: Timeline */}
+        {/* BLOCK 5: Timeline */}
         <div
           style={s.timelineCard}
           className={showContent ? "onb-fade onb-fade-delay-5" : ""}
@@ -443,6 +473,59 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: "rgba(15, 23, 42, 0.6)",
     lineHeight: 1.4,
+  },
+  // Macros Card
+  macrosCard: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    opacity: 0,
+  },
+  macrosHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  macrosGrid: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  macroItem: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 2,
+    flex: 1,
+  },
+  macroValue: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.1,
+  },
+  macroLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  macroUnit: {
+    fontSize: 11,
+    color: "rgba(15, 23, 42, 0.4)",
+  },
+  macroDivider: {
+    width: 1,
+    height: 40,
+    background: "rgba(15, 23, 42, 0.1)",
+    flexShrink: 0,
   },
   // Grid Row (Water + BMI)
   gridRow: {
