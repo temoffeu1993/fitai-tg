@@ -167,15 +167,15 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
         .exp-card {
           appearance: none;
           outline: none;
+          -webkit-tap-highlight-color: transparent;
           transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
           will-change: transform, background, border-color;
-          -webkit-tap-highlight-color: transparent;
         }
         .exp-card:active:not(:disabled) {
           transform: translateY(1px) scale(0.99);
-          background: var(--exp-bg) !important;
-          border-color: var(--exp-border) !important;
-          color: var(--exp-color) !important;
+          background: var(--tile-bg) !important;
+          border-color: var(--tile-border) !important;
+          color: var(--tile-color) !important;
         }
         .speech-bubble:before {
           content: "";
@@ -232,6 +232,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           .onb-fade-delay-3 { animation: none !important; }
           .onb-leave { animation: none !important; }
           .exp-card { transition: none !important; }
+          .workday-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
           .robot-swap { animation: none !important; }
         }
@@ -275,12 +276,12 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
               className="exp-card"
               style={{
                 ...s.card,
-                ["--exp-bg" as never]:
+                ["--tile-bg" as never]:
                   isActive
                     ? "#1e1f22"
                     : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                ["--exp-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                ["--exp-color" as never]: isActive ? "#fff" : "#1e1f22",
+                ["--tile-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                ["--tile-color" as never]: isActive ? "#fff" : "#1e1f22",
                 ...(isActive ? s.cardActive : {}),
               }}
               onClick={() => setExperience(item.value)}
@@ -397,28 +398,26 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
   },
   cards: {
-    marginTop: 6,
+    marginTop: 18,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
+    width: "100%",
   },
   card: {
     borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    border: "1px solid var(--tile-border)",
+    background: "var(--tile-bg)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    color: "#1e1f22",
+    color: "var(--tile-color)",
     fontSize: 18,
     fontWeight: 500,
-    padding: "16px 16px",
+    padding: "18px 16px",
     textAlign: "left",
-    height: 64,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
+    cursor: "pointer",
   },
   cardTitle: {
     fontSize: 18,
