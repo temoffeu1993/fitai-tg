@@ -1,8 +1,8 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import maleRobotImg from "@/assets/robonew.png";
-import femaleRobotImg from "@/assets/zhennew.png";
+import maleRobotImg from "@/assets/robonew.webp";
+import femaleRobotImg from "@/assets/zhennew.webp";
 
 export type Sex = "male" | "female";
 export type OnbAgeSexData = {
