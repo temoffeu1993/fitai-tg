@@ -62,7 +62,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     const prevOverscroll = root?.style.overscrollBehaviorY;
     if (root) {
       root.style.overflowY = "auto";
-      root.style.overscrollBehaviorY = "none";
+      root.style.overscrollBehaviorY = "auto";
       root.scrollTop = 0;
     }
     document.documentElement.scrollTop = 0;
@@ -189,6 +189,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade-delay-6 { animation-delay: 640ms; }
         .onb-fade-delay-7 { animation-delay: 760ms; }
         .onb-fade-delay-8 { animation-delay: 880ms; }
+        .onb-fade-delay-9 { animation-delay: 1000ms; }
+        .onb-fade-delay-6 { animation-delay: 640ms; }
+        .onb-fade-delay-7 { animation-delay: 760ms; }
+        .onb-fade-delay-8 { animation-delay: 880ms; }
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
@@ -239,10 +243,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       `}</style>
 
       {/* BLOCK 1: Mascot with Speech Bubble */}
-      <div
-        style={s.mascotRow}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
-      >
+        <div
+          style={s.mascotRow}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
+        >
         <img
           src={sex === "female" ? femaleRobotImg : maleRobotImg}
           alt="Mascot"
@@ -259,16 +263,31 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
       >
         <div style={s.chip}>
-          <span style={s.chipValue}>{age}</span>
-          <span style={s.chipLabel}>лет</span>
+          <div style={s.chipHeader}>
+            <span style={s.chipTitle}>Возраст</span>
+          </div>
+          <div style={s.chipValue}>
+            {age}
+            <span style={s.chipUnit}> лет</span>
+          </div>
         </div>
         <div style={s.chip}>
-          <span style={s.chipValue}>{height}</span>
-          <span style={s.chipLabel}>см</span>
+          <div style={s.chipHeader}>
+            <span style={s.chipTitle}>Рост</span>
+          </div>
+          <div style={s.chipValue}>
+            {height}
+            <span style={s.chipUnit}> см</span>
+          </div>
         </div>
         <div style={s.chip}>
-          <span style={s.chipValue}>{weight}</span>
-          <span style={s.chipLabel}>кг</span>
+          <div style={s.chipHeader}>
+            <span style={s.chipTitle}>Вес</span>
+          </div>
+          <div style={s.chipValue}>
+            {weight}
+            <span style={s.chipUnit}> кг</span>
+          </div>
         </div>
       </div>
 
@@ -293,7 +312,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 4: Fuel Card (Calories) */}
         <div
           style={s.mainCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>⛽️</span>
@@ -318,7 +337,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 5: Macros */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -348,7 +367,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 6: Water + BMI Grid */}
         <div
           style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
         >
           {/* Water Card */}
           <div style={s.smallCard}>
@@ -376,51 +395,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 7: Investment (Pie Chart) */}
-        <div
-          style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
-        >
-          <div style={s.investmentHeader}>
-            <span style={s.cardIcon}>💰</span>
-            <span style={s.cardLabel}>Цена успеха</span>
-          </div>
-          <div style={s.investmentContent}>
-            <div style={s.pieContainer}>
-              <svg viewBox="0 0 100 100" style={s.pieSvg}>
-                {/* Background circle (rest of life) */}
-                <circle cx="50" cy="50" r="45" fill="#e5e7eb" />
-                {/* Sport slice */}
-                <path
-                  d={describeArc(50, 50, 45, 0, pieAngle)}
-                  fill="#22c55e"
-                />
-                {/* Center hole for donut effect */}
-                <circle cx="50" cy="50" r="28" fill="white" />
-              </svg>
-              {/* Arrow pointing to green slice */}
-              <div style={s.pieLabel}>
-                <span style={s.pieLabelText}>спорт</span>
-                <svg width="24" height="24" viewBox="0 0 24 24" style={s.pieArrow}>
-                  <path
-                    d="M12 4 L20 12 L16 12 L16 20 L8 20 L8 12 L4 12 Z"
-                    fill="#22c55e"
-                    transform="rotate(-45 12 12)"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div style={s.investmentText}>
-              <div style={s.investmentPercent}>{analysis.investment.percent}</div>
-              <div style={s.investmentMain}>твоего времени в неделю</div>
-              <p style={s.investmentSub}>
-                Остальные {(100 - investPercent).toFixed(0)}% — на жизнь и отдых
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* BLOCK 8: Timeline */}
+        {/* BLOCK 7: Timeline */}
         <div
           style={s.timelineCard}
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
@@ -447,12 +422,48 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             ))}
           </div>
         </div>
+
+        {/* BLOCK 8: Investment (Pie Chart) */}
+        <div
+          style={s.investmentCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
+        >
+          <div style={s.investmentHeader}>
+            <span style={s.cardIcon}>💰</span>
+            <span style={s.cardLabel}>Цена успеха</span>
+          </div>
+          <div style={s.investmentContent}>
+            <div style={s.pieContainer}>
+              <svg viewBox="0 0 100 100" style={s.pieSvg}>
+                {/* Background circle (rest of life) */}
+                <circle cx="50" cy="50" r="45" fill="#e5e7eb" />
+                {/* Sport slice */}
+                <path
+                  d={describeArc(50, 50, 45, 0, pieAngle)}
+                  fill="#22c55e"
+                />
+                {/* Center hole for donut effect */}
+                <circle cx="50" cy="50" r="28" fill="white" />
+              </svg>
+              <div style={s.pieLabel}>
+                <span style={s.pieLabelText}>спорт</span>
+              </div>
+            </div>
+            <div style={s.investmentText}>
+              <div style={s.investmentPercent}>{analysis.investment.percent}</div>
+              <div style={s.investmentMain}>твоего времени в неделю</div>
+              <p style={s.investmentSub}>
+                Остальные {(100 - investPercent).toFixed(0)}% — на жизнь и отдых
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-9" : ""}`}
       >
         <button
           type="button"
@@ -566,29 +577,45 @@ const s: Record<string, React.CSSProperties> = {
 
   // Chips Row
   chipsRow: {
-    display: "flex",
-    gap: 10,
-    justifyContent: "center",
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+    width: "100%",
     opacity: 0,
   },
   chip: {
     display: "flex",
-    alignItems: "baseline",
-    gap: 4,
-    padding: "8px 14px",
-    borderRadius: 12,
+    flexDirection: "column",
+    gap: 6,
+    padding: "16px 14px",
+    borderRadius: 16,
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
     border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  },
+  chipHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  chipTitle: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
   chipValue: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: 700,
     color: "#0f172a",
+    lineHeight: 1.1,
   },
-  chipLabel: {
-    fontSize: 13,
+  chipUnit: {
+    fontSize: 14,
     fontWeight: 500,
     color: "rgba(15, 23, 42, 0.5)",
   },
@@ -841,10 +868,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#22c55e",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  pieArrow: {
-    marginTop: -2,
-    transform: "rotate(45deg)",
   },
   investmentText: {
     flex: 1,
