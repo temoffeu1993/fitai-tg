@@ -71,8 +71,15 @@ export interface AnalysisResult {
   };
   investment: {
     percent: string;
+    percentNum: number;   // For pie chart (e.g., 2.1)
     hoursPerWeek: number;
     minutesPerDay: number;
+  };
+  strategy: {
+    focus: string;        // e.g., "Фундамент силы"
+    tempo: 1 | 2 | 3;     // For fire icons
+    tempoLabel: string;   // e.g., "Уверенный"
+    description: string;  // Gender-aware description
   };
   timeline: TimelineItem[];
 }
@@ -418,11 +425,12 @@ function calculateInvestment(
 ): AnalysisResult['investment'] {
   const minutesPerWeek = workoutDays * minutesPerSession;
   const totalMinutesInWeek = 24 * 7 * 60; // 10080
-  const percent = ((minutesPerWeek / totalMinutesInWeek) * 100).toFixed(1) + '%';
+  const percentNum = Math.round((minutesPerWeek / totalMinutesInWeek) * 1000) / 10; // e.g., 2.1
+  const percent = percentNum.toFixed(1) + '%';
   const hoursPerWeek = Math.round((minutesPerWeek / 60) * 10) / 10;
   const minutesPerDay = Math.round(minutesPerWeek / 7);
 
-  return { percent, hoursPerWeek, minutesPerDay };
+  return { percent, percentNum, hoursPerWeek, minutesPerDay };
 }
 
 // ============================================================================
@@ -797,6 +805,153 @@ function generateTimeline(
 }
 
 // ============================================================================
+// STRATEGY GENERATION - Training focus, tempo, description
+// ============================================================================
+
+const STRATEGY_FOCUS: Record<GoalType, Record<ExperienceLevel, string>> = {
+  lose_weight: {
+    beginner: 'Минус лишнее',
+    intermediate: 'Тело проявляется',
+    advanced: 'Финальная огранка',
+  },
+  build_muscle: {
+    beginner: 'Фундамент силы',
+    intermediate: 'Рост и мощь',
+    advanced: 'Скульптура',
+  },
+  athletic_body: {
+    beginner: 'Тело в тонусе',
+    intermediate: 'Спортивный силуэт',
+    advanced: 'Атлет',
+  },
+  health_wellness: {
+    beginner: 'Бодрость и сила',
+    intermediate: 'Энергия ×2',
+    advanced: 'Тело-машина',
+  },
+};
+
+const STRATEGY_DESCRIPTIONS: Record<
+  GoalType,
+  Record<ExperienceLevel, Record<SexType, string>>
+> = {
+  lose_weight: {
+    beginner: {
+      male: 'Убираем лишнее, оставляем мужское. Рельеф уже близко!',
+      female: 'Убираем лишнее, сохраняем формы. Лёгкость уже близко!',
+    },
+    intermediate: {
+      male: 'Тело проявляется. Скоро зеркало станет другом.',
+      female: 'Силуэт проявляется. Скоро любая одежда — твоя.',
+    },
+    advanced: {
+      male: 'Последние штрихи. Ты знаешь, как это работает!',
+      female: 'Последние штрихи. Ты знаешь своё тело!',
+    },
+  },
+  build_muscle: {
+    beginner: {
+      male: 'Строим тело, которое уважают. Сила видна с первого взгляда.',
+      female: 'Строим формы, которые хочется показать. Сила + женственность.',
+    },
+    intermediate: {
+      male: 'Добавляем объём и мощь. Футболки будут жать!',
+      female: 'Добавляем форму и упругость. Тело скажет "вау"!',
+    },
+    advanced: {
+      male: 'Доводим до совершенства. Каждый грамм на месте.',
+      female: 'Доводим до совершенства. Точёные линии.',
+    },
+  },
+  athletic_body: {
+    beginner: {
+      male: 'Спортивное тело без лишнего. Двигайся легко, выгляди мощно.',
+      female: 'Спортивное тело без лишнего. Двигайся легко, выгляди круто.',
+    },
+    intermediate: {
+      male: 'Баланс силы и формы. Атлет в зеркале!',
+      female: 'Баланс формы и грации. Спортивная красота!',
+    },
+    advanced: {
+      male: 'Функционал + эстетика. Лучшая версия себя.',
+      female: 'Функционал + эстетика. Лучшая версия себя.',
+    },
+  },
+  health_wellness: {
+    beginner: {
+      male: 'Тело, которое служит. Сила для жизни, не для понтов.',
+      female: 'Тело, которое радует. Энергия на всё, осанка королевы.',
+    },
+    intermediate: {
+      male: 'Выносливость + энергия. Готов к любому дню!',
+      female: 'Выносливость + лёгкость. Готова к любому дню!',
+    },
+    advanced: {
+      male: 'Машина, которая не ломается. Инвестиция в себя.',
+      female: 'Тело мечты для жизни. Сила без компромиссов.',
+    },
+  },
+};
+
+const TEMPO_LABELS: Record<1 | 2 | 3, string> = {
+  1: 'Размеренный',
+  2: 'Уверенный',
+  3: 'Интенсивный',
+};
+
+/**
+ * Calculate training tempo based on workout frequency, duration, and age
+ */
+function calculateTempo(
+  workoutDays: number,
+  minutesPerSession: number,
+  age: number
+): { level: 1 | 2 | 3; label: string } {
+  // Base tempo from frequency
+  let tempo: number;
+  if (workoutDays <= 2) tempo = 1;
+  else if (workoutDays <= 3) tempo = 1.5;
+  else if (workoutDays === 4) tempo = 2;
+  else tempo = 2.5; // 5-6 days
+
+  // Modifier from session duration
+  if (minutesPerSession >= 90) tempo += 0.5;
+  if (minutesPerSession <= 45) tempo -= 0.5;
+
+  // Modifier from age
+  if (age >= 50) tempo -= 0.5;
+
+  // Clamp to 1-3
+  const level = Math.max(1, Math.min(3, Math.round(tempo))) as 1 | 2 | 3;
+
+  return { level, label: TEMPO_LABELS[level] };
+}
+
+/**
+ * Generate training strategy based on user profile
+ */
+function generateStrategy(
+  goal: GoalType,
+  sex: SexType,
+  experience: ExperienceLevel,
+  workoutDays: number,
+  minutesPerSession: number,
+  age: number
+): AnalysisResult['strategy'] {
+  const focus = STRATEGY_FOCUS[goal]?.[experience] || 'Твой путь';
+  const description =
+    STRATEGY_DESCRIPTIONS[goal]?.[experience]?.[sex] ||
+    'Персональная программа под твои цели.';
+  const { level: tempo, label: tempoLabel } = calculateTempo(
+    workoutDays,
+    minutesPerSession,
+    age
+  );
+
+  return { focus, tempo, tempoLabel, description };
+}
+
+// ============================================================================
 // 5. MAIN FUNCTION
 // ============================================================================
 
@@ -873,7 +1028,17 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
   // 9. Calculate investment
   const investment = calculateInvestment(user.workoutDays, minutesPerSession);
 
-  // 10. Generate timeline (now uses all user factors)
+  // 10. Generate strategy
+  const strategy = generateStrategy(
+    user.goal,
+    user.sex,
+    user.experience || 'beginner',
+    user.workoutDays,
+    minutesPerSession,
+    user.age
+  );
+
+  // 11. Generate timeline (now uses all user factors)
   const timeline = generateTimeline(
     user.goal,
     user.sex,
@@ -896,6 +1061,7 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
     water,
     bmi,
     investment,
+    strategy,
     timeline,
   };
 }

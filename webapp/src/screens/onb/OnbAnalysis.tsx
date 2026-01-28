@@ -1,7 +1,7 @@
 // webapp/src/screens/onb/OnbAnalysis.tsx
 // ============================================================================
 // ANALYSIS SCREEN - Shows personalized metrics before scheme selection
-// Displays: Calories, Water, BMI, Time Investment, Timeline
+// New structure: Profile, Strategy, Fuel, Water, Timeline, Investment
 // ============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +10,8 @@ import {
   buildUserContextFromDraft,
   type AnalysisResult,
 } from "@/utils/analyzeUserProfile";
+import maleRobotImg from "@/assets/robonew.png";
+import femaleRobotImg from "@/assets/zhennew.png";
 
 type Props = {
   draft: Record<string, any>;
@@ -22,6 +24,12 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [reveal, setReveal] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
+
+  // Extract user data
+  const sex = draft.ageSex?.sex as "male" | "female" | undefined;
+  const age = draft.ageSex?.age as number | undefined;
+  const weight = draft.body?.weight as number | undefined;
+  const height = draft.body?.height as number | undefined;
 
   // Build user context and analyze
   const analysis = useMemo<AnalysisResult | null>(() => {
@@ -128,7 +136,16 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     );
   }
 
-  const userName = draft.ageSex?.sex === "female" ? "Твои" : "Твои";
+  // Generate tempo fire icons
+  const tempoFires = "🔥".repeat(analysis.strategy.tempo) + "⚪".repeat(3 - analysis.strategy.tempo);
+
+  // Generate water glasses (max 12 to avoid overflow)
+  const glassCount = Math.min(analysis.water.glasses, 12);
+  const waterGlasses = "🥛".repeat(glassCount);
+
+  // Pie chart for investment
+  const investPercent = analysis.investment.percentNum;
+  const pieAngle = (investPercent / 100) * 360;
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -157,6 +174,8 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade-delay-3 { animation-delay: 280ms; }
         .onb-fade-delay-4 { animation-delay: 400ms; }
         .onb-fade-delay-5 { animation-delay: 520ms; }
+        .onb-fade-delay-6 { animation-delay: 640ms; }
+        .onb-fade-delay-7 { animation-delay: 760ms; }
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
@@ -199,18 +218,68 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         style={s.header}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
       >
-        <h1 style={s.title}>{userName} персональные метрики</h1>
+        <h1 style={s.title}>Твой персональный план</h1>
         <p style={s.subtitle}>На основе твоих ответов</p>
       </div>
 
       {/* Cards Container */}
       <div style={s.cardsContainer}>
-        {/* BLOCK 1: Calories - Main Card */}
+        {/* BLOCK 1: Profile Card (Mascot + Stats) */}
         <div
-          style={s.mainCard}
+          style={s.profileCard}
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
         >
-          <div style={s.mainCardHeader}>
+          <img
+            src={sex === "female" ? femaleRobotImg : maleRobotImg}
+            alt="Mascot"
+            style={s.mascotImg}
+          />
+          <div style={s.profileStats}>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Возраст</span>
+              <span style={s.statValue}>{age} лет</span>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Рост</span>
+              <span style={s.statValue}>{height} см</span>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Вес</span>
+              <span style={s.statValue}>{weight} кг</span>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>ИМТ</span>
+              <span style={{ ...s.statValue, color: analysis.bmi.color }}>
+                {analysis.bmi.value} ✓
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* BLOCK 2: Strategy Card */}
+        <div
+          style={s.strategyCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+        >
+          <div style={s.strategyHeader}>
+            <span style={s.cardIcon}>🎯</span>
+            <span style={s.cardLabel}>Твоя стратегия</span>
+          </div>
+          <div style={s.strategyInner}>
+            <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
+            <div style={s.strategyTempo}>
+              {analysis.strategy.tempoLabel} темп {tempoFires}
+            </div>
+          </div>
+          <p style={s.strategyDesc}>{analysis.strategy.description}</p>
+        </div>
+
+        {/* BLOCK 3: Fuel Card (Calories) */}
+        <div
+          style={s.fuelCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+        >
+          <div style={s.fuelHeader}>
             <span style={s.cardIcon}>⛽️</span>
             <span style={s.cardLabel}>Топливо</span>
           </div>
@@ -230,10 +299,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           <p style={s.calorieDescription}>{analysis.calories.description}</p>
         </div>
 
-        {/* BLOCK 2: Macros (Protein/Fat/Carbs) */}
+        {/* BLOCK 4: Macros */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -260,62 +329,27 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 3: Health Grid (Water + BMI) */}
+        {/* BLOCK 5: Water (full width with glasses) */}
         <div
-          style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          style={s.waterCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
-          {/* Water Card */}
-          <div style={s.smallCard}>
-            <div style={s.smallCardHeader}>
-              <span style={s.smallCardIcon}>💧</span>
-              <span style={s.smallCardLabel}>Вода</span>
-            </div>
-            <div style={s.smallCardValue}>
-              {analysis.water.liters}
-              <span style={s.smallCardUnit}> л/день</span>
-            </div>
-            <p style={s.smallCardSub}>~{analysis.water.glasses} стаканов</p>
+          <div style={s.waterHeader}>
+            <span style={s.cardIcon}>💧</span>
+            <span style={s.cardLabel}>Вода</span>
           </div>
-
-          {/* BMI Card */}
-          <div style={s.smallCard}>
-            <div style={s.smallCardHeader}>
-              <span style={s.smallCardIcon}>📊</span>
-              <span style={s.smallCardLabel}>ИМТ</span>
-            </div>
-            <div style={{ ...s.smallCardValue, color: analysis.bmi.color }}>
-              {analysis.bmi.value}
-            </div>
-            <p style={s.smallCardSub}>{analysis.bmi.title}</p>
+          <div style={s.waterValue}>
+            {analysis.water.liters}
+            <span style={s.waterUnit}> л/день</span>
           </div>
+          <div style={s.waterGlasses}>{waterGlasses}</div>
+          <p style={s.waterSub}>{analysis.water.glasses} стаканов</p>
         </div>
 
-        {/* BLOCK 4: Time Investment */}
-        <div
-          style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
-        >
-          <div style={s.investmentHeader}>
-            <span style={s.cardIcon}>⏳</span>
-            <span style={s.cardLabel}>Инвестиция времени</span>
-          </div>
-          <div style={s.investmentContent}>
-            <div style={s.investmentMain}>
-              <span style={s.investmentPercent}>{analysis.investment.percent}</span>
-              <span style={s.investmentText}> твоей недели</span>
-            </div>
-            <p style={s.investmentSub}>
-              {analysis.investment.hoursPerWeek} ч/нед ·{" "}
-              {analysis.investment.minutesPerDay} мин/день в среднем
-            </p>
-          </div>
-        </div>
-
-        {/* BLOCK 5: Timeline */}
+        {/* BLOCK 6: Timeline */}
         <div
           style={s.timelineCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
           <div style={s.timelineHeader}>
             <span style={s.cardIcon}>🚀</span>
@@ -339,12 +373,49 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             ))}
           </div>
         </div>
+
+        {/* BLOCK 7: Investment (Pie Chart) */}
+        <div
+          style={s.investmentCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
+        >
+          <div style={s.investmentHeader}>
+            <span style={s.cardIcon}>💰</span>
+            <span style={s.cardLabel}>Цена успеха</span>
+          </div>
+          <div style={s.investmentContent}>
+            <div style={s.pieContainer}>
+              <svg viewBox="0 0 100 100" style={s.pieSvg}>
+                {/* Background circle (rest of life) */}
+                <circle cx="50" cy="50" r="40" fill="#e5e7eb" />
+                {/* Sport slice */}
+                <path
+                  d={describeArc(50, 50, 40, 0, pieAngle)}
+                  fill="#22c55e"
+                />
+                {/* Center hole for donut effect */}
+                <circle cx="50" cy="50" r="25" fill="white" />
+              </svg>
+              <div style={s.pieCenter}>
+                <span style={s.piePercent}>{analysis.investment.percent}</span>
+              </div>
+            </div>
+            <div style={s.investmentText}>
+              <div style={s.investmentMain}>
+                Всего <strong>{analysis.investment.percent}</strong> твоей недели
+              </div>
+              <p style={s.investmentSub}>
+                ≈ {analysis.investment.hoursPerWeek} часов из 168
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
       >
         <button
           type="button"
@@ -371,6 +442,41 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 }
 
 // ============================================================================
+// SVG ARC HELPER for Pie Chart
+// ============================================================================
+
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number
+) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
+function describeArc(
+  x: number,
+  y: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return [
+    "M", x, y,
+    "L", start.x, start.y,
+    "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+    "Z",
+  ].join(" ");
+}
+
+// ============================================================================
 // STYLES
 // ============================================================================
 
@@ -387,31 +493,6 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
-  },
-  progressWrap: {
-    display: "grid",
-    gap: 8,
-    marginTop: 6,
-    opacity: 0,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.08)",
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    width: "92%",
-    background: "#1e1f22",
-    borderRadius: 999,
-    boxShadow:
-      "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
-  },
-  progressText: {
-    fontSize: 12,
-    color: "rgba(15, 23, 42, 0.55)",
-    textAlign: "center",
   },
   header: {
     display: "grid",
@@ -438,20 +519,104 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     marginTop: 8,
   },
-  // Main Calorie Card
-  mainCard: {
+
+  // Profile Card
+  profileCard: {
+    borderRadius: 20,
+    padding: "16px 18px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    opacity: 0,
+  },
+  mascotImg: {
+    width: 80,
+    height: 80,
+    objectFit: "contain",
+    flexShrink: 0,
+  },
+  profileStats: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  statRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "rgba(15, 23, 42, 0.6)",
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#0f172a",
+  },
+
+  // Strategy Card
+  strategyCard: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    opacity: 0,
+  },
+  strategyHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  strategyInner: {
+    borderRadius: 12,
+    padding: "14px 16px",
+    background: "rgba(15, 23, 42, 0.04)",
+    marginBottom: 12,
+  },
+  strategyFocus: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#0f172a",
+    marginBottom: 6,
+  },
+  strategyTempo: {
+    fontSize: 14,
+    color: "rgba(15, 23, 42, 0.7)",
+    letterSpacing: 0.3,
+  },
+  strategyDesc: {
+    margin: 0,
+    fontSize: 14,
+    color: "rgba(15, 23, 42, 0.7)",
+    lineHeight: 1.5,
+  },
+
+  // Fuel Card
+  fuelCard: {
     borderRadius: 20,
     padding: "20px 18px",
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow:
-      "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     opacity: 0,
   },
-  mainCardHeader: {
+  fuelHeader: {
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -501,6 +666,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
     lineHeight: 1.4,
   },
+
   // Macros Card
   macrosCard: {
     borderRadius: 16,
@@ -554,57 +720,9 @@ const s: Record<string, React.CSSProperties> = {
     background: "rgba(15, 23, 42, 0.1)",
     flexShrink: 0,
   },
-  // Grid Row (Water + BMI)
-  gridRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-    opacity: 0,
-  },
-  smallCard: {
-    borderRadius: 16,
-    padding: "16px 14px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-  },
-  smallCardHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  smallCardIcon: {
-    fontSize: 16,
-  },
-  smallCardLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  smallCardValue: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-  },
-  smallCardUnit: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.5)",
-  },
-  smallCardSub: {
-    margin: "4px 0 0",
-    fontSize: 13,
-    color: "rgba(15, 23, 42, 0.5)",
-  },
-  // Investment Card
-  investmentCard: {
+
+  // Water Card
+  waterCard: {
     borderRadius: 16,
     padding: "16px 18px",
     background:
@@ -615,37 +733,35 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(12px)",
     opacity: 0,
   },
-  investmentHeader: {
+  waterHeader: {
     display: "flex",
     alignItems: "center",
     gap: 8,
     marginBottom: 10,
   },
-  investmentContent: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  },
-  investmentMain: {
-    display: "flex",
-    alignItems: "baseline",
-  },
-  investmentPercent: {
+  waterValue: {
     fontSize: 32,
     fontWeight: 700,
     color: "#0f172a",
+    lineHeight: 1,
   },
-  investmentText: {
-    fontSize: 16,
+  waterUnit: {
+    fontSize: 18,
     fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.6)",
-    marginLeft: 4,
+    color: "rgba(15, 23, 42, 0.5)",
   },
-  investmentSub: {
-    margin: 0,
+  waterGlasses: {
+    fontSize: 24,
+    letterSpacing: 2,
+    marginTop: 10,
+    lineHeight: 1.4,
+  },
+  waterSub: {
+    margin: "6px 0 0",
     fontSize: 13,
     color: "rgba(15, 23, 42, 0.5)",
   },
+
   // Timeline Card
   timelineCard: {
     borderRadius: 16,
@@ -720,6 +836,66 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
     lineHeight: 1.4,
   },
+
+  // Investment Card (Pie Chart)
+  investmentCard: {
+    borderRadius: 16,
+    padding: "16px 18px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    opacity: 0,
+  },
+  investmentHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  investmentContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: 20,
+  },
+  pieContainer: {
+    position: "relative",
+    width: 90,
+    height: 90,
+    flexShrink: 0,
+  },
+  pieSvg: {
+    width: "100%",
+    height: "100%",
+  },
+  pieCenter: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  piePercent: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#0f172a",
+  },
+  investmentText: {
+    flex: 1,
+  },
+  investmentMain: {
+    fontSize: 16,
+    color: "#0f172a",
+    lineHeight: 1.4,
+  },
+  investmentSub: {
+    margin: "4px 0 0",
+    fontSize: 13,
+    color: "rgba(15, 23, 42, 0.5)",
+  },
+
   // Actions
   actions: {
     position: "fixed",
