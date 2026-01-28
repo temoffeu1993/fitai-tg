@@ -599,7 +599,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   strategyTempoRow: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 10,
     marginTop: 10,
   },
@@ -607,6 +607,8 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 600,
     color: "#0f172a",
+    lineHeight: 1,
+    paddingBottom: 2,
   },
   tempoBars: {
     display: "flex",
