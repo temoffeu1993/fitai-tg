@@ -810,24 +810,24 @@ function generateTimeline(
 
 const STRATEGY_FOCUS: Record<GoalType, Record<ExperienceLevel, string>> = {
   lose_weight: {
-    beginner: 'Минус лишнее',
-    intermediate: 'Тело проявляется',
-    advanced: 'Финальная огранка',
+    beginner: 'Много движений, мало отдыха',
+    intermediate: 'Темп выше, паузы короче',
+    advanced: 'Максимум интенсивности, минимум простоя',
   },
   build_muscle: {
-    beginner: 'Фундамент силы',
-    intermediate: 'Рост и мощь',
-    advanced: 'Скульптура',
+    beginner: 'Техника важнее веса',
+    intermediate: 'Меньше повторений, больше нагрузки',
+    advanced: 'Каждый подход — на пределе',
   },
   athletic_body: {
-    beginner: 'Тело в тонусе',
-    intermediate: 'Спортивный силуэт',
-    advanced: 'Атлет',
+    beginner: 'Сила + кардио: мягкий микс',
+    intermediate: 'Баланс силы и формы',
+    advanced: 'Точная настройка тела',
   },
   health_wellness: {
-    beginner: 'Бодрость и сила',
-    intermediate: 'Энергия ×2',
-    advanced: 'Тело-машина',
+    beginner: 'Плавно, регулярно, без надрыва',
+    intermediate: 'Стабильный ритм, растущая нагрузка',
+    advanced: 'Тело как часы, тренировки как привычка',
   },
 };
 
