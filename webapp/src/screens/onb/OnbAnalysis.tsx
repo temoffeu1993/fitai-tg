@@ -30,10 +30,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 
   const bubbleTarget = useMemo(() => {
     const goal = draft.motivation?.goal || draft.goals?.primary;
-    if (goal === "lose_weight") return "Я нашел способ худеть\nбез голода и стресса";
-    if (goal === "build_muscle") return "Запускаем режим\nмаксимального роста";
-    if (goal === "athletic_body") return "Сделаем тело, которое\nхочется показать";
-    if (goal === "health_wellness") return "Зарядим твою батарейку\nна все 100%";
+    if (goal === "lose_weight") return "Я нашел способ худеть без голода и стресса";
+    if (goal === "build_muscle") return "Запускаем режим максимального роста";
+    if (goal === "athletic_body") return "Сделаем тело, которое хочется показать";
+    if (goal === "health_wellness") return "Зарядим твою батарейку на все 100%";
     return DEFAULT_BUBBLE_TEXT;
   }, [draft]);
 
