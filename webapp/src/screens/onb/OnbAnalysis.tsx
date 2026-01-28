@@ -608,7 +608,8 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: "#0f172a",
     lineHeight: 1,
-    paddingBottom: 2,
+    paddingBottom: 0,
+    transform: "translateY(2px)",
   },
   tempoBars: {
     display: "flex",
