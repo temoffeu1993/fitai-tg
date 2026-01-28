@@ -30,10 +30,6 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 
   // Extract user data
   const sex = draft.ageSex?.sex as "male" | "female" | undefined;
-  const age = draft.ageSex?.age as number | undefined;
-  const weight = draft.body?.weight as number | undefined;
-  const height = draft.body?.height as number | undefined;
-
   // Build user context and analyze
   const analysis = useMemo<AnalysisResult | null>(() => {
     const userContext = buildUserContextFromDraft(draft);
@@ -181,17 +177,14 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade {
           animation: onbFadeUp 520ms ease-out both;
         }
-        .onb-fade-delay-1 { animation-delay: 120ms; }
-        .onb-fade-delay-2 { animation-delay: 420ms; }
-        .onb-fade-delay-3 { animation-delay: 720ms; }
-        .onb-fade-delay-4 { animation-delay: 1020ms; }
-        .onb-fade-delay-5 { animation-delay: 1320ms; }
-        .onb-fade-delay-6 { animation-delay: 1620ms; }
-        .onb-fade-delay-7 { animation-delay: 1920ms; }
-        .onb-fade-delay-8 { animation-delay: 2220ms; }
-        .onb-fade-delay-6 { animation-delay: 640ms; }
-        .onb-fade-delay-7 { animation-delay: 760ms; }
-        .onb-fade-delay-8 { animation-delay: 880ms; }
+        .onb-fade-delay-1 { animation-delay: 160ms; }
+        .onb-fade-delay-2 { animation-delay: 760ms; }
+        .onb-fade-delay-3 { animation-delay: 1360ms; }
+        .onb-fade-delay-4 { animation-delay: 1960ms; }
+        .onb-fade-delay-5 { animation-delay: 2560ms; }
+        .onb-fade-delay-6 { animation-delay: 3160ms; }
+        .onb-fade-delay-7 { animation-delay: 3760ms; }
+        .onb-fade-delay-8 { animation-delay: 4360ms; }
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
@@ -269,7 +262,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
           <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
           <div style={s.strategyTempoRow}>
-            <span style={s.strategyTempoLabel}>{analysis.strategy.tempoLabel} темп</span>
+            <span style={s.strategyIntensityLabel}>Интенсивность</span>
             <div style={s.tempoBars}>
               <div style={{ ...s.tempoBar, ...s.tempoBar1, background: tempoLevel >= 1 ? "#1e1f22" : "#e5e7eb" }} />
               <div style={{ ...s.tempoBar, ...s.tempoBar2, background: tempoLevel >= 2 ? "#1e1f22" : "#e5e7eb" }} />
@@ -610,10 +603,10 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     marginTop: 10,
   },
-  strategyTempoLabel: {
-    fontSize: 15,
-    color: "rgba(15, 23, 42, 0.7)",
-    letterSpacing: 0.3,
+  strategyIntensityLabel: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#0f172a",
   },
   tempoBars: {
     display: "flex",
