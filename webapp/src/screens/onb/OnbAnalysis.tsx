@@ -124,7 +124,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       if (index >= bubbleTarget.length) {
         window.clearInterval(typeInterval);
       }
-    }, 18);
+    }, 30);
 
     return () => {
       window.clearTimeout(t1);
@@ -208,14 +208,14 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade {
           animation: onbFadeUp 520ms ease-out both;
         }
-        .onb-fade-delay-1 { animation-delay: 160ms; }
-        .onb-fade-delay-2 { animation-delay: 760ms; }
-        .onb-fade-delay-3 { animation-delay: 1360ms; }
-        .onb-fade-delay-4 { animation-delay: 1960ms; }
-        .onb-fade-delay-5 { animation-delay: 2560ms; }
-        .onb-fade-delay-6 { animation-delay: 3160ms; }
-        .onb-fade-delay-7 { animation-delay: 3760ms; }
-        .onb-fade-delay-8 { animation-delay: 4360ms; }
+        .onb-fade-delay-1 { animation-delay: 220ms; }
+        .onb-fade-delay-2 { animation-delay: 1120ms; }
+        .onb-fade-delay-3 { animation-delay: 2020ms; }
+        .onb-fade-delay-4 { animation-delay: 2920ms; }
+        .onb-fade-delay-5 { animation-delay: 3820ms; }
+        .onb-fade-delay-6 { animation-delay: 4720ms; }
+        .onb-fade-delay-7 { animation-delay: 5620ms; }
+        .onb-fade-delay-8 { animation-delay: 6520ms; }
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
@@ -331,7 +331,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 5: Fuel Card (Calories) */}
+        {/* BLOCK 5: Fuel + Macros */}
         <div
           style={s.mainCard}
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
@@ -352,18 +352,6 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
                 {analysis.calories.percentChange}%
               </span>
             )}
-          </div>
-          <p style={s.calorieDescription}>{analysis.calories.description}</p>
-        </div>
-
-        {/* BLOCK 6: Macros */}
-        <div
-          style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
-        >
-          <div style={s.macrosHeader}>
-            <span style={s.cardIcon}>🍽️</span>
-            <span style={s.cardLabel}>БЖУ в день</span>
           </div>
           {(() => {
             const p = analysis.macros.protein;
@@ -398,12 +386,13 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
               </div>
             );
           })()}
+          <p style={s.calorieDescription}>{analysis.calories.description}</p>
         </div>
 
-        {/* BLOCK 7: Water + BMI Grid */}
+        {/* BLOCK 6: Water + BMI Grid */}
         <div
           style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
           {/* Water Card */}
           <div style={s.smallCard}>
@@ -431,10 +420,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 8: Investment (Pie Chart) */}
+        {/* BLOCK 7: Investment (Pie Chart) */}
         <div
           style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
         >
           <div style={s.investmentHeader}>
             <span style={s.cardIcon}>💰</span>
@@ -471,7 +460,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
       >
         <button
           type="button"
@@ -706,59 +695,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
   },
 
-  // Macros Card
-  macrosCard: {
-    borderRadius: 16,
-    padding: "16px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    opacity: 0,
-  },
-  macrosHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  macrosGrid: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  macroItem: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 2,
-    flex: 1,
-  },
-  macroValue: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-  },
-  macroLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  macroUnit: {
-    fontSize: 11,
-    color: "rgba(15, 23, 42, 0.4)",
-  },
-  macroDivider: {
-    width: 1,
-    height: 40,
-    background: "rgba(15, 23, 42, 0.1)",
-    flexShrink: 0,
-  },
+  // Macros
   macrosContainer: {
     display: "flex",
     flexDirection: "column",
