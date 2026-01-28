@@ -313,25 +313,39 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             <span style={s.cardIcon}>🍽️</span>
             <span style={s.cardLabel}>БЖУ в день</span>
           </div>
-          <div style={s.macrosGrid}>
-            <div style={s.macroItem}>
-              <div style={s.macroValue}>{analysis.macros.protein}</div>
-              <div style={s.macroLabel}>Белки</div>
-              <div style={s.macroUnit}>г</div>
-            </div>
-            <div style={s.macroDivider} />
-            <div style={s.macroItem}>
-              <div style={s.macroValue}>{analysis.macros.fat}</div>
-              <div style={s.macroLabel}>Жиры</div>
-              <div style={s.macroUnit}>г</div>
-            </div>
-            <div style={s.macroDivider} />
-            <div style={s.macroItem}>
-              <div style={s.macroValue}>{analysis.macros.carbs}</div>
-              <div style={s.macroLabel}>Углеводы</div>
-              <div style={s.macroUnit}>г</div>
-            </div>
-          </div>
+          {(() => {
+            const p = analysis.macros.protein;
+            const f = analysis.macros.fat;
+            const c = analysis.macros.carbs;
+            const total = Math.max(p + f + c, 1);
+            const pWidth = (p / total) * 100;
+            const fWidth = (f / total) * 100;
+            const cWidth = (c / total) * 100;
+
+            return (
+              <div style={s.macrosContainer}>
+                <div style={s.macrosBar}>
+                  <div style={{ ...s.macrosSegment, width: `${pWidth}%`, background: "#3B82F6" }} />
+                  <div style={{ ...s.macrosSegment, width: `${fWidth}%`, background: "#EAB308" }} />
+                  <div style={{ ...s.macrosSegment, width: `${cWidth}%`, background: "#22C55E" }} />
+                </div>
+                <div style={s.macrosLegend}>
+                  <div style={s.legendItem}>
+                    <div style={{ ...s.legendDot, background: "#3B82F6" }} />
+                    <span>Белки {p}г</span>
+                  </div>
+                  <div style={s.legendItem}>
+                    <div style={{ ...s.legendDot, background: "#EAB308" }} />
+                    <span>Жиры {f}г</span>
+                  </div>
+                  <div style={s.legendItem}>
+                    <div style={{ ...s.legendDot, background: "#22C55E" }} />
+                    <span>Углеводы {c}г</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* BLOCK 6: Water + BMI Grid */}
@@ -714,6 +728,43 @@ const s: Record<string, React.CSSProperties> = {
     height: 40,
     background: "rgba(15, 23, 42, 0.1)",
     flexShrink: 0,
+  },
+  macrosContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    marginTop: 8,
+  },
+  macrosBar: {
+    display: "flex",
+    height: 16,
+    borderRadius: 10,
+    overflow: "hidden",
+    width: "100%",
+    background: "#F1F5F9",
+  },
+  macrosSegment: {
+    height: "100%",
+    transition: "width 1s ease-out",
+  },
+  macrosLegend: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: 500,
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  legendItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
   },
 
   // Grid Row (Water + BMI)
