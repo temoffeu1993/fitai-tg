@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 // Redesigned: Mascot + bubble, large selected card, compact alternatives
+// Uses workout slots (train cars) instead of week calendar
 import { useEffect, useMemo, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -11,6 +12,7 @@ import {
   type UserGoal,
   type ExperienceLevel,
 } from "@/utils/getSchemeDisplayData";
+import { BodyIcon, getDayHighlight } from "@/components/BodyIcon";
 import maleRobotImg from "@/assets/robonew.webp";
 
 type Props = {
@@ -252,17 +254,6 @@ function SelectedSchemeCard({
     userContext
   );
 
-  // Build week calendar
-  const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-  const trainingDays = new Set<number>();
-
-  // Map dayLabels to week positions (assuming day 1 = Monday, etc.)
-  scheme.dayLabels.forEach(d => {
-    if (d.day >= 1 && d.day <= 7) {
-      trainingDays.add(d.day - 1);
-    }
-  });
-
   return (
     <div style={s.selectedCard}>
       {scheme.isRecommended && (
@@ -284,32 +275,23 @@ function SelectedSchemeCard({
         </span>
       </div>
 
-      {/* Week Calendar */}
-      <div style={s.weekCalendar}>
-        {weekDays.map((day, idx) => {
-          const isTraining = trainingDays.has(idx);
-          return (
-            <div key={day} style={s.weekDay}>
-              <div style={s.weekDayLabel}>{day}</div>
-              <div style={{
-                ...s.weekDayIcon,
-                background: isTraining ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)",
-              }}>
-                {isTraining ? "💪" : "😴"}
+      {/* Workout Slots (Train Cars) */}
+      <div style={s.slotsSection}>
+        <div style={s.slotsLabel}>ТВОЯ НЕДЕЛЯ</div>
+        <div style={s.slotsContainer}>
+          {scheme.dayLabels.map((d, i) => {
+            const highlight = getDayHighlight(scheme.splitType, d.label);
+            return (
+              <div key={i} style={s.slotCard}>
+                <div style={s.slotIconWrap}>
+                  <BodyIcon highlight={highlight} size={36} />
+                </div>
+                <div style={s.slotLabel}>{d.label}</div>
+                <div style={s.slotDay}>День {d.day}</div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Day details */}
-      <div style={s.dayDetails}>
-        {scheme.dayLabels.map((d, i) => (
-          <div key={i} style={s.dayDetailItem}>
-            <span style={s.dayDetailNum}>День {d.day}</span>
-            <span style={s.dayDetailLabel}>{d.label}</span>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
 
       <p style={s.selectedDescription}>{displayData.description}</p>
@@ -503,58 +485,57 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.9)",
   },
 
-  // Week Calendar
-  weekCalendar: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: 6,
+  // Workout Slots (Train Cars)
+  slotsSection: {
     marginBottom: 16,
   },
-  weekDay: {
+  slotsLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.5)",
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  slotsContainer: {
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    paddingBottom: 4,
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+  },
+  slotCard: {
+    flex: "0 0 auto",
+    minWidth: 80,
+    padding: "12px 10px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.1)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
-  weekDayLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-  },
-  weekDayIcon: {
-    width: 36,
-    height: 36,
+  slotIconWrap: {
+    width: 44,
+    height: 44,
     borderRadius: 10,
+    background: "rgba(255,255,255,0.05)",
     display: "grid",
     placeItems: "center",
-    fontSize: 16,
   },
-
-  // Day details
-  dayDetails: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 14,
-  },
-  dayDetailItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "6px 10px",
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.08)",
-  },
-  dayDetailNum: {
+  slotLabel: {
     fontSize: 11,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.6)",
-  },
-  dayDetailLabel: {
-    fontSize: 12,
     fontWeight: 600,
     color: "#fff",
+    textAlign: "center",
+    lineHeight: 1.2,
+    maxWidth: 70,
+  },
+  slotDay: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.4)",
   },
 
   selectedDescription: {
