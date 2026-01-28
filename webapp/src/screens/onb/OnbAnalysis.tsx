@@ -1,7 +1,7 @@
 // webapp/src/screens/onb/OnbAnalysis.tsx
 // ============================================================================
 // ANALYSIS SCREEN - Shows personalized metrics before scheme selection
-// New structure: Profile, Strategy, Fuel, Water, Timeline, Investment
+// New structure: Mascot+Bubble, Chips, Strategy, Fuel, Macros, Water+BMI, Investment, Timeline
 // ============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -19,10 +19,13 @@ type Props = {
   onBack?: () => void;
 };
 
+const BUBBLE_TEXT = "Я подготовил твой\nперсональный план";
+
 export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [reveal, setReveal] = useState(false);
+  const [bubbleText, setBubbleText] = useState("");
   const leaveTimerRef = useRef<number | null>(null);
 
   // Extract user data
@@ -72,7 +75,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     };
   }, []);
 
-  // Staggered content reveal
+  // Staggered content reveal + bubble typing effect
   useEffect(() => {
     const prefersReduced = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)"
@@ -80,13 +83,26 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     if (prefersReduced) {
       setReveal(true);
       setShowContent(true);
+      setBubbleText(BUBBLE_TEXT);
       return;
     }
     const t1 = window.setTimeout(() => setReveal(true), 30);
     const t2 = window.setTimeout(() => setShowContent(true), 200);
+
+    // Typing effect for bubble
+    let index = 0;
+    const typeInterval = window.setInterval(() => {
+      index += 1;
+      setBubbleText(BUBBLE_TEXT.slice(0, index));
+      if (index >= BUBBLE_TEXT.length) {
+        window.clearInterval(typeInterval);
+      }
+    }, 18);
+
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearInterval(typeInterval);
     };
   }, []);
 
@@ -139,10 +155,6 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   // Generate tempo fire icons
   const tempoFires = "🔥".repeat(analysis.strategy.tempo) + "⚪".repeat(3 - analysis.strategy.tempo);
 
-  // Generate water glasses (max 12 to avoid overflow)
-  const glassCount = Math.min(analysis.water.glasses, 12);
-  const waterGlasses = "🥛".repeat(glassCount);
-
   // Pie chart for investment
   const investPercent = analysis.investment.percentNum;
   const pieAngle = (investPercent / 100) * 360;
@@ -176,6 +188,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade-delay-5 { animation-delay: 520ms; }
         .onb-fade-delay-6 { animation-delay: 640ms; }
         .onb-fade-delay-7 { animation-delay: 760ms; }
+        .onb-fade-delay-8 { animation-delay: 880ms; }
         .onb-leave {
           animation: onbFadeDown 220ms ease-in both;
         }
@@ -195,6 +208,18 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .analysis-blackout.reveal {
           opacity: 0;
         }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
         .intro-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -213,73 +238,64 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         }
       `}</style>
 
-      {/* Header */}
+      {/* BLOCK 1: Mascot with Speech Bubble */}
       <div
-        style={s.header}
+        style={s.mascotRow}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
       >
-        <h1 style={s.title}>Твой персональный план</h1>
-        <p style={s.subtitle}>На основе твоих ответов</p>
+        <img
+          src={sex === "female" ? femaleRobotImg : maleRobotImg}
+          alt="Mascot"
+          style={s.mascotImg}
+        />
+        <div style={s.bubble} className="speech-bubble">
+          <span style={s.bubbleText}>{bubbleText}</span>
+        </div>
+      </div>
+
+      {/* BLOCK 2: Chips (Age, Height, Weight) */}
+      <div
+        style={s.chipsRow}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+      >
+        <div style={s.chip}>
+          <span style={s.chipValue}>{age}</span>
+          <span style={s.chipLabel}>лет</span>
+        </div>
+        <div style={s.chip}>
+          <span style={s.chipValue}>{height}</span>
+          <span style={s.chipLabel}>см</span>
+        </div>
+        <div style={s.chip}>
+          <span style={s.chipValue}>{weight}</span>
+          <span style={s.chipLabel}>кг</span>
+        </div>
       </div>
 
       {/* Cards Container */}
       <div style={s.cardsContainer}>
-        {/* BLOCK 1: Profile Card (Mascot + Stats) */}
+        {/* BLOCK 3: Strategy Card (styled like Fuel) */}
         <div
-          style={s.profileCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+          style={s.mainCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
-          <img
-            src={sex === "female" ? femaleRobotImg : maleRobotImg}
-            alt="Mascot"
-            style={s.mascotImg}
-          />
-          <div style={s.profileStats}>
-            <div style={s.statRow}>
-              <span style={s.statLabel}>Возраст</span>
-              <span style={s.statValue}>{age} лет</span>
-            </div>
-            <div style={s.statRow}>
-              <span style={s.statLabel}>Рост</span>
-              <span style={s.statValue}>{height} см</span>
-            </div>
-            <div style={s.statRow}>
-              <span style={s.statLabel}>Вес</span>
-              <span style={s.statValue}>{weight} кг</span>
-            </div>
-            <div style={s.statRow}>
-              <span style={s.statLabel}>ИМТ</span>
-              <span style={{ ...s.statValue, color: analysis.bmi.color }}>
-                {analysis.bmi.value} ✓
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* BLOCK 2: Strategy Card */}
-        <div
-          style={s.strategyCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
-        >
-          <div style={s.strategyHeader}>
+          <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>🎯</span>
             <span style={s.cardLabel}>Твоя стратегия</span>
           </div>
-          <div style={s.strategyInner}>
-            <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
-            <div style={s.strategyTempo}>
-              {analysis.strategy.tempoLabel} темп {tempoFires}
-            </div>
+          <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
+          <div style={s.strategyTempo}>
+            {analysis.strategy.tempoLabel} темп {tempoFires}
           </div>
           <p style={s.strategyDesc}>{analysis.strategy.description}</p>
         </div>
 
-        {/* BLOCK 3: Fuel Card (Calories) */}
+        {/* BLOCK 4: Fuel Card (Calories) */}
         <div
-          style={s.fuelCard}
+          style={s.mainCard}
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
-          <div style={s.fuelHeader}>
+          <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>⛽️</span>
             <span style={s.cardLabel}>Топливо</span>
           </div>
@@ -299,10 +315,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           <p style={s.calorieDescription}>{analysis.calories.description}</p>
         </div>
 
-        {/* BLOCK 4: Macros */}
+        {/* BLOCK 5: Macros */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -329,27 +345,85 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           </div>
         </div>
 
-        {/* BLOCK 5: Water (full width with glasses) */}
+        {/* BLOCK 6: Water + BMI Grid */}
         <div
-          style={s.waterCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          style={s.gridRow}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
-          <div style={s.waterHeader}>
-            <span style={s.cardIcon}>💧</span>
-            <span style={s.cardLabel}>Вода</span>
+          {/* Water Card */}
+          <div style={s.smallCard}>
+            <div style={s.smallCardHeader}>
+              <span style={s.smallCardIcon}>💧</span>
+              <span style={s.smallCardLabel}>Вода</span>
+            </div>
+            <div style={s.smallCardValue}>
+              {analysis.water.liters}
+              <span style={s.smallCardUnit}> л/день</span>
+            </div>
+            <p style={s.smallCardSub}>~{analysis.water.glasses} стаканов</p>
           </div>
-          <div style={s.waterValue}>
-            {analysis.water.liters}
-            <span style={s.waterUnit}> л/день</span>
+
+          {/* BMI Card */}
+          <div style={s.smallCard}>
+            <div style={s.smallCardHeader}>
+              <span style={s.smallCardIcon}>📊</span>
+              <span style={s.smallCardLabel}>ИМТ</span>
+            </div>
+            <div style={{ ...s.smallCardValue, color: analysis.bmi.color }}>
+              {analysis.bmi.value}
+            </div>
+            <p style={s.smallCardSub}>{analysis.bmi.title}</p>
           </div>
-          <div style={s.waterGlasses}>{waterGlasses}</div>
-          <p style={s.waterSub}>{analysis.water.glasses} стаканов</p>
         </div>
 
-        {/* BLOCK 6: Timeline */}
+        {/* BLOCK 7: Investment (Pie Chart) */}
+        <div
+          style={s.investmentCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
+        >
+          <div style={s.investmentHeader}>
+            <span style={s.cardIcon}>💰</span>
+            <span style={s.cardLabel}>Цена успеха</span>
+          </div>
+          <div style={s.investmentContent}>
+            <div style={s.pieContainer}>
+              <svg viewBox="0 0 100 100" style={s.pieSvg}>
+                {/* Background circle (rest of life) */}
+                <circle cx="50" cy="50" r="45" fill="#e5e7eb" />
+                {/* Sport slice */}
+                <path
+                  d={describeArc(50, 50, 45, 0, pieAngle)}
+                  fill="#22c55e"
+                />
+                {/* Center hole for donut effect */}
+                <circle cx="50" cy="50" r="28" fill="white" />
+              </svg>
+              {/* Arrow pointing to green slice */}
+              <div style={s.pieLabel}>
+                <span style={s.pieLabelText}>спорт</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" style={s.pieArrow}>
+                  <path
+                    d="M12 4 L20 12 L16 12 L16 20 L8 20 L8 12 L4 12 Z"
+                    fill="#22c55e"
+                    transform="rotate(-45 12 12)"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div style={s.investmentText}>
+              <div style={s.investmentPercent}>{analysis.investment.percent}</div>
+              <div style={s.investmentMain}>твоего времени в неделю</div>
+              <p style={s.investmentSub}>
+                Остальные {(100 - investPercent).toFixed(0)}% — на жизнь и отдых
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* BLOCK 8: Timeline */}
         <div
           style={s.timelineCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
         >
           <div style={s.timelineHeader}>
             <span style={s.cardIcon}>🚀</span>
@@ -373,49 +447,12 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             ))}
           </div>
         </div>
-
-        {/* BLOCK 7: Investment (Pie Chart) */}
-        <div
-          style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
-        >
-          <div style={s.investmentHeader}>
-            <span style={s.cardIcon}>💰</span>
-            <span style={s.cardLabel}>Цена успеха</span>
-          </div>
-          <div style={s.investmentContent}>
-            <div style={s.pieContainer}>
-              <svg viewBox="0 0 100 100" style={s.pieSvg}>
-                {/* Background circle (rest of life) */}
-                <circle cx="50" cy="50" r="40" fill="#e5e7eb" />
-                {/* Sport slice */}
-                <path
-                  d={describeArc(50, 50, 40, 0, pieAngle)}
-                  fill="#22c55e"
-                />
-                {/* Center hole for donut effect */}
-                <circle cx="50" cy="50" r="25" fill="white" />
-              </svg>
-              <div style={s.pieCenter}>
-                <span style={s.piePercent}>{analysis.investment.percent}</span>
-              </div>
-            </div>
-            <div style={s.investmentText}>
-              <div style={s.investmentMain}>
-                Всего <strong>{analysis.investment.percent}</strong> твоей недели
-              </div>
-              <p style={s.investmentSub}>
-                ≈ {analysis.investment.hoursPerWeek} часов из 168
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
       >
         <button
           type="button"
@@ -494,129 +531,89 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#0f172a",
   },
-  header: {
+
+  // Mascot Row
+  mascotRow: {
     display: "grid",
-    gap: 6,
-    textAlign: "center",
+    gridTemplateColumns: "auto 1fr",
+    alignItems: "center",
+    gap: 12,
     marginTop: 8,
     opacity: 0,
   },
-  title: {
-    margin: 0,
-    fontSize: 28,
-    lineHeight: 1.15,
+  mascotImg: {
+    width: 140,
+    height: "auto",
+    objectFit: "contain",
+  },
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
+    color: "#0f172a",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+  },
+  bubbleText: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.35,
+    color: "#0f172a",
+    whiteSpace: "pre-line",
+  },
+
+  // Chips Row
+  chipsRow: {
+    display: "flex",
+    gap: 10,
+    justifyContent: "center",
+    opacity: 0,
+  },
+  chip: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 4,
+    padding: "8px 14px",
+    borderRadius: 12,
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+  },
+  chipValue: {
+    fontSize: 18,
     fontWeight: 700,
-    letterSpacing: -0.5,
+    color: "#0f172a",
   },
-  subtitle: {
-    margin: 0,
-    fontSize: 15,
-    color: "rgba(15, 23, 42, 0.6)",
+  chipLabel: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(15, 23, 42, 0.5)",
   },
+
   cardsContainer: {
     display: "flex",
     flexDirection: "column",
     gap: 12,
-    marginTop: 8,
+    marginTop: 4,
   },
 
-  // Profile Card
-  profileCard: {
-    borderRadius: 20,
-    padding: "16px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    opacity: 0,
-  },
-  mascotImg: {
-    width: 80,
-    height: 80,
-    objectFit: "contain",
-    flexShrink: 0,
-  },
-  profileStats: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  },
-  statRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "rgba(15, 23, 42, 0.6)",
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#0f172a",
-  },
-
-  // Strategy Card
-  strategyCard: {
-    borderRadius: 16,
-    padding: "16px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    opacity: 0,
-  },
-  strategyHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  strategyInner: {
-    borderRadius: 12,
-    padding: "14px 16px",
-    background: "rgba(15, 23, 42, 0.04)",
-    marginBottom: 12,
-  },
-  strategyFocus: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: "#0f172a",
-    marginBottom: 6,
-  },
-  strategyTempo: {
-    fontSize: 14,
-    color: "rgba(15, 23, 42, 0.7)",
-    letterSpacing: 0.3,
-  },
-  strategyDesc: {
-    margin: 0,
-    fontSize: 14,
-    color: "rgba(15, 23, 42, 0.7)",
-    lineHeight: 1.5,
-  },
-
-  // Fuel Card
-  fuelCard: {
+  // Main Card (Strategy & Fuel)
+  mainCard: {
     borderRadius: 20,
     padding: "20px 18px",
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
+    boxShadow:
+      "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     opacity: 0,
   },
-  fuelHeader: {
+  mainCardHeader: {
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -632,6 +629,29 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
+
+  // Strategy styles
+  strategyFocus: {
+    fontSize: 32,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
+  },
+  strategyTempo: {
+    marginTop: 8,
+    fontSize: 15,
+    color: "rgba(15, 23, 42, 0.7)",
+    letterSpacing: 0.3,
+  },
+  strategyDesc: {
+    margin: "10px 0 0",
+    fontSize: 14,
+    color: "rgba(15, 23, 42, 0.6)",
+    lineHeight: 1.5,
+  },
+
+  // Calorie styles
   calorieValue: {
     fontSize: 48,
     fontWeight: 700,
@@ -721,45 +741,132 @@ const s: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
 
-  // Water Card
-  waterCard: {
+  // Grid Row (Water + BMI)
+  gridRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    opacity: 0,
+  },
+  smallCard: {
     borderRadius: 16,
-    padding: "16px 18px",
+    padding: "16px 14px",
     background:
       "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
     border: "1px solid rgba(255,255,255,0.5)",
     boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
     backdropFilter: "blur(12px)",
     WebkitBackdropFilter: "blur(12px)",
-    opacity: 0,
   },
-  waterHeader: {
+  smallCardHeader: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 8,
   },
-  waterValue: {
-    fontSize: 32,
+  smallCardIcon: {
+    fontSize: 16,
+  },
+  smallCardLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  smallCardValue: {
+    fontSize: 28,
     fontWeight: 700,
     color: "#0f172a",
-    lineHeight: 1,
+    lineHeight: 1.1,
   },
-  waterUnit: {
-    fontSize: 18,
+  smallCardUnit: {
+    fontSize: 14,
     fontWeight: 500,
     color: "rgba(15, 23, 42, 0.5)",
   },
-  waterGlasses: {
-    fontSize: 24,
-    letterSpacing: 2,
-    marginTop: 10,
-    lineHeight: 1.4,
+  smallCardSub: {
+    margin: "4px 0 0",
+    fontSize: 12,
+    color: "rgba(15, 23, 42, 0.5)",
   },
-  waterSub: {
-    margin: "6px 0 0",
+
+  // Investment Card (Pie Chart)
+  investmentCard: {
+    borderRadius: 20,
+    padding: "20px 18px",
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow:
+      "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    opacity: 0,
+  },
+  investmentHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  investmentContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: 24,
+  },
+  pieContainer: {
+    position: "relative",
+    width: 120,
+    height: 120,
+    flexShrink: 0,
+  },
+  pieSvg: {
+    width: "100%",
+    height: "100%",
+  },
+  pieLabel: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 2,
+  },
+  pieLabelText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#22c55e",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  pieArrow: {
+    marginTop: -2,
+    transform: "rotate(45deg)",
+  },
+  investmentText: {
+    flex: 1,
+  },
+  investmentPercent: {
+    fontSize: 36,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1,
+    letterSpacing: -0.5,
+  },
+  investmentMain: {
+    marginTop: 4,
+    fontSize: 15,
+    color: "#0f172a",
+    lineHeight: 1.3,
+  },
+  investmentSub: {
+    margin: "8px 0 0",
     fontSize: 13,
     color: "rgba(15, 23, 42, 0.5)",
+    lineHeight: 1.4,
   },
 
   // Timeline Card
@@ -835,65 +942,6 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     color: "rgba(15, 23, 42, 0.6)",
     lineHeight: 1.4,
-  },
-
-  // Investment Card (Pie Chart)
-  investmentCard: {
-    borderRadius: 16,
-    padding: "16px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    opacity: 0,
-  },
-  investmentHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  investmentContent: {
-    display: "flex",
-    alignItems: "center",
-    gap: 20,
-  },
-  pieContainer: {
-    position: "relative",
-    width: 90,
-    height: 90,
-    flexShrink: 0,
-  },
-  pieSvg: {
-    width: "100%",
-    height: "100%",
-  },
-  pieCenter: {
-    position: "absolute",
-    inset: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  piePercent: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#0f172a",
-  },
-  investmentText: {
-    flex: 1,
-  },
-  investmentMain: {
-    fontSize: 16,
-    color: "#0f172a",
-    lineHeight: 1.4,
-  },
-  investmentSub: {
-    margin: "4px 0 0",
-    fontSize: 13,
-    color: "rgba(15, 23, 42, 0.5)",
   },
 
   // Actions
