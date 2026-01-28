@@ -152,8 +152,8 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     );
   }
 
-  // Generate tempo fire icons
-  const tempoFires = "🔥".repeat(analysis.strategy.tempo) + "⚪".repeat(3 - analysis.strategy.tempo);
+  // Tempo level for bar indicator
+  const tempoLevel = analysis.strategy.tempo;
 
   // Pie chart for investment
   const investPercent = analysis.investment.percentNum;
@@ -303,8 +303,13 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             <span style={s.cardLabel}>Твоя стратегия</span>
           </div>
           <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
-          <div style={s.strategyTempo}>
-            {analysis.strategy.tempoLabel} темп {tempoFires}
+          <div style={s.strategyTempoRow}>
+            <span style={s.strategyTempoLabel}>{analysis.strategy.tempoLabel} темп</span>
+            <div style={s.tempoBars}>
+              <div style={{ ...s.tempoBar, ...s.tempoBar1, background: tempoLevel >= 1 ? "#1e1f22" : "#e5e7eb" }} />
+              <div style={{ ...s.tempoBar, ...s.tempoBar2, background: tempoLevel >= 2 ? "#1e1f22" : "#e5e7eb" }} />
+              <div style={{ ...s.tempoBar, ...s.tempoBar3, background: tempoLevel >= 3 ? "#1e1f22" : "#e5e7eb" }} />
+            </div>
           </div>
           <p style={s.strategyDesc}>{analysis.strategy.description}</p>
         </div>
@@ -665,11 +670,34 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.1,
     letterSpacing: -0.5,
   },
-  strategyTempo: {
-    marginTop: 8,
+  strategyTempoRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+  },
+  strategyTempoLabel: {
     fontSize: 15,
     color: "rgba(15, 23, 42, 0.7)",
     letterSpacing: 0.3,
+  },
+  tempoBars: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 3,
+  },
+  tempoBar: {
+    width: 6,
+    borderRadius: 2,
+  },
+  tempoBar1: {
+    height: 8,
+  },
+  tempoBar2: {
+    height: 14,
+  },
+  tempoBar3: {
+    height: 20,
   },
   strategyDesc: {
     margin: "10px 0 0",
