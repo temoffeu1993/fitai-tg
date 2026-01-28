@@ -181,15 +181,14 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         .onb-fade {
           animation: onbFadeUp 520ms ease-out both;
         }
-        .onb-fade-delay-1 { animation-delay: 80ms; }
-        .onb-fade-delay-2 { animation-delay: 160ms; }
-        .onb-fade-delay-3 { animation-delay: 280ms; }
-        .onb-fade-delay-4 { animation-delay: 400ms; }
-        .onb-fade-delay-5 { animation-delay: 520ms; }
-        .onb-fade-delay-6 { animation-delay: 640ms; }
-        .onb-fade-delay-7 { animation-delay: 760ms; }
-        .onb-fade-delay-8 { animation-delay: 880ms; }
-        .onb-fade-delay-9 { animation-delay: 1000ms; }
+        .onb-fade-delay-1 { animation-delay: 120ms; }
+        .onb-fade-delay-2 { animation-delay: 420ms; }
+        .onb-fade-delay-3 { animation-delay: 720ms; }
+        .onb-fade-delay-4 { animation-delay: 1020ms; }
+        .onb-fade-delay-5 { animation-delay: 1320ms; }
+        .onb-fade-delay-6 { animation-delay: 1620ms; }
+        .onb-fade-delay-7 { animation-delay: 1920ms; }
+        .onb-fade-delay-8 { animation-delay: 2220ms; }
         .onb-fade-delay-6 { animation-delay: 640ms; }
         .onb-fade-delay-7 { animation-delay: 760ms; }
         .onb-fade-delay-8 { animation-delay: 880ms; }
@@ -257,46 +256,12 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         </div>
       </div>
 
-      {/* BLOCK 2: Chips (Age, Height, Weight) */}
-      <div
-        style={s.chipsRow}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
-      >
-        <div style={s.chip}>
-          <div style={s.chipHeader}>
-            <span style={s.chipTitle}>Возраст</span>
-          </div>
-          <div style={s.chipValue}>
-            {age}
-            <span style={s.chipUnit}> лет</span>
-          </div>
-        </div>
-        <div style={s.chip}>
-          <div style={s.chipHeader}>
-            <span style={s.chipTitle}>Рост</span>
-          </div>
-          <div style={s.chipValue}>
-            {height}
-            <span style={s.chipUnit}> см</span>
-          </div>
-        </div>
-        <div style={s.chip}>
-          <div style={s.chipHeader}>
-            <span style={s.chipTitle}>Вес</span>
-          </div>
-          <div style={s.chipValue}>
-            {weight}
-            <span style={s.chipUnit}> кг</span>
-          </div>
-        </div>
-      </div>
-
       {/* Cards Container */}
       <div style={s.cardsContainer}>
         {/* BLOCK 3: Strategy Card (styled like Fuel) */}
         <div
           style={s.mainCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>🎯</span>
@@ -317,7 +282,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 4: Fuel Card (Calories) */}
         <div
           style={s.mainCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>⛽️</span>
@@ -342,7 +307,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 5: Macros */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -372,7 +337,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 6: Water + BMI Grid */}
         <div
           style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
           {/* Water Card */}
           <div style={s.smallCard}>
@@ -403,7 +368,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 7: Timeline */}
         <div
           style={s.timelineCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
         >
           <div style={s.timelineHeader}>
             <span style={s.cardIcon}>🚀</span>
@@ -431,7 +396,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         {/* BLOCK 8: Investment (Pie Chart) */}
         <div
           style={s.investmentCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-7" : ""}`}
         >
           <div style={s.investmentHeader}>
             <span style={s.cardIcon}>💰</span>
@@ -468,7 +433,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       {/* Actions */}
       <div
         style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-9" : ""}`}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-8" : ""}`}
       >
         <button
           type="button"
@@ -578,51 +543,6 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.35,
     color: "#0f172a",
     whiteSpace: "pre-line",
-  },
-
-  // Chips Row
-  chipsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: 12,
-    width: "100%",
-    opacity: 0,
-  },
-  chip: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    padding: "16px 14px",
-    borderRadius: 16,
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-  },
-  chipHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  chipTitle: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  chipValue: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-  },
-  chipUnit: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.5)",
   },
 
   cardsContainer: {
