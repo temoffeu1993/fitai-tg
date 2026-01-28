@@ -797,6 +797,23 @@ function generateTimeline(
   // Deep clone to avoid mutating original
   timeline = timeline.map(item => ({ ...item }));
 
+  // Apply sex-specific tweaks (icons / copy) where needed
+  if (sex === 'male' && goal === 'athletic_body') {
+    if (experience === 'beginner' && ageGroup === 'middle' && timeline[1]) {
+      timeline[1] = {
+        ...timeline[1],
+        icon: '👔',
+      };
+    }
+    if (experience === 'intermediate' && ageGroup === 'young' && timeline[2]) {
+      timeline[2] = {
+        ...timeline[2],
+        icon: '🏖️',
+        description: 'Любая одежда сидит идеально. Пляж? Без стресса!',
+      };
+    }
+  }
+
   // Apply modifiers
   timeline = applyFrequencyModifier(timeline, frequency);
   timeline = applyBmiModifier(timeline, goal, bmiStatus);
@@ -995,8 +1012,8 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
     case 'deficit':
       calorieLabel = 'Твой дефицит';
       calorieDescription = bmi.status === 'obese' || bmi.status === 'overweight'
-        ? 'Безопасный темп: 0.5-1 кг в неделю.'
-        : 'Мягкий дефицит для сохранения мышц.';
+        ? 'Безопасный темп: 0.5-1 кг в неделю'
+        : 'Мягкий дефицит для сохранения мышц';
       break;
     case 'surplus':
       calorieLabel = 'Ваш профицит';
@@ -1004,7 +1021,7 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
       break;
     default:
       calorieLabel = 'Твоя норма';
-      calorieDescription = 'Баланс для поддержания формы.';
+      calorieDescription = 'Баланс для поддержания формы';
   }
 
   // 7. Calculate macros
