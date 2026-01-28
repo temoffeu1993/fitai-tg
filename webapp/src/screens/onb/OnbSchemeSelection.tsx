@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
-import { useEffect, useState } from "react";
+// Redesigned: Mascot + bubble, large selected card, compact alternatives
+import { useEffect, useMemo, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
 import {
@@ -10,6 +11,7 @@ import {
   type UserGoal,
   type ExperienceLevel,
 } from "@/utils/getSchemeDisplayData";
+import maleRobotImg from "@/assets/robonew.webp";
 
 type Props = {
   onComplete: () => void;
@@ -21,14 +23,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recommended, setRecommended] = useState<WorkoutScheme | null>(null);
-  const [alternatives, setAlternatives] = useState<WorkoutScheme[]>([]);
+  const [schemes, setSchemes] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [accepted, setAccepted] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const [bubbleText, setBubbleText] = useState("");
+  const [mascotReady, setMascotReady] = useState(false);
 
   // Build user context from onboarding draft
-  const userContext: UserContext = {
+  const userContext: UserContext = useMemo(() => ({
     goal: (draft.motivation?.goal || "athletic_body") as UserGoal,
     experience: (draft.experience?.level || "beginner") as ExperienceLevel,
     location: (draft.trainingPlace?.place || "gym") as Location,
@@ -37,29 +38,66 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     bmi: draft.body?.weight && draft.body?.height
       ? draft.body.weight / ((draft.body.height / 100) ** 2)
       : undefined,
-  };
+  }), [draft]);
 
+  // Preload mascot image
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.src = maleRobotImg;
+    const done = () => { if (!cancelled) setMascotReady(true); };
+    if (typeof (img as any).decode === "function") {
+      (img as any).decode().then(done).catch(() => { img.onload = done; });
+    } else {
+      img.onload = done;
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load recommendations
   useEffect(() => {
     loadRecommendations();
   }, []);
 
+  // Typing effect for bubble
   useEffect(() => {
-    if (showTerms) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [showTerms]);
+    if (!selectedId || schemes.length === 0) return;
+
+    const selected = schemes.find(s => s.id === selectedId);
+    if (!selected) return;
+
+    const displayData = getSchemeDisplayData(
+      {
+        id: selected.id,
+        name: selected.name,
+        splitType: selected.splitType as SplitType,
+        intensity: selected.intensity,
+        daysPerWeek: selected.daysPerWeek,
+        locations: selected.equipmentRequired as Location[],
+      },
+      userContext
+    );
+
+    const targetText = displayData.reason;
+    setBubbleText("");
+
+    let index = 0;
+    const typeInterval = setInterval(() => {
+      index++;
+      setBubbleText(targetText.slice(0, index));
+      if (index >= targetText.length) clearInterval(typeInterval);
+    }, 20);
+
+    return () => clearInterval(typeInterval);
+  }, [selectedId, schemes, userContext]);
 
   async function loadRecommendations() {
     try {
       setLoading(true);
       setError(null);
       const data = await getSchemeRecommendations();
-      setRecommended(data.recommended);
-      setAlternatives(data.alternatives);
+      const allSchemes = [data.recommended, ...data.alternatives];
+      setSchemes(allSchemes);
       setSelectedId(data.recommended.id);
     } catch (err: any) {
       console.error("Failed to load recommendations:", err);
@@ -69,88 +107,14 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     }
   }
 
-  const termsSections = [
-    {
-      title: "1. О приложении",
-      body: [
-        "Moro — интеллектуальный фитнес-ассистент, создающий персонализированные программы тренировок и питания на основе ваших данных (возраст, вес, цели, опыт, оборудование и др.).",
-        "Приложение предназначено для образовательных и информационных целей и помогает структурировать тренировки на основе научных принципов фитнеса.",
-      ],
-    },
-    {
-      title: "2. Ограничения технологии",
-      body: [
-        "ИИ не заменяет очную консультацию врача и полноценное обследование.",
-        "ИИ не учитывает скрытые заболевания или состояния, о которых вы не знаете или не указали.",
-        "ИИ не заменяет индивидуальную работу с сертифицированным тренером, который наблюдает технику в реальном времени.",
-        "Приложение дополняет, но не заменяет медицинское наблюдение и тренерский контроль.",
-      ],
-    },
-    {
-      title: "3. Рекомендуем консультацию",
-      body: [
-        "Перед стартом тренировок желательно проконсультироваться с врачом, особенно если есть хронические заболевания, травмы, приём лекарств, беременность/послеродовый период, возраст 40+ без опыта тренировок или любые сомнения по здоровью.",
-      ],
-    },
-    {
-      title: "4. Ваша ответственность",
-      body: [
-        "Правдиво заполнять анкету о здоровье.",
-        "Выбирать адекватную нагрузку и соблюдать технику.",
-        "Прекращать тренировку при боли или дискомфорте.",
-        "Самостоятельное решение о старте без консультации врача принимаете вы.",
-      ],
-    },
-    {
-      title: "5. Признание рисков",
-      body: [
-        "Любые тренировки связаны с риском травм, результаты индивидуальны.",
-        "При неправильной технике или игнорировании сигналов тела возможны травмы.",
-        "При неприятных ощущениях (боль, головокружение, тошнота, одышка, учащённый пульс) — немедленно остановитесь и обратитесь к врачу.",
-      ],
-    },
-    {
-      title: "6. Ограничение ответственности",
-      body: [
-        "Разработчики FitAI не несут ответственности за травмы/ухудшение здоровья, неточности рекомендаций из-за неполных данных, тренировки без консультации врача, технические сбои.",
-      ],
-    },
-    {
-      title: "7. Не гарантия результатов",
-      body: [
-        "Нет гарантии конкретных результатов и сроков.",
-        "Возможны индивидуальные реакции организма и несоответствия скрытым особенностям здоровья.",
-      ],
-    },
-    {
-      title: "8. Актуальность информации",
-      body: [
-        "Алгоритмы обновляются, но информация может не всегда отражать самые последние исследования.",
-      ],
-    },
-    {
-      title: "9. Согласие",
-      body: [
-        "Используя приложение, вы подтверждаете, что прочитали и приняли условия, понимаете разницу между ИИ и профессиональным сопровождением и берёте ответственность на себя.",
-      ],
-    },
-  ];
-
   async function handleConfirm() {
     if (!selectedId) return;
-
     try {
       setSaving(true);
       setError(null);
-
       await selectScheme(selectedId);
-
       localStorage.setItem("scheme_selected", "1");
-
-      try {
-        window.dispatchEvent(new Event("scheme_selected"));
-      } catch {}
-
+      try { window.dispatchEvent(new Event("scheme_selected")); } catch {}
       onComplete();
     } catch (err: any) {
       console.error("Failed to select scheme:", err);
@@ -160,205 +124,122 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     }
   }
 
+  // Loading state
   if (loading) {
     return (
       <div style={s.page}>
-        <section style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span style={s.pill}>Шаг 5 из 5</span>
-            <span style={s.pill}>Анкета</span>
+        <div style={s.mascotRow}>
+          <img src={maleRobotImg} alt="Mascot" style={{ ...s.mascotImg, opacity: mascotReady ? 1 : 0 }} />
+          <div style={s.bubble} className="speech-bubble">
+            <span style={s.bubbleText}>Подбираю программу...</span>
           </div>
-          <div style={s.heroTitle}>Подбираем схему тренировок...</div>
-          <div style={s.heroSubtitle}>Анализируем твои данные</div>
-
-          <div style={{ marginTop: 24, display: "grid", placeItems: "center" }}>
-            <Spinner />
-          </div>
-        </section>
+        </div>
+        <div style={{ display: "grid", placeItems: "center", marginTop: 40 }}>
+          <Spinner />
+        </div>
+        <BubbleStyles />
       </div>
     );
   }
 
-  if (error || !recommended) {
+  // Error state
+  if (error || schemes.length === 0) {
     return (
       <div style={s.page}>
-        <section style={s.heroCard}>
-          <div style={s.heroTitle}>Ошибка</div>
-          <div style={s.heroSubtitle}>{error || "Не удалось загрузить рекомендации"}</div>
-          <button style={s.primaryBtn} onClick={() => loadRecommendations()}>
-            Попробовать снова
-          </button>
-        </section>
+        <div style={s.mascotRow}>
+          <img src={maleRobotImg} alt="Mascot" style={s.mascotImg} />
+          <div style={s.bubble} className="speech-bubble">
+            <span style={s.bubbleText}>Упс, что-то пошло не так...</span>
+          </div>
+        </div>
+        <div style={s.errorCard}>
+          <p>{error || "Не удалось загрузить рекомендации"}</p>
+          <button style={s.retryBtn} onClick={loadRecommendations}>Попробовать снова</button>
+        </div>
+        <BubbleStyles />
       </div>
     );
   }
 
-  const allSchemes = [recommended, ...alternatives];
-
-  // Get marketing data for recommended scheme
-  const recommendedDisplay = getSchemeDisplayData(
-    {
-      id: recommended.id,
-      name: recommended.name,
-      splitType: recommended.splitType as SplitType,
-      intensity: recommended.intensity,
-      daysPerWeek: recommended.daysPerWeek,
-      locations: recommended.equipmentRequired as Location[],
-    },
-    userContext
-  );
+  const selectedScheme = schemes.find(s => s.id === selectedId)!;
+  const alternatives = schemes.filter(s => s.id !== selectedId);
 
   return (
     <div style={s.page}>
-      <SoftGlowStyles />
+      <BubbleStyles />
 
-      {/* HERO */}
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>Шаг 5 из 5</span>
-          <span style={s.pill}>Анкета</span>
+      {/* Mascot + Bubble */}
+      <div style={s.mascotRow}>
+        <img
+          src={maleRobotImg}
+          alt="Mascot"
+          style={{ ...s.mascotImg, opacity: mascotReady ? 1 : 0 }}
+        />
+        <div style={s.bubble} className="speech-bubble">
+          <span style={s.bubbleText}>{bubbleText || "..."}</span>
         </div>
-
-        <div style={s.heroKicker}>Схема тренировок</div>
-        <div style={s.heroTitle}>Выбери программу</div>
-        <div style={s.heroSubtitle}>
-          Мы подобрали для тебя 3 варианта на основе твоих данных.
-        </div>
-      </section>
-
-      {/* Insight Box - Reason */}
-      <div style={s.insightBox}>
-        <div style={s.insightIcon}>💡</div>
-        <div style={s.insightText}>{recommendedDisplay.reason}</div>
       </div>
 
-      {/* Схемы */}
-      <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
-        {allSchemes.map((scheme, i) => (
-          <SchemeCard
-            key={scheme.id}
-            index={i}
-            scheme={scheme}
-            userContext={userContext}
-            isSelected={selectedId === scheme.id}
-            onSelect={() => setSelectedId(scheme.id)}
-          />
-        ))}
-      </div>
+      {/* Selected Scheme - Large Card */}
+      <SelectedSchemeCard
+        scheme={selectedScheme}
+        userContext={userContext}
+      />
 
-      {/* Чекбокс условий использования */}
-      <button
-        type="button"
-        onClick={() => setAccepted((v) => !v)}
-        className="no-tap-effect"
-        style={{
-          ...s.termsRow,
-          position: "relative",
-          cursor: "pointer",
-          textAlign: "left",
-          outline: "none",
-          transition: "none",
-          userSelect: "none",
-        }}
-        onTouchStart={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.6)";
-          e.currentTarget.style.opacity = "1";
-        }}
-        onTouchEnd={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.6)";
-          e.currentTarget.style.opacity = "1";
-        }}
-      >
-        <div style={{...s.radioCircle, borderColor: accepted ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
-          <div style={{...s.radioDot, transform: accepted ? "scale(1)" : "scale(0)", opacity: accepted ? 1 : 0}} />
-        </div>
-
-        <span style={s.termsText}>
-          Я ознакомился и согласен с Условиями использования приложения{" "}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowTerms(true);
-            }}
-            style={s.inlineLink}
-          >
-            Подробнее
-          </button>
-        </span>
-      </button>
-
-      {/* CTA */}
-      <button
-        onClick={handleConfirm}
-        disabled={!selectedId || !accepted || saving}
-        className="soft-glow"
-        style={{
-          ...s.primaryBtn,
-          opacity: !selectedId || !accepted || saving ? 0.6 : 1,
-          cursor: !selectedId || !accepted || saving ? "default" : "pointer",
-        }}
-      >
-        {saving ? "Сохраняем..." : "Перейти к тренировкам"}
-      </button>
-
-      {onBack && (
-        <button type="button" onClick={onBack} style={s.backTextBtn}>
-          Назад
-        </button>
-      )}
-
-      {error && <div style={s.errorText}>{error}</div>}
-
-      {/* Модальное окно с терминами */}
-      {showTerms && (
-        <div style={s.modalOverlay}>
-          <div style={s.modalCard}>
-            <div style={s.modalHeader}>
-              <div style={s.modalTitle}>Условия использования и политика конфиденциальности</div>
-              <button style={s.modalClose} onClick={() => setShowTerms(false)}>
-                ✕
-              </button>
-            </div>
-            <div style={s.modalBody}>
-              {termsSections.map((section) => (
-                <div key={section.title} style={s.termsSection}>
-                  <div style={s.termsSectionTitle}>{section.title}</div>
-                  <ul style={s.termsSectionList}>
-                    {section.body.map((line) => (
-                      <li key={line} style={s.termsSectionItem}>
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+      {/* Alternatives */}
+      {alternatives.length > 0 && (
+        <div style={s.alternativesSection}>
+          <div style={s.alternativesLabel}>Другие варианты</div>
+          <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
+            {alternatives.map(scheme => (
+              <AlternativeCard
+                key={scheme.id}
+                scheme={scheme}
+                userContext={userContext}
+                onSelect={() => setSelectedId(scheme.id)}
+              />
+            ))}
           </div>
         </div>
       )}
 
-      <div style={{ height: 76 }} />
+      {/* Error message */}
+      {error && <div style={s.errorText}>{error}</div>}
+
+      {/* Actions */}
+      <div style={s.actions}>
+        <button
+          type="button"
+          style={s.primaryBtn}
+          className="primary-btn"
+          onClick={handleConfirm}
+          disabled={!selectedId || saving}
+        >
+          {saving ? "Сохраняем..." : "Выбрать программу"}
+        </button>
+        {onBack && (
+          <button type="button" style={s.backBtn} onClick={onBack}>
+            Назад
+          </button>
+        )}
+      </div>
+
+      <div style={{ height: 160 }} />
     </div>
   );
 }
 
-function SchemeCard({
+// ============================================================================
+// SELECTED SCHEME CARD (Large, dark)
+// ============================================================================
+
+function SelectedSchemeCard({
   scheme,
   userContext,
-  isSelected,
-  onSelect,
-  index,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
-  isSelected: boolean;
-  onSelect: () => void;
-  index: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Get marketing display data
   const displayData = getSchemeDisplayData(
     {
       id: scheme.id,
@@ -371,440 +252,396 @@ function SchemeCard({
     userContext
   );
 
-  // Technical name for transparency
-  const technicalName = scheme.russianName || scheme.name;
+  // Build week calendar
+  const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const trainingDays = new Set<number>();
+
+  // Map dayLabels to week positions (assuming day 1 = Monday, etc.)
+  scheme.dayLabels.forEach(d => {
+    if (d.day >= 1 && d.day <= 7) {
+      trainingDays.add(d.day - 1);
+    }
+  });
 
   return (
-    <div
-      className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
-      style={{
-        ...s.schemeCard,
-        ...(isSelected ? s.schemeCardSelected : {}),
-        animationDelay: `${index * 120}ms`,
-      }}
-      onClick={onSelect}
-    >
-      {/* Badge */}
+    <div style={s.selectedCard}>
       {scheme.isRecommended && (
         <div style={s.recommendedBadge}>
-          <span style={{ fontSize: 12 }}>⭐</span>
+          <span>⭐</span>
           <span>Рекомендовано</span>
         </div>
       )}
 
-      {/* Radio button */}
-      <div style={{...s.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)"}}>
-        <div style={{...s.radioDot, transform: isSelected ? "scale(1)" : "scale(0)", opacity: isSelected ? 1 : 0}} />
-      </div>
-
-      {/* Marketing Title - Big and Bold */}
-      <div style={s.marketingTitle}>{displayData.title}</div>
-
-      {/* Technical Name - Small and Gray */}
-      <div style={s.technicalName}>{technicalName}</div>
+      <div style={s.selectedTitle}>{displayData.title}</div>
 
       {/* Info chips */}
-      <div style={s.schemeInfo}>
-        <span style={s.infoChip}>📅 {scheme.daysPerWeek} дн/нед</span>
-        <span style={s.infoChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
-        <span style={s.infoChip}>
+      <div style={s.selectedChips}>
+        <span style={s.selectedChip}>📅 {scheme.daysPerWeek} дн/нед</span>
+        <span style={s.selectedChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
+        <span style={s.selectedChip}>
           {scheme.intensity === "low" ? "🟢 Лёгкая" :
-           scheme.intensity === "moderate" ? "🟡 Средняя" :
-           "🔴 Высокая"}
+           scheme.intensity === "moderate" ? "🟡 Средняя" : "🔴 Высокая"}
         </span>
       </div>
 
-      {/* Marketing Description */}
-      <div style={s.schemeDescription}>{displayData.description}</div>
-
-      {/* Expand button */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setExpanded(!expanded);
-        }}
-        style={s.expandBtn}
-      >
-        {expanded ? "Свернуть детали ▲" : "Показать детали ▼"}
-      </button>
-
-      <div style={{
-        display: "grid",
-        gridTemplateRows: expanded ? "1fr" : "0fr",
-        transition: "grid-template-rows 0.3s ease-out",
-        overflow: "hidden"
-      }}>
-        <div style={{ minHeight: 0 }}>
-          <div style={s.detailsSection}>
-            {/* Days structure */}
-            <div style={s.detailBlock}>
-              <div style={s.detailTitle}>📋 Структура недели</div>
-              <div style={s.daysList}>
-                {scheme.dayLabels.map((day, i) => (
-                  <div key={i} style={s.dayItem}>
-                    <div style={s.dayLabel}>
-                      День {day.day}: {day.label}
-                    </div>
-                    <div style={s.dayFocus}>{day.focus}</div>
-                  </div>
-                ))}
+      {/* Week Calendar */}
+      <div style={s.weekCalendar}>
+        {weekDays.map((day, idx) => {
+          const isTraining = trainingDays.has(idx);
+          return (
+            <div key={day} style={s.weekDay}>
+              <div style={s.weekDayLabel}>{day}</div>
+              <div style={{
+                ...s.weekDayIcon,
+                background: isTraining ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)",
+              }}>
+                {isTraining ? "💪" : "😴"}
               </div>
             </div>
-
-            {/* Benefits */}
-            {scheme.benefits && scheme.benefits.length > 0 && (
-              <div style={s.detailBlock}>
-                <div style={s.detailTitle}>✨ Преимущества</div>
-                <ul style={s.benefitsList}>
-                  {scheme.benefits.map((benefit, i) => (
-                    <li key={i} style={s.benefitItem}>{benefit}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Notes */}
-            {scheme.notes && (
-              <div style={s.detailBlock}>
-                <div style={s.detailTitle}>💬 Примечание</div>
-                <div style={s.notesText}>{scheme.notes}</div>
-              </div>
-            )}
-          </div>
-        </div>
+          );
+        })}
       </div>
+
+      {/* Day details */}
+      <div style={s.dayDetails}>
+        {scheme.dayLabels.map((d, i) => (
+          <div key={i} style={s.dayDetailItem}>
+            <span style={s.dayDetailNum}>День {d.day}</span>
+            <span style={s.dayDetailLabel}>{d.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <p style={s.selectedDescription}>{displayData.description}</p>
     </div>
   );
 }
 
+// ============================================================================
+// ALTERNATIVE CARD (Small, light)
+// ============================================================================
+
+function AlternativeCard({
+  scheme,
+  userContext,
+  onSelect,
+}: {
+  scheme: WorkoutScheme;
+  userContext: UserContext;
+  onSelect: () => void;
+}) {
+  const displayData = getSchemeDisplayData(
+    {
+      id: scheme.id,
+      name: scheme.name,
+      splitType: scheme.splitType as SplitType,
+      intensity: scheme.intensity,
+      daysPerWeek: scheme.daysPerWeek,
+      locations: scheme.equipmentRequired as Location[],
+    },
+    userContext
+  );
+
+  return (
+    <button type="button" style={s.altCard} onClick={onSelect}>
+      <div style={s.altTitle}>{displayData.title}</div>
+      <div style={s.altMeta}>
+        {scheme.daysPerWeek} дн/нед • {scheme.minMinutes}-{scheme.maxMinutes} мин
+      </div>
+    </button>
+  );
+}
+
+// ============================================================================
+// SPINNER
+// ============================================================================
+
 function Spinner() {
   return (
-    <svg width="48" height="48" viewBox="0 0 50 50" style={{ display: "block" }}>
-      <circle cx="25" cy="25" r="20" stroke="rgba(255,255,255,.35)" strokeWidth="6" fill="none" />
+    <svg width="48" height="48" viewBox="0 0 50 50">
+      <circle cx="25" cy="25" r="20" stroke="rgba(15,23,42,0.15)" strokeWidth="5" fill="none" />
       <circle
-        cx="25"
-        cy="25"
-        r="20"
-        stroke="#fff"
-        strokeWidth="6"
+        cx="25" cy="25" r="20"
+        stroke="#0f172a"
+        strokeWidth="5"
         strokeLinecap="round"
         fill="none"
-        strokeDasharray="110"
-        strokeDashoffset="80"
-        style={{ transformOrigin: "25px 25px", animation: "spin 1.2s linear infinite" }}
+        strokeDasharray="100"
+        strokeDashoffset="75"
+        style={{ transformOrigin: "center", animation: "spin 1s linear infinite" }}
       />
-      <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </svg>
   );
 }
 
-function SoftGlowStyles() {
+// ============================================================================
+// BUBBLE STYLES (Speech bubble arrow)
+// ============================================================================
+
+function BubbleStyles() {
   return (
     <style>{`
-      .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
-      animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
-      @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-      @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.08) saturate(1.05);transform:scale(1.005)}}
-
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(24px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+      .speech-bubble:before {
+        content: "";
+        position: absolute;
+        left: -8px;
+        top: 18px;
+        width: 0;
+        height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid rgba(255,255,255,0.95);
+        filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.08));
       }
-      .scheme-enter {
-        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+      .primary-btn {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: transform 120ms ease, opacity 120ms ease;
       }
-      .scheme-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(15,23,42,0.14);
+      .primary-btn:active:not(:disabled) {
+        transform: scale(0.98);
+        opacity: 0.9;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .primary-btn { transition: none; }
       }
     `}</style>
   );
 }
 
-/* ---------- Styles ---------- */
+// ============================================================================
+// STYLES
+// ============================================================================
+
 const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    padding: 16,
-    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "transparent",
     minHeight: "100vh",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 160px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    background: "transparent",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    color: "#0f172a",
   },
 
-  heroCard: {
+  // Mascot Row
+  mascotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 8,
+  },
+  mascotImg: {
+    width: 100,
+    height: "auto",
+    objectFit: "contain",
+    transition: "opacity 0.3s ease",
+  },
+  bubble: {
     position: "relative",
-    padding: 22,
-    borderRadius: 28,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+    background: "rgba(255,255,255,0.95)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+  },
+  bubbleText: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "#0f172a",
+  },
+
+  // Selected Card (Large, dark)
+  selectedCard: {
+    position: "relative",
+    padding: "24px 20px",
+    borderRadius: 20,
     background: "#0f172a",
     color: "#fff",
-    overflow: "hidden",
-    marginBottom: 14,
+    boxShadow: "0 12px 32px rgba(15,23,42,0.25)",
   },
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pill: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-  },
-  heroKicker: { marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
-  heroTitle: { fontSize: 26, fontWeight: 850, marginTop: 6, color: "#fff" },
-  heroSubtitle: { opacity: 0.92, marginTop: 4, color: "rgba(255,255,255,.85)", lineHeight: 1.4 },
-
-  // Insight Box - The "Lamp" with personalized reason
-  insightBox: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: 16,
-    background: "linear-gradient(135deg, rgba(255,243,205,0.9) 0%, rgba(255,237,179,0.9) 100%)",
-    borderRadius: 16,
-    border: "1px solid rgba(255,193,7,0.3)",
-    boxShadow: "0 2px 8px rgba(255,193,7,0.15)",
-    marginTop: 4,
-  },
-  insightIcon: {
-    fontSize: 24,
-    lineHeight: 1,
-    flexShrink: 0,
-  },
-  insightText: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#78350f",
-    lineHeight: 1.5,
-  },
-
-  schemeCard: {
-    position: "relative",
-    padding: 18,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-  },
-  schemeCardSelected: {
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
-    transform: "translateY(-2px)",
-  },
-
   recommendedBadge: {
     position: "absolute",
     top: -10,
     right: 16,
-    background: "#0f172a",
-    color: "#fff",
+    background: "#fbbf24",
+    color: "#78350f",
     padding: "5px 12px",
-    borderRadius: "100px",
+    borderRadius: 100,
     fontSize: 11,
     fontWeight: 700,
     display: "flex",
     alignItems: "center",
     gap: 5,
-    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
-    zIndex: 10,
+    boxShadow: "0 2px 8px rgba(251,191,36,0.4)",
   },
-
-  radioCircle: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    width: 24,
-    height: 24,
-    borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.1)",
-    background: "rgba(255,255,255,0.5)",
-    display: "grid",
-    placeItems: "center",
-    transition: "all 0.3s ease",
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: "#0f172a",
-    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-  },
-
-  // Marketing Title - Big and Bold
-  marketingTitle: {
-    fontSize: 22,
-    fontWeight: 850,
-    color: "#0f172a",
-    marginTop: 0,
-    marginLeft: 36,
-    marginRight: 0,
-    marginBottom: 4,
+  selectedTitle: {
+    fontSize: 26,
+    fontWeight: 800,
     lineHeight: 1.2,
-    letterSpacing: "-0.02em",
+    letterSpacing: -0.5,
+    marginBottom: 12,
   },
-
-  // Technical Name - Small and Gray
-  technicalName: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "#64748b",
-    marginLeft: 36,
-    marginBottom: 10,
-  },
-
-  schemeInfo: {
+  selectedChips: {
     display: "flex",
-    gap: 8,
-    marginBottom: 14,
-    marginLeft: 36,
     flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
   },
-  infoChip: {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: 11,
+  selectedChip: {
+    padding: "6px 12px",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.1)",
+    fontSize: 12,
     fontWeight: 600,
-    color: "#334155",
-    whiteSpace: "nowrap",
+    color: "rgba(255,255,255,0.9)",
+  },
+
+  // Week Calendar
+  weekCalendar: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: 6,
+    marginBottom: 16,
+  },
+  weekDay: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     gap: 4,
   },
-
-  schemeDescription: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 1.6,
-    marginBottom: 14,
-    fontWeight: 500,
-    marginLeft: 4,
+  weekDayLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.5)",
+    textTransform: "uppercase",
+  },
+  weekDayIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    fontSize: 16,
   },
 
-  expandBtn: {
-    width: "100%",
-    padding: "10px",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
-    transition: "all 0.2s",
+  // Day details
+  dayDetails: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14,
+  },
+  dayDetailItem: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
+    padding: "6px 10px",
+    borderRadius: 8,
+    background: "rgba(255,255,255,0.08)",
+  },
+  dayDetailNum: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.6)",
+  },
+  dayDetailLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#fff",
   },
 
-  detailsSection: {
-    marginTop: 12,
-    padding: 14,
-    background: "rgba(255,255,255,0.5)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
+  selectedDescription: {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.5,
+    color: "rgba(255,255,255,0.75)",
+  },
+
+  // Alternatives Section
+  alternativesSection: {
+    marginTop: 8,
+  },
+  alternativesLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.5)",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  alternativesGridTwo: {
     display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  alternativesGridOne: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
     gap: 10,
   },
 
-  detailBlock: {
-    display: "grid",
-    gap: 6,
+  // Alternative Card (Small, light)
+  altCard: {
+    padding: "16px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.7)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    cursor: "pointer",
+    textAlign: "left",
+    transition: "all 0.2s ease",
   },
-  detailTitle: {
-    fontSize: 13,
-    fontWeight: 800,
-    color: "#0B1220",
+  altTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#0f172a",
+    marginBottom: 4,
+    lineHeight: 1.2,
+  },
+  altMeta: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.5)",
   },
 
-  daysList: {
+  // Actions
+  actions: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
     gap: 8,
+    background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
+    zIndex: 10,
   },
-  dayItem: {
-    padding: 8,
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 8,
-    border: "1px solid rgba(0,0,0,0.06)",
-  },
-  dayLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#0B1220",
-    marginBottom: 2,
-  },
-  dayFocus: {
-    fontSize: 11,
-    color: "#4a5568",
-    lineHeight: 1.3,
-  },
-
-  benefitsList: {
-    margin: 0,
-    paddingLeft: 18,
-    lineHeight: 1.5,
-  },
-  benefitItem: {
-    fontSize: 12,
-    color: "#1b1b1b",
-    marginBottom: 4,
-  },
-
-  notesText: {
-    fontSize: 12,
-    color: "#4a5568",
-    lineHeight: 1.4,
-    fontStyle: "italic",
-  },
-
   primaryBtn: {
-    marginTop: 16,
     width: "100%",
-    border: "none",
     borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#fff",
+    padding: "16px 18px",
+    border: "none",
     background: "#0f172a",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  },
-
-  errorText: {
-    marginTop: 10,
-    padding: 10,
-    background: "rgba(255,102,102,.15)",
-    color: "#d24",
-    fontSize: 13,
+    color: "#fff",
     fontWeight: 600,
-    borderRadius: 10,
+    fontSize: 17,
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(15,23,42,0.2)",
   },
-
-  backTextBtn: {
-    marginTop: 10,
+  backBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#111827",
+    color: "#0f172a",
     fontSize: 15,
     fontWeight: 600,
     padding: "12px 16px",
@@ -812,98 +649,30 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
 
-  termsRow: {
+  // Error states
+  errorCard: {
+    padding: 24,
+    textAlign: "center",
+    color: "rgba(15, 23, 42, 0.7)",
+  },
+  retryBtn: {
     marginTop: 16,
-    padding: "16px 20px 16px 64px",
-    background: "rgba(255,255,255,0.6)",
+    padding: "12px 24px",
     borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-  },
-  termsText: {
-    fontSize: 13,
-    color: "#111827",
-    lineHeight: 1.4,
-  },
-  inlineLink: {
-    background: "none",
     border: "none",
-    color: "#2563EB",
-    textDecoration: "underline",
+    background: "#0f172a",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 600,
     cursor: "pointer",
+  },
+  errorText: {
+    padding: 12,
+    background: "rgba(255,102,102,0.15)",
+    color: "#dc2626",
     fontSize: 13,
     fontWeight: 600,
-    padding: 0,
-  },
-
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.6)",
-    display: "grid",
-    placeItems: "center",
-    zIndex: 999,
-    padding: 20,
-    backdropFilter: "blur(4px)",
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 540,
-    maxHeight: "90vh",
-    background: "#fff",
-    borderRadius: 20,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "16px 20px",
-    borderBottom: "1px solid rgba(0,0,0,0.08)",
-    background: "#f9fafb",
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#111827",
-  },
-  modalClose: {
-    width: 32,
-    height: 32,
-    borderRadius: "50%",
-    border: "none",
-    background: "rgba(0,0,0,0.06)",
-    fontSize: 18,
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-    color: "#111827",
-  },
-  modalBody: {
-    padding: 20,
-    overflowY: "auto",
-    flex: 1,
-  },
-  termsSection: {
-    marginBottom: 20,
-  },
-  termsSectionTitle: {
-    fontSize: 14,
-    fontWeight: 800,
-    color: "#111827",
-    marginBottom: 8,
-  },
-  termsSectionList: {
-    margin: 0,
-    paddingLeft: 20,
-    lineHeight: 1.5,
-  },
-  termsSectionItem: {
-    fontSize: 13,
-    color: "#374151",
-    marginBottom: 6,
+    borderRadius: 10,
+    textAlign: "center",
   },
 };
