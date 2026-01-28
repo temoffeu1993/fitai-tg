@@ -10,8 +10,7 @@ import {
   buildUserContextFromDraft,
   type AnalysisResult,
 } from "@/utils/analyzeUserProfile";
-import maleRobotImg from "@/assets/robonew.png";
-import femaleRobotImg from "@/assets/zhennew.png";
+import maleRobotImg from "@/assets/robonew.webp";
 
 type Props = {
   draft: Record<string, any>;
@@ -19,17 +18,25 @@ type Props = {
   onBack?: () => void;
 };
 
-const BUBBLE_TEXT = "Я подготовил твой\nперсональный план";
+const DEFAULT_BUBBLE_TEXT = "Я подготовил твой\nперсональный план";
 
 export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [bubbleText, setBubbleText] = useState("");
+  const [mascotReady, setMascotReady] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
-  // Extract user data
-  const sex = draft.ageSex?.sex as "male" | "female" | undefined;
+  const bubbleTarget = useMemo(() => {
+    const goal = draft.motivation?.goal || draft.goals?.primary;
+    if (goal === "lose_weight") return "Я нашел способ худеть\nбез голода и стресса";
+    if (goal === "build_muscle") return "Запускаем режим\nмаксимального роста";
+    if (goal === "athletic_body") return "Сделаем тело, которое\nхочется показать";
+    if (goal === "health_wellness") return "Зарядим твою батарейку\nна все 100%";
+    return DEFAULT_BUBBLE_TEXT;
+  }, [draft]);
+
   // Build user context and analyze
   const analysis = useMemo<AnalysisResult | null>(() => {
     const userContext = buildUserContextFromDraft(draft);
@@ -48,6 +55,30 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       if (leaveTimerRef.current) {
         window.clearTimeout(leaveTimerRef.current);
       }
+    };
+  }, [bubbleTarget]);
+
+  // Preload mascot image
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = maleRobotImg;
+    const done = () => {
+      if (!cancelled) setMascotReady(true);
+    };
+    const anyImg = img as any;
+    if (typeof anyImg.decode === "function") {
+      anyImg.decode().then(done).catch(() => {
+        img.onload = done;
+        img.onerror = done;
+      });
+    } else {
+      img.onload = done;
+      img.onerror = done;
+    }
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -79,7 +110,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     if (prefersReduced) {
       setReveal(true);
       setShowContent(true);
-      setBubbleText(BUBBLE_TEXT);
+      setBubbleText(bubbleTarget);
       return;
     }
     const t1 = window.setTimeout(() => setReveal(true), 30);
@@ -89,8 +120,8 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
     let index = 0;
     const typeInterval = window.setInterval(() => {
       index += 1;
-      setBubbleText(BUBBLE_TEXT.slice(0, index));
-      if (index >= BUBBLE_TEXT.length) {
+      setBubbleText(bubbleTarget.slice(0, index));
+      if (index >= bubbleTarget.length) {
         window.clearInterval(typeInterval);
       }
     }, 18);
@@ -100,7 +131,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
       window.clearTimeout(t2);
       window.clearInterval(typeInterval);
     };
-  }, []);
+  }, [bubbleTarget]);
 
   const handleNext = () => {
     if (isLeaving) return;
@@ -240,9 +271,9 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
         >
         <img
-          src={sex === "female" ? femaleRobotImg : maleRobotImg}
+          src={maleRobotImg}
           alt="Mascot"
-          style={s.mascotImg}
+          style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
         />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>{bubbleText}</span>
@@ -272,10 +303,38 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           <p style={s.strategyDesc}>{analysis.strategy.description}</p>
         </div>
 
-        {/* BLOCK 4: Fuel Card (Calories) */}
+        {/* BLOCK 4: Timeline */}
+        <div
+          style={s.timelineCard}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+        >
+          <div style={s.timelineHeader}>
+            <span style={s.cardIcon}>🚀</span>
+            <span style={s.cardLabel}>Что тебя ждёт</span>
+          </div>
+          <div style={s.timelineList}>
+            {analysis.timeline.map((item, idx) => (
+              <div key={idx} style={s.timelineItem}>
+                <div style={s.timelineLeft}>
+                  <div style={s.timelineIcon}>{item.icon}</div>
+                  {idx < analysis.timeline.length - 1 && (
+                    <div style={s.timelineLine} />
+                  )}
+                </div>
+                <div style={s.timelineRight}>
+                  <div style={s.timelineWeek}>Неделя {item.week}</div>
+                  <div style={s.timelineTitle}>{item.title}</div>
+                  <p style={s.timelineDesc}>{item.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* BLOCK 5: Fuel Card (Calories) */}
         <div
           style={s.mainCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>⛽️</span>
@@ -297,10 +356,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           <p style={s.calorieDescription}>{analysis.calories.description}</p>
         </div>
 
-        {/* BLOCK 5: Macros */}
+        {/* BLOCK 6: Macros */}
         <div
           style={s.macrosCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
         >
           <div style={s.macrosHeader}>
             <span style={s.cardIcon}>🍽️</span>
@@ -341,10 +400,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           })()}
         </div>
 
-        {/* BLOCK 6: Water + BMI Grid */}
+        {/* BLOCK 7: Water + BMI Grid */}
         <div
           style={s.gridRow}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-5" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
         >
           {/* Water Card */}
           <div style={s.smallCard}>
@@ -369,34 +428,6 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
               {analysis.bmi.value}
             </div>
             <p style={s.smallCardSub}>{analysis.bmi.title}</p>
-          </div>
-        </div>
-
-        {/* BLOCK 7: Timeline */}
-        <div
-          style={s.timelineCard}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-6" : ""}`}
-        >
-          <div style={s.timelineHeader}>
-            <span style={s.cardIcon}>🚀</span>
-            <span style={s.cardLabel}>Что тебя ждёт</span>
-          </div>
-          <div style={s.timelineList}>
-            {analysis.timeline.map((item, idx) => (
-              <div key={idx} style={s.timelineItem}>
-                <div style={s.timelineLeft}>
-                  <div style={s.timelineIcon}>{item.icon}</div>
-                  {idx < analysis.timeline.length - 1 && (
-                    <div style={s.timelineLine} />
-                  )}
-                </div>
-                <div style={s.timelineRight}>
-                  <div style={s.timelineWeek}>Неделя {item.week}</div>
-                  <div style={s.timelineTitle}>{item.title}</div>
-                  <p style={s.timelineDesc}>{item.description}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -533,6 +564,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 140,
     height: "auto",
     objectFit: "contain",
+  },
+  mascotHidden: {
+    opacity: 0,
   },
   bubble: {
     position: "relative",
