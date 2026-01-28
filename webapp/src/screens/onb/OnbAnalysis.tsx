@@ -289,7 +289,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>🎯</span>
-            <span style={s.cardLabel}>Твоя стратегия</span>
+            <span style={s.cardLabel}>Ваша стратегия</span>
           </div>
           <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
           <div style={s.strategyTempoRow}>
@@ -310,7 +310,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         >
           <div style={s.timelineHeader}>
             <span style={s.cardIcon}>🚀</span>
-            <span style={s.cardLabel}>Что тебя ждёт</span>
+            <span style={s.cardLabel}>Что вас ждёт</span>
           </div>
           <div style={s.timelineList}>
             {analysis.timeline.map((item, idx) => (
@@ -448,7 +448,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
             </div>
             <div style={s.investmentText}>
               <div style={s.investmentPercent}>{analysis.investment.percent}</div>
-              <div style={s.investmentMain}>твоего времени в неделю</div>
+              <div style={s.investmentMain}>вашего времени в неделю</div>
               <p style={s.investmentSub}>
                 Остальные {(100 - investPercent).toFixed(0)}% — на жизнь и отдых
               </p>
@@ -700,7 +700,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 12,
-    marginTop: 8,
+    marginTop: 18,
   },
   macrosBar: {
     display: "flex",

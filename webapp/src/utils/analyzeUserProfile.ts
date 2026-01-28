@@ -999,8 +999,8 @@ export function analyzeUserProfile(user: UserContext): AnalysisResult {
         : 'Мягкий дефицит для сохранения мышц.';
       break;
     case 'surplus':
-      calorieLabel = 'Твой профицит';
-      calorieDescription = 'Энергия для строительства мышц.';
+      calorieLabel = 'Ваш профицит';
+      calorieDescription = 'Энергия для строительства мышц';
       break;
     default:
       calorieLabel = 'Твоя норма';
