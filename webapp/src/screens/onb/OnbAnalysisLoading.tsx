@@ -17,6 +17,18 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
   const [step, setStep] = useState(0);
   const [isLeaving, setIsLeaving] = useState(false);
   const [ready, setReady] = useState(false);
+  const hapticRef = (window as any)?.Telegram?.WebApp?.HapticFeedback;
+
+  const fireHaptic = (level: "light" | "medium" | "heavy" | "rigid" | "soft") => {
+    if (hapticRef?.impactOccurred) {
+      hapticRef.impactOccurred(level);
+      return;
+    }
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      const durations = { light: 8, medium: 14, heavy: 20, rigid: 26, soft: 10 };
+      navigator.vibrate(durations[level] ?? 10);
+    }
+  };
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -86,6 +98,23 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
     const doneDuration = 1200;
     const exitDuration = 260;
     const timers: number[] = [];
+    const totalDuration = stepDuration * (LINES.length - 1) + doneDuration;
+    const hapticLevels: Array<"light" | "medium" | "heavy" | "rigid"> = [
+      "light",
+      "medium",
+      "heavy",
+      "rigid",
+    ];
+    const start = performance.now();
+    const hapticTimer = window.setInterval(() => {
+      const elapsed = performance.now() - start;
+      const progress = Math.min(elapsed / totalDuration, 1);
+      const index = Math.min(
+        hapticLevels.length - 1,
+        Math.floor(progress * hapticLevels.length)
+      );
+      fireHaptic(hapticLevels[index]);
+    }, 520);
 
     for (let i = 1; i < LINES.length; i += 1) {
       timers.push(window.setTimeout(() => setStep(i), stepDuration * i));
@@ -95,7 +124,10 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
     timers.push(window.setTimeout(() => setIsLeaving(true), doneAt));
     timers.push(window.setTimeout(() => onDone(), doneAt + exitDuration));
 
-    return () => timers.forEach((id) => window.clearTimeout(id));
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      window.clearInterval(hapticTimer);
+    };
   }, [onDone]);
 
   const text = LINES[Math.min(step, LINES.length - 1)];
