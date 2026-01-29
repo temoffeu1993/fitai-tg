@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
-// Redesigned: Mascot + bubble, large selected card, compact alternatives
-// Uses workout slots (train cars) instead of week calendar
+// Experience-based scheme selection:
+// - Beginner: locked alternatives (gamification)
+// - Intermediate/Advanced: selectable alternatives with split explanations
 import { useEffect, useMemo, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -20,6 +21,41 @@ type Props = {
   onBack?: () => void;
 };
 
+// ============================================================================
+// SPLIT TYPE EXPLANATIONS
+// Human-readable one-liners so users understand what each scheme type means
+// ============================================================================
+
+const SPLIT_EXPLANATIONS: Record<string, string> = {
+  full_body: "Каждая тренировка — всё тело целиком",
+  upper_lower: "Чередование: один день — верх, другой — низ",
+  push_pull_legs: "Три типа дней: жим, тяга, ноги",
+  strength_focus: "Базовые упражнения с большими весами",
+  lower_focus: "Акцент на ноги и ягодицы в каждой тренировке",
+  conditioning: "Круговые и функциональные тренировки",
+  bro_split: "Одна группа мышц = один день",
+};
+
+// ============================================================================
+// BUBBLE TEXT PER EXPERIENCE
+// ============================================================================
+
+function getBubbleText(
+  experience: ExperienceLevel,
+  schemesCount: number,
+): string {
+  if (experience === "beginner") {
+    return "Я подобрал идеальную программу для старта! Остальные откроются, когда наберёшь опыт.";
+  }
+  if (experience === "intermediate") {
+    return schemesCount > 2
+      ? `Вот ${schemesCount} варианта — выбирай, что ближе по ощущениям.`
+      : "Вот два варианта — выбирай, что ближе по ощущениям.";
+  }
+  // advanced
+  return "Ты знаешь своё тело. Выбирай схему под свой стиль.";
+}
+
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const { draft } = useOnboarding();
   const [loading, setLoading] = useState(true);
@@ -30,10 +66,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [bubbleText, setBubbleText] = useState("");
   const [mascotReady, setMascotReady] = useState(false);
 
+  const experience = (draft.experience?.level || "beginner") as ExperienceLevel;
+  const isBeginner = experience === "beginner";
+
   // Build user context from onboarding draft
   const userContext: UserContext = useMemo(() => ({
     goal: (draft.motivation?.goal || "athletic_body") as UserGoal,
-    experience: (draft.experience?.level || "beginner") as ExperienceLevel,
+    experience,
     location: (draft.trainingPlace?.place || "gym") as Location,
     sex: draft.ageSex?.sex as "male" | "female" | undefined,
     age: draft.ageSex?.age,
@@ -61,26 +100,11 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     loadRecommendations();
   }, []);
 
-  // Typing effect for bubble
+  // Typing effect for bubble — uses experience-based text
   useEffect(() => {
-    if (!selectedId || schemes.length === 0) return;
+    if (schemes.length === 0) return;
 
-    const selected = schemes.find(s => s.id === selectedId);
-    if (!selected) return;
-
-    const displayData = getSchemeDisplayData(
-      {
-        id: selected.id,
-        name: selected.name,
-        splitType: selected.splitType as SplitType,
-        intensity: selected.intensity,
-        daysPerWeek: selected.daysPerWeek,
-        locations: selected.equipmentRequired as Location[],
-      },
-      userContext
-    );
-
-    const targetText = displayData.reason;
+    const targetText = getBubbleText(experience, schemes.length);
     setBubbleText("");
 
     let index = 0;
@@ -91,7 +115,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     }, 20);
 
     return () => clearInterval(typeInterval);
-  }, [selectedId, schemes, userContext]);
+  }, [schemes, experience]);
 
   async function loadRecommendations() {
     try {
@@ -188,20 +212,37 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         userContext={userContext}
       />
 
-      {/* Alternatives */}
+      {/* Alternatives — different UX per experience */}
       {alternatives.length > 0 && (
         <div style={s.alternativesSection}>
-          <div style={s.alternativesLabel}>Другие варианты</div>
-          <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
-            {alternatives.map(scheme => (
-              <AlternativeCard
-                key={scheme.id}
-                scheme={scheme}
-                userContext={userContext}
-                onSelect={() => setSelectedId(scheme.id)}
-              />
-            ))}
-          </div>
+          {isBeginner ? (
+            <>
+              <div style={s.alternativesLabel}>Будет доступно позже</div>
+              <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
+                {alternatives.map(scheme => (
+                  <LockedAlternativeCard
+                    key={scheme.id}
+                    scheme={scheme}
+                    userContext={userContext}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={s.alternativesLabel}>Другие варианты</div>
+              <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
+                {alternatives.map(scheme => (
+                  <SelectableAlternativeCard
+                    key={scheme.id}
+                    scheme={scheme}
+                    userContext={userContext}
+                    onSelect={() => setSelectedId(scheme.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -217,7 +258,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           onClick={handleConfirm}
           disabled={!selectedId || saving}
         >
-          {saving ? "Сохраняем..." : "Выбрать программу"}
+          {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать программу"}
         </button>
         {onBack && (
           <button type="button" style={s.backBtn} onClick={onBack}>
@@ -254,6 +295,8 @@ function SelectedSchemeCard({
     userContext
   );
 
+  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
+
   return (
     <div style={s.selectedCard}>
       {scheme.isRecommended && (
@@ -264,6 +307,11 @@ function SelectedSchemeCard({
       )}
 
       <div style={s.selectedTitle}>{displayData.title}</div>
+
+      {/* Split type explanation */}
+      {splitExplanation && (
+        <div style={s.splitExplanation}>{splitExplanation}</div>
+      )}
 
       {/* Info chips */}
       <div style={s.selectedChips}>
@@ -300,10 +348,63 @@ function SelectedSchemeCard({
 }
 
 // ============================================================================
-// ALTERNATIVE CARD (Small, light)
+// LOCKED ALTERNATIVE CARD (Beginner — gamification)
 // ============================================================================
 
-function AlternativeCard({
+function LockedAlternativeCard({
+  scheme,
+  userContext,
+}: {
+  scheme: WorkoutScheme;
+  userContext: UserContext;
+}) {
+  const displayData = getSchemeDisplayData(
+    {
+      id: scheme.id,
+      name: scheme.name,
+      splitType: scheme.splitType as SplitType,
+      intensity: scheme.intensity,
+      daysPerWeek: scheme.daysPerWeek,
+      locations: scheme.equipmentRequired as Location[],
+    },
+    userContext
+  );
+
+  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
+
+  // Determine unlock weeks based on scheme intensity / complexity
+  const unlockWeeks = scheme.intensity === "high" ? 12 : 8;
+
+  return (
+    <div style={s.lockedCard}>
+      {/* Lock overlay */}
+      <div style={s.lockedOverlay}>
+        <span style={s.lockIcon}>🔒</span>
+      </div>
+
+      <div style={s.lockedTitle}>{displayData.title}</div>
+      {splitExplanation && (
+        <div style={s.lockedSplitExplanation}>{splitExplanation}</div>
+      )}
+
+      {/* Progress bar */}
+      <div style={s.lockedProgressWrap}>
+        <div style={s.lockedProgressTrack}>
+          <div style={s.lockedProgressFill} />
+        </div>
+        <div style={s.lockedProgressText}>
+          Откроется через {unlockWeeks} недель
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SELECTABLE ALTERNATIVE CARD (Intermediate / Advanced)
+// ============================================================================
+
+function SelectableAlternativeCard({
   scheme,
   userContext,
   onSelect,
@@ -324,11 +425,18 @@ function AlternativeCard({
     userContext
   );
 
+  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
+
   return (
     <button type="button" style={s.altCard} onClick={onSelect}>
       <div style={s.altTitle}>{displayData.title}</div>
+      {splitExplanation && (
+        <div style={s.altSplitExplanation}>{splitExplanation}</div>
+      )}
       <div style={s.altMeta}>
-        {scheme.daysPerWeek} дн/нед • {scheme.minMinutes}-{scheme.maxMinutes} мин
+        {scheme.daysPerWeek} дн/нед • {scheme.minMinutes}-{scheme.maxMinutes} мин •{" "}
+        {scheme.intensity === "low" ? "лёгкая" :
+         scheme.intensity === "moderate" ? "средняя" : "высокая"}
       </div>
     </button>
   );
@@ -358,7 +466,7 @@ function Spinner() {
 }
 
 // ============================================================================
-// BUBBLE STYLES (Speech bubble arrow)
+// BUBBLE STYLES
 // ============================================================================
 
 function BubbleStyles() {
@@ -468,7 +576,14 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     lineHeight: 1.2,
     letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  splitExplanation: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.55)",
     marginBottom: 12,
+    lineHeight: 1.3,
   },
   selectedChips: {
     display: "flex",
@@ -568,7 +683,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
   },
 
-  // Alternative Card (Small, light)
+  // Selectable Alternative Card (Intermediate/Advanced)
   altCard: {
     padding: "16px",
     borderRadius: 14,
@@ -585,13 +700,76 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 700,
     color: "#0f172a",
-    marginBottom: 4,
+    marginBottom: 2,
     lineHeight: 1.2,
+  },
+  altSplitExplanation: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.45)",
+    marginBottom: 6,
+    lineHeight: 1.3,
   },
   altMeta: {
     fontSize: 12,
     fontWeight: 500,
     color: "rgba(15,23,42,0.5)",
+  },
+
+  // Locked Alternative Card (Beginner)
+  lockedCard: {
+    position: "relative",
+    padding: "16px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.4)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+    overflow: "hidden",
+  },
+  lockedOverlay: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+  },
+  lockIcon: {
+    fontSize: 16,
+  },
+  lockedTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.4)",
+    marginBottom: 2,
+    lineHeight: 1.2,
+    paddingRight: 28,
+  },
+  lockedSplitExplanation: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.3)",
+    marginBottom: 10,
+    lineHeight: 1.3,
+  },
+  lockedProgressWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  lockedProgressTrack: {
+    height: 4,
+    borderRadius: 2,
+    background: "rgba(15,23,42,0.08)",
+    overflow: "hidden",
+  },
+  lockedProgressFill: {
+    width: "0%",
+    height: "100%",
+    borderRadius: 2,
+    background: "rgba(249,115,22,0.3)",
+  },
+  lockedProgressText: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.3)",
   },
 
   // Actions
