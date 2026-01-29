@@ -472,7 +472,7 @@ function RecommendedCard({
       className="scheme-card"
       style={{
         ...s.recommendedCard,
-        ...(isActive ? undefined : s.recommendedCardInactive),
+        ...(isActive ? undefined : s.cardInactive),
         ...(onSelect ? s.cardClickable : {}),
       }}
       onClick={onSelect}
@@ -555,7 +555,7 @@ function SelectableCard({
     <button
       type="button"
       className="scheme-card"
-      style={{ ...s.recommendedCard, ...(isActive ? undefined : s.recommendedCardInactive) }}
+      style={{ ...s.recommendedCard, ...(isActive ? undefined : s.cardInactive) }}
       onClick={onSelect}
     >
       <div style={{ ...s.schemeHeader, visibility: "hidden" }} aria-hidden>
@@ -815,9 +815,8 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "left",
     display: "block",
   },
-  recommendedCardInactive: {
-    opacity: 1,
-    filter: "none",
+  cardInactive: {
+    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)",
   },
   cardClickable: {
     cursor: "pointer",
