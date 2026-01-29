@@ -34,6 +34,88 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
 };
 
 // ============================================================================
+// DAY TIMELINE (Recommended card)
+// ============================================================================
+
+type DayTimelineItem = {
+  day: number;
+  title: string;
+  description: string;
+  icon: string;
+};
+
+const FALLBACK_DAY_TITLES: Record<string, string[]> = {
+  full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
+  upper_lower: ["Верх", "Низ", "Верх", "Низ", "Верх", "Низ", "Верх"],
+  push_pull_legs: ["Жим", "Тяга", "Ноги", "Жим", "Тяга", "Ноги", "Жим"],
+  conditioning: ["Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал"],
+  bro_split: ["Грудь + Трицепс", "Спина + Бицепс", "Ноги", "Плечи + Пресс", "Руки + Кор", "Грудь", "Спина"],
+};
+
+function normalizeDayTitle(label: string): string {
+  let text = label.trim();
+  if (!text) return text;
+  text = text.replace(/\s*&\s*/g, " + ");
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bfull body\b/gi, "Всё тело"],
+    [/\bpush\b/gi, "Жим"],
+    [/\bpull\b/gi, "Тяга"],
+    [/\blegs?\b/gi, "Ноги"],
+    [/\bupper\b/gi, "Верх"],
+    [/\blower\b/gi, "Низ"],
+    [/\bglutes?\b/gi, "Ягодицы"],
+    [/\bchest\b/gi, "Грудь"],
+    [/\bback\b/gi, "Спина"],
+    [/\bshoulders?\b/gi, "Плечи"],
+    [/\barms?\b/gi, "Руки"],
+    [/\bcore\b/gi, "Кор"],
+    [/\bconditioning\b/gi, "Функционал"],
+    [/\bcardio\b/gi, "Кардио"],
+    [/\bheavy\b/gi, "силовой"],
+    [/\bvolume\b/gi, "объём"],
+    [/\bgentle\b/gi, "мягкий"],
+    [/\brebuild\b/gi, "восстановление"],
+  ];
+
+  for (const [re, value] of replacements) {
+    text = text.replace(re, value);
+  }
+
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function getFallbackDayTitle(splitType: string, index: number): string {
+  const list = FALLBACK_DAY_TITLES[splitType];
+  if (!list || list.length === 0) return `День ${index + 1}`;
+  return list[index % list.length];
+}
+
+function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
+  const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
+  const limit = scheme.daysPerWeek || labels.length;
+  const base = labels.length
+    ? labels.slice(0, limit)
+    : Array.from({ length: limit }, (_, idx) => ({
+        day: idx + 1,
+        label: getFallbackDayTitle(scheme.splitType, idx),
+        focus: "",
+      }));
+
+  return base.map((day, idx) => {
+    const fallbackTitle = getFallbackDayTitle(scheme.splitType, idx);
+    const title = normalizeDayTitle(day.label || fallbackTitle) || fallbackTitle;
+    const description = (day.focus || scheme.description || "").trim();
+    return {
+      day: day.day || idx + 1,
+      title,
+      description,
+      icon: "🏋️",
+    };
+  });
+}
+
+// ============================================================================
 // LOCKED CARD CONTENT (for beginner)
 // Each locked alternative gets a motivational unlock message
 // ============================================================================
@@ -373,8 +455,7 @@ function RecommendedCard({
     },
     userContext,
   );
-  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
-
+  const dayTimeline = buildDayTimeline(scheme);
   return (
     <div style={s.recommendedCard}>
       <div style={s.schemeHeader}>
@@ -382,10 +463,34 @@ function RecommendedCard({
         <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
-      {splitExplanation && (
-        <div style={s.splitExplanation}>{splitExplanation}</div>
-      )}
       <p style={s.cardDescription}>{displayData.description}</p>
+      {dayTimeline.length > 0 && (
+        <div style={s.dayTimeline}>
+          <div style={s.timelineHeader}>
+            <span style={s.timelineHeaderIcon}>🗓️</span>
+            <span style={s.timelineHeaderLabel}>План по дням</span>
+          </div>
+          <div style={s.timelineList}>
+            {dayTimeline.map((item, idx) => (
+              <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                <div style={s.timelineLeft}>
+                  <div style={s.timelineIcon}>{item.icon}</div>
+                  {idx < dayTimeline.length - 1 && (
+                    <div style={s.timelineLine} />
+                  )}
+                </div>
+                <div style={s.timelineRight}>
+                  <div style={s.timelineWeek}>День {item.day}</div>
+                  <div style={s.timelineTitle}>{item.title}</div>
+                  {item.description && (
+                    <p style={s.timelineDesc}>{item.description}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -688,6 +793,85 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.5,
     color: "rgba(30,31,34,0.6)",
+  },
+
+  // Day timeline inside recommended card
+  dayTimeline: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTop: "1px solid rgba(30,31,34,0.08)",
+  },
+  timelineHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  timelineHeaderIcon: {
+    fontSize: 16,
+  },
+  timelineHeaderLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  timelineList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+  },
+  timelineItem: {
+    display: "flex",
+    gap: 12,
+  },
+  timelineLeft: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: 28,
+  },
+  timelineIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    background: "rgba(30,31,34,0.06)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 14,
+    flexShrink: 0,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 16,
+    background: "rgba(30,31,34,0.1)",
+    margin: "4px 0",
+  },
+  timelineRight: {
+    flex: 1,
+    paddingBottom: 14,
+  },
+  timelineWeek: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  timelineTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1e1f22",
+    marginTop: 2,
+  },
+  timelineDesc: {
+    margin: "4px 0 0",
+    fontSize: 13,
+    color: "rgba(30,31,34,0.6)",
+    lineHeight: 1.4,
   },
 
   // Alternatives section
