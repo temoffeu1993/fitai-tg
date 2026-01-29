@@ -553,7 +553,7 @@ function SelectableCard({
     <button
       type="button"
       className="scheme-card"
-      style={{ ...s.glassCard, ...(isActive ? s.schemeCardActive : s.schemeCardInactive) }}
+      style={{ ...s.recommendedCard, ...(isActive ? undefined : s.recommendedCardInactive) }}
       onClick={onSelect}
     >
       <div style={s.cardTitle}>{displayData.title}</div>
@@ -794,16 +794,6 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "left",
     position: "relative",
     width: "100%",
-  },
-  schemeCardActive: {
-    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-    color: "#1e1f22",
-  },
-  schemeCardInactive: {
-    opacity: 0.55,
-    filter: "saturate(0.9)",
   },
 
   recommendedCard: {
