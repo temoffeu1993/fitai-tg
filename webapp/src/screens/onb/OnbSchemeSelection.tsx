@@ -3,7 +3,6 @@
 // - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
 // Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
-// Day strip: horizontal scroll with muscle mascot illustrations per day
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -17,11 +16,6 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
-
-// Muscle mascot illustrations (front / back views)
-// TODO: replace with per-muscle-group illustrations when generated
-import muscleFrontImg from "@/assets/push.png";
-import muscleBackImg from "@/assets/push2.png";
 
 type Props = {
   onComplete: () => void;
@@ -41,15 +35,24 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
 };
 
 // ============================================================================
-// DAY STRIP — horizontal scroll with muscle illustrations
+// DAY BARS — progress-style list per day
 // ============================================================================
 
-type DayStripItem = {
+type DayBarItem = {
   day: number;
   label: string;
-  imgFront: string; // mascot front view
-  imgBack: string;  // mascot back view
+  color: string;
 };
+
+const DAY_BAR_COLORS = [
+  "#1e1f22",
+  "#2563eb",
+  "#f59e0b",
+  "#10b981",
+  "#ec4899",
+  "#8b5cf6",
+  "#0ea5e9",
+];
 
 const FALLBACK_DAY_LABELS: Record<string, string[]> = {
   full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
@@ -72,13 +75,7 @@ function normalizeDayLabel(label: string): string {
   return t.replace(/\s+/g, " ").trim();
 }
 
-// TODO: when per-muscle illustrations are ready, map label keywords to specific images
-// For now all days use the same two placeholder images (front + back)
-function getMuscleImages(_label: string): { front: string; back: string } {
-  return { front: muscleFrontImg, back: muscleBackImg };
-}
-
-function buildDayStrip(scheme: WorkoutScheme): DayStripItem[] {
+function buildDayBars(scheme: WorkoutScheme): DayBarItem[] {
   const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
   const limit = scheme.daysPerWeek || labels.length;
   const fallbacks = FALLBACK_DAY_LABELS[scheme.splitType] || [];
@@ -86,12 +83,10 @@ function buildDayStrip(scheme: WorkoutScheme): DayStripItem[] {
   return Array.from({ length: limit }, (_, idx) => {
     const raw = labels[idx]?.label || fallbacks[idx % fallbacks.length] || `День ${idx + 1}`;
     const label = normalizeDayLabel(raw);
-    const imgs = getMuscleImages(label);
     return {
       day: (labels[idx]?.day) || idx + 1,
       label,
-      imgFront: imgs.front,
-      imgBack: imgs.back,
+      color: DAY_BAR_COLORS[idx % DAY_BAR_COLORS.length],
     };
   });
 }
@@ -421,7 +416,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// RECOMMENDED CARD — glass card with horizontal muscle strip
+// RECOMMENDED CARD — glass card with day progress bars
 // ============================================================================
 
 function RecommendedCard({
@@ -446,7 +441,7 @@ function RecommendedCard({
     },
     userContext,
   );
-  const dayStrip = buildDayStrip(scheme);
+  const dayBars = buildDayBars(scheme);
 
   return (
     <div
@@ -474,10 +469,9 @@ function RecommendedCard({
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
 
-      {/* Horizontal day strip with muscle illustrations */}
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <DayStrip items={dayStrip} />
+          <DayBars items={dayBars} />
         </div>
       </div>
     </div>
@@ -510,7 +504,7 @@ function SelectableCard({
     },
     userContext,
   );
-  const dayStrip = buildDayStrip(scheme);
+  const dayBars = buildDayBars(scheme);
 
   return (
     <button
@@ -525,7 +519,7 @@ function SelectableCard({
 
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <DayStrip items={dayStrip} />
+          <DayBars items={dayBars} />
         </div>
       </div>
     </button>
@@ -533,31 +527,25 @@ function SelectableCard({
 }
 
 // ============================================================================
-// DAY STRIP COMPONENT — horizontal scroll of muscle illustration cards
+// DAY BARS COMPONENT — progress-style rows with day labels
 // ============================================================================
 
-function DayStrip({ items }: { items: DayStripItem[] }) {
+function DayBars({ items }: { items: DayBarItem[] }) {
   if (items.length === 0) return null;
 
   return (
-    <div style={s.stripWrap}>
-      <div style={s.stripScroll} className="day-strip-scroll">
-        {items.map((item, idx) => (
-          <div key={`${item.day}-${idx}`} style={s.stripCard}>
-            <div style={s.stripImgWrap}>
-              {/* Alternate front/back for visual variety */}
-              <img
-                src={idx % 2 === 0 ? item.imgFront : item.imgBack}
-                alt=""
-                style={s.stripImg}
-                loading="lazy"
-              />
-            </div>
-            <div style={s.stripDayNum}>День {item.day}</div>
-            <div style={s.stripLabel}>{item.label}</div>
+    <div style={s.dayBars}>
+      {items.map((item, idx) => (
+        <div key={`${item.day}-${idx}`} style={s.dayBarRow}>
+          <div style={s.dayBarHeader}>
+            <span style={s.dayBarDay}>День {item.day}</span>
+            <span style={s.dayBarLabel}>{item.label}</span>
           </div>
-        ))}
-      </div>
+          <div style={s.dayBarTrack}>
+            <div style={{ ...s.dayBarFill, background: item.color }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -684,13 +672,6 @@ function ScreenStyles() {
       }
       .scheme-card:active:not(:disabled) {
         transform: translateY(1px) scale(0.99);
-      }
-      .day-strip-scroll {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-      .day-strip-scroll::-webkit-scrollbar {
-        display: none;
       }
       @media (prefers-reduced-motion: reduce) {
         .onb-fade, .onb-leave { animation: none !important; }
@@ -839,59 +820,49 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 8,
   },
 
-  // Horizontal day strip with muscle illustrations
-  stripWrap: {
-    marginTop: 14,
-    marginLeft: -18,
-    marginRight: -18,
-    paddingLeft: 18,
-    paddingRight: 18,
-  },
-  stripScroll: {
-    display: "flex",
-    gap: 10,
-    overflowX: "auto",
-    paddingBottom: 4,
-  },
-  stripCard: {
-    flex: "0 0 auto",
-    width: 88,
+  // Day bars (progress-style)
+  dayBars: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: 4,
+    gap: 10,
+    marginTop: 8,
   },
-  stripImgWrap: {
-    width: 80,
-    height: 96,
-    borderRadius: 14,
-    background: "rgba(30,31,34,0.04)",
-    border: "1px solid rgba(30,31,34,0.06)",
-    overflow: "hidden",
+  dayBarRow: {
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 6,
   },
-  stripImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
+  dayBarHeader: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  stripDayNum: {
+  dayBarDay: {
     fontSize: 11,
     fontWeight: 600,
     color: "rgba(30,31,34,0.4)",
     textTransform: "uppercase",
     letterSpacing: 0.3,
-    marginTop: 2,
+    whiteSpace: "nowrap",
   },
-  stripLabel: {
-    fontSize: 13,
+  dayBarLabel: {
+    fontSize: 14,
     fontWeight: 600,
     color: "#1e1f22",
-    textAlign: "center",
-    lineHeight: 1.2,
-    maxWidth: 84,
+    textAlign: "right",
+    flex: 1,
+  },
+  dayBarTrack: {
+    height: 8,
+    borderRadius: 999,
+    background: "rgba(30,31,34,0.06)",
+    overflow: "hidden",
+  },
+  dayBarFill: {
+    height: "100%",
+    width: "100%",
+    borderRadius: 999,
   },
 
   // Alternatives section
