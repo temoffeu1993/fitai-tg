@@ -27,26 +27,24 @@ function getUid(req: any): string {
 }
 
 // ============================================================================
-// HELPER: Map old goal format to new format
+// HELPER: Validate goal (no legacy mapping)
 // ============================================================================
 
-function mapGoalToNew(oldGoal: string): Goal {
-  const goalMap: Record<string, Goal> = {
-    lose_weight: "lose_weight",
-    build_muscle: "build_muscle",
-    athletic_body: "athletic_body",
-    tone_up: "athletic_body",
-    lower_body_focus: "lower_body_focus",
-    strength: "strength",
-    health_wellness: "health_wellness",
-    // Old mappings
-    fat_loss: "lose_weight",
-    hypertrophy: "build_muscle",
-    general_fitness: "athletic_body",
-    powerlifting: "strength",
-  };
-  
-  return goalMap[oldGoal] || "health_wellness";
+const ALLOWED_GOALS: ReadonlySet<Goal> = new Set([
+  "lose_weight",
+  "build_muscle",
+  "athletic_body",
+  "health_wellness",
+]);
+
+function parseGoal(rawGoal: string): Goal {
+  if (ALLOWED_GOALS.has(rawGoal as Goal)) {
+    return rawGoal as Goal;
+  }
+  throw new AppError(
+    `Unsupported goal value "${rawGoal}". Expected one of: ${Array.from(ALLOWED_GOALS).join(", ")}.`,
+    400
+  );
 }
 
 // ============================================================================
@@ -121,8 +119,8 @@ schemes.post(
     experience = expMap[experience] || experience;
     
     // Map goal
-    const oldGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
-    const goal = mapGoalToNew(oldGoal);
+    const rawGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
+    const goal = parseGoal(rawGoal);
     
     // Extract other params
     const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;

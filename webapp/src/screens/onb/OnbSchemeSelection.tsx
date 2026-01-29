@@ -29,8 +29,6 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
   full_body: "Каждая тренировка — всё тело целиком",
   upper_lower: "Чередование верха и низа",
   push_pull_legs: "Три типа дней: жим, тяга, ноги",
-  strength_focus: "Базовые упражнения с большими весами",
-  lower_focus: "Акцент на ноги и ягодицы в каждой тренировке",
   conditioning: "Круговые и функциональные тренировки",
   bro_split: "Каждый день — своя мышца",
 };
@@ -51,9 +49,6 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
   if (split === "bro_split") {
     return { unlockWeeks: 12, motivationText: "Для детальной проработки" };
   }
-  if (split === "strength_focus") {
-    return { unlockWeeks: 12, motivationText: "Когда база станет лёгкой" };
-  }
   // Default
   return {
     unlockWeeks: scheme.intensity === "high" ? 12 : 8,
@@ -67,14 +62,14 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
 
 function getBubbleText(experience: ExperienceLevel, schemesCount: number): string {
   if (experience === "beginner") {
-    return "Вот схема тренировок, которая идеально подходит под твой профиль";
+    return "Готово! Вот схема тренировок, которая идеально подходит под твой профиль";
   }
   if (experience === "intermediate" || experience === "advanced") {
-    return "Выбери схему тренировок: всё тело за раз или делим по мышцам?";
+    return "Готово! Выбери схему тренировок: всё тело за раз или делим по мышцам?";
   }
   return schemesCount > 1
-    ? "Выбери схему тренировок: всё тело за раз или делим по мышцам?"
-    : "Вот схема тренировок, которая идеально подходит под твой профиль";
+    ? "Готово! Выбери схему тренировок: всё тело за раз или делим по мышцам?"
+    : "Готово! Вот схема тренировок, которая идеально подходит под твой профиль";
 }
 
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
@@ -159,7 +154,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       return;
     }
     const t1 = window.setTimeout(() => setReveal(true), 30);
-    const t2 = window.setTimeout(() => setShowContent(true), 200);
+    const t2 = window.setTimeout(() => setShowContent(true), 600);
 
     let index = 0;
     const typeInterval = window.setInterval(() => {
@@ -176,6 +171,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   }, [loading, schemes, bubbleTarget]);
 
   async function loadRecommendations() {
+    const start = performance.now();
     try {
       setLoading(true);
       setError(null);
@@ -183,10 +179,15 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       const allSchemes = [data.recommended, ...data.alternatives];
       setSchemes(allSchemes);
       setSelectedId(data.recommended.id);
+      const minLoadingMs = 900;
+      const elapsed = performance.now() - start;
+      if (elapsed < minLoadingMs) {
+        await new Promise((resolve) => window.setTimeout(resolve, minLoadingMs - elapsed));
+      }
+      setLoading(false);
     } catch (err: any) {
       console.error("Failed to load recommendations:", err);
       setError(err.message || "Не удалось загрузить рекомендации");
-    } finally {
       setLoading(false);
     }
   }
@@ -235,7 +236,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         <div style={{ ...s.mascotRow, opacity: 1 }}>
           <img src={maleRobotImg} alt="" style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }} />
           <div style={s.bubble} className="speech-bubble">
-            <span style={s.bubbleText}>Подбираю программу...</span>
+            <span style={s.bubbleText}>Подбираю схемы тренировок...</span>
           </div>
         </div>
         <div style={{ display: "grid", placeItems: "center", marginTop: 40 }}>
@@ -378,7 +379,7 @@ function RecommendedCard({
     <div style={s.recommendedCard}>
       <div style={s.schemeHeader}>
         <span style={s.schemeHeaderIcon}>⭐</span>
-        <span style={s.schemeHeaderLabel}>Рекомендованная программа</span>
+        <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
       {splitExplanation && (

@@ -111,7 +111,7 @@ async function insertWorkoutData(
         { id: "ho_db_bench_press", name: EXERCISES.db_bench },
       ];
   
-  const targetReps = goal === "strength" ? [4, 6] : goal === "build_muscle" ? [8, 12] : [10, 15];
+  const targetReps = goal === "build_muscle" ? [8, 12] : [10, 15];
   
   for (const ex of exerciseData) {
     // Check current progression
@@ -121,7 +121,7 @@ async function insertWorkoutData(
       WHERE user_id = $1 AND exercise_id = $2
     `, [userId, ex.id]);
     
-    let currentWeight = progressionQuery.rows[0]?.current_weight || (goal === "strength" ? 60 : 40);
+    let currentWeight = progressionQuery.rows[0]?.current_weight || (goal === "build_muscle" ? 40 : 10);
     const status = progressionQuery.rows[0]?.status || "new";
     
     console.log(`\n  🏋️  ${ex.name}:`);
@@ -164,7 +164,7 @@ async function insertWorkoutData(
     
     if (avgReps >= targetReps[1] - 0.5 && allCompleted) {
       // Ready to increase weight!
-      newWeight = goal === "strength" ? currentWeight + 2.5 : currentWeight + 2.5;
+      newWeight = currentWeight + 2.5;
       newStatus = "progressing";
       stallCount = 0;
       console.log(`      📈 ПРОГРЕСС! Новый вес: ${newWeight}кг`);

@@ -57,18 +57,18 @@ const REAL_USERS: TestUser[] = [
   },
   {
     id: 7,
-    name: "Средний М, сила, 4д/90мин",
-    profile: { experience: "intermediate", goal: "strength", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
+    name: "Средний М, набор массы, 4д/90мин",
+    profile: { experience: "intermediate", goal: "build_muscle", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 8,
-    name: "Средний Ж, ягодицы, 4д/60мин",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
+    name: "Средний Ж, атлетика, 4д/60мин",
+    profile: { experience: "intermediate", goal: "athletic_body", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 9,
-    name: "Средний Ж, ягодицы, 5д/60мин",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
+    name: "Средний Ж, атлетика, 5д/60мин",
+    profile: { experience: "intermediate", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 10,
@@ -96,23 +96,23 @@ const REAL_USERS: TestUser[] = [
   },
   {
     id: 14,
-    name: "Продвинутый М, сила, 5д/90мин",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
+    name: "Продвинутый М, набор массы, 5д/90мин",
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 15,
-    name: "Продвинутый М, сила, 4д/90мин",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
+    name: "Продвинутый М, набор массы, 4д/90мин",
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 4, timeBucket: 90, location: "gym", sex: "male" },
   },
   {
     id: 16,
-    name: "Продвинутый Ж, ягодицы, 5д/60мин",
-    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
+    name: "Продвинутый Ж, атлетика, 5д/60мин",
+    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 5, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 17,
-    name: "Продвинутый Ж, ягодицы, 6д/60мин",
-    profile: { experience: "advanced", goal: "lower_body_focus", daysPerWeek: 6, timeBucket: 60, location: "gym", sex: "female" },
+    name: "Продвинутый Ж, атлетика, 6д/60мин",
+    profile: { experience: "advanced", goal: "athletic_body", daysPerWeek: 6, timeBucket: 60, location: "gym", sex: "female" },
   },
   {
     id: 18,
@@ -139,14 +139,14 @@ const REAL_USERS: TestUser[] = [
   },
   {
     id: 22,
-    name: "Средний Ж, ягодицы, боль в колене",
-    profile: { experience: "intermediate", goal: "lower_body_focus", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
+    name: "Средний Ж, атлетика, боль в колене",
+    profile: { experience: "intermediate", goal: "athletic_body", daysPerWeek: 4, timeBucket: 60, location: "gym", sex: "female" },
     checkin: { energy: "low", sleep: "fair", stress: "medium", pain: [{ location: "knee", level: 5 }], soreness: [] },
   },
   {
     id: 23,
-    name: "Продвинутый М, сила, боль в пояснице",
-    profile: { experience: "advanced", goal: "strength", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
+    name: "Продвинутый М, набор массы, боль в пояснице",
+    profile: { experience: "advanced", goal: "build_muscle", daysPerWeek: 5, timeBucket: 90, location: "gym", sex: "male" },
     checkin: { energy: "medium", sleep: "ok", stress: "low", pain: [{ location: "lower_back", level: 4 }], soreness: [] },
   },
 
@@ -290,53 +290,6 @@ function analyzeAsCoach(user: TestUser, weekPlan: any[], scheme: any): CoachAnal
   }
 
   // 4. СПЕЦИФИКА ПО ЦЕЛЯМ
-  if (profile.goal === "strength") {
-    // Для силы нужны тяжёлые базовые упражнения
-    let heavyCompounds = 0;
-    for (const day of weekPlan) {
-      for (const ex of day.exercises) {
-        if (ex.role === "main" && ex.repsRange[1] <= 6) {
-          heavyCompounds++;
-        }
-      }
-    }
-    if (heavyCompounds < profile.daysPerWeek) {
-      weaknesses.push(`Недостаточно тяжёлых базовых (4-6 повт): ${heavyCompounds} (нужно >= ${profile.daysPerWeek})`);
-      rating -= 2;
-    } else {
-      strengths.push(`Достаточно силовых упражнений: ${heavyCompounds} тяжёлых базовых`);
-    }
-  }
-
-  if (profile.goal === "lower_body_focus") {
-    // Для ягодиц: должно быть много hip_thrust, lunge, hinge
-    let lowerBodyExercises = 0;
-    let gluteFocused = 0;
-    for (const day of weekPlan) {
-      for (const ex of day.exercises) {
-        const patterns = ex.exercise?.patterns || [];
-        if (patterns.some((p: string) => ["squat", "hinge", "lunge", "hip_thrust"].includes(p))) {
-          lowerBodyExercises++;
-        }
-        const muscles = ex.exercise?.primaryMuscles || [];
-        if (muscles.includes("glutes")) {
-          gluteFocused++;
-        }
-      }
-    }
-
-    const lowerRatio = lowerBodyExercises / totalExercises;
-    if (lowerRatio < 0.5) {
-      weaknesses.push(`Недостаточно упражнений на ноги/ягодицы: ${lowerBodyExercises}/${totalExercises} (${(lowerRatio * 100).toFixed(0)}%)`);
-      rating -= 2;
-    } else {
-      strengths.push(`Акцент на нижнюю часть: ${lowerBodyExercises} упражнений (${(lowerRatio * 100).toFixed(0)}%)`);
-    }
-
-    if (gluteFocused < profile.daysPerWeek * 2) {
-      recommendations.push(`Добавить больше упражнений на ягодицы (hip thrust, отведения)`);
-    }
-  }
 
   if (profile.goal === "lose_weight") {
     // Для похудения: высокая частота, короткий отдых

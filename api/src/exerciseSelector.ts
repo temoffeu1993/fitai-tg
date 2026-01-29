@@ -26,11 +26,9 @@ import {
 
 export type Goal = 
   | "build_muscle"  // hypertrophy
-  | "strength" 
   | "lose_weight"   // fat loss
   | "athletic_body" 
-  | "health_wellness"
-  | "lower_body_focus";
+  | "health_wellness";
 
 export type Intent = "light" | "normal" | "hard";
 export type TimeBucket = 45 | 60 | 90;
@@ -320,13 +318,6 @@ export function scoreExerciseAdvanced(args: {
   // E) GOAL MATCHING
   // -------------------------------------------------------------------------
   
-  if (ctx.goal === "strength") {
-    if (hasAnyTag(ex, ["strength_bias"])) s += 10;
-    if (ex.kind === "isolation") s -= 3;
-    if (hasAnyTag(ex, ["not_for_circuit"])) s += 2;
-    if (ex.repRangeDefault.min >= 10) s -= 2;
-  }
-
   if (ctx.goal === "build_muscle") {
     if (hasAnyTag(ex, ["hypertrophy_bias", "constant_tension"])) s += 7;
     if (ex.kind === "isolation" && role !== "main") s += 3;
@@ -341,14 +332,6 @@ export function scoreExerciseAdvanced(args: {
   if (ctx.goal === "athletic_body" || ctx.goal === "health_wellness") {
     if (hasAnyTag(ex, ["good_for_circuit", "low_setup", "functional"])) s += 5;
     if (ex.unilateral) s += 3;
-  }
-
-  if (ctx.goal === "lower_body_focus") {
-    // Boost lower body patterns
-    if (["squat", "hinge", "lunge", "hip_thrust"].includes(pattern)) {
-      s += 5;
-      if (ex.primaryMuscles.some(m => ["glutes", "quads", "hamstrings"].includes(m))) s += 8;
-    }
   }
 
   if (ctx.preferCircuits) {

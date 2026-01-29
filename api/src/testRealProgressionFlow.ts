@@ -41,11 +41,11 @@ const TEST_USERS = [
   },
   {
     id: "test-user-003-advanced",
-    name: "Алексей (Опытный, Сила)",
+    name: "Алексей (Опытный, Атлетизм)",
     profile: {
       userId: "test-user-003-advanced",
       experience: "advanced" as ExperienceLevel,
-      goal: "strength" as Goal,
+      goal: "athletic_body" as Goal,
       daysPerWeek: 4,
       timeBucket: 90 as const,
       location: "gym" as const,

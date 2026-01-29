@@ -205,8 +205,6 @@ type OnboardingGoal =
   | "lose_weight" // Похудеть
   | "build_muscle" // Масса (верх+низ)
   | "athletic_body" // Рельеф/тонус
-  | "lower_body_focus" // Акцент на ноги и ягодицы
-  | "strength" // Стать сильнее
   | "health_wellness"; // Здоровье/самочувствие
 
 type TrainingStatus = "beginner" | "intermediate" | "advanced";
@@ -975,11 +973,6 @@ function buildGoalsDescription(goalsData: any): string[] {
     lose_weight: ["похудеть и улучшить композицию тела", "сбросить лишний вес, подтянуть фигуру"],
     build_muscle: ["набрать мышечную массу всего тела", "увеличить объём мышц равномерно"],
     athletic_body: ["спортивное подтянутое тело", "улучшить рельеф и тонус мышц"],
-    lower_body_focus: [
-      "акцент на развитие ног и ягодиц",
-      "сильная и красивая нижняя часть тела в составе сбалансированных тренировок",
-    ],
-    strength: ["стать сильнее и выносливее", "повысить силовые показатели и функциональность"],
     health_wellness: ["улучшить здоровье и самочувствие", "больше энергии, здоровые суставы и спина"],
   };
 
@@ -1336,9 +1329,7 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
   // Прямые enum значения
   if (rawGoal === "build_muscle") mappedGoal = "build_muscle";
   else if (rawGoal === "lose_weight") mappedGoal = "lose_weight";
-  else if (rawGoal === "strength") mappedGoal = "strength";
   else if (rawGoal === "athletic_body") mappedGoal = "athletic_body";
-  else if (rawGoal === "lower_body_focus") mappedGoal = "lower_body_focus";
   else if (rawGoal === "health_wellness") mappedGoal = "health_wellness";
   // Текстовые описания из goalDescriptions (точные фразы)
   else if (rawGoal.includes("набрать мышечную массу") || rawGoal.includes("увеличить объём мышц")) {
@@ -1347,10 +1338,6 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
     mappedGoal = "lose_weight";
   } else if (rawGoal.includes("спортивное подтянутое тело") || rawGoal.includes("улучшить рельеф и тонус")) {
     mappedGoal = "athletic_body";
-  } else if (rawGoal.includes("акцент на развитие ног и ягодиц") || rawGoal.includes("сильная и красивая нижняя часть тела")) {
-    mappedGoal = "lower_body_focus";
-  } else if (rawGoal.includes("стать сильнее и выносливее") || rawGoal.includes("повысить силовые показатели")) {
-    mappedGoal = "strength";
   } else if (rawGoal.includes("улучшить здоровье и самочувствие") || rawGoal.includes("больше энергии, здоровые суставы")) {
     mappedGoal = "health_wellness";
   }
@@ -1358,8 +1345,6 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
   else if (rawGoal.includes("масс") || rawGoal.includes("объ")) mappedGoal = "build_muscle";
   else if (rawGoal.includes("похуд") || rawGoal.includes("вес")) mappedGoal = "lose_weight";
   else if (rawGoal.includes("рельеф") || rawGoal.includes("тонус") || rawGoal.includes("спортивн")) mappedGoal = "athletic_body";
-  else if (rawGoal.includes("ног") || rawGoal.includes("ягодиц")) mappedGoal = "lower_body_focus";
-  else if (rawGoal.includes("сил") || rawGoal.includes("выносл")) mappedGoal = "strength";
   else if (rawGoal.includes("здоров") || rawGoal.includes("самочув")) mappedGoal = "health_wellness";
   
   const sex = profile.sex === "male" ? "male" : profile.sex === "female" ? "female" : null;
@@ -1400,8 +1385,6 @@ async function findBestSchemeForProfile(profile: Profile): Promise<Blueprint | n
     else if (scheme.intensity === 'moderate') score += 10; // универсальная интенсивность
     
     // Бонусы за специфические комбинации (вес: до 15)
-    if (mappedGoal === 'lower_body_focus' && scheme.splitType.includes('glutes')) score += 15;
-    if (mappedGoal === 'strength' && (scheme.splitType.includes('powerbuilding') || scheme.name.includes('Strength'))) score += 15;
     if (mappedGoal === 'health_wellness' && scheme.splitType === 'full_body') score += 12;
     if (mappedGoal === 'lose_weight' && (scheme.name.includes('Fat Loss') || scheme.name.includes('Metabolic'))) score += 15;
     
@@ -1548,7 +1531,6 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
   const isHypertrophy =
     goalPrimary === "build_muscle" ||
     goalPrimary === "athletic_body" ||
-    goalPrimary === "strength" ||
     goalText.includes("масса") ||
     goalText.includes("мышц") ||
     goalText.includes("гипертроф") ||
@@ -1591,25 +1573,14 @@ function createBlueprintRuleBased(profile: Profile, onboarding: any): Blueprint 
       description = "Сбалансированное распределение нагрузки";
     }
   } else {
-    const isFemaleLowerFocus =
-      profile.sex === "female" &&
-      (goalPrimary === "lower_body_focus" ||
-        goalText.includes("ягод") ||
-        goalText.includes("ног") ||
-        goalText.includes("попа"));
-
     if (goalPrimary === "athletic_body" || goalPrimary === "lose_weight") {
       name = "Full Body Tone";
       baseDays = ["Full Body A", "Full Body B", "Full Body C"];
       description = "Тонизирующая 3-дневка: баланс ног, жимов и тяг без перегруза";
-    } else if (goalPrimary === "build_muscle" || goalPrimary === "strength") {
+    } else if (goalPrimary === "build_muscle") {
       name = "Upper/Lower + Full Body";
       baseDays = ["Upper", "Lower", "Full Body"];
       description = "Сбалансированный микс для роста силы и массы";
-    } else if (isFemaleLowerFocus && !isBeginner) {
-      name = "Glutes & Lower Emphasis";
-      baseDays = ["Lower + Glutes Heavy", "Upper Push/Pull", "Glutes + Core Volume"];
-      description = "Акцент на нижнюю часть тела";
     } else if (isSenior || hasInjuries) {
       name = "Full Body Easy";
       baseDays = ["Full Body Light", "Кардио + Мобильность", "Full Body Moderate"];
@@ -2434,9 +2405,9 @@ function buildFocusRules(todayFocus: string): string {
 function buildGoalAccents(goalPrimary: string | null): string {
   if (!goalPrimary) return "";
   const goal = String(goalPrimary);
-  if (goal === "build_muscle" || goal === "strength") {
+  if (goal === "build_muscle") {
     return `## Акцент по цели
-- Набор массы/сила: дай достаточный объём базовых движений, контролируй прогрессию весов, отдых 90–120 сек при необходимости.
+- Набор массы: дай достаточный объём базовых движений, контролируй прогрессию весов, отдых 90–120 сек при необходимости.
 - Следи за техникой, избегай лишнего «пампинга» в ущерб качеству движения.`;
   }
   if (goal === "athletic_body" || goal === "lose_weight") {
@@ -2448,10 +2419,6 @@ function buildGoalAccents(goalPrimary: string | null): string {
     return `## Акцент по цели
 - Здоровье/самочувствие: умеренный объём, техника и контроль нагрузки важнее тяжёлых весов.
 - Добавь мобилити/кор, избегай избыточной осевой нагрузки, учитывай восстановление.`;
-  }
-  if (goal === "lower_body_focus") {
-  return `## Акцент по цели
-- Акцент на нижнюю часть: приоритизируй ноги/ягодицы, но сохраняй поддерживающий объём на верх в течение недели.`;
   }
   return "";
 }
@@ -3564,9 +3531,17 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       console.log(`✓ Loaded rules for ${daysRules.length} days`);
       
       // Профиль пользователя для генерации
+      const trainingGoal =
+        profile.goals?.[0] === "lose_weight"
+          ? "metabolic"
+          : profile.goals?.[0] === "health_wellness"
+          ? "health"
+          : profile.goals?.[0] === "athletic_body"
+          ? "athletic_body"
+          : "hypertrophy";
       const userProfileForRules = {
         experience: profile.trainingStatus as any,
-        goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
+        goal: trainingGoal as any,
         timeAvailable: sessionMinutes,
         daysPerWeek: profile.daysPerWeek,
         programName: program.blueprint_json.name,
@@ -3652,7 +3627,15 @@ async function generateWorkoutPlan({ planId, userId, tz }: WorkoutGenerationJob)
       } else {
         const userProfileForRules = {
           experience: profile.trainingStatus as any,
-          goal: (profile.goals?.[0] === "strength" ? "strength" : "hypertrophy") as any,
+          goal: (
+            profile.goals?.[0] === "lose_weight"
+              ? "metabolic"
+              : profile.goals?.[0] === "health_wellness"
+              ? "health"
+              : profile.goals?.[0] === "athletic_body"
+              ? "athletic_body"
+              : "hypertrophy"
+          ) as any,
           timeAvailable: sessionMinutes,
           daysPerWeek: profile.daysPerWeek,
           programName: program.blueprint_json.name, // Название схемы (PPL, Upper/Lower, etc)

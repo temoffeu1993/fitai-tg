@@ -61,9 +61,9 @@ const SCENARIOS: UserScenario[] = [
     ],
   },
   {
-    name: "Алексей (Опытный, Сила)",
+    name: "Алексей (Опытный, Атлетизм)",
     userId: "user-003",
-    goal: "strength",
+    goal: "athletic_body",
     experience: "advanced",
     exercises: [
       { exerciseId: "ho_barbell_bench_press", name: "Жим штанги лёжа", equipment: "barbell" },
@@ -162,9 +162,7 @@ function simulateWorkout(
     // Determine target reps based on goal
     let targetRepsRange: [number, number] = [8, 12]; // Default for build_muscle
     
-    if (user.goal === "strength") {
-      targetRepsRange = [4, 6];
-    } else if (user.goal === "lose_weight") {
+    if (user.goal === "lose_weight") {
       targetRepsRange = [10, 15];
     }
     
@@ -323,7 +321,7 @@ async function runSimulation() {
   console.log("     - Пользователи добивают верх диапазона → вес растёт");
   console.log("     - Не добивают → вес держится, повторы растут");
   
-  console.log("\n  2. Linear Progression работает (для strength):");
+  console.log("\n  2. Linear Progression работает (для build_muscle):");
   console.log("     - Добил все подходы → сразу +вес");
   
   console.log("\n  3. Deload Detection работает:");

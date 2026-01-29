@@ -65,15 +65,6 @@ type MesocycleTemplate = {
 };
 
 export const MESOCYCLE_TEMPLATES: Record<Goal, MesocycleTemplate> = {
-  strength: {
-    durationWeeks: 4, // Силовые короче из-за ЦНС нагрузки
-    deloadWeek: 4,
-    phases: [
-      { startWeek: 1, endWeek: 2, phase: "accumulation", volumeMultiplier: 1.0, intensityTarget: "high" },
-      { startWeek: 3, endWeek: 3, phase: "intensification", volumeMultiplier: 1.05, intensityTarget: "high" },
-      { startWeek: 4, endWeek: 4, phase: "deload", volumeMultiplier: 0.6, intensityTarget: "medium" },
-    ],
-  },
   build_muscle: {
     durationWeeks: 6,
     deloadWeek: 5,
@@ -112,16 +103,6 @@ export const MESOCYCLE_TEMPLATES: Record<Goal, MesocycleTemplate> = {
       { startWeek: 4, endWeek: 6, phase: "intensification", volumeMultiplier: 1.05, intensityTarget: "medium" },
       { startWeek: 7, endWeek: 7, phase: "deload", volumeMultiplier: 0.7, intensityTarget: "light" },
       { startWeek: 8, endWeek: 8, phase: "realization", volumeMultiplier: 1.0, intensityTarget: "light" },
-    ],
-  },
-  lower_body_focus: {
-    durationWeeks: 6,
-    deloadWeek: 5,
-    phases: [
-      { startWeek: 1, endWeek: 2, phase: "accumulation", volumeMultiplier: 1.0, intensityTarget: "medium" },
-      { startWeek: 3, endWeek: 4, phase: "intensification", volumeMultiplier: 1.1, intensityTarget: "high" },
-      { startWeek: 5, endWeek: 5, phase: "deload", volumeMultiplier: 0.6, intensityTarget: "light" },
-      { startWeek: 6, endWeek: 6, phase: "realization", volumeMultiplier: 1.0, intensityTarget: "medium" },
     ],
   },
 };

@@ -53,22 +53,21 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
   };
   experience = (expMap[rawExp] || rawExp) as ExperienceLevel;
 
-  // Map goal
-  const oldGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
-  const goalMap: Record<string, Goal> = {
-    lose_weight: "lose_weight",
-    build_muscle: "build_muscle",
-    athletic_body: "athletic_body",
-    tone_up: "athletic_body",
-    lower_body_focus: "lower_body_focus",
-    strength: "strength",
-    health_wellness: "health_wellness",
-    fat_loss: "lose_weight",
-    hypertrophy: "build_muscle",
-    general_fitness: "athletic_body",
-    powerlifting: "strength",
-  };
-  const goal: Goal = goalMap[oldGoal] || "health_wellness";
+  // Validate goal (no legacy mapping)
+  const rawGoal = data.motivation?.goal || data.goals?.primary || summary.goals?.primary || "health_wellness";
+  const allowedGoals: ReadonlySet<Goal> = new Set([
+    "lose_weight",
+    "build_muscle",
+    "athletic_body",
+    "health_wellness",
+  ]);
+  if (!allowedGoals.has(rawGoal as Goal)) {
+    throw new AppError(
+      `Unsupported goal value "${rawGoal}". Expected one of: ${Array.from(allowedGoals).join(", ")}.`,
+      400
+    );
+  }
+  const goal = rawGoal as Goal;
 
   // Resolve location
   const trainingPlace = data.trainingPlace?.place || summary.trainingPlace?.place || null;

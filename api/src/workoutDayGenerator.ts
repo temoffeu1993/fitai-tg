@@ -1102,11 +1102,11 @@ export async function generateWorkoutDay(args: {
       sets = Math.max(1, Math.round(sets * weekPlanData.volumeMultiplier));
     }
 
-    // НОВОЕ: Применить DUP reps ranges ТОЛЬКО для main/secondary И ТОЛЬКО для strength/athletic_body
+    // НОВОЕ: Применить DUP reps ranges ТОЛЬКО для main/secondary И ТОЛЬКО для athletic_body
     // Для build_muscle НЕ ТРОГАЕМ диапазоны - остаются гипертрофийные 6-10, 8-12
     if (dupIntensity && (role === "main" || role === "secondary")) {
-      // DUP применяется только для силовых целей
-      if (userProfile.goal === "strength" || userProfile.goal === "athletic_body") {
+      // DUP применяется только для athletic_body
+      if (userProfile.goal === "athletic_body") {
         const dupReps: Record<DUPIntensity, [number, number]> = {
           heavy: [4, 6],     // Силовой день
           medium: [6, 10],   // Средний день  

@@ -130,7 +130,7 @@ async function testDoubleProgression() {
 }
 
 async function testLinearProgression() {
-  console.log("\n🏋️ TEST: Linear Progression (Strength)");
+  console.log("\n🏋️ TEST: Linear Progression (Build Muscle)");
   console.log("=".repeat(60));
   
   const squat = EXERCISE_LIBRARY.find(ex => ex.name.includes("Присед") && ex.equipment.includes("barbell"));
@@ -141,17 +141,17 @@ async function testLinearProgression() {
   }
   
   console.log(`Exercise: ${squat.name}`);
-  console.log(`Goal: strength (100% success threshold)`);
+  console.log(`Goal: build_muscle`);
   
   let progressionData = initializeProgressionData({
     exerciseId: squat.id,
     exercise: squat,
     experience: "intermediate",
-    goal: "strength",
+    goal: "build_muscle",
   });
   
   console.log(`\nStarting weight: ${progressionData.currentWeight}кг`);
-  console.log(`Target: 4-6 reps (strength range)`);
+  console.log(`Target: 6-10 reps (hypertrophy range)`);
   
   // Success: all 5 sets completed
   console.log("\n✅ Scenario: All 5 sets completed (5×5)");
@@ -160,20 +160,20 @@ async function testLinearProgression() {
     exerciseId: squat.id,
     workoutDate: "2025-12-18",
     sets: [
-      { targetReps: 5, actualReps: 5, weight: 100, rpe: 8, completed: true },
-      { targetReps: 5, actualReps: 5, weight: 100, rpe: 8, completed: true },
-      { targetReps: 5, actualReps: 5, weight: 100, rpe: 8, completed: true },
-      { targetReps: 5, actualReps: 5, weight: 100, rpe: 8, completed: true },
-      { targetReps: 5, actualReps: 5, weight: 100, rpe: 9, completed: true },
+      { targetReps: 10, actualReps: 10, weight: 100, rpe: 8, completed: true },
+      { targetReps: 10, actualReps: 10, weight: 100, rpe: 8, completed: true },
+      { targetReps: 10, actualReps: 10, weight: 100, rpe: 8, completed: true },
+      { targetReps: 10, actualReps: 10, weight: 100, rpe: 8, completed: true },
+      { targetReps: 10, actualReps: 10, weight: 100, rpe: 9, completed: true },
     ],
   });
   
   const rec = calculateProgression({
     exercise: squat,
     progressionData,
-    goal: "strength",
+    goal: "build_muscle",
     experience: "intermediate",
-    targetRepsRange: [4, 6],
+    targetRepsRange: [6, 10],
   });
   
   console.log(`  Action: ${rec.action}`);
@@ -181,7 +181,7 @@ async function testLinearProgression() {
   console.log(`  Reason: ${rec.reason}`);
   
   if (rec.action === "increase_weight" && rec.newWeight === 102.5) {
-    console.log("  ✅ Correct! Linear progression for strength goal");
+    console.log("  ✅ Correct! Linear progression for build_muscle goal");
   } else {
     console.log("  ⚠️  Expected increase_weight to 102.5kg");
   }

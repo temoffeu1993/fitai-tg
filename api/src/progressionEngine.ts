@@ -132,13 +132,6 @@ export type ProgressionContext = {
 };
 
 export const PROGRESSION_RULES_BY_GOAL: Record<Goal, ProgressionRules> = {
-  strength: {
-    repsIncrease: 1,
-    successThreshold: 1.0,     // 100% подходов (силовая требовательная)
-    stallThreshold: 2,         // 2 неудачи подряд
-    deloadThreshold: 3,        // После 3 stall → deload
-    deloadPercentage: 0.1,     // -10%
-  },
   build_muscle: {
     repsIncrease: 2,
     successThreshold: 0.75,    // 75% подходов (гипертрофия более гибкая)
@@ -166,13 +159,6 @@ export const PROGRESSION_RULES_BY_GOAL: Record<Goal, ProgressionRules> = {
     stallThreshold: 5,         // Очень терпимо
     deloadThreshold: 6,
     deloadPercentage: 0.2,
-  },
-  lower_body_focus: {
-    repsIncrease: 2,
-    successThreshold: 0.75,
-    stallThreshold: 3,
-    deloadThreshold: 4,
-    deloadPercentage: 0.15,
   },
 };
 
@@ -431,26 +417,21 @@ export function calculateProgression(args: {
     };
   }
 
-  const isStrength = goal === "strength";
   const antiOverreach = Boolean(context?.antiOverreach);
 
-  const failedLowerBound = isStrength
+  const failedLowerBound = totalWorkingSets === 2
     ? failCount >= 1
-    : totalWorkingSets === 2
-      ? failCount >= 1
-      : totalWorkingSets === 3
-        ? failCount >= 2
-        : failCount > totalWorkingSets / 2;
+    : totalWorkingSets === 3
+      ? failCount >= 2
+      : failCount > totalWorkingSets / 2;
 
   const allMetLower = performance.lowerHits === totalWorkingSets;
 
-  const requiredUpperHits = isStrength
-    ? totalWorkingSets
-    : totalWorkingSets === 2
+  const requiredUpperHits = totalWorkingSets === 2
+    ? 2
+    : totalWorkingSets === 3
       ? 2
-      : totalWorkingSets === 3
-        ? 2
-        : Math.ceil(totalWorkingSets * 0.75);
+      : Math.ceil(totalWorkingSets * 0.75);
 
   const upperOk = allMetLower &&
     performance.upperHits >= requiredUpperHits &&

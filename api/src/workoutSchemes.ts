@@ -156,7 +156,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "push_pull_legs",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -196,7 +196,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "upper_lower",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -236,7 +236,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "athletic_body", "build_muscle"],
+    goals: ["athletic_body", "build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -275,7 +275,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "upper_lower",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -321,7 +321,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "upper_lower",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["strength", "build_muscle"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -363,7 +363,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "full_body",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["strength", "athletic_body", "build_muscle"],
+    goals: ["athletic_body", "build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -405,7 +405,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "upper_lower",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "athletic_body", "build_muscle"],
+    goals: ["athletic_body", "build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -449,7 +449,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "push_pull_legs",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -502,7 +502,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "upper_lower",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -554,7 +554,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "push_pull_legs",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["strength", "build_muscle"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -601,7 +601,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["athletic_body", "strength", "health_wellness"],
+    goals: ["athletic_body", "health_wellness"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -650,7 +650,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "push_pull_legs",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["build_muscle", "strength"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -762,7 +762,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "upper_lower",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["build_muscle", "strength"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -814,7 +814,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "push_pull_legs",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1133,7 +1133,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "push_pull_legs",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1188,7 +1188,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["strength", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1229,7 +1229,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1253,7 +1253,6 @@ export const workoutSchemes: WorkoutScheme[] = [
     targetSex: "any",
   },
 
-  // strength + 2 дня
   {
     id: "strength_foundation_2x",
     name: "Strength Foundation 2x",
@@ -1264,7 +1263,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["strength", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1398,7 +1397,6 @@ export const workoutSchemes: WorkoutScheme[] = [
     targetSex: "any",
   },
 
-  // lower_body_focus + 2 дня
   {
     id: "glutes_legs_2x",
     name: "Glutes & Legs Focus 2x",
@@ -1409,7 +1407,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 90,
     splitType: "full_body",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1541,7 +1539,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "lower_focus",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1581,7 +1579,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "lower_focus",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "athletic_body", "build_muscle"],
+    goals: ["athletic_body", "build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1626,7 +1624,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 60,
     splitType: "lower_focus",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "athletic_body"],
+    goals: ["athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1908,7 +1906,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 70,
     splitType: "upper_lower",
     experienceLevels: ["beginner"],
-    goals: ["strength", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1953,7 +1951,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 75,
     splitType: "lower_focus",
     experienceLevels: ["beginner", "intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -1988,7 +1986,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 60,
     splitType: "lower_focus",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["lower_body_focus", "athletic_body"],
+    goals: ["athletic_body"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {
@@ -2043,7 +2041,7 @@ export const workoutSchemes: WorkoutScheme[] = [
     maxMinutes: 70,
     splitType: "lower_focus",
     experienceLevels: ["intermediate", "advanced"],
-    goals: ["lower_body_focus", "build_muscle"],
+    goals: ["build_muscle"],
     equipmentRequired: ["gym_full"],
     dayLabels: [
       {

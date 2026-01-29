@@ -54,12 +54,12 @@ const testCases = [
     ]
   },
 
-  // 3. Продвинутый, силовые, много времени
+  // 3. Продвинутый, набор массы, много времени
   {
-    name: "Advanced мужчина, сила, 90 мин",
+    name: "Advanced мужчина, набор массы, 90 мин",
     profile: {
       experience: "advanced" as const,
-      goal: "strength" as const,
+      goal: "build_muscle" as const,
       daysPerWeek: 4,
       timeBucket: 90,
       location: "gym" as const,
@@ -77,7 +77,7 @@ const testCases = [
     name: "Женщина, тонус, 60 мин",
     profile: {
       experience: "beginner" as const,
-      goal: "general_fitness" as const,
+      goal: "athletic_body" as const,
       daysPerWeek: 3,
       timeBucket: 60,
       location: "gym" as const,
@@ -125,12 +125,12 @@ const testCases = [
     ]
   },
 
-  // 7. Пауэрлифтер
+  // 7. Продвинутый, набор массы
   {
-    name: "Пауэрлифтер, 5 дней",
+    name: "Продвинутый, набор массы, 5 дней",
     profile: {
       experience: "advanced" as const,
-      goal: "strength" as const,
+      goal: "build_muscle" as const,
       daysPerWeek: 5,
       timeBucket: 90,
       location: "gym" as const,

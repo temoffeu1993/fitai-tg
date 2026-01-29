@@ -600,14 +600,7 @@ function goalRus(g?: string) {
     lose_weight: "похудеть",
     build_muscle: "набрать массу",
     athletic_body: "спортивное тело (рельеф)",
-    lower_body_focus: "акцент на ноги и ягодицы",
-    strength: "стать сильнее",
     health_wellness: "здоровье и самочувствие",
-    fat_loss: "сжигание жира",
-    muscle_gain: "набор мышц",
-    maintenance: "поддержание",
-    event_prep: "под мероприятие",
-    custom: "другое",
   };
   return map[g] || g;
 }

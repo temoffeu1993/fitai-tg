@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS workout_schemes (
   max_minutes INT NOT NULL, -- максимальная рекомендуемая длительность
   split_type TEXT NOT NULL, -- 'full_body', 'upper_lower', 'push_pull_legs', 'bro_split', etc.
   experience_levels TEXT[] NOT NULL, -- ['beginner', 'intermediate', 'advanced']
-  goals TEXT[] NOT NULL, -- ['lose_weight', 'build_muscle', 'athletic_body', 'lower_body_focus', 'strength', 'health_wellness']
+  goals TEXT[] NOT NULL, -- ['lose_weight', 'build_muscle', 'athletic_body', 'health_wellness']
   equipment_required TEXT[] NOT NULL, -- ['bodyweight', 'dumbbells', 'barbell', 'gym_full']
   day_labels JSONB NOT NULL, -- [{day: 1, label: 'Push', focus: '...'}]
   benefits TEXT[] NOT NULL, -- Преимущества этой схемы

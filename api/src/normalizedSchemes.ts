@@ -12,11 +12,9 @@ export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 
 export type Goal =
   | "build_muscle"
-  | "strength"
   | "lose_weight"
   | "athletic_body"
-  | "health_wellness"
-  | "lower_body_focus";
+  | "health_wellness";
 
 export type Location = "gym" | "home_no_equipment" | "home_with_gear";
 
@@ -196,88 +194,6 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Если есть постоянная боль/симптомы — включай ограничения через constraint tags и смещай тренировки в low-impact.",
   },
   {
-    id: "lower_focus_2x_glutes_legs",
-    name: "Lower Focus 2x",
-    russianName: "Ноги и ягодицы 2 раза",
-    description:
-      "Два мощных дня на нижнюю часть: один — квадро/ягодицы, второй — задняя/ягодицы.",
-    splitType: "lower_focus",
-    daysPerWeek: 2,
-    timeBuckets: [60, 90],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body", "lose_weight"],
-    experienceLevels: ["beginner", "intermediate", "advanced"],
-    locations: ["gym", "home_with_gear"],
-    intensity: "moderate",
-    targetSex: "female",
-    contraindications: ["medical_clearance_required"],
-    days: [
-      {
-        day: 1,
-        label: "Glutes & Quads",
-        focus: "Квадрицепсы + ягодицы: присед/выпады/разгибания/мост.",
-        templateRulesId: "Lower A",
-        requiredPatterns: ["squat", "lunge", "hip_thrust", "core"],
-        optionalPatterns: ["calves"],
-      },
-      {
-        day: 2,
-        label: "Hamstrings & Glutes",
-        focus: "Задняя цепь + ягодицы: хиндж/сгибания/мост/отведения.",
-        templateRulesId: "Lower B",
-        requiredPatterns: ["hinge", "hip_thrust", "lunge", "core"],
-        optionalPatterns: ["calves"],
-      },
-    ],
-    benefits: [
-      "Сильный стимул для низа при минимальной частоте.",
-      "Легко прогрессировать и отслеживать нагрузку.",
-      "Подходит и для формы, и для массы (при питании).",
-    ],
-  },
-
-  {
-    id: "strength_2x_advanced",
-    name: "Strength 2x Advanced",
-    russianName: "Силовая программа 2 дня (продвинутые)",
-    description:
-      "Тяжёлая силовая программа: максимальные веса, долгое восстановление, акцент на базовые движения.",
-    splitType: "strength_focus",
-    daysPerWeek: 2,
-    timeBuckets: [60, 90],
-    goals: ["strength", "build_muscle"],
-    experienceLevels: ["advanced", "intermediate"],
-    locations: ["gym"],
-    intensity: "high",
-    targetSex: "any",
-    contraindications: ["medical_clearance_required", "avoid_heavy_spinal_loading"],
-    days: [
-      {
-        day: 1,
-        label: "Squat + Press",
-        focus: "Тяжёлый присед + жимовые движения (низкий диапазон повторений).",
-        templateRulesId: "Full Body A",
-        requiredPatterns: ["squat", "horizontal_push", "core"],
-        optionalPatterns: ["incline_push", "arms_iso"],
-      },
-      {
-        day: 2,
-        label: "Deadlift + Pull",
-        focus: "Тяжёлая становая + тяговые движения (минимум вспомогательных).",
-        templateRulesId: "Full Body B",
-        requiredPatterns: ["hinge", "horizontal_pull", "vertical_pull", "core"],
-        optionalPatterns: ["rear_delts"],
-      },
-    ],
-    benefits: [
-      "Подходит для силовых циклов с максимальными весами.",
-      "Длинное восстановление между тренировками (3-4 дня).",
-      "Оптимально для пауэрлифтеров и силовых атлетов.",
-    ],
-    notes:
-      "Требует отличной техники и опыта работы с тяжёлыми весами. Не для новичков.",
-  },
-
-  {
     id: "maintenance_2x_advanced",
     name: "Maintenance 2x Advanced",
     russianName: "Поддержка формы 2 дня (продвинутые)",
@@ -286,7 +202,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "full_body",
     daysPerWeek: 2,
     timeBuckets: [45, 60],
-    goals: ["health_wellness", "strength", "build_muscle"],
+    goals: ["health_wellness", "build_muscle"],
     experienceLevels: ["advanced", "intermediate"],
     locations: ["gym", "home_with_gear"],
     intensity: "moderate",
@@ -331,7 +247,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "full_body",
     daysPerWeek: 3,
     timeBuckets: [45, 60, 90],
-    goals: ["lose_weight", "health_wellness", "athletic_body", "build_muscle", "strength"],
+    goals: ["lose_weight", "health_wellness", "athletic_body", "build_muscle"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
@@ -378,7 +294,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 3,
     timeBuckets: [45, 60, 90],
-    goals: ["build_muscle", "strength", "athletic_body", "lose_weight"],
+    goals: ["build_muscle", "athletic_body", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear"],
     intensity: "moderate",
@@ -425,7 +341,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "push_pull_legs",
     daysPerWeek: 3,
     timeBuckets: [60, 90],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     experienceLevels: ["intermediate", "advanced", "beginner"],
     locations: ["gym"],
     intensity: "high",
@@ -527,7 +443,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 4,
     timeBuckets: [45, 60, 90],
-    goals: ["build_muscle", "strength", "athletic_body", "lose_weight"],
+    goals: ["build_muscle", "athletic_body", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear"],
     intensity: "moderate",
@@ -582,7 +498,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 4,
     timeBuckets: [60, 90],
-    goals: ["strength", "build_muscle"],
+    goals: ["build_muscle"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["gym"],
     intensity: "high",
@@ -627,63 +543,6 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Силовые растут и объективно измеримы.",
       "Хорошо для intermediate/advanced с нормальным восстановлением.",
     ],
-  },
-  {
-    id: "legs_priority_4x",
-    name: "Legs Priority 4x",
-    russianName: "Ноги в приоритете 4 дня",
-    description:
-      "3 дня на низ + 1 день поддержка верха. Специализация на 6–12 недель.",
-    splitType: "lower_focus",
-    daysPerWeek: 4,
-    timeBuckets: [60, 90],
-    goals: ["lower_body_focus", "build_muscle", "athletic_body", "lose_weight"],
-    experienceLevels: ["intermediate", "advanced", "beginner"],
-    locations: ["gym", "home_with_gear"],
-    intensity: "high",
-    targetSex: "female",
-    contraindications: ["medical_clearance_required"],
-    days: [
-      {
-        day: 1,
-        label: "Legs Heavy",
-        focus: "Тяжёлые ноги: присед/хиндж + базовые аксессуары.",
-        templateRulesId: "Lower A",
-        requiredPatterns: ["squat", "hinge", "core"],
-        optionalPatterns: ["calves"],
-      },
-      {
-        day: 2,
-        label: "Upper Maintenance",
-        focus: "Верх поддержка: тяги/жимы умеренно + задняя дельта.",
-        templateRulesId: "Upper Body",
-        requiredPatterns: ["horizontal_pull", "vertical_pull", "horizontal_push"],
-        optionalPatterns: ["rear_delts", "arms_iso", "core"],
-      },
-      {
-        day: 3,
-        label: "Glutes & Hamstrings",
-        focus: "Ягодицы/задняя: мост/хиндж/сгибания/отведения.",
-        templateRulesId: "Lower B",
-        requiredPatterns: ["hip_thrust", "hinge", "lunge", "core"],
-        optionalPatterns: ["calves"],
-      },
-      {
-        day: 4,
-        label: "Legs Volume",
-        focus: "Объём ног: выпады/изолирующие/пампинг (без отказа).",
-        templateRulesId: "Lower A",
-        requiredPatterns: ["lunge", "squat", "core"],
-        optionalPatterns: ["calves", "hip_thrust"],
-      },
-    ],
-    benefits: [
-      "Максимальный прогресс низа за счёт специализации.",
-      "Разные стимулы по неделе (heavy + volume).",
-      "Легко адаптировать под чек-ин (режим light/recovery).",
-    ],
-    notes:
-      "Держи специализацию ограниченным блоком. Потом возвращайся к сбалансированному сплиту.",
   },
   {
     id: "fat_loss_4x_strength_conditioning",
@@ -753,7 +612,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "push_pull_legs",
     daysPerWeek: 5,
     timeBuckets: [45, 60, 90],
-    goals: ["build_muscle", "strength", "athletic_body"],
+    goals: ["build_muscle", "athletic_body"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["gym"],
     intensity: "high",
@@ -810,69 +669,6 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Для 45 минут важна плотность: суперсеты допускаются, но без ухудшения техники.",
   },
   {
-    id: "ulul_leg_5x_legs_priority",
-    name: "Upper/Lower/Extra Legs 5x",
-    russianName: "Верх/низ + доп. ноги (5 дней)",
-    description:
-      "Ноги и ягодицы в приоритете при сохранении верха: Upper A / Lower A / Upper B / Lower B / Legs (pump).",
-    splitType: "upper_lower",
-    daysPerWeek: 5,
-    timeBuckets: [45, 60],
-    goals: ["lower_body_focus", "athletic_body", "lose_weight", "build_muscle"],
-    experienceLevels: ["intermediate", "advanced"],
-    locations: ["gym", "home_with_gear"],
-    intensity: "high",
-    targetSex: "female",
-    contraindications: ["medical_clearance_required"],
-    days: [
-      {
-        day: 1,
-        label: "Upper A",
-        focus: "Верх: грудь/горизонталь + спина баланс.",
-        templateRulesId: "Upper A",
-        requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-        optionalPatterns: ["rear_delts", "arms_iso"],
-      },
-      {
-        day: 2,
-        label: "Lower A",
-        focus: "Низ: квадрицепсы и колено-доминанта.",
-        templateRulesId: "Lower A",
-        requiredPatterns: ["squat", "lunge", "core"],
-        optionalPatterns: ["calves"],
-      },
-      {
-        day: 3,
-        label: "Upper B",
-        focus: "Верх: спина/вертикаль + жим под углом.",
-        templateRulesId: "Upper B",
-        requiredPatterns: ["vertical_pull", "horizontal_pull", "incline_push"],
-        optionalPatterns: ["rear_delts", "arms_iso"],
-      },
-      {
-        day: 4,
-        label: "Lower B",
-        focus: "Низ: ягодицы/задняя цепь.",
-        templateRulesId: "Lower B",
-        requiredPatterns: ["hinge", "hip_thrust", "lunge", "core"],
-        optionalPatterns: ["calves"],
-      },
-      {
-        day: 5,
-        label: "Legs Pump",
-        focus: "Лёгкий объём/памп ног (без отказа).",
-        templateRulesId: "Lower A",
-        requiredPatterns: ["lunge", "squat", "core"],
-        optionalPatterns: ["calves", "hip_thrust"],
-      },
-    ],
-    benefits: [
-      "Ноги получают приоритетный объём без полного перекоса программы.",
-      "Хорошо подходит под цель «ноги/ягодицы» и похудение.",
-      "Памп-день помогает технике/кровоснабжению без убийства ЦНС.",
-    ],
-  },
-  {
     id: "athletic_5x",
     name: "Athletic 5x",
     russianName: "Атлетизм 5 дней",
@@ -881,7 +677,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "full_body",
     daysPerWeek: 5,
     timeBuckets: [45, 60],
-    goals: ["athletic_body", "health_wellness", "lose_weight", "strength"],
+    goals: ["athletic_body", "health_wellness", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
@@ -948,7 +744,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "push_pull_legs",
     daysPerWeek: 6,
     timeBuckets: [45, 60, 90],
-    goals: ["build_muscle", "strength"],
+    goals: ["build_muscle"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["gym"],
     intensity: "high",
@@ -979,7 +775,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 6,
     timeBuckets: [45, 60],
-    goals: ["build_muscle", "strength"],
+    goals: ["build_muscle"],
     experienceLevels: ["advanced", "intermediate"],
     locations: ["gym"],
     intensity: "high",
@@ -1044,7 +840,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 4,
     timeBuckets: [45, 60],
-    goals: ["build_muscle", "athletic_body", "lose_weight", "strength"],
+    goals: ["build_muscle", "athletic_body", "lose_weight"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["home_with_gear"],
     intensity: "moderate",
@@ -1102,7 +898,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 4,
     timeBuckets: [45, 60],
-    goals: ["athletic_body", "build_muscle", "strength", "lose_weight"],
+    goals: ["athletic_body", "build_muscle", "lose_weight"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["home_no_equipment", "home_with_gear"],
     intensity: "moderate",
@@ -1374,7 +1170,7 @@ export function rankSchemes(user: SchemeUser, candidates: NormalizedWorkoutSchem
     }
 
     // BMI-BASED LOGIC
-    // BMI > 30: avoid conditioning schemes (high impact), prefer strength/hypertrophy
+    // BMI > 30: avoid conditioning schemes (high impact), prefer full_body/upper_lower
     if (bmi >= 30) {
       if (s.splitType === "conditioning") score -= 6;
       if (s.intensity === "high") score -= 2;

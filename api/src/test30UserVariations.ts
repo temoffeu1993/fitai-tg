@@ -45,15 +45,9 @@ type RawExperience =
 
 type RawGoal =
   | "lose_weight"
-  | "fat_loss"
   | "build_muscle"
-  | "hypertrophy"
   | "athletic_body"
-  | "general_fitness"
-  | "strength"
-  | "powerlifting"
-  | "health_wellness"
-  | "lower_body_focus";
+  | "health_wellness";
 
 type OnboardingVariation = {
   name: string;
@@ -144,19 +138,7 @@ type CaseResult = {
 };
 
 function mapGoalToNew(oldGoal: RawGoal): Goal {
-  const goalMap: Record<string, Goal> = {
-    lose_weight: "lose_weight",
-    fat_loss: "lose_weight",
-    build_muscle: "build_muscle",
-    hypertrophy: "build_muscle",
-    athletic_body: "athletic_body",
-    general_fitness: "athletic_body",
-    strength: "strength",
-    powerlifting: "strength",
-    health_wellness: "health_wellness",
-    lower_body_focus: "lower_body_focus",
-  };
-  return goalMap[oldGoal] ?? "health_wellness";
+  return oldGoal;
 }
 
 function mapExperience(raw: RawExperience): ExperienceLevel {
@@ -381,7 +363,7 @@ function buildOnboardingPool(): OnboardingVariation[] {
   return [
     // Lose weight
     { name: "U01", age: 19, sex: "female", heightCm: 165, weightKg: 58, experienceRaw: "never_trained", goalRaw: "lose_weight", daysPerWeek: 3, minutesPerSession: 45, location: "home", equipmentList: ["bodyweight"] },
-    { name: "U02", age: 28, sex: "male", heightCm: 178, weightKg: 92, experienceRaw: "long_break", goalRaw: "fat_loss", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["machines", "barbell"] },
+    { name: "U02", age: 28, sex: "male", heightCm: 178, weightKg: 92, experienceRaw: "long_break", goalRaw: "lose_weight", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["machines", "barbell"] },
     { name: "U03", age: 41, sex: "female", heightCm: 160, weightKg: 82, experienceRaw: "beginner", goalRaw: "lose_weight", daysPerWeek: 2, minutesPerSession: 60, location: "home", equipmentList: ["dumbbells", "bands"] },
     { name: "U04", age: 55, sex: "male", heightCm: 175, weightKg: 108, experienceRaw: "training_regularly", goalRaw: "lose_weight", daysPerWeek: 2, minutesPerSession: 45, location: "home", equipmentList: ["bands"] },
     { name: "U05", age: 33, sex: "female", heightCm: 170, weightKg: 68, experienceRaw: "training_regularly", goalRaw: "lose_weight", daysPerWeek: 4, minutesPerSession: 45, location: "gym", equipmentList: ["machines"] },
@@ -393,28 +375,28 @@ function buildOnboardingPool(): OnboardingVariation[] {
     { name: "U09", age: 29, sex: "male", heightCm: 175, weightKg: 70, experienceRaw: "training_regularly", goalRaw: "health_wellness", daysPerWeek: 4, minutesPerSession: 60, location: "home", equipmentList: ["bands", "dumbbells"] },
 
     // Athletic body
-    { name: "U10", age: 22, sex: "female", heightCm: 167, weightKg: 60, experienceRaw: "novice", goalRaw: "general_fitness", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["machines"] },
+    { name: "U10", age: 22, sex: "female", heightCm: 167, weightKg: 60, experienceRaw: "novice", goalRaw: "athletic_body", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["machines"] },
     { name: "U11", age: 31, sex: "male", heightCm: 180, weightKg: 84, experienceRaw: "training_regularly", goalRaw: "athletic_body", daysPerWeek: 4, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
     { name: "U12", age: 44, sex: "female", heightCm: 164, weightKg: 72, experienceRaw: "training_regularly", goalRaw: "athletic_body", daysPerWeek: 3, minutesPerSession: 45, location: "home", equipmentList: ["dumbbells"] },
     { name: "U13", age: 39, sex: "male", heightCm: 176, weightKg: 102, experienceRaw: "beginner", goalRaw: "athletic_body", daysPerWeek: 2, minutesPerSession: 60, location: "home", equipmentList: ["bands"] },
 
     // Build muscle
     { name: "U14", age: 18, sex: "male", heightCm: 176, weightKg: 62, experienceRaw: "never_trained", goalRaw: "build_muscle", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
-    { name: "U15", age: 27, sex: "female", heightCm: 170, weightKg: 59, experienceRaw: "training_regularly", goalRaw: "hypertrophy", daysPerWeek: 4, minutesPerSession: 60, location: "gym", equipmentList: ["dumbbells", "machines"] },
+    { name: "U15", age: 27, sex: "female", heightCm: 170, weightKg: 59, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 4, minutesPerSession: 60, location: "gym", equipmentList: ["dumbbells", "machines"] },
     { name: "U16", age: 34, sex: "male", heightCm: 183, weightKg: 89, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 5, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
     { name: "U17", age: 46, sex: "male", heightCm: 178, weightKg: 86, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 3, minutesPerSession: 90, location: "gym", equipmentList: ["barbell", "machines"] },
     { name: "U18", age: 52, sex: "female", heightCm: 162, weightKg: 79, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 2, minutesPerSession: 60, location: "home", equipmentList: ["dumbbells"] },
     { name: "U19", age: 24, sex: "male", heightCm: 179, weightKg: 76, experienceRaw: "training_experienced", goalRaw: "build_muscle", daysPerWeek: 6, minutesPerSession: 90, location: "gym", equipmentList: ["barbell", "machines"] },
 
     // Strength
-    { name: "U20", age: 26, sex: "male", heightCm: 182, weightKg: 88, experienceRaw: "training_experienced", goalRaw: "strength", daysPerWeek: 4, minutesPerSession: 90, location: "gym", equipmentList: ["barbell"] },
-    { name: "U21", age: 37, sex: "female", heightCm: 171, weightKg: 67, experienceRaw: "training_regularly", goalRaw: "powerlifting", daysPerWeek: 3, minutesPerSession: 90, location: "gym", equipmentList: ["barbell", "machines"] },
-    { name: "U22", age: 58, sex: "male", heightCm: 173, weightKg: 85, experienceRaw: "training_regularly", goalRaw: "strength", daysPerWeek: 2, minutesPerSession: 90, location: "gym", equipmentList: ["barbell"] },
+    { name: "U20", age: 26, sex: "male", heightCm: 182, weightKg: 88, experienceRaw: "training_experienced", goalRaw: "build_muscle", daysPerWeek: 4, minutesPerSession: 90, location: "gym", equipmentList: ["barbell"] },
+    { name: "U21", age: 37, sex: "female", heightCm: 171, weightKg: 67, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 3, minutesPerSession: 90, location: "gym", equipmentList: ["barbell", "machines"] },
+    { name: "U22", age: 58, sex: "male", heightCm: 173, weightKg: 85, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 2, minutesPerSession: 90, location: "gym", equipmentList: ["barbell"] },
 
     // Lower body focus
-    { name: "U23", age: 23, sex: "female", heightCm: 168, weightKg: 63, experienceRaw: "novice", goalRaw: "lower_body_focus", daysPerWeek: 2, minutesPerSession: 60, location: "gym", equipmentList: ["machines", "dumbbells"] },
-    { name: "U24", age: 30, sex: "female", heightCm: 165, weightKg: 75, experienceRaw: "training_regularly", goalRaw: "lower_body_focus", daysPerWeek: 4, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
-    { name: "U25", age: 42, sex: "female", heightCm: 160, weightKg: 70, experienceRaw: "training_experienced", goalRaw: "lower_body_focus", daysPerWeek: 5, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
+    { name: "U23", age: 23, sex: "female", heightCm: 168, weightKg: 63, experienceRaw: "novice", goalRaw: "athletic_body", daysPerWeek: 2, minutesPerSession: 60, location: "gym", equipmentList: ["machines", "dumbbells"] },
+    { name: "U24", age: 30, sex: "female", heightCm: 165, weightKg: 75, experienceRaw: "training_regularly", goalRaw: "athletic_body", daysPerWeek: 4, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
+    { name: "U25", age: 42, sex: "female", heightCm: 160, weightKg: 70, experienceRaw: "training_experienced", goalRaw: "athletic_body", daysPerWeek: 5, minutesPerSession: 60, location: "gym", equipmentList: ["barbell", "machines"] },
 
     // Equipment edge cases
     { name: "U26", age: 29, sex: "male", heightCm: 177, weightKg: 79, experienceRaw: "training_regularly", goalRaw: "athletic_body", daysPerWeek: 3, minutesPerSession: 45, location: "home", equipmentList: ["bodyweight", "pullup_bar"] },
@@ -426,7 +408,7 @@ function buildOnboardingPool(): OnboardingVariation[] {
     // Доп. запас, если какие-то комбинации не найдут схемы
     { name: "U31", age: 21, sex: "male", heightCm: 178, weightKg: 83, experienceRaw: "novice", goalRaw: "athletic_body", daysPerWeek: 3, minutesPerSession: 45, location: "gym", equipmentList: ["machines"] },
     { name: "U32", age: 57, sex: "female", heightCm: 160, weightKg: 80, experienceRaw: "beginner", goalRaw: "health_wellness", daysPerWeek: 2, minutesPerSession: 60, location: "home", equipmentList: ["dumbbells"] },
-    { name: "U33", age: 40, sex: "male", heightCm: 181, weightKg: 90, experienceRaw: "training_regularly", goalRaw: "strength", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["barbell"] },
+    { name: "U33", age: 40, sex: "male", heightCm: 181, weightKg: 90, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 3, minutesPerSession: 60, location: "gym", equipmentList: ["barbell"] },
     { name: "U34", age: 48, sex: "male", heightCm: 176, weightKg: 78, experienceRaw: "training_regularly", goalRaw: "build_muscle", daysPerWeek: 4, minutesPerSession: 45, location: "gym", equipmentList: ["machines"] },
     { name: "U35", age: 27, sex: "female", heightCm: 166, weightKg: 70, experienceRaw: "training_regularly", goalRaw: "lose_weight", daysPerWeek: 5, minutesPerSession: 45, location: "gym", equipmentList: ["machines"] },
   ];

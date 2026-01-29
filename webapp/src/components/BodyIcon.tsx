@@ -80,13 +80,8 @@ export function BodyIcon({
 // Helper function to determine highlight based on splitType and day label
 export function getDayHighlight(splitType: string, label: string): Highlight {
   // Full Body schemes — always full
-  if (splitType === "full_body" || splitType === "conditioning" || splitType === "strength_focus") {
+  if (splitType === "full_body" || splitType === "conditioning") {
     return "full";
-  }
-
-  // Lower focus — always lower
-  if (splitType === "lower_focus") {
-    return "lower";
   }
 
   // Upper/Lower, PPL, Bro Split — parse label

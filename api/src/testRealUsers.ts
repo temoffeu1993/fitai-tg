@@ -25,7 +25,7 @@ const TEST_USERS = [
   {
     id: "33333333-3333-3333-3333-333333333333",
     name: "Тест Алексей",
-    goal: "strength" as const,
+    goal: "athletic_body" as const,
     experience: "advanced" as const,
   },
 ];
@@ -81,7 +81,7 @@ async function checkTables() {
 async function simulateWorkout(
   userId: string,
   userName: string,
-  goal: "build_muscle" | "lose_weight" | "strength",
+  goal: "build_muscle" | "lose_weight" | "athletic_body" | "health_wellness",
   experience: "beginner" | "intermediate" | "advanced",
   weekNumber: number,
   dayNumber: number
@@ -93,18 +93,12 @@ async function simulateWorkout(
   // Select exercises based on goal
   let exerciseIds: string[];
   
-  if (goal === "build_muscle") {
+  if (goal === "build_muscle" || goal === "athletic_body") {
     exerciseIds = [
       "ho_barbell_bench_press",
       "sq_back_squat",
       "hi_conventional_deadlift",
       "ve_lat_pulldown",
-    ];
-  } else if (goal === "strength") {
-    exerciseIds = [
-      "ho_barbell_bench_press",
-      "sq_back_squat",
-      "hi_conventional_deadlift",
     ];
   } else {
     exerciseIds = [
@@ -137,11 +131,14 @@ async function simulateWorkout(
   console.log(`  ✅ Получено рекомендаций: ${recommendations.size}`);
   
   // Simulate performance
-  const targetReps = goal === "strength" ? [4, 6] : goal === "build_muscle" ? [8, 12] : [10, 15];
+  const targetReps =
+    goal === "build_muscle" || goal === "athletic_body"
+      ? [8, 12]
+      : [10, 15];
   
   const completedExercises = exercises.map((ex) => {
     const rec = recommendations.get(ex!.id);
-    const weight = rec?.newWeight || (goal === "strength" ? 60 : goal === "build_muscle" ? 40 : 10);
+    const weight = rec?.newWeight || (goal === "build_muscle" || goal === "athletic_body" ? 40 : 10);
     
     // Simulate realistic performance based on week
     let baseReps = targetReps[0] + 1;

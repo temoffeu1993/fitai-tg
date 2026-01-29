@@ -143,8 +143,6 @@ export const GOAL_VOLUME_MULTIPLIER: Record<Goal, number> = {
   health_wellness: 0.85,      // Conservative volume
   athletic_body: 1.0,         // Balanced
   build_muscle: 1.15,         // Higher volume for hypertrophy
-  strength: 0.9,              // Lower volume, higher intensity
-  lower_body_focus: 1.0,      // Handled by scheme structure
 };
 
 // ============================================================================
@@ -178,11 +176,6 @@ export const INTENT_MODIFIER: Record<Intent, number> = {
 type RepsRange = [number, number];
 
 export const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange; accessory: RepsRange }> = {
-  strength: {
-    main: [4, 6],
-    secondary: [6, 8],
-    accessory: [8, 12],
-  },
   build_muscle: {
     main: [6, 10],
     secondary: [8, 12],
@@ -203,11 +196,6 @@ export const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange;
     secondary: [10, 15],
     accessory: [12, 18],
   },
-  lower_body_focus: {
-    main: [8, 12],      // Квадры/ягодицы хорошо отзываются на средние reps
-    secondary: [10, 15], // Изоляция ног
-    accessory: [15, 20], // Пампинг для ягодиц (выше чем у athletic!)
-  },
 };
 
 // ============================================================================
@@ -215,11 +203,6 @@ export const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange;
 // ============================================================================
 
 export const REST_BY_GOAL: Record<Goal, { main: number; secondary: number; accessory: number }> = {
-  strength: {
-    main: 180,     // 3 minutes for heavy sets
-    secondary: 120,
-    accessory: 90,
-  },
   build_muscle: {
     main: 120,     // 2 minutes
     secondary: 90,
@@ -238,11 +221,6 @@ export const REST_BY_GOAL: Record<Goal, { main: number; secondary: number; acces
   health_wellness: {
     main: 90,
     secondary: 75,
-    accessory: 60,
-  },
-  lower_body_focus: {
-    main: 120,
-    secondary: 90,
     accessory: 60,
   },
 };
@@ -628,4 +606,3 @@ export function validateFullWeek(args: {
     overloadedMuscles: validation.overloadedMuscles,
   };
 }
-

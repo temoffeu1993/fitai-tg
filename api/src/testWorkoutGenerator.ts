@@ -184,15 +184,15 @@ weekPlan.forEach((day, i) => {
 });
 
 // ----------------------------------------------------------------------------
-// SCENARIO 4: Female, lower body focus, 4 days/week
+// SCENARIO 4: Female, athletic body, 4 days/week
 // ----------------------------------------------------------------------------
 
-console.log("\n\n📋 SCENARIO 4: Female, lower body focus, 4 days/week, 60 min");
+console.log("\n\n📋 SCENARIO 4: Female, athletic body, 4 days/week, 60 min");
 console.log("-".repeat(80));
 
 const user3: UserProfile = {
   experience: "intermediate",
-  goal: "lower_body_focus",
+  goal: "athletic_body",
   daysPerWeek: 4,
   timeBucket: 60,
   location: "gym",
@@ -212,18 +212,18 @@ const readiness3 = computeReadiness({
   fallbackTimeBucket: user3.timeBucket,
 });
 
-const day1Glutes = generateWorkoutDay({
+const day1Workout = generateWorkoutDay({
   scheme: scheme3,
   dayIndex: 0,
   userProfile: user3,
   readiness: readiness3,
 });
 
-console.log(`\n🏋️ Day 1 (${day1Glutes.dayLabel}):`);
-console.log(`   Focus: ${day1Glutes.dayFocus}`);
-console.log(`   ${day1Glutes.totalExercises} exercises, ${day1Glutes.totalSets} sets\n`);
+console.log(`\n🏋️ Day 1 (${day1Workout.dayLabel}):`);
+console.log(`   Focus: ${day1Workout.dayFocus}`);
+console.log(`   ${day1Workout.totalExercises} exercises, ${day1Workout.totalSets} sets\n`);
 
-day1Glutes.exercises.forEach((ex, i) => {
+day1Workout.exercises.forEach((ex, i) => {
   console.log(`   ${i + 1}. ${ex.exercise.name}`);
   console.log(`      ${ex.sets}x${ex.repsRange[0]}-${ex.repsRange[1]}, rest ${ex.restSec}s`);
   console.log(`      Мышцы: ${ex.exercise.primaryMuscles.join(", ")}`);
