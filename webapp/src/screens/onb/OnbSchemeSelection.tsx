@@ -111,7 +111,7 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
       day: day.day || idx + 1,
       title,
       description,
-      icon: `${day.day || idx + 1}️⃣`,
+      icon: String(day.day || idx + 1),
     };
   });
 }
@@ -884,7 +884,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: 700,
     flexShrink: 0,
   },
   timelineLine: {
