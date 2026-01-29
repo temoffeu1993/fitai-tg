@@ -63,7 +63,7 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
 
   const handleNext = () => {
     if (loading || isLeaving || minutesPerSession == null) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const patch: OnbDurationData = {
       experience: initial?.experience,
       schedule: {

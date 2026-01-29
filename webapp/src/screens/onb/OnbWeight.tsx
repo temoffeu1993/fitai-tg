@@ -108,7 +108,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || weight == null) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const patch: OnbWeightData = {
       profile: initial?.profile,
       ageSex: {

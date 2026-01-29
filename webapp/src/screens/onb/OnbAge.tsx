@@ -101,7 +101,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (loading || isLeaving || age == null) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const patch: OnbAgeData = {
       profile: initial?.profile,
       ageSex: {

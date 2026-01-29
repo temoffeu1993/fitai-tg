@@ -125,7 +125,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
 
   const handleNext = () => {
     if (loading || isLeaving || !experience) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const schedule =
       typeof initial?.schedule?.daysPerWeek === "number" &&
       typeof initial?.schedule?.minutesPerSession === "number"

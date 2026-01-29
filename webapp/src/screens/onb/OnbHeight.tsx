@@ -118,7 +118,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || height == null) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const patch: OnbHeightData = {
       profile: initial?.profile,
       ageSex: {

@@ -189,7 +189,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
   const handleNext = () => {
     if (loading || isLeaving || !hasSelection) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const outStyles = (() => {
       if (!stylesSel.length) return [];
       if (stylesSel.includes("Другое") && styleOther.trim()) {

@@ -67,7 +67,7 @@ export default function OnbWorkday({ initial, loading, onSubmit, onBack }: Props
 
   const handleNext = () => {
     if (loading || isLeaving || !workStyle) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const patch: OnbWorkdayData = { lifestyle: { workStyle } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

@@ -111,7 +111,7 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
       day: day.day || idx + 1,
       title,
       description,
-      icon: "🏋️",
+      icon: `${day.day || idx + 1}️⃣`,
     };
   });
 }
@@ -286,7 +286,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving || !selectedId) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
     const doSelect = async () => {
@@ -468,10 +468,6 @@ function RecommendedCard({
       <p style={s.cardDescription}>{displayData.description}</p>
       {dayTimeline.length > 0 && (
         <div style={s.dayTimeline}>
-          <div style={s.timelineHeader}>
-            <span style={s.timelineHeaderIcon}>🗓️</span>
-            <span style={s.timelineHeaderLabel}>План по дням</span>
-          </div>
           <div style={s.timelineList}>
             {dayTimeline.map((item, idx) => (
               <div key={`${item.day}-${idx}`} style={s.timelineItem}>
@@ -482,7 +478,6 @@ function RecommendedCard({
                   )}
                 </div>
                 <div style={s.timelineRight}>
-                  <div style={s.timelineWeek}>День {item.day}</div>
                   <div style={s.timelineTitle}>{item.title}</div>
                   {item.description && (
                     <p style={s.timelineDesc}>{item.description}</p>
@@ -799,25 +794,7 @@ const s: Record<string, React.CSSProperties> = {
 
   // Day timeline inside recommended card
   dayTimeline: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTop: "1px solid rgba(30,31,34,0.08)",
-  },
-  timelineHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  timelineHeaderIcon: {
-    fontSize: 16,
-  },
-  timelineHeaderLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    marginTop: 12,
   },
   timelineList: {
     display: "flex",
@@ -855,13 +832,6 @@ const s: Record<string, React.CSSProperties> = {
   timelineRight: {
     flex: 1,
     paddingBottom: 14,
-  },
-  timelineWeek: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.4)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   timelineTitle: {
     fontSize: 15,
