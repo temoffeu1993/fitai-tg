@@ -710,6 +710,7 @@ function ScreenStyles() {
       }
       .scheme-card {
         appearance: none; outline: none; cursor: pointer;
+        text-align: left;
         -webkit-tap-highlight-color: transparent;
         transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
         will-change: transform, background, border-color;
@@ -811,9 +812,12 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(16px)",
     position: "relative",
     width: "100%",
+    textAlign: "left",
+    display: "block",
   },
   recommendedCardInactive: {
-    opacity: 0.7,
+    opacity: 1,
+    filter: "none",
   },
   cardClickable: {
     cursor: "pointer",
@@ -888,6 +892,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     fontSize: 16,
     fontWeight: 700,
+    color: "#1e1f22",
     flexShrink: 0,
   },
   timelineLine: {
