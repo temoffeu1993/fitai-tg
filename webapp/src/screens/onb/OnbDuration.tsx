@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbDuration.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Experience } from "./OnbExperience";
 
@@ -62,6 +63,7 @@ export default function OnbDuration({ initial, loading, onSubmit, onBack }: Prop
 
   const handleNext = () => {
     if (loading || isLeaving || minutesPerSession == null) return;
+    fireHapticImpact("light");
     const patch: OnbDurationData = {
       experience: initial?.experience,
       schedule: {

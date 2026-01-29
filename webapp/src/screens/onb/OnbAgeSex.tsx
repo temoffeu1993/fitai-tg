@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbAgeSex.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 import maleRobotImg from "@/assets/robonew.webp";
 import femaleRobotImg from "@/assets/zhennew.webp";
 
@@ -102,6 +103,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || !sex) return;
+    fireHapticImpact("light");
     const patch = buildPatch(sex);
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbHeight.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Sex } from "./OnbAgeSex";
 
@@ -117,6 +118,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || height == null) return;
+    fireHapticImpact("light");
     const patch: OnbHeightData = {
       profile: initial?.profile,
       ageSex: {

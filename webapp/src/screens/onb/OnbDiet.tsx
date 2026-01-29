@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbDiet.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type Budget = "low" | "medium" | "high";
 
@@ -215,6 +216,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (loading || isLeaving || !hasSelection) return;
+    fireHapticImpact("light");
     const dislikes = (() => {
       if (restrictions.length === 0) return [];
       if (restrictions.includes("Нет")) return [];

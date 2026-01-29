@@ -11,6 +11,7 @@ import {
   type AnalysisResult,
 } from "@/utils/analyzeUserProfile";
 import maleRobotImg from "@/assets/robonew.webp";
+import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
   draft: Record<string, any>;
@@ -128,6 +129,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving) return;
+    fireHapticImpact("light");
     const prefersReduced = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)"
     )?.matches;

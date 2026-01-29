@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbFrequency.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Experience } from "./OnbExperience";
 
@@ -60,6 +61,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
 
   const handleNext = () => {
     if (loading || isLeaving || daysPerWeek == null) return;
+    fireHapticImpact("light");
     const patch: OnbFrequencyData = {
       experience: initial?.experience,
       schedule: {

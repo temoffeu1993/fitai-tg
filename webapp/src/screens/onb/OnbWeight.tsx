@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbWeight.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Sex } from "./OnbAgeSex";
 
@@ -107,6 +108,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || weight == null) return;
+    fireHapticImpact("light");
     const patch: OnbWeightData = {
       profile: initial?.profile,
       ageSex: {

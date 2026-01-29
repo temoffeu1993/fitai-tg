@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbDietStyle.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Budget } from "./OnbDiet";
 
@@ -188,6 +189,7 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
 
   const handleNext = () => {
     if (loading || isLeaving || !hasSelection) return;
+    fireHapticImpact("light");
     const outStyles = (() => {
       if (!stylesSel.length) return [];
       if (stylesSel.includes("Другое") && styleOther.trim()) {

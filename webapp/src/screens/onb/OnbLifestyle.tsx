@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbLifestyle.tsx
 import { useMemo, useState } from "react";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type WorkStyle = "sedentary" | "mixed" | "active" | "physical" | "shift";
 export type Sleep = "<6" | "6-7" | "7-8" | "8+";
@@ -29,6 +30,7 @@ export default function OnbLifestyle({ initial, loading, onSubmit, onBack }: Pro
 
   function handleNext() {
     if (!canNext || loading) return;
+    fireHapticImpact("light");
     onSubmit({ lifestyle: { workStyle, sleep, stress } });
   }
 

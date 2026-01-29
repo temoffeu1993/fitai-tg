@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbAge.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Sex } from "./OnbAgeSex";
 
@@ -100,6 +101,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (loading || isLeaving || age == null) return;
+    fireHapticImpact("light");
     const patch: OnbAgeData = {
       profile: initial?.profile,
       ageSex: {

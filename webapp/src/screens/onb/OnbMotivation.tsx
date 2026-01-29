@@ -5,6 +5,7 @@ import muscleRobotImg from "@/assets/morobot.webp";
 import slimRobotImg from "@/assets/hudoi.webp";
 import toneRobotImg from "@/assets/forma.webp";
 import healthRobotImg from "@/assets/heals.webp";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type Goal = "lose_weight" | "build_muscle" | "athletic_body" | "health_wellness";
 
@@ -137,6 +138,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
   const handleNext = () => {
     if (loading || isLeaving || !goal) return;
+    fireHapticImpact("light");
     const patch: OnbMotivationData = {
       motivation: { goal },
       goals: { primary: goal },

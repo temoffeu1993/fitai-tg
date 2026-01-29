@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbPlace.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type TrainingPlace = "gym" | "home_no_equipment" | "home_with_gear";
 
@@ -63,6 +64,7 @@ export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) 
 
   const handleNext = () => {
     if (loading || isLeaving || !place) return;
+    fireHapticImpact("light");
     const patch: OnbPlaceData = { trainingPlace: { place } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

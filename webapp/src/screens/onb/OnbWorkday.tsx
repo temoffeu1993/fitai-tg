@@ -1,5 +1,6 @@
 // webapp/src/screens/onb/OnbWorkday.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type WorkdayStyle =
   | "sedentary"
@@ -66,6 +67,7 @@ export default function OnbWorkday({ initial, loading, onSubmit, onBack }: Props
 
   const handleNext = () => {
     if (loading || isLeaving || !workStyle) return;
+    fireHapticImpact("light");
     const patch: OnbWorkdayData = { lifestyle: { workStyle } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

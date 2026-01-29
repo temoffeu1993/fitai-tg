@@ -4,6 +4,7 @@ import robotImg from "@/assets/robonew.webp";
 import beginnerImg from "@/assets/novii.webp";
 import intermediateImg from "@/assets/sredne.webp";
 import advancedImg from "@/assets/profi.webp";
+import { fireHapticImpact } from "@/utils/haptics";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
@@ -124,6 +125,7 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
 
   const handleNext = () => {
     if (loading || isLeaving || !experience) return;
+    fireHapticImpact("light");
     const schedule =
       typeof initial?.schedule?.daysPerWeek === "number" &&
       typeof initial?.schedule?.minutesPerSession === "number"

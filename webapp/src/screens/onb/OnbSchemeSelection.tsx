@@ -15,6 +15,7 @@ import {
   type ExperienceLevel,
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
+import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
   onComplete: () => void;
@@ -285,6 +286,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving || !selectedId) return;
+    fireHapticImpact("light");
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
     const doSelect = async () => {
