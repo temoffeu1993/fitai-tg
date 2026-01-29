@@ -18,7 +18,7 @@ type Props = {
   onBack?: () => void;
 };
 
-const DEFAULT_BUBBLE_TEXT = "Я подготовил твой\nперсональный план";
+const DEFAULT_BUBBLE_TEXT = "Я проанализировал твой профиль. Вот план к цели";
 
 export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
@@ -28,14 +28,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [mascotReady, setMascotReady] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
-  const bubbleTarget = useMemo(() => {
-    const goal = draft.motivation?.goal || draft.goals?.primary;
-    if (goal === "lose_weight") return "Я нашел способ худеть без голода и стресса";
-    if (goal === "build_muscle") return "Запускаем режим максимального роста";
-    if (goal === "athletic_body") return "Сделаем тело, которое хочется показать";
-    if (goal === "health_wellness") return "Зарядим твою батарейку на все 100%";
-    return DEFAULT_BUBBLE_TEXT;
-  }, [draft]);
+  const bubbleTarget = DEFAULT_BUBBLE_TEXT;
 
   // Build user context and analyze
   const analysis = useMemo<AnalysisResult | null>(() => {
@@ -56,7 +49,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         window.clearTimeout(leaveTimerRef.current);
       }
     };
-  }, [bubbleTarget]);
+  }, []);
 
   // Preload mascot image
   useEffect(() => {

@@ -67,14 +67,14 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
 
 function getBubbleText(experience: ExperienceLevel, schemesCount: number): string {
   if (experience === "beginner") {
-    return "Я подобрал идеальную программу для старта!\nОстальные откроются, когда наберёшь опыт";
+    return "Вот схема тренировок, которая идеально подходит под твой профиль";
   }
-  if (experience === "intermediate") {
-    return schemesCount > 2
-      ? `Вот ${schemesCount} варианта — выбирай,\nчто ближе по ощущениям`
-      : "Вот два варианта — выбирай,\nчто ближе по ощущениям";
+  if (experience === "intermediate" || experience === "advanced") {
+    return "Выбери схему тренировок: всё тело за раз или делим по мышцам?";
   }
-  return "Ты знаешь своё тело.\nВыбирай схему под свой стиль";
+  return schemesCount > 1
+    ? "Выбери схему тренировок: всё тело за раз или делим по мышцам?"
+    : "Вот схема тренировок, которая идеально подходит под твой профиль";
 }
 
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
