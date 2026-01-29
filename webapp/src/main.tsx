@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles.css";
 import robotImg from "./assets/robot.png";
-import morobotImg from "./assets/morobot.png";
+import morobotImg from "./assets/morobot.webp";
 import mozgImg from "./assets/mozg.png";
 import fonImg from "./assets/fon.png";
 import maleRobotImg from "./assets/robonew.webp";

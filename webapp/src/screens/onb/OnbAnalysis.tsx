@@ -18,7 +18,7 @@ type Props = {
   onBack?: () => void;
 };
 
-const DEFAULT_BUBBLE_TEXT = "Я проанализировал твой профиль. Вот план к цели";
+const DEFAULT_BUBBLE_TEXT = "Анализ готов! Вот путь к цели";
 
 export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
@@ -462,7 +462,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
           onClick={handleNext}
           disabled={isLeaving}
         >
-          Выбрать программу
+          Далее
         </button>
         {onBack && (
           <button type="button" style={s.backBtn} onClick={handleBack}>

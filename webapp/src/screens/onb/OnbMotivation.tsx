@@ -1,7 +1,7 @@
 // webapp/src/screens/onb/OnbMotivation.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import robotImg from "@/assets/robonew.png";
-import muscleRobotImg from "@/assets/morobot.png";
+import robotImg from "@/assets/robonew.webp";
+import muscleRobotImg from "@/assets/morobot.webp";
 import slimRobotImg from "@/assets/hudoi.webp";
 import toneRobotImg from "@/assets/forma.webp";
 import healthRobotImg from "@/assets/heals.webp";

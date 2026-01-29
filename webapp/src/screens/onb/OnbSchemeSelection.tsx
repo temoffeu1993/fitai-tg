@@ -91,7 +91,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
-  const experience = (draft.experience?.level || "beginner") as ExperienceLevel;
+  const experience = (draft.experience?.level || draft.experience || "beginner") as ExperienceLevel;
   const isBeginner = experience === "beginner";
 
   const userContext: UserContext = useMemo(() => ({
