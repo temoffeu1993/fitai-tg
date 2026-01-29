@@ -469,6 +469,7 @@ function RecommendedCard({
   const dayTimeline = buildDayTimeline(scheme);
   return (
     <div
+      className="scheme-card"
       style={{
         ...s.recommendedCard,
         ...(isActive ? undefined : s.recommendedCardInactive),
@@ -557,6 +558,10 @@ function SelectableCard({
       style={{ ...s.recommendedCard, ...(isActive ? undefined : s.recommendedCardInactive) }}
       onClick={onSelect}
     >
+      <div style={{ ...s.schemeHeader, visibility: "hidden" }} aria-hidden>
+        <span style={s.schemeHeaderIcon}>⭐</span>
+        <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
+      </div>
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
@@ -810,8 +815,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
   },
   recommendedCardInactive: {
-    opacity: 0.55,
-    filter: "saturate(0.9)",
+    opacity: 0.7,
   },
   cardClickable: {
     cursor: "pointer",
