@@ -700,14 +700,12 @@ function ScreenStyles() {
       .scheme-roll {
         overflow: hidden;
         max-height: 1200px;
-        opacity: 1;
         transform: translateY(0);
-        transition: max-height 320ms ease, opacity 220ms ease, transform 320ms ease;
-        will-change: max-height, opacity, transform;
+        transition: max-height 320ms ease, transform 320ms ease;
+        will-change: max-height, transform;
       }
       .scheme-roll.collapsed {
         max-height: 0;
-        opacity: 0;
         transform: translateY(-6px);
       }
       .scheme-card {
