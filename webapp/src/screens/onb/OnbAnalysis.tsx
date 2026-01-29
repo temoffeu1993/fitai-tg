@@ -282,7 +282,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
         >
           <div style={s.mainCardHeader}>
             <span style={s.cardIcon}>🎯</span>
-            <span style={s.cardLabel}>Ваша стратегия</span>
+            <span style={s.cardLabel}>Стратегия</span>
           </div>
           <div style={s.strategyFocus}>{analysis.strategy.focus}</div>
           <div style={s.strategyTempoRow}>

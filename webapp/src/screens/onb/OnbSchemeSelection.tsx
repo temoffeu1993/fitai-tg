@@ -82,7 +82,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [bubbleText, setBubbleText] = useState("");
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
-  const [reveal, setReveal] = useState(false);
+  const [reveal, setReveal] = useState(true);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
@@ -104,6 +104,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     () => getBubbleText(experience, schemes.length),
     [experience, schemes.length],
   );
+  const isReady = !loading && schemes.length > 0;
 
   // Preload mascot
   useEffect(() => {
@@ -121,6 +122,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     }
     return () => { cancelled = true; };
   }, []);
+
+  // Keep the same screen while loading: only update bubble text
+  useEffect(() => {
+    if (!loading) return;
+    setBubbleText("Подбираю схемы тренировок...");
+    setShowContent(false);
+  }, [loading]);
 
   // Scroll to top
   useLayoutEffect(() => {
@@ -157,6 +165,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     const t2 = window.setTimeout(() => setShowContent(true), 600);
 
     let index = 0;
+    setBubbleText("");
     const typeInterval = window.setInterval(() => {
       index += 1;
       setBubbleText(bubbleTarget.slice(0, index));
@@ -228,24 +237,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     leaveTimerRef.current = window.setTimeout(() => onBack(), 220);
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div style={s.page}>
-        <ScreenStyles />
-        <div style={{ ...s.mascotRow, opacity: 1 }}>
-          <img src={maleRobotImg} alt="" style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }} />
-          <div style={s.bubble} className="speech-bubble">
-            <span style={s.bubbleText}>Подбираю схемы тренировок...</span>
-          </div>
-        </div>
-        <div style={{ display: "grid", placeItems: "center", marginTop: 40 }}>
-          <Spinner />
-        </div>
-      </div>
-    );
-  }
-
   // Error state
   if (error && schemes.length === 0) {
     return (
@@ -265,8 +256,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     );
   }
 
-  const selectedScheme = schemes.find(s => s.id === selectedId)!;
-  const alternatives = schemes.filter(s => s.id !== selectedId);
+  const selectedScheme = isReady ? schemes.find(s => s.id === selectedId) || null : null;
+  const alternatives = isReady ? schemes.filter(s => s.id !== selectedId) : [];
+  const bubbleDisplayText = loading ? "Подбираю схемы тренировок..." : (bubbleText || "\u00A0");
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -275,7 +267,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       {/* Mascot + Bubble */}
       <div
         style={s.mascotRow}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
       >
         <img
           src={maleRobotImg}
@@ -283,19 +274,26 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
         />
         <div style={s.bubble} className="speech-bubble">
-          <span style={s.bubbleText}>{bubbleText || "\u00A0"}</span>
+          <span style={s.bubbleText}>{bubbleDisplayText}</span>
         </div>
       </div>
 
       {/* Cards */}
       <div style={s.cardsContainer}>
+        {loading && (
+          <div style={{ display: "grid", placeItems: "center", marginTop: 24 }}>
+            <Spinner />
+          </div>
+        )}
         {/* Recommended Scheme Card */}
-        <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}>
-          <RecommendedCard
-            scheme={selectedScheme}
-            userContext={userContext}
-          />
-        </div>
+        {selectedScheme && (
+          <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}>
+            <RecommendedCard
+              scheme={selectedScheme}
+              userContext={userContext}
+            />
+          </div>
+        )}
 
         {/* Alternatives */}
         {alternatives.length > 0 && (
@@ -326,25 +324,27 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       {error && <div style={s.errorText}>{error}</div>}
 
       {/* Actions */}
-      <div
-        style={s.actions}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
-      >
-        <button
-          type="button"
-          style={s.primaryBtn}
-          className="intro-primary-btn"
-          onClick={handleNext}
-          disabled={!selectedId || saving || isLeaving}
+      {selectedScheme && (
+        <div
+          style={s.actions}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
         >
-          {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать программу"}
-        </button>
-        {onBack && (
-          <button type="button" style={s.backBtn} onClick={handleBack}>
-            Назад
+          <button
+            type="button"
+            style={s.primaryBtn}
+            className="intro-primary-btn"
+            onClick={handleNext}
+            disabled={!selectedId || saving || isLeaving}
+          >
+            {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать программу"}
           </button>
-        )}
-      </div>
+          {onBack && (
+            <button type="button" style={s.backBtn} onClick={handleBack}>
+              Назад
+            </button>
+          )}
+        </div>
+      )}
 
       <div aria-hidden className={`analysis-blackout${reveal ? " reveal" : ""}`} />
     </div>
@@ -586,7 +586,6 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 12,
     marginTop: 8,
-    opacity: 0,
   },
   mascotImg: {
     width: 140,
