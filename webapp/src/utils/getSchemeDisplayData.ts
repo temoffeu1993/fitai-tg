@@ -215,8 +215,6 @@ export function getSchemeDisplayData(
   let finalTitle = baseCopy.title;
   let finalDescription = baseCopy.description;
   const finalReason = generateReason(scheme, user);
-  let finalTitle = baseCopy.title;
-  let finalDescription = baseCopy.description;
 
   const isHomeNoGear = user.location === "home_no_equipment";
   const isHomeWithGear = user.location === "home_with_gear";
