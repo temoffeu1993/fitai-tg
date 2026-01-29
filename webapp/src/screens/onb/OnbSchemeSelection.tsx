@@ -111,7 +111,7 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
       day: day.day || idx + 1,
       title,
       description,
-      icon: String(day.day || idx + 1),
+      icon: `${day.day || idx + 1}️⃣`,
     };
   });
 }
@@ -505,6 +505,7 @@ function RecommendedCard({
                       )}
                     </div>
                     <div style={s.timelineRight}>
+                      <div style={s.timelineWeek}>День {item.day}</div>
                       <div style={s.timelineTitle}>{item.title}</div>
                       {item.description && (
                         <p style={s.timelineDesc}>{item.description}</p>
@@ -572,6 +573,7 @@ function SelectableCard({
                       )}
                     </div>
                     <div style={s.timelineRight}>
+                      <div style={s.timelineWeek}>День {item.day}</div>
                       <div style={s.timelineTitle}>{item.title}</div>
                       {item.description && (
                         <p style={s.timelineDesc}>{item.description}</p>
@@ -872,20 +874,17 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: 30,
+    width: 28,
   },
   timelineIcon: {
     width: 28,
     height: 28,
-    borderRadius: 999,
-    background: "rgba(30,31,34,0.04)",
-    border: "1px solid rgba(30,31,34,0.16)",
+    borderRadius: 9,
+    background: "rgba(30,31,34,0.06)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#1e1f22",
+    fontSize: 14,
     flexShrink: 0,
   },
   timelineLine: {
@@ -898,6 +897,13 @@ const s: Record<string, React.CSSProperties> = {
   timelineRight: {
     flex: 1,
     paddingBottom: 14,
+  },
+  timelineWeek: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   timelineTitle: {
     fontSize: 15,
