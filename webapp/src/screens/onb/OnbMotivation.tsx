@@ -138,7 +138,7 @@ export default function OnbMotivation({ initial, loading, onSubmit, onBack }: Pr
 
   const handleNext = () => {
     if (loading || isLeaving || !goal) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const patch: OnbMotivationData = {
       motivation: { goal },
       goals: { primary: goal },

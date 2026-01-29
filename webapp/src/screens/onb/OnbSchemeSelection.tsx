@@ -288,7 +288,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving || !selectedId) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
     const doSelect = async () => {

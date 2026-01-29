@@ -64,7 +64,7 @@ export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) 
 
   const handleNext = () => {
     if (loading || isLeaving || !place) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const patch: OnbPlaceData = { trainingPlace: { place } };
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

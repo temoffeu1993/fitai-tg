@@ -30,7 +30,7 @@ export default function OnbLifestyle({ initial, loading, onSubmit, onBack }: Pro
 
   function handleNext() {
     if (!canNext || loading) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     onSubmit({ lifestyle: { workStyle, sleep, stress } });
   }
 

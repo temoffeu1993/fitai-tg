@@ -129,7 +129,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const prefersReduced = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)"
     )?.matches;

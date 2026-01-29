@@ -103,7 +103,7 @@ export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props)
 
   const handleNext = () => {
     if (loading || isLeaving || !sex) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const patch = buildPatch(sex);
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {

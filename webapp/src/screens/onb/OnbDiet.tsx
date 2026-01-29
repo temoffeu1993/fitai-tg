@@ -216,7 +216,7 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
 
   const handleNext = () => {
     if (loading || isLeaving || !hasSelection) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const dislikes = (() => {
       if (restrictions.length === 0) return [];
       if (restrictions.includes("Нет")) return [];

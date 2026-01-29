@@ -61,7 +61,7 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
 
   const handleNext = () => {
     if (loading || isLeaving || daysPerWeek == null) return;
-    fireHapticImpact("rigid");
+    fireHapticImpact("light");
     const patch: OnbFrequencyData = {
       experience: initial?.experience,
       schedule: {
