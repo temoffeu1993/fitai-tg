@@ -486,9 +486,9 @@ function RecommendedCard({
         <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
+      <p style={s.cardDescription}>{displayData.description}</p>
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <p style={s.cardDescription}>{displayData.description}</p>
           {dayTimeline.length > 0 && (
             <div style={s.dayTimeline}>
               <div style={s.timelineList}>
@@ -543,28 +543,41 @@ function SelectableCard({
     },
     userContext,
   );
-  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
+  const dayTimeline = buildDayTimeline(scheme);
 
   return (
     <button
       type="button"
       className="scheme-card"
-      style={{ ...s.glassCard, ...(isActive ? s.glassCardActive : {}) }}
+      style={s.glassCard}
       onClick={onSelect}
     >
-      <div style={{ ...s.cardTitle, color: isActive ? "#fff" : "#1e1f22" }}>
-        {displayData.title}
-      </div>
+      <div style={s.cardTitle}>{displayData.title}</div>
+      <p style={s.cardDescription}>{displayData.description}</p>
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          {splitExplanation && (
-            <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
-              {splitExplanation}
+          {dayTimeline.length > 0 && (
+            <div style={s.dayTimeline}>
+              <div style={s.timelineList}>
+                {dayTimeline.map((item, idx) => (
+                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                    <div style={s.timelineLeft}>
+                      <div style={s.timelineIcon}>{item.icon}</div>
+                      {idx < dayTimeline.length - 1 && (
+                        <div style={s.timelineLine} />
+                      )}
+                    </div>
+                    <div style={s.timelineRight}>
+                      <div style={s.timelineTitle}>{item.title}</div>
+                      {item.description && (
+                        <p style={s.timelineDesc}>{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
-            {displayData.description}
-          </p>
         </div>
       </div>
     </button>
