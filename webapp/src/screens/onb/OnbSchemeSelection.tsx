@@ -293,7 +293,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           <RecommendedCard
             scheme={selectedScheme}
             userContext={userContext}
-            isActive={true}
           />
         </div>
 
@@ -358,11 +357,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 function RecommendedCard({
   scheme,
   userContext,
-  isActive,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
-  isActive: boolean;
 }) {
   const displayData = getSchemeDisplayData(
     {
@@ -378,19 +375,16 @@ function RecommendedCard({
   const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
 
   return (
-    <div style={{ ...s.glassCard, ...(isActive ? s.glassCardActive : {}) }}>
-      {scheme.isRecommended && (
-        <div style={s.recommendedBadge}>⭐ Рекомендовано</div>
-      )}
+    <div style={s.recommendedCard}>
+      <div style={s.schemeHeader}>
+        <span style={s.schemeHeaderIcon}>⭐</span>
+        <span style={s.schemeHeaderLabel}>Рекомендованная программа</span>
+      </div>
       <div style={s.cardTitle}>{displayData.title}</div>
       {splitExplanation && (
-        <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
-          {splitExplanation}
-        </div>
+        <div style={s.splitExplanation}>{splitExplanation}</div>
       )}
-      <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
-        {displayData.description}
-      </p>
+      <p style={s.cardDescription}>{displayData.description}</p>
     </div>
   );
 }
@@ -647,24 +641,39 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
   },
 
-  recommendedBadge: {
-    position: "absolute",
-    top: -10,
-    right: 16,
-    background: "#fbbf24",
-    color: "#78350f",
-    padding: "5px 12px",
-    borderRadius: 100,
-    fontSize: 11,
-    fontWeight: 700,
-    boxShadow: "0 2px 8px rgba(251,191,36,0.4)",
+  recommendedCard: {
+    borderRadius: 20,
+    padding: "20px 18px",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    position: "relative",
+    width: "100%",
+  },
+  schemeHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  schemeHeaderIcon: {
+    fontSize: 20,
+  },
+  schemeHeaderLabel: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   cardTitle: {
-    fontSize: 22,
+    fontSize: 32,
     fontWeight: 700,
-    lineHeight: 1.2,
-    letterSpacing: -0.3,
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
     color: "#1e1f22",
   },
   splitExplanation: {
