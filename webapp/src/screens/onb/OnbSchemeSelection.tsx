@@ -3,6 +3,7 @@
 // - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
 // Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
+// Day strip: horizontal scroll with muscle mascot illustrations per day
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -16,6 +17,11 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
+
+// Muscle mascot illustrations (front / back views)
+// TODO: replace with per-muscle-group illustrations when generated
+import muscleFrontImg from "@/assets/push.png";
+import muscleBackImg from "@/assets/push2.png";
 
 type Props = {
   onComplete: () => void;
@@ -35,83 +41,57 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
 };
 
 // ============================================================================
-// DAY TIMELINE (Recommended card)
+// DAY STRIP — horizontal scroll with muscle illustrations
 // ============================================================================
 
-type DayTimelineItem = {
+type DayStripItem = {
   day: number;
-  title: string;
-  description: string;
-  icon: string;
+  label: string;
+  imgFront: string; // mascot front view
+  imgBack: string;  // mascot back view
 };
 
-const FALLBACK_DAY_TITLES: Record<string, string[]> = {
-  full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
-  upper_lower: ["Верх", "Низ", "Верх", "Низ", "Верх", "Низ", "Верх"],
-  push_pull_legs: ["Жим", "Тяга", "Ноги", "Жим", "Тяга", "Ноги", "Жим"],
-  conditioning: ["Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал"],
-  bro_split: ["Грудь + Трицепс", "Спина + Бицепс", "Ноги", "Плечи + Пресс", "Руки + Кор", "Грудь", "Спина"],
+const FALLBACK_DAY_LABELS: Record<string, string[]> = {
+  full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
+  upper_lower: ["Верх", "Низ", "Верх", "Низ", "Верх", "Низ"],
+  push_pull_legs: ["Жим", "Тяга", "Ноги", "Жим", "Тяга", "Ноги"],
+  conditioning: ["Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал"],
+  bro_split: ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Грудь"],
 };
 
-function normalizeDayTitle(label: string): string {
-  let text = label.trim();
-  if (!text) return text;
-  text = text.replace(/\s*&\s*/g, " + ");
-
-  const replacements: Array<[RegExp, string]> = [
-    [/\bfull body\b/gi, "Всё тело"],
-    [/\bpush\b/gi, "Жим"],
-    [/\bpull\b/gi, "Тяга"],
-    [/\blegs?\b/gi, "Ноги"],
-    [/\bupper\b/gi, "Верх"],
-    [/\blower\b/gi, "Низ"],
-    [/\bglutes?\b/gi, "Ягодицы"],
-    [/\bchest\b/gi, "Грудь"],
-    [/\bback\b/gi, "Спина"],
-    [/\bshoulders?\b/gi, "Плечи"],
-    [/\barms?\b/gi, "Руки"],
-    [/\bcore\b/gi, "Кор"],
-    [/\bconditioning\b/gi, "Функционал"],
-    [/\bcardio\b/gi, "Кардио"],
-    [/\bheavy\b/gi, "силовой"],
-    [/\bvolume\b/gi, "объём"],
-    [/\bgentle\b/gi, "мягкий"],
-    [/\brebuild\b/gi, "восстановление"],
+function normalizeDayLabel(label: string): string {
+  let t = label.trim().replace(/\s*&\s*/g, " + ");
+  const map: Array<[RegExp, string]> = [
+    [/\bfull body\b/gi, "Всё тело"], [/\bpush\b/gi, "Жим"], [/\bpull\b/gi, "Тяга"],
+    [/\blegs?\b/gi, "Ноги"], [/\bupper\b/gi, "Верх"], [/\blower\b/gi, "Низ"],
+    [/\bglutes?\b/gi, "Ягодицы"], [/\bchest\b/gi, "Грудь"], [/\bback\b/gi, "Спина"],
+    [/\bshoulders?\b/gi, "Плечи"], [/\barms?\b/gi, "Руки"], [/\bcore\b/gi, "Кор"],
+    [/\bconditioning\b/gi, "Функционал"], [/\bcardio\b/gi, "Кардио"],
   ];
-
-  for (const [re, value] of replacements) {
-    text = text.replace(re, value);
-  }
-
-  return text.replace(/\s+/g, " ").trim();
+  for (const [re, val] of map) t = t.replace(re, val);
+  return t.replace(/\s+/g, " ").trim();
 }
 
-function getFallbackDayTitle(splitType: string, index: number): string {
-  const list = FALLBACK_DAY_TITLES[splitType];
-  if (!list || list.length === 0) return `День ${index + 1}`;
-  return list[index % list.length];
+// TODO: when per-muscle illustrations are ready, map label keywords to specific images
+// For now all days use the same two placeholder images (front + back)
+function getMuscleImages(_label: string): { front: string; back: string } {
+  return { front: muscleFrontImg, back: muscleBackImg };
 }
 
-function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
+function buildDayStrip(scheme: WorkoutScheme): DayStripItem[] {
   const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
   const limit = scheme.daysPerWeek || labels.length;
-  const base = labels.length
-    ? labels.slice(0, limit)
-    : Array.from({ length: limit }, (_, idx) => ({
-        day: idx + 1,
-        label: getFallbackDayTitle(scheme.splitType, idx),
-        focus: "",
-      }));
+  const fallbacks = FALLBACK_DAY_LABELS[scheme.splitType] || [];
 
-  return base.map((day, idx) => {
-    const fallbackTitle = getFallbackDayTitle(scheme.splitType, idx);
-    const title = normalizeDayTitle(day.label || fallbackTitle) || fallbackTitle;
-    const description = (day.focus || scheme.description || "").trim();
+  return Array.from({ length: limit }, (_, idx) => {
+    const raw = labels[idx]?.label || fallbacks[idx % fallbacks.length] || `День ${idx + 1}`;
+    const label = normalizeDayLabel(raw);
+    const imgs = getMuscleImages(label);
     return {
-      day: day.day || idx + 1,
-      title,
-      description,
-      icon: String(day.day || idx + 1),
+      day: (labels[idx]?.day) || idx + 1,
+      label,
+      imgFront: imgs.front,
+      imgBack: imgs.back,
     };
   });
 }
@@ -441,7 +421,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// RECOMMENDED CARD (glass, active state)
+// RECOMMENDED CARD — glass card with horizontal muscle strip
 // ============================================================================
 
 function RecommendedCard({
@@ -466,7 +446,8 @@ function RecommendedCard({
     },
     userContext,
   );
-  const dayTimeline = buildDayTimeline(scheme);
+  const dayStrip = buildDayStrip(scheme);
+
   return (
     <div
       className="scheme-card"
@@ -492,31 +473,11 @@ function RecommendedCard({
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
+
+      {/* Horizontal day strip with muscle illustrations */}
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          {dayTimeline.length > 0 && (
-            <div style={s.dayTimeline}>
-              <div style={s.timelineList}>
-                {dayTimeline.map((item, idx) => (
-                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
-                    <div style={s.timelineLeft}>
-                  <div style={s.timelineIcon}>{item.icon}</div>
-                      {idx < dayTimeline.length - 1 && (
-                        <div style={s.timelineLine} />
-                      )}
-                    </div>
-                    <div style={s.timelineRight}>
-                      <div style={s.timelineWeek}>День {item.day}</div>
-                      <div style={s.timelineTitle}>{item.title}</div>
-                      {item.description && (
-                        <p style={s.timelineDesc}>{item.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <DayStrip items={dayStrip} />
         </div>
       </div>
     </div>
@@ -549,7 +510,7 @@ function SelectableCard({
     },
     userContext,
   );
-  const dayTimeline = buildDayTimeline(scheme);
+  const dayStrip = buildDayStrip(scheme);
 
   return (
     <button
@@ -561,34 +522,43 @@ function SelectableCard({
       <div style={s.altHeaderSpacer} aria-hidden />
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
+
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          {dayTimeline.length > 0 && (
-            <div style={s.dayTimeline}>
-              <div style={s.timelineList}>
-                {dayTimeline.map((item, idx) => (
-                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
-                    <div style={s.timelineLeft}>
-                      <div style={s.timelineIcon}>{item.icon}</div>
-                      {idx < dayTimeline.length - 1 && (
-                        <div style={s.timelineLine} />
-                      )}
-                    </div>
-                    <div style={s.timelineRight}>
-                      <div style={s.timelineWeek}>День {item.day}</div>
-                      <div style={s.timelineTitle}>{item.title}</div>
-                      {item.description && (
-                        <p style={s.timelineDesc}>{item.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <DayStrip items={dayStrip} />
         </div>
       </div>
     </button>
+  );
+}
+
+// ============================================================================
+// DAY STRIP COMPONENT — horizontal scroll of muscle illustration cards
+// ============================================================================
+
+function DayStrip({ items }: { items: DayStripItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div style={s.stripWrap}>
+      <div style={s.stripScroll} className="day-strip-scroll">
+        {items.map((item, idx) => (
+          <div key={`${item.day}-${idx}`} style={s.stripCard}>
+            <div style={s.stripImgWrap}>
+              {/* Alternate front/back for visual variety */}
+              <img
+                src={idx % 2 === 0 ? item.imgFront : item.imgBack}
+                alt=""
+                style={s.stripImg}
+                loading="lazy"
+              />
+            </div>
+            <div style={s.stripDayNum}>День {item.day}</div>
+            <div style={s.stripLabel}>{item.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -714,6 +684,13 @@ function ScreenStyles() {
       }
       .scheme-card:active:not(:disabled) {
         transform: translateY(1px) scale(0.99);
+      }
+      .day-strip-scroll {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .day-strip-scroll::-webkit-scrollbar {
+        display: none;
       }
       @media (prefers-reduced-motion: reduce) {
         .onb-fade, .onb-leave { animation: none !important; }
@@ -862,67 +839,59 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 8,
   },
 
-  // Day timeline inside recommended card
-  dayTimeline: {
-    marginTop: 12,
+  // Horizontal day strip with muscle illustrations
+  stripWrap: {
+    marginTop: 14,
+    marginLeft: -18,
+    marginRight: -18,
+    paddingLeft: 18,
+    paddingRight: 18,
   },
-  timelineList: {
+  stripScroll: {
     display: "flex",
-    flexDirection: "column",
-    gap: 0,
+    gap: 10,
+    overflowX: "auto",
+    paddingBottom: 4,
   },
-  timelineItem: {
-    display: "flex",
-    gap: 12,
-  },
-  timelineLeft: {
+  stripCard: {
+    flex: "0 0 auto",
+    width: 88,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: 28,
+    gap: 4,
   },
-  timelineIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    background: "rgba(30,31,34,0.06)",
+  stripImgWrap: {
+    width: 80,
+    height: 96,
+    borderRadius: 14,
+    background: "rgba(30,31,34,0.04)",
+    border: "1px solid rgba(30,31,34,0.06)",
+    overflow: "hidden",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#1e1f22",
-    flexShrink: 0,
   },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 16,
-    background: "rgba(30,31,34,0.1)",
-    margin: "4px 0",
+  stripImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
   },
-  timelineRight: {
-    flex: 1,
-    paddingBottom: 14,
-  },
-  timelineWeek: {
+  stripDayNum: {
     fontSize: 11,
     fontWeight: 600,
     color: "rgba(30,31,34,0.4)",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  timelineTitle: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1e1f22",
+    letterSpacing: 0.3,
     marginTop: 2,
   },
-  timelineDesc: {
-    margin: "4px 0 0",
+  stripLabel: {
     fontSize: 13,
-    color: "rgba(30,31,34,0.6)",
-    lineHeight: 1.4,
+    fontWeight: 600,
+    color: "#1e1f22",
+    textAlign: "center",
+    lineHeight: 1.2,
+    maxWidth: 84,
   },
 
   // Alternatives section
