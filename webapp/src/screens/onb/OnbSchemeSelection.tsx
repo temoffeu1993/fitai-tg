@@ -162,6 +162,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [schemes, setSchemes] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recommendedId, setRecommendedId] = useState<string | null>(null);
   const [bubbleText, setBubbleText] = useState("");
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
@@ -271,6 +272,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       const allSchemes = [data.recommended, ...data.alternatives];
       setSchemes(allSchemes);
       setSelectedId(data.recommended.id);
+      setRecommendedId(data.recommended.id);
       const minLoadingMs = 900;
       const elapsed = performance.now() - start;
       if (elapsed < minLoadingMs) {
@@ -340,8 +342,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     );
   }
 
-  const selectedScheme = isReady ? schemes.find(s => s.id === selectedId) || null : null;
-  const alternatives = isReady ? schemes.filter(s => s.id !== selectedId) : [];
+  const recommendedScheme = isReady ? schemes.find(s => s.id === recommendedId) || null : null;
+  const alternatives = isReady ? schemes.filter(s => s.id !== recommendedId) : [];
+  const activeId = selectedId || recommendedId;
   const bubbleDisplayText = loading ? "Подбираю схемы тренировок..." : (bubbleText || "\u00A0");
 
   return (
@@ -370,11 +373,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
           </div>
         )}
         {/* Recommended Scheme Card */}
-        {selectedScheme && (
+        {recommendedScheme && (
           <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}>
             <RecommendedCard
-              scheme={selectedScheme}
+              scheme={recommendedScheme}
               userContext={userContext}
+              isActive={activeId === recommendedScheme.id}
+              onSelect={!isBeginner ? () => setSelectedId(recommendedScheme.id) : undefined}
             />
           </div>
         )}
@@ -395,7 +400,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
                   key={scheme.id}
                   scheme={scheme}
                   userContext={userContext}
-                  isActive={scheme.id === selectedId}
+                  isActive={scheme.id === activeId}
                   onSelect={() => setSelectedId(scheme.id)}
                 />
               ))
@@ -408,7 +413,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       {error && <div style={s.errorText}>{error}</div>}
 
       {/* Actions */}
-      {selectedScheme && (
+      {recommendedScheme && (
         <div
           style={s.actions}
           className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
@@ -442,9 +447,13 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 function RecommendedCard({
   scheme,
   userContext,
+  isActive,
+  onSelect,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
+  isActive: boolean;
+  onSelect?: () => void;
 }) {
   const displayData = getSchemeDisplayData(
     {
@@ -459,35 +468,51 @@ function RecommendedCard({
   );
   const dayTimeline = buildDayTimeline(scheme);
   return (
-    <div style={s.recommendedCard}>
+    <div
+      style={{ ...s.recommendedCard, ...(onSelect ? s.cardClickable : {}) }}
+      onClick={onSelect}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (!onSelect) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+    >
       <div style={s.schemeHeader}>
         <span style={s.schemeHeaderIcon}>⭐</span>
         <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
-      <p style={s.cardDescription}>{displayData.description}</p>
-      {dayTimeline.length > 0 && (
-        <div style={s.dayTimeline}>
-          <div style={s.timelineList}>
-            {dayTimeline.map((item, idx) => (
-              <div key={`${item.day}-${idx}`} style={s.timelineItem}>
-                <div style={s.timelineLeft}>
-                  <div style={s.timelineIcon}>{item.icon}</div>
-                  {idx < dayTimeline.length - 1 && (
-                    <div style={s.timelineLine} />
-                  )}
-                </div>
-                <div style={s.timelineRight}>
-                  <div style={s.timelineTitle}>{item.title}</div>
-                  {item.description && (
-                    <p style={s.timelineDesc}>{item.description}</p>
-                  )}
-                </div>
+      <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
+        <div style={s.rollContent}>
+          <p style={s.cardDescription}>{displayData.description}</p>
+          {dayTimeline.length > 0 && (
+            <div style={s.dayTimeline}>
+              <div style={s.timelineList}>
+                {dayTimeline.map((item, idx) => (
+                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                    <div style={s.timelineLeft}>
+                      <div style={s.timelineIcon}>{item.icon}</div>
+                      {idx < dayTimeline.length - 1 && (
+                        <div style={s.timelineLine} />
+                      )}
+                    </div>
+                    <div style={s.timelineRight}>
+                      <div style={s.timelineTitle}>{item.title}</div>
+                      {item.description && (
+                        <p style={s.timelineDesc}>{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -530,14 +555,18 @@ function SelectableCard({
       <div style={{ ...s.cardTitle, color: isActive ? "#fff" : "#1e1f22" }}>
         {displayData.title}
       </div>
-      {splitExplanation && (
-        <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
-          {splitExplanation}
+      <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
+        <div style={s.rollContent}>
+          {splitExplanation && (
+            <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
+              {splitExplanation}
+            </div>
+          )}
+          <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
+            {displayData.description}
+          </p>
         </div>
-      )}
-      <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
-        {displayData.description}
-      </p>
+      </div>
     </button>
   );
 }
@@ -644,6 +673,19 @@ function ScreenStyles() {
         transform: translateY(1px) scale(0.99) !important;
         background-color: #141619 !important;
       }
+      .scheme-roll {
+        overflow: hidden;
+        max-height: 1200px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: max-height 320ms ease, opacity 220ms ease, transform 320ms ease;
+        will-change: max-height, opacity, transform;
+      }
+      .scheme-roll.collapsed {
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-6px);
+      }
       .scheme-card {
         appearance: none; outline: none; cursor: pointer;
         -webkit-tap-highlight-color: transparent;
@@ -657,7 +699,7 @@ function ScreenStyles() {
         .onb-fade, .onb-leave { animation: none !important; }
         .onb-fade-target { opacity: 1 !important; transform: none !important; }
         .analysis-blackout { transition: none !important; }
-        .intro-primary-btn, .scheme-card { transition: none !important; }
+        .intro-primary-btn, .scheme-card, .scheme-roll { transition: none !important; }
       }
     `}</style>
   );
@@ -754,6 +796,9 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     width: "100%",
   },
+  cardClickable: {
+    cursor: "pointer",
+  },
   schemeHeader: {
     display: "flex",
     alignItems: "center",
@@ -790,6 +835,9 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.5,
     color: "rgba(30,31,34,0.6)",
+  },
+  rollContent: {
+    paddingTop: 8,
   },
 
   // Day timeline inside recommended card
