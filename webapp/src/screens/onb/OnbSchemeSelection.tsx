@@ -111,7 +111,7 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
       day: day.day || idx + 1,
       title,
       description,
-      icon: `${day.day || idx + 1}️⃣`,
+      icon: String(day.day || idx + 1),
     };
   });
 }
@@ -495,7 +495,7 @@ function RecommendedCard({
                 {dayTimeline.map((item, idx) => (
                   <div key={`${item.day}-${idx}`} style={s.timelineItem}>
                     <div style={s.timelineLeft}>
-                      <div style={s.timelineIcon}>{item.icon}</div>
+                  <div style={s.timelineIcon}>{item.icon}</div>
                       {idx < dayTimeline.length - 1 && (
                         <div style={s.timelineLine} />
                       )}
@@ -870,17 +870,20 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: 28,
+    width: 30,
   },
   timelineIcon: {
     width: 28,
     height: 28,
-    borderRadius: 9,
-    background: "rgba(30,31,34,0.06)",
+    borderRadius: 999,
+    background: "rgba(30,31,34,0.04)",
+    border: "1px solid rgba(30,31,34,0.16)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#1e1f22",
     flexShrink: 0,
   },
   timelineLine: {
