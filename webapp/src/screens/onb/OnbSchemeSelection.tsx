@@ -1,8 +1,9 @@
 // webapp/src/screens/onb/OnbSchemeSelection.tsx
 // Experience-based scheme selection:
-// - Beginner: locked alternatives (gamification)
+// - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
-import { useEffect, useMemo, useState } from "react";
+// Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
 import {
@@ -13,7 +14,6 @@ import {
   type UserGoal,
   type ExperienceLevel,
 } from "@/utils/getSchemeDisplayData";
-import { BodyIcon, getDayHighlight } from "@/components/BodyIcon";
 import maleRobotImg from "@/assets/robonew.webp";
 
 type Props = {
@@ -23,37 +23,58 @@ type Props = {
 
 // ============================================================================
 // SPLIT TYPE EXPLANATIONS
-// Human-readable one-liners so users understand what each scheme type means
 // ============================================================================
 
 const SPLIT_EXPLANATIONS: Record<string, string> = {
   full_body: "Каждая тренировка — всё тело целиком",
-  upper_lower: "Чередование: один день — верх, другой — низ",
+  upper_lower: "Чередование верха и низа",
   push_pull_legs: "Три типа дней: жим, тяга, ноги",
   strength_focus: "Базовые упражнения с большими весами",
   lower_focus: "Акцент на ноги и ягодицы в каждой тренировке",
   conditioning: "Круговые и функциональные тренировки",
-  bro_split: "Одна группа мышц = один день",
+  bro_split: "Каждый день — своя мышца",
 };
+
+// ============================================================================
+// LOCKED CARD CONTENT (for beginner)
+// Each locked alternative gets a motivational unlock message
+// ============================================================================
+
+function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; motivationText: string } {
+  const split = scheme.splitType;
+  if (split === "upper_lower") {
+    return { unlockWeeks: 8, motivationText: "Когда освоишь базу — усложним" };
+  }
+  if (split === "push_pull_legs") {
+    return { unlockWeeks: 12, motivationText: "Для детальной проработки" };
+  }
+  if (split === "bro_split") {
+    return { unlockWeeks: 12, motivationText: "Для детальной проработки" };
+  }
+  if (split === "strength_focus") {
+    return { unlockWeeks: 12, motivationText: "Когда база станет лёгкой" };
+  }
+  // Default
+  return {
+    unlockWeeks: scheme.intensity === "high" ? 12 : 8,
+    motivationText: "Когда будешь готов к новому уровню",
+  };
+}
 
 // ============================================================================
 // BUBBLE TEXT PER EXPERIENCE
 // ============================================================================
 
-function getBubbleText(
-  experience: ExperienceLevel,
-  schemesCount: number,
-): string {
+function getBubbleText(experience: ExperienceLevel, schemesCount: number): string {
   if (experience === "beginner") {
-    return "Я подобрал идеальную программу для старта! Остальные откроются, когда наберёшь опыт.";
+    return "Я подобрал идеальную программу для старта!\nОстальные откроются, когда наберёшь опыт";
   }
   if (experience === "intermediate") {
     return schemesCount > 2
-      ? `Вот ${schemesCount} варианта — выбирай, что ближе по ощущениям.`
-      : "Вот два варианта — выбирай, что ближе по ощущениям.";
+      ? `Вот ${schemesCount} варианта — выбирай,\nчто ближе по ощущениям`
+      : "Вот два варианта — выбирай,\nчто ближе по ощущениям";
   }
-  // advanced
-  return "Ты знаешь своё тело. Выбирай схему под свой стиль.";
+  return "Ты знаешь своё тело.\nВыбирай схему под свой стиль";
 }
 
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
@@ -65,11 +86,14 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bubbleText, setBubbleText] = useState("");
   const [mascotReady, setMascotReady] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+  const [reveal, setReveal] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
 
   const experience = (draft.experience?.level || "beginner") as ExperienceLevel;
   const isBeginner = experience === "beginner";
 
-  // Build user context from onboarding draft
   const userContext: UserContext = useMemo(() => ({
     goal: (draft.motivation?.goal || "athletic_body") as UserGoal,
     experience,
@@ -81,18 +105,41 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       : undefined,
   }), [draft]);
 
-  // Preload mascot image
+  const bubbleTarget = useMemo(
+    () => getBubbleText(experience, schemes.length),
+    [experience, schemes.length],
+  );
+
+  // Preload mascot
   useEffect(() => {
     let cancelled = false;
     const img = new Image();
+    img.decoding = "async";
     img.src = maleRobotImg;
     const done = () => { if (!cancelled) setMascotReady(true); };
-    if (typeof (img as any).decode === "function") {
-      (img as any).decode().then(done).catch(() => { img.onload = done; });
+    const anyImg = img as any;
+    if (typeof anyImg.decode === "function") {
+      anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
     } else {
       img.onload = done;
+      img.onerror = done;
     }
     return () => { cancelled = true; };
+  }, []);
+
+  // Scroll to top
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    if (root) root.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Cleanup leave timer
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current) window.clearTimeout(leaveTimerRef.current);
+    };
   }, []);
 
   // Load recommendations
@@ -100,22 +147,33 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     loadRecommendations();
   }, []);
 
-  // Typing effect for bubble — uses experience-based text
+  // Staggered reveal + bubble typing
   useEffect(() => {
-    if (schemes.length === 0) return;
+    if (loading || schemes.length === 0) return;
 
-    const targetText = getBubbleText(experience, schemes.length);
-    setBubbleText("");
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      setReveal(true);
+      setShowContent(true);
+      setBubbleText(bubbleTarget);
+      return;
+    }
+    const t1 = window.setTimeout(() => setReveal(true), 30);
+    const t2 = window.setTimeout(() => setShowContent(true), 200);
 
     let index = 0;
-    const typeInterval = setInterval(() => {
-      index++;
-      setBubbleText(targetText.slice(0, index));
-      if (index >= targetText.length) clearInterval(typeInterval);
+    const typeInterval = window.setInterval(() => {
+      index += 1;
+      setBubbleText(bubbleTarget.slice(0, index));
+      if (index >= bubbleTarget.length) window.clearInterval(typeInterval);
     }, 20);
 
-    return () => clearInterval(typeInterval);
-  }, [schemes, experience]);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearInterval(typeInterval);
+    };
+  }, [loading, schemes, bubbleTarget]);
 
   async function loadRecommendations() {
     try {
@@ -133,29 +191,49 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     }
   }
 
-  async function handleConfirm() {
-    if (!selectedId) return;
-    try {
-      setSaving(true);
-      setError(null);
-      await selectScheme(selectedId);
-      localStorage.setItem("scheme_selected", "1");
-      try { window.dispatchEvent(new Event("scheme_selected")); } catch {}
-      onComplete();
-    } catch (err: any) {
-      console.error("Failed to select scheme:", err);
-      setError(err.message || "Не удалось сохранить выбор");
-    } finally {
-      setSaving(false);
+  const handleNext = () => {
+    if (isLeaving || !selectedId) return;
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    const doSelect = async () => {
+      try {
+        setSaving(true);
+        setError(null);
+        await selectScheme(selectedId);
+        localStorage.setItem("scheme_selected", "1");
+        try { window.dispatchEvent(new Event("scheme_selected")); } catch {}
+        onComplete();
+      } catch (err: any) {
+        console.error("Failed to select scheme:", err);
+        setError(err.message || "Не удалось сохранить выбор");
+        setSaving(false);
+        setIsLeaving(false);
+      }
+    };
+
+    if (prefersReduced) {
+      doSelect();
+      return;
     }
-  }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(doSelect, 220);
+  };
+
+  const handleBack = () => {
+    if (isLeaving || !onBack) return;
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) { onBack(); return; }
+    setIsLeaving(true);
+    leaveTimerRef.current = window.setTimeout(() => onBack(), 220);
+  };
 
   // Loading state
   if (loading) {
     return (
       <div style={s.page}>
-        <div style={s.mascotRow}>
-          <img src={maleRobotImg} alt="Mascot" style={{ ...s.mascotImg, opacity: mascotReady ? 1 : 0 }} />
+        <ScreenStyles />
+        <div style={{ ...s.mascotRow, opacity: 1 }}>
+          <img src={maleRobotImg} alt="" style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }} />
           <div style={s.bubble} className="speech-bubble">
             <span style={s.bubbleText}>Подбираю программу...</span>
           </div>
@@ -163,26 +241,25 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         <div style={{ display: "grid", placeItems: "center", marginTop: 40 }}>
           <Spinner />
         </div>
-        <BubbleStyles />
       </div>
     );
   }
 
   // Error state
-  if (error || schemes.length === 0) {
+  if (error && schemes.length === 0) {
     return (
       <div style={s.page}>
-        <div style={s.mascotRow}>
-          <img src={maleRobotImg} alt="Mascot" style={s.mascotImg} />
+        <ScreenStyles />
+        <div style={{ ...s.mascotRow, opacity: 1 }}>
+          <img src={maleRobotImg} alt="" style={s.mascotImg} />
           <div style={s.bubble} className="speech-bubble">
             <span style={s.bubbleText}>Упс, что-то пошло не так...</span>
           </div>
         </div>
         <div style={s.errorCard}>
-          <p>{error || "Не удалось загрузить рекомендации"}</p>
+          <p>{error}</p>
           <button style={s.retryBtn} onClick={loadRecommendations}>Попробовать снова</button>
         </div>
-        <BubbleStyles />
       </div>
     );
   }
@@ -191,97 +268,101 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const alternatives = schemes.filter(s => s.id !== selectedId);
 
   return (
-    <div style={s.page}>
-      <BubbleStyles />
+    <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
+      <ScreenStyles />
 
       {/* Mascot + Bubble */}
-      <div style={s.mascotRow}>
+      <div
+        style={s.mascotRow}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-1" : ""}`}
+      >
         <img
           src={maleRobotImg}
-          alt="Mascot"
-          style={{ ...s.mascotImg, opacity: mascotReady ? 1 : 0 }}
+          alt=""
+          style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
         />
         <div style={s.bubble} className="speech-bubble">
-          <span style={s.bubbleText}>{bubbleText || "..."}</span>
+          <span style={s.bubbleText}>{bubbleText || "\u00A0"}</span>
         </div>
       </div>
 
-      {/* Selected Scheme - Large Card */}
-      <SelectedSchemeCard
-        scheme={selectedScheme}
-        userContext={userContext}
-      />
-
-      {/* Alternatives — different UX per experience */}
-      {alternatives.length > 0 && (
-        <div style={s.alternativesSection}>
-          {isBeginner ? (
-            <>
-              <div style={s.alternativesLabel}>Будет доступно позже</div>
-              <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
-                {alternatives.map(scheme => (
-                  <LockedAlternativeCard
-                    key={scheme.id}
-                    scheme={scheme}
-                    userContext={userContext}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={s.alternativesLabel}>Другие варианты</div>
-              <div style={alternatives.length === 2 ? s.alternativesGridTwo : s.alternativesGridOne}>
-                {alternatives.map(scheme => (
-                  <SelectableAlternativeCard
-                    key={scheme.id}
-                    scheme={scheme}
-                    userContext={userContext}
-                    onSelect={() => setSelectedId(scheme.id)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+      {/* Cards */}
+      <div style={s.cardsContainer}>
+        {/* Recommended Scheme Card */}
+        <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}>
+          <RecommendedCard
+            scheme={selectedScheme}
+            userContext={userContext}
+            isActive={true}
+          />
         </div>
-      )}
 
-      {/* Error message */}
+        {/* Alternatives */}
+        {alternatives.length > 0 && (
+          <div
+            style={s.altSection}
+            className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+          >
+            {isBeginner ? (
+              alternatives.map(scheme => (
+                <LockedCard key={scheme.id} scheme={scheme} userContext={userContext} />
+              ))
+            ) : (
+              alternatives.map(scheme => (
+                <SelectableCard
+                  key={scheme.id}
+                  scheme={scheme}
+                  userContext={userContext}
+                  isActive={scheme.id === selectedId}
+                  onSelect={() => setSelectedId(scheme.id)}
+                />
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Error inline */}
       {error && <div style={s.errorText}>{error}</div>}
 
       {/* Actions */}
-      <div style={s.actions}>
+      <div
+        style={s.actions}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+      >
         <button
           type="button"
           style={s.primaryBtn}
-          className="primary-btn"
-          onClick={handleConfirm}
-          disabled={!selectedId || saving}
+          className="intro-primary-btn"
+          onClick={handleNext}
+          disabled={!selectedId || saving || isLeaving}
         >
           {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать программу"}
         </button>
         {onBack && (
-          <button type="button" style={s.backBtn} onClick={onBack}>
+          <button type="button" style={s.backBtn} onClick={handleBack}>
             Назад
           </button>
         )}
       </div>
 
-      <div style={{ height: 160 }} />
+      <div aria-hidden className={`analysis-blackout${reveal ? " reveal" : ""}`} />
     </div>
   );
 }
 
 // ============================================================================
-// SELECTED SCHEME CARD (Large, dark)
+// RECOMMENDED CARD (glass, active state)
 // ============================================================================
 
-function SelectedSchemeCard({
+function RecommendedCard({
   scheme,
   userContext,
+  isActive,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
+  isActive: boolean;
 }) {
   const displayData = getSchemeDisplayData(
     {
@@ -292,125 +373,41 @@ function SelectedSchemeCard({
       daysPerWeek: scheme.daysPerWeek,
       locations: scheme.equipmentRequired as Location[],
     },
-    userContext
+    userContext,
   );
-
   const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
 
   return (
-    <div style={s.selectedCard}>
+    <div style={{ ...s.glassCard, ...(isActive ? s.glassCardActive : {}) }}>
       {scheme.isRecommended && (
-        <div style={s.recommendedBadge}>
-          <span>⭐</span>
-          <span>Рекомендовано</span>
-        </div>
+        <div style={s.recommendedBadge}>⭐ Рекомендовано</div>
       )}
-
-      <div style={s.selectedTitle}>{displayData.title}</div>
-
-      {/* Split type explanation */}
+      <div style={s.cardTitle}>{displayData.title}</div>
       {splitExplanation && (
-        <div style={s.splitExplanation}>{splitExplanation}</div>
-      )}
-
-      {/* Info chips */}
-      <div style={s.selectedChips}>
-        <span style={s.selectedChip}>📅 {scheme.daysPerWeek} дн/нед</span>
-        <span style={s.selectedChip}>⏱️ {scheme.minMinutes}-{scheme.maxMinutes} мин</span>
-        <span style={s.selectedChip}>
-          {scheme.intensity === "low" ? "🟢 Лёгкая" :
-           scheme.intensity === "moderate" ? "🟡 Средняя" : "🔴 Высокая"}
-        </span>
-      </div>
-
-      {/* Workout Slots (Train Cars) */}
-      <div style={s.slotsSection}>
-        <div style={s.slotsLabel}>ТВОЯ НЕДЕЛЯ</div>
-        <div style={s.slotsContainer}>
-          {scheme.dayLabels.map((d, i) => {
-            const highlight = getDayHighlight(scheme.splitType, d.label);
-            return (
-              <div key={i} style={s.slotCard}>
-                <div style={s.slotIconWrap}>
-                  <BodyIcon highlight={highlight} size={36} />
-                </div>
-                <div style={s.slotLabel}>{d.label}</div>
-                <div style={s.slotDay}>День {d.day}</div>
-              </div>
-            );
-          })}
+        <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
+          {splitExplanation}
         </div>
-      </div>
-
-      <p style={s.selectedDescription}>{displayData.description}</p>
+      )}
+      <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
+        {displayData.description}
+      </p>
     </div>
   );
 }
 
 // ============================================================================
-// LOCKED ALTERNATIVE CARD (Beginner — gamification)
+// SELECTABLE CARD (for intermediate / advanced)
 // ============================================================================
 
-function LockedAlternativeCard({
+function SelectableCard({
   scheme,
   userContext,
-}: {
-  scheme: WorkoutScheme;
-  userContext: UserContext;
-}) {
-  const displayData = getSchemeDisplayData(
-    {
-      id: scheme.id,
-      name: scheme.name,
-      splitType: scheme.splitType as SplitType,
-      intensity: scheme.intensity,
-      daysPerWeek: scheme.daysPerWeek,
-      locations: scheme.equipmentRequired as Location[],
-    },
-    userContext
-  );
-
-  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
-
-  // Determine unlock weeks based on scheme intensity / complexity
-  const unlockWeeks = scheme.intensity === "high" ? 12 : 8;
-
-  return (
-    <div style={s.lockedCard}>
-      {/* Lock overlay */}
-      <div style={s.lockedOverlay}>
-        <span style={s.lockIcon}>🔒</span>
-      </div>
-
-      <div style={s.lockedTitle}>{displayData.title}</div>
-      {splitExplanation && (
-        <div style={s.lockedSplitExplanation}>{splitExplanation}</div>
-      )}
-
-      {/* Progress bar */}
-      <div style={s.lockedProgressWrap}>
-        <div style={s.lockedProgressTrack}>
-          <div style={s.lockedProgressFill} />
-        </div>
-        <div style={s.lockedProgressText}>
-          Откроется через {unlockWeeks} недель
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// SELECTABLE ALTERNATIVE CARD (Intermediate / Advanced)
-// ============================================================================
-
-function SelectableAlternativeCard({
-  scheme,
-  userContext,
+  isActive,
   onSelect,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
+  isActive: boolean;
   onSelect: () => void;
 }) {
   const displayData = getSchemeDisplayData(
@@ -422,23 +419,63 @@ function SelectableAlternativeCard({
       daysPerWeek: scheme.daysPerWeek,
       locations: scheme.equipmentRequired as Location[],
     },
-    userContext
+    userContext,
   );
-
   const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
 
   return (
-    <button type="button" style={s.altCard} onClick={onSelect}>
-      <div style={s.altTitle}>{displayData.title}</div>
-      {splitExplanation && (
-        <div style={s.altSplitExplanation}>{splitExplanation}</div>
-      )}
-      <div style={s.altMeta}>
-        {scheme.daysPerWeek} дн/нед • {scheme.minMinutes}-{scheme.maxMinutes} мин •{" "}
-        {scheme.intensity === "low" ? "лёгкая" :
-         scheme.intensity === "moderate" ? "средняя" : "высокая"}
+    <button
+      type="button"
+      className="scheme-card"
+      style={{ ...s.glassCard, ...(isActive ? s.glassCardActive : {}) }}
+      onClick={onSelect}
+    >
+      <div style={{ ...s.cardTitle, color: isActive ? "#fff" : "#1e1f22" }}>
+        {displayData.title}
       </div>
+      {splitExplanation && (
+        <div style={{ ...s.splitExplanation, color: isActive ? "rgba(255,255,255,0.55)" : "rgba(30,31,34,0.5)" }}>
+          {splitExplanation}
+        </div>
+      )}
+      <p style={{ ...s.cardDescription, color: isActive ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.6)" }}>
+        {displayData.description}
+      </p>
     </button>
+  );
+}
+
+// ============================================================================
+// LOCKED CARD (for beginner — blurred with lock overlay)
+// ============================================================================
+
+function LockedCard({
+  scheme,
+  userContext,
+}: {
+  scheme: WorkoutScheme;
+  userContext: UserContext;
+}) {
+  const splitExplanation = SPLIT_EXPLANATIONS[scheme.splitType] || "";
+  const { unlockWeeks, motivationText } = getLockedCardContent(scheme);
+
+  return (
+    <div style={s.lockedCardWrap}>
+      {/* Blurred background content */}
+      <div style={s.lockedBlurLayer} />
+
+      {/* Lock content on top */}
+      <div style={s.lockedContent}>
+        <div style={s.lockedLockRow}>
+          <span style={s.lockedLockEmoji}>🔒</span>
+          <span style={s.lockedUnlockText}>Откроется через {unlockWeeks} недель</span>
+        </div>
+        {splitExplanation && (
+          <div style={s.lockedSplitText}>«{splitExplanation}»</div>
+        )}
+        <div style={s.lockedMotivation}>{motivationText}</div>
+      </div>
+    </div>
   );
 }
 
@@ -452,7 +489,7 @@ function Spinner() {
       <circle cx="25" cy="25" r="20" stroke="rgba(15,23,42,0.15)" strokeWidth="5" fill="none" />
       <circle
         cx="25" cy="25" r="20"
-        stroke="#0f172a"
+        stroke="#1e1f22"
         strokeWidth="5"
         strokeLinecap="round"
         fill="none"
@@ -466,35 +503,64 @@ function Spinner() {
 }
 
 // ============================================================================
-// BUBBLE STYLES
+// SCREEN STYLES (animations, bubble, button)
 // ============================================================================
 
-function BubbleStyles() {
+function ScreenStyles() {
   return (
     <style>{`
+      @keyframes onbFadeUp {
+        0% { opacity: 0; transform: translateY(16px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes onbFadeDown {
+        0% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(12px); }
+      }
+      .onb-fade-target { opacity: 0; }
+      .onb-fade { animation: onbFadeUp 520ms ease-out both; }
+      .onb-fade-delay-1 { animation-delay: 220ms; }
+      .onb-fade-delay-2 { animation-delay: 600ms; }
+      .onb-fade-delay-3 { animation-delay: 900ms; }
+      .onb-fade-delay-4 { animation-delay: 1200ms; }
+      .onb-leave { animation: onbFadeDown 220ms ease-in both; }
+      .analysis-blackout {
+        position: fixed; inset: 0; background: #000;
+        opacity: 1; pointer-events: none; z-index: 30;
+        transition: opacity 420ms ease;
+      }
+      .analysis-blackout.reveal { opacity: 0; }
       .speech-bubble:before {
-        content: "";
-        position: absolute;
-        left: -8px;
-        top: 18px;
-        width: 0;
-        height: 0;
+        content: ""; position: absolute;
+        left: -8px; top: 18px; width: 0; height: 0;
         border-top: 8px solid transparent;
         border-bottom: 8px solid transparent;
-        border-right: 8px solid rgba(255,255,255,0.95);
-        filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.08));
+        border-right: 8px solid rgba(255,255,255,0.9);
+        filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
       }
-      .primary-btn {
+      .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
-        touch-action: manipulation;
-        transition: transform 120ms ease, opacity 120ms ease;
+        touch-action: manipulation; user-select: none;
+        transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
       }
-      .primary-btn:active:not(:disabled) {
-        transform: scale(0.98);
-        opacity: 0.9;
+      .intro-primary-btn:active:not(:disabled) {
+        transform: translateY(1px) scale(0.99) !important;
+        background-color: #141619 !important;
+      }
+      .scheme-card {
+        appearance: none; outline: none; cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+        will-change: transform, background, border-color;
+      }
+      .scheme-card:active:not(:disabled) {
+        transform: translateY(1px) scale(0.99);
       }
       @media (prefers-reduced-motion: reduce) {
-        .primary-btn { transition: none; }
+        .onb-fade, .onb-leave { animation: none !important; }
+        .onb-fade-target { opacity: 1 !important; transform: none !important; }
+        .analysis-blackout { transition: none !important; }
+        .intro-primary-btn, .scheme-card { transition: none !important; }
       }
     `}</style>
   );
@@ -515,47 +581,72 @@ const s: Record<string, React.CSSProperties> = {
     gap: 16,
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    color: "#0f172a",
+    color: "#1e1f22",
   },
 
-  // Mascot Row
+  // Mascot Row — same as OnbAnalysis
   mascotRow: {
     display: "grid",
     gridTemplateColumns: "auto 1fr",
     alignItems: "center",
     gap: 12,
     marginTop: 8,
+    opacity: 0,
   },
   mascotImg: {
-    width: 100,
+    width: 140,
     height: "auto",
     objectFit: "contain",
-    transition: "opacity 0.3s ease",
+  },
+  mascotHidden: {
+    opacity: 0,
   },
   bubble: {
     position: "relative",
     padding: "14px 16px",
     borderRadius: 16,
-    border: "1px solid rgba(15, 23, 42, 0.08)",
-    background: "rgba(255,255,255,0.95)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
+    color: "#1e1f22",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   bubbleText: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: 500,
-    lineHeight: 1.4,
-    color: "#0f172a",
+    lineHeight: 1.35,
+    color: "#1e1f22",
+    whiteSpace: "pre-line",
   },
 
-  // Selected Card (Large, dark)
-  selectedCard: {
-    position: "relative",
-    padding: "24px 20px",
-    borderRadius: 20,
-    background: "#0f172a",
-    color: "#fff",
-    boxShadow: "0 12px 32px rgba(15,23,42,0.25)",
+  // Cards
+  cardsContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    marginTop: 4,
   },
+
+  // Glass card (matches OnbMotivation 3D glassmorphism)
+  glassCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    color: "#1e1f22",
+    padding: "20px 18px",
+    textAlign: "left",
+    position: "relative",
+    width: "100%",
+  },
+  glassCardActive: {
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    color: "#fff",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
+  },
+
   recommendedBadge: {
     position: "absolute",
     top: -10,
@@ -566,213 +657,87 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 100,
     fontSize: 11,
     fontWeight: 700,
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
     boxShadow: "0 2px 8px rgba(251,191,36,0.4)",
   },
-  selectedTitle: {
-    fontSize: 26,
-    fontWeight: 800,
+
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: 700,
     lineHeight: 1.2,
-    letterSpacing: -0.5,
-    marginBottom: 4,
+    letterSpacing: -0.3,
+    color: "#1e1f22",
   },
   splitExplanation: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.55)",
-    marginBottom: 12,
+    color: "rgba(30,31,34,0.5)",
+    marginTop: 4,
     lineHeight: 1.3,
   },
-  selectedChips: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
-  selectedChip: {
-    padding: "6px 12px",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.1)",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.9)",
+  cardDescription: {
+    margin: "10px 0 0",
+    fontSize: 15,
+    lineHeight: 1.5,
+    color: "rgba(30,31,34,0.6)",
   },
 
-  // Workout Slots (Train Cars)
-  slotsSection: {
-    marginBottom: 16,
-  },
-  slotsLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.5)",
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  slotsContainer: {
-    display: "flex",
-    gap: 8,
-    overflowX: "auto",
-    paddingBottom: 4,
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-  },
-  slotCard: {
-    flex: "0 0 auto",
-    minWidth: 80,
-    padding: "12px 10px",
-    borderRadius: 12,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.1)",
+  // Alternatives section
+  altSection: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: 6,
-  },
-  slotIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.05)",
-    display: "grid",
-    placeItems: "center",
-  },
-  slotLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#fff",
-    textAlign: "center",
-    lineHeight: 1.2,
-    maxWidth: 70,
-  },
-  slotDay: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.4)",
-  },
-
-  selectedDescription: {
-    margin: 0,
-    fontSize: 14,
-    lineHeight: 1.5,
-    color: "rgba(255,255,255,0.75)",
-  },
-
-  // Alternatives Section
-  alternativesSection: {
-    marginTop: 8,
-  },
-  alternativesLabel: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.5)",
-    marginBottom: 10,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  alternativesGridTwo: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  alternativesGridOne: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
     gap: 10,
   },
 
-  // Selectable Alternative Card (Intermediate/Advanced)
-  altCard: {
-    padding: "16px",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(15,23,42,0.08)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
+  // Locked card (beginner)
+  lockedCardWrap: {
+    position: "relative",
+    borderRadius: 18,
+    overflow: "hidden",
+    width: "100%",
+  },
+  lockedBlurLayer: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.15) 100%)",
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
-    cursor: "pointer",
-    textAlign: "left",
-    transition: "all 0.2s ease",
+    border: "1px solid rgba(255,255,255,0.3)",
+    borderRadius: 18,
   },
-  altTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#0f172a",
-    marginBottom: 2,
-    lineHeight: 1.2,
-  },
-  altSplitExplanation: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.45)",
-    marginBottom: 6,
-    lineHeight: 1.3,
-  },
-  altMeta: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.5)",
-  },
-
-  // Locked Alternative Card (Beginner)
-  lockedCard: {
+  lockedContent: {
     position: "relative",
-    padding: "16px",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.4)",
-    border: "1px solid rgba(15,23,42,0.06)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-    overflow: "hidden",
-  },
-  lockedOverlay: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-  },
-  lockIcon: {
-    fontSize: 16,
-  },
-  lockedTitle: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: "rgba(15,23,42,0.4)",
-    marginBottom: 2,
-    lineHeight: 1.2,
-    paddingRight: 28,
-  },
-  lockedSplitExplanation: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.3)",
-    marginBottom: 10,
-    lineHeight: 1.3,
-  },
-  lockedProgressWrap: {
+    padding: "20px 18px",
     display: "flex",
     flexDirection: "column",
-    gap: 4,
+    gap: 6,
   },
-  lockedProgressTrack: {
-    height: 4,
-    borderRadius: 2,
-    background: "rgba(15,23,42,0.08)",
-    overflow: "hidden",
+  lockedLockRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
   },
-  lockedProgressFill: {
-    width: "0%",
-    height: "100%",
-    borderRadius: 2,
-    background: "rgba(249,115,22,0.3)",
+  lockedLockEmoji: {
+    fontSize: 16,
   },
-  lockedProgressText: {
-    fontSize: 11,
+  lockedUnlockText: {
+    fontSize: 14,
     fontWeight: 600,
-    color: "rgba(15,23,42,0.3)",
+    color: "rgba(30,31,34,0.45)",
+  },
+  lockedSplitText: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.55)",
+    lineHeight: 1.3,
+  },
+  lockedMotivation: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.35)",
+    lineHeight: 1.4,
   },
 
-  // Actions
+  // Actions — same as OnbAnalysis
   actions: {
     position: "fixed",
     left: 0,
@@ -780,7 +745,7 @@ const s: Record<string, React.CSSProperties> = {
     bottom: 0,
     padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
-    gap: 8,
+    gap: 10,
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
     zIndex: 10,
   },
@@ -788,27 +753,27 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     borderRadius: 16,
     padding: "16px 18px",
-    border: "none",
-    background: "#0f172a",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    fontWeight: 600,
-    fontSize: 17,
+    fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(15,23,42,0.2)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#0f172a",
-    fontSize: 15,
+    color: "#1e1f22",
+    fontSize: 16,
     fontWeight: 600,
-    padding: "12px 16px",
+    padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
   },
 
-  // Error states
+  // Error
   errorCard: {
     padding: 24,
     textAlign: "center",
@@ -819,7 +784,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "12px 24px",
     borderRadius: 12,
     border: "none",
-    background: "#0f172a",
+    background: "#1e1f22",
     color: "#fff",
     fontSize: 14,
     fontWeight: 600,

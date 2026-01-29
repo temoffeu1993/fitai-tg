@@ -1,9 +1,9 @@
 // webapp/src/screens/onb/OnbExperience.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import robotImg from "@/assets/robonew.png";
-import beginnerImg from "@/assets/novii.png";
-import intermediateImg from "@/assets/sredne.png";
-import advancedImg from "@/assets/profi.png";
+import robotImg from "@/assets/robonew.webp";
+import beginnerImg from "@/assets/novii.webp";
+import intermediateImg from "@/assets/sredne.webp";
+import advancedImg from "@/assets/profi.webp";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
