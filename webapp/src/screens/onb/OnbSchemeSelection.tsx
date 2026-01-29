@@ -469,7 +469,11 @@ function RecommendedCard({
   const dayTimeline = buildDayTimeline(scheme);
   return (
     <div
-      style={{ ...s.recommendedCard, ...(onSelect ? s.cardClickable : {}) }}
+      style={{
+        ...s.recommendedCard,
+        ...(isActive ? undefined : s.recommendedCardInactive),
+        ...(onSelect ? s.cardClickable : {}),
+      }}
       onClick={onSelect}
       role={onSelect ? "button" : undefined}
       tabIndex={onSelect ? 0 : undefined}
@@ -549,7 +553,7 @@ function SelectableCard({
     <button
       type="button"
       className="scheme-card"
-      style={s.glassCard}
+      style={{ ...s.glassCard, ...(isActive ? s.schemeCardActive : s.schemeCardInactive) }}
       onClick={onSelect}
     >
       <div style={s.cardTitle}>{displayData.title}</div>
@@ -791,11 +795,15 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     width: "100%",
   },
-  glassCardActive: {
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
-    color: "#fff",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
+  schemeCardActive: {
+    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    color: "#1e1f22",
+  },
+  schemeCardInactive: {
+    opacity: 0.55,
+    filter: "saturate(0.9)",
   },
 
   recommendedCard: {
@@ -808,6 +816,10 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(16px)",
     position: "relative",
     width: "100%",
+  },
+  recommendedCardInactive: {
+    opacity: 0.55,
+    filter: "saturate(0.9)",
   },
   cardClickable: {
     cursor: "pointer",
