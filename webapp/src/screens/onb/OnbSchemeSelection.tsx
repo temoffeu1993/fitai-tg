@@ -324,18 +324,6 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
 // BUBBLE TEXT PER EXPERIENCE
 // ============================================================================
 
-function getBubbleText(experience: ExperienceLevel, schemesCount: number): string {
-  if (experience === "beginner") {
-    return "Готово! Вот план тренировок, который идеально подходит под твой профиль";
-  }
-  if (experience === "intermediate" || experience === "advanced") {
-    return "Готово! Выбери план тренировок: всё тело за раз или делим по мышцам?";
-  }
-  return schemesCount > 1
-    ? "Готово! Выбери план тренировок: всё тело за раз или делим по мышцам?"
-    : "Готово! Вот план тренировок, который идеально подходит под твой профиль";
-}
-
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const { draft } = useOnboarding();
   const [loading, setLoading] = useState(true);
@@ -344,7 +332,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [schemes, setSchemes] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
-  const [bubbleText, setBubbleText] = useState("Цель без плана - просто мечта! выберите план тренировок");
+  const [bubbleText, setBubbleText] = useState("Создал несколько планов тренировок!");
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -364,7 +352,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       : undefined,
   }), [draft]);
 
-  const bubbleTarget = "Цель без плана - просто мечта! выберите план тренировок";
+  const bubbleTarget = "Создал несколько планов тренировок!";
   const isReady = !loading && schemes.length > 0;
 
   // Preload mascot
@@ -387,7 +375,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   // Keep the same screen while loading: only update bubble text
   useEffect(() => {
     if (!loading) return;
-    setBubbleText("Цель без плана - просто мечта! выберите план тренировок");
+    setBubbleText("Создал несколько планов тренировок!");
     setShowContent(false);
   }, [loading]);
 

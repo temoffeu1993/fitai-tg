@@ -1,0 +1,272 @@
+// webapp/src/screens/onb/OnbSchemeLoading.tsx
+import { useEffect, useLayoutEffect, useState } from "react";
+import maleRobotImg from "@/assets/robonew.webp";
+
+type Props = {
+  onDone: () => void;
+};
+
+const LINES = [
+  "Цель без плана - просто мечта! Создаю план тренировок на основе вашего профиля.",
+  "Готово!",
+];
+
+export default function OnbSchemeLoading({ onDone }: Props) {
+  const [step, setStep] = useState(0);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [ready, setReady] = useState(false);
+  const hapticRef = (window as any)?.Telegram?.WebApp?.HapticFeedback;
+
+  const fireHaptic = (level: "light" | "medium" | "heavy" | "rigid" | "soft") => {
+    if (hapticRef?.impactOccurred) {
+      hapticRef.impactOccurred(level);
+      return;
+    }
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      const durations = { light: 8, medium: 14, heavy: 20, rigid: 26, soft: 10 };
+      navigator.vibrate(durations[level] ?? 10);
+    }
+  };
+
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.scrollTop = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.body.style.backgroundColor = "#000";
+    document.documentElement.style.backgroundColor = "#000";
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+      }
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let done = false;
+    const finish = () => {
+      if (cancelled || done) return;
+      done = true;
+      setReady(true);
+    };
+
+    const img = new Image();
+    img.decoding = "async";
+    img.src = maleRobotImg;
+    const anyImg = img as any;
+    if (typeof anyImg.decode === "function") {
+      anyImg.decode().then(finish).catch(() => {
+        img.onload = finish;
+        img.onerror = finish;
+      });
+    } else {
+      img.onload = finish;
+      img.onerror = finish;
+    }
+
+    const fallback = window.setTimeout(finish, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      setStep(LINES.length - 1);
+      const t = window.setTimeout(() => onDone(), 250);
+      return () => window.clearTimeout(t);
+    }
+
+    const stepDuration = 1200;
+    const doneDuration = 1200;
+    const exitDuration = 260;
+    const timers: number[] = [];
+    const totalDuration = stepDuration * (LINES.length - 1) + doneDuration;
+    const hapticLevels: Array<"light" | "medium" | "heavy" | "rigid"> = [
+      "light",
+      "medium",
+      "heavy",
+      "rigid",
+    ];
+    const start = performance.now();
+    const hapticTimer = window.setInterval(() => {
+      const elapsed = performance.now() - start;
+      const progress = Math.min(elapsed / totalDuration, 1);
+      const index = Math.min(
+        hapticLevels.length - 1,
+        Math.floor(progress * hapticLevels.length)
+      );
+      fireHaptic(hapticLevels[index]);
+    }, 520);
+
+    for (let i = 1; i < LINES.length; i += 1) {
+      timers.push(window.setTimeout(() => setStep(i), stepDuration * i));
+    }
+
+    const doneAt = stepDuration * (LINES.length - 1) + doneDuration;
+    timers.push(window.setTimeout(() => setIsLeaving(true), doneAt));
+    timers.push(window.setTimeout(() => onDone(), doneAt + exitDuration));
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      window.clearInterval(hapticTimer);
+    };
+  }, [onDone]);
+
+  const text = LINES[Math.min(step, LINES.length - 1)];
+  const isDone = step === LINES.length - 1;
+
+  return (
+    <div
+      style={s.page}
+      className={`analysis-loader${ready ? " onb-in" : ""}${isLeaving ? " onb-out" : ""}`}
+    >
+      <style>{`
+        .analysis-loader {
+          --ring-size: 300px;
+          --mascot-size: 196px;
+          --text-size: 30px;
+          --text-box-height: 88px;
+        }
+        .loader-content {
+          opacity: 0;
+        }
+        .analysis-loader.onb-in .loader-content {
+          animation: screenIn 360ms ease-out forwards;
+        }
+        .analysis-loader.onb-out .loader-content {
+          animation: screenOut 260ms ease-in forwards;
+        }
+        .aura {
+          position: absolute;
+          width: var(--ring-size);
+          height: var(--ring-size);
+          border-radius: 50%;
+          background: radial-gradient(
+            circle,
+            rgba(120, 255, 230, 0.28) 0%,
+            rgba(120, 255, 230, 0.12) 45%,
+            rgba(120, 255, 230, 0) 72%
+          );
+          filter: blur(22px);
+          opacity: 0.55;
+          transform: translateY(14px);
+          animation: auraPulse 2.8s ease-in-out infinite;
+          z-index: 1;
+        }
+        .aura.aura--fade {
+          animation: auraOut 700ms ease-out forwards;
+        }
+        .mascot {
+          width: var(--mascot-size);
+          height: auto;
+          z-index: 2;
+          filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.55));
+          transition: transform 220ms ease, opacity 220ms ease;
+          animation: mascotFloat 3.6s ease-in-out infinite;
+        }
+        .mascot.mascot--ascend {
+          animation: mascotAscend 920ms ease-in-out forwards;
+        }
+        .status-text {
+          font-size: var(--text-size);
+          font-weight: 700;
+          line-height: 1.15;
+          letter-spacing: -0.8px;
+          color: #f8fafc;
+          text-shadow: 0 0 10px rgba(88, 255, 255, 0.18);
+          animation: textSwap 360ms ease-out both;
+          text-align: center;
+        }
+        .status-text.done {
+          animation: textDone 1200ms ease-in-out both;
+        }
+        @keyframes mascotFloat {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+          100% { transform: translateY(0); }
+        }
+        @keyframes mascotAscend {
+          0% { transform: translateY(0) scale(1); opacity: 1; }
+          100% { transform: translateY(-18px) scale(1.02); opacity: 0.98; }
+        }
+        @keyframes auraPulse {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.8; }
+        }
+        @keyframes auraOut {
+          0% { opacity: 0.65; }
+          100% { opacity: 0; transform: translateY(6px) scale(0.96); }
+        }
+        @keyframes screenIn {
+          0% { opacity: 0; transform: translateY(12px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes screenOut {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-8px); }
+        }
+        @keyframes textSwap {
+          0% { opacity: 0; transform: translateY(8px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes textDone {
+          0% { opacity: 0.9; transform: translateY(0); }
+          50% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+
+      <div className="loader-content" style={s.content}>
+        <div className={`aura${isLeaving ? " aura--fade" : ""}`} />
+        <img
+          src={maleRobotImg}
+          alt=""
+          className={`mascot${isDone ? " mascot--ascend" : ""}`}
+        />
+        <div style={s.textBox}>
+          <div className={`status-text${isDone ? " done" : ""}`}>{text}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const s: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    background: "#000",
+    padding: "env(safe-area-inset-top, 0px) 20px env(safe-area-inset-bottom, 0px)",
+  },
+  content: {
+    position: "relative",
+    display: "grid",
+    placeItems: "center",
+    gap: 28,
+    width: "100%",
+  },
+  textBox: {
+    minHeight: 88,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 10px",
+  },
+};
