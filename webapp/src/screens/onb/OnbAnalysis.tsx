@@ -442,8 +442,10 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
               </div>
             </div>
             <div style={s.investmentText}>
-              <div style={{ ...s.investmentMain, marginTop: 0 }}>всего</div>
-              <div style={s.investmentPercent}>{analysis.investment.percent}</div>
+              <div style={s.investmentPercentRow}>
+                <span style={s.investmentMainInline}>всего</span>
+                <span style={s.investmentPercent}>{analysis.investment.percent}</span>
+              </div>
               <div style={s.investmentMain}>вашего времени в неделю</div>
               <p style={s.investmentSub}>
                 Остальные {(100 - investPercent).toFixed(0)}% — на жизнь и отдых
@@ -833,6 +835,16 @@ const s: Record<string, React.CSSProperties> = {
   },
   investmentText: {
     flex: 1,
+  },
+  investmentPercentRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  investmentMainInline: {
+    fontSize: 15,
+    color: "#0f172a",
+    lineHeight: 1.3,
   },
   investmentPercent: {
     fontSize: 36,
