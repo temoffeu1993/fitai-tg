@@ -3,7 +3,6 @@
 // - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
 // Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
-// Visual split preview: body silhouettes with colored zones per split type
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -17,7 +16,6 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
-import { VisualSplitPreview } from "@/components/VisualSplitPreview";
 
 type Props = {
   onComplete: () => void;
@@ -36,9 +34,91 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
   bro_split: "Каждый день — своя мышца",
 };
 
+// ============================================================================
+// DAY TIMELINE (Recommended card)
+// ============================================================================
+
+type DayTimelineItem = {
+  day: number;
+  title: string;
+  description: string;
+  icon: string;
+};
+
+const FALLBACK_DAY_TITLES: Record<string, string[]> = {
+  full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
+  upper_lower: ["Верх", "Низ", "Верх", "Низ", "Верх", "Низ", "Верх"],
+  push_pull_legs: ["Жим", "Тяга", "Ноги", "Жим", "Тяга", "Ноги", "Жим"],
+  conditioning: ["Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал"],
+  bro_split: ["Грудь + Трицепс", "Спина + Бицепс", "Ноги", "Плечи + Пресс", "Руки + Кор", "Грудь", "Спина"],
+};
+
+function normalizeDayTitle(label: string): string {
+  let text = label.trim();
+  if (!text) return text;
+  text = text.replace(/\s*&\s*/g, " + ");
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bfull body\b/gi, "Всё тело"],
+    [/\bpush\b/gi, "Жим"],
+    [/\bpull\b/gi, "Тяга"],
+    [/\blegs?\b/gi, "Ноги"],
+    [/\bupper\b/gi, "Верх"],
+    [/\blower\b/gi, "Низ"],
+    [/\bglutes?\b/gi, "Ягодицы"],
+    [/\bchest\b/gi, "Грудь"],
+    [/\bback\b/gi, "Спина"],
+    [/\bshoulders?\b/gi, "Плечи"],
+    [/\barms?\b/gi, "Руки"],
+    [/\bcore\b/gi, "Кор"],
+    [/\bconditioning\b/gi, "Функционал"],
+    [/\bcardio\b/gi, "Кардио"],
+    [/\bheavy\b/gi, "силовой"],
+    [/\bvolume\b/gi, "объём"],
+    [/\bgentle\b/gi, "мягкий"],
+    [/\brebuild\b/gi, "восстановление"],
+  ];
+
+  for (const [re, value] of replacements) {
+    text = text.replace(re, value);
+  }
+
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function getFallbackDayTitle(splitType: string, index: number): string {
+  const list = FALLBACK_DAY_TITLES[splitType];
+  if (!list || list.length === 0) return `День ${index + 1}`;
+  return list[index % list.length];
+}
+
+function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
+  const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
+  const limit = scheme.daysPerWeek || labels.length;
+  const base = labels.length
+    ? labels.slice(0, limit)
+    : Array.from({ length: limit }, (_, idx) => ({
+        day: idx + 1,
+        label: getFallbackDayTitle(scheme.splitType, idx),
+        focus: "",
+      }));
+
+  return base.map((day, idx) => {
+    const fallbackTitle = getFallbackDayTitle(scheme.splitType, idx);
+    const title = normalizeDayTitle(day.label || fallbackTitle) || fallbackTitle;
+    const description = (day.focus || scheme.description || "").trim();
+    return {
+      day: day.day || idx + 1,
+      title,
+      description,
+      icon: String(day.day || idx + 1),
+    };
+  });
+}
 
 // ============================================================================
 // LOCKED CARD CONTENT (for beginner)
+// Each locked alternative gets a motivational unlock message
 // ============================================================================
 
 function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; motivationText: string } {
@@ -52,6 +132,7 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
   if (split === "bro_split") {
     return { unlockWeeks: 12, motivationText: "Для детальной проработки" };
   }
+  // Default
   return {
     unlockWeeks: scheme.intensity === "high" ? 12 : 8,
     motivationText: "Когда будешь готов к новому уровню",
@@ -207,7 +288,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
   const handleNext = () => {
     if (isLeaving || !selectedId) return;
-    fireHapticImpact("light");
+    fireHapticImpact("rigid");
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
     const doSelect = async () => {
@@ -271,7 +352,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       <ScreenStyles />
 
       {/* Mascot + Bubble */}
-      <div style={s.mascotRow}>
+      <div
+        style={s.mascotRow}
+      >
         <img
           src={maleRobotImg}
           alt=""
@@ -358,7 +441,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// RECOMMENDED CARD — glass card with visual split preview
+// RECOMMENDED CARD (glass, active state)
 // ============================================================================
 
 function RecommendedCard({
@@ -383,7 +466,7 @@ function RecommendedCard({
     },
     userContext,
   );
-
+  const dayTimeline = buildDayTimeline(scheme);
   return (
     <div
       className="scheme-card"
@@ -409,11 +492,31 @@ function RecommendedCard({
       </div>
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
-
-      {/* Visual split preview */}
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <VisualSplitPreview splitType={scheme.splitType} />
+          {dayTimeline.length > 0 && (
+            <div style={s.dayTimeline}>
+              <div style={s.timelineList}>
+                {dayTimeline.map((item, idx) => (
+                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                    <div style={s.timelineLeft}>
+                  <div style={s.timelineIcon}>{item.icon}</div>
+                      {idx < dayTimeline.length - 1 && (
+                        <div style={s.timelineLine} />
+                      )}
+                    </div>
+                    <div style={s.timelineRight}>
+                      <div style={s.timelineWeek}>День {item.day}</div>
+                      <div style={s.timelineTitle}>{item.title}</div>
+                      {item.description && (
+                        <p style={s.timelineDesc}>{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -446,6 +549,7 @@ function SelectableCard({
     },
     userContext,
   );
+  const dayTimeline = buildDayTimeline(scheme);
 
   return (
     <button
@@ -457,10 +561,31 @@ function SelectableCard({
       <div style={s.altHeaderSpacer} aria-hidden />
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
-
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <VisualSplitPreview splitType={scheme.splitType} />
+          {dayTimeline.length > 0 && (
+            <div style={s.dayTimeline}>
+              <div style={s.timelineList}>
+                {dayTimeline.map((item, idx) => (
+                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                    <div style={s.timelineLeft}>
+                      <div style={s.timelineIcon}>{item.icon}</div>
+                      {idx < dayTimeline.length - 1 && (
+                        <div style={s.timelineLine} />
+                      )}
+                    </div>
+                    <div style={s.timelineRight}>
+                      <div style={s.timelineWeek}>День {item.day}</div>
+                      <div style={s.timelineTitle}>{item.title}</div>
+                      {item.description && (
+                        <p style={s.timelineDesc}>{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -483,7 +608,10 @@ function LockedCard({
 
   return (
     <div style={s.lockedCardWrap}>
+      {/* Blurred background content */}
       <div style={s.lockedBlurLayer} />
+
+      {/* Lock content on top */}
       <div style={s.lockedContent}>
         <div style={s.lockedLockRow}>
           <span style={s.lockedLockEmoji}>🔒</span>
@@ -522,7 +650,7 @@ function Spinner() {
 }
 
 // ============================================================================
-// SCREEN STYLES
+// SCREEN STYLES (animations, bubble, button)
 // ============================================================================
 
 function ScreenStyles() {
@@ -656,7 +784,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
 
-  // Glass card (unused but kept for reference)
+  // Glass card (matches OnbMotivation 3D glassmorphism)
   glassCard: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.4)",
@@ -734,6 +862,69 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 8,
   },
 
+  // Day timeline inside recommended card
+  dayTimeline: {
+    marginTop: 12,
+  },
+  timelineList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+  },
+  timelineItem: {
+    display: "flex",
+    gap: 12,
+  },
+  timelineLeft: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: 28,
+  },
+  timelineIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    background: "rgba(30,31,34,0.06)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#1e1f22",
+    flexShrink: 0,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 16,
+    background: "rgba(30,31,34,0.1)",
+    margin: "4px 0",
+  },
+  timelineRight: {
+    flex: 1,
+    paddingBottom: 14,
+  },
+  timelineWeek: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  timelineTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1e1f22",
+    marginTop: 2,
+  },
+  timelineDesc: {
+    margin: "4px 0 0",
+    fontSize: 13,
+    color: "rgba(30,31,34,0.6)",
+    lineHeight: 1.4,
+  },
+
   // Alternatives section
   altSection: {
     display: "flex",
@@ -790,7 +981,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
   },
 
-  // Actions
+  // Actions — same as OnbAnalysis
   actions: {
     position: "fixed",
     left: 0,
