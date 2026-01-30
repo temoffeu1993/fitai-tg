@@ -350,7 +350,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [schemes, setSchemes] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
-  const [bubbleText, setBubbleText] = useState("И подобрал план тренировок под ваши данные");
+  const [bubbleText, setBubbleText] = useState("Я подобрал план тренировок для вас!");
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -396,7 +396,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   // Keep the same screen while loading: only update bubble text
   useEffect(() => {
     if (!loading) return;
-    setBubbleText("И подобрал план тренировок под ваши данные");
+    setBubbleText("Я подобрал план тренировок для вас!");
     setShowContent(false);
   }, [loading]);
 
