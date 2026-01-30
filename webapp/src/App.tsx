@@ -272,7 +272,7 @@ function StepSchemeSelection() {
       onComplete={() => {
         nav("/onb/first-workout");
       }}
-      onBack={() => nav("/onb/motivation")}
+      onBack={() => nav("/onb/analysis")}
     />
   );
 }
