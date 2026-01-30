@@ -33,6 +33,7 @@ import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
+import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
@@ -264,69 +265,73 @@ function StepAnalysis() {
 
 // --- последний шаг: выбор схемы ---
 function StepSchemeSelection() {
-  const { reset } = useOnboarding();
   const nav = useNavigate();
   
   return (
     <OnbSchemeSelection
       onComplete={() => {
+        nav("/onb/first-workout");
+      }}
+      onBack={() => nav("/onb/motivation")}
+    />
+  );
+}
+
+// --- финальный шаг: выбор даты первой тренировки ---
+function StepFirstWorkout() {
+  const { reset } = useOnboarding();
+  const nav = useNavigate();
+
+  return (
+    <OnbFirstWorkout
+      onComplete={() => {
         console.log("🔥🔥🔥 App.tsx: onComplete called 🔥🔥🔥");
-        
-        // СРАЗУ устанавливаем глобальную переменную
+
         (window as any).__ONB_COMPLETE__ = true;
-        console.log("✅ FIRST: window.__ONB_COMPLETE__ = true");
-        
-        // Завершаем онбординг
+
         try {
           localStorage.setItem("onb_complete", "1");
           localStorage.setItem("highlight_generate_btn", "1");
-          console.log("✅ localStorage flags set");
         } catch (err) {
           console.error("⚠️  localStorage failed:", err);
         }
-        
+
         try {
           sessionStorage.setItem("onb_complete", "1");
-          console.log("✅ sessionStorage flag set");
         } catch (err) {
           console.error("⚠️  sessionStorage failed:", err);
         }
-        
-        // Отправляем события
+
         try {
           const bc = new BroadcastChannel("onb");
           bc.postMessage("onb_complete");
           bc.close();
-          console.log("✅ BroadcastChannel sent");
         } catch (err) {
           console.error("⚠️  BroadcastChannel failed:", err);
         }
-        
-        try { 
+
+        try {
           window.dispatchEvent(new Event("onb_complete"));
           window.dispatchEvent(new StorageEvent("storage", {
             key: "onb_complete",
             newValue: "1",
-            storageArea: localStorage
+            storageArea: localStorage,
           }));
-          console.log("✅ Events dispatched");
         } catch (err) {
           console.error("⚠️  Events failed:", err);
         }
-        
-        console.log("🎯 Resetting onboarding context...");
+
         reset();
         try {
           sessionStorage.removeItem("onb_draft_v1");
           sessionStorage.removeItem("onb_in_progress_v1");
         } catch {}
-        
-        console.log("🔄 Redirecting to /...");
+
         setTimeout(() => {
           nav("/");
-        }, 100);
+        }, 120);
       }}
-      onBack={() => nav("/onb/motivation")}
+      onBack={() => nav("/onb/scheme")}
     />
   );
 }
@@ -366,6 +371,7 @@ export default function App() {
             <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
+            <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
           </Route>
         </Routes>
 
