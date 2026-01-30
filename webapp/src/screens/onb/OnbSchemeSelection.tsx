@@ -706,6 +706,9 @@ function RecommendedCard({
         }
       }}
     >
+      <div style={s.selectCircle} aria-hidden>
+        <div style={{ ...s.selectDot, ...(isActive ? s.selectDotOn : {}) }} />
+      </div>
       <SchemeCardBody
         scheme={scheme}
         userContext={userContext}
@@ -740,6 +743,9 @@ function SelectableCard({
       style={{ ...s.recommendedCard, ...(isActive ? undefined : s.cardInactive) }}
       onClick={onSelect}
     >
+      <div style={s.selectCircle} aria-hidden>
+        <div style={{ ...s.selectDot, ...(isActive ? s.selectDotOn : {}) }} />
+      </div>
       <SchemeCardBody
         scheme={scheme}
         userContext={userContext}
@@ -961,6 +967,33 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+
+  // Selection circle (top-right)
+  selectCircle: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 24,
+    height: 24,
+    borderRadius: "50%",
+    border: "2px solid rgba(0,0,0,0.35)",
+    background: "rgba(255,255,255,0.85)",
+    display: "grid",
+    placeItems: "center",
+  },
+  selectDot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background: "#0f172a",
+    transform: "scale(0)",
+    opacity: 0,
+    transition: "transform 180ms ease, opacity 180ms ease",
+  },
+  selectDotOn: {
+    transform: "scale(1)",
+    opacity: 1,
   },
 
   // Title with emoji
