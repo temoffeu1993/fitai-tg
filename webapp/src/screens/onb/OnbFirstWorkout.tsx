@@ -64,6 +64,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState<string>("");
   const [reminder, setReminder] = useState(REMINDER_OPTIONS[3]);
+  const [showContent, setShowContent] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -92,6 +93,20 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      setShowContent(false);
+      return;
+    }
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      setShowContent(true);
+      return;
+    }
+    const t = window.setTimeout(() => setShowContent(true), 30);
+    return () => window.clearTimeout(t);
+  }, [loading]);
 
   const firstTitle = getFirstWorkoutTitle(scheme || undefined);
 
@@ -159,6 +174,36 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   return (
     <div style={s.page}>
       <style>{`
+        @keyframes onbFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes onbFadeDown {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(12px); }
+        }
+        .onb-fade-target { opacity: 0; }
+        .onb-fade { animation: onbFadeUp 520ms ease-out both; }
+        .onb-fade-delay-1 { animation-delay: 80ms; }
+        .onb-fade-delay-2 { animation-delay: 160ms; }
+        .onb-fade-delay-3 { animation-delay: 240ms; }
+        .onb-leave { animation: onbFadeDown 220ms ease-in both; }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .onb-fade, .onb-leave { animation: none !important; }
+          .onb-fade-target { opacity: 1 !important; transform: none !important; }
+        }
         @keyframes confettiPop {
           0% { opacity: 0; transform: translateY(12px) scale(0.9); }
           20% { opacity: 1; }
@@ -181,7 +226,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       `}</style>
 
       {/* Mascot + Bubble */}
-      <div style={s.mascotRow}>
+      <div style={s.mascotRow} className="onb-fade onb-fade-delay-2">
         <img src={maleRobotImg} alt="" style={s.mascotImg} />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>
@@ -191,7 +236,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       {/* Main Card */}
-      <div style={s.mainCard}>
+      <div style={s.mainCard} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
         <div style={s.mainCardHeader}>
           <span style={s.cardIcon}>🚀</span>
           <span style={s.cardLabel}>Первая тренировка</span>
@@ -203,7 +248,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       {/* Date + Time Grid */}
-      <div style={s.gridRow}>
+      <div style={s.gridRow} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
         <div style={s.smallCard}>
           <div style={s.smallCardHeader}>
             <span style={s.smallCardIcon}>📅</span>
@@ -233,7 +278,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       {/* Notifications */}
-      <div style={s.smallCardWide}>
+      <div style={s.smallCardWide} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
         <div style={s.smallCardHeader}>
           <span style={s.smallCardIcon}>🔔</span>
           <span style={s.smallCardLabel}>Уведомления</span>
@@ -251,7 +296,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       {/* Actions */}
-      <div style={s.actions}>
+      <div style={s.actions} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
         <div style={s.holdWrap}>
           <div style={{ ...s.holdRing, ...ringStyle }} />
           <button
