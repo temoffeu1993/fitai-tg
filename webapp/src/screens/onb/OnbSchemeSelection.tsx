@@ -3,7 +3,7 @@
 // - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
 // Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
-// Day strip: horizontal scroll with muscle mascot illustrations per day
+// Week pattern: colored segmented bar + legend (like macros bar in Analysis)
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -17,11 +17,6 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
-
-// Muscle mascot illustrations (front / back views)
-// TODO: replace with per-muscle-group illustrations when generated
-import muscleFrontImg from "@/assets/push.png";
-import muscleBackImg from "@/assets/push2.png";
 
 type Props = {
   onComplete: () => void;
@@ -41,14 +36,30 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
 };
 
 // ============================================================================
-// DAY STRIP — horizontal scroll with muscle illustrations
+// WEEK PATTERN — colored bar segments per day type
 // ============================================================================
 
-type DayStripItem = {
-  day: number;
+// Color palette for day types
+const DAY_COLORS: Record<string, string> = {
+  "Верх":       "#3B82F6", // blue
+  "Низ":        "#22C55E", // green
+  "Жим":        "#F97316", // orange
+  "Тяга":       "#8B5CF6", // purple
+  "Ноги":       "#22C55E", // green
+  "Всё тело":   "#3B82F6", // blue
+  "Функционал": "#EAB308", // yellow
+  "Грудь":      "#F97316", // orange
+  "Спина":      "#8B5CF6", // purple
+  "Плечи":      "#0EA5E9", // sky
+  "Руки":       "#EC4899", // pink
+  "Кор":        "#EAB308", // yellow
+  "Ягодицы":    "#22C55E", // green
+};
+const DEFAULT_DAY_COLOR = "#94A3B8"; // slate
+
+type DaySegment = {
   label: string;
-  imgFront: string; // mascot front view
-  imgBack: string;  // mascot back view
+  color: string;
 };
 
 const FALLBACK_DAY_LABELS: Record<string, string[]> = {
@@ -72,13 +83,15 @@ function normalizeDayLabel(label: string): string {
   return t.replace(/\s+/g, " ").trim();
 }
 
-// TODO: when per-muscle illustrations are ready, map label keywords to specific images
-// For now all days use the same two placeholder images (front + back)
-function getMuscleImages(_label: string): { front: string; back: string } {
-  return { front: muscleFrontImg, back: muscleBackImg };
+function getDayColor(label: string): string {
+  // Try exact match first
+  if (DAY_COLORS[label]) return DAY_COLORS[label];
+  // Try first word match (e.g. "Грудь + Трицепс" → "Грудь")
+  const firstWord = label.split(/[+,]/)[0].trim();
+  return DAY_COLORS[firstWord] || DEFAULT_DAY_COLOR;
 }
 
-function buildDayStrip(scheme: WorkoutScheme): DayStripItem[] {
+function buildWeekPattern(scheme: WorkoutScheme): DaySegment[] {
   const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
   const limit = scheme.daysPerWeek || labels.length;
   const fallbacks = FALLBACK_DAY_LABELS[scheme.splitType] || [];
@@ -86,19 +99,26 @@ function buildDayStrip(scheme: WorkoutScheme): DayStripItem[] {
   return Array.from({ length: limit }, (_, idx) => {
     const raw = labels[idx]?.label || fallbacks[idx % fallbacks.length] || `День ${idx + 1}`;
     const label = normalizeDayLabel(raw);
-    const imgs = getMuscleImages(label);
-    return {
-      day: (labels[idx]?.day) || idx + 1,
-      label,
-      imgFront: imgs.front,
-      imgBack: imgs.back,
-    };
+    return { label, color: getDayColor(label) };
   });
+}
+
+// Build unique legend items from segments
+function buildLegend(segments: DaySegment[]): Array<{ label: string; color: string; count: number }> {
+  const map = new Map<string, { color: string; count: number }>();
+  for (const seg of segments) {
+    const existing = map.get(seg.label);
+    if (existing) {
+      existing.count++;
+    } else {
+      map.set(seg.label, { color: seg.color, count: 1 });
+    }
+  }
+  return Array.from(map.entries()).map(([label, { color, count }]) => ({ label, color, count }));
 }
 
 // ============================================================================
 // LOCKED CARD CONTENT (for beginner)
-// Each locked alternative gets a motivational unlock message
 // ============================================================================
 
 function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; motivationText: string } {
@@ -112,7 +132,6 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
   if (split === "bro_split") {
     return { unlockWeeks: 12, motivationText: "Для детальной проработки" };
   }
-  // Default
   return {
     unlockWeeks: scheme.intensity === "high" ? 12 : 8,
     motivationText: "Когда будешь готов к новому уровню",
@@ -332,9 +351,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       <ScreenStyles />
 
       {/* Mascot + Bubble */}
-      <div
-        style={s.mascotRow}
-      >
+      <div style={s.mascotRow}>
         <img
           src={maleRobotImg}
           alt=""
@@ -421,7 +438,55 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// RECOMMENDED CARD — glass card with horizontal muscle strip
+// WEEK PATTERN BAR — colored segments + legend
+// ============================================================================
+
+function WeekPatternBar({ scheme }: { scheme: WorkoutScheme }) {
+  const segments = buildWeekPattern(scheme);
+  const legend = buildLegend(segments);
+  const total = segments.length;
+
+  return (
+    <div style={s.patternWrap}>
+      {/* Segmented bar */}
+      <div style={s.patternBar}>
+        {segments.map((seg, idx) => (
+          <div
+            key={idx}
+            style={{
+              ...s.patternSegment,
+              width: `${100 / total}%`,
+              background: seg.color,
+              borderRadius:
+                idx === 0 && idx === total - 1
+                  ? 8
+                  : idx === 0
+                    ? "8px 0 0 8px"
+                    : idx === total - 1
+                      ? "0 8px 8px 0"
+                      : 0,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div style={s.patternLegend}>
+        {legend.map((item) => (
+          <div key={item.label} style={s.legendItem}>
+            <div style={{ ...s.legendDot, background: item.color }} />
+            <span style={s.legendText}>
+              {item.label}{item.count > 1 ? ` ×${item.count}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// RECOMMENDED CARD — glass card with week pattern bar
 // ============================================================================
 
 function RecommendedCard({
@@ -446,7 +511,6 @@ function RecommendedCard({
     },
     userContext,
   );
-  const dayStrip = buildDayStrip(scheme);
 
   return (
     <div
@@ -474,10 +538,10 @@ function RecommendedCard({
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
 
-      {/* Horizontal day strip with muscle illustrations */}
+      {/* Week pattern bar */}
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <DayStrip items={dayStrip} />
+          <WeekPatternBar scheme={scheme} />
         </div>
       </div>
     </div>
@@ -510,7 +574,6 @@ function SelectableCard({
     },
     userContext,
   );
-  const dayStrip = buildDayStrip(scheme);
 
   return (
     <button
@@ -525,40 +588,10 @@ function SelectableCard({
 
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <DayStrip items={dayStrip} />
+          <WeekPatternBar scheme={scheme} />
         </div>
       </div>
     </button>
-  );
-}
-
-// ============================================================================
-// DAY STRIP COMPONENT — horizontal scroll of muscle illustration cards
-// ============================================================================
-
-function DayStrip({ items }: { items: DayStripItem[] }) {
-  if (items.length === 0) return null;
-
-  return (
-    <div style={s.stripWrap}>
-      <div style={s.stripScroll} className="day-strip-scroll">
-        {items.map((item, idx) => (
-          <div key={`${item.day}-${idx}`} style={s.stripCard}>
-            <div style={s.stripImgWrap}>
-              {/* Alternate front/back for visual variety */}
-              <img
-                src={idx % 2 === 0 ? item.imgFront : item.imgBack}
-                alt=""
-                style={s.stripImg}
-                loading="lazy"
-              />
-            </div>
-            <div style={s.stripDayNum}>День {item.day}</div>
-            <div style={s.stripLabel}>{item.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -578,10 +611,7 @@ function LockedCard({
 
   return (
     <div style={s.lockedCardWrap}>
-      {/* Blurred background content */}
       <div style={s.lockedBlurLayer} />
-
-      {/* Lock content on top */}
       <div style={s.lockedContent}>
         <div style={s.lockedLockRow}>
           <span style={s.lockedLockEmoji}>🔒</span>
@@ -620,7 +650,7 @@ function Spinner() {
 }
 
 // ============================================================================
-// SCREEN STYLES (animations, bubble, button)
+// SCREEN STYLES
 // ============================================================================
 
 function ScreenStyles() {
@@ -684,13 +714,6 @@ function ScreenStyles() {
       }
       .scheme-card:active:not(:disabled) {
         transform: translateY(1px) scale(0.99);
-      }
-      .day-strip-scroll {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-      .day-strip-scroll::-webkit-scrollbar {
-        display: none;
       }
       @media (prefers-reduced-motion: reduce) {
         .onb-fade, .onb-leave { animation: none !important; }
@@ -761,7 +784,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
 
-  // Glass card (matches OnbMotivation 3D glassmorphism)
+  // Glass card (unused but kept for reference)
   glassCard: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.4)",
@@ -839,59 +862,48 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 8,
   },
 
-  // Horizontal day strip with muscle illustrations
-  stripWrap: {
-    marginTop: 14,
-    marginLeft: -18,
-    marginRight: -18,
-    paddingLeft: 18,
-    paddingRight: 18,
-  },
-  stripScroll: {
-    display: "flex",
-    gap: 10,
-    overflowX: "auto",
-    paddingBottom: 4,
-  },
-  stripCard: {
-    flex: "0 0 auto",
-    width: 88,
+  // Week pattern bar + legend
+  patternWrap: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: 4,
+    gap: 10,
+    marginTop: 6,
   },
-  stripImgWrap: {
-    width: 80,
-    height: 96,
-    borderRadius: 14,
-    background: "rgba(30,31,34,0.04)",
-    border: "1px solid rgba(30,31,34,0.06)",
+  patternBar: {
+    display: "flex",
+    height: 14,
+    borderRadius: 8,
     overflow: "hidden",
+    width: "100%",
+    background: "#F1F5F9",
+    gap: 2,
+  },
+  patternSegment: {
+    height: "100%",
+  },
+  patternLegend: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#64748B",
+  },
+  legendItem: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
   },
-  stripImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    flexShrink: 0,
   },
-  stripDayNum: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.4)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-    marginTop: 2,
-  },
-  stripLabel: {
+  legendText: {
     fontSize: 13,
-    fontWeight: 600,
-    color: "#1e1f22",
-    textAlign: "center",
-    lineHeight: 1.2,
-    maxWidth: 84,
+    fontWeight: 500,
+    color: "#64748B",
   },
 
   // Alternatives section
@@ -950,7 +962,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
   },
 
-  // Actions — same as OnbAnalysis
+  // Actions
   actions: {
     position: "fixed",
     left: 0,
