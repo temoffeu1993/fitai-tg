@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
-import maleRobotImg from "@/assets/robonew.webp";
+import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -64,6 +64,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState<string>("");
   const [reminder, setReminder] = useState(REMINDER_OPTIONS[3]);
+  const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
@@ -86,6 +87,22 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       }
     })();
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = smotrchasImg;
+    const done = () => { if (!cancelled) setMascotReady(true); };
+    const anyImg = img as any;
+    if (typeof anyImg.decode === "function") {
+      anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
+    } else {
+      img.onload = done;
+      img.onerror = done;
+    }
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -162,7 +179,11 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return (
       <div style={s.page}>
         <div style={s.mascotRow}>
-          <img src={maleRobotImg} alt="" style={s.mascotImg} />
+          <img
+            src={smotrchasImg}
+            alt=""
+            style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
+          />
           <div style={s.bubble} className="speech-bubble">
             <span style={s.bubbleText}>Готовим план...</span>
           </div>
@@ -227,7 +248,11 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
       {/* Mascot + Bubble */}
       <div style={s.mascotRow} className="onb-fade onb-fade-delay-2">
-        <img src={maleRobotImg} alt="" style={s.mascotImg} />
+        <img
+          src={smotrchasImg}
+          alt=""
+          style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
+        />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>
             План идеален. Но он не сработает без твоего решения. Когда стартуем?
@@ -363,6 +388,10 @@ const s: Record<string, React.CSSProperties> = {
     width: 140,
     height: "auto",
     objectFit: "contain",
+  },
+  mascotHidden: {
+    opacity: 0,
+    transform: "translateY(6px) scale(0.98)",
   },
   bubble: {
     position: "relative",
