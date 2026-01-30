@@ -364,10 +364,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       : undefined,
   }), [draft]);
 
-  const bubbleTarget = useMemo(
-    () => getBubbleText(experience, schemes.length),
-    [experience, schemes.length],
-  );
+  const bubbleTarget = "Цель без плана - просто мечта! выберите план тренировок";
   const isReady = !loading && schemes.length > 0;
 
   // Preload mascot
