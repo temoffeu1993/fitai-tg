@@ -210,7 +210,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   // Keep the same screen while loading: only update bubble text
   useEffect(() => {
     if (!loading) return;
-    setBubbleText("Подбираю схемы тренировок...");
+    setBubbleText("Подбираю план тренировок...");
     setShowContent(false);
   }, [loading]);
 
@@ -345,7 +345,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const recommendedScheme = isReady ? schemes.find(s => s.id === recommendedId) || null : null;
   const alternatives = isReady ? schemes.filter(s => s.id !== recommendedId) : [];
   const activeId = selectedId || recommendedId;
-  const bubbleDisplayText = loading ? "Подбираю схемы тренировок..." : (bubbleText || "\u00A0");
+  const bubbleDisplayText = loading ? "Подбираю план тренировок..." : (bubbleText || "\u00A0");
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
