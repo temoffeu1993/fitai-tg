@@ -27,12 +27,39 @@ type Props = {
 // ============================================================================
 
 const SPLIT_EXPLANATIONS: Record<string, string> = {
-  full_body: "Каждая тренировка — всё тело целиком",
-  upper_lower: "Чередование верха и низа",
-  push_pull_legs: "Три типа дней: жим, тяга, ноги",
-  conditioning: "Круговые и функциональные тренировки",
-  bro_split: "Каждый день — своя мышца",
+  full_body: "Прокачиваем всё тело за одну тренировку — просто и мощно 💪",
+  upper_lower: "Один день — верх, другой — низ. Баланс и восстановление ⚖️",
+  push_pull_legs: "Отдельная группа мышц на каждой тренировке — прицельная работа 🎯",
+  conditioning: "Круговые тренировки в высоком темпе — жир плавится 🔥",
+  bro_split: "Каждый день — одна мышца под микроскопом. Для продвинутых 🔬",
 };
+
+// Title emojis per split type
+const SPLIT_TITLE_EMOJI: Record<string, string> = {
+  full_body: "🏋️", upper_lower: "⬆️⬇️", push_pull_legs: "🎯",
+  conditioning: "⚡", bro_split: "💎",
+};
+
+// Difficulty per split type (1-3, like intensity bars in Analysis)
+const SPLIT_DIFFICULTY: Record<string, number> = {
+  full_body: 1, conditioning: 1, upper_lower: 2, push_pull_legs: 2, bro_split: 3,
+};
+
+// Day emoji by title content
+function getDayEmoji(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes("всё тело")) return "🔥";
+  if (t.includes("жим") || t.includes("грудь")) return "💥";
+  if (t.includes("тяга") || t.includes("спина")) return "🦾";
+  if (t.includes("ноги") || t.includes("ягодиц")) return "🦵";
+  if (t.includes("плечи")) return "🎯";
+  if (t.includes("руки") || t.includes("бицепс") || t.includes("трицепс")) return "💪";
+  if (t.includes("кор") || t.includes("пресс")) return "🧱";
+  if (t.includes("верх")) return "⬆️";
+  if (t.includes("низ")) return "⬇️";
+  if (t.includes("функционал") || t.includes("кардио")) return "⚡";
+  return "🏋️";
+}
 
 // ============================================================================
 // DAY TIMELINE (Recommended card)
@@ -106,12 +133,12 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
   return base.map((day, idx) => {
     const fallbackTitle = getFallbackDayTitle(scheme.splitType, idx);
     const title = normalizeDayTitle(day.label || fallbackTitle) || fallbackTitle;
-    const description = (day.focus || scheme.description || "").trim();
+    const description = (day.focus || "").trim();
     return {
       day: day.day || idx + 1,
       title,
       description,
-      icon: String(day.day || idx + 1),
+      icon: getDayEmoji(title),
     };
   });
 }
@@ -441,7 +468,91 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// RECOMMENDED CARD (glass, active state)
+// DIFFICULTY BARS (like intensity in OnbAnalysis)
+// ============================================================================
+
+function DifficultyBars({ splitType }: { splitType: string }) {
+  const level = SPLIT_DIFFICULTY[splitType] ?? 1;
+  return (
+    <div style={s.difficultyRow}>
+      <span style={s.difficultyLabel}>Сложность</span>
+      <div style={s.difficultyBars}>
+        <div style={{ ...s.diffBar, ...s.diffBar1, background: level >= 1 ? "#1e1f22" : "#e5e7eb" }} />
+        <div style={{ ...s.diffBar, ...s.diffBar2, background: level >= 2 ? "#1e1f22" : "#e5e7eb" }} />
+        <div style={{ ...s.diffBar, ...s.diffBar3, background: level >= 3 ? "#1e1f22" : "#e5e7eb" }} />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SHARED CARD BODY — title + difficulty + description + timeline
+// ============================================================================
+
+function SchemeCardBody({
+  scheme,
+  userContext,
+  showTimeline,
+}: {
+  scheme: WorkoutScheme;
+  userContext: UserContext;
+  showTimeline: boolean;
+}) {
+  const displayData = getSchemeDisplayData(
+    {
+      id: scheme.id,
+      name: scheme.name,
+      splitType: scheme.splitType as SplitType,
+      intensity: scheme.intensity,
+      daysPerWeek: scheme.daysPerWeek,
+      locations: scheme.equipmentRequired as Location[],
+    },
+    userContext,
+  );
+  const splitEmoji = SPLIT_TITLE_EMOJI[scheme.splitType] || "🏋️";
+  const splitDesc = SPLIT_EXPLANATIONS[scheme.splitType] || displayData.description;
+  const dayTimeline = buildDayTimeline(scheme);
+
+  return (
+    <>
+      <div style={s.cardTitle}>
+        <span style={s.titleEmoji}>{splitEmoji}</span>
+        {displayData.title}
+      </div>
+
+      <DifficultyBars splitType={scheme.splitType} />
+
+      <p style={s.cardDescription}>{splitDesc}</p>
+
+      {showTimeline && dayTimeline.length > 0 && (
+        <div style={s.dayTimeline}>
+          <div style={s.weekPlanHeader}>
+            <span>📋</span>
+            <span style={s.weekPlanText}>План недели</span>
+          </div>
+          <div style={s.timelineList}>
+            {dayTimeline.map((item, idx) => (
+              <div key={`${item.day}-${idx}`} style={s.timelineItem}>
+                <div style={s.timelineLeft}>
+                  <div style={s.timelineIcon}>{item.icon}</div>
+                  {idx < dayTimeline.length - 1 && <div style={s.timelineLine} />}
+                </div>
+                <div style={s.timelineRight}>
+                  <div style={s.timelineWeek}>День {item.day}</div>
+                  <div style={s.timelineTitle}>{item.title}</div>
+                  {item.description && <p style={s.timelineDesc}>{item.description}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================================
+// RECOMMENDED CARD — glass card with badge overlay
 // ============================================================================
 
 function RecommendedCard({
@@ -455,18 +566,6 @@ function RecommendedCard({
   isActive: boolean;
   onSelect?: () => void;
 }) {
-  const displayData = getSchemeDisplayData(
-    {
-      id: scheme.id,
-      name: scheme.name,
-      splitType: scheme.splitType as SplitType,
-      intensity: scheme.intensity,
-      daysPerWeek: scheme.daysPerWeek,
-      locations: scheme.equipmentRequired as Location[],
-    },
-    userContext,
-  );
-  const dayTimeline = buildDayTimeline(scheme);
   return (
     <div
       className="scheme-card"
@@ -486,45 +585,20 @@ function RecommendedCard({
         }
       }}
     >
-      <div style={s.schemeHeader}>
-        <span style={s.schemeHeaderIcon}>⭐</span>
-        <span style={s.schemeHeaderLabel}>Рекомендованная схема</span>
+      {/* Badge — "sticker" overlay top-right */}
+      <div style={s.badge}>
+        <span style={s.badgeIcon}>⚡</span>
+        <span style={s.badgeText}>Рекомендую</span>
       </div>
-      <div style={s.cardTitle}>{displayData.title}</div>
-      <p style={s.cardDescription}>{displayData.description}</p>
-      <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
-        <div style={s.rollContent}>
-          {dayTimeline.length > 0 && (
-            <div style={s.dayTimeline}>
-              <div style={s.timelineList}>
-                {dayTimeline.map((item, idx) => (
-                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
-                    <div style={s.timelineLeft}>
-                  <div style={s.timelineIcon}>{item.icon}</div>
-                      {idx < dayTimeline.length - 1 && (
-                        <div style={s.timelineLine} />
-                      )}
-                    </div>
-                    <div style={s.timelineRight}>
-                      <div style={s.timelineWeek}>День {item.day}</div>
-                      <div style={s.timelineTitle}>{item.title}</div>
-                      {item.description && (
-                        <p style={s.timelineDesc}>{item.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+
+      <SchemeCardBody scheme={scheme} userContext={userContext} showTimeline={isActive} />
     </div>
   );
 }
 
 // ============================================================================
 // SELECTABLE CARD (for intermediate / advanced)
+// Same content as recommended, but no badge, collapsed when inactive
 // ============================================================================
 
 function SelectableCard({
@@ -538,19 +612,6 @@ function SelectableCard({
   isActive: boolean;
   onSelect: () => void;
 }) {
-  const displayData = getSchemeDisplayData(
-    {
-      id: scheme.id,
-      name: scheme.name,
-      splitType: scheme.splitType as SplitType,
-      intensity: scheme.intensity,
-      daysPerWeek: scheme.daysPerWeek,
-      locations: scheme.equipmentRequired as Location[],
-    },
-    userContext,
-  );
-  const dayTimeline = buildDayTimeline(scheme);
-
   return (
     <button
       type="button"
@@ -558,36 +619,7 @@ function SelectableCard({
       style={{ ...s.recommendedCard, ...(isActive ? undefined : s.cardInactive) }}
       onClick={onSelect}
     >
-      <div style={s.altHeaderSpacer} aria-hidden />
-      <div style={s.cardTitle}>{displayData.title}</div>
-      <p style={s.cardDescription}>{displayData.description}</p>
-      <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
-        <div style={s.rollContent}>
-          {dayTimeline.length > 0 && (
-            <div style={s.dayTimeline}>
-              <div style={s.timelineList}>
-                {dayTimeline.map((item, idx) => (
-                  <div key={`${item.day}-${idx}`} style={s.timelineItem}>
-                    <div style={s.timelineLeft}>
-                      <div style={s.timelineIcon}>{item.icon}</div>
-                      {idx < dayTimeline.length - 1 && (
-                        <div style={s.timelineLine} />
-                      )}
-                    </div>
-                    <div style={s.timelineRight}>
-                      <div style={s.timelineWeek}>День {item.day}</div>
-                      <div style={s.timelineTitle}>{item.title}</div>
-                      {item.description && (
-                        <p style={s.timelineDesc}>{item.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <SchemeCardBody scheme={scheme} userContext={userContext} showTimeline={isActive} />
     </button>
   );
 }
@@ -784,21 +816,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
   },
 
-  // Glass card (matches OnbMotivation 3D glassmorphism)
-  glassCard: {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    color: "#1e1f22",
-    padding: "20px 18px",
-    textAlign: "left",
-    position: "relative",
-    width: "100%",
-  },
-
+  // Card base (active state — full glass 3D)
   recommendedCard: {
     borderRadius: 20,
     padding: "20px 18px",
@@ -811,60 +829,122 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     textAlign: "left",
     display: "block",
+    overflow: "visible",
   },
+  // Inactive card — more transparent, keep 3D depth
   cardInactive: {
-    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.28) 100%)",
+    border: "1px solid rgba(255,255,255,0.3)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.5)",
   },
   cardClickable: {
     cursor: "pointer",
   },
-  schemeHeader: {
+
+  // Badge — "sticker" overlay top-right
+  badge: {
+    position: "absolute",
+    top: -10,
+    right: 16,
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "5px 12px 5px 9px",
+    borderRadius: 12,
+    background: "linear-gradient(135deg, #1e1f22 0%, #2d2e33 100%)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+    zIndex: 2,
+  },
+  badgeIcon: {
+    fontSize: 14,
+    lineHeight: 1,
+  },
+  badgeText: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#fff",
+    letterSpacing: 0.3,
+    lineHeight: 1,
+  },
+
+  // Title with emoji
+  cardTitle: {
+    fontSize: 28,
+    fontWeight: 700,
+    lineHeight: 1.15,
+    letterSpacing: -0.5,
+    color: "#1e1f22",
     display: "flex",
     alignItems: "center",
     gap: 8,
-    marginBottom: 12,
+    marginTop: 4,
   },
-  altHeaderSpacer: {
-    height: 8,
+  titleEmoji: {
+    fontSize: 26,
+    lineHeight: 1,
+    flexShrink: 0,
   },
-  schemeHeaderIcon: {
-    fontSize: 20,
+
+  // Difficulty bars (like intensity in OnbAnalysis)
+  difficultyRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 10,
+    marginTop: 10,
   },
-  schemeHeaderLabel: {
+  difficultyLabel: {
     fontSize: 14,
     fontWeight: 600,
-    color: "rgba(30,31,34,0.6)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: "#0f172a",
+    lineHeight: 1,
+    paddingBottom: 0,
+    transform: "translateY(2px)",
+  },
+  difficultyBars: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 3,
+  },
+  diffBar: {
+    width: 6,
+    borderRadius: 2,
+  },
+  diffBar1: {
+    height: 8,
+  },
+  diffBar2: {
+    height: 14,
+  },
+  diffBar3: {
+    height: 20,
   },
 
-  cardTitle: {
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    letterSpacing: -0.5,
-    color: "#1e1f22",
-  },
-  splitExplanation: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(30,31,34,0.5)",
-    marginTop: 4,
-    lineHeight: 1.3,
-  },
+  // Description (Duolingo-style)
   cardDescription: {
-    margin: "10px 0 0",
-    fontSize: 15,
+    margin: "8px 0 0",
+    fontSize: 14,
     lineHeight: 1.5,
-    color: "rgba(30,31,34,0.6)",
-  },
-  rollContent: {
-    paddingTop: 8,
+    color: "rgba(30,31,34,0.55)",
+    fontWeight: 500,
   },
 
-  // Day timeline inside recommended card
+  // "План недели" section header
+  weekPlanHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  weekPlanText: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#1e1f22",
+    letterSpacing: -0.2,
+  },
+
+  // Day timeline
   dayTimeline: {
-    marginTop: 12,
+    marginTop: 16,
   },
   timelineList: {
     display: "flex",
@@ -879,31 +959,30 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: 28,
+    width: 32,
   },
   timelineIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     background: "rgba(30,31,34,0.06)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 16,
-    fontWeight: 700,
-    color: "#1e1f22",
     flexShrink: 0,
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    minHeight: 16,
-    background: "rgba(30,31,34,0.1)",
+    minHeight: 14,
+    background: "rgba(30,31,34,0.08)",
     margin: "4px 0",
+    borderRadius: 1,
   },
   timelineRight: {
     flex: 1,
-    paddingBottom: 14,
+    paddingBottom: 12,
   },
   timelineWeek: {
     fontSize: 11,
@@ -921,7 +1000,7 @@ const s: Record<string, React.CSSProperties> = {
   timelineDesc: {
     margin: "4px 0 0",
     fontSize: 13,
-    color: "rgba(30,31,34,0.6)",
+    color: "rgba(30,31,34,0.5)",
     lineHeight: 1.4,
   },
 
