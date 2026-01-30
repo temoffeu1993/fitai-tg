@@ -310,8 +310,8 @@ function buildDayTimeline(scheme: WorkoutScheme): DayTimelineItem[] {
     const dayLabel = labels[idx];
     const rawLabel = dayLabel?.label || "";
     const copy = resolveDayCopy(rawLabel, scheme.splitType, idx);
-    // API focus takes priority, fallback desc only if focus is empty
-    const description = (dayLabel?.focus || copy.desc).trim();
+    // Our copywriting takes priority; API focus only as last resort
+    const description = (copy.desc || dayLabel?.focus || "").trim();
     return {
       day: (dayLabel?.day) || idx + 1,
       title: copy.title,
