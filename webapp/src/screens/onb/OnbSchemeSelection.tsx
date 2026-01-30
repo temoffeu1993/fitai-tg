@@ -706,9 +706,6 @@ function RecommendedCard({
         }
       }}
     >
-      <div style={s.selectCircle} aria-hidden>
-        <div style={{ ...s.selectDot, ...(isActive ? s.selectDotOn : {}) }} />
-      </div>
       <SchemeCardBody
         scheme={scheme}
         userContext={userContext}
@@ -743,9 +740,6 @@ function SelectableCard({
       style={{ ...s.recommendedCard, ...(isActive ? undefined : s.cardInactive) }}
       onClick={onSelect}
     >
-      <div style={s.selectCircle} aria-hidden>
-        <div style={{ ...s.selectDot, ...(isActive ? s.selectDotOn : {}) }} />
-      </div>
       <SchemeCardBody
         scheme={scheme}
         userContext={userContext}
@@ -841,18 +835,22 @@ function ScreenStyles() {
         overflow: hidden;
         max-height: 1200px;
         transform: translateY(0);
-        transition: max-height 320ms ease, transform 320ms ease;
+        transition: max-height 520ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 420ms ease;
         will-change: max-height, transform;
+        opacity: 1;
       }
       .scheme-roll.collapsed {
         max-height: 0;
         transform: translateY(-6px);
+        opacity: 0;
       }
       .scheme-card {
         appearance: none; outline: none; cursor: pointer;
         text-align: left;
         -webkit-tap-highlight-color: transparent;
-        transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+        transition: background 320ms ease, border-color 320ms ease, color 320ms ease, transform 220ms ease;
         will-change: transform, background, border-color;
       }
       .scheme-card:active:not(:disabled) {
@@ -969,32 +967,6 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: 0.5,
   },
 
-  // Selection circle (top-right)
-  selectCircle: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    width: 24,
-    height: 24,
-    borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.35)",
-    background: "rgba(255,255,255,0.85)",
-    display: "grid",
-    placeItems: "center",
-  },
-  selectDot: {
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: "#0f172a",
-    transform: "scale(0)",
-    opacity: 0,
-    transition: "transform 180ms ease, opacity 180ms ease",
-  },
-  selectDotOn: {
-    transform: "scale(1)",
-    opacity: 1,
-  },
 
   // Title with emoji
   cardTitle: {
