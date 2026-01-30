@@ -33,7 +33,6 @@ import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
-import OnbSchemeLoading from "./screens/onb/OnbSchemeLoading";
 import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -258,16 +257,10 @@ function StepAnalysis() {
   return (
     <OnbAnalysis
       draft={draft}
-      onSubmit={() => nav("/onb/scheme-loading")}
+      onSubmit={() => nav("/onb/scheme")}
       onBack={() => nav("/onb/motivation")}
     />
   );
-}
-
-// --- экран подготовки плана ---
-function StepSchemeLoading() {
-  const nav = useNavigate();
-  return <OnbSchemeLoading onDone={() => nav("/onb/scheme")} />;
 }
 
 // --- последний шаг: выбор схемы ---
@@ -377,7 +370,6 @@ export default function App() {
             <Route path="/onb/motivation" element={<StepMotivation />} />
             <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
-            <Route path="/onb/scheme-loading" element={<StepSchemeLoading />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
             <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
           </Route>
