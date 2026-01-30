@@ -3,7 +3,7 @@
 // - Beginner: locked alternatives with blur + unlock text
 // - Intermediate/Advanced: selectable alternatives with split explanations
 // Visual style: matches OnbAnalysis (mascot 140px, bubble 18px, glass cards)
-// Week pattern: colored segmented bar + legend (like macros bar in Analysis)
+// Visual split preview: body silhouettes with colored zones per split type
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSchemeRecommendations, selectScheme, type WorkoutScheme } from "@/api/schemes";
 import { useOnboarding } from "@/app/OnboardingProvider";
@@ -17,6 +17,7 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
+import { VisualSplitPreview } from "@/components/VisualSplitPreview";
 
 type Props = {
   onComplete: () => void;
@@ -35,87 +36,6 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
   bro_split: "Каждый день — своя мышца",
 };
 
-// ============================================================================
-// WEEK PATTERN — colored bar segments per day type
-// ============================================================================
-
-// Color palette for day types
-const DAY_COLORS: Record<string, string> = {
-  "Верх":       "#3B82F6", // blue
-  "Низ":        "#22C55E", // green
-  "Жим":        "#F97316", // orange
-  "Тяга":       "#8B5CF6", // purple
-  "Ноги":       "#22C55E", // green
-  "Всё тело":   "#3B82F6", // blue
-  "Функционал": "#EAB308", // yellow
-  "Грудь":      "#F97316", // orange
-  "Спина":      "#8B5CF6", // purple
-  "Плечи":      "#0EA5E9", // sky
-  "Руки":       "#EC4899", // pink
-  "Кор":        "#EAB308", // yellow
-  "Ягодицы":    "#22C55E", // green
-};
-const DEFAULT_DAY_COLOR = "#94A3B8"; // slate
-
-type DaySegment = {
-  label: string;
-  color: string;
-};
-
-const FALLBACK_DAY_LABELS: Record<string, string[]> = {
-  full_body: ["Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело", "Всё тело"],
-  upper_lower: ["Верх", "Низ", "Верх", "Низ", "Верх", "Низ"],
-  push_pull_legs: ["Жим", "Тяга", "Ноги", "Жим", "Тяга", "Ноги"],
-  conditioning: ["Функционал", "Функционал", "Функционал", "Функционал", "Функционал", "Функционал"],
-  bro_split: ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Грудь"],
-};
-
-function normalizeDayLabel(label: string): string {
-  let t = label.trim().replace(/\s*&\s*/g, " + ");
-  const map: Array<[RegExp, string]> = [
-    [/\bfull body\b/gi, "Всё тело"], [/\bpush\b/gi, "Жим"], [/\bpull\b/gi, "Тяга"],
-    [/\blegs?\b/gi, "Ноги"], [/\bupper\b/gi, "Верх"], [/\blower\b/gi, "Низ"],
-    [/\bglutes?\b/gi, "Ягодицы"], [/\bchest\b/gi, "Грудь"], [/\bback\b/gi, "Спина"],
-    [/\bshoulders?\b/gi, "Плечи"], [/\barms?\b/gi, "Руки"], [/\bcore\b/gi, "Кор"],
-    [/\bconditioning\b/gi, "Функционал"], [/\bcardio\b/gi, "Кардио"],
-  ];
-  for (const [re, val] of map) t = t.replace(re, val);
-  return t.replace(/\s+/g, " ").trim();
-}
-
-function getDayColor(label: string): string {
-  // Try exact match first
-  if (DAY_COLORS[label]) return DAY_COLORS[label];
-  // Try first word match (e.g. "Грудь + Трицепс" → "Грудь")
-  const firstWord = label.split(/[+,]/)[0].trim();
-  return DAY_COLORS[firstWord] || DEFAULT_DAY_COLOR;
-}
-
-function buildWeekPattern(scheme: WorkoutScheme): DaySegment[] {
-  const labels = Array.isArray(scheme.dayLabels) ? scheme.dayLabels : [];
-  const limit = scheme.daysPerWeek || labels.length;
-  const fallbacks = FALLBACK_DAY_LABELS[scheme.splitType] || [];
-
-  return Array.from({ length: limit }, (_, idx) => {
-    const raw = labels[idx]?.label || fallbacks[idx % fallbacks.length] || `День ${idx + 1}`;
-    const label = normalizeDayLabel(raw);
-    return { label, color: getDayColor(label) };
-  });
-}
-
-// Build unique legend items from segments
-function buildLegend(segments: DaySegment[]): Array<{ label: string; color: string; count: number }> {
-  const map = new Map<string, { color: string; count: number }>();
-  for (const seg of segments) {
-    const existing = map.get(seg.label);
-    if (existing) {
-      existing.count++;
-    } else {
-      map.set(seg.label, { color: seg.color, count: 1 });
-    }
-  }
-  return Array.from(map.entries()).map(([label, { color, count }]) => ({ label, color, count }));
-}
 
 // ============================================================================
 // LOCKED CARD CONTENT (for beginner)
@@ -438,55 +358,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 }
 
 // ============================================================================
-// WEEK PATTERN BAR — colored segments + legend
-// ============================================================================
-
-function WeekPatternBar({ scheme }: { scheme: WorkoutScheme }) {
-  const segments = buildWeekPattern(scheme);
-  const legend = buildLegend(segments);
-  const total = segments.length;
-
-  return (
-    <div style={s.patternWrap}>
-      {/* Segmented bar */}
-      <div style={s.patternBar}>
-        {segments.map((seg, idx) => (
-          <div
-            key={idx}
-            style={{
-              ...s.patternSegment,
-              width: `${100 / total}%`,
-              background: seg.color,
-              borderRadius:
-                idx === 0 && idx === total - 1
-                  ? 8
-                  : idx === 0
-                    ? "8px 0 0 8px"
-                    : idx === total - 1
-                      ? "0 8px 8px 0"
-                      : 0,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Legend */}
-      <div style={s.patternLegend}>
-        {legend.map((item) => (
-          <div key={item.label} style={s.legendItem}>
-            <div style={{ ...s.legendDot, background: item.color }} />
-            <span style={s.legendText}>
-              {item.label}{item.count > 1 ? ` ×${item.count}` : ""}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// RECOMMENDED CARD — glass card with week pattern bar
+// RECOMMENDED CARD — glass card with visual split preview
 // ============================================================================
 
 function RecommendedCard({
@@ -538,10 +410,10 @@ function RecommendedCard({
       <div style={s.cardTitle}>{displayData.title}</div>
       <p style={s.cardDescription}>{displayData.description}</p>
 
-      {/* Week pattern bar */}
+      {/* Visual split preview */}
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <WeekPatternBar scheme={scheme} />
+          <VisualSplitPreview splitType={scheme.splitType} />
         </div>
       </div>
     </div>
@@ -588,7 +460,7 @@ function SelectableCard({
 
       <div className={`scheme-roll${isActive ? "" : " collapsed"}`}>
         <div style={s.rollContent}>
-          <WeekPatternBar scheme={scheme} />
+          <VisualSplitPreview splitType={scheme.splitType} />
         </div>
       </div>
     </button>
@@ -860,50 +732,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   rollContent: {
     paddingTop: 8,
-  },
-
-  // Week pattern bar + legend
-  patternWrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    marginTop: 6,
-  },
-  patternBar: {
-    display: "flex",
-    height: 14,
-    borderRadius: 8,
-    overflow: "hidden",
-    width: "100%",
-    background: "#F1F5F9",
-    gap: 2,
-  },
-  patternSegment: {
-    height: "100%",
-  },
-  patternLegend: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 12,
-    fontSize: 13,
-    fontWeight: 500,
-    color: "#64748B",
-  },
-  legendItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "50%",
-    flexShrink: 0,
-  },
-  legendText: {
-    fontSize: 13,
-    fontWeight: 500,
-    color: "#64748B",
   },
 
   // Alternatives section
