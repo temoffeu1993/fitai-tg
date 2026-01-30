@@ -34,12 +34,6 @@ const SPLIT_EXPLANATIONS: Record<string, string> = {
   bro_split: "Каждый день — одна мышца под микроскопом. Для продвинутых",
 };
 
-// Title emojis per split type
-const SPLIT_TITLE_EMOJI: Record<string, string> = {
-  full_body: "🏋️", upper_lower: "⬆️⬇️", push_pull_legs: "🎯",
-  conditioning: "⚡", bro_split: "💎",
-};
-
 // Difficulty per split type (1-3, like intensity bars in Analysis)
 const SPLIT_DIFFICULTY: Record<string, number> = {
   full_body: 1, conditioning: 1, upper_lower: 2, push_pull_legs: 2, bro_split: 3,
@@ -619,10 +613,14 @@ function SchemeCardBody({
   scheme,
   userContext,
   showTimeline,
+  headerLabel,
+  headerEmoji,
 }: {
   scheme: WorkoutScheme;
   userContext: UserContext;
   showTimeline: boolean;
+  headerLabel?: string;
+  headerEmoji?: string;
 }) {
   const displayData = getSchemeDisplayData(
     {
@@ -635,14 +633,18 @@ function SchemeCardBody({
     },
     userContext,
   );
-  const splitEmoji = SPLIT_TITLE_EMOJI[scheme.splitType] || "🏋️";
   const splitDesc = SPLIT_EXPLANATIONS[scheme.splitType] || displayData.description;
   const dayTimeline = buildDayTimeline(scheme);
 
   return (
     <>
+      {headerLabel && (
+        <div style={s.planHeader}>
+          {headerEmoji && <span style={s.planHeaderIcon}>{headerEmoji}</span>}
+          <span style={s.planHeaderLabel}>{headerLabel}</span>
+        </div>
+      )}
       <div style={s.cardTitle}>
-        <span style={s.titleEmoji}>{splitEmoji}</span>
         {displayData.title}
       </div>
 
@@ -674,7 +676,7 @@ function SchemeCardBody({
 }
 
 // ============================================================================
-// RECOMMENDED CARD — glass card with badge overlay
+// RECOMMENDED CARD — glass card
 // ============================================================================
 
 function RecommendedCard({
@@ -707,19 +709,20 @@ function RecommendedCard({
         }
       }}
     >
-      {/* Badge — "sticker" overlay top-right */}
-      <div style={s.badge}>
-        <span style={s.badgeText}>Рекомендую</span>
-      </div>
-
-      <SchemeCardBody scheme={scheme} userContext={userContext} showTimeline={isActive} />
+      <SchemeCardBody
+        scheme={scheme}
+        userContext={userContext}
+        showTimeline={isActive}
+        headerLabel="Рекомендую этот план"
+        headerEmoji="⭐"
+      />
     </div>
   );
 }
 
 // ============================================================================
 // SELECTABLE CARD (for intermediate / advanced)
-// Same content as recommended, but no badge, collapsed when inactive
+// Same content as recommended, collapsed when inactive
 // ============================================================================
 
 function SelectableCard({
@@ -740,7 +743,13 @@ function SelectableCard({
       style={{ ...s.recommendedCard, ...(isActive ? undefined : s.cardInactive) }}
       onClick={onSelect}
     >
-      <SchemeCardBody scheme={scheme} userContext={userContext} showTimeline={isActive} />
+      <SchemeCardBody
+        scheme={scheme}
+        userContext={userContext}
+        showTimeline={isActive}
+        headerLabel="Альтернативный план"
+        headerEmoji="💡"
+      />
     </button>
   );
 }
@@ -766,6 +775,10 @@ function LockedCard({
 
       {/* Lock content on top */}
       <div style={s.lockedContent}>
+        <div style={s.planHeader}>
+          <span style={s.planHeaderIcon}>💡</span>
+          <span style={s.planHeaderLabel}>Альтернативный план</span>
+        </div>
         <div style={s.lockedLockRow}>
           <span style={s.lockedLockEmoji}>🔒</span>
           <span style={s.lockedUnlockText}>Откроется через {unlockWeeks} недель</span>
@@ -935,30 +948,22 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
-  // Badge — "sticker" overlay top-right
-  badge: {
-    position: "absolute",
-    top: -10,
-    right: 16,
+  // Plan header (like Strategy header in analysis)
+  planHeader: {
     display: "flex",
     alignItems: "center",
-    gap: 5,
-    padding: "5px 12px 5px 9px",
-    borderRadius: 12,
-    background: "linear-gradient(135deg, #1e1f22 0%, #2d2e33 100%)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-    zIndex: 2,
+    gap: 8,
+    marginBottom: 8,
   },
-  badgeIcon: {
+  planHeaderIcon: {
+    fontSize: 18,
+  },
+  planHeaderLabel: {
     fontSize: 14,
-    lineHeight: 1,
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#fff",
-    letterSpacing: 0.3,
-    lineHeight: 1,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   // Title with emoji
@@ -968,15 +973,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.15,
     letterSpacing: -0.5,
     color: "#1e1f22",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 4,
-  },
-  titleEmoji: {
-    fontSize: 26,
-    lineHeight: 1,
-    flexShrink: 0,
+    marginTop: 2,
   },
 
   // Difficulty bars (like intensity in OnbAnalysis)
