@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
-import { useOnboarding } from "@/app/OnboardingProvider";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
@@ -22,16 +21,21 @@ const REMINDER_OPTIONS = [
   "За 1 день",
 ];
 
-function formatRange(minutes?: number): string {
-  if (!minutes || Number.isNaN(minutes)) return "≈ 70–90 мин";
-  const min = Math.max(20, Math.round((minutes - 10) / 5) * 5);
-  const max = Math.max(min + 10, Math.round((minutes + 10) / 5) * 5);
-  return `≈ ${min}–${max} мин`;
-}
-
 function normalizeLabel(raw?: string): string {
   if (!raw) return "";
   return raw.toLowerCase();
+}
+
+function formatDateLabel(value: string): string {
+  if (!value) return "Выбрать";
+  const dt = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+function formatTimeLabel(value: string): string {
+  if (!value) return "Выбрать";
+  return value;
 }
 
 function getFirstWorkoutTitle(scheme?: WorkoutScheme): string {
@@ -54,7 +58,6 @@ function getFirstWorkoutTitle(scheme?: WorkoutScheme): string {
 }
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
-  const { draft } = useOnboarding();
   const nav = useNavigate();
   const [scheme, setScheme] = useState<WorkoutScheme | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +70,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [showConfetti, setShowConfetti] = useState(false);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
-  const hapticTimerRef = useRef<number | null>(null);
+  const lastHapticRef = useRef<number>(0);
 
   useEffect(() => {
     let mounted = true;
@@ -87,12 +90,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   useEffect(() => {
     return () => {
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
-      if (hapticTimerRef.current) window.clearInterval(hapticTimerRef.current);
     };
   }, []);
 
-  const minutesPerSession = draft?.schedule?.minutesPerSession;
-  const durationText = formatRange(minutesPerSession);
   const firstTitle = getFirstWorkoutTitle(scheme || undefined);
 
   const canConfirm = Boolean(date && time) && !confirmed;
@@ -101,28 +101,25 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     if (!canConfirm || isHolding) return;
     setIsHolding(true);
     holdStartRef.current = performance.now();
-
-    if (hapticTimerRef.current) window.clearInterval(hapticTimerRef.current);
-    hapticTimerRef.current = window.setInterval(() => {
-      const now = performance.now();
-      const start = holdStartRef.current || now;
-      const progress = Math.min((now - start) / HOLD_DURATION_MS, 1);
-      if (progress < 0.4) fireHapticImpact("light");
-      else if (progress < 0.75) fireHapticImpact("medium");
-      else fireHapticImpact("heavy");
-    }, 120);
+    lastHapticRef.current = 0;
 
     const tick = () => {
       const now = performance.now();
       const start = holdStartRef.current || now;
       const progress = Math.min((now - start) / HOLD_DURATION_MS, 1);
       setHoldProgress(progress);
+      const freq = Math.max(60, 220 - progress * 150);
+      if (now - lastHapticRef.current >= freq) {
+        lastHapticRef.current = now;
+        if (progress < 0.4) fireHapticImpact("light");
+        else if (progress < 0.75) fireHapticImpact("medium");
+        else fireHapticImpact("heavy");
+      }
       if (progress >= 1) {
         setIsHolding(false);
         setConfirmed(true);
         setShowConfetti(true);
         fireHapticImpact("heavy");
-        if (hapticTimerRef.current) window.clearInterval(hapticTimerRef.current);
         window.setTimeout(() => setShowConfetti(false), 1200);
         window.setTimeout(() => onComplete(), 900);
         return;
@@ -136,12 +133,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     if (!isHolding || confirmed) return;
     setIsHolding(false);
     setHoldProgress(0);
+    lastHapticRef.current = 0;
     if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
-    if (hapticTimerRef.current) window.clearInterval(hapticTimerRef.current);
   };
 
+  const progressDeg = Math.round(holdProgress * 360);
   const ringStyle: React.CSSProperties = {
-    background: `conic-gradient(#1e1f22 ${Math.round(holdProgress * 360)}deg, rgba(30,31,34,0.12) 0deg)`,
+    opacity: holdProgress > 0 ? 1 : 0,
+    background: `conic-gradient(from -90deg, #22d3ee 0deg, #22d3ee ${progressDeg}deg, rgba(30,31,34,0.12) ${progressDeg}deg 360deg)`,
   };
 
   if (loading) {
@@ -198,63 +197,73 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           <span style={s.cardLabel}>Первая тренировка</span>
         </div>
         <div style={s.strategyFocus}>{firstTitle}</div>
-        <div style={s.strategyTempoRow}>
-          <span style={s.strategyIntensityLabel}>Длительность</span>
-          <span style={s.durationValue}>{durationText}</span>
-        </div>
-        <p style={s.strategyDesc}>Выбери дату и время</p>
+        <p style={s.strategyDesc}>
+          Выбери дату и время для твоей первой тренировки
+        </p>
+      </div>
 
-        <div style={s.pickerStack}>
-          <div style={s.pickerRow}>
-            <span style={s.pickerLabel}>Дата</span>
-            <span style={s.pickerValue}>{date || "Выбрать"}</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={s.pickerInput}
-            />
+      {/* Date + Time Grid */}
+      <div style={s.gridRow}>
+        <div style={s.smallCard}>
+          <div style={s.smallCardHeader}>
+            <span style={s.smallCardIcon}>📅</span>
+            <span style={s.smallCardLabel}>Дата</span>
           </div>
-          <div style={s.pickerRow}>
-            <span style={s.pickerLabel}>Время</span>
-            <span style={s.pickerValue}>{time || "Выбрать"}</span>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              style={s.pickerInput}
-            />
-          </div>
-          <div style={s.pickerRow}>
-            <span style={s.pickerLabel}>Напоминание</span>
-            <span style={s.pickerValue}>{reminder}</span>
-            <select
-              value={reminder}
-              onChange={(e) => setReminder(e.target.value)}
-              style={s.pickerInput}
-            >
-              {REMINDER_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
+          <div style={s.smallCardValue}>{formatDateLabel(date)}</div>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={s.cardInput}
+          />
         </div>
+        <div style={s.smallCard}>
+          <div style={s.smallCardHeader}>
+            <span style={s.smallCardIcon}>⏰</span>
+            <span style={s.smallCardLabel}>Время</span>
+          </div>
+          <div style={s.smallCardValue}>{formatTimeLabel(time)}</div>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            style={s.cardInput}
+          />
+        </div>
+      </div>
+
+      {/* Notifications */}
+      <div style={s.smallCardWide}>
+        <div style={s.smallCardHeader}>
+          <span style={s.smallCardIcon}>🔔</span>
+          <span style={s.smallCardLabel}>Уведомления</span>
+        </div>
+        <div style={s.smallCardValueSmall}>{reminder}</div>
+        <select
+          value={reminder}
+          onChange={(e) => setReminder(e.target.value)}
+          style={s.cardInput}
+        >
+          {REMINDER_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
       </div>
 
       {/* Actions */}
       <div style={s.actions}>
         <div style={s.holdWrap}>
-          <div style={{ ...s.holdRing, ...(confirmed ? s.holdRingDone : {}), ...ringStyle }} />
+          <div style={{ ...s.holdRing, ...ringStyle }} />
           <button
             type="button"
-            style={{ ...s.primaryBtn, ...(confirmed ? s.primaryBtnDone : {}) }}
+            style={s.primaryBtn}
             onPointerDown={startHold}
             onPointerUp={stopHold}
             onPointerLeave={stopHold}
             onPointerCancel={stopHold}
             disabled={!canConfirm}
           >
-            {confirmed ? "Записано! ✅" : "Готово!"}
+            {confirmed ? "Записано! ✅" : "Далее"}
           </button>
         </div>
         <button
@@ -339,15 +348,15 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   cardIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
   cardLabel: {
     fontSize: 14,
     fontWeight: 600,
-    color: "rgba(30,31,34,0.6)",
+    color: "rgba(15, 23, 42, 0.6)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -359,56 +368,67 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     marginBottom: 6,
   },
-  strategyTempoRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginTop: 8,
-  },
-  strategyIntensityLabel: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.5)",
-  },
-  durationValue: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#1e1f22",
-  },
   strategyDesc: {
-    marginTop: 10,
+    margin: "10px 0 0",
     fontSize: 14,
     lineHeight: 1.5,
-    color: "rgba(30,31,34,0.6)",
+    color: "rgba(15, 23, 42, 0.6)",
   },
-  pickerStack: {
+  gridRow: {
     display: "grid",
-    gap: 10,
-    marginTop: 14,
-  },
-  pickerRow: {
-    position: "relative",
-    borderRadius: 14,
-    padding: "14px 14px",
-    background: "rgba(255,255,255,0.9)",
-    border: "1px solid rgba(15,23,42,0.08)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
+    gridTemplateColumns: "1fr 1fr",
     gap: 12,
   },
-  pickerLabel: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#1e1f22",
+  smallCard: {
+    position: "relative",
+    borderRadius: 16,
+    padding: "16px 14px",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    overflow: "hidden",
   },
-  pickerValue: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.6)",
+  smallCardWide: {
+    position: "relative",
+    borderRadius: 16,
+    padding: "16px 14px",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    overflow: "hidden",
   },
-  pickerInput: {
+  smallCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  smallCardIcon: {
+    fontSize: 16,
+  },
+  smallCardLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  smallCardValue: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.1,
+  },
+  smallCardValueSmall: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#0f172a",
+  },
+  cardInput: {
     position: "absolute",
     inset: 0,
     opacity: 0,
@@ -435,39 +455,41 @@ const s: Record<string, React.CSSProperties> = {
   },
   holdRing: {
     position: "absolute",
-    width: "100%",
-    height: 56,
-    borderRadius: 999,
-    padding: 3,
-  },
-  holdRingDone: {
-    background: "conic-gradient(#10b981 360deg, #10b981 0deg)",
+    inset: -4,
+    borderRadius: 20,
+    padding: 2,
+    pointerEvents: "none",
+    filter: "drop-shadow(0 0 6px rgba(34,211,238,0.65))",
+    transition: "opacity 120ms ease",
+    WebkitMask:
+      "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+    WebkitMaskComposite: "xor",
+    mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+    maskComposite: "exclude",
   },
   primaryBtn: {
     position: "relative",
     zIndex: 2,
     width: "100%",
-    height: 56,
-    borderRadius: 999,
-    border: "none",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 18,
+    fontWeight: 500,
     cursor: "pointer",
-  },
-  primaryBtnDone: {
-    background: "#10b981",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
     width: "100%",
-    height: 52,
-    borderRadius: 999,
-    border: "1px solid rgba(30,31,34,0.15)",
-    background: "#fff",
+    border: "none",
+    background: "transparent",
     color: "#1e1f22",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 600,
+    padding: "14px 16px",
     cursor: "pointer",
+    textAlign: "center",
   },
 };
