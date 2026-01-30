@@ -145,14 +145,14 @@ function getLockedCardContent(scheme: WorkoutScheme): { unlockWeeks: number; mot
 
 function getBubbleText(experience: ExperienceLevel, schemesCount: number): string {
   if (experience === "beginner") {
-    return "Готово! Вот схема тренировок, которая идеально подходит под твой профиль";
+    return "Готово! Вот план тренировок, который идеально подходит под твой профиль";
   }
   if (experience === "intermediate" || experience === "advanced") {
-    return "Готово! Выбери схему тренировок: всё тело за раз или делим по мышцам?";
+    return "Готово! Выбери план тренировок: всё тело за раз или делим по мышцам?";
   }
   return schemesCount > 1
-    ? "Готово! Выбери схему тренировок: всё тело за раз или делим по мышцам?"
-    : "Готово! Вот схема тренировок, которая идеально подходит под твой профиль";
+    ? "Готово! Выбери план тренировок: всё тело за раз или делим по мышцам?"
+    : "Готово! Вот план тренировок, который идеально подходит под твой профиль";
 }
 
 export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
