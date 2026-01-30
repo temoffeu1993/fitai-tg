@@ -350,10 +350,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const [schemes, setSchemes] = useState<WorkoutScheme[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recommendedId, setRecommendedId] = useState<string | null>(null);
-  const [bubbleText, setBubbleText] = useState("");
+  const [bubbleText, setBubbleText] = useState("И программа тренировок под ваши данные");
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
-  const [reveal, setReveal] = useState(true);
   const [isLeaving, setIsLeaving] = useState(false);
   const leaveTimerRef = useRef<number | null>(null);
 
@@ -397,7 +396,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   // Keep the same screen while loading: only update bubble text
   useEffect(() => {
     if (!loading) return;
-    setBubbleText("Подбираю план тренировок...");
+    setBubbleText("И программа тренировок под ваши данные");
     setShowContent(false);
   }, [loading]);
 
@@ -421,37 +420,14 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     loadRecommendations();
   }, []);
 
-  // Staggered reveal + bubble typing
+  // Reveal content when ready (no artificial delays)
   useEffect(() => {
     if (loading || schemes.length === 0) return;
-
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) {
-      setReveal(true);
-      setShowContent(true);
-      setBubbleText(bubbleTarget);
-      return;
-    }
-    const t1 = window.setTimeout(() => setReveal(true), 30);
-    const t2 = window.setTimeout(() => setShowContent(true), 600);
-
-    let index = 0;
-    setBubbleText("");
-    const typeInterval = window.setInterval(() => {
-      index += 1;
-      setBubbleText(bubbleTarget.slice(0, index));
-      if (index >= bubbleTarget.length) window.clearInterval(typeInterval);
-    }, 20);
-
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearInterval(typeInterval);
-    };
+    setShowContent(true);
+    setBubbleText(bubbleTarget);
   }, [loading, schemes, bubbleTarget]);
 
   async function loadRecommendations() {
-    const start = performance.now();
     try {
       setLoading(true);
       setError(null);
@@ -460,11 +436,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       setSchemes(allSchemes);
       setSelectedId(data.recommended.id);
       setRecommendedId(data.recommended.id);
-      const minLoadingMs = 900;
-      const elapsed = performance.now() - start;
-      if (elapsed < minLoadingMs) {
-        await new Promise((resolve) => window.setTimeout(resolve, minLoadingMs - elapsed));
-      }
       setLoading(false);
     } catch (err: any) {
       console.error("Failed to load recommendations:", err);
@@ -532,7 +503,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const recommendedScheme = isReady ? schemes.find(s => s.id === recommendedId) || null : null;
   const alternatives = isReady ? schemes.filter(s => s.id !== recommendedId) : [];
   const activeId = selectedId || recommendedId;
-  const bubbleDisplayText = loading ? "Подбираю план тренировок..." : (bubbleText || "\u00A0");
+  const bubbleDisplayText = bubbleText || "\u00A0";
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
@@ -541,6 +512,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       {/* Mascot + Bubble */}
       <div
         style={s.mascotRow}
+        className="onb-fade onb-fade-delay-2"
       >
         <img
           src={maleRobotImg}
@@ -554,14 +526,9 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
 
       {/* Cards */}
       <div style={s.cardsContainer}>
-        {loading && (
-          <div style={{ display: "grid", placeItems: "center", marginTop: 24 }}>
-            <Spinner />
-          </div>
-        )}
         {/* Recommended Scheme Card */}
         {recommendedScheme && (
-          <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}>
+          <div className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
             <RecommendedCard
               scheme={recommendedScheme}
               userContext={userContext}
@@ -603,7 +570,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
       {recommendedScheme && (
         <div
           style={s.actions}
-          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-4" : ""}`}
+          className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
         >
           <button
             type="button"
@@ -622,7 +589,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
         </div>
       )}
 
-      <div aria-hidden className={`analysis-blackout${reveal ? " reveal" : ""}`} />
     </div>
   );
 }
@@ -817,25 +783,6 @@ function LockedCard({
 // SPINNER
 // ============================================================================
 
-function Spinner() {
-  return (
-    <svg width="48" height="48" viewBox="0 0 50 50">
-      <circle cx="25" cy="25" r="20" stroke="rgba(15,23,42,0.15)" strokeWidth="5" fill="none" />
-      <circle
-        cx="25" cy="25" r="20"
-        stroke="#1e1f22"
-        strokeWidth="5"
-        strokeLinecap="round"
-        fill="none"
-        strokeDasharray="100"
-        strokeDashoffset="75"
-        style={{ transformOrigin: "center", animation: "spin 1s linear infinite" }}
-      />
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </svg>
-  );
-}
-
 // ============================================================================
 // SCREEN STYLES (animations, bubble, button)
 // ============================================================================
@@ -844,7 +791,7 @@ function ScreenStyles() {
   return (
     <style>{`
       @keyframes onbFadeUp {
-        0% { opacity: 0; transform: translateY(16px); }
+        0% { opacity: 0; transform: translateY(14px); }
         100% { opacity: 1; transform: translateY(0); }
       }
       @keyframes onbFadeDown {
@@ -853,17 +800,10 @@ function ScreenStyles() {
       }
       .onb-fade-target { opacity: 0; }
       .onb-fade { animation: onbFadeUp 520ms ease-out both; }
-      .onb-fade-delay-1 { animation-delay: 220ms; }
-      .onb-fade-delay-2 { animation-delay: 600ms; }
-      .onb-fade-delay-3 { animation-delay: 900ms; }
-      .onb-fade-delay-4 { animation-delay: 1200ms; }
+      .onb-fade-delay-1 { animation-delay: 80ms; }
+      .onb-fade-delay-2 { animation-delay: 160ms; }
+      .onb-fade-delay-3 { animation-delay: 240ms; }
       .onb-leave { animation: onbFadeDown 220ms ease-in both; }
-      .analysis-blackout {
-        position: fixed; inset: 0; background: #000;
-        opacity: 1; pointer-events: none; z-index: 30;
-        transition: opacity 420ms ease;
-      }
-      .analysis-blackout.reveal { opacity: 0; }
       .speech-bubble:before {
         content: ""; position: absolute;
         left: -8px; top: 18px; width: 0; height: 0;
@@ -905,7 +845,6 @@ function ScreenStyles() {
       @media (prefers-reduced-motion: reduce) {
         .onb-fade, .onb-leave { animation: none !important; }
         .onb-fade-target { opacity: 1 !important; transform: none !important; }
-        .analysis-blackout { transition: none !important; }
         .intro-primary-btn, .scheme-card, .scheme-roll { transition: none !important; }
       }
     `}</style>
