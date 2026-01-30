@@ -686,10 +686,6 @@ function SchemeCardBody({
 
       {showTimeline && dayTimeline.length > 0 && (
         <div style={s.dayTimeline}>
-          <div style={s.weekPlanHeader}>
-            <span>📋</span>
-            <span style={s.weekPlanText}>План недели</span>
-          </div>
           <div style={s.timelineList}>
             {dayTimeline.map((item, idx) => (
               <div key={`${item.day}-${idx}`} style={s.timelineItem}>
@@ -1085,20 +1081,6 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.5,
     color: "rgba(30,31,34,0.55)",
     fontWeight: 500,
-  },
-
-  // "План недели" section header
-  weekPlanHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
-  },
-  weekPlanText: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#1e1f22",
-    letterSpacing: -0.2,
   },
 
   // Day timeline
