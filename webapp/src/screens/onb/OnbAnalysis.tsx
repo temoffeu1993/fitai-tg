@@ -442,6 +442,7 @@ export default function OnbAnalysis({ draft, onSubmit, onBack }: Props) {
               </div>
             </div>
             <div style={s.investmentText}>
+              <div style={{ ...s.investmentMain, marginTop: 0 }}>всего</div>
               <div style={s.investmentPercent}>{analysis.investment.percent}</div>
               <div style={s.investmentMain}>вашего времени в неделю</div>
               <p style={s.investmentSub}>
