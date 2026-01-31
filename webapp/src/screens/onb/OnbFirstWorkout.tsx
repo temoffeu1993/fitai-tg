@@ -60,7 +60,6 @@ function getFirstWorkoutTitle(scheme?: WorkoutScheme): string {
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
   const [scheme, setScheme] = useState<WorkoutScheme | null>(null);
-  const [loading, setLoading] = useState(true);
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState<string>("");
   const [reminder, setReminder] = useState(REMINDER_OPTIONS[3]);
@@ -82,9 +81,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (mounted) setScheme(selected);
       } catch {
         if (mounted) setScheme(null);
-      } finally {
-        if (mounted) setLoading(false);
-      }
     })();
     return () => { mounted = false; };
   }, []);
@@ -112,10 +108,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    if (loading) {
-      setShowContent(false);
-      return;
-    }
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
       setShowContent(true);
@@ -123,7 +115,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     }
     const t = window.setTimeout(() => setShowContent(true), 30);
     return () => window.clearTimeout(t);
-  }, [loading]);
+  }, []);
 
   const firstTitle = getFirstWorkoutTitle(scheme || undefined);
 
@@ -174,23 +166,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     opacity: holdProgress > 0 ? 1 : 0,
     background: `conic-gradient(from -90deg, #22d3ee 0deg, #22d3ee ${progressDeg}deg, rgba(30,31,34,0.12) ${progressDeg}deg 360deg)`,
   };
-
-  if (loading) {
-    return (
-      <div style={s.page}>
-        <div style={s.mascotRow}>
-          <img
-            src={smotrchasImg}
-            alt=""
-            style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
-          />
-          <div style={s.bubble} className="speech-bubble">
-            <span style={s.bubbleText}>Готовим план...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={s.page}>
