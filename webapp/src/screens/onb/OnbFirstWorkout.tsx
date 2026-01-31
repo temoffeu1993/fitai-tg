@@ -177,8 +177,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       const clamped = Math.max(0, Math.min(idx, hours.length - 1));
       const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
       if (value !== activeHour) setActiveHour(value);
-      const targetIdx = HOUR_BASE * HOUR_MID + value;
-      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+      const nearStart = clamped < HOUR_BASE;
+      const nearEnd = clamped > hours.length - HOUR_BASE;
+      if (nearStart || nearEnd) {
+        const targetIdx = HOUR_BASE * HOUR_MID + value;
+        el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+      }
       fireHapticImpact("light");
     }, 80);
   };
@@ -203,8 +207,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
       const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
       if (value !== activeMinute) setActiveMinute(value);
-      const targetIdx = MIN_BASE * MIN_MID + value;
-      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+      const nearStart = clamped < MIN_BASE;
+      const nearEnd = clamped > minutes.length - MIN_BASE;
+      if (nearStart || nearEnd) {
+        const targetIdx = MIN_BASE * MIN_MID + value;
+        el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+      }
       fireHapticImpact("light");
     }, 80);
   };
@@ -462,14 +470,21 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                     type="button"
                     className="time-item"
                     style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
-                    onClick={() => {
-                      setActiveHour(h);
-                      hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
-                      fireHapticImpact("light");
-                    }}
-                  >
-                    {String(h).padStart(2, "0")}
-                  </button>
+                  onClick={() => {
+                    const next = (activeHour + 1) % HOUR_BASE;
+                    const el = hourRef.current;
+                    if (!el) return;
+                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
+                    const curVal = ((curIdx % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
+                    let targetIdx = curIdx - curVal + next;
+                    if (next <= curVal) targetIdx += HOUR_BASE;
+                    setActiveHour(next);
+                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(h).padStart(2, "0")}
+                </button>
                 ))}
                 <div style={{ height: 0 }} />
               </div>
@@ -489,14 +504,21 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                     type="button"
                     className="time-item"
                     style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
-                    onClick={() => {
-                      setActiveMinute(m);
-                      minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
-                      fireHapticImpact("light");
-                    }}
-                  >
-                    {String(m).padStart(2, "0")}
-                  </button>
+                  onClick={() => {
+                    const next = (activeMinute + 1) % MIN_BASE;
+                    const el = minuteRef.current;
+                    if (!el) return;
+                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
+                    const curVal = ((curIdx % MIN_BASE) + MIN_BASE) % MIN_BASE;
+                    let targetIdx = curIdx - curVal + next;
+                    if (next <= curVal) targetIdx += MIN_BASE;
+                    setActiveMinute(next);
+                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(m).padStart(2, "0")}
+                </button>
                 ))}
                 <div style={{ height: 0 }} />
               </div>
