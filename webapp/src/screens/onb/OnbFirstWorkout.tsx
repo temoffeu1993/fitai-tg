@@ -17,7 +17,7 @@ const DATE_ITEM_W = 64; // px width of each date slot
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
-const TIME_ITEM_H = 120;
+const TIME_ITEM_H = 96;
 const TIME_VISIBLE = 1;
 const TIME_FADE_H = 0;
 const TIME_COL_GAP = 14;
@@ -270,13 +270,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         .date-item {
           appearance: none; outline: none; border: none; cursor: pointer;
           -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
+          touch-action: pan-y;
         }
         .time-track::-webkit-scrollbar { display: none; }
         .time-item {
           appearance: none; outline: none; border: none; cursor: pointer;
           -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
+          touch-action: pan-y;
         }
         .speech-bubble:before {
           content: "";
@@ -822,8 +822,8 @@ const s: Record<string, React.CSSProperties> = {
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -50%)",
-    fontSize: 120,
-    fontWeight: 800,
+    fontSize: 84,
+    fontWeight: 900,
     color: "#1e1f22",
     zIndex: 4,
     pointerEvents: "none",
@@ -833,6 +833,9 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     overflow: "hidden",
     flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   timeFadeTop: {},
   timeFadeBottom: {},
@@ -852,8 +855,8 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 120,
-    fontWeight: 700,
+    fontSize: 88,
+    fontWeight: 800,
     color: "#1e1f22",
     scrollSnapAlign: "center",
     background: "transparent",
@@ -862,7 +865,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   timeItemActive: {
     color: "#1e1f22",
-    fontWeight: 800,
-    fontSize: 128,
+    fontWeight: 900,
+    fontSize: 92,
   },
 };
