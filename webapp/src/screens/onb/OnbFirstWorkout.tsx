@@ -237,62 +237,64 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
       {/* Main Card */}
       <div style={s.mainCard} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.mainCardHeader}>
-          <span style={s.cardIcon}>🚀</span>
-          <span style={s.cardLabel}>Первая тренировка</span>
-        </div>
-        <div style={s.strategyFocus}>{firstTitle}</div>
-        <p style={s.strategyDesc}>
-          Выбери удобное время, чтобы я напомнил, когда пора собираться.
-        </p>
-      </div>
-
-      {/* Date + Time Grid */}
-      <div style={s.gridRow} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.smallCard}>
-          <div style={s.smallCardHeader}>
-            <span style={s.smallCardIcon}>📅</span>
-            <span style={s.smallCardLabel}>Дата</span>
+        <div style={s.mainCardTop}>
+          <div style={s.mainCardHeader}>
+            <span style={s.cardIcon}>🚀</span>
+            <span style={s.cardLabel}>Первая тренировка</span>
           </div>
-          <div style={s.smallCardValue}>{formatDateLabel(date)}</div>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={s.cardInput}
-          />
+          <div style={s.strategyFocus}>{firstTitle}</div>
+          <p style={s.strategyDesc}>
+            Выбери удобное время, чтобы я напомнил, когда пора собираться.
+          </p>
         </div>
-        <div style={s.smallCard}>
-          <div style={s.smallCardHeader}>
-            <span style={s.smallCardIcon}>⏰</span>
-            <span style={s.smallCardLabel}>Время</span>
-          </div>
-          <div style={s.smallCardValue}>{formatTimeLabel(time)}</div>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            style={s.cardInput}
-          />
-        </div>
-      </div>
 
-      {/* Notifications */}
-      <div style={s.smallCardWide} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.smallCardHeader}>
-          <span style={s.smallCardIcon}>🔔</span>
-          <span style={s.smallCardLabel}>Уведомления</span>
+        {/* Date + Time Grid */}
+        <div style={s.gridRow}>
+          <div style={s.smallCard}>
+            <div style={s.smallCardHeader}>
+              <span style={s.smallCardIcon}>📅</span>
+              <span style={s.smallCardLabel}>Дата</span>
+            </div>
+            <div style={s.valueChip}>{formatDateLabel(date)}</div>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={s.cardInput}
+            />
+          </div>
+          <div style={s.smallCard}>
+            <div style={s.smallCardHeader}>
+              <span style={s.smallCardIcon}>⏰</span>
+              <span style={s.smallCardLabel}>Время</span>
+            </div>
+            <div style={s.valueChip}>{formatTimeLabel(time)}</div>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={s.cardInput}
+            />
+          </div>
         </div>
-        <div style={s.smallCardValueSmall}>{reminder}</div>
-        <select
-          value={reminder}
-          onChange={(e) => setReminder(e.target.value)}
-          style={s.cardInput}
-        >
-          {REMINDER_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+
+        {/* Notifications */}
+        <div style={s.smallCardWide}>
+          <div style={s.smallCardHeader}>
+            <span style={s.smallCardIcon}>🔔</span>
+            <span style={s.smallCardLabel}>Уведомления</span>
+          </div>
+          <div style={s.valueChip}>{reminder}</div>
+          <select
+            value={reminder}
+            onChange={(e) => setReminder(e.target.value)}
+            style={s.cardInput}
+          >
+            {REMINDER_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Actions */}
@@ -392,6 +394,13 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 10px 22px rgba(0,0,0,0.06)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  },
+  mainCardTop: {
+    display: "flex",
+    flexDirection: "column",
   },
   mainCardHeader: {
     display: "flex",
@@ -466,13 +475,16 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  smallCardValue: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-  },
-  smallCardValueSmall: {
+  valueChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    width: "fit-content",
+    maxWidth: "100%",
+    padding: "8px 14px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.95)",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
     fontSize: 16,
     fontWeight: 600,
     color: "#0f172a",
