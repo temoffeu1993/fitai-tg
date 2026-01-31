@@ -1,6 +1,7 @@
 // webapp/src/screens/onb/OnbFirstWorkout.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -279,6 +280,18 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
         }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
@@ -304,8 +317,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         }
       `}</style>
 
-      <div style={s.sectionLabel} className="onb-fade onb-fade-delay-2">
-        <span style={s.sectionLabelText}>📅 Дата</span>
+      <div style={s.mascotRow} className="onb-fade onb-fade-delay-2">
+        <img src={smotrchasImg} alt="" style={s.mascotImg} />
+        <div style={s.bubble} className="speech-bubble">
+          <span style={s.bubbleText}>
+            План идеален! Давай запланируем первую тренировку.
+          </span>
+        </div>
       </div>
 
       {/* Date picker — scroll-snap scroller like OnbWeight */}
@@ -348,13 +366,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
             );
           })}
         </div>
-      </div>
-
-      <div
-        style={s.sectionLabel}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
-      >
-        <span style={s.sectionLabelText}>⏰ Время</span>
       </div>
 
       <div
@@ -428,23 +439,25 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         style={s.reminderWrap}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
       >
-        <button
-          type="button"
-          style={s.reminderRow}
-          onClick={() => {
-            fireHapticImpact("light");
-            setReminderOpen((v) => !v);
-          }}
-        >
-          <span style={s.reminderLabel}>🔔 Уведомления</span>
-          <span style={s.reminderValue}>
-            <span>{reminderValue}</span>
-            <span style={s.reminderChevrons}>
-              <span>▴</span>
-              <span>▾</span>
+        <div style={s.reminderCard}>
+          <button
+            type="button"
+            style={s.reminderRow}
+            onClick={() => {
+              fireHapticImpact("light");
+              setReminderOpen((v) => !v);
+            }}
+          >
+            <span style={s.reminderLabel}>🔔 Уведомления</span>
+            <span style={s.reminderValue}>
+              <span>{reminderValue}</span>
+              <span style={s.reminderChevrons}>
+                <span>▴</span>
+                <span>▾</span>
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+        </div>
         {reminderOpen && (
           <div style={s.reminderList}>
             {REMINDER_OPTIONS.map((opt) => (
@@ -525,18 +538,33 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#1e1f22",
   },
-  sectionLabel: {
-    display: "flex",
+  mascotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
     alignItems: "center",
-    justifyContent: "flex-start",
+    gap: 12,
     marginTop: 8,
-    width: DATE_ITEM_W * DATE_VISIBLE,
-    alignSelf: "center",
   },
-  sectionLabelText: {
-    fontSize: 16,
-    fontWeight: 600,
+  mascotImg: {
+    width: 140,
+    height: "auto",
+    objectFit: "contain",
+  },
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
     color: "#1e1f22",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+  },
+  bubbleText: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.35,
+    color: "#1e1f22",
+    whiteSpace: "pre-line",
   },
   actions: {
     position: "fixed",
@@ -599,20 +627,29 @@ const s: Record<string, React.CSSProperties> = {
   reminderWrap: {
     width: DATE_ITEM_W * DATE_VISIBLE,
     alignSelf: "center",
+    position: "relative",
+    overflow: "visible",
     display: "grid",
     gap: 8,
   },
+  reminderCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    padding: "10px 12px",
+  },
   reminderRow: {
     width: "100%",
-    borderRadius: 14,
-    border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.9)",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
-    padding: "12px 14px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     cursor: "pointer",
+    background: "transparent",
+    border: "none",
+    padding: 0,
   },
   reminderLabel: {
     fontSize: 16,
@@ -635,11 +672,16 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   reminderList: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: "calc(100% + 10px)",
     borderRadius: 16,
     border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.96)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.12)",
+    background: "rgba(255,255,255,0.98)",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
     overflow: "hidden",
+    zIndex: 5,
   },
   reminderOption: {
     width: "100%",
