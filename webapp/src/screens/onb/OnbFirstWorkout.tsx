@@ -281,11 +281,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
         {/* Notifications */}
         <div style={s.smallCardWide}>
-          <div style={s.smallCardHeader}>
-            <span style={s.smallCardIcon}>🔔</span>
-            <span style={s.smallCardLabel}>Уведомления</span>
+          <div style={s.inlineRow}>
+            <div style={s.smallCardHeader}>
+              <span style={s.smallCardIcon}>🔔</span>
+              <span style={s.smallCardLabel}>Уведомления</span>
+            </div>
+            <div style={s.valueChip}>{reminder}</div>
           </div>
-          <div style={s.valueChip}>{reminder}</div>
           <select
             value={reminder}
             onChange={(e) => setReminder(e.target.value)}
@@ -441,23 +443,19 @@ const s: Record<string, React.CSSProperties> = {
   smallCard: {
     position: "relative",
     borderRadius: 16,
-    padding: "16px 14px",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    padding: 0,
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
     overflow: "hidden",
   },
   smallCardWide: {
     position: "relative",
     borderRadius: 16,
-    padding: "16px 14px",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    padding: 0,
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
     overflow: "hidden",
   },
   smallCardHeader: {
@@ -483,12 +481,17 @@ const s: Record<string, React.CSSProperties> = {
     maxWidth: "100%",
     padding: "8px 14px",
     borderRadius: 999,
-    background: "rgba(255,255,255,0.95)",
+    background: "rgba(15, 23, 42, 0.06)",
     border: "1px solid rgba(15, 23, 42, 0.12)",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
     fontSize: 16,
     fontWeight: 600,
     color: "#0f172a",
+  },
+  inlineRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   cardInput: {
     position: "absolute",
