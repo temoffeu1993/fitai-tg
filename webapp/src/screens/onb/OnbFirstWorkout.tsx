@@ -270,7 +270,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         .date-item {
           appearance: none; outline: none; border: none; cursor: pointer;
           -webkit-tap-highlight-color: transparent;
-          touch-action: pan-y;
+          touch-action: pan-x;
         }
         .time-track::-webkit-scrollbar { display: none; }
         .time-item {
