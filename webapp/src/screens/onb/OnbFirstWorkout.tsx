@@ -691,8 +691,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   reminderList: {
     position: "absolute",
-    left: 0,
-    right: 0,
+    left: "50%",
+    transform: "translateX(-50%)",
     bottom: "calc(100% + 10px)",
     borderRadius: 16,
     border: "1px solid rgba(255,255,255,0.65)",
@@ -703,10 +703,13 @@ const s: Record<string, React.CSSProperties> = {
       "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
     overflow: "hidden",
     zIndex: 5,
+    width: "max-content",
+    minWidth: 240,
+    maxWidth: "calc(100vw - 48px)",
   },
   reminderOption: {
     width: "100%",
-    padding: "12px 14px",
+    padding: "12px 16px",
     border: "none",
     background: "transparent",
     fontSize: 16,
@@ -714,6 +717,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     textAlign: "left",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   reminderOptionActive: {
     background: "rgba(30,31,34,0.06)",
