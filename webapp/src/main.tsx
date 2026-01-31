@@ -14,6 +14,7 @@ import advancedImg from "./assets/profi.webp";
 import slimRobotImg from "./assets/hudoi.webp";
 import toneRobotImg from "./assets/forma.webp";
 import healthRobotImg from "./assets/heals.webp";
+import smotrchasImg from "./assets/smotrchas.webp";
 
 const debugEnabled = (() => {
   if (typeof window === "undefined") return false;
@@ -303,6 +304,7 @@ if (isDev && !tg?.initData) {
     slimRobotImg,
     toneRobotImg,
     healthRobotImg,
+    smotrchasImg,
   ];
   Promise.all(allImages.map(preloadImage)).finally(() => {
     timeMark("boot:critical-images-ready");
@@ -355,6 +357,7 @@ async function auth() {
       slimRobotImg,
       toneRobotImg,
       healthRobotImg,
+      smotrchasImg,
     ];
     await Promise.all(allImages.map(preloadImage));
     timeMark("boot:critical-images-ready");

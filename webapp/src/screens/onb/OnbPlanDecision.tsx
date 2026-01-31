@@ -11,7 +11,10 @@ type Props = {
 export default function OnbPlanDecision({ onChoose, onSkip }: Props) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [ready, setReady] = useState(false);
+  const [bubbleText, setBubbleText] = useState("");
   const leaveTimerRef = useRef<number | null>(null);
+  const bubbleTarget =
+    "План идеален. Но он не сработает без твоего решения. Когда стартуем?";
 
   useEffect(() => {
     return () => {
@@ -34,6 +37,24 @@ export default function OnbPlanDecision({ onChoose, onSkip }: Props) {
     }
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) {
+      setBubbleText(bubbleTarget);
+      return;
+    }
+    let index = 0;
+    setBubbleText("");
+    const id = window.setInterval(() => {
+      index += 1;
+      setBubbleText(bubbleTarget.slice(0, index));
+      if (index >= bubbleTarget.length) {
+        window.clearInterval(id);
+      }
+    }, 14);
+    return () => window.clearInterval(id);
+  }, [bubbleTarget]);
 
   const runLeave = (next: () => void) => {
     if (isLeaving) return;
@@ -94,7 +115,7 @@ export default function OnbPlanDecision({ onChoose, onSkip }: Props) {
       <div style={s.center} className="onb-fade onb-fade-delay-1">
         <div style={s.bubble} className="speech-bubble--top">
           <span style={s.bubbleText}>
-            План идеален. Но он не сработает без твоего решения. Когда стартуем?
+            {bubbleText || "\u00A0"}
           </span>
         </div>
         <img
