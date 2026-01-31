@@ -67,6 +67,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
+  const suppressHapticsRef = useRef(true);
 
   // Date picker state (scroll-snap centered, like OnbWeight)
   const dates = useMemo(() => buildDates(DATE_COUNT, DATE_PAST_DAYS), []);
@@ -133,6 +134,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     });
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      suppressHapticsRef.current = false;
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // Sync scroll → activeIdx (live highlight) + snap on stop
   const handleDateScroll = () => {
     if (scrollRafRef.current == null) {
@@ -153,7 +161,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       const clamped = Math.max(0, Math.min(idx, dates.length - 1));
       if (clamped !== activeIdx) setActiveIdx(clamped);
       el.scrollTo({ left: clamped * DATE_ITEM_W, behavior: "smooth" });
-      fireHapticImpact("light");
+      if (!suppressHapticsRef.current) fireHapticImpact("light");
     }, 80);
   };
 
@@ -179,7 +187,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (value !== activeHour) setActiveHour(value);
       const targetIdx = HOUR_BASE * HOUR_MID + value;
       el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      fireHapticImpact("light");
+      if (!suppressHapticsRef.current) fireHapticImpact("light");
     }, 80);
   };
 
@@ -205,7 +213,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (value !== activeMinute) setActiveMinute(value);
       const targetIdx = MIN_BASE * MIN_MID + value;
       el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      fireHapticImpact("light");
+      if (!suppressHapticsRef.current) fireHapticImpact("light");
     }, 80);
   };
 
