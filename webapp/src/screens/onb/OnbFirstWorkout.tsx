@@ -25,6 +25,16 @@ const TIME_INDICATOR_OFFSET = TIME_COL_W / 2 + TIME_COL_GAP / 2;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
+const REMINDER_OPTIONS = [
+  "Не напоминать",
+  "В момент события",
+  "За 5 минут",
+  "За 15 минут",
+  "За 30 минут",
+  "За 1 час",
+  "За 1 день",
+];
+
 function buildDates(count: number, offsetDays: number): DateItem[] {
   const now = new Date();
   return Array.from({ length: count }, (_, i) => {
@@ -45,6 +55,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [isHolding, setIsHolding] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[3]);
+  const reminderRef = useRef<HTMLDivElement>(null);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
@@ -158,6 +171,20 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!reminderOpen) return;
+    const onClick = (e: MouseEvent | TouchEvent) => {
+      if (!reminderRef.current) return;
+      if (!reminderRef.current.contains(e.target as Node)) setReminderOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("touchstart", onClick);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("touchstart", onClick);
+    };
+  }, [reminderOpen]);
 
   useEffect(() => {
     return () => {
@@ -277,8 +304,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         }
       `}</style>
 
-      <div style={s.header} className="onb-fade onb-fade-delay-2">
-        <h1 style={s.title}>Выбери дату и время первой тренировки</h1>
+      <div style={s.sectionLabel} className="onb-fade onb-fade-delay-2">
+        <span style={s.sectionLabelText}>📅 Дата</span>
       </div>
 
       {/* Date picker — scroll-snap scroller like OnbWeight */}
@@ -321,6 +348,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
             );
           })}
         </div>
+      </div>
+
+      <div
+        style={s.sectionLabel}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+      >
+        <span style={s.sectionLabelText}>⏰ Время</span>
       </div>
 
       <div
@@ -389,6 +423,51 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
       </div>
 
+      <div
+        ref={reminderRef}
+        style={s.reminderWrap}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+      >
+        <button
+          type="button"
+          style={s.reminderRow}
+          onClick={() => {
+            fireHapticImpact("light");
+            setReminderOpen((v) => !v);
+          }}
+        >
+          <span style={s.reminderLabel}>🔔 Уведомления</span>
+          <span style={s.reminderValue}>
+            <span>{reminderValue}</span>
+            <span style={s.reminderChevrons}>
+              <span>▴</span>
+              <span>▾</span>
+            </span>
+          </span>
+        </button>
+        {reminderOpen && (
+          <div style={s.reminderList}>
+            {REMINDER_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                style={{
+                  ...s.reminderOption,
+                  ...(opt === reminderValue ? s.reminderOptionActive : null),
+                }}
+                onClick={() => {
+                  setReminderValue(opt);
+                  setReminderOpen(false);
+                  fireHapticImpact("light");
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Actions */}
       <div style={s.actions} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
         <div style={s.holdWrap}>
@@ -446,19 +525,18 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#1e1f22",
   },
-  header: {
-    display: "grid",
-    gap: 8,
-    textAlign: "center",
+  sectionLabel: {
+    display: "flex",
     alignItems: "center",
-    marginTop: 16,
+    justifyContent: "flex-start",
+    marginTop: 8,
+    width: DATE_ITEM_W * DATE_VISIBLE,
+    alignSelf: "center",
   },
-  title: {
-    margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
-    letterSpacing: -0.8,
+  sectionLabelText: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#1e1f22",
   },
   actions: {
     position: "fixed",
@@ -515,6 +593,68 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
+  },
+
+  // ── Reminder dropdown ──────────────────────────────────
+  reminderWrap: {
+    width: DATE_ITEM_W * DATE_VISIBLE,
+    alignSelf: "center",
+    display: "grid",
+    gap: 8,
+  },
+  reminderRow: {
+    width: "100%",
+    borderRadius: 14,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.9)",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    padding: "12px 14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+  },
+  reminderLabel: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#1e1f22",
+  },
+  reminderValue: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 15,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.75)",
+  },
+  reminderChevrons: {
+    display: "grid",
+    fontSize: 12,
+    lineHeight: 0.8,
+    color: "rgba(30,31,34,0.55)",
+    textAlign: "center",
+  },
+  reminderList: {
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255,255,255,0.96)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.12)",
+    overflow: "hidden",
+  },
+  reminderOption: {
+    width: "100%",
+    padding: "12px 14px",
+    border: "none",
+    background: "transparent",
+    fontSize: 16,
+    fontWeight: 500,
+    color: "#1e1f22",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  reminderOptionActive: {
+    background: "rgba(30,31,34,0.06)",
+    fontWeight: 600,
   },
 
   // ── Date picker (scroll-snap centered) ───────────────────
