@@ -33,6 +33,7 @@ import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
+import OnbPlanDecision from "./screens/onb/OnbPlanDecision";
 import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -270,9 +271,68 @@ function StepSchemeSelection() {
   return (
     <OnbSchemeSelection
       onComplete={() => {
-        nav("/onb/first-workout");
+        nav("/onb/plan-decision");
       }}
       onBack={() => nav("/onb/analysis")}
+    />
+  );
+}
+
+function completeOnboardingAndGoHome(nav: (path: string) => void, reset: () => void) {
+  (window as any).__ONB_COMPLETE__ = true;
+
+  try {
+    localStorage.setItem("onb_complete", "1");
+    localStorage.setItem("highlight_generate_btn", "1");
+  } catch (err) {
+    console.error("⚠️  localStorage failed:", err);
+  }
+
+  try {
+    sessionStorage.setItem("onb_complete", "1");
+  } catch (err) {
+    console.error("⚠️  sessionStorage failed:", err);
+  }
+
+  try {
+    const bc = new BroadcastChannel("onb");
+    bc.postMessage("onb_complete");
+    bc.close();
+  } catch (err) {
+    console.error("⚠️  BroadcastChannel failed:", err);
+  }
+
+  try {
+    window.dispatchEvent(new Event("onb_complete"));
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "onb_complete",
+      newValue: "1",
+      storageArea: localStorage,
+    }));
+  } catch (err) {
+    console.error("⚠️  Events failed:", err);
+  }
+
+  reset();
+  try {
+    sessionStorage.removeItem("onb_draft_v1");
+    sessionStorage.removeItem("onb_in_progress_v1");
+  } catch {}
+
+  setTimeout(() => {
+    nav("/");
+  }, 120);
+}
+
+// --- экран решения перед выбором времени ---
+function StepPlanDecision() {
+  const { reset } = useOnboarding();
+  const nav = useNavigate();
+
+  return (
+    <OnbPlanDecision
+      onChoose={() => nav("/onb/first-workout")}
+      onSkip={() => completeOnboardingAndGoHome(nav, reset)}
     />
   );
 }
@@ -285,53 +345,9 @@ function StepFirstWorkout() {
   return (
     <OnbFirstWorkout
       onComplete={() => {
-        console.log("🔥🔥🔥 App.tsx: onComplete called 🔥🔥🔥");
-
-        (window as any).__ONB_COMPLETE__ = true;
-
-        try {
-          localStorage.setItem("onb_complete", "1");
-          localStorage.setItem("highlight_generate_btn", "1");
-        } catch (err) {
-          console.error("⚠️  localStorage failed:", err);
-        }
-
-        try {
-          sessionStorage.setItem("onb_complete", "1");
-        } catch (err) {
-          console.error("⚠️  sessionStorage failed:", err);
-        }
-
-        try {
-          const bc = new BroadcastChannel("onb");
-          bc.postMessage("onb_complete");
-          bc.close();
-        } catch (err) {
-          console.error("⚠️  BroadcastChannel failed:", err);
-        }
-
-        try {
-          window.dispatchEvent(new Event("onb_complete"));
-          window.dispatchEvent(new StorageEvent("storage", {
-            key: "onb_complete",
-            newValue: "1",
-            storageArea: localStorage,
-          }));
-        } catch (err) {
-          console.error("⚠️  Events failed:", err);
-        }
-
-        reset();
-        try {
-          sessionStorage.removeItem("onb_draft_v1");
-          sessionStorage.removeItem("onb_in_progress_v1");
-        } catch {}
-
-        setTimeout(() => {
-          nav("/");
-        }, 120);
+        completeOnboardingAndGoHome(nav, reset);
       }}
-      onBack={() => nav("/onb/scheme")}
+      onBack={() => nav("/onb/plan-decision")}
     />
   );
 }
@@ -371,6 +387,7 @@ export default function App() {
             <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
+            <Route path="/onb/plan-decision" element={<StepPlanDecision />} />
             <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
           </Route>
         </Routes>

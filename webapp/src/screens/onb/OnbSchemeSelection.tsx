@@ -594,7 +594,7 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
             onClick={handleNext}
             disabled={!selectedId || saving || isLeaving}
           >
-            {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать программу"}
+            {saving ? "Сохраняем..." : isBeginner ? "Начать тренировки" : "Выбрать план"}
           </button>
           {onBack && (
             <button type="button" style={s.backBtn} onClick={handleBack}>
