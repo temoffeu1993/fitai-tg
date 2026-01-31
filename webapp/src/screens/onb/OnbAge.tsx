@@ -339,7 +339,7 @@ const s: Record<string, React.CSSProperties> = {
     position: "absolute",
     left: "50%",
     top: "50%",
-    width: ITEM_HEIGHT + 32,
+    width: ITEM_HEIGHT + 24,
     height: ITEM_HEIGHT + 12,
     transform: "translate(-50%, -50%)",
     borderRadius: 16,
