@@ -81,6 +81,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (mounted) setScheme(selected);
       } catch {
         if (mounted) setScheme(null);
+      }
     })();
     return () => { mounted = false; };
   }, []);
