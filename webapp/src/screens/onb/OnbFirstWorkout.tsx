@@ -268,7 +268,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
         <div style={s.strategyFocus}>{firstTitle}</div>
         <p style={s.strategyDesc}>
-          Выбери дату и время для твоей первой тренировки
+          Выбери удобное время, чтобы я напомнил, когда пора собираться.
         </p>
       </div>
 
