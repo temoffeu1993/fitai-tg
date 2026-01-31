@@ -17,12 +17,10 @@ const DATE_ITEM_W = 64; // px width of each date slot
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
-const TIME_ITEM_H = 44;
+const TIME_ITEM_H = 56;
 const TIME_VISIBLE = 3;
 const TIME_FADE_H = TIME_ITEM_H;
-const TIME_COL_W = DATE_ITEM_W;
 const TIME_COL_GAP = 14;
-const TIME_INDICATOR_OFFSET = TIME_COL_W / 2 + TIME_COL_GAP / 2;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -372,11 +370,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         style={s.timeWrap}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
       >
-        <div style={s.timeIndicatorLeft} />
-        <div style={s.timeIndicatorRight} />
         <div style={s.timeColonOverlay}>:</div>
-        <div style={s.timeFadeTop} />
-        <div style={s.timeFadeBottom} />
         <div style={s.timeInner}>
           <div style={s.timeColWrap}>
             <div
@@ -802,11 +796,8 @@ const s: Record<string, React.CSSProperties> = {
   timeWrap: {
     marginTop: 12,
     borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    border: "none",
+    background: "transparent",
     position: "relative",
     overflow: "hidden",
     width: DATE_ITEM_W * DATE_VISIBLE,
@@ -817,52 +808,21 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 2,
     height: "100%",
+    width: "100%",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     gap: TIME_COL_GAP,
-    padding: "0 10px",
+    padding: "0 8px",
   },
-  timeIndicatorLeft: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 56,
-    height: 56,
-    transform: `translate(-50%, -50%) translateX(-${TIME_INDICATOR_OFFSET}px)`,
-    borderRadius: 16,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
-    border: "1px solid rgba(255,255,255,0.85)",
-    boxShadow:
-      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  timeIndicatorRight: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 56,
-    height: 56,
-    transform: `translate(-50%, -50%) translateX(${TIME_INDICATOR_OFFSET}px)`,
-    borderRadius: 16,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
-    border: "1px solid rgba(255,255,255,0.85)",
-    boxShadow:
-      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
+  timeIndicatorLeft: {},
+  timeIndicatorRight: {},
   timeColonOverlay: {
     position: "absolute",
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -50%)",
-    fontSize: 28,
+    fontSize: 40,
     fontWeight: 700,
     color: "#1e1f22",
     zIndex: 4,
@@ -872,28 +832,10 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     height: "100%",
     overflow: "hidden",
-    width: TIME_COL_W,
+    flex: 1,
   },
-  timeFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: TIME_FADE_H,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
-  },
-  timeFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: TIME_FADE_H,
-    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
-  },
+  timeFadeTop: {},
+  timeFadeBottom: {},
   timeList: {
     maxHeight: "100%",
     width: "100%",
@@ -910,17 +852,17 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 24,
-    fontWeight: 500,
-    color: "rgba(30,31,34,0.35)",
+    fontSize: 42,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.3)",
     scrollSnapAlign: "center",
     background: "transparent",
     border: "none",
     padding: 0,
   },
   timeItemActive: {
-    color: "#111",
+    color: "#1e1f22",
     fontWeight: 700,
-    fontSize: 26,
+    fontSize: 44,
   },
 };
