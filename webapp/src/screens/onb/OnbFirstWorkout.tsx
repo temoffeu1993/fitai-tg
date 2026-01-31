@@ -245,54 +245,45 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         <p style={s.strategyDesc}>
           Выбери удобное время, чтобы я напомнил, когда пора собираться.
         </p>
-      </div>
 
-      {/* Date + Time Grid */}
-      <div style={s.gridRow} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.smallCard}>
-          <div style={s.smallCardHeader}>
-            <span style={s.smallCardIcon}>📅</span>
-            <span style={s.smallCardLabel}>Дата</span>
+        {/* Date + Time Chips */}
+        <div style={s.chipRow}>
+          <div style={s.chipWrap}>
+            <div style={s.chipLabel}>Дата</div>
+            <div style={s.chipValue}>{formatDateLabel(date)}</div>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={s.cardInput}
+            />
           </div>
-          <div style={s.smallCardValue}>{formatDateLabel(date)}</div>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={s.cardInput}
-          />
-        </div>
-        <div style={s.smallCard}>
-          <div style={s.smallCardHeader}>
-            <span style={s.smallCardIcon}>⏰</span>
-            <span style={s.smallCardLabel}>Время</span>
+          <div style={s.chipWrap}>
+            <div style={s.chipLabel}>Время</div>
+            <div style={s.chipValue}>{formatTimeLabel(time)}</div>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={s.cardInput}
+            />
           </div>
-          <div style={s.smallCardValue}>{formatTimeLabel(time)}</div>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            style={s.cardInput}
-          />
         </div>
-      </div>
 
-      {/* Notifications */}
-      <div style={s.smallCardWide} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.smallCardHeader}>
-          <span style={s.smallCardIcon}>🔔</span>
-          <span style={s.smallCardLabel}>Уведомления</span>
+        {/* Notifications */}
+        <div style={s.chipWrapWide}>
+          <div style={s.chipLabel}>Уведомления</div>
+          <div style={s.chipValue}>{reminder}</div>
+          <select
+            value={reminder}
+            onChange={(e) => setReminder(e.target.value)}
+            style={s.cardInput}
+          >
+            {REMINDER_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
         </div>
-        <div style={s.smallCardValueSmall}>{reminder}</div>
-        <select
-          value={reminder}
-          onChange={(e) => setReminder(e.target.value)}
-          style={s.cardInput}
-        >
-          {REMINDER_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
       </div>
 
       {/* Actions */}
@@ -392,6 +383,9 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 10px 22px rgba(0,0,0,0.06)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
   },
   mainCardHeader: {
     display: "flex",
@@ -423,56 +417,40 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.5,
     color: "rgba(15, 23, 42, 0.6)",
   },
-  gridRow: {
+  chipRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: 12,
   },
-  smallCard: {
+  chipWrap: {
     position: "relative",
-    borderRadius: 16,
-    padding: "16px 14px",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    overflow: "hidden",
-  },
-  smallCardWide: {
-    position: "relative",
-    borderRadius: 16,
-    padding: "16px 14px",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    overflow: "hidden",
-  },
-  smallCardHeader: {
     display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
+    flexDirection: "column",
+    gap: 8,
   },
-  smallCardIcon: {
-    fontSize: 16,
+  chipWrapWide: {
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
-  smallCardLabel: {
+  chipLabel: {
     fontSize: 12,
     fontWeight: 600,
     color: "rgba(15, 23, 42, 0.5)",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  smallCardValue: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-  },
-  smallCardValueSmall: {
+  chipValue: {
+    display: "inline-flex",
+    alignItems: "center",
+    width: "fit-content",
+    maxWidth: "100%",
+    padding: "8px 14px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.95)",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
     fontSize: 16,
     fontWeight: 600,
     color: "#0f172a",
