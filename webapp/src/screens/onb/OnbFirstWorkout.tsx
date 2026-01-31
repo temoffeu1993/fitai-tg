@@ -437,9 +437,12 @@ const s: Record<string, React.CSSProperties> = {
     height: 48,
     transform: "translateX(-50%)",
     borderRadius: 12,
-    background: "#1e1f22",
+    background: "rgba(255,255,255,0.45)",
+    border: "1px solid rgba(255,255,255,0.7)",
     boxShadow:
-      "0 10px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2)",
+      "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     pointerEvents: "none",
     zIndex: 1,
   },
@@ -497,7 +500,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: 0.3,
   },
   dateDowActive: {
-    color: "rgba(255,255,255,0.9)",
+    color: "#1e1f22",
     fontWeight: 600,
   },
   dateNum: {
@@ -507,7 +510,7 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.3,
   },
   dateNumActive: {
-    color: "#fff",
+    color: "#111",
     fontWeight: 700,
     fontSize: 26,
   },
