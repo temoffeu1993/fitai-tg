@@ -177,12 +177,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       const clamped = Math.max(0, Math.min(idx, hours.length - 1));
       const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
       if (value !== activeHour) setActiveHour(value);
-      const nearStart = clamped < HOUR_BASE;
-      const nearEnd = clamped > hours.length - HOUR_BASE;
-      if (nearStart || nearEnd) {
-        const targetIdx = HOUR_BASE * HOUR_MID + value;
-        el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      }
+      const targetIdx = HOUR_BASE * HOUR_MID + value;
+      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
   };
@@ -207,12 +203,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
       const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
       if (value !== activeMinute) setActiveMinute(value);
-      const nearStart = clamped < MIN_BASE;
-      const nearEnd = clamped > minutes.length - MIN_BASE;
-      if (nearStart || nearEnd) {
-        const targetIdx = MIN_BASE * MIN_MID + value;
-        el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      }
+      const targetIdx = MIN_BASE * MIN_MID + value;
+      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
   };
