@@ -859,7 +859,8 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     color: "#1e1f22",
     textShadow:
-      "0 3px 10px rgba(0,0,0,0.25), 0 -1px 0 rgba(255,255,255,0.35)",
+      "0 6px 18px rgba(0,0,0,0.35), 0 -1px 0 rgba(255,255,255,0.45), 0 1px 0 rgba(255,255,255,0.2)",
+    WebkitTextStroke: "0.6px rgba(255,255,255,0.35)",
     lineHeight: 1,
     zIndex: 4,
     pointerEvents: "none",
@@ -897,7 +898,8 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: "#1e1f22",
     textShadow:
-      "0 3px 10px rgba(0,0,0,0.25), 0 -1px 0 rgba(255,255,255,0.35)",
+      "0 5px 14px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.4), 0 1px 0 rgba(255,255,255,0.18)",
+    WebkitTextStroke: "0.6px rgba(255,255,255,0.35)",
     lineHeight: 1,
     scrollSnapAlign: "center",
     background: "transparent",
@@ -907,7 +909,8 @@ const s: Record<string, React.CSSProperties> = {
   timeItemActive: {
     color: "#1e1f22",
     textShadow:
-      "0 6px 16px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.45)",
+      "0 8px 20px rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.5), 0 2px 0 rgba(255,255,255,0.25)",
+    WebkitTextStroke: "0.8px rgba(255,255,255,0.45)",
     fontWeight: 900,
     fontSize: 92,
     lineHeight: 1,
