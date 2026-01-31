@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbFirstWorkout.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
@@ -10,6 +10,17 @@ type Props = {
 };
 
 const HOLD_DURATION_MS = 1800;
+
+// ── Date helpers ────────────────────────────────────────────────
+const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+
+function buildDates(count = 14) {
+  const now = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    return { date: d, dow: DAY_SHORT[d.getDay()], day: d.getDate() };
+  });
+}
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
@@ -22,6 +33,11 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
+
+  // Date picker state
+  const dates = useMemo(() => buildDates(14), []);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +148,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           border-right: 8px solid rgba(255,255,255,0.9);
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
+        .date-scroller::-webkit-scrollbar { display: none; }
+        .date-chip {
+          appearance: none; outline: none; cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+        }
+        .date-chip:active { transform: scale(0.93); }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
@@ -171,6 +195,48 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
       </div>
 
+      {/* Date picker card */}
+      <div
+        style={s.dateCard}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
+      >
+        <div
+          ref={scrollRef}
+          style={s.dateScroller}
+          className="date-scroller"
+        >
+          <div style={s.dateRow}>
+            {dates.map((d, idx) => {
+              const active = idx === selectedIdx;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  className="date-chip"
+                  style={{
+                    ...s.dateChip,
+                    ...(active ? s.dateChipActive : undefined),
+                  }}
+                  onClick={() => {
+                    fireHapticImpact("light");
+                    setSelectedIdx(idx);
+                  }}
+                >
+                  <span style={{
+                    ...s.dateDow,
+                    color: active ? "#1e1f22" : "rgba(30,31,34,0.4)",
+                  }}>{d.dow}</span>
+                  <span style={{
+                    ...s.dateDay,
+                    color: active ? "#1e1f22" : "rgba(30,31,34,0.35)",
+                    fontWeight: active ? 700 : 500,
+                  }}>{d.day}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Actions */}
       <div style={s.actions} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
@@ -316,5 +382,58 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
+  },
+
+  // ── Date picker card ──────────────────────────────────────
+  dateCard: {
+    borderRadius: 20,
+    padding: "16px 0",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    overflow: "hidden",
+  },
+  dateScroller: {
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    paddingLeft: 12,
+    paddingRight: 12,
+  },
+  dateRow: {
+    display: "flex",
+    gap: 0,
+    width: "max-content",
+  },
+  dateChip: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    width: 56,
+    minWidth: 56,
+    padding: "10px 0",
+    borderRadius: 14,
+    border: "none",
+    background: "transparent",
+  },
+  dateChipActive: {
+    background: "rgba(30,31,34,0.06)",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+  },
+  dateDow: {
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: 1,
+    letterSpacing: 0.2,
+  },
+  dateDay: {
+    fontSize: 22,
+    lineHeight: 1.2,
   },
 };
