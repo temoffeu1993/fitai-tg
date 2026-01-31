@@ -1,5 +1,5 @@
 // webapp/src/screens/onb/OnbFirstWorkout.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
@@ -91,6 +91,30 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const minuteRafRef = useRef<number | null>(null);
   const hourStopTimer = useRef<number | null>(null);
   const minuteStopTimer = useRef<number | null>(null);
+
+  // Lock scroll on this screen
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const prevOverflow = root?.style.overflowY;
+    const prevOverscroll = root?.style.overscrollBehaviorY;
+    const prevScrollBehavior = root?.style.scrollBehavior;
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+      root.style.scrollBehavior = "auto";
+      root.scrollTop = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    return () => {
+      if (root) {
+        root.style.overflowY = prevOverflow || "";
+        root.style.overscrollBehaviorY = prevOverscroll || "";
+        root.style.scrollBehavior = prevScrollBehavior || "";
+      }
+    };
+  }, []);
 
   // Ensure initial scroll aligns to today's date
   useEffect(() => {
