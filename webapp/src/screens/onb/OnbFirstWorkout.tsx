@@ -1,7 +1,6 @@
 // webapp/src/screens/onb/OnbFirstWorkout.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -41,7 +40,6 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
-  const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
@@ -162,22 +160,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.src = smotrchasImg;
-    const done = () => { if (!cancelled) setMascotReady(true); };
-    const anyImg = img as any;
-    if (typeof anyImg.decode === "function") {
-      anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
-    } else {
-      img.onload = done;
-      img.onerror = done;
-    }
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
     return () => {
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
     };
@@ -258,18 +240,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         .onb-fade-delay-2 { animation-delay: 160ms; }
         .onb-fade-delay-3 { animation-delay: 240ms; }
         .onb-leave { animation: onbFadeDown 220ms ease-in both; }
-        .speech-bubble:before {
-          content: "";
-          position: absolute;
-          left: -8px;
-          top: 18px;
-          width: 0;
-          height: 0;
-          border-top: 8px solid transparent;
-          border-bottom: 8px solid transparent;
-          border-right: 8px solid rgba(255,255,255,0.9);
-          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
-        }
         .date-track::-webkit-scrollbar { display: none; }
         .date-item {
           appearance: none; outline: none; border: none; cursor: pointer;
@@ -307,18 +277,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         }
       `}</style>
 
-      {/* Mascot + Bubble */}
-      <div style={s.mascotRow} className="onb-fade onb-fade-delay-2">
-        <img
-          src={smotrchasImg}
-          alt=""
-          style={{ ...s.mascotImg, ...(mascotReady ? undefined : s.mascotHidden) }}
-        />
-        <div style={s.bubble} className="speech-bubble">
-          <span style={s.bubbleText}>
-            выбери дату и время первой тренировки
-          </span>
-        </div>
+      <div style={s.header} className="onb-fade onb-fade-delay-2">
+        <h1 style={s.title}>Выбери дату и время первой тренировки</h1>
       </div>
 
       {/* Date picker — scroll-snap scroller like OnbWeight */}
@@ -486,37 +446,19 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#1e1f22",
   },
-  mascotRow: {
+  header: {
     display: "grid",
-    gridTemplateColumns: "auto 1fr",
+    gap: 8,
+    textAlign: "center",
     alignItems: "center",
-    gap: 12,
-    marginTop: 8,
+    marginTop: 16,
   },
-  mascotImg: {
-    width: 140,
-    height: "auto",
-    objectFit: "contain",
-  },
-  mascotHidden: {
-    opacity: 0,
-    transform: "translateY(6px) scale(0.98)",
-  },
-  bubble: {
-    position: "relative",
-    padding: "14px 16px",
-    borderRadius: 16,
-    border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.9)",
-    color: "#1e1f22",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
-  },
-  bubbleText: {
-    fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.35,
-    color: "#1e1f22",
-    whiteSpace: "pre-line",
+  title: {
+    margin: 0,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
+    letterSpacing: -0.8,
   },
   actions: {
     position: "fixed",
