@@ -395,160 +395,162 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
       </div>
 
-      {/* Date picker — scroll-snap scroller like OnbWeight */}
       <div
-        style={s.dateWrap}
+        style={s.scheduleCard}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
       >
-        <div style={s.dateIndicator} />
-        <div style={s.dateFadeL} />
-        <div style={s.dateFadeR} />
-        <div
-          ref={scrollRef}
-          style={s.dateTrack}
-          className="date-track"
-          onScroll={handleDateScroll}
-        >
-          {dates.map((d, idx) => {
-            const active = idx === activeIdx;
-            return (
-              <button
-                key={idx}
-                type="button"
-                className="date-item"
-                style={{ ...s.dateItem, scrollSnapAlign: "center" }}
-                onClick={() => {
-                  fireHapticImpact("light");
-                  setActiveIdx(idx);
-                  scrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
-                }}
-              >
-                <span style={{
-                  ...s.dateDow,
-                  ...(active ? s.dateDowActive : undefined),
-                }}>{d.dow}</span>
-            <span style={{
-              ...s.dateNum,
-              ...(active ? s.dateNumActive : undefined),
-            }}>{d.day}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div
-        style={s.timeWrap}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
-      >
-        <div style={s.timeColonOverlay}>:</div>
-        <div style={s.timeInner}>
-          <div style={s.timeColWrap}>
-            <div
-              ref={hourRef}
-              style={s.timeList}
-              className="time-track"
-              onScroll={handleHourScroll}
-            >
-              <div style={{ height: 0 }} />
-              {hours.map((h, idx) => (
-                <button
-                  key={`${h}-${idx}`}
-                  type="button"
-                  className="time-item"
-                  style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    setActiveHour(h);
-                    hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {String(h).padStart(2, "0")}
-                </button>
-              ))}
-              <div style={{ height: 0 }} />
-            </div>
-          </div>
-
-          <div style={s.timeColWrap}>
-            <div
-              ref={minuteRef}
-              style={s.timeList}
-              className="time-track"
-              onScroll={handleMinuteScroll}
-            >
-              <div style={{ height: 0 }} />
-              {minutes.map((m, idx) => (
-                <button
-                  key={`${m}-${idx}`}
-                  type="button"
-                  className="time-item"
-                  style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    setActiveMinute(m);
-                    minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {String(m).padStart(2, "0")}
-                </button>
-              ))}
-              <div style={{ height: 0 }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        ref={reminderRef}
-        style={s.reminderWrap}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
-      >
-        <div style={s.reminderCard}>
-          <button
-            type="button"
-            style={s.reminderRow}
-            onClick={() => {
-              fireHapticImpact("light");
-              setReminderOpen((v) => !v);
-            }}
-          >
-            <span style={s.reminderLabel}>🔔 Напомнить</span>
-            <span style={s.reminderValue}>
-              <span>{reminderValue}</span>
-              <span style={s.reminderChevrons}>
-                <span>▴</span>
-                <span>▾</span>
-              </span>
-            </span>
-          </button>
-        </div>
-        {reminderOpen && (
+        <div style={s.dateScroller}>
+          <div style={s.dateIndicator} />
+          <div style={s.dateFadeL} />
+          <div style={s.dateFadeR} />
           <div
-            style={{
-              ...s.reminderList,
-              ...(reminderWidth ? { width: reminderWidth } : null),
-            }}
+            ref={scrollRef}
+            style={s.dateTrack}
+            className="date-track"
+            onScroll={handleDateScroll}
           >
-            {REMINDER_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                style={{
-                  ...s.reminderOption,
-                  ...(opt === reminderValue ? s.reminderOptionActive : null),
-                }}
-                onClick={() => {
-                  setReminderValue(opt);
-                  setReminderOpen(false);
-                  fireHapticImpact("light");
-                }}
-              >
-                {opt}
-              </button>
-            ))}
+            {dates.map((d, idx) => {
+              const active = idx === activeIdx;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  className="date-item"
+                  style={{ ...s.dateItem, scrollSnapAlign: "center" }}
+                  onClick={() => {
+                    fireHapticImpact("light");
+                    setActiveIdx(idx);
+                    scrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
+                  }}
+                >
+                  <span
+                    style={{
+                      ...s.dateDow,
+                      ...(active ? s.dateDowActive : undefined),
+                    }}
+                  >
+                    {d.dow}
+                  </span>
+                  <span
+                    style={{
+                      ...s.dateNum,
+                      ...(active ? s.dateNumActive : undefined),
+                    }}
+                  >
+                    {d.day}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
+
+        <div style={s.timeWrap}>
+          <div style={s.timeColonOverlay}>:</div>
+          <div style={s.timeInner}>
+            <div style={s.timeColWrap}>
+              <div
+                ref={hourRef}
+                style={s.timeList}
+                className="time-track"
+                onScroll={handleHourScroll}
+              >
+                <div style={{ height: 0 }} />
+                {hours.map((h, idx) => (
+                  <button
+                    key={`${h}-${idx}`}
+                    type="button"
+                    className="time-item"
+                    style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
+                    onClick={() => {
+                      setActiveHour(h);
+                      hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
+                      fireHapticImpact("light");
+                    }}
+                  >
+                    {String(h).padStart(2, "0")}
+                  </button>
+                ))}
+                <div style={{ height: 0 }} />
+              </div>
+            </div>
+
+            <div style={s.timeColWrap}>
+              <div
+                ref={minuteRef}
+                style={s.timeList}
+                className="time-track"
+                onScroll={handleMinuteScroll}
+              >
+                <div style={{ height: 0 }} />
+                {minutes.map((m, idx) => (
+                  <button
+                    key={`${m}-${idx}`}
+                    type="button"
+                    className="time-item"
+                    style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
+                    onClick={() => {
+                      setActiveMinute(m);
+                      minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
+                      fireHapticImpact("light");
+                    }}
+                  >
+                    {String(m).padStart(2, "0")}
+                  </button>
+                ))}
+                <div style={{ height: 0 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div ref={reminderRef} style={s.reminderWrap}>
+          <div style={s.reminderCard}>
+            <button
+              type="button"
+              style={s.reminderRow}
+              onClick={() => {
+                fireHapticImpact("light");
+                setReminderOpen((v) => !v);
+              }}
+            >
+              <span style={s.reminderLabel}>🔔 Напомнить</span>
+              <span style={s.reminderValue}>
+                <span>{reminderValue}</span>
+                <span style={s.reminderChevrons}>
+                  <span>▴</span>
+                  <span>▾</span>
+                </span>
+              </span>
+            </button>
+          </div>
+          {reminderOpen && (
+            <div
+              style={{
+                ...s.reminderList,
+                ...(reminderWidth ? { width: reminderWidth } : null),
+              }}
+            >
+              {REMINDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  style={{
+                    ...s.reminderOption,
+                    ...(opt === reminderValue ? s.reminderOptionActive : null),
+                  }}
+                  onClick={() => {
+                    setReminderValue(opt);
+                    setReminderOpen(false);
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Actions */}
@@ -697,14 +699,14 @@ const s: Record<string, React.CSSProperties> = {
 
   // ── Reminder dropdown ──────────────────────────────────
   reminderWrap: {
-    width: DATE_ITEM_W * DATE_VISIBLE,
-    alignSelf: "center",
+    width: "100%",
+    alignSelf: "stretch",
     position: "relative",
     overflow: "visible",
     display: "grid",
     gap: 8,
     marginTop: "auto",
-    marginBottom: 24,
+    marginBottom: 0,
   },
   reminderCard: {
     borderRadius: 0,
@@ -781,8 +783,8 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
 
-  // ── Date picker (scroll-snap centered) ───────────────────
-  dateWrap: {
+  // ── Schedule block (date + time + reminder) ─────────────
+  scheduleCard: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
@@ -793,6 +795,16 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     alignSelf: "center",
     width: DATE_ITEM_W * DATE_VISIBLE,
+    padding: "16px 14px 20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    flex: 1,
+  },
+  dateScroller: {
+    position: "relative",
+    overflow: "hidden",
+    width: "100%",
   },
   dateIndicator: {
     position: "absolute",
@@ -882,14 +894,13 @@ const s: Record<string, React.CSSProperties> = {
 
   // ── Time picker (vertical wheels) ───────────────────────
   timeWrap: {
-    marginTop: 12,
     borderRadius: 0,
     border: "none",
     background: "transparent",
     position: "relative",
     overflow: "hidden",
-    width: DATE_ITEM_W * DATE_VISIBLE,
-    alignSelf: "center",
+    width: "100%",
+    alignSelf: "stretch",
     height: TIME_ITEM_H * TIME_VISIBLE,
   },
   timeInner: {
