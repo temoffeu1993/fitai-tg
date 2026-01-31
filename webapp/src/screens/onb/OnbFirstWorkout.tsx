@@ -231,7 +231,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         />
         <div style={s.bubble} className="speech-bubble">
           <span style={s.bubbleText}>
-            План идеален. Но он не сработает без твоего решения. Когда стартуем?
+            выбери дату и время первой тренировки
           </span>
         </div>
       </div>
