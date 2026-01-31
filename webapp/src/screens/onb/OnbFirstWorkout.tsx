@@ -18,6 +18,8 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
 const TIME_ITEM_H = 44;
+const TIME_VISIBLE = 5;
+const TIME_FADE_H = TIME_ITEM_H * 2;
 const TIME_COL_W = DATE_ITEM_W;
 const TIME_COL_GAP = 14;
 const TIME_INDICATOR_OFFSET = TIME_COL_W / 2 + TIME_COL_GAP / 2;
@@ -56,21 +58,16 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
 
-  const timeItems = useMemo(
-    () =>
-      Array.from({ length: 24 * 60 }, (_, i) => ({
-        h: Math.floor(i / 60),
-        m: i % 60,
-        idx: i,
-      })),
-    []
-  );
-  const [activeTimeIdx, setActiveTimeIdx] = useState(() => {
-    const now = new Date();
-    return now.getHours() * 60 + now.getMinutes();
-  });
-  const timeRef = useRef<HTMLDivElement>(null);
-  const timeStopTimer = useRef<number | null>(null);
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const [activeHour, setActiveHour] = useState(() => new Date().getHours());
+  const [activeMinute, setActiveMinute] = useState(() => new Date().getMinutes());
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minuteRef = useRef<HTMLDivElement>(null);
+  const hourRafRef = useRef<number | null>(null);
+  const minuteRafRef = useRef<number | null>(null);
+  const hourStopTimer = useRef<number | null>(null);
+  const minuteStopTimer = useRef<number | null>(null);
 
   // Ensure initial scroll aligns to today's date
   useEffect(() => {
@@ -79,7 +76,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
   // Ensure initial scroll aligns to current time
   useEffect(() => {
-    timeRef.current?.scrollTo({ top: activeTimeIdx * TIME_ITEM_H, behavior: "auto" });
+    hourRef.current?.scrollTo({ top: activeHour * TIME_ITEM_H, behavior: "auto" });
+    minuteRef.current?.scrollTo({ top: activeMinute * TIME_ITEM_H, behavior: "auto" });
   }, []);
 
   // Sync scroll → activeIdx (live highlight) + snap on stop
@@ -106,14 +104,47 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     }, 80);
   };
 
-  const handleTimeScroll = () => {
-    if (timeStopTimer.current) window.clearTimeout(timeStopTimer.current);
-    const el = timeRef.current;
-    if (!el) return;
-    const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-    const clamped = Math.max(0, Math.min(idx, timeItems.length - 1));
-    if (clamped !== activeTimeIdx) setActiveTimeIdx(clamped);
-    timeStopTimer.current = window.setTimeout(() => {
+  const handleHourScroll = () => {
+    if (hourRafRef.current == null) {
+      hourRafRef.current = window.requestAnimationFrame(() => {
+        hourRafRef.current = null;
+        const el = hourRef.current;
+        if (!el) return;
+        const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+        const clamped = Math.max(0, Math.min(idx, hours.length - 1));
+        if (clamped !== activeHour) setActiveHour(clamped);
+      });
+    }
+    if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
+    hourStopTimer.current = window.setTimeout(() => {
+      const el = hourRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+      const clamped = Math.max(0, Math.min(idx, hours.length - 1));
+      if (clamped !== activeHour) setActiveHour(clamped);
+      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
+      fireHapticImpact("light");
+    }, 80);
+  };
+
+  const handleMinuteScroll = () => {
+    if (minuteRafRef.current == null) {
+      minuteRafRef.current = window.requestAnimationFrame(() => {
+        minuteRafRef.current = null;
+        const el = minuteRef.current;
+        if (!el) return;
+        const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+        const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
+        if (clamped !== activeMinute) setActiveMinute(clamped);
+      });
+    }
+    if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
+    minuteStopTimer.current = window.setTimeout(() => {
+      const el = minuteRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+      const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
+      if (clamped !== activeMinute) setActiveMinute(clamped);
       el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
@@ -123,7 +154,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return () => {
       if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
       if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
-      if (timeStopTimer.current) window.clearTimeout(timeStopTimer.current);
+      if (hourRafRef.current) window.cancelAnimationFrame(hourRafRef.current);
+      if (minuteRafRef.current) window.cancelAnimationFrame(minuteRafRef.current);
+      if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
+      if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
     };
   }, []);
 
@@ -335,36 +369,63 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       >
         <div style={s.timeIndicatorLeft} />
         <div style={s.timeIndicatorRight} />
+        <div style={s.timeColonOverlay}>:</div>
         <div style={s.timeFadeTop} />
         <div style={s.timeFadeBottom} />
-        <div
-          ref={timeRef}
-          style={s.timeList}
-          className="time-track"
-          onScroll={handleTimeScroll}
-        >
-          <div style={{ height: TIME_ITEM_H }} />
-          {timeItems.map((t) => {
-            const active = t.idx === activeTimeIdx;
-            return (
-              <button
-                key={t.idx}
-                type="button"
-                className="time-item"
-                style={{ ...s.timeItem, ...(active ? s.timeItemActive : {}) }}
-                onClick={() => {
-                  setActiveTimeIdx(t.idx);
-                  timeRef.current?.scrollTo({ top: t.idx * TIME_ITEM_H, behavior: "smooth" });
-                  fireHapticImpact("light");
-                }}
-              >
-                <span style={s.timeValue}>{String(t.h).padStart(2, "0")}</span>
-                <span style={s.timeColon}>:</span>
-                <span style={s.timeValue}>{String(t.m).padStart(2, "0")}</span>
-              </button>
-            );
-          })}
-          <div style={{ height: TIME_ITEM_H }} />
+        <div style={s.timeInner}>
+          <div style={s.timeColWrap}>
+            <div
+              ref={hourRef}
+              style={s.timeList}
+              className="time-track"
+              onScroll={handleHourScroll}
+            >
+              <div style={{ height: TIME_ITEM_H * 2 }} />
+              {hours.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="time-item"
+                  style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
+                  onClick={() => {
+                    setActiveHour(h);
+                    hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(h).padStart(2, "0")}
+                </button>
+              ))}
+              <div style={{ height: TIME_ITEM_H * 2 }} />
+            </div>
+          </div>
+
+          <div style={s.timeColWrap}>
+            <div
+              ref={minuteRef}
+              style={s.timeList}
+              className="time-track"
+              onScroll={handleMinuteScroll}
+            >
+              <div style={{ height: TIME_ITEM_H * 2 }} />
+              {minutes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className="time-item"
+                  style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
+                  onClick={() => {
+                    setActiveMinute(m);
+                    minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(m).padStart(2, "0")}
+                </button>
+              ))}
+              <div style={{ height: TIME_ITEM_H * 2 }} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -626,7 +687,17 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     width: DATE_ITEM_W * DATE_VISIBLE,
     alignSelf: "center",
-    height: TIME_ITEM_H * 3,
+    height: TIME_ITEM_H * TIME_VISIBLE,
+  },
+  timeInner: {
+    position: "relative",
+    zIndex: 2,
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: TIME_COL_GAP,
+    padding: "0 10px",
   },
   timeIndicatorLeft: {
     position: "absolute",
@@ -662,12 +733,29 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 1,
   },
+  timeColonOverlay: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    fontSize: 28,
+    fontWeight: 700,
+    color: "#1e1f22",
+    zIndex: 4,
+    pointerEvents: "none",
+  },
+  timeColWrap: {
+    position: "relative",
+    height: "100%",
+    overflow: "hidden",
+    width: TIME_COL_W,
+  },
   timeFadeTop: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
-    height: TIME_ITEM_H,
+    height: TIME_FADE_H,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 3,
@@ -677,7 +765,7 @@ const s: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    height: TIME_ITEM_H,
+    height: TIME_FADE_H,
     background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 3,
@@ -690,17 +778,12 @@ const s: Record<string, React.CSSProperties> = {
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
     position: "relative",
-    zIndex: 2,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "0 8px",
+    zIndex: 0,
   },
   timeItem: {
     width: "100%",
     height: TIME_ITEM_H,
-    display: "grid",
-    gridTemplateColumns: `${TIME_COL_W}px ${TIME_COL_GAP}px ${TIME_COL_W}px`,
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 24,
@@ -711,20 +794,9 @@ const s: Record<string, React.CSSProperties> = {
     border: "none",
     padding: 0,
   },
-  timeValue: {
-    textAlign: "center",
-    width: "100%",
-  },
   timeItemActive: {
     color: "#111",
     fontWeight: 700,
     fontSize: 26,
-  },
-  timeColon: {
-    textAlign: "center",
-    fontSize: "inherit",
-    fontWeight: "inherit",
-    color: "inherit",
-    lineHeight: 1,
   },
 };
