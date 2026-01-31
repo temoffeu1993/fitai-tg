@@ -819,9 +819,13 @@ const s: Record<string, React.CSSProperties> = {
   // ── Time picker (vertical wheels) ───────────────────────
   timeWrap: {
     marginTop: 12,
-    borderRadius: 18,
-    border: "none",
-    background: "transparent",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.65)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(245,245,250,0.25) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow:
+      "0 18px 36px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
     position: "relative",
     overflow: "hidden",
     width: DATE_ITEM_W * DATE_VISIBLE,
