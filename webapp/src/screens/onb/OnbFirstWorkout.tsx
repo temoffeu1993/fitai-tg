@@ -822,13 +822,9 @@ const s: Record<string, React.CSSProperties> = {
   // ── Time picker (vertical wheels) ───────────────────────
   timeWrap: {
     marginTop: 12,
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.65)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(245,245,250,0.25) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow:
-      "0 18px 36px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
     position: "relative",
     overflow: "hidden",
     width: DATE_ITEM_W * DATE_VISIBLE,
@@ -855,7 +851,9 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translate(-50%, -50%)",
     fontSize: 84,
     fontWeight: 900,
-    color: "#1e1f22",
+    color: "rgba(255,255,255,0.35)",
+    textShadow:
+      "0 2px 8px rgba(0,0,0,0.18), 0 -1px 0 rgba(255,255,255,0.7), 0 0 12px rgba(255,255,255,0.35)",
     lineHeight: 1,
     zIndex: 4,
     pointerEvents: "none",
@@ -891,7 +889,9 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     fontSize: 88,
     fontWeight: 800,
-    color: "#1e1f22",
+    color: "rgba(255,255,255,0.35)",
+    textShadow:
+      "0 2px 8px rgba(0,0,0,0.18), 0 -1px 0 rgba(255,255,255,0.7), 0 0 12px rgba(255,255,255,0.35)",
     lineHeight: 1,
     scrollSnapAlign: "center",
     background: "transparent",
@@ -899,7 +899,9 @@ const s: Record<string, React.CSSProperties> = {
     padding: 0,
   },
   timeItemActive: {
-    color: "#1e1f22",
+    color: "rgba(255,255,255,0.65)",
+    textShadow:
+      "0 4px 14px rgba(0,0,0,0.28), 0 -1px 0 rgba(255,255,255,0.9), 0 0 18px rgba(255,255,255,0.55)",
     fontWeight: 900,
     fontSize: 92,
     lineHeight: 1,
