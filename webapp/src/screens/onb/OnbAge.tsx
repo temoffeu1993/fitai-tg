@@ -89,14 +89,22 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       const index = Math.round(list.scrollTop / ITEM_HEIGHT);
       const nextAge = AGE_MIN + index;
       if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
-        setAge(nextAge);
+        setAge((prev) => {
+          if (prev === nextAge) return prev;
+          fireHapticImpact("light");
+          return nextAge;
+        });
       }
     }, 60);
   };
 
   const handleSelect = (value: number) => {
     if (loading || isLeaving) return;
-    setAge(value);
+    setAge((prev) => {
+      if (prev === value) return prev;
+      fireHapticImpact("light");
+      return value;
+    });
   };
 
   const handleNext = () => {

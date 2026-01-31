@@ -87,7 +87,11 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
 
   const setWeightFromScroll = (nextWeight: number) => {
     suppressSyncRef.current = true;
-    setWeight(nextWeight);
+    setWeight((prev) => {
+      if (prev === nextWeight) return prev;
+      fireHapticImpact("light");
+      return nextWeight;
+    });
   };
 
   const handleListScroll = () => {

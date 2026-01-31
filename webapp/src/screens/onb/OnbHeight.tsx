@@ -89,7 +89,11 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
 
   const setHeightFromScroll = (nextHeight: number) => {
     suppressSyncRef.current = true;
-    setHeight(nextHeight);
+    setHeight((prev) => {
+      if (prev === nextHeight) return prev;
+      fireHapticImpact("light");
+      return nextHeight;
+    });
   };
 
   const handleListScroll = () => {
