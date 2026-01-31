@@ -706,7 +706,7 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     zIndex: 5,
     width: "max-content",
-    minWidth: 240,
+    minWidth: "unset",
     maxWidth: "calc(100vw - 48px)",
   },
   reminderOption: {
