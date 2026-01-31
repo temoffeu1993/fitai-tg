@@ -14,15 +14,16 @@ const HOLD_DURATION_MS = 1800;
 // ── Date picker (scroll-snap like OnbWeight) ──────────────────
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DATE_ITEM_W = 64; // px width of each date slot
-const DATE_COUNT = 30;
+const DATE_COUNT = 37;
+const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
-function buildDates(count: number): DateItem[] {
+function buildDates(count: number, offsetDays: number): DateItem[] {
   const now = new Date();
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i - offsetDays);
     return {
       date: d,
       dow: DAY_SHORT[d.getDay()],
@@ -45,8 +46,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const lastHapticRef = useRef<number>(0);
 
   // Date picker state (scroll-snap centered, like OnbWeight)
-  const dates = useMemo(() => buildDates(DATE_COUNT), []);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const dates = useMemo(() => buildDates(DATE_COUNT, DATE_PAST_DAYS), []);
+  const [activeIdx, setActiveIdx] = useState(DATE_PAST_DAYS);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
