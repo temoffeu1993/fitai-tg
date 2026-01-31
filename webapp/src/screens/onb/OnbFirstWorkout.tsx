@@ -62,6 +62,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
+  const [reminderWidth, setReminderWidth] = useState<number | null>(null);
   const reminderRef = useRef<HTMLDivElement>(null);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -208,6 +209,28 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       window.removeEventListener("touchstart", onClick);
     };
   }, [reminderOpen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const measurer = document.createElement("div");
+    measurer.style.position = "absolute";
+    measurer.style.visibility = "hidden";
+    measurer.style.pointerEvents = "none";
+    measurer.style.whiteSpace = "nowrap";
+    measurer.style.fontSize = "16px";
+    measurer.style.fontWeight = "500";
+    measurer.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    measurer.style.padding = "12px 16px";
+    document.body.appendChild(measurer);
+    let max = 0;
+    for (const opt of REMINDER_OPTIONS) {
+      measurer.textContent = opt;
+      max = Math.max(max, measurer.offsetWidth);
+    }
+    document.body.removeChild(measurer);
+    const viewportMax = typeof window !== "undefined" ? Math.max(0, window.innerWidth - 48) : max;
+    setReminderWidth(Math.min(max, viewportMax));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -477,7 +500,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           </button>
         </div>
         {reminderOpen && (
-          <div style={s.reminderList}>
+          <div
+            style={{
+              ...s.reminderList,
+              ...(reminderWidth ? { width: reminderWidth } : null),
+            }}
+          >
             {REMINDER_OPTIONS.map((opt) => (
               <button
                 key={opt}
@@ -705,14 +733,14 @@ const s: Record<string, React.CSSProperties> = {
       "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
     overflow: "hidden",
     zIndex: 5,
-    display: "inline-flex",
+    display: "flex",
     flexDirection: "column",
-    alignItems: "flex-start",
-    width: "fit-content",
+    alignItems: "stretch",
+    width: "auto",
     maxWidth: "calc(100vw - 48px)",
   },
   reminderOption: {
-    width: "auto",
+    width: "100%",
     padding: "12px 16px",
     border: "none",
     background: "transparent",
