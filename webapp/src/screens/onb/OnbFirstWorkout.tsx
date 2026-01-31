@@ -957,6 +957,8 @@ const s: Record<string, React.CSSProperties> = {
       "-1px 0 0 rgba(255,255,255,0.2), 1px 0 0 rgba(255,255,255,0.2), 0 -1px 0 rgba(255,255,255,0.25), 0 1px 0 rgba(0,0,0,0.25)",
     lineHeight: 1,
     scrollSnapAlign: "center",
+    background: "transparent",
+    boxShadow: "none",
     border: "none",
     padding: 0,
   },
@@ -968,5 +970,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     fontSize: 92,
     lineHeight: 1,
+    background: "transparent",
+    boxShadow: "none",
   },
 };
