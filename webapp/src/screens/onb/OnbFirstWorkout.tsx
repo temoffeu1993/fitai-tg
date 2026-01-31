@@ -806,7 +806,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(18px)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
-    overflow: "hidden",
+    overflow: "visible",
     alignSelf: "stretch",
     width: "100%",
     padding: "16px 14px 20px",
