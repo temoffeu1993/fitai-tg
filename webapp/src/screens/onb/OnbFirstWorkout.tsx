@@ -654,7 +654,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   timeWheel: {
-    borderRadius: 16,
+    borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     backdropFilter: "blur(18px)",
@@ -667,12 +667,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   timeIndicator: {
     position: "absolute",
-    left: 8,
-    right: 8,
+    left: "50%",
     top: "50%",
-    height: TIME_ITEM_H,
-    transform: "translateY(-50%)",
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    transform: "translate(-50%, -50%)",
+    borderRadius: 16,
     background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
     border: "1px solid rgba(255,255,255,0.85)",
     boxShadow:
@@ -719,13 +719,13 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     fontSize: 20,
     fontWeight: 500,
-    color: "rgba(30,31,34,0.45)",
+    color: "rgba(30,31,34,0.35)",
     scrollSnapAlign: "center",
   },
   timeItemActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 22,
+    fontSize: 24,
   },
   timeColon: {
     fontSize: 28,
