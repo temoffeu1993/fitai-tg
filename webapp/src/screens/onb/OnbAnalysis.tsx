@@ -559,11 +559,13 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     padding: "14px 16px",
     borderRadius: 16,
-    border: "1px solid rgba(15, 23, 42, 0.12)",
-    background: "rgba(255,255,255,0.9)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     color: "#0f172a",
     boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
   bubbleText: {
     fontSize: 18,
@@ -584,13 +586,11 @@ const s: Record<string, React.CSSProperties> = {
   mainCard: {
     borderRadius: 20,
     padding: "20px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow:
-      "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     opacity: 0,
   },
   mainCardHeader: {
@@ -742,12 +742,11 @@ const s: Record<string, React.CSSProperties> = {
   smallCard: {
     borderRadius: 16,
     padding: "16px 14px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
   smallCardHeader: {
     display: "flex",
@@ -786,13 +785,11 @@ const s: Record<string, React.CSSProperties> = {
   investmentCard: {
     borderRadius: 20,
     padding: "20px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow:
-      "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     opacity: 0,
   },
   investmentHeader: {
@@ -870,12 +867,11 @@ const s: Record<string, React.CSSProperties> = {
   timelineCard: {
     borderRadius: 16,
     padding: "16px 18px",
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.5)",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     opacity: 0,
   },
   timelineHeader: {
