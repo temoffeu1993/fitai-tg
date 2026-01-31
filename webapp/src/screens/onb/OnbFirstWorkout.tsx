@@ -62,6 +62,11 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const hourStopTimer = useRef<number | null>(null);
   const minuteStopTimer = useRef<number | null>(null);
 
+  // Ensure initial scroll aligns to today's date
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ left: activeIdx * DATE_ITEM_W, behavior: "auto" });
+  }, []);
+
   // Sync scroll → activeIdx (live highlight) + snap on stop
   const handleDateScroll = () => {
     if (scrollRafRef.current == null) {
@@ -557,9 +562,9 @@ const s: Record<string, React.CSSProperties> = {
   dateIndicator: {
     position: "absolute",
     left: "50%",
-    top: 6,
-    width: 68,
-    height: 68,
+    top: 8,
+    width: 64,
+    height: 64,
     transform: "translateX(-50%)",
     borderRadius: 16,
     background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
