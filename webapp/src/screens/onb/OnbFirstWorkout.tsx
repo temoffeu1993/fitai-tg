@@ -12,6 +12,11 @@ type Props = {
 const HOLD_DURATION_MS = 1800;
 
 const DATE_RANGE_DAYS = 14;
+const DATE_ITEM_WIDTH = 72;
+const DATE_ITEM_GAP = 8;
+const DATE_VISIBLE_COUNT = 5;
+const DATE_SIDE_PADDING = DATE_ITEM_WIDTH * 2 + DATE_ITEM_GAP * 2;
+const DATE_WRAP_WIDTH = DATE_ITEM_WIDTH * DATE_VISIBLE_COUNT + DATE_ITEM_GAP * (DATE_VISIBLE_COUNT - 1);
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
@@ -25,6 +30,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const scrollStopRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +52,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   useEffect(() => {
     return () => {
       if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
+      if (scrollStopRef.current) window.clearTimeout(scrollStopRef.current);
     };
   }, []);
 
@@ -76,6 +84,24 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       };
     });
   }, []);
+
+  const handleDateScroll = () => {
+    if (!scrollerRef.current) return;
+    if (scrollStopRef.current) window.clearTimeout(scrollStopRef.current);
+    scrollStopRef.current = window.setTimeout(() => {
+      const left = scrollerRef.current?.scrollLeft ?? 0;
+      const idx = Math.round(left / (DATE_ITEM_WIDTH + DATE_ITEM_GAP));
+      const next = dateItems[Math.max(0, Math.min(dateItems.length - 1, idx))];
+      if (next && next.iso !== date) setDate(next.iso);
+    }, 80);
+  };
+
+  useEffect(() => {
+    const idx = dateItems.findIndex((item) => item.iso === date);
+    if (idx === -1 || !scrollerRef.current) return;
+    const left = idx * (DATE_ITEM_WIDTH + DATE_ITEM_GAP);
+    scrollerRef.current.scrollTo({ left, behavior: "smooth" });
+  }, [date, dateItems]);
 
   const startHold = () => {
     if (!canConfirm || isHolding) return;
@@ -152,6 +178,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           border-right: 8px solid rgba(255,255,255,0.9);
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
+        .date-track-list::-webkit-scrollbar { display: none; }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
@@ -192,7 +219,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       <div style={s.dateScrollerWrap} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.dateScroller}>
+        <div style={s.dateFadeLeft} />
+        <div style={s.dateFadeRight} />
+        <div
+          ref={scrollerRef}
+          style={s.dateScroller}
+          className="date-track-list"
+          onScroll={handleDateScroll}
+        >
           {dateItems.map((item) => {
             const isActive = item.iso === date;
             return (
@@ -202,8 +236,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                 style={{ ...s.dateItem, ...(isActive ? s.dateItemActive : {}) }}
                 onClick={() => setDate(item.iso)}
               >
-                <div style={s.dateWeekday}>{item.weekday}</div>
-                <div style={s.dateNumber}>{item.day}</div>
+                <div style={{ ...s.dateWeekday, ...(isActive ? s.dateWeekdayActive : {}) }}>
+                  {item.weekday}
+                </div>
+                <div style={{ ...s.dateNumber, ...(isActive ? s.dateNumberActive : {}) }}>
+                  {item.day}
+                </div>
               </button>
             );
           })}
@@ -300,25 +338,49 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
   },
   dateScrollerWrap: {
-    background: "rgba(255,255,255,0.9)",
-    borderRadius: 20,
-    border: "1px solid rgba(15, 23, 42, 0.08)",
-    padding: "10px 6px",
-    boxShadow: "0 10px 24px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    marginTop: 6,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    overflow: "hidden",
+    width: DATE_WRAP_WIDTH,
+    alignSelf: "center",
+  },
+  dateFadeLeft: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: DATE_ITEM_WIDTH,
+    background: "linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  dateFadeRight: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: DATE_ITEM_WIDTH,
+    background: "linear-gradient(270deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
   },
   dateScroller: {
     display: "flex",
-    gap: 12,
+    gap: DATE_ITEM_GAP,
     overflowX: "auto",
-    padding: "4px 8px",
+    padding: `10px ${DATE_SIDE_PADDING}px 12px`,
     scrollSnapType: "x mandatory",
     WebkitOverflowScrolling: "touch",
   },
   dateItem: {
-    minWidth: 72,
-    padding: "10px 12px",
+    minWidth: DATE_ITEM_WIDTH,
+    padding: "10px 10px",
     borderRadius: 16,
     border: "1px solid transparent",
     background: "transparent",
@@ -331,8 +393,8 @@ const s: Record<string, React.CSSProperties> = {
     transition: "background 180ms ease, border-color 180ms ease, transform 180ms ease",
   },
   dateItemActive: {
-    background: "rgba(15, 23, 42, 0.06)",
-    borderColor: "rgba(15, 23, 42, 0.08)",
+    background: "#0f172a",
+    borderColor: "rgba(15, 23, 42, 0.2)",
     transform: "translateY(-1px)",
   },
   dateWeekday: {
@@ -340,10 +402,16 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: "rgba(15, 23, 42, 0.6)",
   },
+  dateWeekdayActive: {
+    color: "rgba(255,255,255,0.9)",
+  },
   dateNumber: {
     fontSize: 20,
     fontWeight: 700,
     color: "#0f172a",
+  },
+  dateNumberActive: {
+    color: "#fff",
   },
   actions: {
     position: "fixed",
