@@ -194,8 +194,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       </div>
 
       <div style={s.ageWrap} className="onb-fade onb-fade-delay-3">
-        <div style={s.ageLineTop} />
-        <div style={s.ageLineBottom} />
+        <div style={s.ageIndicator} />
         <div style={s.ageFadeTop} />
         <div style={s.ageFadeBottom} />
         <div
@@ -334,25 +333,22 @@ const s: Record<string, React.CSSProperties> = {
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
   },
-  ageLineTop: {
+  ageIndicator: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: "50%",
     top: "50%",
-    height: 1,
-    transform: `translateY(-${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
+    width: ITEM_HEIGHT + 8,
+    height: ITEM_HEIGHT + 8,
+    transform: "translate(-50%, -50%)",
+    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     pointerEvents: "none",
-  },
-  ageLineBottom: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: "50%",
-    height: 1,
-    transform: `translateY(${ITEM_HEIGHT / 2}px)`,
-    background: "rgba(15, 23, 42, 0.18)",
-    pointerEvents: "none",
+    zIndex: 1,
   },
   ageFadeTop: {
     position: "absolute",
