@@ -334,68 +334,70 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       </div>
 
       <div
-        style={s.timeRow}
+        style={s.timeWrap}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
       >
-        <div style={s.timeWheel}>
-          <div style={s.timeIndicator} />
-          <div style={s.timeFadeTop} />
-          <div style={s.timeFadeBottom} />
-          <div
-            ref={hourRef}
-            style={s.timeList}
-            className="time-track"
-            onScroll={handleHourScroll}
-          >
-            <div style={{ height: TIME_ITEM_H }} />
-            {hours.map((h) => (
-              <button
-                key={h}
-                type="button"
-                className="time-item"
-                style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
-                onClick={() => {
-                  setActiveHour(h);
-                  hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
-                  fireHapticImpact("light");
-                }}
-              >
-                {String(h).padStart(2, "0")}
-              </button>
-            ))}
-            <div style={{ height: TIME_ITEM_H }} />
+        <div style={s.timeInner}>
+          <div style={s.timeColWrap}>
+            <div style={s.timeIndicator} />
+            <div style={s.timeFadeTop} />
+            <div style={s.timeFadeBottom} />
+            <div
+              ref={hourRef}
+              style={s.timeList}
+              className="time-track"
+              onScroll={handleHourScroll}
+            >
+              <div style={{ height: TIME_ITEM_H }} />
+              {hours.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="time-item"
+                  style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
+                  onClick={() => {
+                    setActiveHour(h);
+                    hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(h).padStart(2, "0")}
+                </button>
+              ))}
+              <div style={{ height: TIME_ITEM_H }} />
+            </div>
           </div>
-        </div>
 
-        <div style={s.timeColon}>:</div>
+          <div style={s.timeColon}>:</div>
 
-        <div style={s.timeWheel}>
-          <div style={s.timeIndicator} />
-          <div style={s.timeFadeTop} />
-          <div style={s.timeFadeBottom} />
-          <div
-            ref={minuteRef}
-            style={s.timeList}
-            className="time-track"
-            onScroll={handleMinuteScroll}
-          >
-            <div style={{ height: TIME_ITEM_H }} />
-            {minutes.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="time-item"
-                style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
-                onClick={() => {
-                  setActiveMinute(m);
-                  minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
-                  fireHapticImpact("light");
-                }}
-              >
-                {String(m).padStart(2, "0")}
-              </button>
-            ))}
-            <div style={{ height: TIME_ITEM_H }} />
+          <div style={s.timeColWrap}>
+            <div style={s.timeIndicator} />
+            <div style={s.timeFadeTop} />
+            <div style={s.timeFadeBottom} />
+            <div
+              ref={minuteRef}
+              style={s.timeList}
+              className="time-track"
+              onScroll={handleMinuteScroll}
+            >
+              <div style={{ height: TIME_ITEM_H }} />
+              {minutes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className="time-item"
+                  style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
+                  onClick={() => {
+                    setActiveMinute(m);
+                    minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {String(m).padStart(2, "0")}
+                </button>
+              ))}
+              <div style={{ height: TIME_ITEM_H }} />
+            </div>
           </div>
         </div>
       </div>
@@ -646,14 +648,8 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   // ── Time picker (vertical wheels) ───────────────────────
-  timeRow: {
+  timeWrap: {
     marginTop: 12,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  timeWheel: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
@@ -662,8 +658,19 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
-    width: "min(90px, 28vw)",
+    width: DATE_ITEM_W * DATE_VISIBLE,
+    alignSelf: "center",
     height: TIME_ITEM_H * 3,
+  },
+  timeInner: {
+    position: "relative",
+    zIndex: 2,
+    height: "100%",
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
+    alignItems: "center",
+    gap: 10,
+    padding: "0 10px",
   },
   timeIndicator: {
     position: "absolute",
@@ -682,6 +689,11 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 1,
   },
+  timeColWrap: {
+    position: "relative",
+    height: "100%",
+    overflow: "hidden",
+  },
   timeFadeTop: {
     position: "absolute",
     left: 0,
@@ -690,7 +702,7 @@ const s: Record<string, React.CSSProperties> = {
     height: TIME_ITEM_H,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
-    zIndex: 2,
+    zIndex: 3,
   },
   timeFadeBottom: {
     position: "absolute",
@@ -700,7 +712,7 @@ const s: Record<string, React.CSSProperties> = {
     height: TIME_ITEM_H,
     background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
-    zIndex: 2,
+    zIndex: 3,
   },
   timeList: {
     maxHeight: "100%",
@@ -709,7 +721,7 @@ const s: Record<string, React.CSSProperties> = {
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
     position: "relative",
-    zIndex: 0,
+    zIndex: 1,
   },
   timeItem: {
     width: "100%",
