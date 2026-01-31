@@ -11,14 +11,26 @@ type Props = {
 
 const HOLD_DURATION_MS = 1800;
 
-// ── Date helpers ────────────────────────────────────────────────
+// ── Date picker (scroll-snap like OnbWeight) ──────────────────
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTH_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+const DATE_ITEM_W = 64; // px width of each date slot
+const DATE_COUNT = 14;
+const DATE_VISIBLE = 5;
 
-function buildDates(count = 14) {
+type DateItem = { date: Date; dow: string; day: number; monthLabel: string; idx: number };
+
+function buildDates(count: number): DateItem[] {
   const now = new Date();
   return Array.from({ length: count }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    return { date: d, dow: DAY_SHORT[d.getDay()], day: d.getDate() };
+    return {
+      date: d,
+      dow: DAY_SHORT[d.getDay()],
+      day: d.getDate(),
+      monthLabel: MONTH_SHORT[d.getMonth()],
+      idx: i,
+    };
   });
 }
 
@@ -34,10 +46,34 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
 
-  // Date picker state
-  const dates = useMemo(() => buildDates(14), []);
+  // Date picker state (scroll-snap centered, like OnbWeight)
+  const dates = useMemo(() => buildDates(DATE_COUNT), []);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const suppressSyncRef = useRef(false);
+  const scrollStopTimer = useRef<number | null>(null);
+
+  // Sync scroll → selectedIdx on scroll stop
+  const handleDateScroll = () => {
+    if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
+    scrollStopTimer.current = window.setTimeout(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
+      const clamped = Math.max(0, Math.min(idx, dates.length - 1));
+      if (clamped !== selectedIdx) {
+        suppressSyncRef.current = true;
+        setSelectedIdx(clamped);
+        fireHapticImpact("light");
+      }
+    }, 60);
+  };
+
+  // Sync selectedIdx → scroll position
+  useEffect(() => {
+    if (suppressSyncRef.current) { suppressSyncRef.current = false; return; }
+    scrollRef.current?.scrollTo({ left: selectedIdx * DATE_ITEM_W, behavior: "smooth" });
+  }, [selectedIdx]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,14 +184,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           border-right: 8px solid rgba(255,255,255,0.9);
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
-        .date-scroller::-webkit-scrollbar { display: none; }
-        .date-chip {
-          appearance: none; outline: none; cursor: pointer;
+        .date-track::-webkit-scrollbar { display: none; }
+        .date-item {
+          appearance: none; outline: none; border: none; cursor: pointer;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
-          transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
         }
-        .date-chip:active { transform: scale(0.93); }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
@@ -195,48 +229,44 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
       </div>
 
-      {/* Date picker card */}
+      {/* Date picker — scroll-snap scroller like OnbWeight */}
       <div
-        style={s.dateCard}
+        style={s.dateWrap}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
       >
-        <div style={s.dateFadeLeft} />
-        <div style={s.dateFadeRight} />
+        <div style={s.dateIndicator} />
+        <div style={s.dateFadeL} />
+        <div style={s.dateFadeR} />
         <div
           ref={scrollRef}
-          style={s.dateScroller}
-          className="date-scroller"
+          style={s.dateTrack}
+          className="date-track"
+          onScroll={handleDateScroll}
         >
-          <div style={s.dateRow}>
-            {dates.map((d, idx) => {
-              const active = idx === selectedIdx;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  className="date-chip"
-                  style={{
-                    ...s.dateChip,
-                    ...(active ? s.dateChipActive : undefined),
-                  }}
-                  onClick={() => {
-                    fireHapticImpact("light");
-                    setSelectedIdx(idx);
-                  }}
-                >
-                  <span style={{
-                    ...s.dateDow,
-                    color: active ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.4)",
-                  }}>{d.dow}</span>
-                  <span style={{
-                    ...s.dateDay,
-                    color: active ? "#fff" : "rgba(30,31,34,0.35)",
-                    fontWeight: active ? 700 : 500,
-                  }}>{d.day}</span>
-                </button>
-              );
-            })}
-          </div>
+          {dates.map((d, idx) => {
+            const active = idx === selectedIdx;
+            return (
+              <button
+                key={idx}
+                type="button"
+                className="date-item"
+                style={{ ...s.dateItem, scrollSnapAlign: "center" }}
+                onClick={() => {
+                  fireHapticImpact("light");
+                  setSelectedIdx(idx);
+                }}
+              >
+                <span style={{
+                  ...s.dateDow,
+                  ...(active ? s.dateDowActive : undefined),
+                }}>{d.dow}</span>
+            <span style={{
+              ...s.dateNum,
+              ...(active ? s.dateNumActive : undefined),
+            }}>{d.day}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -386,79 +416,99 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
 
-  // ── Date picker card ──────────────────────────────────────
-  dateCard: {
-    borderRadius: 20,
-    padding: "10px 0",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
+  // ── Date picker (scroll-snap centered) ───────────────────
+  dateWrap: {
+    borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "hidden",
+    alignSelf: "center",
+    width: DATE_ITEM_W * DATE_VISIBLE,
   },
-  // Fade edges: left + right gradient masks
-  dateFadeLeft: {
+  dateIndicator: {
     position: "absolute",
+    left: "50%",
+    top: 18,
+    width: 48,
+    height: 48,
+    transform: "translateX(-50%)",
+    borderRadius: 12,
+    background: "#1e1f22",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  dateFadeL: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
     left: 0,
-    top: 0,
-    bottom: 0,
-    width: 28,
-    background: "linear-gradient(to right, rgba(255,255,255,0.95) 0%, transparent 100%)",
-    zIndex: 2,
+    width: DATE_ITEM_W * 1.2,
+    background: "linear-gradient(90deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
-    borderRadius: "20px 0 0 20px",
+    zIndex: 3,
   },
-  dateFadeRight: {
+  dateFadeR: {
     position: "absolute",
-    right: 0,
     top: 0,
     bottom: 0,
-    width: 28,
-    background: "linear-gradient(to left, rgba(255,255,255,0.95) 0%, transparent 100%)",
-    zIndex: 2,
+    right: 0,
+    width: DATE_ITEM_W * 1.2,
+    background: "linear-gradient(270deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
-    borderRadius: "0 20px 20px 0",
+    zIndex: 3,
   },
-  dateScroller: {
+  dateTrack: {
     overflowX: "auto",
     overflowY: "hidden",
+    whiteSpace: "nowrap",
+    scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    paddingLeft: 8,
-    paddingRight: 8,
-  },
-  dateRow: {
+    padding: "18px 0 16px",
+    paddingLeft: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+    paddingRight: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+    position: "relative",
+    zIndex: 2,
     display: "flex",
-    gap: 0,
-    width: "max-content",
   },
-  dateChip: {
-    display: "flex",
+  dateItem: {
+    width: DATE_ITEM_W,
+    minWidth: DATE_ITEM_W,
+    display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
-    width: 52,
-    minWidth: 52,
-    padding: "6px 0",
-    borderRadius: 12,
-    border: "none",
+    padding: 0,
     background: "transparent",
-  },
-  dateChipActive: {
-    background: "#1e1f22",
+    cursor: "pointer",
   },
   dateDow: {
     fontSize: 12,
     fontWeight: 500,
+    color: "rgba(30,31,34,0.35)",
     lineHeight: 1,
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
-  dateDay: {
-    fontSize: 20,
-    lineHeight: 1.2,
+  dateDowActive: {
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: 600,
+  },
+  dateNum: {
+    fontSize: 24,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.3)",
+    lineHeight: 1.3,
+  },
+  dateNumActive: {
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 26,
   },
 };
