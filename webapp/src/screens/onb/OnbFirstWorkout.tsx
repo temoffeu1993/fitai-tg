@@ -772,7 +772,7 @@ const s: Record<string, React.CSSProperties> = {
     right: 0,
     left: "auto",
     transform: "none",
-    bottom: "calc(100% + 10px)",
+    bottom: "calc(100% + 4px)",
     borderRadius: 16,
     border: "1px solid rgba(255,255,255,0.65)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
@@ -780,7 +780,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(20px)",
     boxShadow:
       "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
-    overflow: "hidden",
+    overflow: "visible",
     zIndex: 5,
     display: "flex",
     flexDirection: "column",
