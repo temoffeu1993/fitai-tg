@@ -17,6 +17,7 @@ const DATE_ITEM_W = 64; // px width of each date slot
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
+const TIME_ITEM_H = 44;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -52,6 +53,15 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
 
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const [activeHour, setActiveHour] = useState(() => new Date().getHours());
+  const [activeMinute, setActiveMinute] = useState(() => new Date().getMinutes());
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minuteRef = useRef<HTMLDivElement>(null);
+  const hourStopTimer = useRef<number | null>(null);
+  const minuteStopTimer = useRef<number | null>(null);
+
   // Sync scroll → activeIdx (live highlight) + snap on stop
   const handleDateScroll = () => {
     if (scrollRafRef.current == null) {
@@ -77,9 +87,42 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   };
 
   useEffect(() => {
+    hourRef.current?.scrollTo({ top: activeHour * TIME_ITEM_H, behavior: "auto" });
+    minuteRef.current?.scrollTo({ top: activeMinute * TIME_ITEM_H, behavior: "auto" });
+  }, []);
+
+  const handleHourScroll = () => {
+    if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
+    const el = hourRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+    const clamped = Math.max(0, Math.min(idx, hours.length - 1));
+    if (clamped !== activeHour) setActiveHour(clamped);
+    hourStopTimer.current = window.setTimeout(() => {
+      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
+      fireHapticImpact("light");
+    }, 80);
+  };
+
+  const handleMinuteScroll = () => {
+    if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
+    const el = minuteRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / TIME_ITEM_H);
+    const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
+    if (clamped !== activeMinute) setActiveMinute(clamped);
+    minuteStopTimer.current = window.setTimeout(() => {
+      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
+      fireHapticImpact("light");
+    }, 80);
+  };
+
+  useEffect(() => {
     return () => {
       if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
       if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
+      if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
+      if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
     };
   }, []);
 
@@ -198,6 +241,12 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
         }
+        .time-track::-webkit-scrollbar { display: none; }
+        .time-item {
+          appearance: none; outline: none; border: none; cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+        }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
@@ -276,6 +325,73 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div
+        style={s.timeRow}
+        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
+      >
+        <div style={s.timeWheel}>
+          <div style={s.timeIndicator} />
+          <div style={s.timeFadeTop} />
+          <div style={s.timeFadeBottom} />
+          <div
+            ref={hourRef}
+            style={s.timeList}
+            className="time-track"
+            onScroll={handleHourScroll}
+          >
+            <div style={{ height: TIME_ITEM_H }} />
+            {hours.map((h) => (
+              <button
+                key={h}
+                type="button"
+                className="time-item"
+                style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
+                onClick={() => {
+                  setActiveHour(h);
+                  hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
+                  fireHapticImpact("light");
+                }}
+              >
+                {String(h).padStart(2, "0")}
+              </button>
+            ))}
+            <div style={{ height: TIME_ITEM_H }} />
+          </div>
+        </div>
+
+        <div style={s.timeColon}>:</div>
+
+        <div style={s.timeWheel}>
+          <div style={s.timeIndicator} />
+          <div style={s.timeFadeTop} />
+          <div style={s.timeFadeBottom} />
+          <div
+            ref={minuteRef}
+            style={s.timeList}
+            className="time-track"
+            onScroll={handleMinuteScroll}
+          >
+            <div style={{ height: TIME_ITEM_H }} />
+            {minutes.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className="time-item"
+                style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
+                onClick={() => {
+                  setActiveMinute(m);
+                  minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
+                  fireHapticImpact("light");
+                }}
+              >
+                {String(m).padStart(2, "0")}
+              </button>
+            ))}
+            <div style={{ height: TIME_ITEM_H }} />
+          </div>
         </div>
       </div>
 
@@ -522,5 +638,94 @@ const s: Record<string, React.CSSProperties> = {
     color: "#111",
     fontWeight: 700,
     fontSize: 26,
+  },
+
+  // ── Time picker (vertical wheels) ───────────────────────
+  timeRow: {
+    marginTop: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  timeWheel: {
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    overflow: "hidden",
+    width: "min(90px, 28vw)",
+    height: TIME_ITEM_H * 3,
+  },
+  timeIndicator: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    top: "50%",
+    height: TIME_ITEM_H,
+    transform: "translateY(-50%)",
+    borderRadius: 12,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  timeFadeTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: TIME_ITEM_H,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  timeFadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: TIME_ITEM_H,
+    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  timeList: {
+    maxHeight: "100%",
+    overflowY: "auto",
+    scrollSnapType: "y proximity",
+    scrollbarWidth: "none",
+    WebkitOverflowScrolling: "touch",
+    position: "relative",
+    zIndex: 0,
+  },
+  timeItem: {
+    width: "100%",
+    height: TIME_ITEM_H,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 20,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.45)",
+    scrollSnapAlign: "center",
+  },
+  timeItemActive: {
+    color: "#111",
+    fontWeight: 700,
+    fontSize: 22,
+  },
+  timeColon: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: "#1e1f22",
+    transform: "translateY(-2px)",
   },
 };
