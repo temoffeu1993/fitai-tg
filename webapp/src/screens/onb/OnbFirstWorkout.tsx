@@ -494,7 +494,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
             onPointerCancel={stopHold}
             disabled={!canConfirm}
           >
-            {confirmed ? "Записано! ✅" : "Далее"}
+            {confirmed ? "Записано! ✅" : "Запланировать"}
           </button>
         </div>
         <button
