@@ -18,8 +18,8 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
 const TIME_ITEM_H = 44;
-const TIME_VISIBLE = 5;
-const TIME_FADE_H = TIME_ITEM_H * 2;
+const TIME_VISIBLE = 3;
+const TIME_FADE_H = TIME_ITEM_H;
 const TIME_COL_W = DATE_ITEM_W;
 const TIME_COL_GAP = 14;
 const TIME_INDICATOR_OFFSET = TIME_COL_W / 2 + TIME_COL_GAP / 2;
@@ -385,7 +385,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               className="time-track"
               onScroll={handleHourScroll}
             >
-              <div style={{ height: TIME_ITEM_H * 2 }} />
+              <div style={{ height: TIME_ITEM_H }} />
               {hours.map((h) => (
                 <button
                   key={h}
@@ -401,7 +401,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                   {String(h).padStart(2, "0")}
                 </button>
               ))}
-              <div style={{ height: TIME_ITEM_H * 2 }} />
+              <div style={{ height: TIME_ITEM_H }} />
             </div>
           </div>
 
@@ -412,7 +412,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               className="time-track"
               onScroll={handleMinuteScroll}
             >
-              <div style={{ height: TIME_ITEM_H * 2 }} />
+              <div style={{ height: TIME_ITEM_H }} />
               {minutes.map((m) => (
                 <button
                   key={m}
@@ -428,7 +428,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                   {String(m).padStart(2, "0")}
                 </button>
               ))}
-              <div style={{ height: TIME_ITEM_H * 2 }} />
+              <div style={{ height: TIME_ITEM_H }} />
             </div>
           </div>
         </div>
