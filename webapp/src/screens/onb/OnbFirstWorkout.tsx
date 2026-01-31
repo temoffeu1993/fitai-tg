@@ -18,6 +18,9 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
 const TIME_ITEM_H = 44;
+const TIME_COL_W = DATE_ITEM_W;
+const TIME_COL_GAP = 14;
+const TIME_INDICATOR_OFFSET = TIME_COL_W / 2 + TIME_COL_GAP / 2;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -53,18 +56,30 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
 
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
-  const [activeHour, setActiveHour] = useState(() => new Date().getHours());
-  const [activeMinute, setActiveMinute] = useState(() => new Date().getMinutes());
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
-  const hourStopTimer = useRef<number | null>(null);
-  const minuteStopTimer = useRef<number | null>(null);
+  const timeItems = useMemo(
+    () =>
+      Array.from({ length: 24 * 60 }, (_, i) => ({
+        h: Math.floor(i / 60),
+        m: i % 60,
+        idx: i,
+      })),
+    []
+  );
+  const [activeTimeIdx, setActiveTimeIdx] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
+  const timeRef = useRef<HTMLDivElement>(null);
+  const timeStopTimer = useRef<number | null>(null);
 
   // Ensure initial scroll aligns to today's date
   useEffect(() => {
     scrollRef.current?.scrollTo({ left: activeIdx * DATE_ITEM_W, behavior: "auto" });
+  }, []);
+
+  // Ensure initial scroll aligns to current time
+  useEffect(() => {
+    timeRef.current?.scrollTo({ top: activeTimeIdx * TIME_ITEM_H, behavior: "auto" });
   }, []);
 
   // Sync scroll → activeIdx (live highlight) + snap on stop
@@ -91,32 +106,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     }, 80);
   };
 
-  useEffect(() => {
-    hourRef.current?.scrollTo({ top: activeHour * TIME_ITEM_H, behavior: "auto" });
-    minuteRef.current?.scrollTo({ top: activeMinute * TIME_ITEM_H, behavior: "auto" });
-  }, []);
-
-  const handleHourScroll = () => {
-    if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
-    const el = hourRef.current;
+  const handleTimeScroll = () => {
+    if (timeStopTimer.current) window.clearTimeout(timeStopTimer.current);
+    const el = timeRef.current;
     if (!el) return;
     const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-    const clamped = Math.max(0, Math.min(idx, hours.length - 1));
-    if (clamped !== activeHour) setActiveHour(clamped);
-    hourStopTimer.current = window.setTimeout(() => {
-      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
-      fireHapticImpact("light");
-    }, 80);
-  };
-
-  const handleMinuteScroll = () => {
-    if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
-    const el = minuteRef.current;
-    if (!el) return;
-    const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-    const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
-    if (clamped !== activeMinute) setActiveMinute(clamped);
-    minuteStopTimer.current = window.setTimeout(() => {
+    const clamped = Math.max(0, Math.min(idx, timeItems.length - 1));
+    if (clamped !== activeTimeIdx) setActiveTimeIdx(clamped);
+    timeStopTimer.current = window.setTimeout(() => {
       el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
@@ -126,8 +123,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return () => {
       if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
       if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
-      if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
-      if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
+      if (timeStopTimer.current) window.clearTimeout(timeStopTimer.current);
     };
   }, []);
 
@@ -337,68 +333,38 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         style={s.timeWrap}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
       >
-        <div style={s.timeInner}>
-          <div style={s.timeColWrap}>
-            <div style={s.timeIndicator} />
-            <div style={s.timeFadeTop} />
-            <div style={s.timeFadeBottom} />
-            <div
-              ref={hourRef}
-              style={s.timeList}
-              className="time-track"
-              onScroll={handleHourScroll}
-            >
-              <div style={{ height: TIME_ITEM_H }} />
-              {hours.map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  className="time-item"
-                  style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    setActiveHour(h);
-                    hourRef.current?.scrollTo({ top: h * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {String(h).padStart(2, "0")}
-                </button>
-              ))}
-              <div style={{ height: TIME_ITEM_H }} />
-            </div>
-          </div>
-
-          <div style={s.timeColon}>:</div>
-
-          <div style={s.timeColWrap}>
-            <div style={s.timeIndicator} />
-            <div style={s.timeFadeTop} />
-            <div style={s.timeFadeBottom} />
-            <div
-              ref={minuteRef}
-              style={s.timeList}
-              className="time-track"
-              onScroll={handleMinuteScroll}
-            >
-              <div style={{ height: TIME_ITEM_H }} />
-              {minutes.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  className="time-item"
-                  style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    setActiveMinute(m);
-                    minuteRef.current?.scrollTo({ top: m * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {String(m).padStart(2, "0")}
-                </button>
-              ))}
-              <div style={{ height: TIME_ITEM_H }} />
-            </div>
-          </div>
+        <div style={s.timeIndicatorLeft} />
+        <div style={s.timeIndicatorRight} />
+        <div style={s.timeFadeTop} />
+        <div style={s.timeFadeBottom} />
+        <div
+          ref={timeRef}
+          style={s.timeList}
+          className="time-track"
+          onScroll={handleTimeScroll}
+        >
+          <div style={{ height: TIME_ITEM_H }} />
+          {timeItems.map((t) => {
+            const active = t.idx === activeTimeIdx;
+            return (
+              <button
+                key={t.idx}
+                type="button"
+                className="time-item"
+                style={{ ...s.timeItem, ...(active ? s.timeItemActive : {}) }}
+                onClick={() => {
+                  setActiveTimeIdx(t.idx);
+                  timeRef.current?.scrollTo({ top: t.idx * TIME_ITEM_H, behavior: "smooth" });
+                  fireHapticImpact("light");
+                }}
+              >
+                <span style={s.timeValue}>{String(t.h).padStart(2, "0")}</span>
+                <span style={s.timeColon}>:</span>
+                <span style={s.timeValue}>{String(t.m).padStart(2, "0")}</span>
+              </button>
+            );
+          })}
+          <div style={{ height: TIME_ITEM_H }} />
         </div>
       </div>
 
@@ -662,23 +628,13 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: "center",
     height: TIME_ITEM_H * 3,
   },
-  timeInner: {
-    position: "relative",
-    zIndex: 2,
-    height: "100%",
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    gap: 10,
-    padding: "0 10px",
-  },
-  timeIndicator: {
+  timeIndicatorLeft: {
     position: "absolute",
     left: "50%",
     top: "50%",
     width: 64,
     height: 64,
-    transform: "translate(-50%, -50%)",
+    transform: `translate(-50%, -50%) translateX(-${TIME_INDICATOR_OFFSET}px)`,
     borderRadius: 16,
     background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
     border: "1px solid rgba(255,255,255,0.85)",
@@ -689,10 +645,22 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 1,
   },
-  timeColWrap: {
-    position: "relative",
-    height: "100%",
-    overflow: "hidden",
+  timeIndicatorRight: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 64,
+    height: 64,
+    transform: `translate(-50%, -50%) translateX(${TIME_INDICATOR_OFFSET}px)`,
+    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    pointerEvents: "none",
+    zIndex: 1,
   },
   timeFadeTop: {
     position: "absolute",
@@ -716,33 +684,47 @@ const s: Record<string, React.CSSProperties> = {
   },
   timeList: {
     maxHeight: "100%",
+    width: "100%",
     overflowY: "auto",
     scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
     position: "relative",
-    zIndex: 1,
+    zIndex: 2,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "0 8px",
   },
   timeItem: {
     width: "100%",
     height: TIME_ITEM_H,
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: `${TIME_COL_W}px ${TIME_COL_GAP}px ${TIME_COL_W}px`,
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 500,
     color: "rgba(30,31,34,0.35)",
     scrollSnapAlign: "center",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+  },
+  timeValue: {
+    textAlign: "center",
+    width: "100%",
   },
   timeItemActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 24,
+    fontSize: 26,
   },
   timeColon: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#1e1f22",
-    transform: "translateY(-2px)",
+    textAlign: "center",
+    fontSize: "inherit",
+    fontWeight: "inherit",
+    color: "inherit",
+    lineHeight: 1,
   },
 };
