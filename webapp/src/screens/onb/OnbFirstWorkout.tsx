@@ -25,12 +25,12 @@ const TIME_COL_GAP = 14;
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
 const REMINDER_OPTIONS = [
-  "Не напоминать",
-  "В момент события",
-  "За 5 минут",
-  "За 15 минут",
-  "За 30 минут",
   "За 1 час",
+  "За 30 минут",
+  "За 15 минут",
+  "За 5 минут",
+  "В момент события",
+  "Не напоминать",
   "За 1 день",
 ];
 
@@ -55,7 +55,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
-  const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[3]);
+  const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
   const reminderRef = useRef<HTMLDivElement>(null);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -442,7 +442,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               setReminderOpen((v) => !v);
             }}
           >
-            <span style={s.reminderLabel}>🔔 Уведомления</span>
+            <span style={s.reminderLabel}>🔔 Напомнить</span>
             <span style={s.reminderValue}>
               <span>{reminderValue}</span>
               <span style={s.reminderChevrons}>
