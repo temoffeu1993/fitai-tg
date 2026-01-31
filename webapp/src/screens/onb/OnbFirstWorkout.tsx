@@ -1,7 +1,6 @@
 // webapp/src/screens/onb/OnbFirstWorkout.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
@@ -12,57 +11,11 @@ type Props = {
 
 const HOLD_DURATION_MS = 1800;
 
-const REMINDER_OPTIONS = [
-  "Без напоминания",
-  "За 15 минут",
-  "За 30 минут",
-  "За 1 час",
-  "За 2 часа",
-  "За 1 день",
-];
-
-function normalizeLabel(raw?: string): string {
-  if (!raw) return "";
-  return raw.toLowerCase();
-}
-
-function formatDateLabel(value: string): string {
-  if (!value) return "Выбрать";
-  const dt = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return value;
-  return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-}
-
-function formatTimeLabel(value: string): string {
-  if (!value) return "Выбрать";
-  return value;
-}
-
-function getFirstWorkoutTitle(scheme?: WorkoutScheme): string {
-  if (!scheme) return "Первая тренировка";
-  const raw = scheme.dayLabels?.[0]?.label || scheme.dayLabels?.[0]?.focus || scheme.name || "";
-  const t = normalizeLabel(raw);
-  if (/push|жим/.test(t)) return "Грудь, плечи, трицепс";
-  if (/pull|тяга/.test(t)) return "Спина, бицепс";
-  if (/legs|ног/.test(t)) return "Ноги, ягодицы";
-  if (/upper|верх/.test(t)) return "Верх тела";
-  if (/lower|низ/.test(t)) return "Низ тела";
-  if (/full|всё тело|все тело/.test(t)) return "Всё тело";
-  if (/glute|ягод/.test(t)) return "Ягодицы";
-  if (/chest|груд/.test(t)) return "Грудь";
-  if (/back|спин/.test(t)) return "Спина";
-  if (/shoulder|плеч/.test(t)) return "Плечи";
-  if (/arms|рук/.test(t)) return "Руки";
-  if (/core|кор|пресс/.test(t)) return "Кор";
-  return raw || "Первая тренировка";
-}
+const DATE_RANGE_DAYS = 14;
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
-  const [scheme, setScheme] = useState<WorkoutScheme | null>(null);
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState<string>("");
-  const [reminder, setReminder] = useState(REMINDER_OPTIONS[3]);
   const [mascotReady, setMascotReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
@@ -72,19 +25,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const selected = await getSelectedScheme();
-        if (mounted) setScheme(selected);
-      } catch {
-        if (mounted) setScheme(null);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,9 +58,24 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return () => window.clearTimeout(t);
   }, []);
 
-  const firstTitle = getFirstWorkoutTitle(scheme || undefined);
+  const canConfirm = Boolean(date) && !confirmed;
 
-  const canConfirm = Boolean(date && time) && !confirmed;
+  const dateItems = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return Array.from({ length: DATE_RANGE_DAYS }).map((_, idx) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + idx);
+      const iso = d.toISOString().slice(0, 10);
+      const weekdayRaw = d.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "");
+      const weekday = weekdayRaw.charAt(0).toUpperCase() + weekdayRaw.slice(1);
+      return {
+        iso,
+        weekday,
+        day: d.getDate(),
+      };
+    });
+  }, []);
 
   const startHold = () => {
     if (!canConfirm || isHolding) return;
@@ -236,67 +191,22 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         </div>
       </div>
 
-      {/* Main Card */}
-      <div style={s.mainCard} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.mainCardTop}>
-          <div style={s.mainCardHeader}>
-            <span style={s.cardIcon}>🚀</span>
-            <span style={s.cardLabel}>Первая тренировка</span>
-          </div>
-          <div style={s.strategyFocus}>{firstTitle}</div>
-          <p style={s.strategyDesc}>
-            Выбери удобное время, чтобы я напомнил, когда пора собираться.
-          </p>
-        </div>
-
-        {/* Date + Time Grid */}
-        <div style={s.gridRow}>
-          <div style={s.smallCard}>
-            <div style={s.smallCardHeader}>
-              <span style={s.smallCardIcon}>📅</span>
-              <span style={s.smallCardLabel}>Дата</span>
-            </div>
-            <div style={s.valueChip}>{formatDateLabel(date)}</div>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={s.cardInput}
-            />
-          </div>
-          <div style={s.smallCard}>
-            <div style={s.smallCardHeader}>
-              <span style={s.smallCardIcon}>⏰</span>
-              <span style={s.smallCardLabel}>Время</span>
-            </div>
-            <div style={s.valueChip}>{formatTimeLabel(time)}</div>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              style={s.cardInput}
-            />
-          </div>
-        </div>
-
-        {/* Notifications */}
-        <div style={s.smallCardWide}>
-          <div style={s.inlineRow}>
-            <div style={s.smallCardHeader}>
-              <span style={s.smallCardIcon}>🔔</span>
-              <span style={s.smallCardLabel}>Уведомления</span>
-            </div>
-            <div style={s.valueChip}>{reminder}</div>
-          </div>
-          <select
-            value={reminder}
-            onChange={(e) => setReminder(e.target.value)}
-            style={s.cardInput}
-          >
-            {REMINDER_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+      <div style={s.dateScrollerWrap} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
+        <div style={s.dateScroller}>
+          {dateItems.map((item) => {
+            const isActive = item.iso === date;
+            return (
+              <button
+                key={item.iso}
+                type="button"
+                style={{ ...s.dateItem, ...(isActive ? s.dateItemActive : {}) }}
+                onClick={() => setDate(item.iso)}
+              >
+                <div style={s.dateWeekday}>{item.weekday}</div>
+                <div style={s.dateNumber}>{item.day}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -389,117 +299,51 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     whiteSpace: "pre-line",
   },
-  mainCard: {
-    borderRadius: 18,
-    padding: "18px 18px",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%)",
-    border: "1px solid rgba(255,255,255,0.55)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.06)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+  dateScrollerWrap: {
+    background: "rgba(255,255,255,0.9)",
+    borderRadius: 20,
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+    padding: "10px 6px",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.06)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  },
+  dateScroller: {
     display: "flex",
-    flexDirection: "column",
-    gap: 14,
-  },
-  mainCardTop: {
-    display: "flex",
-    flexDirection: "column",
-  },
-  mainCardHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  cardIcon: {
-    fontSize: 20,
-  },
-  cardLabel: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.6)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  strategyFocus: {
-    fontSize: 28,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    letterSpacing: -0.5,
-    color: "#1e1f22",
-    marginBottom: 6,
-  },
-  strategyDesc: {
-    margin: "10px 0 0",
-    fontSize: 14,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
-  },
-  gridRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
     gap: 12,
+    overflowX: "auto",
+    padding: "4px 8px",
+    scrollSnapType: "x mandatory",
+    WebkitOverflowScrolling: "touch",
   },
-  smallCard: {
-    position: "relative",
+  dateItem: {
+    minWidth: 72,
+    padding: "10px 12px",
     borderRadius: 16,
-    padding: 0,
+    border: "1px solid transparent",
     background: "transparent",
-    border: "none",
-    boxShadow: "none",
-    overflow: "hidden",
-  },
-  smallCardWide: {
-    position: "relative",
-    borderRadius: 16,
-    padding: 0,
-    background: "transparent",
-    border: "none",
-    boxShadow: "none",
-    overflow: "hidden",
-  },
-  smallCardHeader: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     gap: 6,
-    marginBottom: 8,
-  },
-  smallCardIcon: {
-    fontSize: 16,
-  },
-  smallCardLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  valueChip: {
-    display: "inline-flex",
-    alignItems: "center",
-    width: "fit-content",
-    maxWidth: "100%",
-    padding: "8px 14px",
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.06)",
-    border: "1px solid rgba(15, 23, 42, 0.12)",
-    fontSize: 16,
-    fontWeight: 600,
-    color: "#0f172a",
-  },
-  inlineRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  cardInput: {
-    position: "absolute",
-    inset: 0,
-    opacity: 0,
-    width: "100%",
-    height: "100%",
     cursor: "pointer",
+    scrollSnapAlign: "center",
+    transition: "background 180ms ease, border-color 180ms ease, transform 180ms ease",
+  },
+  dateItemActive: {
+    background: "rgba(15, 23, 42, 0.06)",
+    borderColor: "rgba(15, 23, 42, 0.08)",
+    transform: "translateY(-1px)",
+  },
+  dateWeekday: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.6)",
+  },
+  dateNumber: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: "#0f172a",
   },
   actions: {
     position: "fixed",
