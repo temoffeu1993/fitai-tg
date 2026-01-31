@@ -17,9 +17,9 @@ const DATE_ITEM_W = 64; // px width of each date slot
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_VISIBLE = 5;
-const TIME_ITEM_H = 56;
-const TIME_VISIBLE = 3;
-const TIME_FADE_H = TIME_ITEM_H;
+const TIME_ITEM_H = 120;
+const TIME_VISIBLE = 1;
+const TIME_FADE_H = 0;
 const TIME_COL_GAP = 14;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
@@ -379,7 +379,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               className="time-track"
               onScroll={handleHourScroll}
             >
-              <div style={{ height: TIME_ITEM_H }} />
+              <div style={{ height: 0 }} />
               {hours.map((h) => (
                 <button
                   key={h}
@@ -395,7 +395,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                   {String(h).padStart(2, "0")}
                 </button>
               ))}
-              <div style={{ height: TIME_ITEM_H }} />
+              <div style={{ height: 0 }} />
             </div>
           </div>
 
@@ -406,7 +406,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               className="time-track"
               onScroll={handleMinuteScroll}
             >
-              <div style={{ height: TIME_ITEM_H }} />
+              <div style={{ height: 0 }} />
               {minutes.map((m) => (
                 <button
                   key={m}
@@ -422,7 +422,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                   {String(m).padStart(2, "0")}
                 </button>
               ))}
-              <div style={{ height: TIME_ITEM_H }} />
+              <div style={{ height: 0 }} />
             </div>
           </div>
         </div>
@@ -822,8 +822,8 @@ const s: Record<string, React.CSSProperties> = {
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -50%)",
-    fontSize: 40,
-    fontWeight: 700,
+    fontSize: 120,
+    fontWeight: 800,
     color: "#1e1f22",
     zIndex: 4,
     pointerEvents: "none",
@@ -852,9 +852,9 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 42,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.3)",
+    fontSize: 120,
+    fontWeight: 700,
+    color: "#1e1f22",
     scrollSnapAlign: "center",
     background: "transparent",
     border: "none",
@@ -862,7 +862,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   timeItemActive: {
     color: "#1e1f22",
-    fontWeight: 700,
-    fontSize: 44,
+    fontWeight: 800,
+    fontSize: 128,
   },
 };
