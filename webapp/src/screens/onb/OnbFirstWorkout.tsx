@@ -652,7 +652,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 8,
     marginTop: "auto",
-    marginBottom: 12,
+    marginBottom: 24,
   },
   reminderCard: {
     borderRadius: 0,
