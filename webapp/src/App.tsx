@@ -33,7 +33,6 @@ import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
-import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
@@ -263,24 +262,13 @@ function StepAnalysis() {
   );
 }
 
-// --- выбор схемы → переход к планированию первой тренировки ---
+// --- последний шаг: выбор схемы ---
 function StepSchemeSelection() {
   const nav = useNavigate();
+  const { reset } = useOnboarding();
+  
   return (
     <OnbSchemeSelection
-      onComplete={() => nav("/onb/first-workout")}
-      onBack={() => nav("/onb/analysis")}
-    />
-  );
-}
-
-// --- финальный шаг: планирование первой тренировки ---
-function StepFirstWorkout() {
-  const nav = useNavigate();
-  const { reset } = useOnboarding();
-
-  return (
-    <OnbFirstWorkout
       onComplete={() => {
         (window as any).__ONB_COMPLETE__ = true;
 
@@ -326,7 +314,7 @@ function StepFirstWorkout() {
           nav("/");
         }, 120);
       }}
-      onBack={() => nav("/onb/scheme")}
+      onBack={() => nav("/onb/analysis")}
     />
   );
 }
@@ -366,7 +354,6 @@ export default function App() {
             <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
-            <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
           </Route>
         </Routes>
 
