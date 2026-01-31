@@ -440,9 +440,9 @@ const s: Record<string, React.CSSProperties> = {
   dateIndicator: {
     position: "absolute",
     left: "50%",
-    top: 10,
-    width: 60,
-    height: 60,
+    top: 6,
+    width: 68,
+    height: 68,
     transform: "translateX(-50%)",
     borderRadius: 16,
     background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
