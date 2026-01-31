@@ -705,7 +705,7 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "visible",
     display: "grid",
     gap: 8,
-    marginTop: "auto",
+    marginTop: 6,
     marginBottom: 0,
   },
   reminderCard: {
@@ -799,11 +799,11 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 18,
-    flex: 1,
+    marginBottom: 20,
   },
   dateScroller: {
     position: "relative",
-    overflow: "hidden",
+    overflow: "visible",
     width: "100%",
   },
   dateIndicator: {
