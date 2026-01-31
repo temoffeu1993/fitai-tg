@@ -200,6 +200,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         style={s.dateCard}
         className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
       >
+        <div style={s.dateFadeLeft} />
+        <div style={s.dateFadeRight} />
         <div
           ref={scrollRef}
           style={s.dateScroller}
@@ -224,11 +226,11 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                 >
                   <span style={{
                     ...s.dateDow,
-                    color: active ? "#1e1f22" : "rgba(30,31,34,0.4)",
+                    color: active ? "rgba(255,255,255,0.7)" : "rgba(30,31,34,0.4)",
                   }}>{d.dow}</span>
                   <span style={{
                     ...s.dateDay,
-                    color: active ? "#1e1f22" : "rgba(30,31,34,0.35)",
+                    color: active ? "#fff" : "rgba(30,31,34,0.35)",
                     fontWeight: active ? 700 : 500,
                   }}>{d.day}</span>
                 </button>
@@ -387,13 +389,37 @@ const s: Record<string, React.CSSProperties> = {
   // ── Date picker card ──────────────────────────────────────
   dateCard: {
     borderRadius: 20,
-    padding: "16px 0",
+    padding: "10px 0",
     background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)",
     border: "1px solid rgba(255,255,255,0.6)",
     boxShadow: "0 12px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
+    position: "relative",
     overflow: "hidden",
+  },
+  // Fade edges: left + right gradient masks
+  dateFadeLeft: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    background: "linear-gradient(to right, rgba(255,255,255,0.95) 0%, transparent 100%)",
+    zIndex: 2,
+    pointerEvents: "none",
+    borderRadius: "20px 0 0 20px",
+  },
+  dateFadeRight: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 28,
+    background: "linear-gradient(to left, rgba(255,255,255,0.95) 0%, transparent 100%)",
+    zIndex: 2,
+    pointerEvents: "none",
+    borderRadius: "0 20px 20px 0",
   },
   dateScroller: {
     overflowX: "auto",
@@ -401,8 +427,8 @@ const s: Record<string, React.CSSProperties> = {
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
-    paddingLeft: 12,
-    paddingRight: 12,
+    paddingLeft: 8,
+    paddingRight: 8,
   },
   dateRow: {
     display: "flex",
@@ -414,26 +440,25 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    width: 56,
-    minWidth: 56,
-    padding: "10px 0",
-    borderRadius: 14,
+    gap: 2,
+    width: 52,
+    minWidth: 52,
+    padding: "6px 0",
+    borderRadius: 12,
     border: "none",
     background: "transparent",
   },
   dateChipActive: {
-    background: "rgba(30,31,34,0.06)",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+    background: "#1e1f22",
   },
   dateDow: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 500,
     lineHeight: 1,
     letterSpacing: 0.2,
   },
   dateDay: {
-    fontSize: 22,
+    fontSize: 20,
     lineHeight: 1.2,
   },
 };
