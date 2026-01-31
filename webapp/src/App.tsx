@@ -33,7 +33,6 @@ import OnbMotivation from "./screens/onb/OnbMotivation";
 import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
-import OnbPlanDecision from "./screens/onb/OnbPlanDecision";
 import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 
 import { saveOnboarding } from "./api/onboarding";
@@ -271,7 +270,7 @@ function StepSchemeSelection() {
   return (
     <OnbSchemeSelection
       onComplete={() => {
-        nav("/onb/plan-decision");
+        nav("/onb/first-workout");
       }}
       onBack={() => nav("/onb/analysis")}
     />
@@ -324,19 +323,6 @@ function completeOnboardingAndGoHome(nav: (path: string) => void, reset: () => v
   }, 120);
 }
 
-// --- экран решения перед выбором времени ---
-function StepPlanDecision() {
-  const { reset } = useOnboarding();
-  const nav = useNavigate();
-
-  return (
-    <OnbPlanDecision
-      onChoose={() => nav("/onb/first-workout")}
-      onSkip={() => completeOnboardingAndGoHome(nav, reset)}
-    />
-  );
-}
-
 // --- финальный шаг: выбор даты первой тренировки ---
 function StepFirstWorkout() {
   const { reset } = useOnboarding();
@@ -347,7 +333,7 @@ function StepFirstWorkout() {
       onComplete={() => {
         completeOnboardingAndGoHome(nav, reset);
       }}
-      onBack={() => nav("/onb/plan-decision")}
+      onBack={() => nav("/onb/scheme")}
     />
   );
 }
@@ -387,7 +373,6 @@ export default function App() {
             <Route path="/onb/analysis-loading" element={<StepAnalysisLoading />} />
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
-            <Route path="/onb/plan-decision" element={<StepPlanDecision />} />
             <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
           </Route>
         </Routes>
