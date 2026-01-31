@@ -13,12 +13,11 @@ const HOLD_DURATION_MS = 1800;
 
 // ── Date picker (scroll-snap like OnbWeight) ──────────────────
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-const MONTH_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 const DATE_ITEM_W = 64; // px width of each date slot
-const DATE_COUNT = 14;
+const DATE_COUNT = 30;
 const DATE_VISIBLE = 5;
 
-type DateItem = { date: Date; dow: string; day: number; monthLabel: string; idx: number };
+type DateItem = { date: Date; dow: string; day: number; idx: number };
 
 function buildDates(count: number): DateItem[] {
   const now = new Date();
@@ -28,7 +27,6 @@ function buildDates(count: number): DateItem[] {
       date: d,
       dow: DAY_SHORT[d.getDay()],
       day: d.getDate(),
-      monthLabel: MONTH_SHORT[d.getMonth()],
       idx: i,
     };
   });
@@ -48,32 +46,41 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
   // Date picker state (scroll-snap centered, like OnbWeight)
   const dates = useMemo(() => buildDates(DATE_COUNT), []);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [activeIdx, setActiveIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const suppressSyncRef = useRef(false);
+  const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
 
-  // Sync scroll → selectedIdx on scroll stop
+  // Sync scroll → activeIdx (live highlight) + snap on stop
   const handleDateScroll = () => {
+    if (scrollRafRef.current == null) {
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        const el = scrollRef.current;
+        if (!el) return;
+        const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
+        const clamped = Math.max(0, Math.min(idx, dates.length - 1));
+        if (clamped !== activeIdx) setActiveIdx(clamped);
+      });
+    }
     if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
     scrollStopTimer.current = window.setTimeout(() => {
       const el = scrollRef.current;
       if (!el) return;
       const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
       const clamped = Math.max(0, Math.min(idx, dates.length - 1));
-      if (clamped !== selectedIdx) {
-        suppressSyncRef.current = true;
-        setSelectedIdx(clamped);
-        fireHapticImpact("light");
-      }
-    }, 60);
+      if (clamped !== activeIdx) setActiveIdx(clamped);
+      el.scrollTo({ left: clamped * DATE_ITEM_W, behavior: "smooth" });
+      fireHapticImpact("light");
+    }, 80);
   };
 
-  // Sync selectedIdx → scroll position
   useEffect(() => {
-    if (suppressSyncRef.current) { suppressSyncRef.current = false; return; }
-    scrollRef.current?.scrollTo({ left: selectedIdx * DATE_ITEM_W, behavior: "smooth" });
-  }, [selectedIdx]);
+    return () => {
+      if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
+      if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,7 +251,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           onScroll={handleDateScroll}
         >
           {dates.map((d, idx) => {
-            const active = idx === selectedIdx;
+            const active = idx === activeIdx;
             return (
               <button
                 key={idx}
@@ -253,7 +260,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                 style={{ ...s.dateItem, scrollSnapAlign: "center" }}
                 onClick={() => {
                   fireHapticImpact("light");
-                  setSelectedIdx(idx);
+                  setActiveIdx(idx);
+                  scrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
                 }}
               >
                 <span style={{
@@ -432,15 +440,15 @@ const s: Record<string, React.CSSProperties> = {
   dateIndicator: {
     position: "absolute",
     left: "50%",
-    top: 18,
-    width: 48,
-    height: 48,
+    top: 10,
+    width: 60,
+    height: 60,
     transform: "translateX(-50%)",
-    borderRadius: 12,
-    background: "rgba(255,255,255,0.45)",
-    border: "1px solid rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
     boxShadow:
-      "0 10px 22px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.85)",
+      "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
     backdropFilter: "blur(10px)",
     WebkitBackdropFilter: "blur(10px)",
     pointerEvents: "none",
