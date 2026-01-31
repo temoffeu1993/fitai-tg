@@ -21,6 +21,12 @@ const TIME_ITEM_H = 96;
 const TIME_VISIBLE = 1;
 const TIME_FADE_H = 0;
 const TIME_COL_GAP = 14;
+const HOUR_BASE = 24;
+const MIN_BASE = 60;
+const HOUR_CYCLES = 7;
+const MIN_CYCLES = 7;
+const HOUR_MID = Math.floor(HOUR_CYCLES / 2);
+const MIN_MID = Math.floor(MIN_CYCLES / 2);
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -68,8 +74,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
 
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const hours = useMemo(
+    () => Array.from({ length: HOUR_BASE * HOUR_CYCLES }, (_, i) => i % HOUR_BASE),
+    []
+  );
+  const minutes = useMemo(
+    () => Array.from({ length: MIN_BASE * MIN_CYCLES }, (_, i) => i % MIN_BASE),
+    []
+  );
   const [activeHour, setActiveHour] = useState(() => new Date().getHours());
   const [activeMinute, setActiveMinute] = useState(() => new Date().getMinutes());
   const hourRef = useRef<HTMLDivElement>(null);
@@ -86,8 +98,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
   // Ensure initial scroll aligns to current time
   useEffect(() => {
-    hourRef.current?.scrollTo({ top: activeHour * TIME_ITEM_H, behavior: "auto" });
-    minuteRef.current?.scrollTo({ top: activeMinute * TIME_ITEM_H, behavior: "auto" });
+    hourRef.current?.scrollTo({
+      top: (HOUR_BASE * HOUR_MID + activeHour) * TIME_ITEM_H,
+      behavior: "auto",
+    });
+    minuteRef.current?.scrollTo({
+      top: (MIN_BASE * MIN_MID + activeMinute) * TIME_ITEM_H,
+      behavior: "auto",
+    });
   }, []);
 
   // Sync scroll → activeIdx (live highlight) + snap on stop
@@ -122,7 +140,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (!el) return;
         const idx = Math.round(el.scrollTop / TIME_ITEM_H);
         const clamped = Math.max(0, Math.min(idx, hours.length - 1));
-        if (clamped !== activeHour) setActiveHour(clamped);
+        const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
+        if (value !== activeHour) setActiveHour(value);
       });
     }
     if (hourStopTimer.current) window.clearTimeout(hourStopTimer.current);
@@ -131,8 +150,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (!el) return;
       const idx = Math.round(el.scrollTop / TIME_ITEM_H);
       const clamped = Math.max(0, Math.min(idx, hours.length - 1));
-      if (clamped !== activeHour) setActiveHour(clamped);
-      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
+      const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
+      if (value !== activeHour) setActiveHour(value);
+      const targetIdx = HOUR_BASE * HOUR_MID + value;
+      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
   };
@@ -145,7 +166,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (!el) return;
         const idx = Math.round(el.scrollTop / TIME_ITEM_H);
         const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
-        if (clamped !== activeMinute) setActiveMinute(clamped);
+        const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
+        if (value !== activeMinute) setActiveMinute(value);
       });
     }
     if (minuteStopTimer.current) window.clearTimeout(minuteStopTimer.current);
@@ -154,8 +176,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       if (!el) return;
       const idx = Math.round(el.scrollTop / TIME_ITEM_H);
       const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
-      if (clamped !== activeMinute) setActiveMinute(clamped);
-      el.scrollTo({ top: clamped * TIME_ITEM_H, behavior: "smooth" });
+      const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
+      if (value !== activeMinute) setActiveMinute(value);
+      const targetIdx = MIN_BASE * MIN_MID + value;
+      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
       fireHapticImpact("light");
     }, 80);
   };
@@ -380,9 +404,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               onScroll={handleHourScroll}
             >
               <div style={{ height: 0 }} />
-              {hours.map((h) => (
+              {hours.map((h, idx) => (
                 <button
-                  key={h}
+                  key={`${h}-${idx}`}
                   type="button"
                   className="time-item"
                   style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
@@ -407,9 +431,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
               onScroll={handleMinuteScroll}
             >
               <div style={{ height: 0 }} />
-              {minutes.map((m) => (
+              {minutes.map((m, idx) => (
                 <button
-                  key={m}
+                  key={`${m}-${idx}`}
                   type="button"
                   className="time-item"
                   style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
@@ -825,6 +849,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 84,
     fontWeight: 900,
     color: "#1e1f22",
+    lineHeight: 1,
     zIndex: 4,
     pointerEvents: "none",
   },
@@ -843,11 +868,13 @@ const s: Record<string, React.CSSProperties> = {
     maxHeight: "100%",
     width: "100%",
     overflowY: "auto",
+    overflowX: "hidden",
     scrollSnapType: "y proximity",
     scrollbarWidth: "none",
     WebkitOverflowScrolling: "touch",
     position: "relative",
     zIndex: 0,
+    touchAction: "pan-y",
   },
   timeItem: {
     width: "100%",
@@ -858,6 +885,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 88,
     fontWeight: 800,
     color: "#1e1f22",
+    lineHeight: 1,
     scrollSnapAlign: "center",
     background: "transparent",
     border: "none",
@@ -867,5 +895,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     fontWeight: 900,
     fontSize: 92,
+    lineHeight: 1,
   },
 };
