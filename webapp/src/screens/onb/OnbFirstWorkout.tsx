@@ -54,43 +54,114 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
   });
 }
 
-// ── Confetti helpers (metallic pearlescent) ───────────────────
-const METALLIC_GRADIENTS = [
-  "linear-gradient(135deg, #e8d5b7 0%, #f5e6d0 30%, #c9a96e 60%, #f5e6d0 80%, #b8956a 100%)", // gold
-  "linear-gradient(135deg, #d4d4d8 0%, #f4f4f5 30%, #a1a1aa 60%, #f4f4f5 80%, #71717a 100%)", // silver
-  "linear-gradient(135deg, #fecdd3 0%, #fff1f2 30%, #f9a8d4 60%, #fce7f3 80%, #ec4899 100%)", // rose gold
-  "linear-gradient(135deg, #c7d2fe 0%, #e0e7ff 30%, #818cf8 60%, #e0e7ff 80%, #6366f1 100%)", // lavender
-  "linear-gradient(135deg, #a7f3d0 0%, #d1fae5 30%, #6ee7b7 60%, #d1fae5 80%, #34d399 100%)", // mint
-  "linear-gradient(135deg, #bae6fd 0%, #e0f2fe 30%, #7dd3fc 60%, #e0f2fe 80%, #38bdf8 100%)", // ice blue
+// ── Confetti: foil popper explosion (JS physics) ─────────────
+const FOIL_COLORS = [
+  // Each: [face gradient, back gradient] — foil has two sides
+  ["linear-gradient(135deg,#f5e6d0,#c9a96e 50%,#f5e6d0)", "linear-gradient(135deg,#b8956a,#e8d5b7 50%,#b8956a)"], // gold
+  ["linear-gradient(135deg,#f4f4f5,#a1a1aa 50%,#f4f4f5)", "linear-gradient(135deg,#71717a,#d4d4d8 50%,#71717a)"], // silver
+  ["linear-gradient(135deg,#fff1f2,#f9a8d4 50%,#fce7f3)", "linear-gradient(135deg,#ec4899,#fecdd3 50%,#ec4899)"], // rose gold
+  ["linear-gradient(135deg,#e0e7ff,#818cf8 50%,#e0e7ff)", "linear-gradient(135deg,#6366f1,#c7d2fe 50%,#6366f1)"], // lavender
+  ["linear-gradient(135deg,#d1fae5,#6ee7b7 50%,#d1fae5)", "linear-gradient(135deg,#34d399,#a7f3d0 50%,#34d399)"], // mint
+  ["linear-gradient(135deg,#e0f2fe,#7dd3fc 50%,#e0f2fe)", "linear-gradient(135deg,#38bdf8,#bae6fd 50%,#38bdf8)"], // ice blue
+  ["linear-gradient(135deg,#fef3c7,#fbbf24 50%,#fef3c7)", "linear-gradient(135deg,#d97706,#fde68a 50%,#d97706)"], // amber
+  ["linear-gradient(135deg,#fce4ec,#f06292 50%,#fce4ec)", "linear-gradient(135deg,#c2185b,#f48fb1 50%,#c2185b)"], // hot pink
 ];
+type Particle = {
+  el: HTMLSpanElement;
+  x: number; y: number;
+  vx: number; vy: number;
+  rotX: number; rotY: number; rotZ: number;
+  vRotX: number; vRotY: number; vRotZ: number;
+  w: number; h: number;
+  face: string; back: string;
+  opacity: number;
+  life: number; maxLife: number;
+  wobblePhase: number; wobbleSpeed: number;
+};
+const GRAVITY = 0.12;
+const DRAG = 0.985;
+const WOBBLE_AMP = 0.6;
+
 function spawnConfetti(container: HTMLDivElement) {
-  const count = 80;
-  for (let i = 0; i < count; i++) {
-    const span = document.createElement("span");
-    const grad = METALLIC_GRADIENTS[Math.floor(Math.random() * METALLIC_GRADIENTS.length)];
-    const left = 5 + Math.random() * 90;
-    const top = 10 + Math.random() * 60;
-    const delay = Math.random() * 600;
-    const duration = 900 + Math.random() * 800;
-    const rotation = -40 + Math.random() * 80;
-    const w = 8 + Math.random() * 10;
-    const h = 12 + Math.random() * 14;
-    const isRound = Math.random() > 0.7;
-    span.style.cssText = `
-      position: absolute;
-      left: ${left}%;
-      top: ${top}%;
-      width: ${w}px;
-      height: ${isRound ? w : h}px;
-      border-radius: ${isRound ? "50%" : "3px"};
-      background: ${grad};
-      opacity: 0;
-      animation: confettiFall ${duration}ms ${delay}ms ease-out forwards;
-      rotate: ${rotation}deg;
-      box-shadow: inset 0 0 ${2 + Math.random() * 3}px rgba(255,255,255,0.6);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cx = vw / 2;
+  const cy = vh * 0.45; // explosion origin: center-ish
+  const COUNT = 100;
+  const particles: Particle[] = [];
+
+  for (let i = 0; i < COUNT; i++) {
+    const [face, back] = FOIL_COLORS[Math.floor(Math.random() * FOIL_COLORS.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 10;
+    const w = 10 + Math.random() * 14;
+    const h = 8 + Math.random() * 12;
+    const el = document.createElement("span");
+    el.style.cssText = `
+      position:absolute;left:0;top:0;
+      width:${w}px;height:${h}px;
+      border-radius:2px;
+      backface-visibility:visible;
+      will-change:transform;
+      pointer-events:none;
+      box-shadow:inset 0 0 3px rgba(255,255,255,0.5);
     `;
-    container.appendChild(span);
+    container.appendChild(el);
+    particles.push({
+      el, x: cx, y: cy,
+      vx: Math.cos(angle) * speed * (0.7 + Math.random() * 0.6),
+      vy: Math.sin(angle) * speed * (0.7 + Math.random() * 0.6) - 3,
+      rotX: Math.random() * 360, rotY: Math.random() * 360, rotZ: Math.random() * 360,
+      vRotX: -8 + Math.random() * 16,
+      vRotY: -8 + Math.random() * 16,
+      vRotZ: -4 + Math.random() * 8,
+      w, h, face, back,
+      opacity: 1,
+      life: 0,
+      maxLife: 120 + Math.random() * 80,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.05 + Math.random() * 0.08,
+    });
   }
+
+  let raf: number;
+  const tick = () => {
+    let alive = 0;
+    for (const p of particles) {
+      p.life++;
+      if (p.life > p.maxLife) {
+        if (p.el.parentNode) p.el.parentNode.removeChild(p.el);
+        continue;
+      }
+      alive++;
+      // physics
+      p.vy += GRAVITY;
+      p.vx *= DRAG;
+      p.vy *= DRAG;
+      p.vx += Math.sin(p.wobblePhase) * WOBBLE_AMP;
+      p.wobblePhase += p.wobbleSpeed;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotX += p.vRotX;
+      p.rotY += p.vRotY;
+      p.rotZ += p.vRotZ;
+      // fade out in last 30%
+      const fadeStart = p.maxLife * 0.7;
+      p.opacity = p.life > fadeStart ? 1 - (p.life - fadeStart) / (p.maxLife - fadeStart) : 1;
+      // flip face/back based on rotY
+      const showBack = (Math.abs(p.rotY % 360) > 90 && Math.abs(p.rotY % 360) < 270);
+      p.el.style.background = showBack ? p.back : p.face;
+      p.el.style.transform = `translate3d(${p.x}px,${p.y}px,0) rotateX(${p.rotX}deg) rotateY(${p.rotY}deg) rotate(${p.rotZ}deg)`;
+      p.el.style.opacity = String(p.opacity);
+    }
+    if (alive > 0) raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  // safety cleanup
+  setTimeout(() => {
+    cancelAnimationFrame(raf);
+    container.innerHTML = "";
+  }, 5000);
 }
 
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
@@ -374,12 +445,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         @keyframes successPopIn {
           0% { opacity: 0; transform: scale(0.85) translateY(24px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes confettiFall {
-          0% { opacity: 0; transform: translateY(0) scale(0.5) rotateX(0deg); }
-          12% { opacity: 1; }
-          50% { opacity: 0.9; }
-          100% { opacity: 0; transform: translateY(-200px) rotate(35deg) rotateX(180deg) scale(0.2); }
         }
         .onb-fade-target { opacity: 0; }
         .onb-fade { animation: onbFadeUp 520ms ease-out both; }
@@ -672,9 +737,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                 Еее! Жду первую тренировку!{"\n"}
                 <strong style={s.successDateBold}>{formattedDateTime}</strong>
               </span>
-              <div style={s.successReminder}>
-                🔔 Напомню {reminderValue.toLowerCase()}
-              </div>
             </div>
           </div>
 
@@ -1085,12 +1147,6 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     fontSize: 22,
     color: "#1e1f22",
-  },
-  successReminder: {
-    marginTop: 10,
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#22c55e",
   },
   successMascotWrap: {
     display: "flex",
