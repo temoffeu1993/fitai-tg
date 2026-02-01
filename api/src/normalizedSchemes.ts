@@ -201,10 +201,10 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Минималистичная программа для поддержки силы и массы при занятом графике или в период восстановления.",
     splitType: "full_body",
     daysPerWeek: 2,
-    timeBuckets: [45, 60],
-    goals: ["health_wellness", "build_muscle"],
+    timeBuckets: [45, 60, 90],
+    goals: ["health_wellness", "build_muscle", "lose_weight", "athletic_body"],
     experienceLevels: ["advanced", "intermediate"],
-    locations: ["gym", "home_with_gear"],
+    locations: ["gym", "home_with_gear", "home_no_equipment"],
     intensity: "moderate",
     targetSex: "any",
     contraindications: ["medical_clearance_required"],
@@ -342,7 +342,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     daysPerWeek: 3,
     timeBuckets: [60, 90],
     goals: ["build_muscle", "athletic_body"],
-    experienceLevels: ["intermediate", "advanced", "beginner"],
+    experienceLevels: ["intermediate", "advanced"],
     locations: ["gym"],
     intensity: "high",
     targetSex: "any",
@@ -498,7 +498,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     splitType: "upper_lower",
     daysPerWeek: 4,
     timeBuckets: [60, 90],
-    goals: ["build_muscle"],
+    goals: ["build_muscle", "athletic_body"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["gym"],
     intensity: "high",
@@ -552,7 +552,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Два силовых дня + два дня low-impact интервалов/кругов. Для устойчивого похудения.",
     splitType: "conditioning",
     daysPerWeek: 4,
-    timeBuckets: [45, 60],
+    timeBuckets: [45, 60, 90],
     goals: ["lose_weight", "athletic_body", "health_wellness"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear", "home_no_equipment"],
@@ -676,7 +676,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Сила + мощность + гипертрофия + кондиция + восстановление. Для общего атлетического тела.",
     splitType: "full_body",
     daysPerWeek: 5,
-    timeBuckets: [45, 60],
+    timeBuckets: [45, 60, 90],
     goals: ["athletic_body", "health_wellness", "lose_weight"],
     experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["gym", "home_with_gear", "home_no_equipment"],
@@ -815,8 +815,8 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       { day: 2, label: "Back", focus: "Спина: вертикаль + горизонталь.", templateRulesId: "Pull Day", requiredPatterns: ["vertical_pull", "horizontal_pull"], optionalPatterns: ["rear_delts", "biceps_iso"] },
       { day: 3, label: "Shoulders", focus: "Плечи: дельты + задняя дельта.", templateRulesId: "Shoulders Day", requiredPatterns: ["delts_iso", "rear_delts"], optionalPatterns: ["vertical_push"] }, // ИЗМЕНЕНО: templateRulesId (rear_delts допустимы в день плеч bro-split)
       { day: 4, label: "Legs", focus: "Ноги: квадры + задняя + икры.", templateRulesId: "Legs Day", requiredPatterns: ["squat", "hinge", "calves"], optionalPatterns: ["lunge", "core"] },
-      { day: 5, label: "Arms", focus: "Руки: бицепс/трицепс — объём.", templateRulesId: "Upper Body", requiredPatterns: ["arms_iso"], optionalPatterns: ["horizontal_push", "horizontal_pull"] },
-      { day: 6, label: "Accessories", focus: "Слабые места + кор/икры.", templateRulesId: "Full Body C", requiredPatterns: ["core"], optionalPatterns: ["calves", "rear_delts", "arms_iso", "conditioning_low_impact"] },
+      { day: 5, label: "Arms", focus: "Руки: суперсеты бицепс/трицепс + добивка груди/спины.", templateRulesId: "Upper Body", requiredPatterns: ["biceps_iso", "triceps_iso", "horizontal_push", "horizontal_pull"], optionalPatterns: ["rear_delts"] },
+      { day: 6, label: "Weak Points", focus: "Слабые места + кондиция + кор/икры.", templateRulesId: "Full Body C", requiredPatterns: ["core", "conditioning_low_impact"], optionalPatterns: ["calves", "rear_delts", "arms_iso", "delts_iso"] },
     ],
     benefits: [
       "Психологически «кайфовый» формат для бодибилдинга.",
@@ -825,6 +825,266 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     ],
     notes:
       "Если пользователь не «в теме» — лучше предлагать PPL/Upper-Lower как более научный вариант.",
+  },
+
+  // ==========================================================================
+  // 6 DAYS / WEEK — ATHLETIC / FAT LOSS
+  // ==========================================================================
+  {
+    id: "athletic_conditioning_6x",
+    name: "Athletic Conditioning 6x",
+    russianName: "Атлетик: сила + кондиция 6 дней",
+    description:
+      "3 силовых дня (верх/низ/всё тело) + 2 кондиции + 1 восстановление. Для похудения, формы и выносливости.",
+    splitType: "conditioning",
+    daysPerWeek: 6,
+    timeBuckets: [45, 60, 90],
+    goals: ["lose_weight", "athletic_body", "health_wellness"],
+    experienceLevels: ["intermediate", "advanced"],
+    locations: ["gym"],
+    intensity: "moderate",
+    targetSex: "any",
+    contraindications: ["medical_clearance_required"],
+    days: [
+      {
+        day: 1,
+        label: "Upper Strength",
+        focus: "Силовой верх: жимы/тяги + плечи.",
+        templateRulesId: "Upper A",
+        requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "core"],
+        optionalPatterns: ["delts_iso", "rear_delts"],
+      },
+      {
+        day: 2,
+        label: "Conditioning A",
+        focus: "Интервалы низкого удара: круговая с акцентом на жиросжигание.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["conditioning_intervals", "core"],
+        optionalPatterns: ["carry", "lunge"],
+      },
+      {
+        day: 3,
+        label: "Lower Strength",
+        focus: "Силовой низ: приседания/хиндж/выпады.",
+        templateRulesId: "Lower A",
+        requiredPatterns: ["squat", "hinge", "lunge", "core"],
+        optionalPatterns: ["calves", "hip_thrust"],
+      },
+      {
+        day: 4,
+        label: "Conditioning B",
+        focus: "Кондиция: энергозатратные комплексы без ударной нагрузки.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["conditioning_low_impact", "hinge", "core"],
+        optionalPatterns: ["carry", "horizontal_pull"],
+      },
+      {
+        day: 5,
+        label: "Full Body",
+        focus: "Всё тело: умеренная силовая для баланса и слабых зон.",
+        templateRulesId: "Full Body B",
+        requiredPatterns: ["horizontal_push", "vertical_pull", "lunge", "core"],
+        optionalPatterns: ["rear_delts", "arms_iso"],
+      },
+      {
+        day: 6,
+        label: "Recovery",
+        focus: "Активное восстановление: мобильность + лёгкое кардио + кор.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["core", "conditioning_low_impact"],
+        optionalPatterns: ["hinge"],
+      },
+    ],
+    benefits: [
+      "Оптимальный баланс силовых и кардио для похудения.",
+      "Мышцы сохраняются за счёт 3 силовых дней.",
+      "Активное восстановление предотвращает перетренированность.",
+    ],
+    notes:
+      "Для BMI 30+ заменять conditioning_intervals на conditioning_low_impact через constraint.",
+  },
+  {
+    id: "fb_6x_athletic_gym",
+    name: "Full Body Athletic 6x Gym",
+    russianName: "Атлетизм 6 дней (зал)",
+    description:
+      "Ежедневные разнообразные тренировки: сила, гипертрофия, кондиция, мощность. Для тех, кто живёт в зале.",
+    splitType: "full_body",
+    daysPerWeek: 6,
+    timeBuckets: [45, 60, 90],
+    goals: ["athletic_body", "lose_weight", "health_wellness"],
+    experienceLevels: ["beginner", "intermediate"],
+    locations: ["gym", "home_with_gear"],
+    intensity: "moderate",
+    targetSex: "any",
+    contraindications: ["medical_clearance_required"],
+    days: [
+      {
+        day: 1,
+        label: "Strength A",
+        focus: "Силовая база: присед/жим/тяга.",
+        templateRulesId: "Full Body A",
+        requiredPatterns: ["squat", "horizontal_push", "horizontal_pull", "core"],
+        optionalPatterns: ["calves"],
+      },
+      {
+        day: 2,
+        label: "Conditioning",
+        focus: "Кондиция: интервалы низкого удара + кор.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["conditioning_intervals", "core"],
+        optionalPatterns: ["carry"],
+      },
+      {
+        day: 3,
+        label: "Strength B",
+        focus: "Задняя цепь + вертикальные тяги.",
+        templateRulesId: "Full Body B",
+        requiredPatterns: ["hinge", "vertical_pull", "incline_push", "core"],
+        optionalPatterns: ["rear_delts"],
+      },
+      {
+        day: 4,
+        label: "Active Recovery",
+        focus: "Мобильность + лёгкое кардио + дыхание.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["core", "conditioning_low_impact"],
+        optionalPatterns: ["lunge"],
+      },
+      {
+        day: 5,
+        label: "Strength C",
+        focus: "Односторонняя работа + баланс.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["lunge", "horizontal_pull", "horizontal_push", "core"],
+        optionalPatterns: ["delts_iso"],
+      },
+      {
+        day: 6,
+        label: "Light Pump",
+        focus: "Лёгкий пампинг: изоляция + кор + слабые зоны.",
+        templateRulesId: "Full Body C",
+        requiredPatterns: ["core", "conditioning_low_impact"],
+        optionalPatterns: ["arms_iso", "rear_delts", "calves"],
+      },
+    ],
+    benefits: [
+      "Ежедневная привычка без перегруза — чередование нагрузки и восстановления.",
+      "Разнообразие стимулов: сила, кондиция, мобильность.",
+      "Подходит для активных людей, которые хотят тренироваться каждый день.",
+    ],
+    notes:
+      "Чередование тяжёлых и лёгких дней критично. Если чек-ин показывает усталость — пропускать кондицию или менять на восстановление.",
+  },
+
+  // ==========================================================================
+  // LOWER-FOCUS SCHEMES (popular with women / glute-focused goals)
+  // ==========================================================================
+  {
+    id: "lower_focus_3x",
+    name: "Lower Focus 3x",
+    russianName: "Акцент на ноги и ягодицы (3 дня)",
+    description:
+      "2 дня низ + 1 день верх. Для тех, кто хочет подтянуть ноги/ягодицы, не забывая про верх тела.",
+    splitType: "lower_focus",
+    daysPerWeek: 3,
+    timeBuckets: [45, 60, 90],
+    goals: ["build_muscle", "athletic_body", "lose_weight"],
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    locations: ["gym", "home_with_gear"],
+    intensity: "moderate",
+    targetSex: "female",
+    contraindications: ["medical_clearance_required"],
+    days: [
+      {
+        day: 1,
+        label: "Lower A (Glutes)",
+        focus: "Ягодицы: хип-траст/хиндж/выпады + кор.",
+        templateRulesId: "Lower A",
+        requiredPatterns: ["hip_thrust", "hinge", "lunge", "core"],
+        optionalPatterns: ["calves", "conditioning_low_impact"],
+      },
+      {
+        day: 2,
+        label: "Upper Body",
+        focus: "Верх тела: жимы/тяги для баланса и осанки.",
+        templateRulesId: "Upper Body",
+        requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "core"],
+        optionalPatterns: ["rear_delts", "delts_iso", "arms_iso"],
+      },
+      {
+        day: 3,
+        label: "Lower B (Quads)",
+        focus: "Квадрицепсы: приседания/выпады/ягодичный мост + кор.",
+        templateRulesId: "Lower B",
+        requiredPatterns: ["squat", "lunge", "hip_thrust", "core"],
+        optionalPatterns: ["calves", "hinge"],
+      },
+    ],
+    benefits: [
+      "Ноги/ягодицы получают 2 стимула в неделю — оптимально для роста.",
+      "Верх тела поддерживается для баланса и осанки.",
+      "Подходит для любого уровня подготовки.",
+    ],
+    notes:
+      "Hip thrust — ключевое движение. Для дома заменяется на ягодичный мост с гантелей.",
+  },
+  {
+    id: "lower_focus_4x",
+    name: "Lower Bias Upper/Lower 4x",
+    russianName: "Акцент на ноги и ягодицы (4 дня)",
+    description:
+      "3 дня низ + 1 день верх. Максимальный фокус на ноги/ягодицы при полном покрытии верха.",
+    splitType: "lower_focus",
+    daysPerWeek: 4,
+    timeBuckets: [45, 60, 90],
+    goals: ["build_muscle", "athletic_body", "lose_weight"],
+    experienceLevels: ["beginner", "intermediate", "advanced"],
+    locations: ["gym", "home_with_gear"],
+    intensity: "moderate",
+    targetSex: "female",
+    contraindications: ["medical_clearance_required"],
+    days: [
+      {
+        day: 1,
+        label: "Lower A (Glutes)",
+        focus: "Ягодицы: хип-траст/хиндж/выпады — объём и активация.",
+        templateRulesId: "Lower A",
+        requiredPatterns: ["hip_thrust", "hinge", "lunge", "core"],
+        optionalPatterns: ["calves"],
+      },
+      {
+        day: 2,
+        label: "Upper Body",
+        focus: "Верх тела: полноценная тренировка жим/тяга/плечи.",
+        templateRulesId: "Upper Body",
+        requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "rear_delts"],
+        optionalPatterns: ["delts_iso", "arms_iso", "core"],
+      },
+      {
+        day: 3,
+        label: "Lower B (Quads)",
+        focus: "Квадрицепсы: приседания/жим ногами/выпады + ягодичный мост.",
+        templateRulesId: "Lower B",
+        requiredPatterns: ["squat", "lunge", "hip_thrust", "core"],
+        optionalPatterns: ["calves", "hinge"],
+      },
+      {
+        day: 4,
+        label: "Lower C (Power)",
+        focus: "Силовой низ: тяжёлые хинджи/приседы + односторонка.",
+        templateRulesId: "Lower A",
+        requiredPatterns: ["hinge", "squat", "lunge", "core"],
+        optionalPatterns: ["hip_thrust", "calves", "conditioning_low_impact"],
+      },
+    ],
+    benefits: [
+      "Максимальная частота ног/ягодиц — 3 раза в неделю.",
+      "Разные акценты (ягодицы/квадры/сила) для полного развития.",
+      "Верх тела не забыт — полноценный день для осанки и баланса.",
+    ],
+    notes:
+      "Для мужчин тоже может работать при отставании ног. Но по умолчанию показываем женщинам.",
   },
 
   // ==========================================================================
@@ -839,8 +1099,8 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Полноценная сплит-программа для дома с гантелями/резинками. Верх/низ чередование для максимального роста.",
     splitType: "upper_lower",
     daysPerWeek: 4,
-    timeBuckets: [45, 60],
-    goals: ["build_muscle", "athletic_body", "lose_weight"],
+    timeBuckets: [45, 60, 90],
+    goals: ["build_muscle", "athletic_body", "lose_weight", "health_wellness"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["home_with_gear"],
     intensity: "moderate",
@@ -897,8 +1157,8 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Программа для опытных с собственным весом: отжимания, подтягивания, приседания и их вариации.",
     splitType: "upper_lower",
     daysPerWeek: 4,
-    timeBuckets: [45, 60],
-    goals: ["athletic_body", "build_muscle", "lose_weight"],
+    timeBuckets: [45, 60, 90],
+    goals: ["athletic_body", "build_muscle", "lose_weight", "health_wellness"],
     experienceLevels: ["intermediate", "advanced"],
     locations: ["home_no_equipment", "home_with_gear"],
     intensity: "moderate",
@@ -955,9 +1215,9 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Короткие ежедневные тренировки для формирования привычки. Чередование силовых и активного восстановления.",
     splitType: "full_body",
     daysPerWeek: 6,
-    timeBuckets: [45],
+    timeBuckets: [45, 60, 90],
     goals: ["lose_weight", "health_wellness", "athletic_body"],
-    experienceLevels: ["beginner", "intermediate"],
+    experienceLevels: ["beginner", "intermediate", "advanced"],
     locations: ["home_no_equipment", "home_with_gear"],
     intensity: "low",
     targetSex: "any",
@@ -1029,7 +1289,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       "Ежедневные короткие тренировки для новичков: формируем привычку без перегрузки.",
     splitType: "full_body",
     daysPerWeek: 6,
-    timeBuckets: [45],
+    timeBuckets: [45, 60, 90],
     goals: ["lose_weight", "health_wellness", "athletic_body"],
     experienceLevels: ["beginner"],
     locations: ["gym", "home_with_gear", "home_no_equipment"],
@@ -1170,15 +1430,17 @@ export function rankSchemes(user: SchemeUser, candidates: NormalizedWorkoutSchem
     }
 
     // BMI-BASED LOGIC
-    // BMI > 30: avoid conditioning schemes (high impact), prefer full_body/upper_lower
+    // BMI > 30: penalize high intensity, NOT conditioning per se
+    // Conditioning + moderate/low intensity is GOOD for fat loss (preserves muscle + cardio)
     if (bmi >= 30) {
-      if (s.splitType === "conditioning") score -= 6;
-      if (s.intensity === "high") score -= 2;
-      if (s.splitType === "full_body" || s.splitType === "upper_lower") score += 2;
+      if (s.intensity === "high") score -= 4;
+      if (s.splitType === "conditioning" && s.intensity === "high") score -= 2; // extra penalty for high-impact conditioning
+      if (s.splitType === "conditioning" && s.intensity !== "high") score += 2; // moderate/low conditioning is ideal for fat loss
+      if (s.splitType === "full_body" || s.splitType === "upper_lower") score += 1;
     }
-    // BMI 25-30: slight preference for mixed training
+    // BMI 25-30: slight preference for structured training
     else if (bmi >= 25) {
-      if (s.splitType === "conditioning") score -= 1;
+      if (s.intensity === "high") score -= 1;
     }
 
     // constraints should bias towards lower impact / less axial loading

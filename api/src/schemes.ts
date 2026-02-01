@@ -157,6 +157,11 @@ schemes.post(
     if (bmi >= 30) {
       constraints.push("avoid_high_impact");
     }
+
+    // Experience-based constraints
+    if (experience === "beginner") {
+      constraints.push("beginner_simplicity");
+    }
     
     // Build user profile for new system
     const userProfile: SchemeUser = {
@@ -179,13 +184,52 @@ schemes.post(
     });
     
     // Use new recommendation system
-    const candidates = getCandidateSchemes(userProfile);
-    
+    let candidates = getCandidateSchemes(userProfile);
+    let fallbackUsed: string | null = null;
+
+    // Fallback strategy: relax filters step by step if no exact match
+    if (candidates.length === 0) {
+      // Step 1: Try adjacent days (±1)
+      for (const delta of [-1, 1]) {
+        const altDays = daysPerWeek + delta;
+        if (altDays >= 2 && altDays <= 6) {
+          candidates = getCandidateSchemes({ ...userProfile, daysPerWeek: altDays });
+          if (candidates.length > 0) {
+            fallbackUsed = `Точной схемы на ${daysPerWeek} дней не нашлось — показываем ближайшую на ${altDays} дней.`;
+            break;
+          }
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      // Step 2: Try relaxing time bucket (90→60, 45→60)
+      const altTime: TimeBucket = timeBucket === 90 ? 60 : timeBucket === 45 ? 60 : 45;
+      candidates = getCandidateSchemes({ ...userProfile, timeBucket: altTime });
+      if (candidates.length > 0) {
+        fallbackUsed = `Точной схемы на ${timeBucket} мин не нашлось — показываем ближайшую на ${altTime} мин.`;
+      }
+    }
+
+    if (candidates.length === 0) {
+      // Step 3: Try relaxing goal to athletic_body (most universal)
+      if (goal !== "athletic_body") {
+        candidates = getCandidateSchemes({ ...userProfile, goal: "athletic_body" });
+        if (candidates.length > 0) {
+          fallbackUsed = `Точной схемы для "${goal}" не нашлось — показываем универсальную программу.`;
+        }
+      }
+    }
+
     if (candidates.length === 0) {
       throw new AppError(
         `К сожалению, не нашлось подходящей схемы для ваших параметров (${goal}, ${daysPerWeek} дн/нед, ${experience}). Попробуйте изменить количество дней в неделю или другие параметры.`,
         404
       );
+    }
+
+    if (fallbackUsed) {
+      console.log(`⚠️ Fallback used: ${fallbackUsed}`);
     }
     
     // Rank schemes
@@ -260,6 +304,7 @@ schemes.post(
         reason: generateReason(scheme, idx === 0 ? 'alt1' : 'alt2'),
         isRecommended: false,
       })),
+      ...(fallbackUsed ? { fallbackNote: fallbackUsed } : {}),
     };
 
     res.json(response);
