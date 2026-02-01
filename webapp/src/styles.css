@@ -87,38 +87,17 @@ button:active, a:active, [role="button"]:active {
 
 /* Единый 3D-стиль CTA как активные плашки цели */
 .intro-primary-btn {
-  background: #1e1f22 !important;
-  border: 1px solid #1e1f22 !important;
-  color: #fff !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation;
   user-select: none !important;
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
-  box-shadow:
-    0 10px 22px rgba(0,0,0,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    inset 0 0 0 1px rgba(255,255,255,0.25) !important;
-  transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
-}
-.intro-primary-btn:disabled {
-  opacity: 1 !important;
-  background: #1e1f22 !important;
-  border-color: #1e1f22 !important;
-  color: #fff !important;
-  box-shadow:
-    0 10px 22px rgba(0,0,0,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    inset 0 0 0 1px rgba(255,255,255,0.25) !important;
-  filter: none !important;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
 }
 .intro-primary-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.99) !important;
-  background: #1e1f22 !important;
   background-color: #1e1f22 !important;
   border-color: #1e1f22 !important;
-  box-shadow:
-    0 10px 22px rgba(0,0,0,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    inset 0 0 0 1px rgba(255,255,255,0.25) !important;
 }
 
 /* Специальный класс для полного отключения tap эффектов */
