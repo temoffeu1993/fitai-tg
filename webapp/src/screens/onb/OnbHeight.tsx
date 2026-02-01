@@ -36,6 +36,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
   const suppressSyncRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const lastTickRef = useRef<number | null>(null);
+  const suppressHapticsRef = useRef(true);
 
   useEffect(() => {
     return () => {
@@ -89,11 +90,24 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
     lastTickRef.current = Math.round(index / TICKS_PER_CM) * TICKS_PER_CM;
   }, [height]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      suppressHapticsRef.current = false;
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const maybeHaptic = () => {
+    if (!suppressHapticsRef.current) {
+      fireHapticImpact("light");
+    }
+  };
+
   const setHeightFromScroll = (nextHeight: number) => {
     suppressSyncRef.current = true;
     setHeight((prev) => {
       if (prev === nextHeight) return prev;
-      fireHapticImpact("light");
+      maybeHaptic();
       return nextHeight;
     });
   };
@@ -106,7 +120,7 @@ export default function OnbHeight({ initial, loading, onSubmit, onBack }: Props)
     const liveMajor = Math.round(liveRaw / TICKS_PER_CM) * TICKS_PER_CM;
     if (lastTickRef.current !== liveMajor) {
       lastTickRef.current = liveMajor;
-      fireHapticImpact("light");
+      maybeHaptic();
     }
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);

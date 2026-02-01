@@ -32,6 +32,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number | null>(null);
+  const suppressHapticsRef = useRef(true);
 
   useEffect(() => {
     return () => {
@@ -81,13 +82,26 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     lastTickRef.current = index;
   }, [age]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      suppressHapticsRef.current = false;
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const maybeHaptic = () => {
+    if (!suppressHapticsRef.current) {
+      fireHapticImpact("light");
+    }
+  };
+
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
     const liveIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
     if (lastTickRef.current !== liveIndex) {
       lastTickRef.current = liveIndex;
-      fireHapticImpact("light");
+      maybeHaptic();
     }
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
@@ -98,7 +112,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
       if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
         setAge((prev) => {
           if (prev === nextAge) return prev;
-          fireHapticImpact("light");
+          maybeHaptic();
           return nextAge;
         });
       }
@@ -109,7 +123,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     if (loading || isLeaving) return;
     setAge((prev) => {
       if (prev === value) return prev;
-      fireHapticImpact("light");
+      maybeHaptic();
       return value;
     });
   };
