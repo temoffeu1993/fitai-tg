@@ -87,12 +87,14 @@ button:active, a:active, [role="button"]:active {
 
 /* Единый 3D-стиль CTA как активные плашки цели */
 .intro-primary-btn {
-  background: #1e1f22 !important;
-  border: 1px solid #1e1f22 !important;
+  background: linear-gradient(180deg, #2a2d31 0%, #1f2125 55%, #17191c 100%) !important;
+  border: 1px solid rgba(0,0,0,0.35) !important;
   color: #fff !important;
-  box-shadow: 0 10px 22px rgba(0,0,0,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    inset 0 0 0 1px rgba(255,255,255,0.25) !important;
+  box-shadow:
+    0 12px 26px rgba(0,0,0,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(0,0,0,0.35),
+    inset 0 0 0 1px rgba(255,255,255,0.06) !important;
 }
 
 /* Специальный класс для полного отключения tap эффектов */
