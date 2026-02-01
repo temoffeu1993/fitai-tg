@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import smotrchasImg from "@/assets/smotrchas.webp";
+import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -53,31 +54,40 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
   });
 }
 
-// ── Confetti helpers ──────────────────────────────────────────
-const CONFETTI_COLORS = ["#22c55e", "#22d3ee", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+// ── Confetti helpers (metallic pearlescent) ───────────────────
+const METALLIC_GRADIENTS = [
+  "linear-gradient(135deg, #e8d5b7 0%, #f5e6d0 30%, #c9a96e 60%, #f5e6d0 80%, #b8956a 100%)", // gold
+  "linear-gradient(135deg, #d4d4d8 0%, #f4f4f5 30%, #a1a1aa 60%, #f4f4f5 80%, #71717a 100%)", // silver
+  "linear-gradient(135deg, #fecdd3 0%, #fff1f2 30%, #f9a8d4 60%, #fce7f3 80%, #ec4899 100%)", // rose gold
+  "linear-gradient(135deg, #c7d2fe 0%, #e0e7ff 30%, #818cf8 60%, #e0e7ff 80%, #6366f1 100%)", // lavender
+  "linear-gradient(135deg, #a7f3d0 0%, #d1fae5 30%, #6ee7b7 60%, #d1fae5 80%, #34d399 100%)", // mint
+  "linear-gradient(135deg, #bae6fd 0%, #e0f2fe 30%, #7dd3fc 60%, #e0f2fe 80%, #38bdf8 100%)", // ice blue
+];
 function spawnConfetti(container: HTMLDivElement) {
-  const count = 40;
+  const count = 80;
   for (let i = 0; i < count; i++) {
     const span = document.createElement("span");
-    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-    const left = 10 + Math.random() * 80;
-    const top = 20 + Math.random() * 40;
-    const delay = Math.random() * 400;
-    const duration = 700 + Math.random() * 500;
-    const rotation = -30 + Math.random() * 60;
-    const scale = 0.6 + Math.random() * 0.8;
+    const grad = METALLIC_GRADIENTS[Math.floor(Math.random() * METALLIC_GRADIENTS.length)];
+    const left = 5 + Math.random() * 90;
+    const top = 10 + Math.random() * 60;
+    const delay = Math.random() * 600;
+    const duration = 900 + Math.random() * 800;
+    const rotation = -40 + Math.random() * 80;
+    const w = 8 + Math.random() * 10;
+    const h = 12 + Math.random() * 14;
+    const isRound = Math.random() > 0.7;
     span.style.cssText = `
       position: absolute;
       left: ${left}%;
       top: ${top}%;
-      width: ${6 + Math.random() * 6}px;
-      height: ${10 + Math.random() * 8}px;
-      border-radius: 3px;
-      background: ${color};
+      width: ${w}px;
+      height: ${isRound ? w : h}px;
+      border-radius: ${isRound ? "50%" : "3px"};
+      background: ${grad};
       opacity: 0;
-      transform: scale(${scale});
       animation: confettiFall ${duration}ms ${delay}ms ease-out forwards;
       rotate: ${rotation}deg;
+      box-shadow: inset 0 0 ${2 + Math.random() * 3}px rgba(255,255,255,0.6);
     `;
     container.appendChild(span);
   }
@@ -121,13 +131,14 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const hourStopTimer = useRef<number | null>(null);
   const minuteStopTimer = useRef<number | null>(null);
 
-  // ── Formatted date for success ticket ──
-  const formattedDate = useMemo(() => {
+  // ── Formatted date for success bubble ──
+  const formattedDateTime = useMemo(() => {
     const d = dates[activeIdx]?.date;
     if (!d) return "";
     const h = String(activeHour).padStart(2, "0");
     const m = String(activeMinute).padStart(2, "0");
-    return `${d.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })} в ${h}:${m}`;
+    const datePart = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    return `${datePart} в ${h}:${m}`;
   }, [dates, activeIdx, activeHour, activeMinute]);
 
   // ── Confirm handler ──
@@ -365,9 +376,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           100% { opacity: 1; transform: scale(1) translateY(0); }
         }
         @keyframes confettiFall {
-          0% { opacity: 0; transform: translateY(0) scale(0.7); }
-          15% { opacity: 1; }
-          100% { opacity: 0; transform: translateY(-120px) rotate(20deg) scale(0.3); }
+          0% { opacity: 0; transform: translateY(0) scale(0.5) rotateX(0deg); }
+          12% { opacity: 1; }
+          50% { opacity: 0.9; }
+          100% { opacity: 0; transform: translateY(-200px) rotate(35deg) rotateX(180deg) scale(0.2); }
         }
         .onb-fade-target { opacity: 0; }
         .onb-fade { animation: onbFadeUp 520ms ease-out both; }
@@ -400,6 +412,20 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           border-bottom: 8px solid transparent;
           border-right: 8px solid rgba(255,255,255,0.9);
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
+        .speech-bubble-bottom:before {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: -10px;
+          top: auto;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-top: 10px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
         }
         @media (prefers-reduced-motion: reduce) {
           .onb-fade, .onb-leave, .onb-success-in { animation: none !important; }
@@ -639,26 +665,23 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
       {/* ── SUCCESS PHASE ── */}
       {isSuccess && (
-        <>
-          <div style={s.mascotRow} className="onb-success-in">
-            <img src={smotrchasImg} alt="" style={{ ...s.mascotImg, transform: "scale(1.1)" }} />
-            <div style={s.bubble} className="speech-bubble">
-              <span style={s.bubbleText}>
-                Первый шаг сделан! Я горжусь тобой.
+        <div style={s.successWrap}>
+          <div style={s.successBubbleWrap} className="onb-success-in">
+            <div style={s.successBubble} className="speech-bubble-bottom">
+              <span style={s.successBubbleText}>
+                Еее! Жду первую тренировку!{"\n"}
+                <strong style={s.successDateBold}>{formattedDateTime}</strong>
               </span>
+              <div style={s.successReminder}>
+                🔔 Напомню {reminderValue.toLowerCase()}
+              </div>
             </div>
           </div>
 
-          <div style={s.ticketCard} className="onb-success-in onb-success-in-delay">
-            <div style={s.ticketAccent} />
-            <div style={s.ticketTitle}>Встреча назначена!</div>
-            <div style={s.ticketDate}>{formattedDate}</div>
-            <div style={s.ticketDivider} />
-            <div style={s.ticketReminder}>
-              🔔 Напомню {reminderValue.toLowerCase()}
-            </div>
+          <div style={s.successMascotWrap} className="onb-success-in onb-success-in-delay">
+            <img src={morobotImg} alt="" style={s.successMascotImg} />
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -1024,55 +1047,59 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "none",
   },
 
-  // ── Success ticket ─────────────────────────────────────
-  ticketCard: {
-    borderRadius: 22,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(245,245,250,0.85) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 20px 40px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-    padding: "32px 24px 28px",
+  // ── Success view ──────────────────────────────────────
+  successWrap: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
+    gap: 0,
+    minHeight: "60vh",
+  },
+  successBubbleWrap: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+  },
+  successBubble: {
     position: "relative",
-    overflow: "hidden",
-    marginTop: 8,
+    padding: "20px 24px",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    textAlign: "center",
+    maxWidth: 340,
   },
-  ticketAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 5,
-    background: "linear-gradient(90deg, #22d3ee, #22c55e)",
-    borderRadius: "22px 22px 0 0",
-  },
-  ticketTitle: {
-    fontSize: 24,
-    fontWeight: 800,
+  successBubbleText: {
+    fontSize: 20,
+    fontWeight: 500,
+    lineHeight: 1.4,
     color: "#1e1f22",
-    textAlign: "center",
+    whiteSpace: "pre-line",
   },
-  ticketDate: {
-    fontSize: 17,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.6)",
-    textAlign: "center",
-    textTransform: "capitalize",
+  successDateBold: {
+    fontWeight: 800,
+    fontSize: 22,
+    color: "#1e1f22",
   },
-  ticketDivider: {
-    width: "60%",
-    height: 1,
-    background: "rgba(30,31,34,0.08)",
-    margin: "6px 0",
-  },
-  ticketReminder: {
+  successReminder: {
+    marginTop: 10,
     fontSize: 15,
     fontWeight: 600,
     color: "#22c55e",
-    textAlign: "center",
+  },
+  successMascotWrap: {
+    display: "flex",
+    justifyContent: "center",
+    marginTop: -4,
+  },
+  successMascotImg: {
+    width: 220,
+    height: "auto",
+    objectFit: "contain",
   },
 };
