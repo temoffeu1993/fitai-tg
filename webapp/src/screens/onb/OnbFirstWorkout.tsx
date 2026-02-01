@@ -9,8 +9,6 @@ type Props = {
   onBack?: () => void;
 };
 
-const HOLD_DURATION_MS = 1800;
-
 // ── Date picker (scroll-snap like OnbWeight) ──────────────────
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DATE_ITEM_W = 64; // px width of each date slot
@@ -56,17 +54,10 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
   const [showContent, setShowContent] = useState(false);
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [isHolding, setIsHolding] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
   const [reminderWidth, setReminderWidth] = useState<number | null>(null);
   const reminderRef = useRef<HTMLDivElement>(null);
-  const holdStartRef = useRef<number | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastHapticRef = useRef<number>(0);
   const suppressHapticsRef = useRef(true);
   const lastDateTickRef = useRef<number | null>(null);
   const lastHourTickRef = useRef<number | null>(null);
@@ -283,12 +274,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
       setShowContent(true);
@@ -297,54 +282,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     const t = window.setTimeout(() => setShowContent(true), 30);
     return () => window.clearTimeout(t);
   }, []);
-
-  const canConfirm = !confirmed;
-
-  const startHold = () => {
-    if (!canConfirm || isHolding) return;
-    setIsHolding(true);
-    holdStartRef.current = performance.now();
-    lastHapticRef.current = 0;
-
-    const tick = () => {
-      const now = performance.now();
-      const start = holdStartRef.current || now;
-      const progress = Math.min((now - start) / HOLD_DURATION_MS, 1);
-      setHoldProgress(progress);
-      const freq = Math.max(60, 220 - progress * 150);
-      if (now - lastHapticRef.current >= freq) {
-        lastHapticRef.current = now;
-        if (progress < 0.4) fireHapticImpact("light");
-        else if (progress < 0.75) fireHapticImpact("medium");
-        else fireHapticImpact("heavy");
-      }
-      if (progress >= 1) {
-        setIsHolding(false);
-        setConfirmed(true);
-        setShowConfetti(true);
-        fireHapticImpact("heavy");
-        window.setTimeout(() => setShowConfetti(false), 1200);
-        window.setTimeout(() => onComplete(), 900);
-        return;
-      }
-      rafRef.current = window.requestAnimationFrame(tick);
-    };
-    rafRef.current = window.requestAnimationFrame(tick);
-  };
-
-  const stopHold = () => {
-    if (!isHolding || confirmed) return;
-    setIsHolding(false);
-    setHoldProgress(0);
-    lastHapticRef.current = 0;
-    if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
-  };
-
-  const progressDeg = Math.round(holdProgress * 360);
-  const ringStyle: React.CSSProperties = {
-    opacity: holdProgress > 0 ? 1 : 0,
-    background: `conic-gradient(from -90deg, #22d3ee 0deg, #22d3ee ${progressDeg}deg, rgba(30,31,34,0.12) ${progressDeg}deg 360deg)`,
-  };
 
   return (
     <div style={s.page}>
@@ -595,20 +532,17 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
       {/* Actions */}
       <div style={s.actions} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <div style={s.holdWrap}>
-          <div style={{ ...s.holdRing, ...ringStyle }} />
-          <button
-            type="button"
-            style={s.primaryBtn}
-            onPointerDown={startHold}
-            onPointerUp={stopHold}
-            onPointerLeave={stopHold}
-            onPointerCancel={stopHold}
-            disabled={!canConfirm}
-          >
-            {confirmed ? "Записано! ✅" : "Запланировать"}
-          </button>
-        </div>
+        <button
+          type="button"
+          style={s.primaryBtn}
+          className="intro-primary-btn"
+          onClick={() => {
+            fireHapticImpact("light");
+            onComplete();
+          }}
+        >
+          Запланировать
+        </button>
         <button
           type="button"
           style={s.backBtn}
@@ -617,22 +551,6 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           Назад
         </button>
       </div>
-
-      {showConfetti && (
-        <div className="confetti" aria-hidden>
-          {Array.from({ length: 16 }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                left: `${8 + (i * 5)}%`,
-                top: `${50 + (i % 4) * 8}%`,
-                background: ["#1e1f22", "#f97316", "#10b981", "#3b82f6", "#ec4899"][i % 5],
-                animationDelay: `${i * 0.02}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -690,26 +608,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
     zIndex: 10,
-  },
-  holdWrap: {
-    position: "relative",
-    width: "100%",
-    display: "grid",
-    placeItems: "center",
-  },
-  holdRing: {
-    position: "absolute",
-    inset: -4,
-    borderRadius: 20,
-    padding: 2,
-    pointerEvents: "none",
-    filter: "drop-shadow(0 0 6px rgba(34,211,238,0.65))",
-    transition: "opacity 120ms ease",
-    WebkitMask:
-      "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-    WebkitMaskComposite: "xor",
-    mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-    maskComposite: "exclude",
   },
   primaryBtn: {
     position: "relative",
