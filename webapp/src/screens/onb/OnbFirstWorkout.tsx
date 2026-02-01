@@ -68,6 +68,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const rafRef = useRef<number | null>(null);
   const lastHapticRef = useRef<number>(0);
   const suppressHapticsRef = useRef(true);
+  const lastDateTickRef = useRef<number | null>(null);
+  const lastHourTickRef = useRef<number | null>(null);
+  const lastMinuteTickRef = useRef<number | null>(null);
 
   // Date picker state (scroll-snap centered, like OnbWeight)
   const dates = useMemo(() => buildDates(DATE_COUNT, DATE_PAST_DAYS), []);
@@ -120,6 +123,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   // Ensure initial scroll aligns to today's date
   useEffect(() => {
     scrollRef.current?.scrollTo({ left: activeIdx * DATE_ITEM_W, behavior: "auto" });
+    lastDateTickRef.current = activeIdx;
   }, []);
 
   // Ensure initial scroll aligns to current time
@@ -132,6 +136,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       top: (MIN_BASE * MIN_MID + activeMinute) * TIME_ITEM_H,
       behavior: "auto",
     });
+    lastHourTickRef.current = HOUR_BASE * HOUR_MID + activeHour;
+    lastMinuteTickRef.current = MIN_BASE * MIN_MID + activeMinute;
   }, []);
 
   useEffect(() => {
@@ -150,6 +156,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (!el) return;
         const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
         const clamped = Math.max(0, Math.min(idx, dates.length - 1));
+        if (lastDateTickRef.current !== clamped) {
+          lastDateTickRef.current = clamped;
+          if (!suppressHapticsRef.current) fireHapticImpact("light");
+        }
         if (clamped !== activeIdx) setActiveIdx(clamped);
       });
     }
@@ -173,6 +183,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (!el) return;
         const idx = Math.round(el.scrollTop / TIME_ITEM_H);
         const clamped = Math.max(0, Math.min(idx, hours.length - 1));
+        if (lastHourTickRef.current !== clamped) {
+          lastHourTickRef.current = clamped;
+          if (!suppressHapticsRef.current) fireHapticImpact("light");
+        }
         const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
         if (value !== activeHour) setActiveHour(value);
       });
@@ -199,6 +213,10 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         if (!el) return;
         const idx = Math.round(el.scrollTop / TIME_ITEM_H);
         const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
+        if (lastMinuteTickRef.current !== clamped) {
+          lastMinuteTickRef.current = clamped;
+          if (!suppressHapticsRef.current) fireHapticImpact("light");
+        }
         const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
         if (value !== activeMinute) setActiveMinute(value);
       });
