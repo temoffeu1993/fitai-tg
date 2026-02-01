@@ -9,6 +9,8 @@ type Props = {
   onBack?: () => void;
 };
 
+type Phase = "form" | "leaving" | "success";
+
 // ── Date picker (scroll-snap like OnbWeight) ──────────────────
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DATE_ITEM_W = 64; // px width of each date slot
@@ -51,13 +53,45 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
   });
 }
 
+// ── Confetti helpers ──────────────────────────────────────────
+const CONFETTI_COLORS = ["#22c55e", "#22d3ee", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+function spawnConfetti(container: HTMLDivElement) {
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const span = document.createElement("span");
+    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    const left = 10 + Math.random() * 80;
+    const top = 20 + Math.random() * 40;
+    const delay = Math.random() * 400;
+    const duration = 700 + Math.random() * 500;
+    const rotation = -30 + Math.random() * 60;
+    const scale = 0.6 + Math.random() * 0.8;
+    span.style.cssText = `
+      position: absolute;
+      left: ${left}%;
+      top: ${top}%;
+      width: ${6 + Math.random() * 6}px;
+      height: ${10 + Math.random() * 8}px;
+      border-radius: 3px;
+      background: ${color};
+      opacity: 0;
+      transform: scale(${scale});
+      animation: confettiFall ${duration}ms ${delay}ms ease-out forwards;
+      rotate: ${rotation}deg;
+    `;
+    container.appendChild(span);
+  }
+}
+
 export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
   const [showContent, setShowContent] = useState(false);
+  const [phase, setPhase] = useState<Phase>("form");
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
   const [reminderWidth, setReminderWidth] = useState<number | null>(null);
   const reminderRef = useRef<HTMLDivElement>(null);
+  const confettiRef = useRef<HTMLDivElement>(null);
   const suppressHapticsRef = useRef(true);
   const lastDateTickRef = useRef<number | null>(null);
   const lastHourTickRef = useRef<number | null>(null);
@@ -86,6 +120,35 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const minuteRafRef = useRef<number | null>(null);
   const hourStopTimer = useRef<number | null>(null);
   const minuteStopTimer = useRef<number | null>(null);
+
+  // ── Formatted date for success ticket ──
+  const formattedDate = useMemo(() => {
+    const d = dates[activeIdx]?.date;
+    if (!d) return "";
+    const h = String(activeHour).padStart(2, "0");
+    const m = String(activeMinute).padStart(2, "0");
+    return `${d.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })} в ${h}:${m}`;
+  }, [dates, activeIdx, activeHour, activeMinute]);
+
+  // ── Confirm handler ──
+  const handleConfirm = () => {
+    if (phase !== "form") return;
+    setPhase("leaving");
+    fireHapticImpact("medium");
+
+    setTimeout(() => {
+      setPhase("success");
+      fireHapticImpact("heavy");
+      if (confettiRef.current) {
+        confettiRef.current.innerHTML = "";
+        spawnConfetti(confettiRef.current);
+      }
+    }, 400);
+
+    setTimeout(() => {
+      onComplete();
+    }, 3200);
+  };
 
   // Lock scroll on this screen
   useLayoutEffect(() => {
@@ -283,6 +346,9 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return () => window.clearTimeout(t);
   }, []);
 
+  const isLeaving = phase === "leaving";
+  const isSuccess = phase === "success";
+
   return (
     <div style={s.page}>
       <style>{`
@@ -292,14 +358,25 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         }
         @keyframes onbFadeDown {
           0% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(12px); }
+          100% { opacity: 0; transform: translateY(12px); pointer-events: none; }
+        }
+        @keyframes successPopIn {
+          0% { opacity: 0; transform: scale(0.85) translateY(24px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes confettiFall {
+          0% { opacity: 0; transform: translateY(0) scale(0.7); }
+          15% { opacity: 1; }
+          100% { opacity: 0; transform: translateY(-120px) rotate(20deg) scale(0.3); }
         }
         .onb-fade-target { opacity: 0; }
         .onb-fade { animation: onbFadeUp 520ms ease-out both; }
         .onb-fade-delay-1 { animation-delay: 80ms; }
         .onb-fade-delay-2 { animation-delay: 160ms; }
         .onb-fade-delay-3 { animation-delay: 240ms; }
-        .onb-leave { animation: onbFadeDown 220ms ease-in both; }
+        .onb-leave { animation: onbFadeDown 380ms ease-in both; }
+        .onb-success-in { animation: successPopIn 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+        .onb-success-in-delay { animation-delay: 120ms; }
         .date-track::-webkit-scrollbar { display: none; }
         .date-item {
           appearance: none; outline: none; border: none; cursor: pointer;
@@ -325,232 +402,264 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
           filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
         @media (prefers-reduced-motion: reduce) {
-          .onb-fade, .onb-leave { animation: none !important; }
+          .onb-fade, .onb-leave, .onb-success-in { animation: none !important; }
           .onb-fade-target { opacity: 1 !important; transform: none !important; }
-        }
-        @keyframes confettiPop {
-          0% { opacity: 0; transform: translateY(12px) scale(0.9); }
-          20% { opacity: 1; }
-          100% { opacity: 0; transform: translateY(-80px) rotate(10deg); }
-        }
-        .confetti {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          z-index: 60;
-        }
-        .confetti span {
-          position: absolute;
-          width: 8px;
-          height: 14px;
-          border-radius: 3px;
-          opacity: 0;
-          animation: confettiPop 900ms ease-out forwards;
         }
       `}</style>
 
-      <div style={s.mascotRow} className="onb-fade onb-fade-delay-2">
-        <img src={smotrchasImg} alt="" style={s.mascotImg} />
-        <div style={s.bubble} className="speech-bubble">
-          <span style={s.bubbleText}>
-            План идеален! Давай запланируем первую тренировку.
-          </span>
-        </div>
-      </div>
-
+      {/* ── CONFETTI LAYER ── */}
       <div
-        style={s.scheduleCard}
-        className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`}
-      >
-        <div style={s.dateScroller}>
-          <div style={s.dateIndicator} />
-          <div style={s.dateFadeL} />
-          <div style={s.dateFadeR} />
+        ref={confettiRef}
+        style={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 60,
+        }}
+      />
+
+      {/* ── FORM PHASE: mascot + schedule + actions ── */}
+      {!isSuccess && (
+        <>
           <div
-            ref={scrollRef}
-            style={s.dateTrack}
-            className="date-track"
-            onScroll={handleDateScroll}
+            style={s.mascotRow}
+            className={isLeaving ? "onb-leave" : "onb-fade onb-fade-delay-2"}
           >
-            {dates.map((d, idx) => {
-              const active = idx === activeIdx;
-              return (
+            <img src={smotrchasImg} alt="" style={s.mascotImg} />
+            <div style={s.bubble} className="speech-bubble">
+              <span style={s.bubbleText}>
+                План идеален! Давай запланируем первую тренировку.
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={s.scheduleCard}
+            className={
+              isLeaving
+                ? "onb-leave"
+                : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-2" : ""}`
+            }
+          >
+            <div style={s.dateScroller}>
+              <div style={s.dateIndicator} />
+              <div style={s.dateFadeL} />
+              <div style={s.dateFadeR} />
+              <div
+                ref={scrollRef}
+                style={s.dateTrack}
+                className="date-track"
+                onScroll={handleDateScroll}
+              >
+                {dates.map((d, idx) => {
+                  const active = idx === activeIdx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="date-item"
+                      style={{ ...s.dateItem, scrollSnapAlign: "center" }}
+                      onClick={() => {
+                        fireHapticImpact("light");
+                        setActiveIdx(idx);
+                        scrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
+                      }}
+                    >
+                      <span
+                        style={{
+                          ...s.dateDow,
+                          ...(active ? s.dateDowActive : undefined),
+                        }}
+                      >
+                        {d.dow}
+                      </span>
+                      <span
+                        style={{
+                          ...s.dateNum,
+                          ...(active ? s.dateNumActive : undefined),
+                        }}
+                      >
+                        {d.day}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={s.timeWrap}>
+              <div style={s.timeColonOverlay}>:</div>
+              <div style={s.timeInner}>
+                <div style={s.timeColWrap}>
+                  <div
+                    ref={hourRef}
+                    style={s.timeList}
+                    className="time-track"
+                    onScroll={handleHourScroll}
+                  >
+                    <div style={{ height: 0 }} />
+                    {hours.map((h, idx) => (
+                      <button
+                        key={`${h}-${idx}`}
+                        type="button"
+                        className="time-item"
+                        style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
+                        onClick={() => {
+                          const next = (activeHour + 1) % HOUR_BASE;
+                          const el = hourRef.current;
+                          if (!el) return;
+                          const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
+                          const curVal = ((curIdx % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
+                          let targetIdx = curIdx - curVal + next;
+                          if (next <= curVal) targetIdx += HOUR_BASE;
+                          setActiveHour(next);
+                          el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+                          fireHapticImpact("light");
+                        }}
+                      >
+                        {String(h).padStart(2, "0")}
+                      </button>
+                    ))}
+                    <div style={{ height: 0 }} />
+                  </div>
+                </div>
+
+                <div style={s.timeColWrap}>
+                  <div
+                    ref={minuteRef}
+                    style={s.timeList}
+                    className="time-track"
+                    onScroll={handleMinuteScroll}
+                  >
+                    <div style={{ height: 0 }} />
+                    {minutes.map((m, idx) => (
+                      <button
+                        key={`${m}-${idx}`}
+                        type="button"
+                        className="time-item"
+                        style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
+                        onClick={() => {
+                          const next = (activeMinute + 1) % MIN_BASE;
+                          const el = minuteRef.current;
+                          if (!el) return;
+                          const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
+                          const curVal = ((curIdx % MIN_BASE) + MIN_BASE) % MIN_BASE;
+                          let targetIdx = curIdx - curVal + next;
+                          if (next <= curVal) targetIdx += MIN_BASE;
+                          setActiveMinute(next);
+                          el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
+                          fireHapticImpact("light");
+                        }}
+                      >
+                        {String(m).padStart(2, "0")}
+                      </button>
+                    ))}
+                    <div style={{ height: 0 }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div ref={reminderRef} style={s.reminderWrap}>
+              <div style={s.reminderCard}>
                 <button
-                  key={idx}
                   type="button"
-                  className="date-item"
-                  style={{ ...s.dateItem, scrollSnapAlign: "center" }}
+                  style={s.reminderRow}
                   onClick={() => {
                     fireHapticImpact("light");
-                    setActiveIdx(idx);
-                    scrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
+                    setReminderOpen((v) => !v);
                   }}
                 >
-                  <span
-                    style={{
-                      ...s.dateDow,
-                      ...(active ? s.dateDowActive : undefined),
-                    }}
-                  >
-                    {d.dow}
-                  </span>
-                  <span
-                    style={{
-                      ...s.dateNum,
-                      ...(active ? s.dateNumActive : undefined),
-                    }}
-                  >
-                    {d.day}
+                  <span style={s.reminderLabel}>🔔 Напомнить</span>
+                  <span style={s.reminderValue}>
+                    <span>{reminderValue}</span>
+                    <span style={s.reminderChevrons}>
+                      <span>▴</span>
+                      <span>▾</span>
+                    </span>
                   </span>
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={s.timeWrap}>
-          <div style={s.timeColonOverlay}>:</div>
-          <div style={s.timeInner}>
-            <div style={s.timeColWrap}>
-              <div
-                ref={hourRef}
-                style={s.timeList}
-                className="time-track"
-                onScroll={handleHourScroll}
-              >
-                <div style={{ height: 0 }} />
-                {hours.map((h, idx) => (
-                  <button
-                    key={`${h}-${idx}`}
-                    type="button"
-                    className="time-item"
-                    style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    const next = (activeHour + 1) % HOUR_BASE;
-                    const el = hourRef.current;
-                    if (!el) return;
-                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
-                    const curVal = ((curIdx % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
-                    let targetIdx = curIdx - curVal + next;
-                    if (next <= curVal) targetIdx += HOUR_BASE;
-                    setActiveHour(next);
-                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
+              </div>
+              {reminderOpen && (
+                <div
+                  style={{
+                    ...s.reminderList,
+                    ...(reminderWidth ? { width: reminderWidth } : null),
                   }}
                 >
-                  {String(h).padStart(2, "0")}
-                </button>
-                ))}
-                <div style={{ height: 0 }} />
-              </div>
-            </div>
-
-            <div style={s.timeColWrap}>
-              <div
-                ref={minuteRef}
-                style={s.timeList}
-                className="time-track"
-                onScroll={handleMinuteScroll}
-              >
-                <div style={{ height: 0 }} />
-                {minutes.map((m, idx) => (
-                  <button
-                    key={`${m}-${idx}`}
-                    type="button"
-                    className="time-item"
-                    style={{ ...s.timeItem, ...(m === activeMinute ? s.timeItemActive : {}) }}
-                  onClick={() => {
-                    const next = (activeMinute + 1) % MIN_BASE;
-                    const el = minuteRef.current;
-                    if (!el) return;
-                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
-                    const curVal = ((curIdx % MIN_BASE) + MIN_BASE) % MIN_BASE;
-                    let targetIdx = curIdx - curVal + next;
-                    if (next <= curVal) targetIdx += MIN_BASE;
-                    setActiveMinute(next);
-                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {String(m).padStart(2, "0")}
-                </button>
-                ))}
-                <div style={{ height: 0 }} />
-              </div>
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      style={{
+                        ...s.reminderOption,
+                        ...(opt === reminderValue ? s.reminderOptionActive : null),
+                      }}
+                      onClick={() => {
+                        setReminderValue(opt);
+                        setReminderOpen(false);
+                        fireHapticImpact("light");
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        <div ref={reminderRef} style={s.reminderWrap}>
-          <div style={s.reminderCard}>
+          {/* Actions */}
+          <div
+            style={s.actions}
+            className={
+              isLeaving
+                ? "onb-leave"
+                : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`
+            }
+          >
             <button
               type="button"
-              style={s.reminderRow}
-              onClick={() => {
-                fireHapticImpact("light");
-                setReminderOpen((v) => !v);
-              }}
+              style={s.primaryBtn}
+              className="intro-primary-btn"
+              onClick={handleConfirm}
             >
-              <span style={s.reminderLabel}>🔔 Напомнить</span>
-              <span style={s.reminderValue}>
-                <span>{reminderValue}</span>
-                <span style={s.reminderChevrons}>
-                  <span>▴</span>
-                  <span>▾</span>
-                </span>
-              </span>
+              Запланировать
+            </button>
+            <button
+              type="button"
+              style={s.backBtn}
+              onClick={() => (onBack ? onBack() : nav(-1))}
+            >
+              Назад
             </button>
           </div>
-          {reminderOpen && (
-            <div
-              style={{
-                ...s.reminderList,
-                ...(reminderWidth ? { width: reminderWidth } : null),
-              }}
-            >
-              {REMINDER_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  style={{
-                    ...s.reminderOption,
-                    ...(opt === reminderValue ? s.reminderOptionActive : null),
-                  }}
-                  onClick={() => {
-                    setReminderValue(opt);
-                    setReminderOpen(false);
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* Actions */}
-      <div style={s.actions} className={`onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}>
-        <button
-          type="button"
-          style={s.primaryBtn}
-          className="intro-primary-btn"
-          onClick={() => {
-            fireHapticImpact("light");
-            onComplete();
-          }}
-        >
-          Запланировать
-        </button>
-        <button
-          type="button"
-          style={s.backBtn}
-          onClick={() => (onBack ? onBack() : nav(-1))}
-        >
-          Назад
-        </button>
-      </div>
+      {/* ── SUCCESS PHASE ── */}
+      {isSuccess && (
+        <>
+          <div style={s.mascotRow} className="onb-success-in">
+            <img src={smotrchasImg} alt="" style={{ ...s.mascotImg, transform: "scale(1.1)" }} />
+            <div style={s.bubble} className="speech-bubble">
+              <span style={s.bubbleText}>
+                Первый шаг сделан! Я горжусь тобой.
+              </span>
+            </div>
+          </div>
+
+          <div style={s.ticketCard} className="onb-success-in onb-success-in-delay">
+            <div style={s.ticketAccent} />
+            <div style={s.ticketTitle}>Встреча назначена!</div>
+            <div style={s.ticketDate}>{formattedDate}</div>
+            <div style={s.ticketDivider} />
+            <div style={s.ticketReminder}>
+              🔔 Напомню {reminderValue.toLowerCase()}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -567,6 +676,7 @@ const s: Record<string, React.CSSProperties> = {
     background: "transparent",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     color: "#1e1f22",
+    position: "relative",
   },
   mascotRow: {
     display: "grid",
@@ -912,5 +1022,57 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     background: "transparent",
     boxShadow: "none",
+  },
+
+  // ── Success ticket ─────────────────────────────────────
+  ticketCard: {
+    borderRadius: 22,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(245,245,250,0.85) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    padding: "32px 24px 28px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
+    position: "relative",
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  ticketAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+    background: "linear-gradient(90deg, #22d3ee, #22c55e)",
+    borderRadius: "22px 22px 0 0",
+  },
+  ticketTitle: {
+    fontSize: 24,
+    fontWeight: 800,
+    color: "#1e1f22",
+    textAlign: "center",
+  },
+  ticketDate: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.6)",
+    textAlign: "center",
+    textTransform: "capitalize",
+  },
+  ticketDivider: {
+    width: "60%",
+    height: 1,
+    background: "rgba(30,31,34,0.08)",
+    margin: "6px 0",
+  },
+  ticketReminder: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#22c55e",
+    textAlign: "center",
   },
 };
