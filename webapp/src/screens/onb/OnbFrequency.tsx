@@ -126,9 +126,12 @@ export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Pro
         }
         .intro-primary-btn:active:not(:disabled) {
           transform: translateY(1px) scale(0.99) !important;
-          background-color: #141619 !important;
-          box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
-          filter: brightness(0.99) !important;
+          background-color: #1e1f22 !important;
+          border-color: #1e1f22 !important;
+          box-shadow: 0 10px 22px rgba(0,0,0,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.7),
+            inset 0 0 0 1px rgba(255,255,255,0.25) !important;
+          filter: none !important;
         }
         .intro-primary-btn:disabled {
           background-color: #1e1f22 !important;
