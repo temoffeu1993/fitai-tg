@@ -31,6 +31,7 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
   const leaveTimerRef = useRef<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -77,11 +78,17 @@ export default function OnbAge({ initial, loading, onSubmit, onBack }: Props) {
     }
     const index = age - AGE_MIN;
     list.scrollTop = index * ITEM_HEIGHT;
+    lastTickRef.current = index;
   }, [age]);
 
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
+    const liveIndex = Math.round(list.scrollTop / ITEM_HEIGHT);
+    if (lastTickRef.current !== liveIndex) {
+      lastTickRef.current = liveIndex;
+      fireHapticImpact("light");
+    }
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
     }

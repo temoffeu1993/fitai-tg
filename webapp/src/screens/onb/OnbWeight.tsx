@@ -33,6 +33,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
   const listRef = useRef<HTMLDivElement | null>(null);
   const scrollStopTimerRef = useRef<number | null>(null);
   const suppressSyncRef = useRef(false);
+  const lastTickRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -83,6 +84,7 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
     }
     const index = (weight - WEIGHT_MIN) * TICKS_PER_KG;
     list.scrollLeft = index * ITEM_WIDTH;
+    lastTickRef.current = Math.round(index / TICKS_PER_KG) * TICKS_PER_KG;
   }, [weight]);
 
   const setWeightFromScroll = (nextWeight: number) => {
@@ -97,6 +99,12 @@ export default function OnbWeight({ initial, loading, onSubmit, onBack }: Props)
   const handleListScroll = () => {
     const list = listRef.current;
     if (!list) return;
+    const liveRaw = Math.round(list.scrollLeft / ITEM_WIDTH);
+    const liveMajor = Math.round(liveRaw / TICKS_PER_KG) * TICKS_PER_KG;
+    if (lastTickRef.current !== liveMajor) {
+      lastTickRef.current = liveMajor;
+      fireHapticImpact("light");
+    }
     if (scrollStopTimerRef.current) {
       window.clearTimeout(scrollStopTimerRef.current);
     }
