@@ -230,21 +230,20 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div
-            style={st.mascotRow}
-            className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}
-          >
-            <img src={smotrchasImg} alt="" style={st.mascotImg} />
-            <div style={st.bubble} className="speech-bubble">
-              <span style={st.bubbleText}>
+          <div style={st.successBubbleWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <div style={st.successBubble} className="speech-bubble-bottom">
+              <span style={st.successBubbleText}>
                 Узнаем твой реальный запас выносливости прямо сейчас
               </span>
             </div>
           </div>
+          <div style={st.successMascotWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <img src={smotrchasImg} alt="" style={st.successMascotImg} />
+          </div>
 
           {/* Timeline instruction */}
           <div
-            style={st.timelineCard}
+            style={st.timelineList}
             className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
           >
             {STEPS.map((step, idx) => (
@@ -260,7 +259,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
           {/* Start button (full-width, to bottom) */}
           <div
-            style={st.bottomAction}
+            style={st.bottomActionRaised}
             className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
           >
             <button
@@ -501,17 +500,12 @@ const st: Record<string, React.CSSProperties> = {
   },
 
   // ── Timeline instruction card ──
-  timelineCard: {
-    borderRadius: 20,
-    padding: "20px 18px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+  timelineList: {
     display: "flex",
     flexDirection: "column",
     gap: 0,
+    marginTop: 6,
+    marginBottom: 6,
   },
   timelineItem: {
     display: "flex",
@@ -546,12 +540,12 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 1,
   },
   timelineText: {
-    fontSize: 17,
-    fontWeight: 600,
-    color: "#1e1f22",
-    lineHeight: 1.35,
-    paddingTop: 7,
-    paddingBottom: 10,
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(15, 23, 42, 0.6)",
+    lineHeight: 1.5,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
 
   // ── Actions ──
@@ -594,6 +588,14 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
+    height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
+    zIndex: 10,
+  },
+  bottomActionRaised: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
     height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
     zIndex: 10,
   },
