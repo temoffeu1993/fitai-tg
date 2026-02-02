@@ -351,7 +351,8 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 20,
     padding: "18px 18px",
     border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.25)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
@@ -387,20 +388,17 @@ const st: Record<string, React.CSSProperties> = {
     maxWidth: "60%",
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 500,
+    fontSize: 28,
+    fontWeight: 700,
     color: "#1e1f22",
-    lineHeight: 1.2,
+    lineHeight: 1.15,
+    letterSpacing: -0.5,
   },
   cardDesc: {
     fontSize: 14,
     fontWeight: 500,
     color: "rgba(30,31,34,0.55)",
     lineHeight: 1.45,
-    display: "-webkit-box",
-    WebkitBoxOrient: "vertical",
-    WebkitLineClamp: 3,
-    overflow: "hidden",
   },
   cardBottom: {
     display: "flex",
@@ -430,6 +428,7 @@ const st: Record<string, React.CSSProperties> = {
     height: "auto",
     objectFit: "contain",
     pointerEvents: "none",
+    marginTop: -10,
   },
   playBtn: {
     width: 34,
