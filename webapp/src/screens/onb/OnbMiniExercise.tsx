@@ -62,7 +62,7 @@ const STACK_OFFSET = 70;
 export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const [activeId, setActiveId] = useState<string>(EXERCISES[1]?.id ?? "");
+  const [activeId, setActiveId] = useState<string>(EXERCISES[0]?.id ?? "");
   const leaveTimerRef = useRef<number | null>(null);
   const activeExercise =
     EXERCISES.find((item) => item.id === activeId) || EXERCISES[EXERCISES.length - 1];
