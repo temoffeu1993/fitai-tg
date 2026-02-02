@@ -444,6 +444,9 @@ const st: Record<string, React.CSSProperties> = {
   playBtn: {
     width: 34,
     height: 34,
+    minWidth: 34,
+    minHeight: 34,
+    flexShrink: 0,
     borderRadius: 999,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.65) 100%)",
