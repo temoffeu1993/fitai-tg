@@ -51,7 +51,7 @@ const EXERCISES: Exercise[] = [
   },
 ];
 
-const CARD_EXPANDED_H = 220;
+const CARD_EXPANDED_H = 240;
 const CARD_COLLAPSED_H = 96;
 const STACK_OFFSET = 70;
 
@@ -346,9 +346,9 @@ const st: Record<string, React.CSSProperties> = {
   cardInner: {
     display: "flex",
     flexDirection: "column",
+    gap: 10,
     height: "100%",
-    justifyContent: "space-between",
-    gap: 12,
+    minHeight: 0,
   },
   cardTopRow: {
     display: "flex",
@@ -381,6 +381,8 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "flex-end",
     justifyContent: "space-between",
     gap: 12,
+    alignSelf: "stretch",
+    marginTop: "auto",
   },
   timeRow: {
     display: "inline-flex",
@@ -435,11 +437,11 @@ const st: Record<string, React.CSSProperties> = {
     placeItems: "center",
   },
   cardImage: {
-    width: 112,
+    width: 96,
     height: "auto",
+    maxHeight: 96,
     objectFit: "contain",
     pointerEvents: "none",
-    alignSelf: "flex-end",
   },
 
   // Actions
