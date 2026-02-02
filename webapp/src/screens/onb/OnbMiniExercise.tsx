@@ -25,7 +25,7 @@ type Exercise = {
 const EXERCISES: Exercise[] = [
   {
     id: "co2_test",
-    title: "Тест на выносливость",
+    title: "Выносливость",
     description: "Задержите дыхание на максимум. Узнаем, как ваши лёгкие усваивают кислород.",
     duration: "1 мин",
     image: breathImg,
