@@ -410,11 +410,10 @@ const st: Record<string, React.CSSProperties> = {
     lineHeight: 1,
   },
   timeText: {
-    fontSize: 32,
-    fontWeight: 700,
+    fontSize: 14,
+    fontWeight: 600,
     color: "#0f172a",
-    lineHeight: 1.1,
-    letterSpacing: -0.5,
+    lineHeight: 1,
   },
   playBtn: {
     width: 34,
