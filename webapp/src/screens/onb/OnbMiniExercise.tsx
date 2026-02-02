@@ -125,7 +125,6 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
       <div style={st.cardsContainer}>
         {EXERCISES.map((ex, idx) => {
           const activeIndex = Math.max(0, EXERCISES.findIndex((item) => item.id === activeId));
-          const isActive = ex.id === activeId;
           const order = EXERCISES.map((_, i) => i).filter((i) => i !== activeIndex);
           order.push(activeIndex);
           const stackIndex = order.indexOf(idx);
@@ -143,10 +142,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: isActive
-                  ? "#1e1f22"
-                  : `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%), ${ex.gradient}`,
-                border: isActive ? "1px solid #1e1f22" : st.card.border,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%), ${ex.gradient}`,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
@@ -157,9 +153,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
             >
               <div style={st.cardInner}>
                 <div style={st.cardTopRow}>
-                  <div style={{ ...st.cardTitle, ...(isActive ? st.cardTitleActive : null) }}>
-                    {ex.title}
-                  </div>
+                  <div style={st.cardTitle}>{ex.title}</div>
                   <div style={st.playBtn}>
                     <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                       <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
@@ -167,20 +161,16 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                   </div>
                 </div>
                 <div style={st.timeRow}>
-                  <span style={{ ...st.clockIcon, ...(isActive ? st.clockIconActive : null) }}>
-                    <span style={{ ...st.clockHandShort, ...(isActive ? st.clockHandShortActive : null) }} />
-                    <span style={{ ...st.clockHandLong, ...(isActive ? st.clockHandLongActive : null) }} />
+                  <span style={st.clockIcon}>
+                    <span style={st.clockHandShort} />
+                    <span style={st.clockHandLong} />
                   </span>
-                  <span style={{ ...st.timeText, ...(isActive ? st.timeTextActive : null) }}>
-                    {ex.duration}
-                  </span>
+                  <span style={st.timeText}>{ex.duration}</span>
                 </div>
                 <div style={st.cardBottomRow}>
-                  <div style={{ ...st.cardDesc, ...(isActive ? st.cardDescActive : null) }}>
-                    {ex.description}
-                  </div>
-                  <img src={ex.image} alt="" style={st.cardImage} />
+                  <div style={st.cardDesc}>{ex.description}</div>
                 </div>
+                <img src={ex.image} alt="" style={st.cardImage} />
               </div>
             </button>
           );
@@ -359,6 +349,8 @@ const st: Record<string, React.CSSProperties> = {
     gap: 10,
     height: "100%",
     minHeight: 0,
+    position: "relative",
+    zIndex: 2,
   },
   cardTopRow: {
     display: "flex",
@@ -379,18 +371,12 @@ const st: Record<string, React.CSSProperties> = {
     lineHeight: 1.1,
     letterSpacing: -0.8,
   },
-  cardTitleActive: {
-    color: "#fff",
-  },
   cardDesc: {
     fontSize: 14,
     fontWeight: 500,
     color: "rgba(30,31,34,0.55)",
     lineHeight: 1.45,
     maxWidth: "62%",
-  },
-  cardDescActive: {
-    color: "rgba(255,255,255,0.78)",
   },
   cardBottomRow: {
     display: "flex",
@@ -412,9 +398,6 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(30,31,34,0.7)",
     lineHeight: 1,
   },
-  timeTextActive: {
-    color: "rgba(255,255,255,0.85)",
-  },
   clockIcon: {
     position: "relative",
     width: 14,
@@ -423,9 +406,6 @@ const st: Record<string, React.CSSProperties> = {
     border: "1.5px solid rgba(30,31,34,0.55)",
     boxSizing: "border-box",
     display: "inline-block",
-  },
-  clockIconActive: {
-    border: "1.5px solid rgba(255,255,255,0.7)",
   },
   clockHandShort: {
     position: "absolute",
@@ -437,9 +417,6 @@ const st: Record<string, React.CSSProperties> = {
     transform: "translate(-50%, -80%) rotate(0deg)",
     borderRadius: 2,
   },
-  clockHandShortActive: {
-    background: "rgba(255,255,255,0.85)",
-  },
   clockHandLong: {
     position: "absolute",
     width: 1.5,
@@ -450,9 +427,6 @@ const st: Record<string, React.CSSProperties> = {
     transform: "translate(-50%, -100%) rotate(60deg)",
     transformOrigin: "bottom center",
     borderRadius: 2,
-  },
-  clockHandLongActive: {
-    background: "rgba(255,255,255,0.85)",
   },
   playBtn: {
     width: 34,
@@ -468,11 +442,13 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     right: 16,
     bottom: 12,
-    height: "calc(100% - 24px)",
+    height: 200,
     width: "auto",
+    maxHeight: 200,
     maxWidth: 200,
     objectFit: "contain",
     pointerEvents: "none",
+    zIndex: 1,
   },
 
   // Actions
