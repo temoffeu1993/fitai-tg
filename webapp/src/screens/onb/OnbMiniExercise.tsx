@@ -403,7 +403,7 @@ const st: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    marginTop: 2,
+    marginTop: 12,
   },
   timeText: {
     fontSize: 14,
