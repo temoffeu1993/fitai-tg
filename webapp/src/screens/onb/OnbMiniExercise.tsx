@@ -30,7 +30,7 @@ const EXERCISES: Exercise[] = [
     duration: "1 мин",
     image: breathImg,
     gradient:
-      "linear-gradient(135deg, rgba(203,224,255,0.95) 0%, rgba(186,206,242,0.78) 45%, rgba(216,233,255,0.88) 100%)",
+      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(200,226,255,0.85) 38%, rgba(160,196,255,0.82) 70%, rgba(220,240,255,0.9) 100%)",
   },
   {
     id: "box_breathing",
@@ -39,7 +39,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: healImg,
     gradient:
-      "linear-gradient(135deg, rgba(205,232,221,0.95) 0%, rgba(186,219,203,0.78) 50%, rgba(218,240,229,0.9) 100%)",
+      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(177,235,215,0.86) 40%, rgba(120,214,186,0.82) 70%, rgba(214,245,233,0.9) 100%)",
   },
   {
     id: "vacuum",
@@ -48,7 +48,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: absImg,
     gradient:
-      "linear-gradient(135deg, rgba(255,226,210,0.95) 0%, rgba(246,210,192,0.78) 50%, rgba(255,236,224,0.9) 100%)",
+      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(255,210,178,0.86) 40%, rgba(255,170,130,0.82) 70%, rgba(255,232,214,0.9) 100%)",
   },
 ];
 
@@ -350,7 +350,7 @@ const st: Record<string, React.CSSProperties> = {
   card: {
     borderRadius: 20,
     padding: "18px 18px",
-    border: "1px solid rgba(255,255,255,0.7)",
+    border: "1px solid rgba(255,255,255,0.6)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
@@ -415,8 +415,8 @@ const st: Record<string, React.CSSProperties> = {
     gap: 8,
     padding: "6px 10px",
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.55) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 100%)",
     boxShadow: "0 8px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.7)",
     fontSize: 13,
     fontWeight: 600,
@@ -435,8 +435,8 @@ const st: Record<string, React.CSSProperties> = {
     width: 34,
     height: 34,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.55) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 100%)",
     boxShadow: "0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
     display: "grid",
     placeItems: "center",
