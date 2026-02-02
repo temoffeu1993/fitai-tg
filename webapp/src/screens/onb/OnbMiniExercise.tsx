@@ -457,7 +457,7 @@ const st: Record<string, React.CSSProperties> = {
   cardImage: {
     position: "absolute",
     right: -24,
-    bottom: -36,
+    bottom: -56,
     height: 240,
     width: "auto",
     maxHeight: 240,
