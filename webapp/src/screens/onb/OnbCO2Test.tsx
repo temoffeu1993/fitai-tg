@@ -12,12 +12,12 @@ type Props = {
 
 type Phase = "intro" | "leaving" | "timer" | "result";
 
-// ── Instruction steps ──
-const STEPS = [
+// ── Instruction tiles ──
+const INSTRUCTION_TILES = [
   { icon: "💨", text: "Глубокий вдох-выдох 3 раза" },
-  { icon: "🛑", text: "Полный выдох" },
-  { icon: "🤐", text: "Жми Старт" },
-  { icon: "👇", text: "Задержи дыхание" },
+  { icon: "😮‍💨", text: "Полный выдох до конца" },
+  { icon: "▶️", text: "Жми Старт" },
+  { icon: "🤐", text: "Задерживай дыхание" },
 ];
 
 // ── Result interpretation ──
@@ -263,31 +263,49 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div style={st.successBubbleWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
-            <div style={st.successBubble} className="speech-bubble-bottom">
-              <span style={st.successBubbleText}>
+          <div
+            style={st.mascotRow}
+            className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}
+          >
+            <div style={st.bubble} className="speech-bubble-left">
+              <span style={st.bubbleText}>
                 Узнаем твой реальный запас выносливости прямо сейчас
               </span>
             </div>
-          </div>
-          <div style={st.successMascotWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
-            <img src={smotrchasImg} alt="" style={st.successMascotImg} />
+            <img src={smotrchasImg} alt="" style={st.mascotImg} />
           </div>
 
-          {/* Timeline instruction */}
+          {/* Instruction tiles */}
           <div
-            style={st.timelineList}
+            style={st.instructionGrid}
             className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
           >
-            {STEPS.map((step, idx) => (
-              <div key={idx} style={st.timelineItem}>
-                <div style={st.timelineLeft}>
-                  <div style={st.timelineIcon}>{step.icon}</div>
-                  {idx < STEPS.length - 1 && <div style={st.timelineLine} />}
-                </div>
-                <div style={st.timelineText}>{step.text}</div>
+            <div style={st.instructionRow}>
+              <div style={st.instructionCard}>
+                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[0].icon}</div>
+                <div style={st.instructionText}>{INSTRUCTION_TILES[0].text}</div>
               </div>
-            ))}
+              <div style={st.instructionArrow}>
+                <ArrowRight />
+              </div>
+              <div style={st.instructionCard}>
+                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[1].icon}</div>
+                <div style={st.instructionText}>{INSTRUCTION_TILES[1].text}</div>
+              </div>
+            </div>
+            <div style={st.instructionRow}>
+              <div style={st.instructionCard}>
+                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[2].icon}</div>
+                <div style={st.instructionText}>{INSTRUCTION_TILES[2].text}</div>
+              </div>
+              <div style={st.instructionArrow}>
+                <ArrowRight />
+              </div>
+              <div style={st.instructionCard}>
+                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[3].icon}</div>
+                <div style={st.instructionText}>{INSTRUCTION_TILES[3].text}</div>
+              </div>
+            </div>
           </div>
 
           {/* Start button (full-width, to bottom) */}
@@ -411,6 +429,20 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   );
 }
 
+function ArrowRight() {
+  return (
+    <svg width="22" height="10" viewBox="0 0 22 10" fill="none">
+      <path
+        d="M0 5h18M18 5l-4-4M18 5l-4 4"
+        stroke="rgba(15, 23, 42, 0.35)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // ============================================================================
 // STYLES (CSS animations + wave keyframes)
 // ============================================================================
@@ -455,6 +487,14 @@ function ScreenStyles() {
         border-right: 10px solid transparent;
         border-top: 10px solid rgba(255,255,255,0.9);
         filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
+      }
+      .speech-bubble-left:before {
+        content: ""; position: absolute;
+        right: -8px; top: 18px; width: 0; height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-left: 8px solid rgba(255,255,255,0.9);
+        filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
       }
       .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
@@ -548,53 +588,47 @@ const st: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
   },
 
-  // ── Timeline instruction card ──
-  timelineList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 0,
+  // ── Instruction tiles ──
+  instructionGrid: {
+    display: "grid",
+    gap: 16,
     marginTop: 6,
     marginBottom: 6,
   },
-  timelineItem: {
-    display: "flex",
-    gap: 14,
+  instructionRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
+    alignItems: "center",
+    gap: 12,
   },
-  timelineLeft: {
+  instructionCard: {
+    borderRadius: 18,
+    padding: "16px 14px",
+    minHeight: 104,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    width: 36,
-    flexShrink: 0,
-  },
-  timelineIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    background: "rgba(30,31,34,0.06)",
-    display: "flex",
-    alignItems: "center",
+    gap: 8,
     justifyContent: "center",
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#1e1f22",
-    flexShrink: 0,
   },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 12,
-    background: "rgba(30,31,34,0.08)",
-    margin: "4px 0",
-    borderRadius: 1,
+  instructionEmoji: {
+    fontSize: 22,
+    lineHeight: 1,
   },
-  timelineText: {
+  instructionText: {
     fontSize: 14,
     fontWeight: 500,
     color: "rgba(15, 23, 42, 0.6)",
-    lineHeight: 1.5,
-    paddingTop: 6,
-    paddingBottom: 8,
+    lineHeight: 1.4,
+  },
+  instructionArrow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // ── Actions ──
