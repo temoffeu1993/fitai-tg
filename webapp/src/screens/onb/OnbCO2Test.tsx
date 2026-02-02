@@ -259,24 +259,19 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             ))}
           </div>
 
-          {/* Start button */}
+          {/* Start button (full-width, to bottom) */}
           <div
-            style={st.actions}
+            style={st.bottomAction}
             className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
           >
             <button
               type="button"
-              style={st.primaryBtn}
+              style={st.startBtn}
               className="intro-primary-btn"
               onClick={handleStart}
             >
               Старт
             </button>
-            {onBack && (
-              <button type="button" style={st.backBtn} onClick={onBack}>
-                Назад
-              </button>
-            )}
           </div>
         </>
       )}
@@ -311,10 +306,10 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           </div>
 
           {/* Stop button */}
-          <div style={st.timerActions}>
+          <div style={st.bottomActionTall}>
             <button
               type="button"
-              style={st.stopBtn}
+              style={st.stopBtnFull}
               className="intro-primary-btn"
               onClick={() => handleStop()}
             >
@@ -595,6 +590,38 @@ const st: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center",
   },
+  bottomAction: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
+    zIndex: 10,
+  },
+  bottomActionTall: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "calc(80px + 14px + env(safe-area-inset-bottom, 0px))",
+    zIndex: 10,
+  },
+  startBtn: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "22px 22px 0 0",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
 
   // ── Timer phase ──
   timerWrap: {
@@ -682,22 +709,20 @@ const st: Record<string, React.CSSProperties> = {
     backgroundPosition: "0 100%",
     animation: "waveMove 6s linear infinite reverse",
   },
-  timerActions: {
+  stopBtnFull: {
     width: "100%",
-    maxWidth: 320,
-    display: "grid",
-    gap: 10,
-  },
-  stopBtn: {
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
+    height: "100%",
+    borderRadius: "22px 22px 0 0",
     border: "1px solid #dc2626",
     background: "#dc2626",
     color: "#fff",
-    fontSize: 18,
-    fontWeight: 600,
+    fontSize: 34,
+    fontWeight: 700,
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
     boxShadow: "0 6px 10px rgba(220,38,38,0.3)",
   },
 
