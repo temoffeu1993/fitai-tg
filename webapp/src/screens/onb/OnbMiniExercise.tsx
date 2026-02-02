@@ -1,7 +1,6 @@
 // webapp/src/screens/onb/OnbMiniExercise.tsx
 // Mini exercise picker: offers 3 quick exercises to try right away
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import maleRobotImg from "@/assets/robonew.webp";
 import breathImg from "@/assets/dihanie.png";
 import healImg from "@/assets/heals.webp";
 import absImg from "@/assets/hudoi.webp";
@@ -30,7 +29,7 @@ const EXERCISES: Exercise[] = [
     duration: "1 мин",
     image: breathImg,
     gradient:
-      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(214,232,255,0.9) 32%, rgba(148,196,255,0.86) 70%, rgba(232,246,255,0.92) 100%)",
+      "linear-gradient(145deg, rgba(18,24,40,0.98) 0%, rgba(34,70,130,0.92) 45%, rgba(16,22,36,0.98) 100%)",
   },
   {
     id: "box_breathing",
@@ -39,7 +38,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: healImg,
     gradient:
-      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(208,240,228,0.9) 35%, rgba(132,216,188,0.86) 70%, rgba(228,248,239,0.92) 100%)",
+      "linear-gradient(145deg, rgba(16,32,28,0.98) 0%, rgba(36,94,78,0.92) 45%, rgba(14,28,24,0.98) 100%)",
   },
   {
     id: "vacuum",
@@ -48,7 +47,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: absImg,
     gradient:
-      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(255,226,205,0.9) 35%, rgba(255,184,150,0.86) 70%, rgba(255,238,226,0.92) 100%)",
+      "linear-gradient(145deg, rgba(38,24,18,0.98) 0%, rgba(140,78,50,0.92) 45%, rgba(34,20,16,0.98) 100%)",
   },
 ];
 
@@ -62,21 +61,30 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
   const [mascotReady, setMascotReady] = useState(false);
   const [activeId, setActiveId] = useState<string>(EXERCISES[EXERCISES.length - 1]?.id ?? "");
   const leaveTimerRef = useRef<number | null>(null);
+  const activeExercise =
+    EXERCISES.find((item) => item.id === activeId) || EXERCISES[EXERCISES.length - 1];
 
-  // Preload mascot
+  // Preload mascots
   useEffect(() => {
     let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.src = maleRobotImg;
-    const done = () => { if (!cancelled) setMascotReady(true); };
-    const anyImg = img as any;
-    if (typeof anyImg.decode === "function") {
-      anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
-    } else {
-      img.onload = done;
-      img.onerror = done;
-    }
+    const sources = [breathImg, healImg, absImg];
+    let loaded = 0;
+    const done = () => {
+      loaded += 1;
+      if (!cancelled && loaded >= sources.length) setMascotReady(true);
+    };
+    sources.forEach((src) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = src;
+      const anyImg = img as any;
+      if (typeof anyImg.decode === "function") {
+        anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
+      } else {
+        img.onload = done;
+        img.onerror = done;
+      }
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -145,7 +153,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
       {/* Mascot + Bubble */}
       <div style={st.mascotRow} className="onb-fade onb-fade-delay-2">
         <img
-          src={maleRobotImg}
+          src={activeExercise.image}
           alt=""
           style={{ ...st.mascotImg, ...(mascotReady ? undefined : st.mascotHidden) }}
         />
@@ -192,21 +200,21 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 <div style={st.cardTop}>
                   <div style={st.cardLeft}>
                     <div style={st.cardTitle}>{ex.title}</div>
+                    <div style={st.timeRow}>
+                      <span style={st.clockIcon}>
+                        <span style={st.clockHandShort} />
+                        <span style={st.clockHandLong} />
+                      </span>
+                      <span style={st.timeText}>{ex.duration}</span>
+                    </div>
                     <div style={st.cardDesc}>{ex.description}</div>
                   </div>
-                  <img src={ex.image} alt="" style={st.cardImage} />
                 </div>
-                <div style={st.cardBottom}>
-                  <div style={st.timeChip}>
-                    <span style={st.timeIcon}>⏱</span>
-                    <span>{ex.duration}</span>
-                  </div>
-                  <div style={st.playBtn}>
-                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                      <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
-                    </svg>
-                  </div>
-                </div>
+              </div>
+              <div style={st.playBtn}>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
+                </svg>
               </div>
             </button>
           );
@@ -350,9 +358,9 @@ const st: Record<string, React.CSSProperties> = {
   card: {
     borderRadius: 20,
     padding: "18px 18px",
-    border: "1px solid rgba(255,255,255,0.6)",
+    border: "1px solid rgba(255,255,255,0.18)",
     boxShadow:
-      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.25), inset 0 -10px 20px rgba(0,0,0,0.05)",
+      "0 18px 36px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 0 1px rgba(255,255,255,0.08)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
@@ -366,7 +374,8 @@ const st: Record<string, React.CSSProperties> = {
   },
   cardActive: {},
   cardCollapsed: {
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 1px rgba(255,255,255,0.06)",
   },
   cardInner: {
     display: "flex",
@@ -385,57 +394,72 @@ const st: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    maxWidth: "60%",
+    maxWidth: "100%",
   },
   cardTitle: {
     fontSize: 28,
     fontWeight: 700,
-    color: "#1e1f22",
+    color: "#fff",
     lineHeight: 1.15,
     letterSpacing: -0.5,
   },
   cardDesc: {
     fontSize: 14,
     fontWeight: 500,
-    color: "rgba(30,31,34,0.55)",
+    color: "rgba(255,255,255,0.75)",
     lineHeight: 1.45,
   },
-  cardBottom: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  timeChip: {
-    alignSelf: "flex-start",
+  timeRow: {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    padding: "6px 10px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 100%)",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.7)",
-    fontSize: 13,
+    marginTop: 2,
+  },
+  timeText: {
+    fontSize: 14,
     fontWeight: 600,
-    color: "#1e1f22",
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 1,
   },
-  timeIcon: {
-    fontSize: 13,
+  clockIcon: {
+    position: "relative",
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    border: "1.5px solid rgba(255,255,255,0.8)",
+    boxSizing: "border-box",
+    display: "inline-block",
   },
-  cardImage: {
-    width: 120,
-    height: "auto",
-    objectFit: "contain",
-    pointerEvents: "none",
-    marginTop: -10,
+  clockHandShort: {
+    position: "absolute",
+    width: 1.5,
+    height: 5,
+    background: "rgba(255,255,255,0.85)",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -80%) rotate(0deg)",
+    borderRadius: 2,
+  },
+  clockHandLong: {
+    position: "absolute",
+    width: 1.5,
+    height: 7,
+    background: "rgba(255,255,255,0.85)",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -100%) rotate(60deg)",
+    transformOrigin: "bottom center",
+    borderRadius: 2,
   },
   playBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
     width: 34,
     height: 34,
     borderRadius: 999,
     border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.6) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.65) 100%)",
     boxShadow: "0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
     display: "grid",
     placeItems: "center",
