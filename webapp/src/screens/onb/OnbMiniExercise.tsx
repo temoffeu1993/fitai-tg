@@ -170,8 +170,8 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 <div style={st.cardBottomRow}>
                   <div style={st.cardDesc}>{ex.description}</div>
                 </div>
-                <img src={ex.image} alt="" style={st.cardImage} />
               </div>
+              <img src={ex.image} alt="" style={st.cardImage} />
             </button>
           );
         })}
@@ -440,12 +440,12 @@ const st: Record<string, React.CSSProperties> = {
   },
   cardImage: {
     position: "absolute",
-    right: 16,
-    bottom: 12,
-    height: 200,
+    right: 14,
+    bottom: 10,
+    height: 220,
     width: "auto",
-    maxHeight: 200,
-    maxWidth: 200,
+    maxHeight: 220,
+    maxWidth: 220,
     objectFit: "contain",
     pointerEvents: "none",
     zIndex: 1,
