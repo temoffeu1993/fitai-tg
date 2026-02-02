@@ -165,13 +165,15 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                       </svg>
                     </div>
                   </div>
-                <div style={st.timeRow}>
-                  <span style={st.timeEmoji}>⏱️</span>
-                  <span style={st.timeText}>{ex.duration}</span>
-                </div>
-                  <div style={st.cardBottomRow}>
+                <div style={st.cardBottomRow}>
+                  <div style={st.cardDescWrap}>
+                    <div style={st.timeRow}>
+                      <span style={st.timeEmoji}>⏱️</span>
+                      <span style={st.timeText}>{ex.duration}</span>
+                    </div>
                     <div style={st.cardDesc}>{ex.description}</div>
                   </div>
+                </div>
                 </div>
               <img src={ex.image} alt="" style={{ ...st.cardImage, ...ex.imageOffset }} />
               </div>
@@ -378,10 +380,10 @@ const st: Record<string, React.CSSProperties> = {
     maxWidth: "100%",
   },
   cardTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 700,
     color: "#0f172a",
-    lineHeight: 1.1,
+    lineHeight: 1.15,
     letterSpacing: -0.5,
   },
   cardDesc: {
@@ -403,7 +405,13 @@ const st: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    marginTop: 12,
+    marginTop: 0,
+    marginBottom: 8,
+  },
+  cardDescWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
   timeEmoji: {
     fontSize: 20,
