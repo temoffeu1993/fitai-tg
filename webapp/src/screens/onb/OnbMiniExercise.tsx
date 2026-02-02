@@ -19,6 +19,7 @@ type Exercise = {
   duration: string;
   image: string;
   gradient: string;
+  imageOffset?: React.CSSProperties;
 };
 
 const EXERCISES: Exercise[] = [
@@ -30,6 +31,7 @@ const EXERCISES: Exercise[] = [
     image: breathImg,
     gradient:
       "radial-gradient(120% 120% at 0% 0%, rgba(142,191,255,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(111,157,255,0.3) 0%, rgba(255,255,255,0) 55%)",
+    imageOffset: { bottom: -36 },
   },
   {
     id: "box_breathing",
@@ -48,6 +50,7 @@ const EXERCISES: Exercise[] = [
     image: absImg,
     gradient:
       "radial-gradient(120% 120% at 0% 0%, rgba(255,185,150,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(255,160,120,0.3) 0%, rgba(255,255,255,0) 55%)",
+    imageOffset: { bottom: -68 },
   },
 ];
 
@@ -170,7 +173,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                     <div style={st.cardDesc}>{ex.description}</div>
                   </div>
                 </div>
-                <img src={ex.image} alt="" style={st.cardImage} />
+              <img src={ex.image} alt="" style={{ ...st.cardImage, ...ex.imageOffset }} />
               </div>
             </button>
           );
