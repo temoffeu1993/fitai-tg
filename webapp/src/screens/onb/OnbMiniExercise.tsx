@@ -29,7 +29,7 @@ const EXERCISES: Exercise[] = [
     duration: "1 мин",
     image: breathImg,
     gradient:
-      "linear-gradient(145deg, rgba(18,24,40,0.98) 0%, rgba(34,70,130,0.92) 45%, rgba(16,22,36,0.98) 100%)",
+      "radial-gradient(120% 120% at 0% 0%, rgba(142,191,255,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(111,157,255,0.3) 0%, rgba(255,255,255,0) 55%)",
   },
   {
     id: "box_breathing",
@@ -38,7 +38,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: healImg,
     gradient:
-      "linear-gradient(145deg, rgba(16,32,28,0.98) 0%, rgba(36,94,78,0.92) 45%, rgba(14,28,24,0.98) 100%)",
+      "radial-gradient(120% 120% at 0% 0%, rgba(126,220,190,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(96,192,160,0.3) 0%, rgba(255,255,255,0) 55%)",
   },
   {
     id: "vacuum",
@@ -47,7 +47,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: absImg,
     gradient:
-      "linear-gradient(145deg, rgba(38,24,18,0.98) 0%, rgba(140,78,50,0.92) 45%, rgba(34,20,16,0.98) 100%)",
+      "radial-gradient(120% 120% at 0% 0%, rgba(255,185,150,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(255,160,120,0.3) 0%, rgba(255,255,255,0) 55%)",
   },
 ];
 
@@ -58,34 +58,19 @@ const STACK_OFFSET = 70;
 export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const [mascotReady, setMascotReady] = useState(false);
   const [activeId, setActiveId] = useState<string>(EXERCISES[EXERCISES.length - 1]?.id ?? "");
   const leaveTimerRef = useRef<number | null>(null);
   const activeExercise =
     EXERCISES.find((item) => item.id === activeId) || EXERCISES[EXERCISES.length - 1];
 
-  // Preload mascots
+  // Preload card images
   useEffect(() => {
-    let cancelled = false;
     const sources = [breathImg, healImg, absImg];
-    let loaded = 0;
-    const done = () => {
-      loaded += 1;
-      if (!cancelled && loaded >= sources.length) setMascotReady(true);
-    };
     sources.forEach((src) => {
       const img = new Image();
       img.decoding = "async";
       img.src = src;
-      const anyImg = img as any;
-      if (typeof anyImg.decode === "function") {
-        anyImg.decode().then(done).catch(() => { img.onload = done; img.onerror = done; });
-      } else {
-        img.onload = done;
-        img.onerror = done;
-      }
     });
-    return () => { cancelled = true; };
   }, []);
 
   // Scroll to top
@@ -114,18 +99,6 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
     return () => window.clearTimeout(t);
   }, []);
 
-  const handleCardTap = (exerciseId: string) => {
-    if (isLeaving) return;
-    fireHapticImpact("medium");
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) {
-      onSelect(exerciseId);
-      return;
-    }
-    setIsLeaving(true);
-    leaveTimerRef.current = window.setTimeout(() => onSelect(exerciseId), 220);
-  };
-
   const handleSkip = () => {
     if (isLeaving) return;
     fireHapticImpact("light");
@@ -138,30 +111,14 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
     leaveTimerRef.current = window.setTimeout(() => onSkip(), 220);
   };
 
-  const handleBack = () => {
-    if (isLeaving || !onBack) return;
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) { onBack(); return; }
-    setIsLeaving(true);
-    leaveTimerRef.current = window.setTimeout(() => onBack(), 220);
-  };
-
   return (
     <div style={st.page} className={isLeaving ? "onb-leave" : undefined}>
       <ScreenStyles />
 
-      {/* Mascot + Bubble */}
-      <div style={st.mascotRow} className="onb-fade onb-fade-delay-2">
-        <img
-          src={activeExercise.image}
-          alt=""
-          style={{ ...st.mascotImg, ...(mascotReady ? undefined : st.mascotHidden) }}
-        />
-        <div style={st.bubble} className="speech-bubble">
-          <span style={st.bubbleText}>
-            {"Настроим тело перед тренировкой, выбирай любое упражнение"}
-          </span>
-        </div>
+      {/* Header */}
+      <div style={st.header} className="onb-fade onb-fade-delay-2">
+        <h1 style={st.title}>Настрой тело перед тренировкой</h1>
+        <p style={st.subtitle}>Выбирай любое упражнение</p>
       </div>
 
       {/* Exercise Cards */}
@@ -185,36 +142,35 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: ex.gradient,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%), ${ex.gradient}`,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
                   fireHapticImpact("light");
                   setActiveId(ex.id);
-                  return;
                 }
-                handleCardTap(ex.id);
               }}
             >
               <div style={st.cardInner}>
-                <div style={st.cardTop}>
-                  <div style={st.cardLeft}>
-                    <div style={st.cardTitle}>{ex.title}</div>
-                    <div style={st.timeRow}>
-                      <span style={st.clockIcon}>
-                        <span style={st.clockHandShort} />
-                        <span style={st.clockHandLong} />
-                      </span>
-                      <span style={st.timeText}>{ex.duration}</span>
-                    </div>
-                    <div style={st.cardDesc}>{ex.description}</div>
+                <div style={st.cardTopRow}>
+                  <div style={st.cardTitle}>{ex.title}</div>
+                  <div style={st.playBtn}>
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
+                    </svg>
                   </div>
                 </div>
-              </div>
-              <div style={st.playBtn}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
-                </svg>
+                <div style={st.timeRow}>
+                  <span style={st.clockIcon}>
+                    <span style={st.clockHandShort} />
+                    <span style={st.clockHandLong} />
+                  </span>
+                  <span style={st.timeText}>{ex.duration}</span>
+                </div>
+                <div style={st.cardBottomRow}>
+                  <div style={st.cardDesc}>{ex.description}</div>
+                  <img src={ex.image} alt="" style={st.cardImage} />
+                </div>
               </div>
             </button>
           );
@@ -228,17 +184,25 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
       >
         <button
           type="button"
-          style={st.skipBtn}
+          style={st.startBtn}
           className="intro-primary-btn"
-          onClick={handleSkip}
+          onClick={() => {
+            if (isLeaving) return;
+            fireHapticImpact("light");
+            const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+            if (prefersReduced) {
+              onSelect(activeExercise.id);
+              return;
+            }
+            setIsLeaving(true);
+            leaveTimerRef.current = window.setTimeout(() => onSelect(activeExercise.id), 220);
+          }}
         >
+          Начать
+        </button>
+        <button type="button" style={st.backBtn} onClick={handleSkip}>
           Сделаю в другой раз
         </button>
-        {onBack && (
-          <button type="button" style={st.backBtn} onClick={handleBack}>
-            Назад
-          </button>
-        )}
       </div>
     </div>
   );
@@ -327,23 +291,25 @@ const st: Record<string, React.CSSProperties> = {
   mascotHidden: {
     opacity: 0,
   },
-  bubble: {
-    position: "relative",
-    padding: "14px 16px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    color: "#1e1f22",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+  header: {
+    display: "grid",
+    gap: 8,
+    textAlign: "center",
+    alignItems: "center",
+    marginTop: 16,
   },
-  bubbleText: {
-    fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.35,
-    color: "#1e1f22",
-    whiteSpace: "pre-line",
+  title: {
+    margin: 0,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 16,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.7)",
   },
 
   // Cards Container
@@ -358,9 +324,9 @@ const st: Record<string, React.CSSProperties> = {
   card: {
     borderRadius: 20,
     padding: "18px 18px",
-    border: "1px solid rgba(255,255,255,0.18)",
+    border: "1px solid rgba(255,255,255,0.6)",
     boxShadow:
-      "0 18px 36px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 0 0 1px rgba(255,255,255,0.08)",
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
@@ -375,7 +341,7 @@ const st: Record<string, React.CSSProperties> = {
   cardActive: {},
   cardCollapsed: {
     boxShadow:
-      "0 14px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 1px rgba(255,255,255,0.06)",
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
   },
   cardInner: {
     display: "flex",
@@ -384,7 +350,7 @@ const st: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     gap: 12,
   },
-  cardTop: {
+  cardTopRow: {
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "space-between",
@@ -399,15 +365,22 @@ const st: Record<string, React.CSSProperties> = {
   cardTitle: {
     fontSize: 28,
     fontWeight: 700,
-    color: "#fff",
+    color: "#1e1f22",
     lineHeight: 1.15,
     letterSpacing: -0.5,
   },
   cardDesc: {
     fontSize: 14,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.75)",
+    color: "rgba(30,31,34,0.55)",
     lineHeight: 1.45,
+    maxWidth: "62%",
+  },
+  cardBottomRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
   },
   timeRow: {
     display: "inline-flex",
@@ -418,7 +391,7 @@ const st: Record<string, React.CSSProperties> = {
   timeText: {
     fontSize: 14,
     fontWeight: 600,
-    color: "rgba(255,255,255,0.85)",
+    color: "rgba(30,31,34,0.7)",
     lineHeight: 1,
   },
   clockIcon: {
@@ -426,7 +399,7 @@ const st: Record<string, React.CSSProperties> = {
     width: 14,
     height: 14,
     borderRadius: "50%",
-    border: "1.5px solid rgba(255,255,255,0.8)",
+    border: "1.5px solid rgba(30,31,34,0.55)",
     boxSizing: "border-box",
     display: "inline-block",
   },
@@ -434,7 +407,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     width: 1.5,
     height: 5,
-    background: "rgba(255,255,255,0.85)",
+    background: "rgba(30,31,34,0.7)",
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -80%) rotate(0deg)",
@@ -444,7 +417,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     width: 1.5,
     height: 7,
-    background: "rgba(255,255,255,0.85)",
+    background: "rgba(30,31,34,0.7)",
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -100%) rotate(60deg)",
@@ -452,9 +425,6 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 2,
   },
   playBtn: {
-    position: "absolute",
-    top: 14,
-    right: 14,
     width: 34,
     height: 34,
     borderRadius: 999,
@@ -463,6 +433,13 @@ const st: Record<string, React.CSSProperties> = {
     boxShadow: "0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
     display: "grid",
     placeItems: "center",
+  },
+  cardImage: {
+    width: 112,
+    height: "auto",
+    objectFit: "contain",
+    pointerEvents: "none",
+    alignSelf: "flex-end",
   },
 
   // Actions
@@ -477,11 +454,11 @@ const st: Record<string, React.CSSProperties> = {
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
     zIndex: 10,
   },
-  skipBtn: {
+  startBtn: {
     width: "100%",
-    border: "1px solid #1e1f22",
     borderRadius: 16,
     padding: "16px 18px",
+    border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
     fontSize: 18,
