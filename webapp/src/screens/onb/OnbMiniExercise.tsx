@@ -162,13 +162,10 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                       </svg>
                     </div>
                   </div>
-                  <div style={st.timeRow}>
-                    <span style={st.clockIcon}>
-                      <span style={st.clockHandShort} />
-                      <span style={st.clockHandLong} />
-                    </span>
-                    <span style={st.timeText}>{ex.duration}</span>
-                  </div>
+                <div style={st.timeRow}>
+                  <span style={st.timeEmoji}>⏱️</span>
+                  <span style={st.timeText}>{ex.duration}</span>
+                </div>
                   <div style={st.cardBottomRow}>
                     <div style={st.cardDesc}>{ex.description}</div>
                   </div>
@@ -405,41 +402,16 @@ const st: Record<string, React.CSSProperties> = {
     gap: 8,
     marginTop: 12,
   },
-  timeText: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.7)",
+  timeEmoji: {
+    fontSize: 20,
     lineHeight: 1,
   },
-  clockIcon: {
-    position: "relative",
-    width: 14,
-    height: 14,
-    borderRadius: "50%",
-    border: "1.5px solid rgba(30,31,34,0.55)",
-    boxSizing: "border-box",
-    display: "inline-block",
-  },
-  clockHandShort: {
-    position: "absolute",
-    width: 1.5,
-    height: 5,
-    background: "rgba(30,31,34,0.7)",
-    left: "50%",
-    top: "50%",
-    transform: "translate(-50%, -80%) rotate(0deg)",
-    borderRadius: 2,
-  },
-  clockHandLong: {
-    position: "absolute",
-    width: 1.5,
-    height: 7,
-    background: "rgba(30,31,34,0.7)",
-    left: "50%",
-    top: "50%",
-    transform: "translate(-50%, -100%) rotate(60deg)",
-    transformOrigin: "bottom center",
-    borderRadius: 2,
+  timeText: {
+    fontSize: 32,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1,
+    letterSpacing: -0.5,
   },
   playBtn: {
     width: 34,
