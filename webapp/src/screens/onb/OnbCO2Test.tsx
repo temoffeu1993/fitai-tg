@@ -447,9 +447,9 @@ function ScreenStyles() {
 const WAVE_BG_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2360a5fa' fill-opacity='0.5' d='M0,192L48,192C96,192,192,192,288,208C384,224,480,256,576,256C672,256,768,224,864,192C960,160,1056,128,1152,138.7C1248,149,1344,203,1392,229L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'/%3E%3C/svg%3E")`;
 const WAVE_FG_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2360a5fa' fill-opacity='1' d='M0,224L48,213.3C96,203,192,181,288,181C384,181,480,213,576,229C672,245,768,245,864,229C960,213,1056,181,1152,170.7C1248,160,1344,171,1392,176L1440,181L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'/%3E%3C/svg%3E")`;
 
-const FLASK_W = 120;
+const FLASK_W = 200;
 const FLASK_H = 380;
-const FLASK_R = 40;
+const FLASK_R = 60;
 
 const st: Record<string, React.CSSProperties> = {
   page: {
@@ -653,7 +653,7 @@ const st: Record<string, React.CSSProperties> = {
     bottom: "100%",
     left: 0,
     right: 0,
-    height: 20,
+    height: 28,
     overflow: "hidden",
   },
   waveBg: {
@@ -664,6 +664,8 @@ const st: Record<string, React.CSSProperties> = {
     height: "100%",
     backgroundImage: WAVE_BG_SVG,
     backgroundSize: "50% 100%",
+    backgroundRepeat: "repeat-x",
+    backgroundPosition: "0 100%",
     animation: "waveMove 10s linear infinite",
   },
   waveFg: {
@@ -674,6 +676,8 @@ const st: Record<string, React.CSSProperties> = {
     height: "100%",
     backgroundImage: WAVE_FG_SVG,
     backgroundSize: "50% 100%",
+    backgroundRepeat: "repeat-x",
+    backgroundPosition: "0 100%",
     animation: "waveMove 6s linear infinite reverse",
   },
   timerActions: {
