@@ -34,6 +34,7 @@ import OnbAnalysis from "./screens/onb/OnbAnalysis";
 import OnbAnalysisLoading from "./screens/onb/OnbAnalysisLoading";
 import OnbSchemeSelection from "./screens/onb/OnbSchemeSelection";
 import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
+import OnbMiniExercise from "./screens/onb/OnbMiniExercise";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
@@ -325,15 +326,35 @@ function completeOnboardingAndGoHome(nav: (path: string) => void, reset: () => v
 
 // --- финальный шаг: выбор даты первой тренировки ---
 function StepFirstWorkout() {
-  const { reset } = useOnboarding();
   const nav = useNavigate();
 
   return (
     <OnbFirstWorkout
       onComplete={() => {
-        completeOnboardingAndGoHome(nav, reset);
+        nav("/onb/mini-exercise");
       }}
       onBack={() => nav("/onb/scheme")}
+    />
+  );
+}
+
+// --- мини-упражнение перед завершением онбординга ---
+function StepMiniExercise() {
+  const { reset } = useOnboarding();
+  const nav = useNavigate();
+
+  return (
+    <OnbMiniExercise
+      onSelect={(exerciseId) => {
+        // TODO: navigate to exercise screen when ready
+        // For now: complete onboarding and go home
+        console.log("Selected exercise:", exerciseId);
+        completeOnboardingAndGoHome(nav, reset);
+      }}
+      onSkip={() => {
+        completeOnboardingAndGoHome(nav, reset);
+      }}
+      onBack={() => nav("/onb/first-workout")}
     />
   );
 }
@@ -374,6 +395,7 @@ export default function App() {
             <Route path="/onb/analysis" element={<StepAnalysis />} />
             <Route path="/onb/scheme" element={<StepSchemeSelection />} />
             <Route path="/onb/first-workout" element={<StepFirstWorkout />} />
+            <Route path="/onb/mini-exercise" element={<StepMiniExercise />} />
           </Route>
         </Routes>
 
