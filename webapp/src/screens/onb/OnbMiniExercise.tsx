@@ -60,7 +60,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [mascotReady, setMascotReady] = useState(false);
-  const [activeId, setActiveId] = useState<string>(EXERCISES[0]?.id ?? "");
+  const [activeId, setActiveId] = useState<string>(EXERCISES[EXERCISES.length - 1]?.id ?? "");
   const leaveTimerRef = useRef<number | null>(null);
 
   // Preload mascot
@@ -151,7 +151,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
         />
         <div style={st.bubble} className="speech-bubble">
           <span style={st.bubbleText}>
-            {"Тренировка в плане. Но начать можно прямо сейчас, не вставая со стула.\nСделаем короткий тест организма? Это займёт 1 минуту."}
+            {"Настроим тело перед тренировкой, выбирай любое упражнение"}
           </span>
         </div>
       </div>
@@ -160,14 +160,12 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
       <div style={st.cardsContainer}>
         {EXERCISES.map((ex, idx) => {
           const activeIndex = Math.max(0, EXERCISES.findIndex((item) => item.id === activeId));
-          const others = EXERCISES.map((_, i) => i).filter((i) => i !== activeIndex);
-          const stackIndex = idx === activeIndex ? 0 : others.indexOf(idx) + 1;
-          const top =
-            stackIndex === 0
-              ? 0
-              : CARD_EXPANDED_H - 24 + (stackIndex - 1) * STACK_OFFSET;
-          const height = stackIndex === 0 ? CARD_EXPANDED_H : CARD_COLLAPSED_H;
-          const zIndex = EXERCISES.length - stackIndex;
+          const order = EXERCISES.map((_, i) => i).filter((i) => i !== activeIndex);
+          order.push(activeIndex);
+          const stackIndex = order.indexOf(idx);
+          const top = stackIndex * STACK_OFFSET;
+          const height = stackIndex === order.length - 1 ? CARD_EXPANDED_H : CARD_COLLAPSED_H;
+          const zIndex = stackIndex + 1;
           return (
             <button
               key={ex.id}
@@ -190,21 +188,25 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 handleCardTap(ex.id);
               }}
             >
-              <div style={st.cardContent}>
-                <div style={st.cardLeft}>
-                  <div style={st.cardTitle}>{ex.title}</div>
-                  <div style={st.cardDesc}>{ex.description}</div>
+              <div style={st.cardInner}>
+                <div style={st.cardTop}>
+                  <div style={st.cardLeft}>
+                    <div style={st.cardTitle}>{ex.title}</div>
+                    <div style={st.cardDesc}>{ex.description}</div>
+                  </div>
+                  <img src={ex.image} alt="" style={st.cardImage} />
+                </div>
+                <div style={st.cardBottom}>
                   <div style={st.timeChip}>
                     <span style={st.timeIcon}>⏱</span>
                     <span>{ex.duration}</span>
                   </div>
+                  <div style={st.playBtn}>
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
+                    </svg>
+                  </div>
                 </div>
-                <img src={ex.image} alt="" style={st.cardImage} />
-              </div>
-              <div style={st.playBtn}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
-                </svg>
               </div>
             </button>
           );
@@ -219,6 +221,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
         <button
           type="button"
           style={st.skipBtn}
+          className="intro-primary-btn"
           onClick={handleSkip}
         >
           Сделаю в другой раз
@@ -364,18 +367,24 @@ const st: Record<string, React.CSSProperties> = {
   cardCollapsed: {
     boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
   },
-  cardContent: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "start",
-    gap: 12,
+  cardInner: {
+    display: "flex",
+    flexDirection: "column",
     height: "100%",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   },
   cardLeft: {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    paddingRight: 110,
+    maxWidth: "60%",
   },
   cardTitle: {
     fontSize: 18,
@@ -392,6 +401,12 @@ const st: Record<string, React.CSSProperties> = {
     WebkitBoxOrient: "vertical",
     WebkitLineClamp: 3,
     overflow: "hidden",
+  },
+  cardBottom: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   timeChip: {
     alignSelf: "flex-start",
@@ -411,18 +426,12 @@ const st: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
   cardImage: {
-    position: "absolute",
-    right: 14,
-    bottom: 8,
     width: 120,
     height: "auto",
     objectFit: "contain",
     pointerEvents: "none",
   },
   playBtn: {
-    position: "absolute",
-    top: 12,
-    right: 12,
     width: 34,
     height: 34,
     borderRadius: 999,
@@ -447,15 +456,16 @@ const st: Record<string, React.CSSProperties> = {
   },
   skipBtn: {
     width: "100%",
-    border: "none",
+    border: "1px solid #1e1f22",
     borderRadius: 16,
     padding: "16px 18px",
-    background: "rgba(30,31,34,0.06)",
-    color: "#1e1f22",
-    fontSize: 17,
-    fontWeight: 600,
+    background: "#1e1f22",
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: 500,
     cursor: "pointer",
     textAlign: "center",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
     width: "100%",
