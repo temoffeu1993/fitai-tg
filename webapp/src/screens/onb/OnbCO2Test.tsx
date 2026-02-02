@@ -351,7 +351,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           </div>
 
           {/* Stop button */}
-          <div style={st.bottomActionTall}>
+          <div style={st.bottomAction}>
             <button
               type="button"
               style={st.stopBtnFull}
@@ -646,14 +646,6 @@ const st: Record<string, React.CSSProperties> = {
     right: 0,
     bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
     height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
-    zIndex: 10,
-  },
-  bottomActionTall: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "calc(80px + 14px + env(safe-area-inset-bottom, 0px))",
     zIndex: 10,
   },
   startBtn: {
