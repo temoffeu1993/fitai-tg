@@ -2,6 +2,9 @@
 // Mini exercise picker: offers 3 quick exercises to try right away
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import maleRobotImg from "@/assets/robonew.webp";
+import breathImg from "@/assets/dihanie.png";
+import healImg from "@/assets/heals.webp";
+import absImg from "@/assets/hudoi.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -12,40 +15,52 @@ type Props = {
 
 type Exercise = {
   id: string;
-  icon: string;
   title: string;
   description: string;
   duration: string;
+  image: string;
+  gradient: string;
 };
 
 const EXERCISES: Exercise[] = [
   {
     id: "co2_test",
-    icon: "\uD83E\uDEC1",
     title: "Тест на выносливость",
     description: "Задержите дыхание на максимум. Узнаем, как ваши лёгкие усваивают кислород.",
     duration: "1 мин",
+    image: breathImg,
+    gradient:
+      "linear-gradient(135deg, rgba(203,224,255,0.95) 0%, rgba(186,206,242,0.78) 45%, rgba(216,233,255,0.88) 100%)",
   },
   {
     id: "box_breathing",
-    icon: "\uD83D\uDFE6",
     title: "Снятие стресса",
     description: "Дыхание по квадрату. Снижает пульс и помогает собраться с мыслями.",
     duration: "2 мин",
+    image: healImg,
+    gradient:
+      "linear-gradient(135deg, rgba(205,232,221,0.95) 0%, rgba(186,219,203,0.78) 50%, rgba(218,240,229,0.9) 100%)",
   },
   {
     id: "vacuum",
-    icon: "\uD83C\uDFAF",
     title: "Тонус живота",
     description: "Упражнение \u00ABВакуум\u00BB. Работа с мышцами пресса без коврика и спортзала.",
     duration: "2 мин",
+    image: absImg,
+    gradient:
+      "linear-gradient(135deg, rgba(255,226,210,0.95) 0%, rgba(246,210,192,0.78) 50%, rgba(255,236,224,0.9) 100%)",
   },
 ];
+
+const CARD_EXPANDED_H = 220;
+const CARD_COLLAPSED_H = 96;
+const STACK_OFFSET = 70;
 
 export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [mascotReady, setMascotReady] = useState(false);
+  const [activeId, setActiveId] = useState<string>(EXERCISES[0]?.id ?? "");
   const leaveTimerRef = useRef<number | null>(null);
 
   // Preload mascot
@@ -143,31 +158,57 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
 
       {/* Exercise Cards */}
       <div style={st.cardsContainer}>
-        {EXERCISES.map((ex, idx) => (
-          <button
-            key={ex.id}
-            type="button"
-            className={`exercise-card onb-fade-target${showContent ? ` onb-fade onb-fade-delay-${idx + 2}` : ""}`}
-            style={st.card}
-            onClick={() => handleCardTap(ex.id)}
-          >
-            <div style={st.cardBody}>
-              <div style={st.cardIcon}>{ex.icon}</div>
-              <div style={st.cardText}>
-                <div style={st.cardTitle}>{ex.title}</div>
-                <div style={st.cardDesc}>{ex.description}</div>
+        {EXERCISES.map((ex, idx) => {
+          const activeIndex = Math.max(0, EXERCISES.findIndex((item) => item.id === activeId));
+          const others = EXERCISES.map((_, i) => i).filter((i) => i !== activeIndex);
+          const stackIndex = idx === activeIndex ? 0 : others.indexOf(idx) + 1;
+          const top =
+            stackIndex === 0
+              ? 0
+              : CARD_EXPANDED_H - 24 + (stackIndex - 1) * STACK_OFFSET;
+          const height = stackIndex === 0 ? CARD_EXPANDED_H : CARD_COLLAPSED_H;
+          const zIndex = EXERCISES.length - stackIndex;
+          return (
+            <button
+              key={ex.id}
+              type="button"
+              className={`exercise-card onb-fade-target${showContent ? ` onb-fade onb-fade-delay-${idx + 2}` : ""}`}
+              style={{
+                ...st.card,
+                ...(stackIndex === 0 ? st.cardActive : st.cardCollapsed),
+                top,
+                height,
+                zIndex,
+                background: ex.gradient,
+              }}
+              onClick={() => {
+                if (activeId !== ex.id) {
+                  fireHapticImpact("light");
+                  setActiveId(ex.id);
+                  return;
+                }
+                handleCardTap(ex.id);
+              }}
+            >
+              <div style={st.cardContent}>
+                <div style={st.cardLeft}>
+                  <div style={st.cardTitle}>{ex.title}</div>
+                  <div style={st.cardDesc}>{ex.description}</div>
+                  <div style={st.timeChip}>
+                    <span style={st.timeIcon}>⏱</span>
+                    <span>{ex.duration}</span>
+                  </div>
+                </div>
+                <img src={ex.image} alt="" style={st.cardImage} />
               </div>
-            </div>
-            <div style={st.cardFooter}>
-              <span style={st.cardDuration}>{ex.duration}</span>
               <div style={st.playBtn}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#fff" />
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
                 </svg>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* Actions */}
@@ -296,83 +337,100 @@ const st: Record<string, React.CSSProperties> = {
 
   // Cards Container
   cardsContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    marginTop: 4,
+    position: "relative",
+    width: "100%",
+    marginTop: 6,
+    height: CARD_EXPANDED_H + (EXERCISES.length - 1) * STACK_OFFSET + 8,
   },
 
   // Card
   card: {
     borderRadius: 20,
-    padding: "18px 18px 14px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
+    padding: "18px 18px",
+    border: "1px solid rgba(255,255,255,0.7)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    position: "relative",
+    position: "absolute",
     width: "100%",
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    justifyContent: "space-between",
+    overflow: "hidden",
+    transition: "top 320ms ease, height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
+    willChange: "top, height, transform",
   },
-  cardBody: {
-    display: "flex",
-    gap: 14,
-    alignItems: "flex-start",
+  cardActive: {},
+  cardCollapsed: {
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
   },
-  cardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    background: "rgba(30,31,34,0.06)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 24,
-    flexShrink: 0,
+  cardContent: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "start",
+    gap: 12,
+    height: "100%",
   },
-  cardText: {
-    flex: 1,
+  cardLeft: {
     display: "flex",
     flexDirection: "column",
-    gap: 4,
-    minWidth: 0,
+    gap: 8,
+    paddingRight: 110,
   },
   cardTitle: {
-    fontSize: 17,
-    fontWeight: 700,
+    fontSize: 18,
+    fontWeight: 500,
     color: "#1e1f22",
-    lineHeight: 1.25,
+    lineHeight: 1.2,
   },
   cardDesc: {
     fontSize: 14,
     fontWeight: 500,
     color: "rgba(30,31,34,0.55)",
     lineHeight: 1.45,
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 3,
+    overflow: "hidden",
   },
-  cardFooter: {
-    display: "flex",
+  timeChip: {
+    alignSelf: "flex-start",
+    display: "inline-flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 2,
-  },
-  cardDuration: {
+    gap: 8,
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.55) 100%)",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.7)",
     fontSize: 13,
     fontWeight: 600,
-    color: "rgba(30,31,34,0.4)",
-    letterSpacing: 0.3,
+    color: "#1e1f22",
+  },
+  timeIcon: {
+    fontSize: 13,
+  },
+  cardImage: {
+    position: "absolute",
+    right: 14,
+    bottom: 8,
+    width: 120,
+    height: "auto",
+    objectFit: "contain",
+    pointerEvents: "none",
   },
   playBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
     width: 34,
     height: 34,
-    borderRadius: 10,
-    background: "#1e1f22",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.18)",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(245,245,250,0.55) 100%)",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
+    display: "grid",
+    placeItems: "center",
   },
 
   // Actions
