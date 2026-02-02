@@ -453,7 +453,7 @@ const st: Record<string, React.CSSProperties> = {
   },
   cardImage: {
     position: "absolute",
-    right: 14,
+    right: 6,
     bottom: 0,
     height: 240,
     width: "auto",
