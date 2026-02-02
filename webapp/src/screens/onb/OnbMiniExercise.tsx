@@ -50,7 +50,7 @@ const EXERCISES: Exercise[] = [
     image: absImg,
     gradient:
       "radial-gradient(120% 120% at 0% 0%, rgba(255,185,150,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(255,160,120,0.3) 0%, rgba(255,255,255,0) 55%)",
-    imageOffset: { bottom: -68 },
+    imageOffset: { bottom: -60 },
   },
 ];
 
