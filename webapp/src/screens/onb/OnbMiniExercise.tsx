@@ -30,7 +30,7 @@ const EXERCISES: Exercise[] = [
     duration: "1 мин",
     image: breathImg,
     gradient:
-      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(200,226,255,0.85) 38%, rgba(160,196,255,0.82) 70%, rgba(220,240,255,0.9) 100%)",
+      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(214,232,255,0.9) 32%, rgba(148,196,255,0.86) 70%, rgba(232,246,255,0.92) 100%)",
   },
   {
     id: "box_breathing",
@@ -39,7 +39,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: healImg,
     gradient:
-      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(177,235,215,0.86) 40%, rgba(120,214,186,0.82) 70%, rgba(214,245,233,0.9) 100%)",
+      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(208,240,228,0.9) 35%, rgba(132,216,188,0.86) 70%, rgba(228,248,239,0.92) 100%)",
   },
   {
     id: "vacuum",
@@ -48,7 +48,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: absImg,
     gradient:
-      "linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(255,210,178,0.86) 40%, rgba(255,170,130,0.82) 70%, rgba(255,232,214,0.9) 100%)",
+      "linear-gradient(145deg, rgba(255,255,255,0.92) 0%, rgba(255,226,205,0.9) 35%, rgba(255,184,150,0.86) 70%, rgba(255,238,226,0.92) 100%)",
   },
 ];
 
@@ -352,7 +352,7 @@ const st: Record<string, React.CSSProperties> = {
     padding: "18px 18px",
     border: "1px solid rgba(255,255,255,0.6)",
     boxShadow:
-      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.25)",
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.25), inset 0 -10px 20px rgba(0,0,0,0.05)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
