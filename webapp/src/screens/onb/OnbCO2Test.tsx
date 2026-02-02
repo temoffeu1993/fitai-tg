@@ -47,10 +47,43 @@ function getResultText(seconds: number): { emoji: string; text: string } {
 }
 
 // ── Water color by progress ──
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const toHex = (v: number) => v.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function lerpColor(a: string, b: string, t: number) {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  return rgbToHex(
+    Math.round(lerp(ar, br, t)),
+    Math.round(lerp(ag, bg, t)),
+    Math.round(lerp(ab, bb, t))
+  );
+}
+
 function getWaterColors(pct: number): [string, string] {
-  if (pct < 30) return ["#60a5fa", "#3b82f6"];
-  if (pct < 60) return ["#34d399", "#10b981"];
-  return ["#22c55e", "#16a34a"];
+  const t = Math.max(0, Math.min(1, pct / 100));
+  const stops: [number, string, string][] = [
+    [0, "#60a5fa", "#3b82f6"],
+    [0.5, "#34d399", "#10b981"],
+    [1, "#22c55e", "#16a34a"],
+  ];
+  const idx = t <= 0.5 ? 0 : 1;
+  const [t0, cTop0, cBot0] = stops[idx];
+  const [t1, cTop1, cBot1] = stops[idx + 1];
+  const localT = (t - t0) / (t1 - t0);
+  return [lerpColor(cTop0, cTop1, localT), lerpColor(cBot0, cBot1, localT)];
 }
 
 // ── Confetti (copy from OnbFirstWorkout) ──
@@ -290,8 +323,22 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
               >
                 {/* Wave wrapper on top of water */}
                 <div style={st.waveWrapper}>
-                  <div className="wave-bg" style={st.waveBg} />
-                  <div className="wave-fg" style={st.waveFg} />
+                  <svg
+                    style={{ ...st.waveSvg, animationDuration: "10s" }}
+                    viewBox="0 0 2880 320"
+                    preserveAspectRatio="none"
+                  >
+                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
+                  </svg>
+                  <svg
+                    style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
+                    viewBox="0 0 2880 320"
+                    preserveAspectRatio="none"
+                  >
+                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
+                  </svg>
                 </div>
               </div>
 
@@ -438,9 +485,11 @@ function ScreenStyles() {
 // INLINE STYLES
 // ============================================================================
 
-// SVG wave data URIs
-const WAVE_BG_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2360a5fa' fill-opacity='0.5' d='M0,192L48,192C96,192,192,192,288,208C384,224,480,256,576,256C672,256,768,224,864,192C960,160,1056,128,1152,138.7C1248,149,1344,203,1392,229L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'/%3E%3C/svg%3E")`;
-const WAVE_FG_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%2360a5fa' fill-opacity='1' d='M0,224L48,213.3C96,203,192,181,288,181C384,181,480,213,576,229C672,245,768,245,864,229C960,213,1056,181,1152,170.7C1248,160,1344,171,1392,176L1440,181L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'/%3E%3C/svg%3E")`;
+// SVG wave paths (seamless)
+const WAVE_PATH_BG =
+  "M0,192L48,192C96,192,192,192,288,208C384,224,480,256,576,256C672,256,768,224,864,192C960,160,1056,128,1152,138.7C1248,149,1344,203,1392,229L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z";
+const WAVE_PATH_FG =
+  "M0,224L48,213.3C96,203,192,181,288,181C384,181,480,213,576,229C672,245,768,245,864,229C960,213,1056,181,1152,170.7C1248,160,1344,171,1392,176L1440,181L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z";
 
 const FLASK_W = 200;
 const FLASK_H = 380;
@@ -680,35 +729,20 @@ const st: Record<string, React.CSSProperties> = {
   },
   waveWrapper: {
     position: "absolute",
-    bottom: "100%",
+    bottom: "calc(100% - 1px)",
     left: 0,
     right: 0,
     height: 28,
     overflow: "hidden",
   },
-  waveBg: {
+  waveSvg: {
     position: "absolute",
     bottom: 0,
     left: 0,
     width: "200%",
     height: "100%",
-    backgroundImage: WAVE_BG_SVG,
-    backgroundSize: "50% 100%",
-    backgroundRepeat: "repeat-x",
-    backgroundPosition: "0 100%",
     animation: "waveMove 10s linear infinite",
-  },
-  waveFg: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: "200%",
-    height: "100%",
-    backgroundImage: WAVE_FG_SVG,
-    backgroundSize: "50% 100%",
-    backgroundRepeat: "repeat-x",
-    backgroundPosition: "0 100%",
-    animation: "waveMove 6s linear infinite reverse",
+    willChange: "transform",
   },
   stopBtnFull: {
     width: "100%",
