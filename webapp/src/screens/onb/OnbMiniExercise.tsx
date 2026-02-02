@@ -53,6 +53,7 @@ const EXERCISES: Exercise[] = [
 
 const CARD_EXPANDED_H = 240;
 const CARD_COLLAPSED_H = 96;
+const CARD_PADDING = 18;
 const STACK_OFFSET = 70;
 
 export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
@@ -152,26 +153,28 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
               }}
             >
               <div style={st.cardInner}>
-                <div style={st.cardTopRow}>
-                  <div style={st.cardTitle}>{ex.title}</div>
-                  <div style={st.playBtn}>
-                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                      <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
-                    </svg>
+                <div style={st.cardContent}>
+                  <div style={st.cardTopRow}>
+                    <div style={st.cardTitle}>{ex.title}</div>
+                    <div style={st.playBtn}>
+                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                        <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={st.timeRow}>
+                    <span style={st.clockIcon}>
+                      <span style={st.clockHandShort} />
+                      <span style={st.clockHandLong} />
+                    </span>
+                    <span style={st.timeText}>{ex.duration}</span>
+                  </div>
+                  <div style={st.cardBottomRow}>
+                    <div style={st.cardDesc}>{ex.description}</div>
                   </div>
                 </div>
-                <div style={st.timeRow}>
-                  <span style={st.clockIcon}>
-                    <span style={st.clockHandShort} />
-                    <span style={st.clockHandLong} />
-                  </span>
-                  <span style={st.timeText}>{ex.duration}</span>
-                </div>
-                <div style={st.cardBottomRow}>
-                  <div style={st.cardDesc}>{ex.description}</div>
-                </div>
+                <img src={ex.image} alt="" style={st.cardImage} />
               </div>
-              <img src={ex.image} alt="" style={st.cardImage} />
             </button>
           );
         })}
@@ -323,7 +326,7 @@ const st: Record<string, React.CSSProperties> = {
   // Card
   card: {
     borderRadius: 20,
-    padding: "18px 18px",
+    padding: `${CARD_PADDING}px`,
     border: "1px solid rgba(255,255,255,0.6)",
     boxShadow:
       "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
@@ -344,6 +347,16 @@ const st: Record<string, React.CSSProperties> = {
       "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
   },
   cardInner: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    height: CARD_EXPANDED_H - CARD_PADDING * 2,
+    minHeight: CARD_EXPANDED_H - CARD_PADDING * 2,
+    width: "100%",
+    position: "relative",
+    zIndex: 2,
+  },
+  cardContent: {
     display: "flex",
     flexDirection: "column",
     gap: 10,
