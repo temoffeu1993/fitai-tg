@@ -215,7 +215,9 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     }
   };
 
-  const pct = Math.min(100, (seconds / MAX_SECONDS) * 100);
+  const progress = Math.min(1, seconds / MAX_SECONDS);
+  const eased = 1 - Math.pow(1 - progress, 2);
+  const pct = Math.min(100, eased * 100);
   const [waterTop, waterBottom] = getWaterColors(pct);
   const result = getResultText(resultSeconds);
 
