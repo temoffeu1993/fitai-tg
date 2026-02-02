@@ -22,28 +22,27 @@ const STEPS = [
 
 // ── Result interpretation ──
 function getResultText(seconds: number): { emoji: string; text: string } {
-  const time = `${seconds} сек`;
   if (seconds < 20) {
     return {
       emoji: "\uD83D\uDE24",
-      text: `${time}. Честно? Слабовато. Твои мышцы голодают без кислорода. Но мы это исправим.`,
+      text: "Честно? Слабовато. Твои мышцы голодают без кислорода. Но мы это исправим.",
     };
   }
   if (seconds <= 30) {
     return {
       emoji: "\uD83D\uDCAA",
-      text: `${time}. Норма. Для обычной жизни хватит, но в спорте батарейка сядет быстро. Давай разгоним?`,
+      text: "Норма. Для обычной жизни хватит, но в спорте батарейка сядет быстро. Давай разгоним?",
     };
   }
   if (seconds <= 40) {
     return {
       emoji: "\uD83D\uDD25",
-      text: `${time}. Отличная форма! Твой организм работает эффективно, как хороший гибридный двигатель.`,
+      text: "Отличная форма! Твой организм работает эффективно, как хороший гибридный двигатель.",
     };
   }
   return {
     emoji: "\uD83C\uDFC6",
-    text: `${time}. Максимум! Ты вообще человек? Идеальный контроль кислорода.`,
+    text: "Максимум! Ты вообще человек? Идеальный контроль кислорода.",
   };
 }
 
@@ -325,7 +324,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           {/* Big time display */}
           <div style={st.resultTimeWrap} className="onb-success-in">
             <span style={st.resultEmoji}>{result.emoji}</span>
-            <span style={st.resultTime}>{resultSeconds} сек</span>
+            <span style={st.resultTime}>{resultSeconds} секунд</span>
           </div>
 
           {/* Mascot + bubble (same as OnbFirstWorkout success) */}
