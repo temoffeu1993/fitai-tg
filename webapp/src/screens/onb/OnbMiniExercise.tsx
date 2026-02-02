@@ -363,11 +363,11 @@ const st: Record<string, React.CSSProperties> = {
     maxWidth: "100%",
   },
   cardTitle: {
-    fontSize: 28,
-    fontWeight: 700,
+    fontSize: 18,
+    fontWeight: 500,
     color: "#1e1f22",
-    lineHeight: 1.15,
-    letterSpacing: -0.5,
+    lineHeight: 1.3,
+    letterSpacing: -0.2,
   },
   cardDesc: {
     fontSize: 14,
