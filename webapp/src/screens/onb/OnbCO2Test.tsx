@@ -378,13 +378,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     ? "ripple-fall"
                     : "ripple-hold"
             }
-          >
-            <span style={{ ...st.ripple, width: 220, height: 220, ["--delay" as never]: "0s" }} />
-            <span style={{ ...st.ripple, width: 260, height: 260, ["--delay" as never]: "0.5s" }} />
-            <span style={{ ...st.ripple, width: 300, height: 300, ["--delay" as never]: "1s" }} />
-            <span style={{ ...st.ripple, width: 340, height: 340, ["--delay" as never]: "1.5s" }} />
-            <span style={{ ...st.ripple, width: 380, height: 380, ["--delay" as never]: "2s" }} />
-          </div>
+          />
 
           {/* Flask overlay (fades in on hold) */}
           <div
@@ -568,8 +562,8 @@ function ScreenStyles() {
       .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
       .flaskIn { animation: flaskIn 700ms ease-out forwards; }
       .flaskHidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
-      .ripple-rise { animation: rippleRise 4000ms ease-in-out infinite; }
-      .ripple-fall { animation: rippleFall 4000ms ease-in-out infinite; }
+      .ripple-rise { animation: rippleScaleUp 4000ms ease-in-out forwards; }
+      .ripple-fall { animation: rippleScaleDown 4000ms ease-in-out forwards; }
       .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
       @keyframes breathRise {
         0% { transform: translateY(10px) scale(0.98); }
@@ -583,13 +577,13 @@ function ScreenStyles() {
         0% { opacity: 1; transform: translateY(0) scale(1); }
         100% { opacity: 0; transform: translateY(-12px) scale(1.05); }
       }
-      @keyframes rippleRise {
-        0% { transform: scale(0.92); opacity: 0.5; }
-        100% { transform: scale(1.08); opacity: 0.2; }
+      @keyframes rippleScaleUp {
+        0% { transform: scale(0.85); opacity: 0.6; }
+        100% { transform: scale(1.12); opacity: 0.9; }
       }
-      @keyframes rippleFall {
-        0% { transform: scale(1.08); opacity: 0.2; }
-        100% { transform: scale(0.92); opacity: 0.5; }
+      @keyframes rippleScaleDown {
+        0% { transform: scale(1.12); opacity: 0.9; }
+        100% { transform: scale(0.85); opacity: 0.6; }
       }
       @keyframes rippleHold {
         0% { opacity: 0.4; transform: scale(1); }
@@ -610,11 +604,6 @@ function ScreenStyles() {
       @keyframes flaskIn {
         0% { opacity: 0; transform: scale(0.96); }
         100% { opacity: 1; transform: scale(1); }
-      }
-      @keyframes ringPulse {
-        0% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.2; }
-        50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.16; }
-        100% { transform: translate(-50%, -50%) scale(1.18); opacity: 0.12; }
       }
       @keyframes textFadeOut {
         0% { opacity: 1; transform: translateY(0); }
@@ -891,20 +880,13 @@ const st: Record<string, React.CSSProperties> = {
     width: 420,
     height: 420,
     borderRadius: "50%",
+    background: `
+      radial-gradient(circle, rgba(147,197,253,0.18) 0%, rgba(147,197,253,0.06) 48%, rgba(147,197,253,0) 60%),
+      radial-gradient(circle, rgba(147,197,253,0.12) 12%, rgba(147,197,253,0.05) 58%, rgba(147,197,253,0) 72%),
+      radial-gradient(circle, rgba(147,197,253,0.1) 22%, rgba(147,197,253,0.04) 68%, rgba(147,197,253,0) 82%)
+    `,
+    filter: "blur(0.6px)",
     zIndex: 2,
-  },
-  ripple: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    borderRadius: "50%",
-    border: "2px solid rgba(147, 197, 253, 0.16)",
-    boxShadow: "0 0 32px rgba(59, 130, 246, 0.2)",
-    filter: "blur(1px)",
-    opacity: 0.6,
-    animation: "ringPulse 3.2s ease-in-out infinite",
-    animationDelay: "var(--delay)",
   },
   breathText: {
     position: "absolute",
