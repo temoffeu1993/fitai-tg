@@ -379,10 +379,11 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     : "ripple-hold"
             }
           >
-            <span style={{ ...st.ripple, animationDelay: "0s" }} />
-            <span style={{ ...st.ripple, animationDelay: "0.7s" }} />
-            <span style={{ ...st.ripple, animationDelay: "1.4s" }} />
-            <span style={{ ...st.ripple, animationDelay: "2.1s" }} />
+            <span style={{ ...st.ripple, width: 220, height: 220, animationDelay: "0s" }} />
+            <span style={{ ...st.ripple, width: 260, height: 260, animationDelay: "0.5s" }} />
+            <span style={{ ...st.ripple, width: 300, height: 300, animationDelay: "1s" }} />
+            <span style={{ ...st.ripple, width: 340, height: 340, animationDelay: "1.5s" }} />
+            <span style={{ ...st.ripple, width: 380, height: 380, animationDelay: "2s" }} />
           </div>
 
           {/* Flask overlay (fades in on hold) */}
@@ -611,9 +612,9 @@ function ScreenStyles() {
         100% { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes ringPulse {
-        0% { transform: scale(0.92); opacity: 0.18; }
-        60% { transform: scale(1.08); opacity: 0.12; }
-        100% { transform: scale(1.2); opacity: 0; }
+        0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.22; }
+        60% { transform: translate(-50%, -50%) scale(1.08); opacity: 0.14; }
+        100% { transform: translate(-50%, -50%) scale(1.22); opacity: 0; }
       }
       @keyframes textFadeOut {
         0% { opacity: 1; transform: translateY(0); }
@@ -887,19 +888,22 @@ const st: Record<string, React.CSSProperties> = {
   },
   breathRipples: {
     position: "absolute",
-    width: 280,
-    height: 280,
+    width: 420,
+    height: 420,
     borderRadius: "50%",
     zIndex: 2,
   },
   ripple: {
     position: "absolute",
-    inset: 0,
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
     borderRadius: "50%",
-    border: "2px solid rgba(147, 197, 253, 0.12)",
-    boxShadow: "0 0 28px rgba(59, 130, 246, 0.18)",
-    filter: "blur(0.6px)",
-    animation: "ringPulse 2.8s ease-in-out infinite",
+    border: "2px solid rgba(147, 197, 253, 0.16)",
+    boxShadow: "0 0 32px rgba(59, 130, 246, 0.2)",
+    filter: "blur(1px)",
+    opacity: 0.6,
+    animation: "ringPulse 3.2s ease-in-out infinite",
   },
   breathText: {
     position: "absolute",
