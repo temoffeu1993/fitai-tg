@@ -920,11 +920,11 @@ const st: Record<string, React.CSSProperties> = {
   },
   flaskStage: {
     position: "absolute",
-    top: "50%",
-    transform: "translateY(-50%)",
+    inset: 0,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     zIndex: 4,
   },
