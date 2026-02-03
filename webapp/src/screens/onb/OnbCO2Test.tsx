@@ -1,7 +1,6 @@
 // webapp/src/screens/onb/OnbCO2Test.tsx
 // CO2 breath-hold test: instruction → flask timer → result with confetti
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import smotrchasImg from "@/assets/smotrchas.webp";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
@@ -10,15 +9,9 @@ type Props = {
   onBack?: () => void;
 };
 
-type Phase = "intro" | "leaving" | "timer" | "result";
+type Phase = "intro" | "leaving" | "breath" | "hold" | "result";
 
-// ── Instruction tiles ──
-const INSTRUCTION_TILES = [
-  { icon: "💨", text: "Глубокий вдох-выдох 3 раза" },
-  { icon: "😮‍💨", text: "Полный выдох до конца" },
-  { icon: "▶️", text: "Жми Старт" },
-  { icon: "🤐", text: "Задерживай дыхание" },
-];
+const BREATH_CYCLES = 3;
 
 // ── Result interpretation ──
 function getResultText(seconds: number): { emoji: string; text: string } {
@@ -172,6 +165,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const [seconds, setSeconds] = useState(0);
   const [smoothSeconds, setSmoothSeconds] = useState(0);
   const [resultSeconds, setResultSeconds] = useState(0);
+  const [breathStep, setBreathStep] = useState<"inhale" | "exhale" | "final-exhale" | "hold">("inhale");
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const confettiRef = useRef<HTMLDivElement>(null);
@@ -224,25 +218,31 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     fireHapticImpact("medium");
     setPhase("leaving");
     setTimeout(() => {
-      setPhase("timer");
-      setSeconds(0);
-      startTimeRef.current = Date.now();
-      const tick = () => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        if (elapsed >= MAX_SECONDS) {
-          setSeconds(MAX_SECONDS);
-          handleStop(MAX_SECONDS);
-          return;
-        }
-        setSeconds(elapsed);
-        timerRef.current = requestAnimationFrame(tick);
-      };
-      timerRef.current = requestAnimationFrame(tick);
-      // Haptic every 10 seconds
-      hapticIntervalRef.current = window.setInterval(() => {
-        fireHapticImpact("light");
-      }, 10000);
+      setPhase("breath");
+      setBreathStep("inhale");
     }, 380);
+  };
+
+  const startHold = () => {
+    setPhase("hold");
+    setSeconds(0);
+    setSmoothSeconds(0);
+    startTimeRef.current = Date.now();
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      if (elapsed >= MAX_SECONDS) {
+        setSeconds(MAX_SECONDS);
+        handleStop(MAX_SECONDS);
+        return;
+      }
+      setSeconds(elapsed);
+      timerRef.current = requestAnimationFrame(tick);
+    };
+    timerRef.current = requestAnimationFrame(tick);
+    // Haptic every 10 seconds
+    hapticIntervalRef.current = window.setInterval(() => {
+      fireHapticImpact("light");
+    }, 10000);
   };
 
   // ── Stop timer ──
@@ -267,6 +267,34 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const [waterTop, waterBottom] = getWaterColors(pct);
   const result = getResultText(resultSeconds);
 
+  // Breathing sequence
+  useEffect(() => {
+    if (phase !== "breath") return;
+    let cancelled = false;
+    const run = async () => {
+      for (let i = 0; i < BREATH_CYCLES; i += 1) {
+        if (cancelled) return;
+        setBreathStep("inhale");
+        await new Promise((r) => setTimeout(r, 2400));
+        if (cancelled) return;
+        setBreathStep("exhale");
+        await new Promise((r) => setTimeout(r, 2400));
+      }
+      if (cancelled) return;
+      setBreathStep("final-exhale");
+      await new Promise((r) => setTimeout(r, 2600));
+      if (cancelled) return;
+      setBreathStep("hold");
+      await new Promise((r) => setTimeout(r, 600));
+      if (cancelled) return;
+      startHold();
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
+
   return (
     <div style={st.page}>
       <ScreenStyles />
@@ -277,71 +305,35 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div
-            style={st.mascotRow}
-            className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}
-          >
-            <div style={st.bubble} className="speech-bubble-left">
-              <span style={st.bubbleText}>
-                Узнаем твой реальный запас выносливости прямо сейчас
-              </span>
-            </div>
-            <img src={smotrchasImg} alt="" style={st.mascotImg} />
+          <div style={st.header} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <h1 style={st.title}>Выносливость</h1>
+            <p style={st.subtitle}>
+              Короткий тест запаса кислорода. Помогает понять текущий уровень.
+            </p>
           </div>
 
-          {/* Instruction tiles */}
-          <div
-            style={st.instructionGrid}
-            className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
-          >
-            <div style={st.instructionRow}>
-              <div style={st.instructionCard}>
-                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[0].icon}</div>
-                <div style={st.instructionText}>{INSTRUCTION_TILES[0].text}</div>
-              </div>
-              <div style={st.instructionArrow}>
-                <ArrowRight />
-              </div>
-              <div style={st.instructionCard}>
-                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[1].icon}</div>
-                <div style={st.instructionText}>{INSTRUCTION_TILES[1].text}</div>
-              </div>
-            </div>
-            <div style={st.instructionRow}>
-              <div style={st.instructionCard}>
-                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[2].icon}</div>
-                <div style={st.instructionText}>{INSTRUCTION_TILES[2].text}</div>
-              </div>
-              <div style={st.instructionArrow}>
-                <ArrowRight />
-              </div>
-              <div style={st.instructionCard}>
-                <div style={st.instructionEmoji}>{INSTRUCTION_TILES[3].icon}</div>
-                <div style={st.instructionText}>{INSTRUCTION_TILES[3].text}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Start button (full-width, to bottom) */}
-          <div
-            style={st.bottomAction}
-            className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
-          >
-            <button
-              type="button"
-              style={st.startBtn}
-              className="intro-primary-btn"
-              onClick={handleStart}
-            >
+          <div style={st.centerStartWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-3"}>
+            <button type="button" style={st.centerStartBtn} className="intro-primary-btn" onClick={handleStart}>
               Старт
             </button>
           </div>
         </>
       )}
 
-      {/* ── TIMER PHASE: flask with waves ── */}
-      {phase === "timer" && (
+      {/* ── BREATH PHASE ── */}
+      {phase === "breath" && (
+        <div style={st.breathWrap} className="onb-success-in">
+          <div style={st.breathOrb} className={breathStep === "inhale" ? "breath-in" : "breath-out"} />
+          <div style={st.breathText}>
+            {breathStep === "inhale" ? "Вдох" : breathStep === "exhale" ? "Выдох" : "Полный выдох"}
+          </div>
+        </div>
+      )}
+
+      {/* ── HOLD PHASE: flask with waves ── */}
+      {phase === "hold" && (
         <div style={st.timerWrap} className="onb-success-in">
+          <div style={st.holdText}>Задержи дыхание</div>
           <div style={st.flaskOuter}>
             {/* Flask glass container */}
             <div style={st.flask}>
@@ -387,6 +379,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           </div>
 
           {/* Stop button */}
+          <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
           <div style={st.bottomAction}>
             <button
               type="button"
@@ -447,19 +440,6 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   );
 }
 
-function ArrowRight() {
-  return (
-    <svg width="22" height="10" viewBox="0 0 22 10" fill="none">
-      <path
-        d="M0 5h18M18 5l-4-4M18 5l-4 4"
-        stroke="rgba(15, 23, 42, 0.35)"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 // ============================================================================
 // STYLES (CSS animations + wave keyframes)
@@ -513,6 +493,17 @@ function ScreenStyles() {
         border-bottom: 8px solid transparent;
         border-left: 8px solid rgba(255,255,255,0.9);
         filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
+      }
+      .breath-in { animation: breathIn 2400ms ease-in-out infinite; }
+      .breath-out { animation: breathOut 2400ms ease-in-out infinite; }
+      @keyframes breathIn {
+        0% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
+        70% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
+        100% { transform: scale(1); box-shadow: 0 0 50px rgba(96,165,250,0.3); }
+      }
+      @keyframes breathOut {
+        0% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
+        100% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
       }
       .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
@@ -575,35 +566,42 @@ const st: Record<string, React.CSSProperties> = {
   },
 
   // ── Mascot + Bubble ──
-  mascotRow: {
+  header: {
     display: "grid",
-    gridTemplateColumns: "auto 1fr",
+    gap: 8,
+    textAlign: "center",
     alignItems: "center",
-    gap: 12,
-    marginTop: 8,
+    marginTop: 12,
   },
-  mascotImg: {
-    width: 140,
-    height: "auto",
-    objectFit: "contain",
+  title: {
+    margin: 0,
+    fontSize: 34,
+    lineHeight: 1.1,
+    fontWeight: 700,
+    letterSpacing: -0.8,
   },
-  bubble: {
-    position: "relative",
-    padding: "14px 16px",
+  subtitle: {
+    margin: 0,
+    fontSize: 16,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.7)",
+  },
+  centerStartWrap: {
+    display: "flex",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  centerStartBtn: {
+    minWidth: 220,
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    color: "#1e1f22",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-  },
-  bubbleText: {
-    fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.35,
-    color: "#1e1f22",
-    whiteSpace: "pre-line",
+    padding: "16px 20px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
 
   // ── Instruction tiles ──
@@ -707,6 +705,38 @@ const st: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
+  breathWrap: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 18,
+    minHeight: "70vh",
+  },
+  breathOrb: {
+    width: 180,
+    height: 180,
+    borderRadius: "50%",
+    background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(96,165,250,0.65) 35%, rgba(59,130,246,0.9) 100%)",
+  },
+  breathText: {
+    fontSize: 24,
+    fontWeight: 600,
+    color: "#1e1f22",
+  },
+  holdText: {
+    fontSize: 22,
+    fontWeight: 600,
+    color: "#1e1f22",
+    marginBottom: 8,
+  },
+  holdHint: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: "rgba(15, 23, 42, 0.6)",
+    marginTop: 10,
   },
 
   // ── Timer phase ──
