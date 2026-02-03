@@ -18,7 +18,7 @@ type Exercise = {
   description: string;
   duration: string;
   image: string;
-  gradient: string;
+  color: string;
   imageOffset?: React.CSSProperties;
 };
 
@@ -29,8 +29,7 @@ const EXERCISES: Exercise[] = [
     description: "Задержите дыхание на максимум. Узнаем, как ваши лёгкие усваивают кислород.",
     duration: "1 мин",
     image: breathImg,
-    gradient:
-      "linear-gradient(180deg, #5F6AE8 0%, #4B58D6 100%)",
+    color: "#4E5ED7",
     imageOffset: { bottom: -36 },
   },
   {
@@ -39,8 +38,7 @@ const EXERCISES: Exercise[] = [
     description: "Дыхание по квадрату. Снижает пульс и помогает собраться с мыслями.",
     duration: "2 мин",
     image: healImg,
-    gradient:
-      "linear-gradient(180deg, #D7EF7E 0%, #C7E45D 100%)",
+    color: "#D0E86D",
   },
   {
     id: "vacuum",
@@ -48,8 +46,7 @@ const EXERCISES: Exercise[] = [
     description: "Упражнение \u00ABВакуум\u00BB. Работа с мышцами пресса без коврика и спортзала.",
     duration: "2 мин",
     image: absImg,
-    gradient:
-      "linear-gradient(180deg, #D4B5F0 0%, #C3A2E6 100%)",
+    color: "#C8A9E8",
     imageOffset: { bottom: -60, height: 220, maxHeight: 220, maxWidth: 220 },
   },
 ];
@@ -146,7 +143,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: `linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%), ${ex.gradient}`,
+                background: ex.color,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
@@ -160,8 +157,9 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                   <div style={st.cardTopRow}>
                     <div style={st.cardTitle}>{ex.title}</div>
                     <div style={st.playBtn}>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <path d="M5 4L11 8L5 12V4Z" fill="#ffffff" />
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8H11" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" />
+                        <path d="M9 5L12 8L9 11" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                   </div>
@@ -329,9 +327,8 @@ const st: Record<string, React.CSSProperties> = {
   card: {
     borderRadius: 20,
     padding: `${CARD_PADDING}px`,
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow:
-      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    border: "none",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.12)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
@@ -345,8 +342,7 @@ const st: Record<string, React.CSSProperties> = {
   },
   cardActive: {},
   cardCollapsed: {
-    boxShadow:
-      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.12)",
   },
   cardInner: {
     display: "flex",
@@ -430,9 +426,9 @@ const st: Record<string, React.CSSProperties> = {
     minHeight: 34,
     flexShrink: 0,
     borderRadius: 999,
-    border: "1px solid #1e1f22",
+    border: "none",
     background: "#1e1f22",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
+    boxShadow: "0 6px 12px rgba(0,0,0,0.24)",
     display: "grid",
     placeItems: "center",
   },
