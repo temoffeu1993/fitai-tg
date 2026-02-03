@@ -170,6 +170,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [showContent, setShowContent] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [smoothSeconds, setSmoothSeconds] = useState(0);
   const [resultSeconds, setResultSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -204,6 +205,19 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       if (hapticIntervalRef.current) clearInterval(hapticIntervalRef.current);
     };
   }, []);
+
+  // Smooth progress update
+  useEffect(() => {
+    if (phase !== "timer") return;
+    let raf: number;
+    const tick = () => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      setSmoothSeconds(Math.min(elapsed, MAX_SECONDS));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
 
   // ── Start timer ──
   const handleStart = () => {
@@ -247,7 +261,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     }
   };
 
-  const progress = Math.min(1, seconds / MAX_SECONDS);
+  const progress = Math.min(1, smoothSeconds / MAX_SECONDS);
   const eased = 1 - Math.pow(1 - progress, 2);
   const pct = Math.min(100, eased * 100);
   const [waterTop, waterBottom] = getWaterColors(pct);
@@ -310,7 +324,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
           {/* Start button (full-width, to bottom) */}
           <div
-            style={st.bottomActionRaised}
+            style={st.bottomAction}
             className={phase === "leaving" ? "onb-leave" : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`}
           >
             <button
@@ -343,19 +357,23 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 <div style={st.waveWrapper}>
                   <svg
                     style={{ ...st.waveSvg, animationDuration: "10s" }}
-                    viewBox="0 0 2880 320"
+                    viewBox="0 0 5760 320"
                     preserveAspectRatio="none"
                   >
                     <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
                     <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
+                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
+                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(4320,0)" />
                   </svg>
                   <svg
                     style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
-                    viewBox="0 0 2880 320"
+                    viewBox="0 0 5760 320"
                     preserveAspectRatio="none"
                   >
                     <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
                     <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
+                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
+                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(4320,0)" />
                   </svg>
                 </div>
               </div>
@@ -506,7 +524,7 @@ function ScreenStyles() {
       }
       @keyframes waveMove {
         0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
+        100% { transform: translateX(-25%); }
       }
       @keyframes flaskPulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.0), inset 0 1px 2px rgba(255,255,255,0.5); }
@@ -669,16 +687,8 @@ const st: Record<string, React.CSSProperties> = {
   bottomAction: {
     position: "fixed",
     left: 0,
-    right: 0,
     bottom: 0,
-    height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
-    zIndex: 10,
-  },
-  bottomActionRaised: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+    width: "100vw",
     height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
     zIndex: 10,
   },
@@ -749,13 +759,13 @@ const st: Record<string, React.CSSProperties> = {
     bottom: 0,
     left: 0,
     right: 0,
-    transition: "height 0.3s linear",
+    transition: "none",
     borderRadius: `0 0 ${FLASK_R - 2}px ${FLASK_R - 2}px`,
     zIndex: 2,
   },
   waveWrapper: {
     position: "absolute",
-    bottom: "calc(100% - 1px)",
+    bottom: "calc(100% - 2px)",
     left: 0,
     right: 0,
     height: 28,
@@ -765,7 +775,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     bottom: 0,
     left: 0,
-    width: "200%",
+    width: "400%",
     height: "100%",
     animation: "waveMove 10s linear infinite",
     willChange: "transform",
