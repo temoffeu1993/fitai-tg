@@ -2,7 +2,7 @@
 // CO2 breath-hold test: instruction → flask timer → result with confetti
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
-import smotrchasImg from "@/assets/smotrchas.webp";
+import dihanieImg from "@/assets/dihanie.png";
 import healthRobotImg from "@/assets/heals.webp";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
@@ -326,7 +326,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
         <>
           <div style={st.introHero} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-1"}>
             <div style={st.introImageWrap}>
-              <img src={smotrchasImg} alt="" style={st.introImage} />
+            <img src={dihanieImg} alt="" style={st.introImage} />
             </div>
           </div>
           <section style={st.introFooter} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
