@@ -349,7 +349,13 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           <div style={st.breathBackdrop} />
           <div
             style={st.breathAura}
-            className={`auraPulse ${phase === "hold" ? "auraOut" : ""}`}
+            className={
+              phase === "hold"
+                ? "auraOut"
+                : breathStep === "inhale"
+                  ? "aura-rise"
+                  : "aura-fall"
+            }
           />
           <img
             src={healthRobotImg}
@@ -360,9 +366,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 ? "mascotOut"
                 : breathStep === "inhale"
                   ? "breath-rise"
-                  : breathStep === "exhale"
-                    ? "breath-fall"
-                    : "breath-final"
+                  : "breath-fall"
             }
           />
           <div
@@ -372,9 +376,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 ? "ripplesOut"
                 : breathStep === "inhale"
                   ? "ripple-rise"
-                  : breathStep === "exhale"
-                    ? "ripple-fall"
-                    : "ripple-final"
+                  : "ripple-fall"
             }
           />
 
@@ -418,18 +420,19 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 </div>
                 <div style={st.flaskGlass} />
               </div>
-              <div style={st.flaskCap} />
             </div>
             <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
           </div>
 
-          <div key={breathStep} style={breathTextStyle}>
-            {breathStep === "inhale"
-              ? "Глубокий вдох"
-              : breathStep === "exhale"
-                ? "Спокойный выдох"
-                : "Выдохни и задержи дыхание"}
-          </div>
+          {phase === "breath" && (
+            <div key={breathStep} style={breathTextStyle}>
+              {breathStep === "inhale"
+                ? "Глубокий вдох"
+                : breathStep === "exhale"
+                  ? "Спокойный выдох"
+                  : "Выдохни и задержи дыхание"}
+            </div>
+          )}
 
           {phase === "hold" && (
             <div style={st.bottomAction}>
@@ -547,12 +550,11 @@ function ScreenStyles() {
         border-left: 8px solid rgba(255,255,255,0.9);
         filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
       }
-      .auraPulse {
-        animation: auraPulse 3.2s ease-in-out infinite;
-      }
       .auraOut {
         animation: auraOut 600ms ease-out forwards;
       }
+      .aura-rise { animation: auraRise 4000ms ease-in-out forwards; }
+      .aura-fall { animation: auraFall 4000ms ease-in-out forwards; }
       .breath-rise { animation: breathRise 4000ms ease-in-out forwards; }
       .breath-fall { animation: breathFall 4000ms ease-in-out forwards; }
       .breath-final { animation: breathFinal 3200ms ease-in-out forwards; }
@@ -583,13 +585,17 @@ function ScreenStyles() {
         0% { transform: scale(1.12); opacity: 0.9; }
         100% { transform: scale(0.85); opacity: 0.6; }
       }
-      @keyframes rippleFinal {
-        0% { opacity: 0.5; transform: scale(1.04); }
-        100% { opacity: 0.35; transform: scale(0.98); }
-      }
       @keyframes auraOut {
         0% { opacity: 0.7; transform: scale(1); }
         100% { opacity: 0; transform: scale(1.12); }
+      }
+      @keyframes auraRise {
+        0% { transform: scale(0.92); opacity: 0.55; }
+        100% { transform: scale(1.05); opacity: 0.75; }
+      }
+      @keyframes auraFall {
+        0% { transform: scale(1.05); opacity: 0.75; }
+        100% { transform: scale(0.92); opacity: 0.55; }
       }
       @keyframes mascotOut {
         0% { opacity: 1; transform: translateY(0) scale(1); }
@@ -859,11 +865,16 @@ const st: Record<string, React.CSSProperties> = {
   },
   breathAura: {
     position: "absolute",
-    width: 320,
-    height: 320,
+    width: "min(70vw, 70vh)",
+    height: "min(70vw, 70vh)",
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(120, 255, 230, 0.25) 0%, rgba(120, 255, 230, 0.08) 50%, rgba(120, 255, 230, 0) 75%)",
-    filter: "blur(18px)",
+    background: `
+      radial-gradient(circle, rgba(96,165,250,0) 36%, rgba(96,165,250,0.28) 38%, rgba(96,165,250,0) 40%),
+      radial-gradient(circle, rgba(96,165,250,0) 52%, rgba(96,165,250,0.2) 54%, rgba(96,165,250,0) 56%),
+      radial-gradient(circle, rgba(96,165,250,0) 68%, rgba(96,165,250,0.16) 70%, rgba(96,165,250,0) 72%),
+      radial-gradient(circle, rgba(96,165,250,0) 82%, rgba(96,165,250,0.12) 84%, rgba(96,165,250,0) 86%)
+    `,
+    filter: "blur(0.8px)",
     zIndex: 1,
   },
   breathMascot: {
@@ -875,15 +886,16 @@ const st: Record<string, React.CSSProperties> = {
   },
   breathRipples: {
     position: "absolute",
-    width: 420,
-    height: 420,
+    width: "min(84vw, 84vh)",
+    height: "min(84vw, 84vh)",
     borderRadius: "50%",
     background: `
-      radial-gradient(circle, rgba(147,197,253,0.18) 0%, rgba(147,197,253,0.06) 48%, rgba(147,197,253,0) 60%),
-      radial-gradient(circle, rgba(147,197,253,0.12) 12%, rgba(147,197,253,0.05) 58%, rgba(147,197,253,0) 72%),
-      radial-gradient(circle, rgba(147,197,253,0.1) 22%, rgba(147,197,253,0.04) 68%, rgba(147,197,253,0) 82%)
+      radial-gradient(circle, rgba(148,163,184,0) 30%, rgba(148,163,184,0.18) 32%, rgba(148,163,184,0) 34%),
+      radial-gradient(circle, rgba(148,163,184,0) 46%, rgba(148,163,184,0.14) 48%, rgba(148,163,184,0) 50%),
+      radial-gradient(circle, rgba(148,163,184,0) 62%, rgba(148,163,184,0.12) 64%, rgba(148,163,184,0) 66%),
+      radial-gradient(circle, rgba(148,163,184,0) 78%, rgba(148,163,184,0.1) 80%, rgba(148,163,184,0) 82%)
     `,
-    filter: "blur(0.6px)",
+    filter: "blur(1.2px)",
     zIndex: 2,
   },
   breathText: {
@@ -907,6 +919,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
+    transform: "translateY(-24px)",
     zIndex: 4,
   },
   holdText: {
@@ -937,17 +950,6 @@ const st: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-  },
-  flaskCap: {
-    width: FLASK_W * 0.5,
-    height: 18,
-    borderRadius: "8px 8px 0 0",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(220,220,230,0.7) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    borderBottom: "none",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
-    marginBottom: -1,
-    zIndex: 3,
   },
   flask: {
     position: "relative",
