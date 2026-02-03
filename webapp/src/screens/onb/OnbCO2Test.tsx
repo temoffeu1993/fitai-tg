@@ -331,10 +331,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           </div>
           <section style={st.introFooter} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
             <div style={st.introTextBlock}>
-              <h1 style={st.introTitle}>
-                <span style={st.introTitleLine}>Тест</span>
-                <span style={st.introTitleLine}>на выносливость</span>
-              </h1>
+              <h1 style={st.introTitle}>Тест на выносливость</h1>
               <p style={st.introSubtitle}>
                 Узнаем, насколько эффективно ваш организм использует кислород
               </p>
@@ -727,9 +724,6 @@ const st: Record<string, React.CSSProperties> = {
     lineHeight: 1.05,
     fontWeight: 900,
     letterSpacing: -0.8,
-  },
-  introTitleLine: {
-    display: "block",
   },
   introSubtitle: {
     margin: 0,
