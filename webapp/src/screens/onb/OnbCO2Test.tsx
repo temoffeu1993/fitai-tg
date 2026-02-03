@@ -400,6 +400,12 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
                   }}
                 >
+                  <div
+                    style={{
+                      ...st.surfaceBlend,
+                      background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 80%, rgba(0,0,0,0) 100%)`,
+                    }}
+                  />
                   <div style={st.waveWrapper}>
                     <div style={{ ...st.waveTrack, animationDuration: "10s" }}>
                       <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
@@ -1008,14 +1014,24 @@ const st: Record<string, React.CSSProperties> = {
   },
   waveWrapper: {
     position: "absolute",
-    bottom: "calc(100% - 2px)",
+    bottom: "calc(100% - 10px)",
     left: 0,
     right: 0,
-    height: 44,
+    height: 64,
     overflow: "hidden",
-    WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 100%)",
-    maskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 100%)",
-    filter: "blur(0.4px)",
+    WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 100%)",
+    maskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 100%)",
+    filter: "blur(0.2px)",
+  },
+  surfaceBlend: {
+    position: "absolute",
+    top: -14,
+    left: 0,
+    right: 0,
+    height: 32,
+    opacity: 0.6,
+    zIndex: 1,
+    pointerEvents: "none",
   },
   waveTrack: {
     position: "absolute",
