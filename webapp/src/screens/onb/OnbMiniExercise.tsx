@@ -30,7 +30,7 @@ const EXERCISES: Exercise[] = [
     duration: "1 мин",
     image: breathImg,
     gradient:
-      "radial-gradient(120% 120% at 0% 0%, rgba(142,191,255,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(111,157,255,0.3) 0%, rgba(255,255,255,0) 55%)",
+      "linear-gradient(180deg, #5F6AE8 0%, #4B58D6 100%)",
     imageOffset: { bottom: -36 },
   },
   {
@@ -40,7 +40,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: healImg,
     gradient:
-      "radial-gradient(120% 120% at 0% 0%, rgba(126,220,190,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(96,192,160,0.3) 0%, rgba(255,255,255,0) 55%)",
+      "linear-gradient(180deg, #D7EF7E 0%, #C7E45D 100%)",
   },
   {
     id: "vacuum",
@@ -49,7 +49,7 @@ const EXERCISES: Exercise[] = [
     duration: "2 мин",
     image: absImg,
     gradient:
-      "radial-gradient(120% 120% at 0% 0%, rgba(255,185,150,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(255,160,120,0.3) 0%, rgba(255,255,255,0) 55%)",
+      "linear-gradient(180deg, #D4B5F0 0%, #C3A2E6 100%)",
     imageOffset: { bottom: -60, height: 220, maxHeight: 220, maxWidth: 220 },
   },
 ];
@@ -146,7 +146,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%), ${ex.gradient}`,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%), ${ex.gradient}`,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
@@ -160,8 +160,8 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                   <div style={st.cardTopRow}>
                     <div style={st.cardTitle}>{ex.title}</div>
                     <div style={st.playBtn}>
-                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                        <path d="M3.5 1.75L11.5 7L3.5 12.25V1.75Z" fill="#1e1f22" />
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M5 4L11 8L5 12V4Z" fill="#ffffff" />
                       </svg>
                     </div>
                   </div>
@@ -430,9 +430,9 @@ const st: Record<string, React.CSSProperties> = {
     minHeight: 34,
     flexShrink: 0,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.65) 100%)",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7)",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
     display: "grid",
     placeItems: "center",
   },
