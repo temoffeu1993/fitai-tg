@@ -348,15 +348,30 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
         <div style={st.breathStage} className="onb-success-in">
           <div style={st.breathBackdrop} />
           <div
-            style={st.breathAura}
+            style={st.breathAuraWrap}
             className={
               phase === "hold"
                 ? "auraOut"
-                : breathStep === "inhale"
-                  ? "aura-rise"
-                  : "aura-fall"
+                : "aura-cycle"
             }
-          />
+          >
+            <span style={st.auraRing1} />
+            <span style={st.auraRing2} />
+            <span style={st.auraRing3} />
+            <span style={st.auraRing4} />
+          </div>
+          <div
+            style={st.breathRipplesWrap}
+            className={
+              phase === "hold"
+                ? "ripplesOut"
+                : "ripple-cycle"
+            }
+          >
+            <span style={st.rippleRing1} />
+            <span style={st.rippleRing2} />
+            <span style={st.rippleRing3} />
+          </div>
           <img
             src={healthRobotImg}
             alt=""
@@ -364,19 +379,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             className={
               phase === "hold"
                 ? "mascotOut"
-                : breathStep === "inhale"
-                  ? "breath-rise"
-                  : "breath-fall"
-            }
-          />
-          <div
-            style={st.breathRipples}
-            className={
-              phase === "hold"
-                ? "ripplesOut"
-                : breathStep === "inhale"
-                  ? "ripple-rise"
-                  : "ripple-fall"
+                : "breath-cycle"
             }
           />
 
@@ -550,52 +553,32 @@ function ScreenStyles() {
         border-left: 8px solid rgba(255,255,255,0.9);
         filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
       }
-      .auraOut {
-        animation: auraOut 600ms ease-out forwards;
-      }
-      .aura-rise { animation: auraRise 4000ms ease-in-out forwards; }
-      .aura-fall { animation: auraFall 4000ms ease-in-out forwards; }
-      .breath-rise { animation: breathRise 4000ms ease-in-out forwards; }
-      .breath-fall { animation: breathFall 4000ms ease-in-out forwards; }
-      .breath-final { animation: breathFinal 3200ms ease-in-out forwards; }
+      .auraOut { animation: auraOut 600ms ease-out forwards; }
+      .aura-cycle { animation: auraCycle 8000ms ease-in-out infinite; }
+      .breath-cycle { animation: breathCycle 8000ms ease-in-out infinite; }
+      .ripple-cycle { animation: rippleCycle 8000ms ease-in-out infinite; }
       .mascotOut { animation: mascotOut 600ms ease-out forwards; }
       .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
       .flaskIn { animation: flaskIn 700ms ease-out forwards; }
       .flaskHidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
-      .ripple-rise { animation: rippleScaleUp 4000ms ease-in-out forwards; }
-      .ripple-fall { animation: rippleScaleDown 4000ms ease-in-out forwards; }
-      .ripple-final { animation: rippleFinal 3200ms ease-in-out forwards; }
-      @keyframes breathRise {
+      @keyframes breathCycle {
         0% { transform: translateY(10px) scale(0.98); }
-        100% { transform: translateY(-16px) scale(1.03); }
-      }
-      @keyframes breathFall {
-        0% { transform: translateY(-16px) scale(1.03); }
+        50% { transform: translateY(-16px) scale(1.03); }
         100% { transform: translateY(10px) scale(0.98); }
       }
-      @keyframes breathFinal {
-        0% { transform: translateY(-8px) scale(1.01); }
-        100% { transform: translateY(0) scale(1); }
+      @keyframes auraCycle {
+        0% { transform: scale(0.92); opacity: 0.5; }
+        50% { transform: scale(1.05); opacity: 0.78; }
+        100% { transform: scale(0.92); opacity: 0.5; }
       }
-      @keyframes rippleScaleUp {
-        0% { transform: scale(0.85); opacity: 0.6; }
-        100% { transform: scale(1.12); opacity: 0.9; }
-      }
-      @keyframes rippleScaleDown {
-        0% { transform: scale(1.12); opacity: 0.9; }
-        100% { transform: scale(0.85); opacity: 0.6; }
+      @keyframes rippleCycle {
+        0% { transform: scale(0.86); opacity: 0.55; }
+        50% { transform: scale(1.1); opacity: 0.9; }
+        100% { transform: scale(0.86); opacity: 0.55; }
       }
       @keyframes auraOut {
         0% { opacity: 0.7; transform: scale(1); }
         100% { opacity: 0; transform: scale(1.12); }
-      }
-      @keyframes auraRise {
-        0% { transform: scale(0.92); opacity: 0.55; }
-        100% { transform: scale(1.05); opacity: 0.75; }
-      }
-      @keyframes auraFall {
-        0% { transform: scale(1.05); opacity: 0.75; }
-        100% { transform: scale(0.92); opacity: 0.55; }
       }
       @keyframes mascotOut {
         0% { opacity: 1; transform: translateY(0) scale(1); }
@@ -863,19 +846,39 @@ const st: Record<string, React.CSSProperties> = {
     background: "radial-gradient(circle at 50% 35%, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.65) 45%, rgba(2,6,23,0.9) 100%)",
     zIndex: 0,
   },
-  breathAura: {
+  breathAuraWrap: {
     position: "absolute",
     width: "min(70vw, 70vh)",
     height: "min(70vw, 70vh)",
-    borderRadius: "50%",
-    background: `
-      radial-gradient(circle, rgba(96,165,250,0) 36%, rgba(96,165,250,0.28) 38%, rgba(96,165,250,0) 40%),
-      radial-gradient(circle, rgba(96,165,250,0) 52%, rgba(96,165,250,0.2) 54%, rgba(96,165,250,0) 56%),
-      radial-gradient(circle, rgba(96,165,250,0) 68%, rgba(96,165,250,0.16) 70%, rgba(96,165,250,0) 72%),
-      radial-gradient(circle, rgba(96,165,250,0) 82%, rgba(96,165,250,0.12) 84%, rgba(96,165,250,0) 86%)
-    `,
-    filter: "blur(0.8px)",
     zIndex: 1,
+  },
+  auraRing1: {
+    position: "absolute",
+    inset: "10%",
+    borderRadius: "50%",
+    border: "1.5px solid rgba(96,165,250,0.28)",
+    filter: "blur(0.2px)",
+  },
+  auraRing2: {
+    position: "absolute",
+    inset: "22%",
+    borderRadius: "50%",
+    border: "1.5px solid rgba(96,165,250,0.22)",
+    filter: "blur(0.2px)",
+  },
+  auraRing3: {
+    position: "absolute",
+    inset: "34%",
+    borderRadius: "50%",
+    border: "1.5px solid rgba(96,165,250,0.18)",
+    filter: "blur(0.2px)",
+  },
+  auraRing4: {
+    position: "absolute",
+    inset: "46%",
+    borderRadius: "50%",
+    border: "1.5px solid rgba(96,165,250,0.14)",
+    filter: "blur(0.2px)",
   },
   breathMascot: {
     width: 200,
@@ -884,19 +887,32 @@ const st: Record<string, React.CSSProperties> = {
     zIndex: 3,
     filter: "drop-shadow(0 16px 32px rgba(0,0,0,0.55))",
   },
-  breathRipples: {
+  breathRipplesWrap: {
     position: "absolute",
-    width: "min(84vw, 84vh)",
-    height: "min(84vw, 84vh)",
-    borderRadius: "50%",
-    background: `
-      radial-gradient(circle, rgba(148,163,184,0) 30%, rgba(148,163,184,0.18) 32%, rgba(148,163,184,0) 34%),
-      radial-gradient(circle, rgba(148,163,184,0) 46%, rgba(148,163,184,0.14) 48%, rgba(148,163,184,0) 50%),
-      radial-gradient(circle, rgba(148,163,184,0) 62%, rgba(148,163,184,0.12) 64%, rgba(148,163,184,0) 66%),
-      radial-gradient(circle, rgba(148,163,184,0) 78%, rgba(148,163,184,0.1) 80%, rgba(148,163,184,0) 82%)
-    `,
-    filter: "blur(1.2px)",
+    width: "min(88vw, 88vh)",
+    height: "min(88vw, 88vh)",
     zIndex: 2,
+  },
+  rippleRing1: {
+    position: "absolute",
+    inset: "6%",
+    borderRadius: "50%",
+    border: "1px solid rgba(148,163,184,0.2)",
+    filter: "blur(0.4px)",
+  },
+  rippleRing2: {
+    position: "absolute",
+    inset: "20%",
+    borderRadius: "50%",
+    border: "1px solid rgba(148,163,184,0.16)",
+    filter: "blur(0.4px)",
+  },
+  rippleRing3: {
+    position: "absolute",
+    inset: "34%",
+    borderRadius: "50%",
+    border: "1px solid rgba(148,163,184,0.12)",
+    filter: "blur(0.4px)",
   },
   breathText: {
     position: "absolute",
