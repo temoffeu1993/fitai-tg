@@ -2,7 +2,7 @@
 // CO2 breath-hold test: instruction → flask timer → result with confetti
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
-import dihanieImg from "@/assets/dihanie.png";
+import dihanieImg from "@/assets/dihanie.webp";
 import healthRobotImg from "@/assets/heals.webp";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
@@ -355,6 +355,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 : "aura-cycle"
             }
           >
+            <span style={st.auraGlow} />
             <span style={st.auraRing1} />
             <span style={st.auraRing2} />
             <span style={st.auraRing3} />
@@ -408,19 +409,21 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                   <div style={st.waveWrapper}>
                     <svg
                       style={{ ...st.waveSvg, animationDuration: "10s" }}
-                      viewBox="0 0 2880 320"
+                      viewBox="0 0 4320 320"
                       preserveAspectRatio="none"
                     >
                       <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
                       <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
+                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
                     </svg>
                     <svg
                       style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
-                      viewBox="0 0 2880 320"
+                      viewBox="0 0 4320 320"
                       preserveAspectRatio="none"
                     >
                       <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
                       <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
+                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
                     </svg>
                   </div>
                 </div>
@@ -613,13 +616,13 @@ function ScreenStyles() {
       }
       @keyframes waveMove {
         0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
+        100% { transform: translateX(-33.333%); }
       }
       @keyframes bubbleRise {
         0% { transform: translateY(0) scale(0.95); opacity: 0; }
         10% { opacity: 0.7; }
         60% { opacity: 0.9; }
-        100% { transform: translateY(-140%) scale(1.05); opacity: 0; }
+        100% { transform: translateY(-120%) scale(1.05); opacity: 0; }
       }
       @keyframes flaskPulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.0), inset 0 1px 2px rgba(255,255,255,0.5); }
@@ -860,37 +863,42 @@ const st: Record<string, React.CSSProperties> = {
     width: "min(70vw, 70vh)",
     height: "min(70vw, 70vh)",
     borderRadius: "50%",
+    zIndex: 1,
+  },
+  auraGlow: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "50%",
     background: "radial-gradient(circle, rgba(120,255,230,0.28) 0%, rgba(120,255,230,0.12) 45%, rgba(120,255,230,0) 72%)",
     filter: "blur(20px)",
-    zIndex: 1,
   },
   auraRing1: {
     position: "absolute",
     inset: "10%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(120,255,230,0.26)",
-    filter: "blur(0.2px)",
+    border: "2px solid rgba(120,255,230,0.38)",
+    filter: "blur(0.1px)",
   },
   auraRing2: {
     position: "absolute",
     inset: "22%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(120,255,230,0.2)",
-    filter: "blur(0.2px)",
+    border: "2px solid rgba(120,255,230,0.32)",
+    filter: "blur(0.1px)",
   },
   auraRing3: {
     position: "absolute",
     inset: "34%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(120,255,230,0.16)",
-    filter: "blur(0.2px)",
+    border: "2px solid rgba(120,255,230,0.26)",
+    filter: "blur(0.1px)",
   },
   auraRing4: {
     position: "absolute",
     inset: "46%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(120,255,230,0.12)",
-    filter: "blur(0.2px)",
+    border: "2px solid rgba(120,255,230,0.2)",
+    filter: "blur(0.1px)",
   },
   breathMascot: {
     width: 200,
@@ -947,7 +955,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    transform: "translateY(-48px)",
+    transform: "translateY(-84px)",
     zIndex: 4,
   },
   holdText: {
@@ -1013,16 +1021,10 @@ const st: Record<string, React.CSSProperties> = {
     zIndex: 3,
     pointerEvents: "none",
   },
-  bubbleBase: {
-    position: "absolute",
-    bottom: "-12%",
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.25)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.25)",
-  },
   bubble1: {
     position: "absolute",
     left: "18%",
+    top: "100%",
     width: 6,
     height: 6,
     borderRadius: "50%",
@@ -1033,6 +1035,7 @@ const st: Record<string, React.CSSProperties> = {
   bubble2: {
     position: "absolute",
     left: "42%",
+    top: "100%",
     width: 4,
     height: 4,
     borderRadius: "50%",
@@ -1043,6 +1046,7 @@ const st: Record<string, React.CSSProperties> = {
   bubble3: {
     position: "absolute",
     left: "66%",
+    top: "100%",
     width: 5,
     height: 5,
     borderRadius: "50%",
@@ -1053,6 +1057,7 @@ const st: Record<string, React.CSSProperties> = {
   bubble4: {
     position: "absolute",
     left: "30%",
+    top: "100%",
     width: 3,
     height: 3,
     borderRadius: "50%",
@@ -1063,6 +1068,7 @@ const st: Record<string, React.CSSProperties> = {
   bubble5: {
     position: "absolute",
     left: "78%",
+    top: "100%",
     width: 3,
     height: 3,
     borderRadius: "50%",
@@ -1082,7 +1088,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     bottom: 0,
     left: 0,
-    width: "200%",
+    width: "300%",
     height: "100%",
     animation: "waveMove 10s linear infinite",
     willChange: "transform",

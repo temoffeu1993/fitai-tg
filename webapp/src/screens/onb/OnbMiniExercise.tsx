@@ -1,9 +1,9 @@
 // webapp/src/screens/onb/OnbMiniExercise.tsx
 // Mini exercise picker: offers 3 quick exercises to try right away
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import breathImg from "@/assets/dihanie.png";
+import breathImg from "@/assets/dihanie.webp";
 import healImg from "@/assets/heals.webp";
-import absImg from "@/assets/zhenzhiv.png";
+import absImg from "@/assets/zhenzhiv.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
