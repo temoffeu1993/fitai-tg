@@ -347,30 +347,37 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       )}
 
       {/* ── BREATH PHASE ── */}
-  {phase === "breath" && (
+      {(phase === "breath" || phase === "hold") && (
         <div style={st.breathStage} className="onb-success-in">
           <div style={st.breathBackdrop} />
-          <div style={st.breathAura} className="auraPulse" />
+          <div
+            style={st.breathAura}
+            className={`auraPulse ${phase === "hold" ? "auraOut" : ""}`}
+          />
           <img
             src={healthRobotImg}
             alt=""
             style={st.breathMascot}
             className={
-              breathStep === "inhale"
-                ? "breath-rise"
-                : breathStep === "exhale"
-                  ? "breath-fall"
-                  : "breath-hold"
+              phase === "hold"
+                ? "mascotOut"
+                : breathStep === "inhale"
+                  ? "breath-rise"
+                  : breathStep === "exhale"
+                    ? "breath-fall"
+                    : "breath-hold"
             }
           />
           <div
             style={st.breathRipples}
             className={
-              breathStep === "inhale"
-                ? "ripple-rise"
-                : breathStep === "exhale"
-                  ? "ripple-fall"
-                  : "ripple-hold"
+              phase === "hold"
+                ? "ripplesOut"
+                : breathStep === "inhale"
+                  ? "ripple-rise"
+                  : breathStep === "exhale"
+                    ? "ripple-fall"
+                    : "ripple-hold"
             }
           >
             <span style={{ ...st.ripple, animationDelay: "0s" }} />
@@ -378,6 +385,52 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             <span style={{ ...st.ripple, animationDelay: "1.4s" }} />
             <span style={{ ...st.ripple, animationDelay: "2.1s" }} />
           </div>
+
+          {/* Flask overlay (fades in on hold) */}
+          <div
+            style={st.flaskStage}
+            className={phase === "hold" ? "flaskIn" : "flaskHidden"}
+          >
+            <div style={st.holdText}>Задержи дыхание</div>
+            <div style={st.flaskOuter}>
+              <div style={st.flask}>
+                <div
+                  style={{
+                    ...st.waterFill,
+                    height: `${pct}%`,
+                    background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
+                  }}
+                >
+                  <div style={st.waveWrapper}>
+                    <svg
+                      style={{ ...st.waveSvg, animationDuration: "10s" }}
+                      viewBox="0 0 5760 320"
+                      preserveAspectRatio="none"
+                    >
+                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
+                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
+                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(4320,0)" />
+                    </svg>
+                    <svg
+                      style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
+                      viewBox="0 0 5760 320"
+                      preserveAspectRatio="none"
+                    >
+                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
+                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
+                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(4320,0)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={st.flaskGlass} />
+              </div>
+              <div style={st.flaskCap} />
+            </div>
+            <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
+          </div>
+
           <div key={breathStep} style={breathTextStyle}>
             {breathStep === "inhale"
               ? "Глубокий вдох..."
@@ -385,69 +438,19 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 ? "Спокойный выдох..."
                 : "Выдохни и задержи дыхание"}
           </div>
-        </div>
-      )}
 
-      {/* ── HOLD PHASE: flask with waves ── */}
-      {phase === "hold" && (
-        <div style={st.timerWrap} className="onb-success-in">
-          <div style={st.holdText}>Задержи дыхание</div>
-          <div style={st.flaskOuter}>
-            {/* Flask glass container */}
-            <div style={st.flask}>
-              {/* Water fill */}
-              <div
-                style={{
-                  ...st.waterFill,
-                  height: `${pct}%`,
-                  background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
-                }}
+          {phase === "hold" && (
+            <div style={st.bottomAction}>
+              <button
+                type="button"
+                style={st.stopBtnFull}
+                className="intro-primary-btn"
+                onClick={() => handleStop()}
               >
-                {/* Wave wrapper on top of water */}
-                <div style={st.waveWrapper}>
-                  <svg
-                    style={{ ...st.waveSvg, animationDuration: "10s" }}
-                    viewBox="0 0 5760 320"
-                    preserveAspectRatio="none"
-                  >
-                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
-                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
-                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
-                    <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(4320,0)" />
-                  </svg>
-                  <svg
-                    style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
-                    viewBox="0 0 5760 320"
-                    preserveAspectRatio="none"
-                  >
-                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
-                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
-                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
-                    <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(4320,0)" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Flask border overlay (glass effect) */}
-              <div style={st.flaskGlass} />
+                Стоп
+              </button>
             </div>
-
-            {/* Flask cap top */}
-            <div style={st.flaskCap} />
-          </div>
-
-          {/* Stop button */}
-          <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
-          <div style={st.bottomAction}>
-            <button
-              type="button"
-              style={st.stopBtnFull}
-              className="intro-primary-btn"
-              onClick={() => handleStop()}
-            >
-              Стоп
-            </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -555,9 +558,16 @@ function ScreenStyles() {
       .auraPulse {
         animation: auraPulse 3.2s ease-in-out infinite;
       }
+      .auraOut {
+        animation: auraOut 600ms ease-out forwards;
+      }
       .breath-rise { animation: breathRise 4000ms ease-in-out forwards; }
       .breath-fall { animation: breathFall 4000ms ease-in-out forwards; }
       .breath-hold { animation: breathHold 1200ms ease-in-out forwards; }
+      .mascotOut { animation: mascotOut 600ms ease-out forwards; }
+      .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
+      .flaskIn { animation: flaskIn 700ms ease-out forwards; }
+      .flaskHidden { opacity: 0; transform: translateY(18px) scale(0.98); pointer-events: none; }
       .ripple-rise { animation: rippleRise 4000ms ease-in-out forwards; }
       .ripple-fall { animation: rippleFall 4000ms ease-in-out forwards; }
       .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
@@ -584,6 +594,22 @@ function ScreenStyles() {
       @keyframes rippleHold {
         0% { opacity: 0.4; transform: scale(1); }
         100% { opacity: 0; transform: scale(1.15); }
+      }
+      @keyframes auraOut {
+        0% { opacity: 0.7; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.12); }
+      }
+      @keyframes mascotOut {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(-20px) scale(1.08); }
+      }
+      @keyframes ripplesOut {
+        0% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.12); }
+      }
+      @keyframes flaskIn {
+        0% { opacity: 0; transform: translateY(22px) scale(0.96); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes ringPulse {
         0% { transform: scale(0.92); opacity: 0.35; }
@@ -889,6 +915,16 @@ const st: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
     maxWidth: 320,
     textAlign: "center",
+    zIndex: 4,
+  },
+  flaskStage: {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-40%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
     zIndex: 4,
   },
   holdText: {
