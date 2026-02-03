@@ -1011,8 +1011,11 @@ const st: Record<string, React.CSSProperties> = {
     bottom: "calc(100% - 2px)",
     left: 0,
     right: 0,
-    height: 28,
+    height: 44,
     overflow: "hidden",
+    WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 100%)",
+    maskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 100%)",
+    filter: "blur(0.4px)",
   },
   waveTrack: {
     position: "absolute",
