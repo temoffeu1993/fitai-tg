@@ -835,7 +835,7 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     bottom: 0,
     width: "100vw",
-    height: "calc(56px + 14px + env(safe-area-inset-bottom, 0px))",
+    height: "calc(88px + env(safe-area-inset-bottom, 0px))",
     zIndex: 10,
   },
   startBtn: {
@@ -917,7 +917,7 @@ const st: Record<string, React.CSSProperties> = {
   flaskStage: {
     position: "absolute",
     top: "50%",
-    transform: "translateY(-40%)",
+    transform: "translateY(-50%)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -927,13 +927,13 @@ const st: Record<string, React.CSSProperties> = {
   holdText: {
     fontSize: 22,
     fontWeight: 600,
-    color: "#1e1f22",
+    color: "#e2e8f0",
     marginBottom: 8,
   },
   holdHint: {
     fontSize: 16,
     fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.6)",
+    color: "rgba(226, 232, 240, 0.7)",
     marginTop: 10,
   },
 
