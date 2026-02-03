@@ -402,8 +402,8 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                 >
                   <div
                     style={{
-                      ...st.surfaceBlend,
-                      background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 80%, rgba(0,0,0,0) 100%)`,
+                      ...st.waterSurface,
+                      background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 75%, rgba(0,0,0,0) 100%)`,
                     }}
                   />
                   <div style={st.waveWrapper}>
@@ -1014,22 +1014,20 @@ const st: Record<string, React.CSSProperties> = {
   },
   waveWrapper: {
     position: "absolute",
-    bottom: "calc(100% - 10px)",
+    bottom: "calc(100% - 2px)",
     left: 0,
     right: 0,
-    height: 64,
+    height: 28,
     overflow: "hidden",
-    WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 100%)",
-    maskImage: "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0) 100%)",
-    filter: "blur(0.2px)",
+    zIndex: 2,
   },
-  surfaceBlend: {
+  waterSurface: {
     position: "absolute",
-    top: -14,
+    top: -6,
     left: 0,
     right: 0,
-    height: 32,
-    opacity: 0.6,
+    height: 14,
+    opacity: 0.55,
     zIndex: 1,
     pointerEvents: "none",
   },
