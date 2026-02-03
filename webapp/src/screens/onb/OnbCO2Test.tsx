@@ -948,7 +948,7 @@ const st: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     gap: 10,
-    transform: "translateY(-90px)",
+    transform: "translateY(-60px)",
   },
   holdText: {
     fontSize: 22,
