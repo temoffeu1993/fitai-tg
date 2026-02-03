@@ -306,7 +306,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       }
       if (cancelled) return;
       setBreathStep("hold");
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 900));
       if (cancelled) return;
       startHold();
     };
