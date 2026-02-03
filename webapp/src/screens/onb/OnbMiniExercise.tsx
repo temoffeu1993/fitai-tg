@@ -146,7 +146,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: `linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%), ${ex.gradient}`,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%), ${ex.gradient}`,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
@@ -433,7 +433,7 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 999,
     border: "none",
     background: "#1e1f22",
-    boxShadow: "0 6px 12px rgba(0,0,0,0.24)",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.2)",
     display: "grid",
     placeItems: "center",
   },
