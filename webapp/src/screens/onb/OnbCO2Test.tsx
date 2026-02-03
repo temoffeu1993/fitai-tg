@@ -310,16 +310,25 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div style={st.welcomeWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
-            <img src={smotrchasImg} alt="" style={st.welcomeMascot} />
-            <h1 style={st.title}>Тест на выносливость</h1>
-            <p style={st.subtitle}>
-              Узнаем, насколько эффективно ваш организм использует кислород
-            </p>
-            <button type="button" style={st.centerStartBtn} className="intro-primary-btn" onClick={handleStart}>
+          <div style={st.introHero} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-1"}>
+            <div style={st.introImageWrap}>
+              <img src={smotrchasImg} alt="" style={st.introImage} />
+            </div>
+          </div>
+          <section style={st.introFooter} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <div style={st.introTextBlock}>
+              <h1 style={st.introTitle}>
+                <span style={st.introTitleLine}>Тест</span>
+                <span style={st.introTitleLine}>на выносливость</span>
+              </h1>
+              <p style={st.introSubtitle}>
+                Узнаем, насколько эффективно ваш организм использует кислород
+              </p>
+            </div>
+            <button type="button" style={st.introPrimaryBtn} className="intro-primary-btn" onClick={handleStart}>
               Старт
             </button>
-          </div>
+          </section>
         </>
       )}
 
@@ -629,43 +638,75 @@ const st: Record<string, React.CSSProperties> = {
   },
 
   // ── Mascot + Bubble ──
-  welcomeWrap: {
-    display: "grid",
-    gap: 12,
-    textAlign: "center",
+  introHero: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    flex: "0 0 auto",
+    paddingTop: 0,
+  },
+  introImageWrap: {
+    position: "relative",
+    width: "min(864px, 95vw)",
+    display: "flex",
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
   },
-  welcomeMascot: {
-    width: 220,
+  introImage: {
+    width: "100%",
     height: "auto",
+    maxHeight: "55vh",
     objectFit: "contain",
-    justifySelf: "center",
+    transform: "translateY(36px) scale(0.95)",
+    transformOrigin: "center bottom",
   },
-  title: {
+  introFooter: {
+    width: "100%",
+    display: "grid",
+    gap: 18,
+    paddingBottom: 18,
+  },
+  introTextBlock: {
+    width: "100%",
+    textAlign: "center",
+    display: "grid",
+    gap: 10,
+    marginTop: -14,
+  },
+  introTitle: {
     margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
+    fontSize: 42,
+    lineHeight: 1.05,
+    fontWeight: 900,
     letterSpacing: -0.8,
   },
-  subtitle: {
-    margin: 0,
-    fontSize: 16,
-    lineHeight: 1.45,
-    color: "rgba(15, 23, 42, 0.7)",
+  introTitleLine: {
+    display: "block",
   },
-  centerStartBtn: {
-    minWidth: 240,
-    borderRadius: 16,
-    padding: "16px 20px",
+  introSubtitle: {
+    margin: 0,
+    fontSize: 15,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, .65)",
+    maxWidth: 340,
+    marginLeft: "auto",
+    marginRight: "auto",
+  },
+  introPrimaryBtn: {
+    marginTop: 6,
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 22,
+    padding: "16px 18px",
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontSize: 34,
-    fontWeight: 700,
+    fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    WebkitTapHighlightColor: "transparent",
   },
 
   // ── Instruction tiles ──
