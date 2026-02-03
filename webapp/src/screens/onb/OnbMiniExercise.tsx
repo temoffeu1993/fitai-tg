@@ -18,7 +18,7 @@ type Exercise = {
   description: string;
   duration: string;
   image: string;
-  color: string;
+  gradient: string;
   imageOffset?: React.CSSProperties;
 };
 
@@ -29,7 +29,8 @@ const EXERCISES: Exercise[] = [
     description: "Задержите дыхание на максимум. Узнаем, как ваши лёгкие усваивают кислород.",
     duration: "1 мин",
     image: breathImg,
-    color: "#4E5ED7",
+    gradient:
+      "radial-gradient(120% 120% at 0% 0%, rgba(142,191,255,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(111,157,255,0.3) 0%, rgba(255,255,255,0) 55%)",
     imageOffset: { bottom: -36 },
   },
   {
@@ -38,7 +39,8 @@ const EXERCISES: Exercise[] = [
     description: "Дыхание по квадрату. Снижает пульс и помогает собраться с мыслями.",
     duration: "2 мин",
     image: healImg,
-    color: "#D0E86D",
+    gradient:
+      "radial-gradient(120% 120% at 0% 0%, rgba(126,220,190,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(96,192,160,0.3) 0%, rgba(255,255,255,0) 55%)",
   },
   {
     id: "vacuum",
@@ -46,7 +48,8 @@ const EXERCISES: Exercise[] = [
     description: "Упражнение \u00ABВакуум\u00BB. Работа с мышцами пресса без коврика и спортзала.",
     duration: "2 мин",
     image: absImg,
-    color: "#C8A9E8",
+    gradient:
+      "radial-gradient(120% 120% at 0% 0%, rgba(255,185,150,0.45) 0%, rgba(255,255,255,0) 60%), radial-gradient(120% 120% at 100% 100%, rgba(255,160,120,0.3) 0%, rgba(255,255,255,0) 55%)",
     imageOffset: { bottom: -60, height: 220, maxHeight: 220, maxWidth: 220 },
   },
 ];
@@ -143,7 +146,7 @@ export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
                 top,
                 height,
                 zIndex,
-                background: ex.color,
+                background: `linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%), ${ex.gradient}`,
               }}
               onClick={() => {
                 if (activeId !== ex.id) {
@@ -327,8 +330,9 @@ const st: Record<string, React.CSSProperties> = {
   card: {
     borderRadius: 20,
     padding: `${CARD_PADDING}px`,
-    border: "none",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.12)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     position: "absolute",
@@ -342,7 +346,8 @@ const st: Record<string, React.CSSProperties> = {
   },
   cardActive: {},
   cardCollapsed: {
-    boxShadow: "0 14px 28px rgba(0,0,0,0.12)",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
   },
   cardInner: {
     display: "flex",

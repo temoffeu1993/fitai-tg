@@ -1027,7 +1027,7 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     height: 14,
-    opacity: 0.55,
+    opacity: 0.85,
     zIndex: 1,
     pointerEvents: "none",
   },
