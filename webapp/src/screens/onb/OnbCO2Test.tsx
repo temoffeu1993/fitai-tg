@@ -456,7 +456,6 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
         <div style={st.resultWrap}>
           {/* Big time display */}
           <div style={st.resultTimeWrap} className="onb-success-in">
-            <span style={st.resultEmoji}>{result.emoji}</span>
             <span style={st.resultTime}>{resultSeconds} секунд</span>
           </div>
 
