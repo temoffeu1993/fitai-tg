@@ -567,7 +567,7 @@ function ScreenStyles() {
       .mascotOut { animation: mascotOut 600ms ease-out forwards; }
       .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
       .flaskIn { animation: flaskIn 700ms ease-out forwards; }
-      .flaskHidden { opacity: 0; transform: translateY(18px) scale(0.98); pointer-events: none; }
+      .flaskHidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
       .ripple-rise { animation: rippleRise 4000ms ease-in-out forwards; }
       .ripple-fall { animation: rippleFall 4000ms ease-in-out forwards; }
       .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
@@ -608,8 +608,8 @@ function ScreenStyles() {
         100% { opacity: 0; transform: scale(1.12); }
       }
       @keyframes flaskIn {
-        0% { opacity: 0; transform: translateY(22px) scale(0.96); }
-        100% { opacity: 1; transform: translateY(0) scale(1); }
+        0% { opacity: 0; transform: scale(0.96); }
+        100% { opacity: 1; transform: scale(1); }
       }
       @keyframes ringPulse {
         0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.22; }
@@ -920,7 +920,10 @@ const st: Record<string, React.CSSProperties> = {
   },
   flaskStage: {
     position: "absolute",
-    inset: 0,
+    top: "50%",
+    left: "50%",
+    width: "100%",
+    transform: "translate(-50%, -50%)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
