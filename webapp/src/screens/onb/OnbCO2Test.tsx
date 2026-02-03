@@ -379,11 +379,11 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     : "ripple-hold"
             }
           >
-            <span style={{ ...st.ripple, width: 220, height: 220, animationDelay: "0s" }} />
-            <span style={{ ...st.ripple, width: 260, height: 260, animationDelay: "0.5s" }} />
-            <span style={{ ...st.ripple, width: 300, height: 300, animationDelay: "1s" }} />
-            <span style={{ ...st.ripple, width: 340, height: 340, animationDelay: "1.5s" }} />
-            <span style={{ ...st.ripple, width: 380, height: 380, animationDelay: "2s" }} />
+            <span style={{ ...st.ripple, width: 220, height: 220, ["--delay" as never]: "0s" }} />
+            <span style={{ ...st.ripple, width: 260, height: 260, ["--delay" as never]: "0.5s" }} />
+            <span style={{ ...st.ripple, width: 300, height: 300, ["--delay" as never]: "1s" }} />
+            <span style={{ ...st.ripple, width: 340, height: 340, ["--delay" as never]: "1.5s" }} />
+            <span style={{ ...st.ripple, width: 380, height: 380, ["--delay" as never]: "2s" }} />
           </div>
 
           {/* Flask overlay (fades in on hold) */}
@@ -568,8 +568,8 @@ function ScreenStyles() {
       .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
       .flaskIn { animation: flaskIn 700ms ease-out forwards; }
       .flaskHidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
-      .ripple-rise { animation: rippleRise 4000ms ease-in-out forwards; }
-      .ripple-fall { animation: rippleFall 4000ms ease-in-out forwards; }
+      .ripple-rise { animation: rippleRise 4000ms ease-in-out infinite; }
+      .ripple-fall { animation: rippleFall 4000ms ease-in-out infinite; }
       .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
       @keyframes breathRise {
         0% { transform: translateY(10px) scale(0.98); }
@@ -612,9 +612,9 @@ function ScreenStyles() {
         100% { opacity: 1; transform: scale(1); }
       }
       @keyframes ringPulse {
-        0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.22; }
-        60% { transform: translate(-50%, -50%) scale(1.08); opacity: 0.14; }
-        100% { transform: translate(-50%, -50%) scale(1.22); opacity: 0; }
+        0% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.2; }
+        50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.16; }
+        100% { transform: translate(-50%, -50%) scale(1.18); opacity: 0.12; }
       }
       @keyframes textFadeOut {
         0% { opacity: 1; transform: translateY(0); }
@@ -904,6 +904,7 @@ const st: Record<string, React.CSSProperties> = {
     filter: "blur(1px)",
     opacity: 0.6,
     animation: "ringPulse 3.2s ease-in-out infinite",
+    animationDelay: "var(--delay)",
   },
   breathText: {
     position: "absolute",
