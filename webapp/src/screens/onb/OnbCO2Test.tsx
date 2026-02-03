@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
 import smotrchasImg from "@/assets/smotrchas.webp";
+import healthRobotImg from "@/assets/heals.webp";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
@@ -271,6 +272,19 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const pct = Math.min(100, eased * 100);
   const [waterTop, waterBottom] = getWaterColors(pct);
   const result = getResultText(resultSeconds);
+  const textDuration =
+    breathStep === "inhale"
+      ? INHALE_MS
+      : breathStep === "exhale"
+        ? EXHALE_MS
+        : breathStep === "final-exhale"
+          ? FINAL_EXHALE_MS
+          : 600;
+  const textFadeDelay = Math.max(0, textDuration - 500);
+  const breathTextStyle: React.CSSProperties = {
+    ...st.breathText,
+    animation: `typeReveal 700ms steps(20) both, textFadeOut 420ms ease-in ${textFadeDelay}ms forwards`,
+  };
 
   // Breathing sequence
   useEffect(() => {
@@ -333,12 +347,12 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       )}
 
       {/* ── BREATH PHASE ── */}
-      {phase === "breath" && (
+  {phase === "breath" && (
         <div style={st.breathStage} className="onb-success-in">
           <div style={st.breathBackdrop} />
           <div style={st.breathAura} className="auraPulse" />
           <img
-            src={smotrchasImg}
+            src={healthRobotImg}
             alt=""
             style={st.breathMascot}
             className={
@@ -364,7 +378,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             <span style={{ ...st.ripple, animationDelay: "1.4s" }} />
             <span style={{ ...st.ripple, animationDelay: "2.1s" }} />
           </div>
-          <div key={breathStep} style={st.breathText} className="breath-text-swap">
+          <div key={breathStep} style={breathTextStyle}>
             {breathStep === "inhale"
               ? "Глубокий вдох..."
               : breathStep === "exhale"
@@ -547,7 +561,6 @@ function ScreenStyles() {
       .ripple-rise { animation: rippleRise 4000ms ease-in-out forwards; }
       .ripple-fall { animation: rippleFall 4000ms ease-in-out forwards; }
       .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
-      .breath-text-swap { animation: textSwap 420ms ease-out both; }
       @keyframes breathRise {
         0% { transform: translateY(10px) scale(0.98); }
         100% { transform: translateY(-16px) scale(1.03); }
@@ -576,6 +589,14 @@ function ScreenStyles() {
         0% { transform: scale(0.92); opacity: 0.35; }
         60% { transform: scale(1.08); opacity: 0.18; }
         100% { transform: scale(1.2); opacity: 0; }
+      }
+      @keyframes textFadeOut {
+        0% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-6px); }
+      }
+      @keyframes typeReveal {
+        0% { clip-path: inset(0 100% 0 0); opacity: 0; }
+        100% { clip-path: inset(0 0 0 0); opacity: 1; }
       }
       .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
@@ -860,10 +881,14 @@ const st: Record<string, React.CSSProperties> = {
   breathText: {
     position: "absolute",
     bottom: "18%",
-    fontSize: 24,
-    fontWeight: 600,
-    color: "#e2e8f0",
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(226, 232, 240, 0.85)",
+    lineHeight: 1.5,
     textShadow: "0 6px 18px rgba(0,0,0,0.45)",
+    whiteSpace: "pre-line",
+    maxWidth: 320,
+    textAlign: "center",
     zIndex: 4,
   },
   holdText: {
