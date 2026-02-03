@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
 import smotrchasImg from "@/assets/smotrchas.webp";
+import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -15,7 +16,7 @@ type Phase = "intro" | "leaving" | "breath" | "hold" | "result";
 const BREATH_CYCLES = 3;
 const INHALE_MS = 4000;
 const EXHALE_MS = 4000;
-const FINAL_EXHALE_MS = 3000;
+const FINAL_EXHALE_MS = 3200;
 
 // ── Result interpretation ──
 function getResultText(seconds: number): { emoji: string; text: string } {
@@ -309,8 +310,8 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div style={st.introWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
-            <img src={smotrchasImg} alt="" style={st.introMascot} />
+          <div style={st.welcomeWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <img src={smotrchasImg} alt="" style={st.welcomeMascot} />
             <h1 style={st.title}>Тест на выносливость</h1>
             <p style={st.subtitle}>
               Узнаем, насколько эффективно ваш организм использует кислород
@@ -324,25 +325,42 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
       {/* ── BREATH PHASE ── */}
       {phase === "breath" && (
-        <div style={st.breathWrap} className="onb-success-in">
-          <div
-            style={st.breathScene}
+        <div style={st.breathStage} className="onb-success-in">
+          <div style={st.breathBackdrop} />
+          <div style={st.breathAura} className="auraPulse" />
+          <img
+            src={smotrchasImg}
+            alt=""
+            style={st.breathMascot}
             className={
               breathStep === "inhale"
-                ? "breath-in"
+                ? "breath-rise"
                 : breathStep === "exhale"
-                  ? "breath-out"
-                  : "breath-final"
+                  ? "breath-fall"
+                  : "breath-hold"
+            }
+          />
+          <div
+            style={st.breathRipples}
+            className={
+              breathStep === "inhale"
+                ? "ripple-rise"
+                : breathStep === "exhale"
+                  ? "ripple-fall"
+                  : "ripple-hold"
             }
           >
-            <div style={st.breathCore} />
-            <div style={{ ...st.breathRing, animationDelay: "0s" }} />
-            <div style={{ ...st.breathRing, animationDelay: "0.6s" }} />
-            <div style={{ ...st.breathRing, animationDelay: "1.2s" }} />
-            <div style={{ ...st.breathRing, animationDelay: "1.8s" }} />
+            <span style={{ ...st.ripple, animationDelay: "0s" }} />
+            <span style={{ ...st.ripple, animationDelay: "0.7s" }} />
+            <span style={{ ...st.ripple, animationDelay: "1.4s" }} />
+            <span style={{ ...st.ripple, animationDelay: "2.1s" }} />
           </div>
-          <div style={st.breathText}>
-            {breathStep === "inhale" ? "Вдох" : breathStep === "exhale" ? "Выдох" : "Полный выдох"}
+          <div key={breathStep} style={st.breathText} className="breath-text-swap">
+            {breathStep === "inhale"
+              ? "Глубокий вдох..."
+              : breathStep === "exhale"
+                ? "Спокойный выдох..."
+                : "Выдохни и задержи дыхание"}
           </div>
         </div>
       )}
@@ -511,22 +529,44 @@ function ScreenStyles() {
         border-left: 8px solid rgba(255,255,255,0.9);
         filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
       }
-      .breath-in { animation: breathIn 4000ms ease-in-out infinite; }
-      .breath-out { animation: breathOut 4000ms ease-in-out infinite; }
-      .breath-final { animation: breathOut 3000ms ease-in-out infinite; }
-      @keyframes breathIn {
-        0% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
-        70% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
-        100% { transform: scale(1); box-shadow: 0 0 50px rgba(96,165,250,0.3); }
+      .auraPulse {
+        animation: auraPulse 3.2s ease-in-out infinite;
       }
-      @keyframes breathOut {
-        0% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
-        100% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
+      .breath-rise { animation: breathRise 4000ms ease-in-out forwards; }
+      .breath-fall { animation: breathFall 4000ms ease-in-out forwards; }
+      .breath-hold { animation: breathHold 1200ms ease-in-out forwards; }
+      .ripple-rise { animation: rippleRise 4000ms ease-in-out forwards; }
+      .ripple-fall { animation: rippleFall 4000ms ease-in-out forwards; }
+      .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
+      .breath-text-swap { animation: textSwap 420ms ease-out both; }
+      @keyframes breathRise {
+        0% { transform: translateY(10px) scale(0.98); }
+        100% { transform: translateY(-16px) scale(1.03); }
+      }
+      @keyframes breathFall {
+        0% { transform: translateY(-16px) scale(1.03); }
+        100% { transform: translateY(10px) scale(0.98); }
+      }
+      @keyframes breathHold {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(-12px) scale(1.05); }
+      }
+      @keyframes rippleRise {
+        0% { transform: scale(0.92); opacity: 0.5; }
+        100% { transform: scale(1.08); opacity: 0.2; }
+      }
+      @keyframes rippleFall {
+        0% { transform: scale(1.08); opacity: 0.2; }
+        100% { transform: scale(0.92); opacity: 0.5; }
+      }
+      @keyframes rippleHold {
+        0% { opacity: 0.4; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.15); }
       }
       @keyframes ringPulse {
-        0% { transform: scale(0.9); opacity: 0.4; }
-        70% { transform: scale(1.15); opacity: 0.2; }
-        100% { transform: scale(1.3); opacity: 0; }
+        0% { transform: scale(0.92); opacity: 0.35; }
+        60% { transform: scale(1.08); opacity: 0.18; }
+        100% { transform: scale(1.2); opacity: 0; }
       }
       .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
@@ -589,14 +629,14 @@ const st: Record<string, React.CSSProperties> = {
   },
 
   // ── Mascot + Bubble ──
-  introWrap: {
+  welcomeWrap: {
     display: "grid",
     gap: 12,
     textAlign: "center",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 10,
   },
-  introMascot: {
+  welcomeMascot: {
     width: 220,
     height: "auto",
     objectFit: "contain",
@@ -730,42 +770,60 @@ const st: Record<string, React.CSSProperties> = {
     paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
-  breathWrap: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 18,
-    minHeight: "70vh",
-  },
-  breathScene: {
-    position: "relative",
-    width: 220,
-    height: 220,
+  breathStage: {
+    position: "fixed",
+    inset: 0,
     display: "grid",
     placeItems: "center",
+    background: "#0b0f16",
+    zIndex: 40,
+    overflow: "hidden",
   },
-  breathCore: {
-    width: 120,
-    height: 120,
-    borderRadius: "50%",
-    background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(96,165,250,0.65) 35%, rgba(59,130,246,0.9) 100%)",
-    boxShadow: "0 10px 30px rgba(59,130,246,0.25), inset 0 2px 6px rgba(255,255,255,0.4)",
-  },
-  breathRing: {
+  breathBackdrop: {
     position: "absolute",
-    width: 200,
-    height: 200,
+    inset: 0,
+    background: "radial-gradient(circle at 50% 35%, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.65) 45%, rgba(2,6,23,0.9) 100%)",
+    zIndex: 0,
+  },
+  breathAura: {
+    position: "absolute",
+    width: 320,
+    height: 320,
     borderRadius: "50%",
-    border: "2px solid rgba(96,165,250,0.25)",
-    boxShadow: "0 0 25px rgba(96,165,250,0.15)",
-    animation: "ringPulse 4s ease-in-out infinite",
+    background: "radial-gradient(circle, rgba(120, 255, 230, 0.25) 0%, rgba(120, 255, 230, 0.08) 50%, rgba(120, 255, 230, 0) 75%)",
+    filter: "blur(18px)",
+    zIndex: 1,
+  },
+  breathMascot: {
+    width: 200,
+    height: "auto",
+    objectFit: "contain",
+    zIndex: 3,
+    filter: "drop-shadow(0 16px 32px rgba(0,0,0,0.55))",
+  },
+  breathRipples: {
+    position: "absolute",
+    width: 280,
+    height: 280,
+    borderRadius: "50%",
+    zIndex: 2,
+  },
+  ripple: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "50%",
+    border: "2px solid rgba(147, 197, 253, 0.25)",
+    boxShadow: "0 0 24px rgba(59, 130, 246, 0.2)",
+    animation: "ringPulse 2.8s ease-in-out infinite",
   },
   breathText: {
+    position: "absolute",
+    bottom: "18%",
     fontSize: 24,
     fontWeight: 600,
-    color: "#1e1f22",
+    color: "#e2e8f0",
+    textShadow: "0 6px 18px rgba(0,0,0,0.45)",
+    zIndex: 4,
   },
   holdText: {
     fontSize: 22,
