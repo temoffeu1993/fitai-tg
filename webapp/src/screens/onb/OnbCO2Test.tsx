@@ -305,8 +305,6 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
         }
       }
       if (cancelled) return;
-      setBreathStep("hold");
-      await new Promise((r) => setTimeout(r, 900));
       if (cancelled) return;
       startHold();
     };
@@ -364,7 +362,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                   ? "breath-rise"
                   : breathStep === "exhale"
                     ? "breath-fall"
-                    : "breath-hold"
+                    : "breath-final"
             }
           />
           <div
@@ -376,7 +374,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                   ? "ripple-rise"
                   : breathStep === "exhale"
                     ? "ripple-fall"
-                    : "ripple-hold"
+                    : "ripple-final"
             }
           />
 
@@ -557,14 +555,14 @@ function ScreenStyles() {
       }
       .breath-rise { animation: breathRise 4000ms ease-in-out forwards; }
       .breath-fall { animation: breathFall 4000ms ease-in-out forwards; }
-      .breath-hold { animation: breathHold 1200ms ease-in-out forwards; }
+      .breath-final { animation: breathFinal 3200ms ease-in-out forwards; }
       .mascotOut { animation: mascotOut 600ms ease-out forwards; }
       .ripplesOut { animation: ripplesOut 600ms ease-out forwards; }
       .flaskIn { animation: flaskIn 700ms ease-out forwards; }
       .flaskHidden { opacity: 0; transform: scale(0.98); pointer-events: none; }
       .ripple-rise { animation: rippleScaleUp 4000ms ease-in-out forwards; }
       .ripple-fall { animation: rippleScaleDown 4000ms ease-in-out forwards; }
-      .ripple-hold { animation: rippleHold 1200ms ease-in-out forwards; }
+      .ripple-final { animation: rippleFinal 3200ms ease-in-out forwards; }
       @keyframes breathRise {
         0% { transform: translateY(10px) scale(0.98); }
         100% { transform: translateY(-16px) scale(1.03); }
@@ -573,9 +571,9 @@ function ScreenStyles() {
         0% { transform: translateY(-16px) scale(1.03); }
         100% { transform: translateY(10px) scale(0.98); }
       }
-      @keyframes breathHold {
-        0% { opacity: 1; transform: translateY(0) scale(1); }
-        100% { opacity: 0; transform: translateY(-12px) scale(1.05); }
+      @keyframes breathFinal {
+        0% { transform: translateY(-8px) scale(1.01); }
+        100% { transform: translateY(0) scale(1); }
       }
       @keyframes rippleScaleUp {
         0% { transform: scale(0.85); opacity: 0.6; }
@@ -585,9 +583,9 @@ function ScreenStyles() {
         0% { transform: scale(1.12); opacity: 0.9; }
         100% { transform: scale(0.85); opacity: 0.6; }
       }
-      @keyframes rippleHold {
-        0% { opacity: 0.4; transform: scale(1); }
-        100% { opacity: 0; transform: scale(1.15); }
+      @keyframes rippleFinal {
+        0% { opacity: 0.5; transform: scale(1.04); }
+        100% { opacity: 0.35; transform: scale(0.98); }
       }
       @keyframes auraOut {
         0% { opacity: 0.7; transform: scale(1); }
@@ -903,9 +901,7 @@ const st: Record<string, React.CSSProperties> = {
   },
   flaskStage: {
     position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
+    inset: 0,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
