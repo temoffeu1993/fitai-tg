@@ -17,7 +17,7 @@ type Phase = "intro" | "leaving" | "breath" | "hold" | "result";
 const BREATH_CYCLES = 3;
 const INHALE_MS = 4000;
 const EXHALE_MS = 4000;
-const FINAL_EXHALE_MS = 3200;
+const FINAL_EXHALE_MS = 4000;
 
 // ── Result interpretation ──
 function getResultText(seconds: number): { emoji: string; text: string } {
@@ -398,26 +398,29 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
                   }}
                 >
+                  <div style={st.bubbleLayer}>
+                    <span style={st.bubble1} />
+                    <span style={st.bubble2} />
+                    <span style={st.bubble3} />
+                    <span style={st.bubble4} />
+                    <span style={st.bubble5} />
+                  </div>
                   <div style={st.waveWrapper}>
                     <svg
                       style={{ ...st.waveSvg, animationDuration: "10s" }}
-                      viewBox="0 0 5760 320"
+                      viewBox="0 0 2880 320"
                       preserveAspectRatio="none"
                     >
                       <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
                       <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
-                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
-                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(4320,0)" />
                     </svg>
                     <svg
                       style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
-                      viewBox="0 0 5760 320"
+                      viewBox="0 0 2880 320"
                       preserveAspectRatio="none"
                     >
                       <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
                       <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
-                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
-                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(4320,0)" />
                     </svg>
                   </div>
                 </div>
@@ -610,7 +613,13 @@ function ScreenStyles() {
       }
       @keyframes waveMove {
         0% { transform: translateX(0); }
-        100% { transform: translateX(-25%); }
+        100% { transform: translateX(-50%); }
+      }
+      @keyframes bubbleRise {
+        0% { transform: translateY(0) scale(0.95); opacity: 0; }
+        10% { opacity: 0.7; }
+        60% { opacity: 0.9; }
+        100% { transform: translateY(-140%) scale(1.05); opacity: 0; }
       }
       @keyframes flaskPulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.0), inset 0 1px 2px rgba(255,255,255,0.5); }
@@ -850,34 +859,37 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     width: "min(70vw, 70vh)",
     height: "min(70vw, 70vh)",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(120,255,230,0.28) 0%, rgba(120,255,230,0.12) 45%, rgba(120,255,230,0) 72%)",
+    filter: "blur(20px)",
     zIndex: 1,
   },
   auraRing1: {
     position: "absolute",
     inset: "10%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(96,165,250,0.28)",
+    border: "1.5px solid rgba(120,255,230,0.26)",
     filter: "blur(0.2px)",
   },
   auraRing2: {
     position: "absolute",
     inset: "22%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(96,165,250,0.22)",
+    border: "1.5px solid rgba(120,255,230,0.2)",
     filter: "blur(0.2px)",
   },
   auraRing3: {
     position: "absolute",
     inset: "34%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(96,165,250,0.18)",
+    border: "1.5px solid rgba(120,255,230,0.16)",
     filter: "blur(0.2px)",
   },
   auraRing4: {
     position: "absolute",
     inset: "46%",
     borderRadius: "50%",
-    border: "1.5px solid rgba(96,165,250,0.14)",
+    border: "1.5px solid rgba(120,255,230,0.12)",
     filter: "blur(0.2px)",
   },
   breathMascot: {
@@ -935,7 +947,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    transform: "translateY(-24px)",
+    transform: "translateY(-48px)",
     zIndex: 4,
   },
   holdText: {
@@ -994,6 +1006,70 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: `0 0 ${FLASK_R - 2}px ${FLASK_R - 2}px`,
     zIndex: 2,
   },
+  bubbleLayer: {
+    position: "absolute",
+    inset: 0,
+    overflow: "hidden",
+    zIndex: 3,
+    pointerEvents: "none",
+  },
+  bubbleBase: {
+    position: "absolute",
+    bottom: "-12%",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.25)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.25)",
+  },
+  bubble1: {
+    position: "absolute",
+    left: "18%",
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.28)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.28)",
+    animation: "bubbleRise 6s ease-in-out infinite",
+  },
+  bubble2: {
+    position: "absolute",
+    left: "42%",
+    width: 4,
+    height: 4,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.22)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.22)",
+    animation: "bubbleRise 5s ease-in-out infinite 1s",
+  },
+  bubble3: {
+    position: "absolute",
+    left: "66%",
+    width: 5,
+    height: 5,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.2)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.2)",
+    animation: "bubbleRise 7s ease-in-out infinite 0.4s",
+  },
+  bubble4: {
+    position: "absolute",
+    left: "30%",
+    width: 3,
+    height: 3,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.18)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.18)",
+    animation: "bubbleRise 4.8s ease-in-out infinite 0.8s",
+  },
+  bubble5: {
+    position: "absolute",
+    left: "78%",
+    width: 3,
+    height: 3,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.18)",
+    boxShadow: "0 0 6px rgba(255,255,255,0.18)",
+    animation: "bubbleRise 6.6s ease-in-out infinite 1.6s",
+  },
   waveWrapper: {
     position: "absolute",
     bottom: "calc(100% - 2px)",
@@ -1006,7 +1082,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     bottom: 0,
     left: 0,
-    width: "400%",
+    width: "200%",
     height: "100%",
     animation: "waveMove 10s linear infinite",
     willChange: "transform",
