@@ -176,6 +176,8 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const startTimeRef = useRef<number>(0);
   const confettiRef = useRef<HTMLDivElement>(null);
   const hapticIntervalRef = useRef<number | null>(null);
+  const breathHapticRef = useRef<number | null>(null);
+  const heartHapticRef = useRef<number | null>(null);
 
   // Scroll to top & lock
   useLayoutEffect(() => {
@@ -203,6 +205,8 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     return () => {
       if (timerRef.current) cancelAnimationFrame(timerRef.current);
       if (hapticIntervalRef.current) clearInterval(hapticIntervalRef.current);
+      if (breathHapticRef.current) clearInterval(breathHapticRef.current);
+      if (heartHapticRef.current) clearInterval(heartHapticRef.current);
     };
   }, []);
 
@@ -255,6 +259,8 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const handleStop = (overrideSeconds?: number) => {
     if (timerRef.current) cancelAnimationFrame(timerRef.current);
     if (hapticIntervalRef.current) clearInterval(hapticIntervalRef.current);
+    if (breathHapticRef.current) clearInterval(breathHapticRef.current);
+    if (heartHapticRef.current) clearInterval(heartHapticRef.current);
     const final = overrideSeconds ?? Math.floor((Date.now() - startTimeRef.current) / 1000);
     setResultSeconds(final);
     // Save result
@@ -311,6 +317,45 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     run();
     return () => {
       cancelled = true;
+    };
+  }, [phase]);
+
+  // Haptics during breathing: ramp up on inhale, fade on exhale
+  useEffect(() => {
+    if (breathHapticRef.current) {
+      clearInterval(breathHapticRef.current);
+      breathHapticRef.current = null;
+    }
+    if (phase !== "breath") return;
+    if (breathStep !== "inhale") return;
+    let tick = 0;
+    breathHapticRef.current = window.setInterval(() => {
+      tick += 1;
+      if (tick <= 3) fireHapticImpact("light");
+      else if (tick <= 6) fireHapticImpact("medium");
+      else fireHapticImpact("heavy");
+    }, 450);
+    return () => {
+      if (breathHapticRef.current) clearInterval(breathHapticRef.current);
+      breathHapticRef.current = null;
+    };
+  }, [phase, breathStep]);
+
+  // Heartbeat haptics during hold (flask filling)
+  useEffect(() => {
+    if (heartHapticRef.current) {
+      clearInterval(heartHapticRef.current);
+      heartHapticRef.current = null;
+    }
+    if (phase !== "hold") return;
+    let beat = 0;
+    heartHapticRef.current = window.setInterval(() => {
+      beat += 1;
+      fireHapticImpact(beat % 2 === 0 ? "light" : "medium");
+    }, 650);
+    return () => {
+      if (heartHapticRef.current) clearInterval(heartHapticRef.current);
+      heartHapticRef.current = null;
     };
   }, [phase]);
 
@@ -635,9 +680,9 @@ function ScreenStyles() {
 
 // SVG wave paths (seamless)
 const WAVE_PATH_BG =
-  "M0,190 C120,150 240,230 360,190 C480,150 600,230 720,190 C840,150 960,230 1080,190 C1200,150 1320,230 1440,190 V320 H0 Z";
+  "M0,180 C120,130 240,230 360,180 C480,130 600,230 720,180 C840,130 960,230 1080,180 C1200,130 1320,230 1440,180 V320 H0 Z";
 const WAVE_PATH_FG =
-  "M0,205 C120,165 240,245 360,205 C480,165 600,245 720,205 C840,165 960,245 1080,205 C1200,165 1320,245 1440,205 V320 H0 Z";
+  "M0,195 C120,145 240,245 360,195 C480,145 600,245 720,195 C840,145 960,245 1080,195 C1200,145 1320,245 1440,195 V320 H0 Z";
 
 const FLASK_W = 200;
 const FLASK_H = 380;
