@@ -296,12 +296,14 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
         setBreathStep("inhale");
         await new Promise((r) => setTimeout(r, INHALE_MS));
         if (cancelled) return;
-        setBreathStep("exhale");
-        await new Promise((r) => setTimeout(r, EXHALE_MS));
+        if (i < BREATH_CYCLES - 1) {
+          setBreathStep("exhale");
+          await new Promise((r) => setTimeout(r, EXHALE_MS));
+        } else {
+          setBreathStep("final-exhale");
+          await new Promise((r) => setTimeout(r, FINAL_EXHALE_MS));
+        }
       }
-      if (cancelled) return;
-      setBreathStep("final-exhale");
-      await new Promise((r) => setTimeout(r, FINAL_EXHALE_MS));
       if (cancelled) return;
       setBreathStep("hold");
       await new Promise((r) => setTimeout(r, 600));
@@ -430,9 +432,9 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
           <div key={breathStep} style={breathTextStyle}>
             {breathStep === "inhale"
-              ? "Глубокий вдох..."
+              ? "Глубокий вдох"
               : breathStep === "exhale"
-                ? "Спокойный выдох..."
+                ? "Спокойный выдох"
                 : "Выдохни и задержи дыхание"}
           </div>
 
@@ -609,8 +611,8 @@ function ScreenStyles() {
         100% { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes ringPulse {
-        0% { transform: scale(0.92); opacity: 0.35; }
-        60% { transform: scale(1.08); opacity: 0.18; }
+        0% { transform: scale(0.92); opacity: 0.18; }
+        60% { transform: scale(1.08); opacity: 0.12; }
         100% { transform: scale(1.2); opacity: 0; }
       }
       @keyframes textFadeOut {
@@ -894,14 +896,15 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     inset: 0,
     borderRadius: "50%",
-    border: "2px solid rgba(147, 197, 253, 0.25)",
-    boxShadow: "0 0 24px rgba(59, 130, 246, 0.2)",
+    border: "2px solid rgba(147, 197, 253, 0.12)",
+    boxShadow: "0 0 28px rgba(59, 130, 246, 0.18)",
+    filter: "blur(0.6px)",
     animation: "ringPulse 2.8s ease-in-out infinite",
   },
   breathText: {
     position: "absolute",
     bottom: "18%",
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 400,
     color: "rgba(226, 232, 240, 0.85)",
     lineHeight: 1.5,
