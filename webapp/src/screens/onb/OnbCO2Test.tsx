@@ -389,9 +389,10 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             style={st.flaskStage}
             className={phase === "hold" ? "flaskIn" : "flaskHidden"}
           >
-            <div style={st.holdText}>Задержи дыхание</div>
-            <div style={st.flaskOuter}>
-              <div style={st.flask}>
+            <div style={st.flaskStageInner}>
+              <div style={st.holdText}>Задержи дыхание</div>
+              <div style={st.flaskOuter}>
+                <div style={st.flask}>
                 <div
                   style={{
                     ...st.waterFill,
@@ -399,38 +400,30 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                     background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
                   }}
                 >
-                  <div style={st.bubbleLayer}>
-                    <span style={st.bubble1} />
-                    <span style={st.bubble2} />
-                    <span style={st.bubble3} />
-                    <span style={st.bubble4} />
-                    <span style={st.bubble5} />
-                  </div>
                   <div style={st.waveWrapper}>
-                    <svg
-                      style={{ ...st.waveSvg, animationDuration: "10s" }}
-                      viewBox="0 0 4320 320"
-                      preserveAspectRatio="none"
-                    >
-                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
-                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(1440,0)" />
-                      <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" transform="translate(2880,0)" />
-                    </svg>
-                    <svg
-                      style={{ ...st.waveSvg, animationDuration: "6s", animationDirection: "reverse" }}
-                      viewBox="0 0 4320 320"
-                      preserveAspectRatio="none"
-                    >
-                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
-                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(1440,0)" />
-                      <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" transform="translate(2880,0)" />
-                    </svg>
+                    <div style={{ ...st.waveTrack, animationDuration: "10s" }}>
+                      <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
+                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                      </svg>
+                      <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
+                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                      </svg>
+                    </div>
+                    <div style={{ ...st.waveTrack, animationDuration: "6s", animationDirection: "reverse" }}>
+                      <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
+                        <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                      </svg>
+                      <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
+                        <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                      </svg>
+                    </div>
                   </div>
+                  </div>
+                  <div style={st.flaskGlass} />
                 </div>
-                <div style={st.flaskGlass} />
               </div>
+              <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
             </div>
-            <div style={st.holdHint}>Нажми “Стоп”, когда захочешь вдохнуть</div>
           </div>
 
           {phase === "breath" && (
@@ -616,13 +609,7 @@ function ScreenStyles() {
       }
       @keyframes waveMove {
         0% { transform: translateX(0); }
-        100% { transform: translateX(-33.333%); }
-      }
-      @keyframes bubbleRise {
-        0% { transform: translateY(0) scale(0.95); opacity: 0; }
-        10% { opacity: 0.7; }
-        60% { opacity: 0.9; }
-        100% { transform: translateY(-120%) scale(1.05); opacity: 0; }
+        100% { transform: translateX(-50%); }
       }
       @keyframes flaskPulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.0), inset 0 1px 2px rgba(255,255,255,0.5); }
@@ -955,8 +942,14 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    transform: "translateY(-84px)",
     zIndex: 4,
+  },
+  flaskStageInner: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+    transform: "translateY(-140px)",
   },
   holdText: {
     fontSize: 22,
@@ -1014,68 +1007,6 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: `0 0 ${FLASK_R - 2}px ${FLASK_R - 2}px`,
     zIndex: 2,
   },
-  bubbleLayer: {
-    position: "absolute",
-    inset: 0,
-    overflow: "hidden",
-    zIndex: 3,
-    pointerEvents: "none",
-  },
-  bubble1: {
-    position: "absolute",
-    left: "18%",
-    top: "100%",
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.28)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.28)",
-    animation: "bubbleRise 6s ease-in-out infinite",
-  },
-  bubble2: {
-    position: "absolute",
-    left: "42%",
-    top: "100%",
-    width: 4,
-    height: 4,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.22)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.22)",
-    animation: "bubbleRise 5s ease-in-out infinite 1s",
-  },
-  bubble3: {
-    position: "absolute",
-    left: "66%",
-    top: "100%",
-    width: 5,
-    height: 5,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.2)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.2)",
-    animation: "bubbleRise 7s ease-in-out infinite 0.4s",
-  },
-  bubble4: {
-    position: "absolute",
-    left: "30%",
-    top: "100%",
-    width: 3,
-    height: 3,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.18)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.18)",
-    animation: "bubbleRise 4.8s ease-in-out infinite 0.8s",
-  },
-  bubble5: {
-    position: "absolute",
-    left: "78%",
-    top: "100%",
-    width: 3,
-    height: 3,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.18)",
-    boxShadow: "0 0 6px rgba(255,255,255,0.18)",
-    animation: "bubbleRise 6.6s ease-in-out infinite 1.6s",
-  },
   waveWrapper: {
     position: "absolute",
     bottom: "calc(100% - 2px)",
@@ -1084,14 +1015,20 @@ const st: Record<string, React.CSSProperties> = {
     height: 28,
     overflow: "hidden",
   },
-  waveSvg: {
+  waveTrack: {
     position: "absolute",
     bottom: 0,
     left: 0,
-    width: "300%",
+    width: "200%",
     height: "100%",
+    display: "flex",
     animation: "waveMove 10s linear infinite",
     willChange: "transform",
+  },
+  waveSvgInner: {
+    width: "50%",
+    height: "100%",
+    flex: "0 0 50%",
   },
   stopBtnFull: {
     width: "100%",
