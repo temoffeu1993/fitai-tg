@@ -2,6 +2,7 @@
 // CO2 breath-hold test: instruction → flask timer → result with confetti
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
+import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -12,6 +13,9 @@ type Props = {
 type Phase = "intro" | "leaving" | "breath" | "hold" | "result";
 
 const BREATH_CYCLES = 3;
+const INHALE_MS = 4000;
+const EXHALE_MS = 4000;
+const FINAL_EXHALE_MS = 3000;
 
 // ── Result interpretation ──
 function getResultText(seconds: number): { emoji: string; text: string } {
@@ -202,7 +206,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
   // Smooth progress update
   useEffect(() => {
-    if (phase !== "timer") return;
+    if (phase !== "hold") return;
     let raf: number;
     const tick = () => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -275,14 +279,14 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       for (let i = 0; i < BREATH_CYCLES; i += 1) {
         if (cancelled) return;
         setBreathStep("inhale");
-        await new Promise((r) => setTimeout(r, 2400));
+        await new Promise((r) => setTimeout(r, INHALE_MS));
         if (cancelled) return;
         setBreathStep("exhale");
-        await new Promise((r) => setTimeout(r, 2400));
+        await new Promise((r) => setTimeout(r, EXHALE_MS));
       }
       if (cancelled) return;
       setBreathStep("final-exhale");
-      await new Promise((r) => setTimeout(r, 2600));
+      await new Promise((r) => setTimeout(r, FINAL_EXHALE_MS));
       if (cancelled) return;
       setBreathStep("hold");
       await new Promise((r) => setTimeout(r, 600));
@@ -305,14 +309,12 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── INTRO PHASE ── */}
       {(phase === "intro" || phase === "leaving") && (
         <>
-          <div style={st.header} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
-            <h1 style={st.title}>Выносливость</h1>
+          <div style={st.introWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-2"}>
+            <img src={smotrchasImg} alt="" style={st.introMascot} />
+            <h1 style={st.title}>Тест на выносливость</h1>
             <p style={st.subtitle}>
-              Короткий тест запаса кислорода. Помогает понять текущий уровень.
+              Узнаем, насколько эффективно ваш организм использует кислород
             </p>
-          </div>
-
-          <div style={st.centerStartWrap} className={phase === "leaving" ? "onb-leave" : "onb-fade onb-fade-delay-3"}>
             <button type="button" style={st.centerStartBtn} className="intro-primary-btn" onClick={handleStart}>
               Старт
             </button>
@@ -323,7 +325,22 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
       {/* ── BREATH PHASE ── */}
       {phase === "breath" && (
         <div style={st.breathWrap} className="onb-success-in">
-          <div style={st.breathOrb} className={breathStep === "inhale" ? "breath-in" : "breath-out"} />
+          <div
+            style={st.breathScene}
+            className={
+              breathStep === "inhale"
+                ? "breath-in"
+                : breathStep === "exhale"
+                  ? "breath-out"
+                  : "breath-final"
+            }
+          >
+            <div style={st.breathCore} />
+            <div style={{ ...st.breathRing, animationDelay: "0s" }} />
+            <div style={{ ...st.breathRing, animationDelay: "0.6s" }} />
+            <div style={{ ...st.breathRing, animationDelay: "1.2s" }} />
+            <div style={{ ...st.breathRing, animationDelay: "1.8s" }} />
+          </div>
           <div style={st.breathText}>
             {breathStep === "inhale" ? "Вдох" : breathStep === "exhale" ? "Выдох" : "Полный выдох"}
           </div>
@@ -494,8 +511,9 @@ function ScreenStyles() {
         border-left: 8px solid rgba(255,255,255,0.9);
         filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
       }
-      .breath-in { animation: breathIn 2400ms ease-in-out infinite; }
-      .breath-out { animation: breathOut 2400ms ease-in-out infinite; }
+      .breath-in { animation: breathIn 4000ms ease-in-out infinite; }
+      .breath-out { animation: breathOut 4000ms ease-in-out infinite; }
+      .breath-final { animation: breathOut 3000ms ease-in-out infinite; }
       @keyframes breathIn {
         0% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
         70% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
@@ -504,6 +522,11 @@ function ScreenStyles() {
       @keyframes breathOut {
         0% { transform: scale(1); box-shadow: 0 0 40px rgba(96,165,250,0.25); }
         100% { transform: scale(0.72); box-shadow: 0 0 0 rgba(96,165,250,0.0); }
+      }
+      @keyframes ringPulse {
+        0% { transform: scale(0.9); opacity: 0.4; }
+        70% { transform: scale(1.15); opacity: 0.2; }
+        100% { transform: scale(1.3); opacity: 0; }
       }
       .intro-primary-btn {
         -webkit-tap-highlight-color: transparent;
@@ -566,12 +589,18 @@ const st: Record<string, React.CSSProperties> = {
   },
 
   // ── Mascot + Bubble ──
-  header: {
+  introWrap: {
     display: "grid",
-    gap: 8,
+    gap: 12,
     textAlign: "center",
     alignItems: "center",
     marginTop: 12,
+  },
+  introMascot: {
+    width: 220,
+    height: "auto",
+    objectFit: "contain",
+    justifySelf: "center",
   },
   title: {
     margin: 0,
@@ -586,13 +615,8 @@ const st: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.7)",
   },
-  centerStartWrap: {
-    display: "flex",
-    justifyContent: "center",
-    marginTop: 20,
-  },
   centerStartBtn: {
-    minWidth: 220,
+    minWidth: 240,
     borderRadius: 16,
     padding: "16px 20px",
     border: "1px solid #1e1f22",
@@ -715,11 +739,28 @@ const st: Record<string, React.CSSProperties> = {
     gap: 18,
     minHeight: "70vh",
   },
-  breathOrb: {
-    width: 180,
-    height: 180,
+  breathScene: {
+    position: "relative",
+    width: 220,
+    height: 220,
+    display: "grid",
+    placeItems: "center",
+  },
+  breathCore: {
+    width: 120,
+    height: 120,
     borderRadius: "50%",
     background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(96,165,250,0.65) 35%, rgba(59,130,246,0.9) 100%)",
+    boxShadow: "0 10px 30px rgba(59,130,246,0.25), inset 0 2px 6px rgba(255,255,255,0.4)",
+  },
+  breathRing: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: "50%",
+    border: "2px solid rgba(96,165,250,0.25)",
+    boxShadow: "0 0 25px rgba(96,165,250,0.15)",
+    animation: "ringPulse 4s ease-in-out infinite",
   },
   breathText: {
     fontSize: 24,
