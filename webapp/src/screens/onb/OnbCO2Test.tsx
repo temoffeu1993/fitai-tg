@@ -409,18 +409,18 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
                   <div style={st.waveWrapper}>
                     <div style={{ ...st.waveTrack, animationDuration: "10s" }}>
                       <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="1" />
                       </svg>
                       <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="0.55" />
+                        <path d={WAVE_PATH_BG} fill={waterTop} fillOpacity="1" />
                       </svg>
                     </div>
                     <div style={{ ...st.waveTrack, animationDuration: "6s", animationDirection: "reverse" }}>
                       <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                        <path d={WAVE_PATH_FG} fill={waterTop} fillOpacity="1" />
                       </svg>
                       <svg style={st.waveSvgInner} viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path d={WAVE_PATH_FG} fill={waterBottom} fillOpacity="0.9" />
+                        <path d={WAVE_PATH_FG} fill={waterTop} fillOpacity="1" />
                       </svg>
                     </div>
                   </div>
@@ -1027,7 +1027,7 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     height: 14,
-    opacity: 0.85,
+    opacity: 0,
     zIndex: 1,
     pointerEvents: "none",
   },
