@@ -93,8 +93,9 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       }
 
       if (labelRef.current) {
-        labelRef.current.style.transform = `scale(${scaleVal})`;
+        labelRef.current.style.transform = `translate(-50%, -50%) scale(${scaleVal})`;
         labelRef.current.style.opacity = stepIndex === 3 ? "0.7" : "1";
+        labelRef.current.style.color = stepIndex === 0 ? "#60a5fa" : stepIndex === 2 ? "#94a3b8" : "#e2e8f0";
       }
 
       setUiState((prev) => {
@@ -238,8 +239,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                 />
               </svg>
             </div>
-            <div style={st.boxText}>
-              <span ref={labelRef} className="label-anim label-smooth" style={st.boxLabel}>{uiState.label}</span>
+            <div ref={labelRef} style={st.boxText}>
+              <span className="label-anim label-smooth" style={st.boxLabel}>{uiState.label}</span>
               <span style={st.boxCount}>{uiState.count}</span>
             </div>
           </div>
@@ -448,18 +449,30 @@ const st: Record<string, React.CSSProperties> = {
     display: "block",
   },
   boxText: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
     display: "grid",
     gap: 6,
     textAlign: "center",
     color: "rgba(226, 232, 240, 0.9)",
+    willChange: "transform",
+    pointerEvents: "none",
+    zIndex: 10,
   },
   boxLabel: {
-    fontSize: 20,
-    fontWeight: 500,
+    fontSize: 18,
+    fontWeight: 600,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: "rgba(226, 232, 240, 0.9)",
   },
   boxCount: {
-    fontSize: 28,
-    fontWeight: 700,
+    fontSize: 52,
+    fontWeight: 900,
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: 1,
   },
 
   resultWrap: {
