@@ -115,6 +115,12 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           ? "Выдох"
           : "Задержка";
 
+  const cyclePos = (elapsed % CYCLE_MS) / CYCLE_MS;
+  const dashOffset = 100 - cyclePos * 100;
+  const textScaleClass =
+    segmentIndex === 0 ? "scale-up" :
+    segmentIndex === 2 ? "scale-down" : "scale-steady";
+
   return (
     <div style={st.page} className={phase === "leaving" ? "onb-leave" : undefined}>
       <ScreenStyles />
@@ -144,11 +150,33 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         <div style={st.boxStage} className="onb-success-in">
           <div style={st.boxBackdrop} />
           <div style={st.boxWrap}>
-            <div style={st.boxSquare}>
-              <div style={st.boxDot} />
+            <div style={st.svgContainer}>
+              <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
+                <rect
+                  x="10" y="10" width="220" height="220" rx="22" ry="22"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeWidth="4"
+                />
+                <rect
+                  x="10" y="10" width="220" height="220" rx="22" ry="22"
+                  fill="none"
+                  stroke="#60a5fa"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  pathLength="100"
+                  className="snake-anim"
+                  style={{
+                    strokeDasharray: "25 75",
+                    strokeDashoffset: `${dashOffset}`,
+                    filter: "drop-shadow(0 0 8px rgba(96,165,250,0.6))",
+                  }}
+                />
+                <circle r="6" fill="#fff" className="dot-leader-anim" />
+              </svg>
             </div>
             <div style={st.boxText}>
-              <span style={st.boxLabel}>{label}</span>
+              <span className={`label-anim ${textScaleClass}`} style={st.boxLabel}>{label}</span>
               <span style={st.boxCount}>{count}</span>
             </div>
           </div>
@@ -230,6 +258,26 @@ function ScreenStyles() {
         50% { box-shadow: 0 0 28px rgba(56,189,248,0.9); }
         100% { box-shadow: 0 0 12px rgba(56,189,248,0.3); }
       }
+      .snake-anim {
+        animation: snakeMove ${CYCLE_MS}ms linear infinite;
+      }
+      @keyframes snakeMove {
+        0% { stroke-dashoffset: 100; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .dot-leader-anim {
+        offset-path: path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z");
+        animation: dotFollow ${CYCLE_MS}ms linear infinite;
+        offset-rotate: auto;
+      }
+      @keyframes dotFollow {
+        0% { offset-distance: 0%; }
+        100% { offset-distance: 100%; }
+      }
+      .label-anim { transition: transform 4s ease-in-out, color 0.3s; display: inline-block; }
+      .scale-up { transform: scale(1.2); color: #60a5fa; }
+      .scale-steady { transform: scale(1); color: #e2e8f0; }
+      .scale-down { transform: scale(0.85); color: #94a3b8; }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -237,7 +285,7 @@ function ScreenStyles() {
       @media (prefers-reduced-motion: reduce) {
         .onb-fade, .onb-leave, .onb-success-in { animation: none !important; }
         .onb-fade-target { opacity: 1 !important; transform: none !important; }
-        .boxDot { animation: none !important; }
+        .snake-anim, .dot-leader-anim, .label-anim { animation: none !important; transition: none !important; }
       }
     `}</style>
   );
@@ -346,24 +394,14 @@ const st: Record<string, React.CSSProperties> = {
     gap: 18,
     zIndex: 2,
   },
-  boxSquare: {
+  svgContainer: {
     position: "relative",
-    width: 220,
-    height: 220,
-    borderRadius: 22,
-    border: "2px solid rgba(226, 232, 240, 0.5)",
-    boxShadow: "0 0 40px rgba(56,189,248,0.18)",
+    width: 240,
+    height: 240,
   },
-  boxDot: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: "#7dd3fc",
-    transform: "translate(-50%, -50%) translate(0%, 100%)",
-    animation: `dotMove ${CYCLE_MS}ms linear infinite, dotGlow 1600ms ease-in-out infinite`,
+  svgBox: {
+    overflow: "visible",
+    display: "block",
   },
   boxText: {
     display: "grid",
