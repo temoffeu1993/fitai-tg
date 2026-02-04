@@ -506,8 +506,8 @@ const st: Record<string, React.CSSProperties> = {
     width: "78%",
     height: "78%",
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(120,255,230,0.3) 0%, rgba(120,255,230,0.14) 45%, rgba(120,255,230,0) 72%)",
-    filter: "blur(16px)",
+    background: "radial-gradient(circle, rgba(120,255,230,0.55) 0%, rgba(120,255,230,0.3) 28%, rgba(120,255,230,0.12) 55%, rgba(120,255,230,0) 82%)",
+    filter: "blur(18px)",
     opacity: 0.6,
   },
   boxMascot: {
