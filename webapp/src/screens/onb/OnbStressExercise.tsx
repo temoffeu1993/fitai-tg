@@ -70,7 +70,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return;
       }
       const cycleElapsed = elapsed % CYCLE_MS;
-      const progress = cycleElapsed / CYCLE_MS;
+      let progress = cycleElapsed / CYCLE_MS;
+      if (progress >= 0.9995) progress = 0;
       const stepIndex = Math.floor(cycleElapsed / SEGMENT_MS);
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
@@ -130,22 +131,11 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       const elapsed = now - startTimeRef.current;
       const t = elapsed % CYCLE_MS;
       const step = Math.floor(t / SEGMENT_MS); // 0 inhale, 1 hold, 2 exhale, 3 hold
-      const p = (t % SEGMENT_MS) / SEGMENT_MS;
-      if (step === 0) {
-        // inhale: ramp up
-        if (p < 0.33) fireHapticImpact("light");
-        else if (p < 0.66) fireHapticImpact("medium");
-        else fireHapticImpact("heavy");
-      } else if (step === 1 || step === 3) {
-        // hold: light pulse
+      if (step === 0 || step === 2) {
+        // inhale/exhale: steady single beat once per second
         fireHapticImpact("light");
-      } else if (step === 2) {
-        // exhale: ramp down
-        if (p < 0.33) fireHapticImpact("heavy");
-        else if (p < 0.66) fireHapticImpact("medium");
-        else fireHapticImpact("light");
       }
-    }, 450);
+    }, 1000);
     return () => {
       if (hapticRef.current) clearInterval(hapticRef.current);
       hapticRef.current = null;
@@ -182,28 +172,28 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.boxBackdrop} />
           <div style={st.boxWrap}>
             <div style={st.svgContainer}>
-              <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
+              <svg width="280" height="280" viewBox="0 0 240 240" style={st.svgBox}>
                 <defs>
                   <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
-                    <stop offset="45%" stopColor="rgba(125,211,252,0.85)" />
-                    <stop offset="100%" stopColor="rgba(59,130,246,0.9)" />
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
+                    <stop offset="45%" stopColor="rgba(125,211,252,0.95)" />
+                    <stop offset="100%" stopColor="rgba(59,130,246,0.98)" />
                   </radialGradient>
                   <radialGradient id="dotAura" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="rgba(125,211,252,0.55)" />
-                    <stop offset="50%" stopColor="rgba(96,165,250,0.28)" />
+                    <stop offset="0%" stopColor="rgba(125,211,252,0.9)" />
+                    <stop offset="50%" stopColor="rgba(96,165,250,0.6)" />
                     <stop offset="100%" stopColor="rgba(96,165,250,0)" />
                   </radialGradient>
                 </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth="4"
+                  stroke="rgba(226, 232, 240, 0.55)"
+                  strokeWidth="6"
                 />
                 <circle
                   ref={dotRef}
-                  r="8"
+                  r="12"
                   fill="url(#dotCore)"
                   style={{
                     offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
@@ -215,22 +205,24 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                 />
                 <circle
                   ref={dotGlowRef}
-                  r="20"
+                  r="32"
                   fill="url(#dotAura)"
                   style={{
                     offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
                     offsetDistance: "0%",
                     offsetRotate: "auto",
                     willChange: "offset-distance",
-                    filter: "blur(10px)",
-                    opacity: 0.95,
+                    filter: "blur(12px)",
+                    opacity: 1,
                   }}
                 />
               </svg>
             </div>
             <div ref={labelRef} style={st.boxText}>
               <span className="label-anim label-smooth" style={st.boxLabel}>{uiState.label}</span>
-              <span style={st.boxCount}>{uiState.count}</span>
+              <span key={`${uiState.label}-${uiState.count}`} className="count-anim" style={st.boxCount}>
+                {uiState.count}
+              </span>
             </div>
           </div>
         </div>
@@ -312,6 +304,11 @@ function ScreenStyles() {
         100% { box-shadow: 0 0 12px rgba(56,189,248,0.3); }
       }
       .label-anim { display: inline-block; transition: color 0.3s ease; }
+      .count-anim { display: inline-block; animation: countPop 220ms ease-out; }
+      @keyframes countPop {
+        0% { opacity: 0.4; transform: translateY(6px) scale(0.96); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -430,8 +427,8 @@ const st: Record<string, React.CSSProperties> = {
   },
   svgContainer: {
     position: "relative",
-    width: 240,
-    height: 240,
+    width: 280,
+    height: 280,
   },
   svgBox: {
     overflow: "visible",
@@ -443,7 +440,7 @@ const st: Record<string, React.CSSProperties> = {
     left: "50%",
     transform: "translate(-50%, -50%)",
     display: "grid",
-    gap: 6,
+    gap: 14,
     textAlign: "center",
     color: "rgba(226, 232, 240, 0.9)",
     willChange: "transform",
@@ -452,13 +449,13 @@ const st: Record<string, React.CSSProperties> = {
   },
   boxLabel: {
     fontSize: 18,
-    fontWeight: 600,
+    fontWeight: 400,
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: "rgba(226, 232, 240, 0.9)",
+    color: "rgba(226, 232, 240, 0.85)",
   },
   boxCount: {
-    fontSize: 52,
+    fontSize: 64,
     fontWeight: 900,
     fontVariantNumeric: "tabular-nums",
     lineHeight: 1,
