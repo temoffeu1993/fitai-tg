@@ -70,8 +70,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return;
       }
       const cycleElapsed = elapsed % CYCLE_MS;
-      let progress = cycleElapsed / CYCLE_MS;
-      if (progress >= 0.9995) progress = 0;
+      const progress = (elapsed / CYCLE_MS) % 1;
       const stepIndex = Math.floor(cycleElapsed / SEGMENT_MS);
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
@@ -215,7 +214,9 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
               </svg>
             </div>
             <div ref={labelRef} style={st.boxText}>
-              <span className="label-anim label-smooth" style={st.boxLabel}>{uiState.label}</span>
+              <span key={uiState.label} className="label-anim label-smooth label-pop" style={st.boxLabel}>
+                {uiState.label}
+              </span>
               <span key={`${uiState.label}-${uiState.count}`} className="count-anim" style={st.boxCount}>
                 {uiState.count}
               </span>
@@ -300,10 +301,15 @@ function ScreenStyles() {
         100% { box-shadow: 0 0 12px rgba(56,189,248,0.3); }
       }
       .label-anim { display: inline-block; transition: color 0.3s ease; }
-      .count-anim { display: inline-block; animation: countPop 220ms ease-out; }
+      .label-pop { animation: labelPop 420ms ease-in-out; }
+      .count-anim { display: inline-block; animation: countPop 420ms ease-in-out; }
       @keyframes countPop {
-        0% { opacity: 0.4; transform: translateY(6px) scale(0.96); }
+        0% { opacity: 0; transform: translateY(8px) scale(0.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes labelPop {
+        0% { opacity: 0; transform: translateY(6px); }
+        100% { opacity: 1; transform: translateY(0); }
       }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
