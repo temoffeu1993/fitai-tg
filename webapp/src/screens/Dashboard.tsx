@@ -2,27 +2,66 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getPlannedWorkouts } from "@/api/schedule";
+import { getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
 
 import robotImg from "../assets/morobot.png";
+import mascotImg from "@/assets/robonew.webp";
+
 const ROBOT_SRC = robotImg;
+const MASCOT_SRC = mascotImg;
 
 const HISTORY_KEY = "history_sessions_v1";
-const RANK_TIERS = [
+
+const XP_TIERS = [
   { min: 0, name: "Новичок" },
-  { min: 5, name: "Импульс" },
-  { min: 12, name: "Темпо" },
-  { min: 25, name: "Сталь" },
-  { min: 45, name: "Легенда" },
+  { min: 1000, name: "Импульс" },
+  { min: 2500, name: "Темпо" },
+  { min: 5000, name: "Сталь" },
+  { min: 9000, name: "Легенда" },
 ];
 
-type HistorySnapshot = { total: number; lastCompletedAt: number | null; xp: number };
+const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+// ============================================================================
+// TYPES & HELPERS
+// ============================================================================
+
+type HistorySnapshot = {
+  total: number;
+  lastCompletedAt: number | null;
+  xp: number;
+  streak: number;
+  completedDates: string[];
+};
+
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekDays(): Date[] {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = (dayOfWeek + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
 
 function readHistorySnapshot(): HistorySnapshot {
-  if (typeof window === "undefined") return { total: 0, lastCompletedAt: null, xp: 0 };
+  if (typeof window === "undefined")
+    return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    if (!Array.isArray(raw)) return { total: 0, lastCompletedAt: null, xp: 0 };
+    if (!Array.isArray(raw))
+      return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
 
     const sorted = raw
       .map((rec) => {
@@ -30,12 +69,13 @@ function readHistorySnapshot(): HistorySnapshot {
         const ts = dateValue ? new Date(dateValue).getTime() : NaN;
         return { ...rec, __ts: Number.isNaN(ts) ? null : ts };
       })
-      .sort((a, b) => ((a.__ts || 0) - (b.__ts || 0)));
+      .sort((a, b) => (a.__ts || 0) - (b.__ts || 0));
 
     let last: number | null = null;
     let xp = 0;
     let streak = 0;
     let prevDayNumber: number | null = null;
+    const completedDatesSet = new Set<string>();
 
     for (const rec of sorted) {
       const ts = rec.__ts;
@@ -61,31 +101,103 @@ function readHistorySnapshot(): HistorySnapshot {
         xp += Math.max(0, streak - 1) * 25;
         prevDayNumber = dayNumber;
         if (last == null || ts > last) last = ts;
+        completedDatesSet.add(toISODate(new Date(ts)));
       }
     }
 
-    return { total: raw.length, lastCompletedAt: last, xp };
+    const todayDayNumber = Math.floor(Date.now() / 86400000);
+    const lastDayNumber = last ? Math.floor(last / 86400000) : null;
+    const currentStreak =
+      lastDayNumber != null && todayDayNumber - lastDayNumber <= 2 ? streak : 0;
+
+    return {
+      total: raw.length,
+      lastCompletedAt: last,
+      xp,
+      streak: currentStreak,
+      completedDates: Array.from(completedDatesSet),
+    };
   } catch {
-    return { total: 0, lastCompletedAt: null, xp: 0 };
+    return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
   }
 }
 
-function rankTitle(total: number, lastCompletedAt: number | null) {
-  let tierIndex = 0;
-  for (let i = 0; i < RANK_TIERS.length; i++) {
-    if (total >= RANK_TIERS[i].min) {
-      tierIndex = i;
-    } else {
-      break;
+function xpRankInfo(xp: number) {
+  for (let i = XP_TIERS.length - 1; i >= 0; i--) {
+    if (xp >= XP_TIERS[i].min) {
+      const nextTier = XP_TIERS[i + 1] || null;
+      const tierMin = XP_TIERS[i].min;
+      const target = nextTier ? nextTier.min - tierMin : 0;
+      const current = xp - tierMin;
+      return {
+        name: XP_TIERS[i].name,
+        nextName: nextTier?.name || null,
+        xpInTier: current,
+        xpToNext: target,
+        progress: target > 0 ? Math.min(1, current / target) : 1,
+        totalXp: xp,
+      };
     }
   }
-  if (lastCompletedAt) {
-    const daysSince = (Date.now() - lastCompletedAt) / 86400000;
-    const penalty = daysSince > 45 ? 2 : daysSince > 21 ? 1 : 0;
-    tierIndex = Math.max(0, tierIndex - penalty);
-  }
-  return RANK_TIERS[tierIndex].name;
+  return {
+    name: "Новичок",
+    nextName: "Импульс",
+    xpInTier: 0,
+    xpToNext: 1000,
+    progress: 0,
+    totalXp: 0,
+  };
 }
+
+function getMascotText(
+  stats: HistorySnapshot,
+  nextWorkout: PlannedWorkout | null
+): string {
+  const todayISO = toISODate(new Date());
+
+  if (stats.total === 0) {
+    return "Программа готова — осталось только начать";
+  }
+  if (nextWorkout && nextWorkout.scheduledFor === todayISO) {
+    return "Сегодня день тренировки. Готов?";
+  }
+  if (stats.completedDates.includes(todayISO)) {
+    return "Хорошая работа сегодня! Отдых — часть прогресса";
+  }
+  if (
+    stats.lastCompletedAt &&
+    Date.now() - stats.lastCompletedAt > 3 * 86400000
+  ) {
+    return "Рад тебя видеть! Продолжим?";
+  }
+  return "Регулярность — ключ к результату";
+}
+
+function formatScheduledDate(scheduledFor: string): string {
+  try {
+    const d = new Date(scheduledFor + "T12:00:00");
+    return d.toLocaleDateString("ru-RU", {
+      weekday: "short",
+      day: "numeric",
+      month: "long",
+    });
+  } catch {
+    return scheduledFor;
+  }
+}
+
+function getWorkoutTitle(workout: PlannedWorkout): string {
+  const plan = workout.plan;
+  if (plan?.title) return plan.title;
+  if (plan?.name) return plan.name;
+  if (plan?.label) return plan.label;
+  if (plan?.scheme_label) return plan.scheme_label;
+  return "Тренировка";
+}
+
+// ============================================================================
+// PRELOAD
+// ============================================================================
 
 let robotPreloaded = false;
 function ensureRobotPreloaded(src: string) {
@@ -93,7 +205,6 @@ function ensureRobotPreloaded(src: string) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!src) return;
   robotPreloaded = true;
-
   try {
     const link = document.createElement("link");
     link.rel = "preload";
@@ -103,20 +214,20 @@ function ensureRobotPreloaded(src: string) {
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
   } catch {}
-
   const img = new Image();
   img.decoding = "async";
   img.src = src;
 }
-
 ensureRobotPreloaded(ROBOT_SRC);
 
-// имя из Телеграма
+// ============================================================================
+// IDENTITY
+// ============================================================================
+
 function resolveTelegramName() {
   try {
     const profileData = localStorage.getItem("profile");
     if (!profileData) return "Гость";
-    
     const p = JSON.parse(profileData);
     if (p && typeof p === "object") {
       if (p.first_name && typeof p.first_name === "string" && p.first_name.trim()) {
@@ -134,32 +245,27 @@ function resolveTelegramName() {
 
 function hasOnb() {
   try {
-    // Проверяем ТОЛЬКО флаг завершения онбординга
     return localStorage.getItem("onb_complete") === "1";
   } catch {
     return false;
   }
 }
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export default function Dashboard() {
   const navigate = useNavigate();
-
-  // Всегда используем имя из Telegram (убрали поле имени из онбординга)
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
-  const [name, setName] = useState<string>(() => {
-    const tgName = resolveTelegramName();
-    console.log("Dashboard name from Telegram:", tgName);
-    return tgName;
-  });
-
-  const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() => readHistorySnapshot());
-  const [plannedCount, setPlannedCount] = useState<number | null>(null);
-  
-  // Подсветка кнопки после выбора схемы
-  const [highlightGenerateBtn, setHighlightGenerateBtn] = useState<boolean>(
-    () => localStorage.getItem("highlight_generate_btn") === "1"
+  const [name, setName] = useState<string>(() => resolveTelegramName());
+  const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() =>
+    readHistorySnapshot()
   );
+  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
+  const [introLeaving, setIntroLeaving] = useState(false);
 
+  // Lock scroll for intro
   useLayoutEffect(() => {
     const root = document.getElementById("root");
     if (!root || onbDone) return;
@@ -176,65 +282,53 @@ export default function Dashboard() {
     };
   }, [onbDone]);
 
+  // Identity updates
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     const updateIdentity = () => {
       const done = hasOnb();
       setOnbDone(done);
-      // Всегда используем имя из Telegram
       setName(resolveTelegramName());
     };
-
     updateIdentity();
     window.addEventListener("focus", updateIdentity);
-    const onOnbUpdated = () => updateIdentity();
-    window.addEventListener("onb_updated" as any, onOnbUpdated);
-
+    window.addEventListener("onb_updated" as any, () => updateIdentity());
     return () => {
       window.removeEventListener("focus", updateIdentity);
-      window.removeEventListener("onb_updated" as any, onOnbUpdated);
+      window.removeEventListener("onb_updated" as any, updateIdentity);
     };
   }, []);
 
-  const refreshPlannedCount = useCallback(async () => {
+  // Fetch planned workouts
+  const refreshPlanned = useCallback(async () => {
     if (!onbDone) {
-      setPlannedCount(null);
+      setPlannedWorkouts([]);
       return;
     }
     try {
-      const planned = await getPlannedWorkouts();
-      setPlannedCount(Array.isArray(planned) ? planned.length : 0);
+      const list = await getPlannedWorkouts();
+      setPlannedWorkouts(Array.isArray(list) ? list : []);
     } catch {
-      setPlannedCount(null);
+      setPlannedWorkouts([]);
     }
   }, [onbDone]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    refreshPlannedCount();
-    window.addEventListener("focus", refreshPlannedCount);
-    window.addEventListener("planned_workouts_updated" as any, refreshPlannedCount);
-    window.addEventListener("schedule_updated" as any, refreshPlannedCount);
-    window.addEventListener("plan_completed" as any, refreshPlannedCount);
+    refreshPlanned();
+    window.addEventListener("focus", refreshPlanned);
+    window.addEventListener("planned_workouts_updated" as any, refreshPlanned);
+    window.addEventListener("schedule_updated" as any, refreshPlanned);
+    window.addEventListener("plan_completed" as any, refreshPlanned);
     return () => {
-      window.removeEventListener("focus", refreshPlannedCount);
-      window.removeEventListener("planned_workouts_updated" as any, refreshPlannedCount);
-      window.removeEventListener("schedule_updated" as any, refreshPlannedCount);
-      window.removeEventListener("plan_completed" as any, refreshPlannedCount);
+      window.removeEventListener("focus", refreshPlanned);
+      window.removeEventListener("planned_workouts_updated" as any, refreshPlanned);
+      window.removeEventListener("schedule_updated" as any, refreshPlanned);
+      window.removeEventListener("plan_completed" as any, refreshPlanned);
     };
-  }, [refreshPlannedCount]);
+  }, [refreshPlanned]);
 
-  // Убрать подсветку через 10 секунд
-  useEffect(() => {
-    if (!highlightGenerateBtn) return;
-    const timer = setTimeout(() => {
-      setHighlightGenerateBtn(false);
-      localStorage.removeItem("highlight_generate_btn");
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [highlightGenerateBtn]);
-
+  // History updates
   useEffect(() => {
     if (typeof window === "undefined") return;
     const refreshHistory = () => setHistoryStats(readHistorySnapshot());
@@ -244,7 +338,6 @@ export default function Dashboard() {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === HISTORY_KEY || event.key === "onb_complete") {
         setOnbDone(hasOnb());
-        // Всегда используем имя из Telegram
         setName(resolveTelegramName());
         refreshHistory();
       }
@@ -257,46 +350,55 @@ export default function Dashboard() {
     };
   }, []);
 
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString("ru-RU", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }),
-    []
+  // Computed values
+  const todayISO = useMemo(() => toISODate(new Date()), []);
+
+  const nextWorkout = useMemo(() => {
+    return (
+      plannedWorkouts
+        .filter(
+          (w) =>
+            (w.status === "scheduled" || w.status === "pending") &&
+            w.scheduledFor >= todayISO
+        )
+        .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))[0] || null
+    );
+  }, [plannedWorkouts, todayISO]);
+
+  const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
+
+  const weekDays = useMemo(() => getWeekDays(), []);
+
+  const plannedDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    plannedWorkouts
+      .filter((w) => w.status === "scheduled" || w.status === "pending")
+      .forEach((w) => set.add(w.scheduledFor));
+    return set;
+  }, [plannedWorkouts]);
+
+  const completedDatesSet = useMemo(
+    () => new Set(historyStats.completedDates),
+    [historyStats.completedDates]
   );
 
-  const heroCtaLabel = onbDone ? "Редактировать анкету" : "Заполнить анкету";
-  const totalWorkouts = historyStats.total || 0;
-  const experiencePoints = historyStats.xp || 0;
-  const rankName = useMemo(
-    () => rankTitle(totalWorkouts, historyStats.lastCompletedAt),
-    [totalWorkouts, historyStats.lastCompletedAt]
+  const mascotText = useMemo(
+    () => getMascotText(historyStats, nextWorkout),
+    [historyStats, nextWorkout]
   );
-  const statsChips = useMemo(
-    () => [
-      { emoji: "🏁", label: "Тренировок", value: String(totalWorkouts) },
-      { emoji: "⭐", label: "Опыт", value: experiencePoints ? String(experiencePoints) : "0" },
-      { emoji: "⚡", label: "Ранг", value: rankName },
-    ],
-    [totalWorkouts, experiencePoints, rankName]
-  );
-
-  // под заголовком — всегда один и тот же текст
-  const subtitle = "Я персональный ИИ фитнес тренер";
 
   const goOnb = () => navigate("/onb/age-sex");
-  const [introLeaving, setIntroLeaving] = useState(false);
 
-  const workoutsCtaLabel =
-    onbDone && typeof plannedCount === "number" && plannedCount > 0 ? "Выбрать тренировку" : "Сгенерировать тренировки";
-
-  const smartTrainingDisabled = !onbDone;
+  // ========================================================================
+  // PRE-ONBOARDING: Intro screen
+  // ========================================================================
 
   if (!onbDone) {
     return (
-      <div style={s.introPage} className={introLeaving ? "intro-leave" : undefined}>
+      <div
+        style={s.introPage}
+        className={introLeaving ? "intro-leave" : undefined}
+      >
         <style>{`
           @keyframes introFadeUp {
             0% { opacity: 0; transform: translateY(14px); }
@@ -362,14 +464,18 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section style={s.introFooter} className="intro-fade intro-fade-delay-2">
+        <section
+          style={s.introFooter}
+          className="intro-fade intro-fade-delay-2"
+        >
           <div style={s.introTextBlock}>
             <h1 style={s.introTitle}>
               <span style={s.introTitleLine}>Меняйся</span>
               <span style={s.introTitleLine}>с Моро</span>
             </h1>
             <p style={s.introSubtitle}>
-              Умный фитнес в одном месте: тренировки, прогрессия, питание и рекомендации
+              Умный фитнес в одном месте: тренировки, прогрессия, питание и
+              рекомендации
             </p>
           </div>
 
@@ -379,7 +485,9 @@ export default function Dashboard() {
             className="intro-primary-btn intro-fade intro-fade-delay-3"
             onClick={() => {
               if (introLeaving) return;
-              const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              const prefersReduced = window.matchMedia?.(
+                "(prefers-reduced-motion: reduce)"
+              )?.matches;
               if (prefersReduced) {
                 goOnb();
                 return;
@@ -397,296 +505,284 @@ export default function Dashboard() {
     );
   }
 
+  // ========================================================================
+  // POST-ONBOARDING: New Dashboard
+  // ========================================================================
+
+  const isWorkoutToday = nextWorkout?.scheduledFor === todayISO;
+
   return (
     <div style={s.page}>
       <style>{`
-        /* ===== iPhone 14/15 Pro и узкие экраны ===== */
-        @media (max-width: 420px) {
-          .heroCard { padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 12px 14px; min-height: 280px; border-radius: 22px; }
-          .heroHeaderPill { font-size: 12px; padding: 6px 10px; }
-          .heroTitle { font-size: clamp(22px, 6vw, 28px); line-height: 1.12; margin-top: 4px; }
-          .heroSubtitle { font-size: clamp(13px, 3.4vw, 15px); line-height: 1.3; margin-top: 4px; }
-          .heroCTA { margin-top: 12px; padding: 14px 16px; font-size: 16px; border-radius: 14px; }
-          .heroGrid { display: grid; grid-template-columns: 56% 44%; align-items: start; gap: 8px; position: relative; z-index: 3; margin-top: 0; }
-          .heroContent { width: auto !important; max-width: none !important; align-self: end;}
-          .robotWrap { position: relative; height: 0; padding-bottom: 88%; overflow: visible; }
-          .robot { position: absolute; right: -8%; bottom: -6%; width: 120%; max-width: none; pointer-events: none; }
-          .heroClip { position: absolute; inset: -120px -10% -1px -10%; overflow-x: visible; overflow-y: hidden; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; z-index: 2; }
+        @keyframes dashFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
-
-        /* === Glow border for cta buttons === */
-        .glow-anim{ position:relative; isolation:isolate; }
-        .glow-anim::before{
-          content:""; position:absolute; inset:-2px; border-radius:14px; padding:2px;
-          background: conic-gradient(from var(--angle),
-            rgba(236,227,255,.95), rgba(217,194,240,.95),
-            rgba(255,216,194,.95), rgba(236,227,255,.95));
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor; mask-composite: exclude;
-          animation: spinAngle 2.8s linear infinite; z-index:0; filter: saturate(1.1);;
+        .dash-fade {
+          animation: dashFadeUp 520ms ease-out both;
         }
-        .glow-anim::after{
-          content:""; position:absolute; inset:-8px; border-radius:18px;
-          background: conic-gradient(from var(--angle),
-            rgba(236,227,255,.35), rgba(217,194,240,.35),
-            rgba(255,216,194,.35), rgba(236,227,255,.35));
-          filter: blur(12px); z-index:-1; animation: spinAngle 2.8s linear infinite;
+        .dash-delay-1 { animation-delay: 80ms; }
+        .dash-delay-2 { animation-delay: 160ms; }
+        .dash-delay-3 { animation-delay: 240ms; }
+        .speech-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
         }
-        @property --angle{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
-        @keyframes spinAngle{ to{ --angle:360deg; } }
-
-        /* === Highlight pulse для подсветки кнопки === */
-        .highlight-pulse {
-          animation: highlightPulse 1.5s ease-in-out infinite !important;
+        .dash-primary-btn {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
         }
-        @keyframes highlightPulse {
-          0%, 100% { transform: scale(1); filter: brightness(1); }
-          50% { transform: scale(1.02); filter: brightness(1.1); }
+        .dash-primary-btn:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99) !important;
+          background-color: #1e1f22 !important;
         }
-
-        /* ===== Планшеты и десктопы ===== */
-        @media (min-width: 421px) {
-          .heroContent { width: min(420px, 50%) !important; max-width: 50% !important; }
-          .heroRightSpacer { flex: 0 0 50% !important; max-width: 50% !important; }
-          .robot { width: 520px; right: 8%; }
-          .heroClip { position: absolute; left: -12%; right: -12%; top: -160px; height: calc(100% + 160px); pointerEvents: none; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; overflow-y: hidden; overflow-x: visible; z-index: 2; }
+        .dash-quick-btn {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
+          transition: transform 120ms ease, box-shadow 120ms ease;
+        }
+        .dash-quick-btn:active:not(:disabled) {
+          transform: translateY(1px) scale(0.98) !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dash-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
+          .dash-primary-btn, .dash-quick-btn { transition: none !important; }
         }
       `}</style>
 
-      {/* HERO */}
-      <section style={s.heroWrap}>
-        <div className="heroCard" style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span className="heroHeaderPill" style={s.pillDark}>{today}</span>
-            <span />
-          </div>
-
-          <div className="heroGrid" style={s.heroBody}>
-            <div className="heroContent" style={s.heroContent}>
-              {/* Заголовок в две строки */}
-              <div className="heroTitle" style={s.heroTitle}>
-                <div>Привет,</div>
-                <div>{name}</div>
-              </div>
-              {/* Подзаголовок всегда */}
-              <div className="heroSubtitle" style={s.heroSubtitle}>{subtitle}</div>
-
-              <div style={s.heroCtaWrap}>
-                {/* В HERO кнопка только после онбординга, без анимации */}
-                {onbDone ? (
-                  <button
-                    className="heroCTA"
-                    style={s.ctaGenerate}
-                    onClick={goOnb}
-                    aria-label={heroCtaLabel}
-                  >
-                    <span style={s.heroCtaWords}>
-                      {"Редактировать анкету".split(" ").map((word, idx) => (
-                        <span key={`${word}-${idx}`} style={s.heroCtaWord}>
-                          {word}
-                        </span>
-                      ))}
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="heroRightSpacer" style={s.heroRightSpacer}>
-              <div className="robotWrap" />
-            </div>
-          </div>
-
-          <div className="heroClip" style={s.heroClip}>
-            <img
-              src={ROBOT_SRC}
-              alt="ИИ-тренер"
-              className="robot"
-              style={s.robot}
-              loading="eager"
-              fetchPriority="high"
-              decoding="sync"
-              draggable={false}
-            />
-          </div>
+      {/* BLOCK 1: Mascot + Contextual Bubble */}
+      <section style={s.mascotRow} className="dash-fade dash-delay-1">
+        <img
+          src={MASCOT_SRC}
+          alt="Моро"
+          style={s.mascotImg}
+          loading="eager"
+          decoding="async"
+          draggable={false}
+        />
+        <div style={s.bubble} className="speech-bubble">
+          <div style={s.bubbleGreeting}>Привет, {name}!</div>
+          <div style={s.bubbleText}>{mascotText}</div>
         </div>
       </section>
 
-      {/* Блок призыва заполнить анкету — только до онбординга */}
-      {!onbDone && (
-        <section style={{ ...s.block, ...s.chipSurface }}>
-          <p style={s.blockText}>
-            Сначала заполни анкету, чтобы я лучше понял твои цели и особенности. После этого я буду составлять эффективные программы тренировок и питания.
-          </p>
-          <button
-            className="glow-anim"
-            style={{ ...s.ctaBig, border: "1px solid transparent" }}
-            onClick={goOnb}
-            aria-label="Заполнить анкету"
-          >
-            Заполнить анкету
-          </button>
-        </section>
-      )}
-
-      {/* Чипы — визуально неактивны до онбординга */}
-      <section style={s.statsRow}>
-        {statsChips.map((chip) => (
-          <ChipStatSquare
-            key={chip.label}
-            emoji={chip.emoji}
-            label={chip.label}
-            value={chip.value}
-            disabled={!onbDone}
-          />
-        ))}
+      {/* BLOCK 2: Weekly Mini-Calendar */}
+      <section style={s.calendarCard} className="dash-fade dash-delay-2">
+        <div style={s.calendarRow}>
+          {weekDays.map((day, i) => {
+            const iso = toISODate(day);
+            const isToday = iso === todayISO;
+            const isCompleted = completedDatesSet.has(iso);
+            const hasPlanned = plannedDatesSet.has(iso);
+            return (
+              <div
+                key={i}
+                style={{ ...s.calDay, ...(isToday ? s.calDayToday : {}) }}
+              >
+                <div
+                  style={{
+                    ...s.calDayName,
+                    ...(isToday ? s.calDayNameToday : {}),
+                  }}
+                >
+                  {DAY_NAMES_SHORT[i]}
+                </div>
+                <div
+                  style={{
+                    ...s.calDayNum,
+                    ...(isToday ? s.calDayNumToday : {}),
+                  }}
+                >
+                  {day.getDate()}
+                </div>
+                <div style={s.calDotArea}>
+                  {isCompleted ? (
+                    <span style={s.calCheck}>✓</span>
+                  ) : hasPlanned ? (
+                    <span style={s.calDotMark} />
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
-      {/* Твой ИИ-тренер — весь блок неактивен до онбординга */}
-      <section
-        style={{ ...s.block, ...s.chipSurface, ...(smartTrainingDisabled ? s.disabledBlock : {}) }}
-        aria-disabled={smartTrainingDisabled}
-      >
-        <h3 style={s.blockTitle}>Умные тренировки 🧠</h3>
-        <p style={s.blockText}>
-          Я делаю каждую тренировку эффективной с учётом твоего состояния, цели, опыта и истории тренировок.
-        </p>
+      {/* BLOCK 3: Next Action CTA */}
+      <section style={s.ctaCard} className="dash-fade dash-delay-2">
+        <div style={s.ctaHeader}>
+          <span style={s.ctaHeaderIcon}>{isWorkoutToday ? "🔥" : "⭐"}</span>
+          <span style={s.ctaHeaderLabel}>Следующее действие</span>
+        </div>
+        {nextWorkout ? (
+          <>
+            <div style={s.ctaTitle}>
+              {isWorkoutToday
+                ? "Пора тренироваться"
+                : getWorkoutTitle(nextWorkout)}
+            </div>
+            <div style={s.ctaDate}>
+              {isWorkoutToday
+                ? getWorkoutTitle(nextWorkout)
+                : formatScheduledDate(nextWorkout.scheduledFor)}
+            </div>
+            <button
+              type="button"
+              style={s.primaryBtn}
+              className="dash-primary-btn"
+              onClick={() => navigate("/plan/one")}
+            >
+              {isWorkoutToday ? "Начать тренировку" : "Посмотреть план"}
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={s.ctaTitle}>Запланируй тренировку</div>
+            <div style={s.ctaDate}>
+              Выбери программу и назначь дату
+            </div>
+            <button
+              type="button"
+              style={s.primaryBtn}
+              className="dash-primary-btn"
+              onClick={() => navigate("/plan/one")}
+            >
+              Выбрать тренировку
+            </button>
+          </>
+        )}
+      </section>
+
+      {/* BLOCK 4: Progress (Streak + XP Bar) */}
+      <section style={s.progressCard} className="dash-fade dash-delay-3">
+        <div style={s.progressTop}>
+          <div style={s.progressStreak}>
+            <span style={s.streakIcon}>🔥</span>
+            <span style={s.streakValue}>
+              {historyStats.streak}{" "}
+              {historyStats.streak === 1
+                ? "день"
+                : historyStats.streak >= 2 && historyStats.streak <= 4
+                ? "дня"
+                : "дней"}
+            </span>
+          </div>
+          <div style={s.progressRank}>
+            <span style={s.rankName}>{rankInfo.name}</span>
+            <span style={s.rankIcon}>⚡</span>
+          </div>
+        </div>
+        <div style={s.xpBarTrack}>
+          <div
+            style={{
+              ...s.xpBarFill,
+              width: `${Math.max(rankInfo.progress * 100, 2)}%`,
+            }}
+          />
+        </div>
+        <div style={s.xpLabel}>
+          {rankInfo.nextName ? (
+            <>
+              {rankInfo.xpInTier} / {rankInfo.xpToNext} XP до ранга{" "}
+              {rankInfo.nextName}
+            </>
+          ) : (
+            <>{rankInfo.totalXp} XP — максимальный ранг</>
+          )}
+        </div>
+      </section>
+
+      {/* BLOCK 5: Quick Actions 2×2 */}
+      <section style={s.quickGrid} className="dash-fade dash-delay-3">
         <button
-          className={
-            onbDone ? (highlightGenerateBtn ? "glow-anim highlight-pulse" : "glow-anim") : undefined
-          }
-          style={{
-            ...s.ctaMain,
-            ...(smartTrainingDisabled ? s.disabledBtn : {}),
-            border: "1px solid transparent",
-          }}
-          onClick={
-            smartTrainingDisabled
-              ? undefined
-              : () => {
-                  setHighlightGenerateBtn(false);
-                  localStorage.removeItem("highlight_generate_btn");
-                  navigate("/plan/one");
-                }
-          }
-          disabled={smartTrainingDisabled}
-          aria-disabled={smartTrainingDisabled}
+          type="button"
+          style={s.quickCard}
+          className="dash-quick-btn"
+          onClick={() => navigate("/plan/one")}
         >
-          {workoutsCtaLabel}
+          <div style={s.quickEmoji}>🏋️</div>
+          <div style={s.quickTitle}>План</div>
+          <div style={s.quickHint}>Тренировки</div>
+        </button>
+        <button
+          type="button"
+          style={s.quickCard}
+          className="dash-quick-btn"
+          onClick={() => navigate("/nutrition/today")}
+        >
+          <div style={s.quickEmoji}>🍎</div>
+          <div style={s.quickTitle}>Питание</div>
+          <div style={s.quickHint}>Сегодня</div>
+        </button>
+        <button
+          type="button"
+          style={s.quickCard}
+          className="dash-quick-btn"
+          onClick={() => navigate("/progress")}
+        >
+          <div style={s.quickEmoji}>📊</div>
+          <div style={s.quickTitle}>Прогресс</div>
+          <div style={s.quickHint}>Данные</div>
+        </button>
+        <button
+          type="button"
+          style={s.quickCard}
+          className="dash-quick-btn"
+          onClick={() => navigate("/coach")}
+        >
+          <div style={s.quickEmoji}>🤖</div>
+          <div style={s.quickTitle}>Тренер</div>
+          <div style={s.quickHint}>Задать вопрос</div>
         </button>
       </section>
 
-      {/* Быстрые действия */}
-      <section style={{ ...s.block, ...s.quickActionsWrap }}>
-        <div style={s.quickRow}>
-          <QuickAction
-            emoji="📅"
-            title="Расписание"
-            hint="Тренировок"
-            onClick={onbDone ? () => navigate("/schedule") : undefined}
-            disabled={!onbDone}
-          />
-          <QuickAction
-            emoji="🍽️"
-            title="Питание"
-            hint="Сегодня"
-            onClick={onbDone ? () => navigate("/nutrition/today") : undefined}
-            disabled={!onbDone}
-          />
-          <QuickAction
-            emoji="📈"
-            title="Прогресс"
-            hint="Данные"
-            onClick={onbDone ? () => navigate("/progress") : undefined}
-            disabled={!onbDone}
-          />
-        </div>
-      </section>
-
-      <div style={{ height: 16 }} />
+      <div style={{ height: 120 }} />
     </div>
   );
 }
 
-function ChipStatSquare({
-  emoji,
-  label,
-  value,
-  disabled,
-}: {
-  emoji: string;
-  label: string;
-  value: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="chipSquare" style={{ ...s.chipSquare, ...(disabled ? s.disabledBtn : {}) }}>
-      <div style={{ fontSize: 22 }}>{emoji}</div>
-      <div
-        style={{
-          fontSize: 12,
-          opacity: 0.7,
-          textAlign: "center",
-          whiteSpace: "normal",
-          lineHeight: 1.2,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 16,
-          fontWeight: 600,
-          textAlign: "center",
-          whiteSpace: "normal",
-          lineHeight: 1.2,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
+// ============================================================================
+// STYLES
+// ============================================================================
 
-function QuickAction({
-  emoji,
-  title,
-  hint,
-  onClick,
-  disabled,
-}: {
-  emoji: string;
-  title: string;
-  hint: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      style={{ ...s.quickItem, ...(disabled ? s.disabledBtn : {}) }}
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-disabled={disabled}
-    >
-      <div style={{ fontSize: 22 }}>{emoji}</div>
-      <div style={s.quickItemTitle}>{title}</div>
-      <div style={s.quickItemHint}>{hint}</div>
-    </button>
-  );
-}
-
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const glassCard: React.CSSProperties = {
+  borderRadius: 18,
+  padding: "16px 16px",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+  border: "1px solid rgba(255,255,255,0.6)",
+  boxShadow:
+    "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
+};
 
 const s: Record<string, React.CSSProperties> = {
+  // Page
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    padding: 16,
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 0",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     background: "transparent",
     minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
   },
+
+  // ===== INTRO SCREEN (unchanged) =====
   introPage: {
     height: "100vh",
     padding: "8px 20px 12px",
@@ -771,237 +867,255 @@ const s: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
 
-  heroWrap: { position: "relative", overflow: "visible", marginTop: 0, marginBottom: 10 },
-
-  heroCard: {
-    position: "relative",
-    padding: 20,
-    borderRadius: 20,
-    boxShadow: cardShadow,
-    background: "#0f172a",
-    color: "#fff",
-    minHeight: 240,
-    overflow: "visible",
-    zIndex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 3 },
-
-  heroBody: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    position: "relative",
-    zIndex: 3,
-    flex: 1,
-  },
-
-  pillDark: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.12)",
-    backdropFilter: "blur(4px)",
-  },
-
-  heroContent: { width: "min(420px, 50%)", maxWidth: "50%", position: "relative", zIndex: 3, wordBreak: "break-word", alignSelf: "flex-end", },
-
-  heroRightSpacer: { flex: "0 0 50%", maxWidth: "50%", minWidth: 140 },
-
-  heroTitle: { fontSize: 24, fontWeight: 900, marginTop: 10, color: "#fff" },
-
-  heroSubtitle: { marginTop: 6, color: "rgba(255,255,255,.9)", fontSize: 15, fontWeight: 500, lineHeight: 1.35 },
-
-  heroCtaWrap: { marginTop: 12 },
-
-  ctaGenerate: {
-    border: "none",
-    borderRadius: 14,
-    padding: "10px 14px",
-    fontSize: 15,
-    fontWeight: 400,
-    color: "#000",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    boxShadow: "0 10px 28px rgba(0,0,0,.25)",
-    cursor: "pointer",
-    whiteSpace: "normal",
-    display: "inline-flex",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    minWidth: 0,
-    textAlign: "left",
-    gap: 6,
-    flexWrap: "wrap",
-    width: "fit-content",
-    maxWidth: 200,
-    lineHeight: 1.15,
-  },
-
-  heroCtaWords: {
-    display: "flex",
-    flexDirection: "column",
-    lineHeight: 1.05,
-    gap: 1,
-    fontSize: "clamp(13px, 3.5vw, 16px)",
-    whiteSpace: "nowrap",
-  },
-  heroCtaWord: { display: "block" },
-
-  heroClip: {
-    position: "absolute",
-    left: "-12%",
-    right: "-12%",
-    top: -160,
-    height: "calc(100% + 160px)",
-    pointerEvents: "none",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    overflowY: "hidden",
-    overflowX: "visible",
-    zIndex: 2,
-  },
-
-  robot: { position: "absolute", right: "3%", bottom: -20, width: "60vw", pointerEvents: "none", filter: "none" },
-
-  /* Чипы */
-  statsRow: {
+  // ===== BLOCK 1: Mascot + Bubble =====
+  mascotRow: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(96px, 1fr))",
+    gridTemplateColumns: "auto 1fr",
+    alignItems: "center",
     gap: 12,
-    margin: "12px 0 10px",
+    marginTop: 8,
   },
-  chipSquare: {
-    background: "rgba(255,255,255,0.6)",
-    color: "#000",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    borderRadius: 12,
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    gap: 4,
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-    hyphens: "none",
+  mascotImg: {
+    width: 120,
+    height: "auto",
+    objectFit: "contain",
   },
-
-  chipSurface: {
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    color: "#000",
-    border: "0px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
     borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    color: "#0f172a",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
-
-  block: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
-  blockTitle: { margin: 0, fontSize: 17, fontWeight: 600 },
-  blockText: { margin: "8px 0 12px", color: "#444", fontSize: 15, fontWeight: 450, lineHeight: 1.4 },
-
-  primaryBtn: {
-    marginTop: 10,
-    border: "none",
-    borderRadius: 14,
-    padding: "12px 14px",
-    fontSize: 16,
+  bubbleGreeting: {
+    fontSize: 18,
     fontWeight: 700,
-    color: "#fff",
-    background: "#000",
-    boxShadow: "0 6px 18px rgba(0,0,0,.15)",
-    cursor: "pointer",
+    color: "#1e1f22",
+    lineHeight: 1.2,
+    marginBottom: 4,
+  },
+  bubbleText: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.7)",
   },
 
-  ctaBig: {
-    borderRadius: 14,
-    padding: "12px 18px",
+  // ===== BLOCK 2: Weekly Calendar =====
+  calendarCard: {
+    ...glassCard,
+    padding: "12px 8px",
+  },
+  calendarRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: 0,
+  },
+  calDay: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 2,
+    padding: "4px 0",
+    borderRadius: 12,
+  },
+  calDayToday: {
+    background: "rgba(30, 31, 34, 0.06)",
+  },
+  calDayName: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(30, 31, 34, 0.45)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  calDayNameToday: {
+    color: "#1e1f22",
+  },
+  calDayNum: {
+    fontSize: 16,
+    fontWeight: 500,
+    color: "rgba(30, 31, 34, 0.7)",
+    lineHeight: 1.3,
+  },
+  calDayNumToday: {
+    fontWeight: 700,
+    color: "#1e1f22",
+  },
+  calDotArea: {
+    height: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calDotMark: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    background: "#1e1f22",
+  },
+  calCheck: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#22c55e",
+    lineHeight: 1,
+  },
+
+  // ===== BLOCK 3: Next Action CTA =====
+  ctaCard: {
+    borderRadius: 18,
+    padding: "20px 18px",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow:
+      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  ctaHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  ctaHeaderIcon: {
+    fontSize: 16,
+  },
+  ctaHeaderLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.55)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  ctaTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.15,
+    letterSpacing: -0.3,
+  },
+  ctaDate: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(30, 31, 34, 0.6)",
+    lineHeight: 1.3,
+    marginBottom: 8,
+  },
+  primaryBtn: {
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
+
+  // ===== BLOCK 4: Progress =====
+  progressCard: {
+    ...glassCard,
+    padding: "16px 18px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  progressTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  progressStreak: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  streakIcon: {
+    fontSize: 18,
+  },
+  streakValue: {
     fontSize: 16,
     fontWeight: 600,
-    color: "#000",
-    background: "rgba(255, 255, 255, 1)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 0px 0px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(0px)",
-    WebkitBackdropFilter: "blur(0px)",
-    cursor: "pointer",
-    alignSelf: "flex-start",
+    color: "#1e1f22",
   },
-
-  ctaMain: {
-    borderRadius: 16,
-    padding: "18px 18px",
-    fontSize: 24,
-    lineHeight: 1.1,
-    fontWeight: 900,
-    color: "#000",
-    background: "rgba(255, 255, 255, 1)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 0px 0px rgba(0,0,0,0.08)",
-    cursor: "pointer",
-    width: "100%",
-    textAlign: "center",
-    textTransform: "uppercase",
-    alignSelf: "center",
-  },
-
-  // визуально выключенные элементы
-  disabledBtn: {
-    opacity: 0.5,
-    cursor: "default",
-    filter: "grayscale(10%)",
-    pointerEvents: "none",
-  },
-  disabledBlock: {
-    opacity: 0.45,
-    cursor: "default",
-    filter: "grayscale(30%) brightness(0.95)",
-    pointerEvents: "none",
-  },
-
-  // тонкий бордер для glow-маски
-  ctaGlowBorderFix: {
-    border: "1px solid transparent",
-  },
-
-  /* Быстрые действия */
-  quickActionsWrap: { background: "transparent", boxShadow: "none", padding: 0, marginTop: 20 },
-  quickRow: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "stretch" },
-  quickItem: {
-    flex: 1,
-    borderRadius: 16,
-    padding: "16px 10px",
-    minHeight: 110,
-    height: "100%",
-    background: "rgba(255,255,255,0.6)",
-    color: "#000",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    display: "grid",
-    gap: 6,
+  progressRank: {
+    display: "flex",
     alignItems: "center",
-    justifyItems: "center",
+    gap: 6,
+  },
+  rankName: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#1e1f22",
+  },
+  rankIcon: {
+    fontSize: 16,
+  },
+  xpBarTrack: {
+    width: "100%",
+    height: 6,
+    borderRadius: 999,
+    background: "rgba(30, 31, 34, 0.08)",
+    overflow: "hidden",
+  },
+  xpBarFill: {
+    height: "100%",
+    borderRadius: 999,
+    background: "#1e1f22",
+    transition: "width 600ms ease-out",
+  },
+  xpLabel: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(30, 31, 34, 0.5)",
+  },
+
+  // ===== BLOCK 5: Quick Actions 2×2 =====
+  quickGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  quickCard: {
+    ...glassCard,
+    padding: "18px 14px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
     textAlign: "center",
     cursor: "pointer",
-    fontSize: 14,
-    fontWeight: 400,
-    wordBreak: "keep-all",
-    whiteSpace: "nowrap",
-    hyphens: "none",
+    minHeight: 110,
+    color: "#1e1f22",
   },
-  quickItemTitle: { fontWeight: 600, fontSize: 14, lineHeight: 1.1, whiteSpace: "nowrap", wordBreak: "keep-all", hyphens: "none" },
-  quickItemHint: { fontSize: 12, color: "#666", lineHeight: 1.1, whiteSpace: "nowrap", wordBreak: "keep-all", hyphens: "none" },
+  quickEmoji: {
+    fontSize: 28,
+    lineHeight: 1,
+  },
+  quickTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1e1f22",
+    lineHeight: 1.2,
+  },
+  quickHint: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(30, 31, 34, 0.5)",
+    lineHeight: 1.2,
+  },
 };
