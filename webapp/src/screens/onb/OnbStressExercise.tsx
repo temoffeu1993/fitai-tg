@@ -112,7 +112,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       // Move sphere along the square path.
       const pos = (elapsed / CYCLE_MS) * 100;
       const posMod = pos % 100;
-      const posSafe = posMod === 0 ? 0.001 : posMod;
+      const posSafe = posMod === 0 ? 0.01 : posMod;
       const posStr = `${posSafe}%`;
       if (dotRef.current) dotRef.current.style.offsetDistance = posStr;
       if (dotGlowRef.current) dotGlowRef.current.style.offsetDistance = posStr;
@@ -204,7 +204,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   r="12"
                   fill="url(#dotCore)"
                   style={{
-                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
+                    offsetPath: `path("M 10 208 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208")`,
                     offsetDistance: "0%",
                     offsetRotate: "auto",
                     willChange: "offset-distance",
@@ -216,7 +216,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   r="32"
                   fill="url(#dotAura)"
                   style={{
-                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
+                    offsetPath: `path("M 10 208 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208")`,
                     offsetDistance: "0%",
                     offsetRotate: "auto",
                     willChange: "offset-distance",
@@ -443,8 +443,8 @@ const st: Record<string, React.CSSProperties> = {
   boxWrap: {
     position: "relative",
     display: "flex",
-    flexDirection: "column",
     alignItems: "center",
+    justifyContent: "center",
     zIndex: 2,
   },
   svgContainer: {
@@ -457,11 +457,14 @@ const st: Record<string, React.CSSProperties> = {
     display: "block",
   },
   boxLabelTop: {
+    position: "absolute",
+    left: "50%",
+    bottom: "calc(100% + 24px)",
+    transform: "translateX(-50%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginBottom: 44,
   },
   boxLabel: {
     fontSize: 18,
@@ -478,11 +481,14 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCountBottom: {
+    position: "absolute",
+    left: "50%",
+    top: "calc(100% + 24px)",
+    transform: "translateX(-50%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginTop: 44,
   },
   boxMascotWrap: {
     position: "absolute",
