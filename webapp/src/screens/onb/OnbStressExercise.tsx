@@ -110,9 +110,12 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       });
 
       // Move sphere along the square path.
-      const pos = progress * 100;
-      if (dotRef.current) dotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
-      if (dotGlowRef.current) dotGlowRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
+      const pos = (elapsed / CYCLE_MS) * 100;
+      const posMod = pos % 100;
+      const posSafe = posMod === 0 ? 0.001 : posMod;
+      const posStr = `${posSafe}%`;
+      if (dotRef.current) dotRef.current.style.offsetDistance = posStr;
+      if (dotGlowRef.current) dotGlowRef.current.style.offsetDistance = posStr;
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -241,7 +244,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.successBubbleWrap} className="onb-success-in">
             <div style={st.successBubble} className="speech-bubble-bottom">
               <span style={st.successBubbleText}>
-                Меньше стресса🧘 лучше восстановление!{"\n"}Запомни: мышцы растут во время отдыха
+                Меньше стресса🧘 лучше восстановление!{"\n"}Мышцы растут во время отдыха
               </span>
             </div>
           </div>
@@ -458,7 +461,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginBottom: 28,
+    marginBottom: 44,
   },
   boxLabel: {
     fontSize: 18,
@@ -479,7 +482,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginTop: 28,
+    marginTop: 44,
   },
   boxMascotWrap: {
     position: "absolute",
