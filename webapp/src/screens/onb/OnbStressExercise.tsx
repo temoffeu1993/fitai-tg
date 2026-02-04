@@ -79,11 +79,11 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       if (stepIndex === 0) {
         currentLabel = "Глубокий вдох";
       } else if (stepIndex === 1) {
-        currentLabel = "Задержка";
+        currentLabel = "Задержка дыхания";
       } else if (stepIndex === 2) {
         currentLabel = "Спокойный выдох";
       } else {
-        currentLabel = "Задержка";
+        currentLabel = "Задержка дыхания";
       }
 
       // Sync center mascot float with breath phase.
@@ -474,7 +474,6 @@ const st: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 400,
     letterSpacing: 1,
-    textTransform: "uppercase",
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCount: {
