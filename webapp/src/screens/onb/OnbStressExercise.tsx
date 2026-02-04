@@ -173,13 +173,14 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       {phase === "box" && (
         <div style={st.boxStage} className="onb-success-in">
           <div style={st.boxBackdrop} />
-          <div style={st.boxWrap}>
+          <div style={st.boxColumn}>
             <div style={st.boxLabelTop}>
               <span className="label-anim label-smooth label-pop" style={st.boxLabel}>
                 {uiState.label}
               </span>
             </div>
-            <div style={st.svgContainer}>
+            <div style={st.boxWrap}>
+              <div style={st.svgContainer}>
               <svg width="280" height="280" viewBox="0 0 240 240" style={st.svgBox}>
                 <defs>
                   <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
@@ -228,6 +229,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
               <div ref={centerMascotRef} style={st.boxMascotWrap} className="aura-mascot">
                 <div style={st.boxAura} className="box-aura" />
                 <img src={healImg} alt="" style={st.boxMascot} />
+              </div>
               </div>
             </div>
             <div style={st.boxCountBottom}>
@@ -440,14 +442,17 @@ const st: Record<string, React.CSSProperties> = {
     background: "radial-gradient(circle at 50% 35%, rgba(56,189,248,0.08) 0%, rgba(15, 23, 42, 0.65) 45%, rgba(2,6,23,0.9) 100%)",
     zIndex: 0,
   },
-  boxWrap: {
+  boxColumn: {
     position: "relative",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    zIndex: 2,
+  },
+  boxWrap: {
+    position: "relative",
     width: 280,
     height: 280,
-    zIndex: 2,
   },
   svgContainer: {
     position: "relative",
@@ -459,14 +464,11 @@ const st: Record<string, React.CSSProperties> = {
     display: "block",
   },
   boxLabelTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: -44,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
+    marginBottom: 28,
   },
   boxLabel: {
     fontSize: 18,
@@ -483,14 +485,11 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCountBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: -44,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
+    marginTop: 28,
   },
   boxMascotWrap: {
     position: "absolute",
