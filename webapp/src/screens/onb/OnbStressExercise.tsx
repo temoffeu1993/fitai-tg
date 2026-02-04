@@ -25,6 +25,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const hapticRef = useRef<number | null>(null);
   const dotRef = useRef<SVGCircleElement>(null);
   const dotGlowRef = useRef<SVGCircleElement>(null);
+  const centerMascotRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -83,6 +84,22 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         currentLabel = "Выдох";
       } else {
         currentLabel = "Задержка";
+      }
+
+      // Sync center mascot float with breath phase.
+      const floatRange = 12;
+      let floatY = 0;
+      if (stepIndex === 0) {
+        floatY = -floatRange * stepProgress;
+      } else if (stepIndex === 1) {
+        floatY = -floatRange;
+      } else if (stepIndex === 2) {
+        floatY = -floatRange + floatRange * stepProgress;
+      } else {
+        floatY = 0;
+      }
+      if (centerMascotRef.current) {
+        centerMascotRef.current.style.transform = `translateY(${floatY.toFixed(1)}px)`;
       }
 
       setUiState((prev) => {
@@ -163,14 +180,14 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
               <svg width="280" height="280" viewBox="0 0 240 240" style={st.svgBox}>
                 <defs>
                   <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
-                    <stop offset="45%" stopColor="rgba(125,211,252,0.95)" />
-                    <stop offset="100%" stopColor="rgba(59,130,246,0.98)" />
+                    <stop offset="0%" stopColor="rgba(255,255,255,1)" />
+                    <stop offset="50%" stopColor="rgba(255,255,255,0.95)" />
+                    <stop offset="100%" stopColor="rgba(255,255,255,0.9)" />
                   </radialGradient>
                   <radialGradient id="dotAura" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="rgba(125,211,252,0.9)" />
-                    <stop offset="50%" stopColor="rgba(96,165,250,0.6)" />
-                    <stop offset="100%" stopColor="rgba(96,165,250,0)" />
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.75)" />
+                    <stop offset="50%" stopColor="rgba(255,255,255,0.35)" />
+                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
                   </radialGradient>
                 </defs>
                 <rect
@@ -205,9 +222,9 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   }}
                 />
               </svg>
-              <div style={st.boxMascotWrap} className="aura-mascot">
+              <div ref={centerMascotRef} style={st.boxMascotWrap} className="aura-mascot">
                 <div style={st.boxAura} className="box-aura" />
-                <img src={healImg} alt="" style={st.boxMascot} className="mascot-float" />
+                <img src={healImg} alt="" style={st.boxMascot} />
               </div>
             </div>
             <div style={st.boxCountBottom}>
@@ -224,7 +241,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.successBubbleWrap} className="onb-success-in">
             <div style={st.successBubble} className="speech-bubble-bottom">
               <span style={st.successBubbleText}>
-                Меньше стресса — лучше восстановление. Запомни: мышцы растут во время отдыха.
+                Меньше стресса🧘 лучше восстановление!{"\n"}Запомни: мышцы растут во время отдыха
               </span>
             </div>
           </div>
@@ -306,16 +323,10 @@ function ScreenStyles() {
         100% { opacity: 1; transform: translateY(0); }
       }
       .box-aura { animation: auraPulse 2.8s ease-in-out infinite; }
-      .mascot-float { animation: mascotFloat 3.6s ease-in-out infinite; }
       @keyframes auraPulse {
         0% { opacity: 0.55; transform: scale(0.96); }
         50% { opacity: 0.85; transform: scale(1.02); }
         100% { opacity: 0.6; transform: scale(0.96); }
-      }
-      @keyframes mascotFloat {
-        0% { transform: translateY(0) scale(1); }
-        50% { transform: translateY(-10px) scale(1.01); }
-        100% { transform: translateY(0) scale(1); }
       }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
@@ -428,9 +439,9 @@ const st: Record<string, React.CSSProperties> = {
   },
   boxWrap: {
     position: "relative",
-    display: "grid",
-    justifyItems: "center",
-    gap: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
     zIndex: 2,
   },
   svgContainer: {
@@ -447,7 +458,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginBottom: 18,
+    marginBottom: 28,
   },
   boxLabel: {
     fontSize: 18,
@@ -468,7 +479,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginTop: 18,
+    marginTop: 28,
   },
   boxMascotWrap: {
     position: "absolute",
