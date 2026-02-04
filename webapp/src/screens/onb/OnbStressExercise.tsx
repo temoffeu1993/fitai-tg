@@ -76,20 +76,16 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
       let currentLabel = "Вдох";
-      let scaleVal = 1;
+      const scaleVal = 1;
 
       if (stepIndex === 0) {
         currentLabel = "Вдох";
-        scaleVal = 1 + (stepProgress * 0.2);
       } else if (stepIndex === 1) {
         currentLabel = "Задержка";
-        scaleVal = 1.2;
       } else if (stepIndex === 2) {
         currentLabel = "Выдох";
-        scaleVal = 1.2 - (stepProgress * 0.2);
       } else {
         currentLabel = "Задержка";
-        scaleVal = 1.0;
       }
 
       if (labelRef.current) {
@@ -440,7 +436,7 @@ const st: Record<string, React.CSSProperties> = {
     left: "50%",
     transform: "translate(-50%, -50%)",
     display: "grid",
-    gap: 14,
+    gap: 18,
     textAlign: "center",
     color: "rgba(226, 232, 240, 0.9)",
     willChange: "transform",
@@ -455,10 +451,11 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCount: {
-    fontSize: 64,
+    fontSize: 72,
     fontWeight: 900,
     fontVariantNumeric: "tabular-nums",
     lineHeight: 1,
+    color: "rgba(226, 232, 240, 0.85)",
   },
 
   resultWrap: {
