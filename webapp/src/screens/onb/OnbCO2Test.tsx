@@ -538,7 +538,7 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
             </button>
             {onBack && (
               <button type="button" style={st.backBtn} onClick={onBack}>
-                Назад
+                Выбрать другое упражнение
               </button>
             )}
           </div>
