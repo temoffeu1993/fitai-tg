@@ -37,6 +37,7 @@ import OnbFirstWorkout from "./screens/onb/OnbFirstWorkout";
 import OnbMiniExercise from "./screens/onb/OnbMiniExercise";
 import OnbCO2Test from "./screens/onb/OnbCO2Test";
 import OnbAbsExercise from "./screens/onb/OnbAbsExercise";
+import OnbStressExercise from "./screens/onb/OnbStressExercise";
 
 import { saveOnboarding } from "./api/onboarding";
 import { apiFetch } from "@/lib/apiClient";
@@ -356,6 +357,10 @@ function StepMiniExercise() {
           nav("/onb/abs-exercise");
           return;
         }
+        if (exerciseId === "box_breathing") {
+          nav("/onb/stress-exercise");
+          return;
+        }
         console.log("Selected exercise:", exerciseId);
         completeOnboardingAndGoHome(nav, reset);
       }}
@@ -387,6 +392,20 @@ function StepAbsExercise() {
   const nav = useNavigate();
   return (
     <OnbAbsExercise
+      onComplete={() => {
+        completeOnboardingAndGoHome(nav, reset);
+      }}
+      onBack={() => nav("/onb/mini-exercise")}
+    />
+  );
+}
+
+// --- Снятие стресса (box breathing) ---
+function StepStressExercise() {
+  const { reset } = useOnboarding();
+  const nav = useNavigate();
+  return (
+    <OnbStressExercise
       onComplete={() => {
         completeOnboardingAndGoHome(nav, reset);
       }}
@@ -434,6 +453,7 @@ export default function App() {
             <Route path="/onb/mini-exercise" element={<StepMiniExercise />} />
             <Route path="/onb/co2-test" element={<StepCO2Test />} />
             <Route path="/onb/abs-exercise" element={<StepAbsExercise />} />
+            <Route path="/onb/stress-exercise" element={<StepStressExercise />} />
           </Route>
         </Routes>
 
