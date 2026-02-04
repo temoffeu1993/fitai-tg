@@ -28,6 +28,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
   const breathHapticRef = useRef<number | null>(null);
   const finalHapticRef = useRef<number | null>(null);
   const holdTimerRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -51,6 +52,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
       if (breathHapticRef.current) clearInterval(breathHapticRef.current);
       if (finalHapticRef.current) clearInterval(finalHapticRef.current);
       if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
@@ -143,16 +145,19 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
     setPhase("hold");
     setTimeLeft(HOLD_SECONDS * 1000);
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
-    const startedAt = Date.now();
-    holdTimerRef.current = window.setInterval(() => {
-      const elapsedMs = Date.now() - startedAt;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const startedAt = performance.now();
+    const tick = () => {
+      const elapsedMs = performance.now() - startedAt;
       const leftMs = Math.max(0, HOLD_SECONDS * 1000 - elapsedMs);
       setTimeLeft(leftMs);
       if (leftMs <= 0) {
-        if (holdTimerRef.current) clearInterval(holdTimerRef.current);
         finishHold();
+        return;
       }
-    }, 200);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
   };
 
   const finishHold = () => {
