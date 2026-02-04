@@ -468,7 +468,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginBottom: 28,
+    marginBottom: 72,
   },
   boxLabel: {
     fontSize: 18,
@@ -489,7 +489,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
-    marginTop: 28,
+    marginTop: 96,
   },
   boxMascotWrap: {
     position: "absolute",
