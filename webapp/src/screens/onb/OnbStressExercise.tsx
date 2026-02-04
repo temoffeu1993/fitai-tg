@@ -19,9 +19,13 @@ interface Props {
 export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [showContent, setShowContent] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [uiState, setUiState] = useState({ label: "Вдох", count: 1 });
   const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
+  const snakeRef = useRef<SVGRectElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -52,21 +56,62 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
     setPhase("leaving");
     setTimeout(() => {
       setPhase("box");
-      setElapsed(0);
       startBox();
     }, 360);
   };
 
   const startBox = () => {
-    const startedAt = performance.now();
+    startTimeRef.current = performance.now();
     const tick = () => {
-      const e = performance.now() - startedAt;
-      if (e >= TOTAL_MS) {
-        setElapsed(TOTAL_MS);
+      const now = performance.now();
+      const elapsed = now - startTimeRef.current;
+      if (elapsed >= TOTAL_MS) {
         setPhase("result");
         return;
       }
-      setElapsed(e);
+      const cycleElapsed = elapsed % CYCLE_MS;
+      const progress = cycleElapsed / CYCLE_MS;
+      const stepIndex = Math.floor(cycleElapsed / SEGMENT_MS);
+      const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
+      const currentCount = Math.floor(stepProgress * 4) + 1;
+      let currentLabel = "Вдох";
+      let scaleVal = 1;
+
+      if (stepIndex === 0) {
+        currentLabel = "Вдох";
+        scaleVal = 1 + (stepProgress * 0.2);
+      } else if (stepIndex === 1) {
+        currentLabel = "Задержка";
+        scaleVal = 1.2;
+      } else if (stepIndex === 2) {
+        currentLabel = "Выдох";
+        scaleVal = 1.2 - (stepProgress * 0.2);
+      } else {
+        currentLabel = "Задержка";
+        scaleVal = 1.0;
+      }
+
+      if (labelRef.current) {
+        labelRef.current.style.transform = `scale(${scaleVal})`;
+        labelRef.current.style.opacity = stepIndex === 3 ? "0.7" : "1";
+      }
+
+      setUiState((prev) => {
+        if (prev.label !== currentLabel || prev.count !== currentCount) {
+          return { label: currentLabel, count: currentCount };
+        }
+        return prev;
+      });
+
+      const tailLen = 20;
+      const dashOffset = 100 - (progress * 100) + tailLen;
+      if (snakeRef.current) {
+        snakeRef.current.style.strokeDashoffset = dashOffset.toFixed(2);
+      }
+      if (dotRef.current) {
+        dotRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
+      }
+
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -80,6 +125,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
     }
     if (phase !== "box") return;
     hapticRef.current = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = now - startTimeRef.current;
       const t = elapsed % CYCLE_MS;
       const step = Math.floor(t / SEGMENT_MS); // 0 inhale, 1 hold, 2 exhale, 3 hold
       const p = (t % SEGMENT_MS) / SEGMENT_MS;
@@ -102,26 +149,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       if (hapticRef.current) clearInterval(hapticRef.current);
       hapticRef.current = null;
     };
-  }, [phase, elapsed]);
-
-  const segmentIndex = Math.min(3, Math.floor((elapsed % CYCLE_MS) / SEGMENT_MS));
-  const count = Math.min(4, Math.floor((elapsed % SEGMENT_MS) / 1000) + 1);
-  const label =
-    segmentIndex === 0
-      ? "Вдох"
-      : segmentIndex === 1
-        ? "Задержка"
-        : segmentIndex === 2
-          ? "Выдох"
-          : "Задержка";
-
-  const cyclePos = (elapsed % CYCLE_MS) / CYCLE_MS;
-  const headPos = cyclePos * 100;
-  const tailLen = 12;
-  const dashOffset = 100 - headPos + tailLen;
-  const textScaleClass =
-    segmentIndex === 0 ? "scale-up" :
-    segmentIndex === 2 ? "scale-down" : "scale-steady";
+  }, [phase]);
 
   return (
     <div style={st.page} className={phase === "leaving" ? "onb-leave" : undefined}>
@@ -168,25 +196,36 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   strokeWidth="4"
                 />
                 <rect
+                  ref={snakeRef}
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
                   stroke="url(#tailGrad)"
                   strokeWidth="5"
                   strokeLinecap="round"
                   pathLength="100"
-                  className="snake-anim"
                   style={{
-                    strokeDasharray: `${tailLen} ${100 - tailLen}`,
-                    strokeDashoffset: `${dashOffset}`,
+                    strokeDasharray: `20 80`,
+                    strokeDashoffset: "120",
                     filter: "drop-shadow(0 0 10px rgba(125,211,252,0.65)) blur(0.6px)",
+                    willChange: "stroke-dashoffset",
                   }}
                 />
-                <circle r="6" fill="#fff" className="dot-leader-anim" />
+                <circle
+                  ref={dotRef}
+                  r="6"
+                  fill="#fff"
+                  style={{
+                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
+                    offsetDistance: "0%",
+                    offsetRotate: "auto",
+                    willChange: "offset-distance",
+                  }}
+                />
               </svg>
             </div>
             <div style={st.boxText}>
-              <span className={`label-anim ${textScaleClass}`} style={st.boxLabel}>{label}</span>
-              <span style={st.boxCount}>{count}</span>
+              <span ref={labelRef} className="label-anim label-smooth" style={st.boxLabel}>{uiState.label}</span>
+              <span style={st.boxCount}>{uiState.count}</span>
             </div>
           </div>
         </div>
@@ -267,26 +306,7 @@ function ScreenStyles() {
         50% { box-shadow: 0 0 28px rgba(56,189,248,0.9); }
         100% { box-shadow: 0 0 12px rgba(56,189,248,0.3); }
       }
-      .snake-anim {
-        animation: snakeMove ${CYCLE_MS}ms linear infinite;
-      }
-      @keyframes snakeMove {
-        0% { stroke-dashoffset: 100; }
-        100% { stroke-dashoffset: 0; }
-      }
-      .dot-leader-anim {
-        offset-path: path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z");
-        animation: dotFollow ${CYCLE_MS}ms linear infinite;
-        offset-rotate: auto;
-      }
-      @keyframes dotFollow {
-        0% { offset-distance: 0%; }
-        100% { offset-distance: 100%; }
-      }
-      .label-anim { transition: transform 4s ease-in-out, color 0.3s; display: inline-block; }
-      .scale-up { transform: scale(1.2); color: #60a5fa; }
-      .scale-steady { transform: scale(1); color: #e2e8f0; }
-      .scale-down { transform: scale(0.85); color: #94a3b8; }
+      .label-anim { display: inline-block; transition: color 0.3s ease; }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
