@@ -24,6 +24,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
   const snakeRef = useRef<SVGRectElement>(null);
+  const snakeGlowRef = useRef<SVGRectElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
 
@@ -103,10 +104,13 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return prev;
       });
 
-      const tailLen = 20;
-      const dashOffset = 100 - (progress * 100) + tailLen;
+      const tailLen = 25;
+      const dashOffset = 100 - (progress * 100);
       if (snakeRef.current) {
         snakeRef.current.style.strokeDashoffset = dashOffset.toFixed(2);
+      }
+      if (snakeGlowRef.current) {
+        snakeGlowRef.current.style.strokeDashoffset = dashOffset.toFixed(2);
       }
       if (dotRef.current) {
         dotRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
@@ -182,13 +186,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.boxWrap}>
             <div style={st.svgContainer}>
               <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
-                <defs>
-                  <linearGradient id="tailGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.9" />
-                    <stop offset="70%" stopColor="#7dd3fc" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
@@ -196,17 +193,34 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   strokeWidth="4"
                 />
                 <rect
-                  ref={snakeRef}
+                  ref={snakeGlowRef}
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
-                  stroke="url(#tailGrad)"
-                  strokeWidth="5"
+                  stroke="#60a5fa"
+                  strokeWidth="12"
                   strokeLinecap="round"
                   pathLength="100"
                   style={{
-                    strokeDasharray: `20 80`,
-                    strokeDashoffset: "120",
-                    filter: "drop-shadow(0 0 10px rgba(125,211,252,0.65)) blur(0.6px)",
+                    strokeDasharray: `25 75`,
+                    strokeDashoffset: "125",
+                    strokeOpacity: 0.28,
+                    filter: "blur(4px)",
+                    willChange: "stroke-dashoffset",
+                  }}
+                />
+                <rect
+                  ref={snakeRef}
+                  x="10" y="10" width="220" height="220" rx="22" ry="22"
+                  fill="none"
+                  stroke="#60a5fa"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  pathLength="100"
+                  style={{
+                    strokeDasharray: `25 75`,
+                    strokeDashoffset: "125",
+                    strokeOpacity: 0.9,
+                    filter: "drop-shadow(0 0 2px rgba(96,165,250,0.8))",
                     willChange: "stroke-dashoffset",
                   }}
                 />
@@ -219,6 +233,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                     offsetDistance: "0%",
                     offsetRotate: "auto",
                     willChange: "offset-distance",
+                    filter: "drop-shadow(0 0 6px rgba(255,255,255,0.9))",
                   }}
                 />
               </svg>
