@@ -25,8 +25,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const hapticRef = useRef<number | null>(null);
   const dotRef = useRef<SVGCircleElement>(null);
   const dotGlowRef = useRef<SVGCircleElement>(null);
-  const frontGlowRef = useRef<SVGRectElement>(null);
-  const backGlowRef = useRef<SVGRectElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -114,14 +112,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       if (dotGlowRef.current) {
         dotGlowRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
       }
-      const frontLen = 10;
-      const backLen = 10;
-      if (frontGlowRef.current) {
-        frontGlowRef.current.style.strokeDashoffset = (100 - pos - frontLen).toFixed(2);
-      }
-      if (backGlowRef.current) {
-        backGlowRef.current.style.strokeDashoffset = (100 - pos + backLen).toFixed(2);
-      }
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -194,16 +184,16 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
             <div style={st.svgContainer}>
               <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
                 <defs>
-                  <linearGradient id="glowFront" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.9" />
-                    <stop offset="80%" stopColor="#7dd3fc" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0" />
-                  </linearGradient>
-                  <linearGradient id="glowBack" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0" />
-                    <stop offset="20%" stopColor="#7dd3fc" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.9" />
-                  </linearGradient>
+                  <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
+                    <stop offset="45%" stopColor="rgba(125,211,252,0.85)" />
+                    <stop offset="100%" stopColor="rgba(59,130,246,0.9)" />
+                  </radialGradient>
+                  <radialGradient id="dotAura" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="rgba(125,211,252,0.55)" />
+                    <stop offset="50%" stopColor="rgba(96,165,250,0.28)" />
+                    <stop offset="100%" stopColor="rgba(96,165,250,0)" />
+                  </radialGradient>
                 </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
@@ -211,40 +201,10 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   stroke="rgba(255,255,255,0.12)"
                   strokeWidth="4"
                 />
-                <rect
-                  ref={backGlowRef}
-                  x="10" y="10" width="220" height="220" rx="22" ry="22"
-                  fill="none"
-                  stroke="url(#glowBack)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  pathLength="100"
-                  style={{
-                    strokeDasharray: `10 90`,
-                    strokeDashoffset: "110",
-                    filter: "blur(2px)",
-                    willChange: "stroke-dashoffset",
-                  }}
-                />
-                <rect
-                  ref={frontGlowRef}
-                  x="10" y="10" width="220" height="220" rx="22" ry="22"
-                  fill="none"
-                  stroke="url(#glowFront)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  pathLength="100"
-                  style={{
-                    strokeDasharray: `10 90`,
-                    strokeDashoffset: "90",
-                    filter: "blur(2px)",
-                    willChange: "stroke-dashoffset",
-                  }}
-                />
                 <circle
                   ref={dotRef}
-                  r="6"
-                  fill="#fff"
+                  r="8"
+                  fill="url(#dotCore)"
                   style={{
                     offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
                     offsetDistance: "0%",
@@ -255,15 +215,15 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                 />
                 <circle
                   ref={dotGlowRef}
-                  r="12"
-                  fill="rgba(125,211,252,0.65)"
+                  r="20"
+                  fill="url(#dotAura)"
                   style={{
                     offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
                     offsetDistance: "0%",
                     offsetRotate: "auto",
                     willChange: "offset-distance",
-                    filter: "blur(6px)",
-                    opacity: 0.9,
+                    filter: "blur(10px)",
+                    opacity: 0.95,
                   }}
                 />
               </svg>
