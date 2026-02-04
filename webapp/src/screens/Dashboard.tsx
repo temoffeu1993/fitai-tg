@@ -1,5 +1,5 @@
 // webapp/src/screens/Dashboard.tsx
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
@@ -21,6 +21,25 @@ const XP_TIERS = [
 ];
 
 const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+const DS_ITEM_W = 64;
+const DS_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+
+function buildDsDates(range = 14) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(today.getDate() - range);
+  const out: { date: Date; iso: string; dow: string; day: number; isToday: boolean }[] = [];
+  for (let i = 0; i <= range * 2; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const iso = toISODate(d);
+    const isToday = iso === toISODate(today);
+    out.push({ date: d, iso, dow: isToday ? "Сегодня" : DS_DOW[d.getDay()], day: d.getDate(), isToday });
+  }
+  return out;
+}
 
 // ============================================================================
 // TYPES & HELPERS
@@ -350,6 +369,45 @@ export default function Dashboard() {
     };
   }, []);
 
+  // ---------- Date scroller ----------
+  const dsDates = useMemo(() => buildDsDates(14), []);
+  const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
+  const [dsActiveIdx, setDsActiveIdx] = useState(dsTodayIdx >= 0 ? dsTodayIdx : 14);
+  const dsScrollRef = useRef<HTMLDivElement>(null);
+  const dsRaf = useRef(0);
+
+  useEffect(() => {
+    const el = dsScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = dsActiveIdx * DS_ITEM_W;
+  }, []); // center on mount
+
+  const handleDsScroll = useCallback(() => {
+    cancelAnimationFrame(dsRaf.current);
+    dsRaf.current = requestAnimationFrame(() => {
+      const el = dsScrollRef.current;
+      if (!el) return;
+      const center = el.scrollLeft + el.clientWidth / 2;
+      const idx = Math.round((center - el.clientWidth / 2) / DS_ITEM_W);
+      setDsActiveIdx(Math.max(0, Math.min(idx, dsDates.length - 1)));
+    });
+  }, [dsDates.length]);
+
+  const getDotStatus = useCallback(
+    (d: Date): "completed" | "scheduled" | null => {
+      const iso = toISODate(d);
+      if (historyStats.completedDates.includes(iso)) return "completed";
+      const pw = plannedWorkouts.find(
+        (w) =>
+          w.scheduledFor?.slice(0, 10) === iso &&
+          (w.status === "scheduled" || w.status === "pending")
+      );
+      if (pw) return "scheduled";
+      return null;
+    },
+    [historyStats.completedDates, plannedWorkouts]
+  );
+
   // Computed values
   const todayISO = useMemo(() => toISODate(new Date()), []);
 
@@ -577,45 +635,62 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 2: Weekly Mini-Calendar */}
-      <section style={s.calendarCard} className="dash-fade dash-delay-2">
-        <div style={s.calendarRow}>
-          {weekDays.map((day, i) => {
-            const iso = toISODate(day);
-            const isToday = iso === todayISO;
-            const isCompleted = completedDatesSet.has(iso);
-            const hasPlanned = plannedDatesSet.has(iso);
-            return (
-              <div
-                key={i}
-                style={{ ...s.calDay, ...(isToday ? s.calDayToday : {}) }}
-              >
-                <div
-                  style={{
-                    ...s.calDayName,
-                    ...(isToday ? s.calDayNameToday : {}),
-                  }}
-                >
-                  {DAY_NAMES_SHORT[i]}
-                </div>
-                <div
-                  style={{
-                    ...s.calDayNum,
-                    ...(isToday ? s.calDayNumToday : {}),
-                  }}
-                >
-                  {day.getDate()}
-                </div>
-                <div style={s.calDotArea}>
-                  {isCompleted ? (
-                    <span style={s.calCheck}>✓</span>
-                  ) : hasPlanned ? (
-                    <span style={s.calDotMark} />
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
+      {/* BLOCK 2: Scrollable Date Picker */}
+      <section style={s.dsWrap} className="dash-fade dash-delay-2">
+        <style>{`
+          .ds-track::-webkit-scrollbar { display: none; }
+          .ds-item {
+            appearance: none; outline: none; border: none; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-x;
+          }
+        `}</style>
+        <div style={s.dsCard}>
+          <div style={s.dsScroller}>
+            <div style={s.dsIndicator} />
+            <div style={s.dsFadeL} />
+            <div style={s.dsFadeR} />
+            <div
+              ref={dsScrollRef}
+              style={s.dsTrack}
+              className="ds-track"
+              onScroll={handleDsScroll}
+            >
+              {dsDates.map((d, idx) => {
+                const active = idx === dsActiveIdx;
+                const dot = getDotStatus(d.date);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="ds-item"
+                    style={{ ...s.dsItem, scrollSnapAlign: "center" }}
+                    onClick={() => {
+                      setDsActiveIdx(idx);
+                      dsScrollRef.current?.scrollTo({ left: idx * DS_ITEM_W, behavior: "smooth" });
+                    }}
+                  >
+                    <span style={{ ...s.dsDow, ...(active ? s.dsDowActive : undefined) }}>
+                      {d.dow}
+                    </span>
+                    <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
+                      {d.day}
+                    </span>
+                    <span style={s.dsDotWrap}>
+                      {dot && (
+                        <span
+                          style={{
+                            ...s.dsDot,
+                            ...(dot === "completed" ? s.dsDotCompleted : s.dsDotScheduled),
+                          }}
+                        />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -907,64 +982,132 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(30, 31, 34, 0.7)",
   },
 
-  // ===== BLOCK 2: Weekly Calendar =====
-  calendarCard: {
-    ...glassCard,
-    padding: "12px 8px",
+  // ===== BLOCK 2: Date Scroller =====
+  dsWrap: {
+    marginBottom: 4,
   },
-  calendarRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: 0,
+  dsCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    overflow: "visible",
+    padding: "8px 0 6px",
   },
-  calDay: {
+  dsScroller: {
+    position: "relative",
+    overflow: "visible",
+    width: "100%",
+  },
+  dsIndicator: {
+    position: "absolute",
+    left: "50%",
+    top: 6,
+    width: 64,
+    height: 72,
+    transform: "translateX(-50%)",
+    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  dsFadeL: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 76,
+    background: "linear-gradient(90deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 3,
+    borderRadius: "18px 0 0 18px",
+  },
+  dsFadeR: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: 76,
+    background: "linear-gradient(270deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 3,
+    borderRadius: "0 18px 18px 0",
+  },
+  dsTrack: {
+    overflowX: "auto",
+    overflowY: "hidden",
+    whiteSpace: "nowrap",
+    scrollSnapType: "x proximity",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    padding: "10px 0 8px",
+    paddingLeft: "calc(50% - 32px)",
+    paddingRight: "calc(50% - 32px)",
+    position: "relative",
+    zIndex: 2,
     display: "flex",
+  } as React.CSSProperties,
+  dsItem: {
+    width: 64,
+    minWidth: 64,
+    display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
+    justifyContent: "center",
     gap: 2,
-    padding: "4px 0",
-    borderRadius: 12,
-  },
-  calDayToday: {
-    background: "rgba(30, 31, 34, 0.06)",
-  },
-  calDayName: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(30, 31, 34, 0.45)",
-    textTransform: "uppercase",
+    padding: 0,
+    background: "transparent",
+    cursor: "pointer",
+  } as React.CSSProperties,
+  dsDow: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.35)",
+    lineHeight: 1,
     letterSpacing: 0.3,
   },
-  calDayNameToday: {
+  dsDowActive: {
     color: "#1e1f22",
+    fontWeight: 600,
   },
-  calDayNum: {
-    fontSize: 16,
+  dsNum: {
+    fontSize: 24,
     fontWeight: 500,
-    color: "rgba(30, 31, 34, 0.7)",
+    color: "rgba(30,31,34,0.3)",
     lineHeight: 1.3,
   },
-  calDayNumToday: {
+  dsNumActive: {
+    color: "#111",
     fontWeight: 700,
-    color: "#1e1f22",
+    fontSize: 26,
   },
-  calDotArea: {
-    height: 14,
+  dsDotWrap: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    height: 12,
+    marginTop: 2,
   },
-  calDotMark: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "#1e1f22",
+  dsDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    position: "relative",
+  } as React.CSSProperties,
+  dsDotScheduled: {
+    background: "linear-gradient(180deg, #d4d4d8 0%, #a1a1aa 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -1px 1px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)",
   },
-  calCheck: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "#22c55e",
-    lineHeight: 1,
+  dsDotCompleted: {
+    background: "linear-gradient(180deg, #4ade80 0%, #22c55e 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 1px rgba(0,0,0,0.15), 0 1px 3px rgba(34,197,94,0.3)",
   },
 
   // ===== BLOCK 3: Next Action CTA =====
