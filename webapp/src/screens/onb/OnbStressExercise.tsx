@@ -23,7 +23,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
-  const mascotRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
+  const dotGlowRef = useRef<SVGCircleElement>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -91,11 +92,10 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return prev;
       });
 
-      // Move mascot along the square path.
+      // Move sphere along the square path.
       const pos = progress * 100;
-      if (mascotRef.current) {
-        mascotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
-      }
+      if (dotRef.current) dotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
+      if (dotGlowRef.current) dotGlowRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
 
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -161,14 +161,51 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
             </div>
             <div style={st.svgContainer}>
               <svg width="280" height="280" viewBox="0 0 240 240" style={st.svgBox}>
+                <defs>
+                  <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
+                    <stop offset="45%" stopColor="rgba(125,211,252,0.95)" />
+                    <stop offset="100%" stopColor="rgba(59,130,246,0.98)" />
+                  </radialGradient>
+                  <radialGradient id="dotAura" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="rgba(125,211,252,0.9)" />
+                    <stop offset="50%" stopColor="rgba(96,165,250,0.6)" />
+                    <stop offset="100%" stopColor="rgba(96,165,250,0)" />
+                  </radialGradient>
+                </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
                   stroke="rgba(226, 232, 240, 0.55)"
                   strokeWidth="6"
                 />
+                <circle
+                  ref={dotRef}
+                  r="12"
+                  fill="url(#dotCore)"
+                  style={{
+                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
+                    offsetDistance: "0%",
+                    offsetRotate: "auto",
+                    willChange: "offset-distance",
+                    filter: "drop-shadow(0 0 6px rgba(255,255,255,0.9))",
+                  }}
+                />
+                <circle
+                  ref={dotGlowRef}
+                  r="32"
+                  fill="url(#dotAura)"
+                  style={{
+                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
+                    offsetDistance: "0%",
+                    offsetRotate: "auto",
+                    willChange: "offset-distance",
+                    filter: "blur(12px)",
+                    opacity: 1,
+                  }}
+                />
               </svg>
-              <div ref={mascotRef} style={st.boxMascotWrap} className="aura-mascot">
+              <div style={st.boxMascotWrap} className="aura-mascot">
                 <div style={st.boxAura} className="box-aura" />
                 <img src={healImg} alt="" style={st.boxMascot} className="mascot-float" />
               </div>
@@ -393,7 +430,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "relative",
     display: "grid",
     justifyItems: "center",
-    gap: 14,
+    gap: 0,
     zIndex: 2,
   },
   svgContainer: {
@@ -410,6 +447,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
+    marginBottom: 18,
   },
   boxLabel: {
     fontSize: 18,
@@ -419,7 +457,7 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCount: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: 400,
     fontVariantNumeric: "tabular-nums",
     lineHeight: 1,
@@ -430,6 +468,7 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 22,
+    marginTop: 18,
   },
   boxMascotWrap: {
     position: "absolute",
@@ -439,9 +478,6 @@ const st: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     pointerEvents: "none",
     willChange: "transform",
-    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
-    offsetDistance: "0%",
-    offsetRotate: "auto",
   },
   boxAura: {
     position: "absolute",
