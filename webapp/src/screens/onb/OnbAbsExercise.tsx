@@ -1,6 +1,7 @@
 // Vacuum (abs) mini exercise: intro → breath → vacuum hold → result
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
+import healthRobotImg from "@/assets/heals.webp";
 import absImg from "@/assets/zhenzhiv.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
@@ -22,9 +23,10 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [showContent, setShowContent] = useState(false);
   const [breathStep, setBreathStep] = useState<BreathStep>("inhale");
-  const [secondsLeft, setSecondsLeft] = useState(HOLD_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(HOLD_SECONDS * 1000);
   const confettiRef = useRef<HTMLDivElement>(null);
   const breathHapticRef = useRef<number | null>(null);
+  const finalHapticRef = useRef<number | null>(null);
   const holdTimerRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
@@ -47,6 +49,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
   useEffect(() => {
     return () => {
       if (breathHapticRef.current) clearInterval(breathHapticRef.current);
+      if (finalHapticRef.current) clearInterval(finalHapticRef.current);
       if (holdTimerRef.current) clearInterval(holdTimerRef.current);
     };
   }, []);
@@ -111,16 +114,41 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
     };
   }, [phase, breathStep]);
 
+  // Stronger, faster haptics on final exhale (3-4s)
+  useEffect(() => {
+    if (finalHapticRef.current) {
+      clearInterval(finalHapticRef.current);
+      finalHapticRef.current = null;
+    }
+    if (phase !== "breath") return;
+    if (breathStep !== "final-exhale") return;
+    let elapsed = 0;
+    finalHapticRef.current = window.setInterval(() => {
+      elapsed += 1;
+      // ramp: medium → heavy
+      fireHapticImpact(elapsed < 6 ? "medium" : "heavy");
+    }, 220);
+    const stop = window.setTimeout(() => {
+      if (finalHapticRef.current) clearInterval(finalHapticRef.current);
+      finalHapticRef.current = null;
+    }, FINAL_EXHALE_MS);
+    return () => {
+      clearTimeout(stop);
+      if (finalHapticRef.current) clearInterval(finalHapticRef.current);
+      finalHapticRef.current = null;
+    };
+  }, [phase, breathStep]);
+
   const startHold = () => {
     setPhase("hold");
-    setSecondsLeft(HOLD_SECONDS);
+    setTimeLeft(HOLD_SECONDS * 1000);
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
     const startedAt = Date.now();
     holdTimerRef.current = window.setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-      const left = Math.max(0, HOLD_SECONDS - elapsed);
-      setSecondsLeft(left);
-      if (left <= 0) {
+      const elapsedMs = Date.now() - startedAt;
+      const leftMs = Math.max(0, HOLD_SECONDS * 1000 - elapsedMs);
+      setTimeLeft(leftMs);
+      if (leftMs <= 0) {
         if (holdTimerRef.current) clearInterval(holdTimerRef.current);
         finishHold();
       }
@@ -187,12 +215,19 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
                 <span style={st.rippleRing3} />
               </div>
               <img
-                src={morobotImg}
+                src={healthRobotImg}
                 alt=""
                 style={st.breathMascot}
                 className={breathStep === "final-exhale" ? "breath-sharp" : "breath-cycle"}
               />
-              <div key={breathStep} style={st.breathText}>
+              <div
+                key={breathStep}
+                style={{
+                  ...st.breathText,
+                  fontWeight: breathStep === "final-exhale" ? 600 : st.breathText.fontWeight,
+                  fontSize: breathStep === "final-exhale" ? 20 : st.breathText.fontSize,
+                }}
+              >
                 {breathText}
               </div>
             </>
@@ -210,7 +245,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
                 </div>
               </div>
               <div style={st.sphereTextBottom}>Пупок должен прилипнуть к позвоночнику</div>
-              <div style={st.timerText}>{secondsLeft} сек</div>
+              <div style={st.timerText}>{formatMs(timeLeft)}</div>
             </div>
           )}
 
@@ -291,9 +326,9 @@ function ScreenStyles() {
       .aura-cycle { animation: auraCycle 8000ms ease-in-out infinite; }
       .breath-cycle { animation: breathCycle 8000ms ease-in-out infinite; }
       .ripple-cycle { animation: rippleCycle 8000ms ease-in-out infinite; }
-      .aura-sharp { animation: auraSharp 420ms ease-out both; }
-      .breath-sharp { animation: breathSharp 420ms ease-out both; }
-      .ripple-sharp { animation: rippleSharp 420ms ease-out both; }
+      .aura-sharp { animation: auraSharp 3200ms ease-out both; }
+      .breath-sharp { animation: breathSharp 3200ms ease-out both; }
+      .ripple-sharp { animation: rippleSharp 3200ms ease-out both; }
       @keyframes breathCycle {
         0% { transform: translateY(10px) scale(0.98); }
         50% { transform: translateY(-16px) scale(1.03); }
@@ -311,25 +346,24 @@ function ScreenStyles() {
       }
       @keyframes auraSharp {
         0% { transform: scale(1.02); opacity: 0.8; }
-        100% { transform: scale(0.86); opacity: 0.5; }
+        100% { transform: scale(0.76); opacity: 0.45; }
       }
       @keyframes breathSharp {
         0% { transform: translateY(-6px) scale(1.02); }
-        100% { transform: translateY(0) scale(0.92); }
+        100% { transform: translateY(4px) scale(0.88); }
       }
       @keyframes rippleSharp {
         0% { transform: scale(1.06); opacity: 0.9; }
-        100% { transform: scale(0.85); opacity: 0.4; }
+        100% { transform: scale(0.78); opacity: 0.35; }
       }
-      @keyframes spherePulse {
+      @keyframes sphereShrink {
         0% { transform: scale(1); }
-        50% { transform: scale(0.96); }
-        100% { transform: scale(1); }
+        100% { transform: scale(0.92); }
       }
       @keyframes ringIn {
-        0% { transform: scale(1.18); opacity: 0.0; }
+        0% { transform: scale(1.22); opacity: 0.0; }
         40% { opacity: 0.35; }
-        100% { transform: scale(0.78); opacity: 0.05; }
+        100% { transform: scale(0.72); opacity: 0.05; }
       }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
@@ -341,6 +375,13 @@ function ScreenStyles() {
       }
     `}</style>
   );
+}
+
+function formatMs(ms: number) {
+  const totalSeconds = Math.max(0, ms) / 1000;
+  const seconds = Math.floor(totalSeconds);
+  const millis = Math.floor((totalSeconds - seconds) * 10);
+  return `${seconds}.${millis}`;
 }
 
 const st: Record<string, React.CSSProperties> = {
@@ -357,58 +398,71 @@ const st: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
   },
   introHero: {
-    display: "grid",
-    placeItems: "center",
-    marginTop: 8,
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    flex: "0 0 auto",
+    paddingTop: 0,
   },
   introImageWrap: {
-    width: 220,
-    height: 220,
-    display: "grid",
-    placeItems: "center",
+    position: "relative",
+    width: "min(864px, 95vw)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   introImage: {
-    width: 200,
+    width: "100%",
     height: "auto",
+    maxHeight: "55vh",
     objectFit: "contain",
+    transform: "translateY(36px) scale(0.95)",
+    transformOrigin: "center bottom",
   },
   introFooter: {
+    width: "100%",
     display: "grid",
     gap: 18,
-    justifyItems: "center",
-    textAlign: "center",
+    paddingBottom: 18,
   },
   introTextBlock: {
+    width: "100%",
+    textAlign: "center",
     display: "grid",
     gap: 10,
+    marginTop: -14,
   },
   introTitle: {
     margin: 0,
-    fontSize: 34,
-    lineHeight: 1.1,
-    fontWeight: 700,
+    fontSize: 42,
+    lineHeight: 1.05,
+    fontWeight: 900,
     letterSpacing: -0.8,
   },
   introSubtitle: {
     margin: 0,
-    fontSize: 16,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.7)",
-    maxWidth: 360,
+    fontSize: 15,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, .65)",
+    maxWidth: 340,
+    marginLeft: "auto",
+    marginRight: "auto",
   },
   introPrimaryBtn: {
+    marginTop: 6,
     width: "100%",
-    borderRadius: 16,
+    maxWidth: 420,
+    borderRadius: 22,
     padding: "16px 18px",
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontSize: 18,
     fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
-    textAlign: "center",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-    maxWidth: 420,
+    WebkitTapHighlightColor: "transparent",
   },
 
   breathStage: {
@@ -538,7 +592,7 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45) 0%, rgba(125,211,252,0.55) 35%, rgba(59,130,246,0.65) 70%)",
     boxShadow: "0 14px 40px rgba(59,130,246,0.35)",
-    animation: "spherePulse 2.4s ease-in-out infinite",
+    animation: "sphereShrink 7s ease-in-out forwards",
   },
   sphereRings: {
     position: "absolute",
@@ -604,16 +658,13 @@ const st: Record<string, React.CSSProperties> = {
     zIndex: 80,
   },
   resultWrap: {
-    position: "fixed",
-    inset: 0,
+    flex: 1,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
-    padding: "24px 20px 140px",
-    background: "transparent",
-    zIndex: 70,
+    gap: 0,
+    minHeight: "60vh",
   },
   successBubbleWrap: {
     display: "flex",
@@ -622,32 +673,43 @@ const st: Record<string, React.CSSProperties> = {
   },
   successBubble: {
     position: "relative",
-    maxWidth: 320,
-    padding: "14px 16px",
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.9)",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
+    padding: "20px 24px",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     textAlign: "center",
+    maxWidth: 340,
   },
   successBubbleText: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "#1e1f22",
+    whiteSpace: "pre-line",
   },
   successMascotWrap: {
-    width: 220,
-    display: "grid",
-    placeItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    marginTop: -4,
   },
   successMascotImg: {
-    width: 180,
+    width: 220,
     height: "auto",
+    objectFit: "contain",
   },
   actions: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
     display: "grid",
     gap: 10,
-    width: "100%",
-    maxWidth: 360,
+    background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
+    zIndex: 10,
   },
   nextBtn: {
     width: "100%",
@@ -657,8 +719,9 @@ const st: Record<string, React.CSSProperties> = {
     background: "#1e1f22",
     color: "#fff",
     fontSize: 18,
-    fontWeight: 600,
+    fontWeight: 500,
     cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   backBtn: {
     width: "100%",
