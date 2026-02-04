@@ -23,9 +23,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
-  const dotRef = useRef<SVGCircleElement>(null);
-  const dotGlowRef = useRef<SVGCircleElement>(null);
-  const labelRef = useRef<HTMLDivElement>(null);
+  const mascotRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -75,7 +73,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
       let currentLabel = "Вдох";
-      const scaleVal = 1;
 
       if (stepIndex === 0) {
         currentLabel = "Вдох";
@@ -87,12 +84,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         currentLabel = "Задержка";
       }
 
-      if (labelRef.current) {
-        labelRef.current.style.transform = `translate(-50%, -50%) scale(${scaleVal})`;
-        labelRef.current.style.opacity = stepIndex === 3 ? "0.7" : "1";
-        labelRef.current.style.color = stepIndex === 0 ? "#60a5fa" : stepIndex === 2 ? "#94a3b8" : "#e2e8f0";
-      }
-
       setUiState((prev) => {
         if (prev.label !== currentLabel || prev.count !== currentCount) {
           return { label: currentLabel, count: currentCount };
@@ -100,13 +91,10 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return prev;
       });
 
-      // Only move the dot along the path.
+      // Move mascot along the square path.
       const pos = progress * 100;
-      if (dotRef.current) {
-        dotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
-      }
-      if (dotGlowRef.current) {
-        dotGlowRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
+      if (mascotRef.current) {
+        mascotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -166,57 +154,26 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         <div style={st.boxStage} className="onb-success-in">
           <div style={st.boxBackdrop} />
           <div style={st.boxWrap}>
+            <div style={st.boxLabelTop}>
+              <span className="label-anim label-smooth label-pop" style={st.boxLabel}>
+                {uiState.label}
+              </span>
+            </div>
             <div style={st.svgContainer}>
               <svg width="280" height="280" viewBox="0 0 240 240" style={st.svgBox}>
-                <defs>
-                  <radialGradient id="dotCore" cx="35%" cy="30%" r="70%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
-                    <stop offset="45%" stopColor="rgba(125,211,252,0.95)" />
-                    <stop offset="100%" stopColor="rgba(59,130,246,0.98)" />
-                  </radialGradient>
-                  <radialGradient id="dotAura" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="rgba(125,211,252,0.9)" />
-                    <stop offset="50%" stopColor="rgba(96,165,250,0.6)" />
-                    <stop offset="100%" stopColor="rgba(96,165,250,0)" />
-                  </radialGradient>
-                </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
                   stroke="rgba(226, 232, 240, 0.55)"
                   strokeWidth="6"
                 />
-                <circle
-                  ref={dotRef}
-                  r="12"
-                  fill="url(#dotCore)"
-                  style={{
-                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
-                    offsetDistance: "0%",
-                    offsetRotate: "auto",
-                    willChange: "offset-distance",
-                    filter: "drop-shadow(0 0 6px rgba(255,255,255,0.9))",
-                  }}
-                />
-                <circle
-                  ref={dotGlowRef}
-                  r="32"
-                  fill="url(#dotAura)"
-                  style={{
-                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
-                    offsetDistance: "0%",
-                    offsetRotate: "auto",
-                    willChange: "offset-distance",
-                    filter: "blur(12px)",
-                    opacity: 1,
-                  }}
-                />
               </svg>
+              <div ref={mascotRef} style={st.boxMascotWrap} className="aura-mascot">
+                <div style={st.boxAura} className="box-aura" />
+                <img src={healImg} alt="" style={st.boxMascot} className="mascot-float" />
+              </div>
             </div>
-            <div ref={labelRef} style={st.boxText}>
-              <span key={uiState.label} className="label-anim label-smooth label-pop" style={st.boxLabel}>
-                {uiState.label}
-              </span>
+            <div style={st.boxCountBottom}>
               <span key={`${uiState.label}-${uiState.count}`} className="count-anim" style={st.boxCount}>
                 {uiState.count}
               </span>
@@ -310,6 +267,18 @@ function ScreenStyles() {
       @keyframes labelPop {
         0% { opacity: 0; transform: translateY(6px); }
         100% { opacity: 1; transform: translateY(0); }
+      }
+      .box-aura { animation: auraPulse 2.8s ease-in-out infinite; }
+      .mascot-float { animation: mascotFloat 3.6s ease-in-out infinite; }
+      @keyframes auraPulse {
+        0% { opacity: 0.55; transform: scale(0.96); }
+        50% { opacity: 0.85; transform: scale(1.02); }
+        100% { opacity: 0.6; transform: scale(0.96); }
+      }
+      @keyframes mascotFloat {
+        0% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-10px) scale(1.01); }
+        100% { transform: translateY(0) scale(1); }
       }
       @keyframes successPopIn {
         0% { opacity: 0; transform: translateY(18px) scale(0.98); }
@@ -424,7 +393,7 @@ const st: Record<string, React.CSSProperties> = {
     position: "relative",
     display: "grid",
     justifyItems: "center",
-    gap: 18,
+    gap: 14,
     zIndex: 2,
   },
   svgContainer: {
@@ -436,18 +405,11 @@ const st: Record<string, React.CSSProperties> = {
     overflow: "visible",
     display: "block",
   },
-  boxText: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    display: "grid",
-    gap: 18,
-    textAlign: "center",
-    color: "rgba(226, 232, 240, 0.9)",
-    willChange: "transform",
-    pointerEvents: "none",
-    zIndex: 10,
+  boxLabelTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 22,
   },
   boxLabel: {
     fontSize: 18,
@@ -457,11 +419,44 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxCount: {
-    fontSize: 72,
-    fontWeight: 900,
+    fontSize: 18,
+    fontWeight: 400,
     fontVariantNumeric: "tabular-nums",
     lineHeight: 1,
     color: "rgba(226, 232, 240, 0.85)",
+  },
+  boxCountBottom: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 22,
+  },
+  boxMascotWrap: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+    willChange: "transform",
+    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 L 10 220")`,
+    offsetDistance: "0%",
+    offsetRotate: "auto",
+  },
+  boxAura: {
+    position: "absolute",
+    width: "78%",
+    height: "78%",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(120,255,230,0.3) 0%, rgba(120,255,230,0.14) 45%, rgba(120,255,230,0) 72%)",
+    filter: "blur(16px)",
+    opacity: 0.6,
+  },
+  boxMascot: {
+    width: "58%",
+    height: "auto",
+    objectFit: "contain",
+    filter: "drop-shadow(0 10px 22px rgba(0,0,0,0.5))",
   },
 
   resultWrap: {
