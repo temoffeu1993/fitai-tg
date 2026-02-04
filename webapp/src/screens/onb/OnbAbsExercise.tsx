@@ -202,6 +202,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
           <div style={st.breathBackdrop} />
           {phase !== "hold" && (
             <>
+              <div style={st.breathTopText}>Настройка</div>
               <div style={st.breathAuraWrap} className={breathStep === "final-exhale" ? "aura-sharp" : "aura-cycle"}>
                 <span style={st.auraGlow} />
                 <span style={st.auraRing1} />
@@ -237,6 +238,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
             <div style={st.sphereStage}>
               <div style={st.sphereTextTop}>Втяни живот под рёбра</div>
               <div style={st.sphereWrap}>
+                <div style={st.sphereAura} />
                 <div style={st.sphere} />
                 <div style={st.sphereRings}>
                   <span style={st.sphereRing1} />
@@ -264,7 +266,7 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
           <div style={st.successBubbleWrap} className="onb-success-in">
             <div style={st.successBubble} className="speech-bubble-bottom">
               <span style={st.successBubbleText}>
-                Еее! Ваша талия уже шлет благодарности. Крутой старт!
+                Еее🔥 Ваша талия уже шлет благодарности, крутой старт!
               </span>
             </div>
           </div>
@@ -358,7 +360,12 @@ function ScreenStyles() {
       }
       @keyframes sphereShrink {
         0% { transform: scale(1); }
-        100% { transform: scale(0.92); }
+        100% { transform: scale(0.86); }
+      }
+      @keyframes fireGlow {
+        0% { opacity: 0.5; transform: scale(0.98); }
+        50% { opacity: 0.85; transform: scale(1.05); }
+        100% { opacity: 0.55; transform: scale(0.98); }
       }
       @keyframes ringIn {
         0% { transform: scale(1.22); opacity: 0.0; }
@@ -378,10 +385,12 @@ function ScreenStyles() {
 }
 
 function formatMs(ms: number) {
-  const totalSeconds = Math.max(0, ms) / 1000;
-  const seconds = Math.floor(totalSeconds);
-  const millis = Math.floor((totalSeconds - seconds) * 10);
-  return `${seconds}.${millis}`;
+  const safe = Math.max(0, Math.floor(ms));
+  const seconds = Math.floor(safe / 1000);
+  const centis = Math.floor((safe % 1000) / 10);
+  const secStr = String(seconds).padStart(2, "0");
+  const centiStr = String(centis).padStart(2, "0");
+  return `${secStr},${centiStr}`;
 }
 
 const st: Record<string, React.CSSProperties> = {
@@ -562,6 +571,16 @@ const st: Record<string, React.CSSProperties> = {
     textAlign: "center",
     zIndex: 4,
   },
+  breathTopText: {
+    position: "absolute",
+    top: "14%",
+    fontSize: 18,
+    fontWeight: 400,
+    color: "rgba(226, 232, 240, 0.85)",
+    lineHeight: 1.5,
+    textShadow: "0 6px 18px rgba(0,0,0,0.45)",
+    zIndex: 4,
+  },
 
   sphereStage: {
     display: "grid",
@@ -574,25 +593,35 @@ const st: Record<string, React.CSSProperties> = {
     fontSize: 22,
     fontWeight: 600,
     color: "#e2e8f0",
+    marginBottom: 8,
   },
   sphereTextBottom: {
     fontSize: 16,
     fontWeight: 500,
     color: "rgba(226, 232, 240, 0.7)",
     maxWidth: 300,
+    marginTop: 8,
   },
   sphereWrap: {
     position: "relative",
     width: 220,
     height: 220,
   },
+  sphereAura: {
+    position: "absolute",
+    inset: -22,
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(255,154,60,0.55) 0%, rgba(255,120,30,0.28) 45%, rgba(255,120,30,0) 72%)",
+    filter: "blur(20px)",
+    animation: "fireGlow 2.8s ease-in-out infinite",
+  },
   sphere: {
     position: "absolute",
     inset: 0,
     borderRadius: "50%",
-    background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45) 0%, rgba(125,211,252,0.55) 35%, rgba(59,130,246,0.65) 70%)",
-    boxShadow: "0 14px 40px rgba(59,130,246,0.35)",
-    animation: "sphereShrink 7s ease-in-out forwards",
+    background: "radial-gradient(circle at 35% 30%, rgba(255,244,214,0.65) 0%, rgba(253,186,116,0.75) 35%, rgba(249,115,22,0.85) 70%)",
+    boxShadow: "0 14px 40px rgba(249,115,22,0.45)",
+    animation: "sphereShrink 4.8s ease-in-out forwards",
   },
   sphereRings: {
     position: "absolute",
@@ -603,21 +632,21 @@ const st: Record<string, React.CSSProperties> = {
     position: "absolute",
     inset: 0,
     borderRadius: "50%",
-    border: "1px solid rgba(147,197,253,0.45)",
+    border: "1px solid rgba(253,186,116,0.45)",
     animation: "ringIn 2.4s ease-in-out infinite",
   },
   sphereRing2: {
     position: "absolute",
     inset: 22,
     borderRadius: "50%",
-    border: "1px solid rgba(147,197,253,0.35)",
+    border: "1px solid rgba(253,186,116,0.35)",
     animation: "ringIn 2.4s ease-in-out infinite 0.4s",
   },
   sphereRing3: {
     position: "absolute",
     inset: 44,
     borderRadius: "50%",
-    border: "1px solid rgba(147,197,253,0.25)",
+    border: "1px solid rgba(253,186,116,0.25)",
     animation: "ringIn 2.4s ease-in-out infinite 0.8s",
   },
   timerText: {
