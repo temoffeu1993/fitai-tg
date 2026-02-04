@@ -25,6 +25,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const hapticRef = useRef<number | null>(null);
   const dotRef = useRef<SVGCircleElement>(null);
   const dotGlowRef = useRef<SVGCircleElement>(null);
+  const frontGlowRef = useRef<SVGRectElement>(null);
+  const backGlowRef = useRef<SVGRectElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -105,11 +107,20 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       });
 
       // Only move the dot along the path.
+      const pos = progress * 100;
       if (dotRef.current) {
-        dotRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
+        dotRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
       }
       if (dotGlowRef.current) {
-        dotGlowRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
+        dotGlowRef.current.style.offsetDistance = `${pos.toFixed(2)}%`;
+      }
+      const frontLen = 10;
+      const backLen = 10;
+      if (frontGlowRef.current) {
+        frontGlowRef.current.style.strokeDashoffset = (100 - pos - frontLen).toFixed(2);
+      }
+      if (backGlowRef.current) {
+        backGlowRef.current.style.strokeDashoffset = (100 - pos + backLen).toFixed(2);
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -182,11 +193,53 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.boxWrap}>
             <div style={st.svgContainer}>
               <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
+                <defs>
+                  <linearGradient id="glowFront" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.9" />
+                    <stop offset="80%" stopColor="#7dd3fc" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="glowBack" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0" />
+                    <stop offset="20%" stopColor="#7dd3fc" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.9" />
+                  </linearGradient>
+                </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
                   stroke="rgba(255,255,255,0.12)"
                   strokeWidth="4"
+                />
+                <rect
+                  ref={backGlowRef}
+                  x="10" y="10" width="220" height="220" rx="22" ry="22"
+                  fill="none"
+                  stroke="url(#glowBack)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  pathLength="100"
+                  style={{
+                    strokeDasharray: `10 90`,
+                    strokeDashoffset: "110",
+                    filter: "blur(2px)",
+                    willChange: "stroke-dashoffset",
+                  }}
+                />
+                <rect
+                  ref={frontGlowRef}
+                  x="10" y="10" width="220" height="220" rx="22" ry="22"
+                  fill="none"
+                  stroke="url(#glowFront)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  pathLength="100"
+                  style={{
+                    strokeDasharray: `10 90`,
+                    strokeDashoffset: "90",
+                    filter: "blur(2px)",
+                    willChange: "stroke-dashoffset",
+                  }}
                 />
                 <circle
                   ref={dotRef}
