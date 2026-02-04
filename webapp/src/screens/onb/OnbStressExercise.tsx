@@ -23,9 +23,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
-  const snakeRef = useRef<SVGRectElement>(null);
-  const snakeGlowRef = useRef<SVGRectElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
+  const dotGlowRef = useRef<SVGCircleElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -105,16 +104,12 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return prev;
       });
 
-      const tailLen = 25;
-      const dashOffset = 100 - (progress * 100);
-      if (snakeRef.current) {
-        snakeRef.current.style.strokeDashoffset = dashOffset.toFixed(2);
-      }
-      if (snakeGlowRef.current) {
-        snakeGlowRef.current.style.strokeDashoffset = dashOffset.toFixed(2);
-      }
+      // Only move the dot along the path.
       if (dotRef.current) {
         dotRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
+      }
+      if (dotGlowRef.current) {
+        dotGlowRef.current.style.offsetDistance = `${(progress * 100).toFixed(2)}%`;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -193,38 +188,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                   stroke="rgba(255,255,255,0.12)"
                   strokeWidth="4"
                 />
-                <rect
-                  ref={snakeGlowRef}
-                  x="10" y="10" width="220" height="220" rx="22" ry="22"
-                  fill="none"
-                  stroke="#60a5fa"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                  pathLength="100"
-                  style={{
-                    strokeDasharray: `25 75`,
-                    strokeDashoffset: "125",
-                    strokeOpacity: 0.28,
-                    filter: "blur(4px)",
-                    willChange: "stroke-dashoffset",
-                  }}
-                />
-                <rect
-                  ref={snakeRef}
-                  x="10" y="10" width="220" height="220" rx="22" ry="22"
-                  fill="none"
-                  stroke="#60a5fa"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  pathLength="100"
-                  style={{
-                    strokeDasharray: `25 75`,
-                    strokeDashoffset: "125",
-                    strokeOpacity: 0.9,
-                    filter: "drop-shadow(0 0 2px rgba(96,165,250,0.8))",
-                    willChange: "stroke-dashoffset",
-                  }}
-                />
                 <circle
                   ref={dotRef}
                   r="6"
@@ -235,6 +198,19 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                     offsetRotate: "auto",
                     willChange: "offset-distance",
                     filter: "drop-shadow(0 0 6px rgba(255,255,255,0.9))",
+                  }}
+                />
+                <circle
+                  ref={dotGlowRef}
+                  r="12"
+                  fill="rgba(125,211,252,0.65)"
+                  style={{
+                    offsetPath: `path("M 10 220 L 10 32 A 22 22 0 0 1 32 10 L 208 10 A 22 22 0 0 1 230 32 L 230 208 A 22 22 0 0 1 208 230 L 32 230 A 22 22 0 0 1 10 208 Z")`,
+                    offsetDistance: "0%",
+                    offsetRotate: "auto",
+                    willChange: "offset-distance",
+                    filter: "blur(6px)",
+                    opacity: 0.9,
                   }}
                 />
               </svg>
