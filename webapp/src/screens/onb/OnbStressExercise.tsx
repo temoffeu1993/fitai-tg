@@ -4,7 +4,7 @@ import healImg from "@/assets/heals.webp";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
-type Phase = "intro" | "leaving" | "box" | "box-leaving" | "result";
+type Phase = "intro" | "leaving" | "box" | "result";
 
 const SEGMENT_MS = 4000;
 const CYCLE_MS = SEGMENT_MS * 4; // inhale, hold, exhale, hold
@@ -66,8 +66,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       const now = performance.now();
       const elapsed = now - startTimeRef.current;
       if (elapsed >= TOTAL_MS) {
-        setPhase("box-leaving");
-        window.setTimeout(() => setPhase("result"), 280);
+        setPhase("result");
         return;
       }
       const cycleElapsed = elapsed % CYCLE_MS;
@@ -78,11 +77,11 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       let currentLabel = "Вдох";
 
       if (stepIndex === 0) {
-        currentLabel = "Вдох";
+        currentLabel = "Глубокий вдох";
       } else if (stepIndex === 1) {
         currentLabel = "Задержка";
       } else if (stepIndex === 2) {
-        currentLabel = "Выдох";
+        currentLabel = "Спокойный выдох";
       } else {
         currentLabel = "Задержка";
       }
@@ -171,8 +170,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         </>
       )}
 
-      {(phase === "box" || phase === "box-leaving") && (
-        <div style={st.boxStage} className={phase === "box-leaving" ? "onb-leave" : "onb-success-in"}>
+      {phase === "box" && (
+        <div style={st.boxStage} className="onb-success-in">
           <div style={st.boxBackdrop} />
           <div style={st.boxColumn}>
             <div style={st.boxLabelTop}>
@@ -243,7 +242,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       )}
 
       {phase === "result" && (
-        <div style={st.resultWrap} className="onb-success-in">
+        <div style={st.resultWrap}>
           <div style={st.successBubbleWrap} className="onb-success-in">
             <div style={st.successBubble} className="speech-bubble-bottom">
               <span style={st.successBubbleText}>
