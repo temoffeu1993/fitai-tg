@@ -20,6 +20,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [showContent, setShowContent] = useState(false);
   const [uiState, setUiState] = useState({ label: "Вдох", count: 1 });
+  const [showReady, setShowReady] = useState(false);
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const hapticRef = useRef<number | null>(null);
@@ -75,6 +76,8 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
       let currentLabel = "Вдох";
+      const cyclesDone = Math.floor(elapsed / CYCLE_MS);
+      const isFinalCycle = cyclesDone >= TOTAL_CYCLES - 1;
 
       if (stepIndex === 0) {
         currentLabel = "Глубокий вдох";
@@ -108,6 +111,7 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         }
         return prev;
       });
+      setShowReady(isFinalCycle && stepIndex === 3);
 
       // Move sphere along the square path.
       const pos = (elapsed / CYCLE_MS) * 100;
@@ -233,9 +237,11 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
               </div>
             </div>
             <div style={st.boxCountBottom}>
-              <span key={`${uiState.label}-${uiState.count}`} className="count-anim" style={st.boxCount}>
-                {uiState.count}
-              </span>
+              {showReady && (
+                <span className="ready-anim" style={st.boxReadyText}>
+                  Готово
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -318,12 +324,17 @@ function ScreenStyles() {
       }
       .label-anim { display: inline-block; transition: color 0.3s ease; }
       .label-pop { animation: labelPop 420ms ease-in-out; }
+      .ready-anim { animation: readyFade 480ms ease-out both; }
       .count-anim { display: inline-block; animation: countPop 420ms ease-in-out; }
       @keyframes countPop {
         0% { opacity: 0; transform: translateY(8px) scale(0.98); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes labelPop {
+        0% { opacity: 0; transform: translateY(6px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes readyFade {
         0% { opacity: 0; transform: translateY(6px); }
         100% { opacity: 1; transform: translateY(0); }
       }
@@ -471,7 +482,7 @@ const st: Record<string, React.CSSProperties> = {
     marginBottom: 72,
   },
   boxLabel: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 400,
     letterSpacing: 1,
     color: "rgba(226, 232, 240, 0.85)",
@@ -482,6 +493,11 @@ const st: Record<string, React.CSSProperties> = {
     fontVariantNumeric: "tabular-nums",
     lineHeight: 1,
     color: "rgba(226, 232, 240, 0.85)",
+  },
+  boxReadyText: {
+    fontSize: 20,
+    fontWeight: 500,
+    color: "rgba(226, 232, 240, 0.9)",
   },
   boxCountBottom: {
     display: "flex",
