@@ -116,7 +116,9 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           : "Задержка";
 
   const cyclePos = (elapsed % CYCLE_MS) / CYCLE_MS;
-  const dashOffset = 100 - cyclePos * 100;
+  const headPos = cyclePos * 100;
+  const tailLen = 12;
+  const dashOffset = 100 - headPos + tailLen;
   const textScaleClass =
     segmentIndex === 0 ? "scale-up" :
     segmentIndex === 2 ? "scale-down" : "scale-steady";
@@ -152,6 +154,13 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
           <div style={st.boxWrap}>
             <div style={st.svgContainer}>
               <svg width="240" height="240" viewBox="0 0 240 240" style={st.svgBox}>
+                <defs>
+                  <linearGradient id="tailGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.9" />
+                    <stop offset="70%" stopColor="#7dd3fc" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
@@ -161,15 +170,15 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
                 <rect
                   x="10" y="10" width="220" height="220" rx="22" ry="22"
                   fill="none"
-                  stroke="#60a5fa"
-                  strokeWidth="6"
+                  stroke="url(#tailGrad)"
+                  strokeWidth="5"
                   strokeLinecap="round"
                   pathLength="100"
                   className="snake-anim"
                   style={{
-                    strokeDasharray: "25 75",
+                    strokeDasharray: `${tailLen} ${100 - tailLen}`,
                     strokeDashoffset: `${dashOffset}`,
-                    filter: "drop-shadow(0 0 8px rgba(96,165,250,0.6))",
+                    filter: "drop-shadow(0 0 10px rgba(125,211,252,0.65)) blur(0.6px)",
                   }}
                 />
                 <circle r="6" fill="#fff" className="dot-leader-anim" />
