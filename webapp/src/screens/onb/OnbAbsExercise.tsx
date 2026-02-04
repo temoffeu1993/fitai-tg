@@ -251,13 +251,6 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
             </div>
           )}
 
-          {phase === "hold" && (
-            <div style={st.bottomAction}>
-              <button type="button" style={st.stopBtnFull} className="intro-primary-btn" onClick={finishHold}>
-                Стоп
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -360,12 +353,13 @@ function ScreenStyles() {
       }
       @keyframes sphereShrink {
         0% { transform: scale(1); }
-        100% { transform: scale(0.86); }
+        100% { transform: scale(0.8); }
       }
       @keyframes fireGlow {
-        0% { opacity: 0.5; transform: scale(0.98); }
-        50% { opacity: 0.85; transform: scale(1.05); }
-        100% { opacity: 0.55; transform: scale(0.98); }
+        0% { opacity: 0.45; transform: scale(0.96); }
+        35% { opacity: 0.9; transform: scale(1.08); }
+        70% { opacity: 0.6; transform: scale(1.01); }
+        100% { opacity: 0.75; transform: scale(1.04); }
       }
       @keyframes ringIn {
         0% { transform: scale(1.22); opacity: 0.0; }
@@ -613,7 +607,7 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     background: "radial-gradient(circle, rgba(255,154,60,0.55) 0%, rgba(255,120,30,0.28) 45%, rgba(255,120,30,0) 72%)",
     filter: "blur(20px)",
-    animation: "fireGlow 2.8s ease-in-out infinite",
+    animation: "fireGlow 2.2s ease-in-out infinite",
   },
   sphere: {
     position: "absolute",
@@ -655,30 +649,6 @@ const st: Record<string, React.CSSProperties> = {
     color: "#e2e8f0",
   },
 
-  bottomAction: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "calc(88px + env(safe-area-inset-bottom, 0px))",
-    zIndex: 6,
-  },
-  stopBtnFull: {
-    width: "100%",
-    height: "100%",
-    borderRadius: "22px 22px 0 0",
-    border: "1px solid #dc2626",
-    background: "#dc2626",
-    color: "#fff",
-    fontSize: 34,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-  },
 
   confettiLayer: {
     position: "fixed",
