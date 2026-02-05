@@ -87,14 +87,14 @@ function formatDuration(minutes?: number | null) {
   return `${rounded} мин`;
 }
 
-function ClockIcon({ size = 16 }: { size?: number }) {
+function ClockIcon({ size = 18 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth="2.2"
+      strokeWidth="2.6"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -116,14 +116,14 @@ function ClockIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-function DumbbellIcon({ size = 16 }: { size?: number }) {
+function DumbbellIcon({ size = 18 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth="2.2"
+      strokeWidth="2.6"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
