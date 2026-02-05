@@ -80,6 +80,59 @@ function normalizeScheduleDates(
   return out;
 }
 
+function formatDuration(minutes?: number | null) {
+  const total = Number(minutes);
+  if (!Number.isFinite(total) || total <= 0) return "";
+  if (total < 60) return `${total} мин`;
+  const hrs = Math.floor(total / 60);
+  const mins = Math.round(total % 60);
+  if (mins > 0) return `${hrs} ч ${mins} мин`;
+  return `${hrs} ч`;
+}
+
+function ClockIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5v5l3.5 2" />
+    </svg>
+  );
+}
+
+function DumbbellIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+    >
+      <path d="M4 9v6" />
+      <path d="M7 8v8" />
+      <path d="M17 8v8" />
+      <path d="M20 9v6" />
+      <path d="M7 12h10" />
+    </svg>
+  );
+}
+
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -739,6 +792,10 @@ export default function Dashboard() {
       : "День отдыха";
   const dayGoalText = goalLabel ? `Цель: ${goalLabel}` : "Цель: —";
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
+  const dayDurationText = formatDuration(workoutChips.minutes);
+  const dayExercisesText =
+    workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
+  const showDayMeta = Boolean(dayDurationText || dayExercisesText) && dayState !== "rest";
   const showChips = false;
   const dayButtonText =
     dayState === "completed"
@@ -898,6 +955,22 @@ export default function Dashboard() {
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
+          {showDayMeta && (
+            <div style={s.dayMetaRow}>
+              {dayDurationText ? (
+                <span style={s.dayMetaItem}>
+                  <ClockIcon />
+                  <span>{dayDurationText}</span>
+                </span>
+              ) : null}
+              {dayExercisesText ? (
+                <span style={s.dayMetaItem}>
+                  <DumbbellIcon />
+                  <span>{dayExercisesText}</span>
+                </span>
+              ) : null}
+            </div>
+          )}
           <div style={s.dayGoal}>{dayGoalText}</div>
           <button
             type="button"
@@ -1322,6 +1395,20 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: "rgba(15, 23, 42, 0.6)",
     lineHeight: 1.5,
+  },
+  dayMetaRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    color: "#0f172a",
+  },
+  dayMetaItem: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1,
   },
   dayTitle: {
     fontSize: 32,
