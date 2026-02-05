@@ -1039,7 +1039,7 @@ const s: Record<string, React.CSSProperties> = {
     left: "50%",
     top: "50%",
     width: 68,
-    height: 76,
+    height: 80,
     transform: "translate(-50%, -50%)",
     borderRadius: 22,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
