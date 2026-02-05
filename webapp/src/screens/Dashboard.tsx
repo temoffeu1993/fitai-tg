@@ -8,10 +8,12 @@ import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 
 import robotImg from "../assets/morobot.png";
+import tyagaImg from "@/assets/tyaga.png";
 import mascotImg from "@/assets/robonew.webp";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
+const DAY_MASCOT_SRC = tyagaImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 
@@ -913,7 +915,7 @@ export default function Dashboard() {
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
         <img
-          src={ROBOT_SRC}
+          src={DAY_MASCOT_SRC}
           alt=""
           aria-hidden="true"
           style={s.dayCardMascot}
@@ -1358,7 +1360,8 @@ const s: Record<string, React.CSSProperties> = {
     bottom: -6,
     width: 150,
     height: "auto",
-    opacity: 0.5,
+    opacity: 1,
+    filter: "none",
     pointerEvents: "none",
     zIndex: 0,
   },
