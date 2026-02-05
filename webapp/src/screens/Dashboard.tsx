@@ -426,6 +426,32 @@ export default function Dashboard() {
   // Computed values
   const todayISO = useMemo(() => toISODate(new Date()), []);
 
+  const plannedDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    plannedWorkouts
+      .filter((w) => w.status === "scheduled" || w.status === "pending")
+      .forEach((w) => {
+        const iso = w.scheduledFor?.slice(0, 10);
+        if (iso) set.add(iso);
+      });
+    return set;
+  }, [plannedWorkouts]);
+
+  const completedDatesSet = useMemo(
+    () => new Set(historyStats.completedDates),
+    [historyStats.completedDates]
+  );
+
+  const getDotState = useCallback(
+    (d: Date): "completed" | "scheduled" | null => {
+      const iso = toISODate(d);
+      if (completedDatesSet.has(iso)) return "completed";
+      if (plannedDatesSet.has(iso)) return "scheduled";
+      return null;
+    },
+    [completedDatesSet, plannedDatesSet]
+  );
+
   const nextWorkout = useMemo(() => {
     return (
       plannedWorkouts
@@ -658,6 +684,7 @@ export default function Dashboard() {
             >
               {dsDates.map((d, idx) => {
                 const active = idx === dsActiveIdx;
+                const dot = getDotState(d.date);
                 return (
                   <button
                     key={idx}
@@ -676,6 +703,13 @@ export default function Dashboard() {
                     <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
                       {d.day}
                     </span>
+                    {dot && (
+                      <span style={s.dsDotWrap}>
+                        <span style={s.dsDotPit}>
+                          {dot === "completed" && <span style={s.dsDotBall} />}
+                        </span>
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1060,6 +1094,32 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     fontSize: 30,
   },
+  dsDotWrap: {
+    height: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  dsDotPit: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  } as React.CSSProperties,
+  dsDotBall: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #4ade80 0%, #22c55e 100%)",
+    boxShadow:
+      "0 2px 4px rgba(34,197,94,0.35), inset 0 1px 0 rgba(255,255,255,0.7)",
+  } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
   ctaCard: {
