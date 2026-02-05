@@ -242,21 +242,6 @@ function resolveTelegramName() {
   return "Гость";
 }
 
-function resolveTelegramAvatar() {
-  try {
-    const profileData = localStorage.getItem("profile");
-    if (!profileData) return null;
-    const p = JSON.parse(profileData);
-    if (p && typeof p === "object") {
-      if (p.photo_url && typeof p.photo_url === "string" && p.photo_url.trim()) {
-        return p.photo_url.trim();
-      }
-    }
-  } catch (err) {
-    console.error("Error parsing Telegram avatar:", err);
-  }
-  return null;
-}
 
 function hasOnb() {
   try {
@@ -274,7 +259,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
   const [name, setName] = useState<string>(() => resolveTelegramName());
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => resolveTelegramAvatar());
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() =>
     readHistorySnapshot()
   );
@@ -307,7 +291,6 @@ export default function Dashboard() {
       const done = hasOnb();
       setOnbDone(done);
       setName(resolveTelegramName());
-      setAvatarUrl(resolveTelegramAvatar());
     };
     updateIdentity();
     window.addEventListener("focus", updateIdentity);
@@ -593,11 +576,6 @@ export default function Dashboard() {
 
   const weekDays = useMemo(() => getWeekDays(), []);
 
-  const userInitial = useMemo(() => {
-    const trimmed = String(name || "").trim();
-    if (!trimmed) return "🙂";
-    return trimmed[0].toUpperCase();
-  }, [name]);
 
   const goOnb = () => navigate("/onb/age-sex");
 
@@ -824,20 +802,6 @@ export default function Dashboard() {
             <div style={s.headerGreeting}>Привет, {name}!</div>
             <div style={s.headerSub}>Приступим к тренировкам</div>
           </div>
-        </div>
-        <div style={s.avatarCircle}>
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="Аватар"
-              style={s.userAvatarImg}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-            />
-          ) : (
-            <span style={s.userAvatarFallback}>{userInitial}</span>
-          )}
         </div>
       </section>
 
@@ -1132,7 +1096,6 @@ const s: Record<string, React.CSSProperties> = {
   headerRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 12,
     marginTop: 8,
   },
@@ -1162,17 +1125,6 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     objectFit: "cover",
     objectPosition: "center 10%",
-  },
-  userAvatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    objectPosition: "center",
-  },
-  userAvatarFallback: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#111827",
   },
   headerText: {
     display: "flex",
