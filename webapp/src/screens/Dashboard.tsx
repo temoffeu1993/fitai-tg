@@ -94,15 +94,24 @@ function ClockIcon({ size = 16 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
       focusable="false"
     >
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 7.5v5l3.5 2" />
+      <g stroke="rgba(17,24,39,0.35)" transform="translate(0 0.6)">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5v5l3.5 2" />
+      </g>
+      <g stroke="rgba(255,255,255,0.9)" transform="translate(0 -0.6)">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5v5l3.5 2" />
+      </g>
+      <g stroke="#9ea1a8">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5v5l3.5 2" />
+      </g>
     </svg>
   );
 }
@@ -114,18 +123,33 @@ function DumbbellIcon({ size = 16 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
       focusable="false"
     >
-      <path d="M4 9v6" />
-      <path d="M7 8v8" />
-      <path d="M17 8v8" />
-      <path d="M20 9v6" />
-      <path d="M7 12h10" />
+      <g stroke="rgba(17,24,39,0.35)" transform="translate(0 0.6)">
+        <path d="M4 9v6" />
+        <path d="M7 8v8" />
+        <path d="M17 8v8" />
+        <path d="M20 9v6" />
+        <path d="M7 12h10" />
+      </g>
+      <g stroke="rgba(255,255,255,0.9)" transform="translate(0 -0.6)">
+        <path d="M4 9v6" />
+        <path d="M7 8v8" />
+        <path d="M17 8v8" />
+        <path d="M20 9v6" />
+        <path d="M7 12h10" />
+      </g>
+      <g stroke="#9ea1a8">
+        <path d="M4 9v6" />
+        <path d="M7 8v8" />
+        <path d="M17 8v8" />
+        <path d="M20 9v6" />
+        <path d="M7 12h10" />
+      </g>
     </svg>
   );
 }
@@ -928,17 +952,13 @@ export default function Dashboard() {
             <div style={s.dayMetaRow}>
               {dayDurationText ? (
                 <span style={s.dayMetaItem}>
-                  <span style={s.dayMetaIcon}>
-                    <ClockIcon size={14} />
-                  </span>
+                  <ClockIcon size={16} />
                   <span>{dayDurationText}</span>
                 </span>
               ) : null}
               {dayExercisesText ? (
                 <span style={s.dayMetaItem}>
-                  <span style={s.dayMetaIcon}>
-                    <DumbbellIcon size={14} />
-                  </span>
+                  <DumbbellIcon size={16} />
                   <span>{dayExercisesText}</span>
                 </span>
               ) : null}
@@ -1372,23 +1392,10 @@ const s: Record<string, React.CSSProperties> = {
   dayMetaItem: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     fontSize: 14,
     fontWeight: 600,
     lineHeight: 1,
-  },
-  dayMetaIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #9ea1a8 0%, #c2c5cc 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(17,24,39,0.32), inset 0 -1px 0 rgba(255,255,255,0.5)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#0f172a",
-    flex: "0 0 auto",
   },
   dayTitle: {
     fontSize: 32,
