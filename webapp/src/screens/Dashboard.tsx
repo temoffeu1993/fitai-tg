@@ -1232,13 +1232,10 @@ const s: Record<string, React.CSSProperties> = {
     width: DASH_AVATAR_SIZE,
     height: DASH_AVATAR_SIZE,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.85)",
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(242,242,247,0.9) 100%)",
+    border: "none",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "0 12px 22px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
