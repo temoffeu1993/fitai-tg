@@ -912,6 +912,15 @@ export default function Dashboard() {
 
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
+        <img
+          src={ROBOT_SRC}
+          alt=""
+          aria-hidden="true"
+          style={s.dayCardMascot}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
         <div
           className="day-card-body"
           style={{
@@ -1343,12 +1352,24 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     overflow: "hidden",
   },
+  dayCardMascot: {
+    position: "absolute",
+    right: -8,
+    bottom: -6,
+    width: 150,
+    height: "auto",
+    opacity: 0.5,
+    pointerEvents: "none",
+    zIndex: 0,
+  },
   dayCardBody: {
     display: "flex",
     flexDirection: "column",
     gap: 8,
     height: "100%",
     flex: 1,
+    position: "relative",
+    zIndex: 1,
   },
   dayHeader: {
     fontSize: 14,
