@@ -703,13 +703,12 @@ export default function Dashboard() {
                     <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
                       {d.day}
                     </span>
-                    {dot && (
-                      <span style={s.dsDotWrap}>
-                        <span style={s.dsDotPit}>
-                          {dot === "completed" && <span style={s.dsDotBall} />}
-                        </span>
+                    <span style={s.dsDotWrap}>
+                      <span style={s.dsDotPit}>
+                        {dot === "completed" && <span style={s.dsDotBall} />}
+                        {dot === "scheduled" && <span style={s.dsDotBallScheduled} />}
                       </span>
-                    )}
+                    </span>
                   </button>
                 );
               })}
@@ -1119,6 +1118,14 @@ const s: Record<string, React.CSSProperties> = {
     background: "linear-gradient(180deg, #4ade80 0%, #22c55e 100%)",
     boxShadow:
       "0 2px 4px rgba(34,197,94,0.35), inset 0 1px 0 rgba(255,255,255,0.7)",
+  } as React.CSSProperties,
+  dsDotBallScheduled: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3f3f46 0%, #111827 100%)",
+    boxShadow:
+      "0 2px 4px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.25)",
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
