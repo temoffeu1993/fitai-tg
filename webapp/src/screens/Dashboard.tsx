@@ -1373,10 +1373,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   dayHeader: {
     fontSize: 14,
-    fontWeight: 600,
     color: "rgba(15, 23, 42, 0.6)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    lineHeight: 1.5,
   },
   dayMetaRow: {
     display: "flex",
