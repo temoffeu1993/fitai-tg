@@ -1116,9 +1116,9 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
   } as React.CSSProperties,
   dsDotPitScheduled: {
-    background: "linear-gradient(180deg, #2a2b2f 0%, #1e1f22 100%)",
+    background: "linear-gradient(180deg, #3a3b3f 0%, #1e1f22 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.12)",
+      "inset 0 2px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.2)",
   } as React.CSSProperties,
   dsDotBall: {
     width: 8,
