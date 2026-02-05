@@ -19,6 +19,7 @@ import healthRobotImg from "./assets/heals.webp";
 import smotrchasImg from "./assets/smotrchas.webp";
 import breathImg from "./assets/dihanie.webp";
 import absImg from "./assets/zhenzhiv.webp";
+import calendarCardImg from "./assets/calendar.webp";
 
 const debugEnabled = (() => {
   if (typeof window === "undefined") return false;
@@ -327,6 +328,7 @@ if (isDev && !tg?.initData) {
     smotrchasImg,
     breathImg,
     absImg,
+    calendarCardImg,
   ];
   Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]).finally(() => {
     timeMark("boot:critical-images-ready");
@@ -382,6 +384,7 @@ async function auth() {
       smotrchasImg,
       breathImg,
       absImg,
+      calendarCardImg,
     ];
     await Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]);
     timeMark("boot:critical-images-ready");

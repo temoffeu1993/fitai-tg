@@ -12,12 +12,14 @@ import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
+import calendarImg from "@/assets/calendar.webp";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
 const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
+const CALENDAR_MASCOT_SRC = calendarImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
@@ -300,6 +302,7 @@ ensureImagePreloaded(ROBOT_SRC, "robot");
 ensureImagePreloaded(BACK_MASCOT_SRC, "day-back");
 ensureImagePreloaded(CHEST_MASCOT_SRC, "day-chest");
 ensureImagePreloaded(LEGS_MASCOT_SRC, "day-legs");
+ensureImagePreloaded(CALENDAR_MASCOT_SRC, "day-calendar");
 
 // ============================================================================
 // IDENTITY
@@ -662,6 +665,10 @@ export default function Dashboard() {
   const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
 
   const weekDays = useMemo(() => getWeekDays(), []);
+  const totalPlanDays = useMemo(() => {
+    const labels = selectedScheme?.dayLabels;
+    return Array.isArray(labels) && labels.length > 0 ? labels.length : 7;
+  }, [selectedScheme]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -786,32 +793,49 @@ export default function Dashboard() {
   // POST-ONBOARDING: New Dashboard
   // ========================================================================
 
-  const dayState: "completed" | "planned" | "rest" = isSelectedCompleted
+  const hasAnyAssignedDates = plannedDatesSet.size > 0;
+  const shouldShowSetupCard = !hasAnyAssignedDates && historyStats.total === 0;
+  const dayState: "setup" | "completed" | "planned" | "rest" = shouldShowSetupCard
+    ? "setup"
+    : isSelectedCompleted
     ? "completed"
     : isSelectedPlanned
     ? "planned"
     : "rest";
   const dayHeaderText =
-    dayState === "completed"
+    dayState === "setup"
+      ? "План на неделю готов"
+      : dayState === "completed"
       ? "Тренировка выполнена"
       : dayState === "planned"
       ? "Тренировка на"
       : "День отдыха";
-  const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
+  const dayTitle =
+    dayState === "setup"
+      ? "Распредели тренировки по датам"
+      : dayState === "rest"
+      ? "Выбрать тренировку"
+      : selectedWorkoutTitle;
+  const setupProgressText = `Назначено ${Math.min(plannedDatesSet.size, totalPlanDays)}/${totalPlanDays}`;
   const dayMascotSrc = useMemo(() => {
+    if (dayState === "setup") return CALENDAR_MASCOT_SRC;
     const title = String(dayTitle || "").toLowerCase();
     if (title.includes("ног") && title.includes("ягод")) return LEGS_MASCOT_SRC;
     if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
     if (title.includes("спина") && title.includes("бицепс")) return BACK_MASCOT_SRC;
     return ROBOT_SRC;
-  }, [dayTitle]);
+  }, [dayState, dayTitle]);
   const dayDurationText = formatDuration(workoutChips.minutes);
   const dayExercisesText =
     workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
-  const showDayMeta = Boolean(dayDurationText || dayExercisesText) && dayState !== "rest";
-  const showChips = false;
+  const showDayMeta =
+    Boolean(dayDurationText || dayExercisesText) &&
+    dayState !== "rest" &&
+    dayState !== "setup";
   const dayButtonText =
-    dayState === "completed"
+    dayState === "setup"
+      ? "Открыть план"
+      : dayState === "completed"
       ? "Результат"
       : dayState === "planned"
       ? "Начать"
@@ -981,6 +1005,7 @@ export default function Dashboard() {
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
+          {dayState === "setup" ? <div style={s.daySetupProgress}>{setupProgressText}</div> : null}
           {showDayMeta && (
             <div style={s.dayMetaRow}>
               {dayDurationText ? (
@@ -1449,6 +1474,12 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     lineHeight: 1.1,
     letterSpacing: -0.5,
+  },
+  daySetupProgress: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "rgba(15, 23, 42, 0.62)",
+    lineHeight: 1.35,
   },
   dayBtn: {
     alignSelf: "flex-start",
