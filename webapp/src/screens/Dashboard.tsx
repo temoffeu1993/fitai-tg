@@ -897,8 +897,8 @@ export default function Dashboard() {
           }}
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
-          <div style={s.dayGoal}>{dayGoalText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
+          <div style={s.dayGoal}>{dayGoalText}</div>
           <button
             type="button"
             style={{ ...s.dayBtn, marginTop: "auto" }}
