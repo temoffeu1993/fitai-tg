@@ -1362,7 +1362,7 @@ const s: Record<string, React.CSSProperties> = {
     position: "absolute",
     right: -36,
     bottom: -18,
-    width: 140,
+    width: 150,
     height: "auto",
     opacity: 1,
     filter: "none",
