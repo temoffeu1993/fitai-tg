@@ -794,7 +794,7 @@ export default function Dashboard() {
     dayState === "completed"
       ? "Результат"
       : dayState === "planned"
-      ? "Начать"
+      ? "Начать тренировку"
       : "План";
   const handleDayAction = () => {
     if (dayState === "completed") {
