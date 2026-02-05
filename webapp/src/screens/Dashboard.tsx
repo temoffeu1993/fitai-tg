@@ -1098,6 +1098,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 12,
     marginTop: 8,
+    marginBottom: 12,
   },
   headerLeft: {
     display: "flex",
