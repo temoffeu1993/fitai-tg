@@ -1425,11 +1425,13 @@ const s: Record<string, React.CSSProperties> = {
     width: 34,
     height: 34,
     borderRadius: 999,
-    background: "#fff",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     marginRight: -8,
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
   dayBtnArrow: {
     fontSize: 18,
