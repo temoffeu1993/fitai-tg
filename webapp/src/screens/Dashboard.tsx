@@ -649,8 +649,6 @@ export default function Dashboard() {
         <div style={s.dsCard}>
           <div style={s.dsScroller}>
             <div style={s.dsIndicator} />
-            <div style={s.dsFadeL} />
-            <div style={s.dsFadeR} />
             <div
               ref={dsScrollRef}
               style={s.dsTrack}
@@ -978,13 +976,14 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 4,
   },
   dsCard: {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.75)",
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow:
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     position: "relative",
     overflow: "hidden",
     alignSelf: "stretch",
@@ -999,38 +998,17 @@ const s: Record<string, React.CSSProperties> = {
   dsIndicator: {
     position: "absolute",
     left: "50%",
-    top: 8,
+    top: 10,
     width: 64,
     height: 64,
     transform: "translateX(-50%)",
-    borderRadius: 16,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
-    border: "1px solid rgba(255,255,255,0.85)",
-    boxShadow: "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    borderRadius: 20,
+    background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
+    border: "1px solid rgba(255,255,255,0.95)",
+    boxShadow:
+      "0 12px 24px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
     pointerEvents: "none",
     zIndex: 1,
-  },
-  dsFadeL: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: DATE_ITEM_W * 1.2,
-    background: "linear-gradient(90deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
-  },
-  dsFadeR: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: DATE_ITEM_W * 1.2,
-    background: "linear-gradient(270deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
   },
   dsTrack: {
     overflowX: "auto",
@@ -1039,7 +1017,7 @@ const s: Record<string, React.CSSProperties> = {
     scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "12px 0 10px",
+    padding: "14px 0 12px",
     paddingLeft: `calc(50% - ${DATE_ITEM_W / 2}px)`,
     paddingRight: `calc(50% - ${DATE_ITEM_W / 2}px)`,
     position: "relative",
@@ -1053,16 +1031,16 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 6,
     padding: 0,
     background: "transparent",
     cursor: "pointer",
   } as React.CSSProperties,
   dsDow: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 500,
-    color: "rgba(30,31,34,0.35)",
-    lineHeight: 1,
+    color: "rgba(17,17,17,0.35)",
+    lineHeight: 1.1,
     letterSpacing: 0.3,
   },
   dsDowActive: {
@@ -1070,15 +1048,15 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   dsNum: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 500,
-    color: "rgba(30,31,34,0.3)",
-    lineHeight: 1.3,
+    color: "rgba(17,17,17,0.3)",
+    lineHeight: 1.1,
   },
   dsNumActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 26,
+    fontSize: 32,
   },
 
   // ===== BLOCK 3: Next Action CTA =====
