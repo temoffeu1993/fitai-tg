@@ -6,7 +6,6 @@ import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import dayCardBg from "@/assets/day-card-bg.svg";
 
 import robotImg from "../assets/morobot.png";
 import mascotImg from "@/assets/robonew.webp";
@@ -31,6 +30,7 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DASH_MASCOT_W = 120;
+const DAY_CARD_BG_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(`<?xml version="1.0" encoding="UTF-8"?>\n<svg width="1000" height="600" viewBox="0 0 1000 600" fill="none" xmlns="http://www.w3.org/2000/svg">\n  <defs>\n    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">\n      <stop offset="0" stop-color="#F7D3E4"/>\n      <stop offset="0.45" stop-color="#C9B3F2"/>\n      <stop offset="1" stop-color="#8AA1F0"/>\n    </linearGradient>\n    <radialGradient id="glow1" cx="0.16" cy="0.14" r="0.55">\n      <stop offset="0" stop-color="#FFD9EC" stop-opacity="0.95"/>\n      <stop offset="0.65" stop-color="#FFD9EC" stop-opacity="0"/>\n    </radialGradient>\n    <radialGradient id="glow2" cx="0.86" cy="0.18" r="0.55">\n      <stop offset="0" stop-color="#B7C2FF" stop-opacity="0.85"/>\n      <stop offset="0.7" stop-color="#B7C2FF" stop-opacity="0"/>\n    </radialGradient>\n    <radialGradient id="glow3" cx="0.8" cy="0.86" r="0.6">\n      <stop offset="0" stop-color="#F5A7EF" stop-opacity="0.8"/>\n      <stop offset="0.7" stop-color="#F5A7EF" stop-opacity="0"/>\n    </radialGradient>\n  </defs>\n  <rect width="1000" height="600" fill="url(#base)"/>\n  <rect width="1000" height="600" fill="url(#glow1)"/>\n  <rect width="1000" height="600" fill="url(#glow2)"/>\n  <rect width="1000" height="600" fill="url(#glow3)"/>\n</svg>`)}`
 
 function buildDsDates(count: number, offsetDays: number) {
   const now = new Date();
@@ -911,7 +911,7 @@ export default function Dashboard() {
 
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
-        <img src={dayCardBg} alt="" style={s.ctaBgImg} aria-hidden />
+        <img src={DAY_CARD_BG_SVG} alt="" style={s.ctaBgImg} aria-hidden />
         <div
           className="day-card-body"
           style={{
