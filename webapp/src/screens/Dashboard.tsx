@@ -8,9 +8,9 @@ import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 
 import robotImg from "../assets/morobot.png";
-import tyagaImg from "@/assets/tyaga.png";
-import zhimImg from "@/assets/zhim.png";
-import nogiImg from "@/assets/nogi.png";
+import tyagaImg from "@/assets/tyaga.webp";
+import zhimImg from "@/assets/zhim.webp";
+import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
 
 const ROBOT_SRC = robotImg;
@@ -252,18 +252,18 @@ function xpRankInfo(xp: number) {
 // PRELOAD
 // ============================================================================
 
-let robotPreloaded = false;
-function ensureRobotPreloaded(src: string) {
-  if (robotPreloaded) return;
+const preloadedImages = new Set<string>();
+function ensureImagePreloaded(src: string, tag: string) {
+  if (preloadedImages.has(src)) return;
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!src) return;
-  robotPreloaded = true;
+  preloadedImages.add(src);
   try {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
     link.href = src;
-    link.setAttribute("data-preload-img", "robot");
+    link.setAttribute("data-preload-img", tag);
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
   } catch {}
@@ -271,7 +271,10 @@ function ensureRobotPreloaded(src: string) {
   img.decoding = "async";
   img.src = src;
 }
-ensureRobotPreloaded(ROBOT_SRC);
+ensureImagePreloaded(ROBOT_SRC, "robot");
+ensureImagePreloaded(BACK_MASCOT_SRC, "day-back");
+ensureImagePreloaded(CHEST_MASCOT_SRC, "day-chest");
+ensureImagePreloaded(LEGS_MASCOT_SRC, "day-legs");
 
 // ============================================================================
 // IDENTITY
