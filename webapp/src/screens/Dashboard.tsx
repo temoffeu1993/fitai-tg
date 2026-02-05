@@ -29,7 +29,7 @@ const DATE_ITEM_W = 64;
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-const DASH_MASCOT_W = 120;
+const DASH_AVATAR_SIZE = 56;
 
 function buildDsDates(count: number, offsetDays: number) {
   const now = new Date();
@@ -193,29 +193,6 @@ function xpRankInfo(xp: number) {
   };
 }
 
-function getMascotText(
-  stats: HistorySnapshot,
-  nextWorkout: PlannedWorkout | null
-): string {
-  const todayISO = toISODate(new Date());
-
-  if (stats.total === 0) {
-    return "Программа готова — осталось только начать";
-  }
-  if (nextWorkout && nextWorkout.scheduledFor === todayISO) {
-    return "Сегодня день тренировки. Готов?";
-  }
-  if (stats.completedDates.includes(todayISO)) {
-    return "Хорошая работа сегодня! Отдых — часть прогресса";
-  }
-  if (
-    stats.lastCompletedAt &&
-    Date.now() - stats.lastCompletedAt > 3 * 86400000
-  ) {
-    return "Рад тебя видеть! Продолжим?";
-  }
-  return "Регулярность — ключ к результату";
-}
 
 // ============================================================================
 // PRELOAD
@@ -265,6 +242,22 @@ function resolveTelegramName() {
   return "Гость";
 }
 
+function resolveTelegramAvatar() {
+  try {
+    const profileData = localStorage.getItem("profile");
+    if (!profileData) return null;
+    const p = JSON.parse(profileData);
+    if (p && typeof p === "object") {
+      if (p.photo_url && typeof p.photo_url === "string" && p.photo_url.trim()) {
+        return p.photo_url.trim();
+      }
+    }
+  } catch (err) {
+    console.error("Error parsing Telegram avatar:", err);
+  }
+  return null;
+}
+
 function hasOnb() {
   try {
     return localStorage.getItem("onb_complete") === "1";
@@ -281,6 +274,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
   const [name, setName] = useState<string>(() => resolveTelegramName());
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => resolveTelegramAvatar());
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() =>
     readHistorySnapshot()
   );
@@ -313,6 +307,7 @@ export default function Dashboard() {
       const done = hasOnb();
       setOnbDone(done);
       setName(resolveTelegramName());
+      setAvatarUrl(resolveTelegramAvatar());
     };
     updateIdentity();
     window.addEventListener("focus", updateIdentity);
@@ -523,18 +518,6 @@ export default function Dashboard() {
   );
   const selectedISO = useMemo(() => toISODate(selectedDate), [selectedDate]);
 
-  const nextWorkout = useMemo(() => {
-    return (
-      plannedWorkouts
-        .filter(
-          (w) =>
-            (w.status === "scheduled" || w.status === "pending") &&
-            w.scheduledFor >= todayISO
-        )
-        .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))[0] || null
-    );
-  }, [plannedWorkouts, todayISO]);
-
   const plannedForSelected = useMemo(() => {
     return plannedWorkouts
       .filter((w) => w && w.status !== "cancelled")
@@ -610,10 +593,11 @@ export default function Dashboard() {
 
   const weekDays = useMemo(() => getWeekDays(), []);
 
-  const mascotText = useMemo(
-    () => getMascotText(historyStats, nextWorkout),
-    [historyStats, nextWorkout]
-  );
+  const userInitial = useMemo(() => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return "🙂";
+    return trimmed[0].toUpperCase();
+  }, [name]);
 
   const goOnb = () => navigate("/onb/age-sex");
 
@@ -787,18 +771,6 @@ export default function Dashboard() {
         .dash-delay-1 { animation-delay: 80ms; }
         .dash-delay-2 { animation-delay: 160ms; }
         .dash-delay-3 { animation-delay: 240ms; }
-        .speech-bubble:before {
-          content: "";
-          position: absolute;
-          left: -8px;
-          top: 18px;
-          width: 0;
-          height: 0;
-          border-top: 8px solid transparent;
-          border-bottom: 8px solid transparent;
-          border-right: 8px solid rgba(255,255,255,0.9);
-          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
-        }
         .dash-primary-btn {
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
@@ -835,19 +807,37 @@ export default function Dashboard() {
         }
       `}</style>
 
-      {/* BLOCK 1: Mascot + Contextual Bubble */}
-      <section style={s.mascotRow} className="dash-fade dash-delay-1">
-        <img
-          src={MASCOT_SRC}
-          alt="Моро"
-          style={s.mascotImg}
-          loading="eager"
-          decoding="async"
-          draggable={false}
-        />
-        <div style={s.bubble} className="speech-bubble">
-          <div style={s.bubbleGreeting}>Привет, {name}!</div>
-          <div style={s.bubbleText}>{mascotText}</div>
+      {/* BLOCK 1: Avatar Header */}
+      <section style={s.headerRow} className="dash-fade dash-delay-1">
+        <div style={s.headerLeft}>
+          <div style={s.avatarCircle}>
+            <img
+              src={MASCOT_SRC}
+              alt="Моро"
+              style={s.mascotAvatarImg}
+              loading="eager"
+              decoding="async"
+              draggable={false}
+            />
+          </div>
+          <div style={s.headerText}>
+            <div style={s.headerGreeting}>Привет, {name}!</div>
+            <div style={s.headerSub}>Приступим к тренировкам</div>
+          </div>
+        </div>
+        <div style={s.avatarCircle}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Аватар"
+              style={s.userAvatarImg}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          ) : (
+            <span style={s.userAvatarFallback}>{userInitial}</span>
+          )}
         </div>
       </section>
 
@@ -1138,41 +1128,64 @@ const s: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
 
-  // ===== BLOCK 1: Mascot + Bubble =====
-  mascotRow: {
-    display: "grid",
-    gridTemplateColumns: "auto 1fr",
+  // ===== BLOCK 1: Avatar Header =====
+  headerRow: {
+    display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
     marginTop: 8,
   },
-  mascotImg: {
-    width: DASH_MASCOT_W,
-    maxWidth: DASH_MASCOT_W,
-    height: "auto",
-    objectFit: "contain",
+  headerLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
   },
-  bubble: {
-    position: "relative",
-    padding: "14px 16px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.6)",
+  avatarCircle: {
+    width: DASH_AVATAR_SIZE,
+    height: DASH_AVATAR_SIZE,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.7)",
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    color: "#0f172a",
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(243,244,246,0.9) 100%)",
     boxShadow:
-      "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+      "0 10px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    flex: "0 0 auto",
   },
-  bubbleGreeting: {
+  mascotAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center 10%",
+  },
+  userAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center",
+  },
+  userAvatarFallback: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#111827",
+  },
+  headerText: {
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+  },
+  headerGreeting: {
     fontSize: 18,
     fontWeight: 700,
     color: "#1e1f22",
     lineHeight: 1.2,
-    marginBottom: 4,
   },
-  bubbleText: {
+  headerSub: {
     fontSize: 15,
     fontWeight: 500,
     lineHeight: 1.4,
