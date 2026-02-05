@@ -100,18 +100,8 @@ function ClockIcon({ size = 20 }: { size?: number }) {
       aria-hidden
       focusable="false"
     >
-      <g stroke="rgba(10,10,12,0.45)" transform="translate(0 0.6)">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.5v5l3.5 2" />
-      </g>
-      <g stroke="rgba(255,255,255,0.9)" transform="translate(0 -0.6)">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.5v5l3.5 2" />
-      </g>
-      <g stroke="#1e1f22">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.5v5l3.5 2" />
-      </g>
+      <circle cx="12" cy="12" r="8.5" stroke="#1e1f22" />
+      <path d="M12 7.5v5l3.5 2" stroke="#1e1f22" />
     </svg>
   );
 }
@@ -129,27 +119,11 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
       aria-hidden
       focusable="false"
     >
-      <g stroke="rgba(10,10,12,0.45)" transform="translate(0 0.6)">
-        <path d="M4 9v6" />
-        <path d="M7 8v8" />
-        <path d="M17 8v8" />
-        <path d="M20 9v6" />
-        <path d="M7 12h10" />
-      </g>
-      <g stroke="rgba(255,255,255,0.9)" transform="translate(0 -0.6)">
-        <path d="M4 9v6" />
-        <path d="M7 8v8" />
-        <path d="M17 8v8" />
-        <path d="M20 9v6" />
-        <path d="M7 12h10" />
-      </g>
-      <g stroke="#1e1f22">
-        <path d="M4 9v6" />
-        <path d="M7 8v8" />
-        <path d="M17 8v8" />
-        <path d="M20 9v6" />
-        <path d="M7 12h10" />
-      </g>
+      <path d="M4 9v6" stroke="#1e1f22" />
+      <path d="M7 8v8" stroke="#1e1f22" />
+      <path d="M17 8v8" stroke="#1e1f22" />
+      <path d="M20 9v6" stroke="#1e1f22" />
+      <path d="M7 12h10" stroke="#1e1f22" />
     </svg>
   );
 }
