@@ -745,14 +745,14 @@ export default function Dashboard() {
   const isSelectedToday = selectedISO === todayISO;
   const dayHeaderText =
     dayState === "completed"
-      ? "Тренировка выполнена"
+      ? "✅ Тренировка выполнена"
       : dayState === "planned"
       ? isSelectedToday
-        ? "Сегодня тренировка"
-        : "Тренировка в этот день"
+        ? "🏋️ Сегодня тренировка"
+        : "🏋️ Тренировка в этот день"
       : isSelectedToday
-      ? "Сегодня отдыхаем"
-      : "В этот день отдыхаем";
+      ? "😌 Сегодня отдыхаем"
+      : "😌 В этот день отдыхаем";
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
   const showChips = false;
   const dayButtonText =
