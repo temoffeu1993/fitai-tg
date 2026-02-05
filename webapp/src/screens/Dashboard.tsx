@@ -1000,10 +1000,10 @@ const s: Record<string, React.CSSProperties> = {
   dsIndicator: {
     position: "absolute",
     left: "50%",
-    top: 10,
+    top: "50%",
     width: 64,
     height: 64,
-    transform: "translateX(-50%)",
+    transform: "translate(-50%, -50%)",
     borderRadius: 20,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
     border: "1px solid rgba(255,255,255,0.95)",
