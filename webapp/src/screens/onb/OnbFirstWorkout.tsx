@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import morobotImg from "@/assets/morobot.webp";
+import { upsertScheduleDateSlot } from "@/api/schedule";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -28,6 +29,7 @@ const HOUR_CYCLES = 7;
 const MIN_CYCLES = 7;
 const HOUR_MID = Math.floor(HOUR_CYCLES / 2);
 const MIN_MID = Math.floor(MIN_CYCLES / 2);
+const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -52,6 +54,17 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
       idx: i,
     };
   });
+}
+
+function toISODateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toHHMM(hours: number, minutes: number): string {
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 // ── Confetti: foil popper explosion (JS physics) ─────────────
@@ -168,6 +181,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
   const nav = useNavigate();
   const [showContent, setShowContent] = useState(false);
   const [phase, setPhase] = useState<Phase>("form");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
   const [reminderWidth, setReminderWidth] = useState<number | null>(null);
@@ -212,9 +227,53 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     return `${datePart} в ${h}:${m}`;
   }, [dates, activeIdx, activeHour, activeMinute]);
 
+  const persistScheduleCache = (isoDate: string, time: string) => {
+    try {
+      const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const currentDates =
+        parsed && typeof parsed === "object" && parsed.scheduleDates && typeof parsed.scheduleDates === "object"
+          ? parsed.scheduleDates
+          : {};
+      const next = {
+        ...(parsed && typeof parsed === "object" ? parsed : {}),
+        scheduleDates: {
+          ...currentDates,
+          [isoDate]: { time },
+        },
+        ts: Date.now(),
+      };
+      localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore cache write failures
+    }
+  };
+
   // ── Confirm handler ──
-  const handleConfirm = () => {
-    if (phase !== "form") return;
+  const handleConfirm = async () => {
+    if (phase !== "form" || isSaving) return;
+    const selectedDate = dates[activeIdx]?.date;
+    if (!selectedDate) return;
+
+    const isoDate = toISODateLocal(selectedDate);
+    const hhmm = toHHMM(activeHour, activeMinute);
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      await upsertScheduleDateSlot(isoDate, hhmm);
+      persistScheduleCache(isoDate, hhmm);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+      } catch {
+        // ignore event dispatch failures
+      }
+    } catch {
+      setSaveError("Не удалось сохранить дату. Проверь интернет и попробуй еще раз.");
+      setIsSaving(false);
+      fireHapticImpact("light");
+      return;
+    }
+
     setPhase("leaving");
     fireHapticImpact("medium");
 
@@ -228,6 +287,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     }, 400);
 
     setTimeout(() => {
+      setIsSaving(false);
       onComplete();
     }, 3200);
   };
@@ -709,18 +769,24 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
                 : `onb-fade-target${showContent ? " onb-fade onb-fade-delay-3" : ""}`
             }
           >
+            {saveError ? <div style={s.saveErrorText}>{saveError}</div> : null}
             <button
               type="button"
-              style={s.primaryBtn}
+              style={{ ...s.primaryBtn, ...(isSaving ? s.primaryBtnDisabled : null) }}
               className="intro-primary-btn"
               onClick={handleConfirm}
+              disabled={isSaving}
             >
-              Запланировать
+              {isSaving ? "Сохраняем..." : "Запланировать"}
             </button>
             <button
               type="button"
-              style={s.backBtn}
-              onClick={() => (onBack ? onBack() : nav(-1))}
+              style={{ ...s.backBtn, ...(isSaving ? s.backBtnDisabled : null) }}
+              onClick={() => {
+                if (isSaving) return;
+                onBack ? onBack() : nav(-1);
+              }}
+              disabled={isSaving}
             >
               Назад
             </button>
@@ -804,6 +870,13 @@ const s: Record<string, React.CSSProperties> = {
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
     zIndex: 10,
   },
+  saveErrorText: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#b91c1c",
+    textAlign: "center",
+    lineHeight: 1.35,
+  },
   primaryBtn: {
     position: "relative",
     zIndex: 2,
@@ -818,6 +891,11 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
+  primaryBtnDisabled: {
+    opacity: 0.72,
+    cursor: "default",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.14)",
+  },
   backBtn: {
     width: "100%",
     border: "none",
@@ -828,6 +906,10 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
+  },
+  backBtnDisabled: {
+    opacity: 0.5,
+    cursor: "default",
   },
 
   // ── Reminder dropdown ──────────────────────────────────

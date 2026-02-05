@@ -183,3 +183,34 @@ export async function saveScheduleDates(dates: ScheduleByDate): Promise<void> {
     throw new Error(text || "failed_to_save_schedule");
   }
 }
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const HHMM_RE = /^\d{2}:\d{2}$/;
+
+export async function upsertScheduleDateSlot(isoDate: string, time: string): Promise<void> {
+  if (!ISO_DATE_RE.test(isoDate)) {
+    throw new Error("invalid_iso_date");
+  }
+  if (!HHMM_RE.test(time)) {
+    throw new Error("invalid_time");
+  }
+
+  const overview = await getScheduleOverview();
+  const currentDow = overview?.schedule?.dow ?? {};
+  const currentDates = (overview?.schedule?.dates ?? {}) as Record<string, { time: string }>;
+  const nextDates = {
+    ...currentDates,
+    [isoDate]: { time },
+  };
+
+  const r = await apiFetch("/api/workout-schedule", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ schedule: { dow: currentDow, dates: nextDates } }),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_upsert_schedule_date");
+  }
+}
