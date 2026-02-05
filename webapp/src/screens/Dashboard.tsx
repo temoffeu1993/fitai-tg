@@ -20,6 +20,7 @@ const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
 
 const HISTORY_KEY = "history_sessions_v1";
+const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 
 const XP_TIERS = [
   { min: 0, name: "Новичок" },
@@ -84,6 +85,30 @@ function normalizeScheduleDates(
     }
   });
   return out;
+}
+
+function readScheduleCache() {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const planned = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+    const dates = normalizeScheduleDates(parsed?.scheduleDates);
+    return { plannedWorkouts: planned, scheduleDates: dates };
+  } catch {
+    return null;
+  }
+}
+
+function writeScheduleCache(plannedWorkouts: PlannedWorkout[], scheduleDates: ScheduleByDate) {
+  try {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      SCHEDULE_CACHE_KEY,
+      JSON.stringify({ plannedWorkouts, scheduleDates, ts: Date.now() })
+    );
+  } catch {}
 }
 
 function formatDuration(minutes?: number | null) {
@@ -319,8 +344,12 @@ export default function Dashboard() {
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() =>
     readHistorySnapshot()
   );
-  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
-  const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
+  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(() => {
+    return readScheduleCache()?.plannedWorkouts ?? [];
+  });
+  const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>(() => {
+    return readScheduleCache()?.scheduleDates ?? {};
+  });
   const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
 
@@ -367,10 +396,11 @@ export default function Dashboard() {
     }
     try {
       const data = await getScheduleOverview();
-      setPlannedWorkouts(
-        Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : []
-      );
-      setScheduleDates(normalizeScheduleDates(data?.schedule?.dates));
+      const nextPlanned = Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [];
+      const nextDates = normalizeScheduleDates(data?.schedule?.dates);
+      setPlannedWorkouts(nextPlanned);
+      setScheduleDates(nextDates);
+      writeScheduleCache(nextPlanned, nextDates);
     } catch {
       setPlannedWorkouts([]);
       setScheduleDates({});
