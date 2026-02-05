@@ -768,7 +768,7 @@ export default function Dashboard() {
     dayState === "completed"
       ? "Результат"
       : dayState === "planned"
-      ? "Начать тренировку"
+      ? "Начать"
       : "План";
   const handleDayAction = () => {
     if (dayState === "completed") {
@@ -1392,8 +1392,6 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    width: "100%",
-    justifyContent: "space-between",
   },
   dayBtnIconWrap: {
     width: 34,
