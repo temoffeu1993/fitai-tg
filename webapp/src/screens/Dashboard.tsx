@@ -409,6 +409,9 @@ export default function Dashboard() {
   const dsInitialIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
   const [dsActiveIdx, setDsActiveIdx] = useState(dsInitialIdx);
   const [dsSettledIdx, setDsSettledIdx] = useState(dsInitialIdx);
+  const [dayCardIdx, setDayCardIdx] = useState(dsInitialIdx);
+  const [dayCardOpacity, setDayCardOpacity] = useState(1);
+  const [dayCardOffset, setDayCardOffset] = useState(0);
   const [dayCardDir, setDayCardDir] = useState<"left" | "right">("right");
   const dsScrollRef = useRef<HTMLDivElement>(null);
   const dsScrollRafRef = useRef<number | null>(null);
@@ -416,6 +419,7 @@ export default function Dashboard() {
   const dsLastTickRef = useRef<number | null>(null);
   const dsLastSettledRef = useRef<number>(dsInitialIdx);
   const dsSuppressHapticsRef = useRef(true);
+  const dayCardTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     dsScrollRef.current?.scrollTo({ left: dsActiveIdx * DATE_ITEM_W, behavior: "auto" });
@@ -428,6 +432,26 @@ export default function Dashboard() {
     }, 200);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (dsSettledIdx === dayCardIdx) return;
+    const dir = dsSettledIdx > dayCardIdx ? 1 : -1;
+    setDayCardDir(dir > 0 ? "right" : "left");
+    setDayCardOffset(-dir * 12);
+    setDayCardOpacity(0);
+    if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
+    dayCardTimerRef.current = window.setTimeout(() => {
+      setDayCardIdx(dsSettledIdx);
+      setDayCardOffset(dir * 18);
+      requestAnimationFrame(() => {
+        setDayCardOpacity(1);
+        setDayCardOffset(0);
+      });
+    }, 140);
+    return () => {
+      if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
+    };
+  }, [dsSettledIdx, dayCardIdx]);
 
   const handleDsScroll = useCallback(() => {
     if (dsScrollRafRef.current == null) {
@@ -494,8 +518,8 @@ export default function Dashboard() {
   );
 
   const selectedDate = useMemo(
-    () => dsDates[dsSettledIdx]?.date || new Date(),
-    [dsDates, dsSettledIdx]
+    () => dsDates[dayCardIdx]?.date || new Date(),
+    [dsDates, dayCardIdx]
   );
   const selectedISO = useMemo(() => toISODate(selectedDate), [selectedDate]);
 
@@ -739,8 +763,6 @@ export default function Dashboard() {
       : dayState === "planned"
       ? "Начать тренировку"
       : "Посмотреть план";
-  const dayCardKey = `${selectedISO}-${dayState}-${selectedPlanned?.id || "none"}`;
-
   const handleDayAction = () => {
     if (dayState === "completed") {
       const sessionId = selectedPlanned?.resultSessionId;
@@ -798,30 +820,17 @@ export default function Dashboard() {
         .dash-quick-btn:active:not(:disabled) {
           transform: translateY(1px) scale(0.98) !important;
         }
-        @keyframes dayCardInRight {
-          0% { opacity: 0; transform: translateX(20px); }
-          100% { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes dayCardInLeft {
-          0% { opacity: 0; transform: translateX(-20px); }
-          100% { opacity: 1; transform: translateX(0); }
-        }
         .day-card-body {
           display: flex;
           flex-direction: column;
           gap: 8px;
           height: 100%;
-        }
-        .day-card-body.day-card-right {
-          animation: dayCardInRight 260ms ease;
-        }
-        .day-card-body.day-card-left {
-          animation: dayCardInLeft 260ms ease;
+          transition: opacity 220ms ease, transform 220ms ease;
         }
         @media (prefers-reduced-motion: reduce) {
           .dash-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
           .dash-primary-btn, .dash-quick-btn { transition: none !important; }
-          .day-card-body { animation: none !important; transform: none !important; opacity: 1 !important; }
+          .day-card-body { transition: none !important; transform: none !important; opacity: 1 !important; }
         }
       `}</style>
 
@@ -902,21 +911,34 @@ export default function Dashboard() {
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
         <div
-          key={dayCardKey}
-          className={`day-card-body ${dayCardDir === "right" ? "day-card-right" : "day-card-left"}`}
+          className="day-card-body"
+          style={{ opacity: dayCardOpacity, transform: `translateX(${dayCardOffset}px)` }}
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.ctaTitle}>{dayTitle}</div>
-          {showChips && (
-            <div style={s.dayChips}>
-              {workoutChips.totalExercises > 0 && (
-                <span style={s.dayChip}>{workoutChips.totalExercises} упражнений</span>
-              )}
-              {workoutChips.minutes && (
-                <span style={s.dayChip}>{workoutChips.minutes} мин</span>
-              )}
-            </div>
-          )}
+          <div
+            style={{
+              ...s.dayChips,
+              ...(showChips ? undefined : s.dayChipsHidden),
+            }}
+            aria-hidden={!showChips}
+          >
+            {showChips ? (
+              <>
+                {workoutChips.totalExercises > 0 && (
+                  <span style={s.dayChip}>{workoutChips.totalExercises} упражнений</span>
+                )}
+                {workoutChips.minutes && (
+                  <span style={s.dayChip}>{workoutChips.minutes} мин</span>
+                )}
+              </>
+            ) : (
+              <>
+                <span style={s.dayChip}>— упражнений</span>
+                <span style={s.dayChip}>— мин</span>
+              </>
+            )}
+          </div>
           <button
             type="button"
             style={{ ...s.primaryBtn, marginTop: "auto" }}
@@ -1302,7 +1324,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    minHeight: 178,
+    minHeight: 190,
   },
   dayHeader: {
     fontSize: 13,
@@ -1322,6 +1344,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     gap: 8,
     flexWrap: "wrap",
+    minHeight: 24,
+  },
+  dayChipsHidden: {
+    visibility: "hidden",
   },
   dayChip: {
     background: "rgba(255,255,255,0.6)",
