@@ -1341,7 +1341,7 @@ const s: Record<string, React.CSSProperties> = {
 
   // ===== BLOCK 3: Next Action CTA =====
   ctaCard: {
-    borderRadius: 18,
+    borderRadius: 24,
     padding: "20px 18px",
     background:
       "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
