@@ -1315,7 +1315,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 18,
     padding: "20px 18px",
     background:
-      "linear-gradient(135deg, rgba(70,78,92,0.9) 0%, rgba(112,124,141,0.9) 36%, rgba(168,178,191,0.9) 66%, rgba(86,98,116,0.9) 100%), radial-gradient(120% 120% at 15% 10%, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 55%)",
+      "radial-gradient(140% 120% at 8% 10%, rgba(255,214,232,0.9) 0%, rgba(255,214,232,0) 45%), radial-gradient(120% 120% at 85% 15%, rgba(173,185,255,0.85) 0%, rgba(173,185,255,0) 55%), radial-gradient(140% 140% at 78% 85%, rgba(243,155,235,0.8) 0%, rgba(243,155,235,0) 55%), linear-gradient(135deg, rgba(248,214,236,0.9) 0%, rgba(201,178,245,0.9) 45%, rgba(141,164,241,0.9) 100%)",
     border: "1px solid rgba(255,255,255,0.45)",
     boxShadow:
       "0 14px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
