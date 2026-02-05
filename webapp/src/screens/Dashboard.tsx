@@ -12,14 +12,14 @@ import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
-import calendarImg from "@/assets/calendar.webp";
+import dataImg from "@/assets/data.webp";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
 const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
-const CALENDAR_MASCOT_SRC = calendarImg;
+const REST_MASCOT_SRC = dataImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
@@ -180,6 +180,37 @@ function getWeekDays(): Date[] {
   });
 }
 
+function collectAssignedDateKeys(
+  planned: PlannedWorkout[],
+  scheduleByDate: ScheduleByDate
+): string[] {
+  const set = new Set<string>();
+  planned
+    .filter((w) => w.status === "scheduled" || w.status === "pending")
+    .forEach((w) => {
+      const iso = datePart(w.scheduledFor);
+      if (iso) set.add(iso);
+    });
+  Object.keys(scheduleByDate || {}).forEach((iso) => {
+    if (iso) set.add(iso);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
+function resolvePreferredDateIndex(
+  dsDates: Array<{ date: Date }>,
+  planned: PlannedWorkout[],
+  scheduleByDate: ScheduleByDate,
+  fallbackIdx: number
+): number {
+  const assigned = collectAssignedDateKeys(planned, scheduleByDate);
+  if (!assigned.length) return fallbackIdx;
+  const today = toISODate(new Date());
+  const preferredIso = assigned.find((iso) => iso >= today) || assigned[0];
+  const idx = dsDates.findIndex((item) => toISODate(item.date) === preferredIso);
+  return idx >= 0 ? idx : fallbackIdx;
+}
+
 function readHistorySnapshot(): HistorySnapshot {
   if (typeof window === "undefined")
     return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
@@ -302,7 +333,7 @@ ensureImagePreloaded(ROBOT_SRC, "robot");
 ensureImagePreloaded(BACK_MASCOT_SRC, "day-back");
 ensureImagePreloaded(CHEST_MASCOT_SRC, "day-chest");
 ensureImagePreloaded(LEGS_MASCOT_SRC, "day-legs");
-ensureImagePreloaded(CALENDAR_MASCOT_SRC, "day-calendar");
+ensureImagePreloaded(REST_MASCOT_SRC, "day-rest");
 
 // ============================================================================
 // IDENTITY
@@ -474,7 +505,11 @@ export default function Dashboard() {
   // ---------- Date scroller ----------
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
-  const dsInitialIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
+  const dsFallbackIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
+  const dsInitialIdx = useMemo(
+    () => resolvePreferredDateIndex(dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx),
+    [dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx]
+  );
   const [dsActiveIdx, setDsActiveIdx] = useState(dsInitialIdx);
   const [dsSettledIdx, setDsSettledIdx] = useState(dsInitialIdx);
   const [dayCardIdx, setDayCardIdx] = useState(dsInitialIdx);
@@ -487,6 +522,9 @@ export default function Dashboard() {
   const dsLastTickRef = useRef<number | null>(null);
   const dsLastSettledRef = useRef<number>(dsInitialIdx);
   const dsSuppressHapticsRef = useRef(true);
+  const dsAutoCenterAppliedRef = useRef(false);
+  const dsUserInteractedRef = useRef(false);
+  const dsFirstRenderIdxRef = useRef(dsInitialIdx);
   const dayCardTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -500,6 +538,35 @@ export default function Dashboard() {
     }, 200);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (dsAutoCenterAppliedRef.current || dsUserInteractedRef.current) return;
+    const preferredIdx = resolvePreferredDateIndex(
+      dsDates,
+      plannedWorkouts,
+      scheduleDates,
+      dsFallbackIdx
+    );
+    const stillOnInitial =
+      dsActiveIdx === dsFirstRenderIdxRef.current &&
+      dsSettledIdx === dsFirstRenderIdxRef.current &&
+      dayCardIdx === dsFirstRenderIdxRef.current;
+    if (!stillOnInitial) {
+      dsAutoCenterAppliedRef.current = true;
+      return;
+    }
+    if (preferredIdx === dsFirstRenderIdxRef.current) {
+      dsAutoCenterAppliedRef.current = true;
+      return;
+    }
+    setDsActiveIdx(preferredIdx);
+    setDsSettledIdx(preferredIdx);
+    setDayCardIdx(preferredIdx);
+    dsLastTickRef.current = preferredIdx;
+    dsLastSettledRef.current = preferredIdx;
+    dsScrollRef.current?.scrollTo({ left: preferredIdx * DATE_ITEM_W, behavior: "auto" });
+    dsAutoCenterAppliedRef.current = true;
+  }, [dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx, dsActiveIdx, dsSettledIdx, dayCardIdx]);
 
   useEffect(() => {
     if (dsSettledIdx === dayCardIdx) return;
@@ -793,32 +860,25 @@ export default function Dashboard() {
   // POST-ONBOARDING: New Dashboard
   // ========================================================================
 
-  const hasAnyAssignedDates = plannedDatesSet.size > 0;
-  const shouldShowSetupCard = !hasAnyAssignedDates && historyStats.total === 0;
-  const dayState: "setup" | "completed" | "planned" | "rest" = shouldShowSetupCard
-    ? "setup"
-    : isSelectedCompleted
+  const assignedCount = Math.min(plannedDatesSet.size, totalPlanDays);
+  const dayState: "completed" | "planned" | "rest" = isSelectedCompleted
     ? "completed"
     : isSelectedPlanned
     ? "planned"
     : "rest";
   const dayHeaderText =
-    dayState === "setup"
-      ? "План на неделю готов"
-      : dayState === "completed"
+    dayState === "completed"
       ? "Тренировка выполнена"
       : dayState === "planned"
       ? "Тренировка на"
-      : "День отдыха";
+      : "Свободный день";
   const dayTitle =
-    dayState === "setup"
+    dayState === "rest"
       ? "Распредели тренировки по датам"
-      : dayState === "rest"
-      ? "Выбрать тренировку"
       : selectedWorkoutTitle;
-  const setupProgressText = `Назначено ${Math.min(plannedDatesSet.size, totalPlanDays)}/${totalPlanDays}`;
+  const dayRestProgressText = `Распределено ${assignedCount}/${totalPlanDays}`;
   const dayMascotSrc = useMemo(() => {
-    if (dayState === "setup") return CALENDAR_MASCOT_SRC;
+    if (dayState === "rest") return REST_MASCOT_SRC;
     const title = String(dayTitle || "").toLowerCase();
     if (title.includes("ног") && title.includes("ягод")) return LEGS_MASCOT_SRC;
     if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
@@ -828,14 +888,9 @@ export default function Dashboard() {
   const dayDurationText = formatDuration(workoutChips.minutes);
   const dayExercisesText =
     workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
-  const showDayMeta =
-    Boolean(dayDurationText || dayExercisesText) &&
-    dayState !== "rest" &&
-    dayState !== "setup";
+  const showDayMeta = Boolean(dayDurationText || dayExercisesText) && dayState !== "rest";
   const dayButtonText =
-    dayState === "setup"
-      ? "Открыть план"
-      : dayState === "completed"
+    dayState === "completed"
       ? "Результат"
       : dayState === "planned"
       ? "Начать"
@@ -939,6 +994,9 @@ export default function Dashboard() {
               ref={dsScrollRef}
               style={s.dsTrack}
               className="date-track"
+              onPointerDown={() => {
+                dsUserInteractedRef.current = true;
+              }}
               onScroll={handleDsScroll}
             >
               {dsDates.map((d, idx) => {
@@ -951,6 +1009,7 @@ export default function Dashboard() {
                     className="date-item"
                     style={{ ...s.dsItem, scrollSnapAlign: "center" }}
                     onClick={() => {
+                      dsUserInteractedRef.current = true;
                       fireHapticImpact("light");
                       setDsActiveIdx(idx);
                       dsScrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
@@ -1005,7 +1064,22 @@ export default function Dashboard() {
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
-          {dayState === "setup" ? <div style={s.daySetupProgress}>{setupProgressText}</div> : null}
+          {dayState === "rest" ? (
+            <div style={s.dayDistributionWrap}>
+              <div style={s.dayDistributionLabel}>{dayRestProgressText}</div>
+              <div style={s.dayDistributionRow}>
+                {Array.from({ length: totalPlanDays }, (_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      ...s.dayDistributionPit,
+                      ...(i < assignedCount ? s.dayDistributionPitAssigned : undefined),
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
           {showDayMeta && (
             <div style={s.dayMetaRow}>
               {dayDurationText ? (
@@ -1475,11 +1549,34 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.1,
     letterSpacing: -0.5,
   },
-  daySetupProgress: {
+  dayDistributionWrap: {
+    display: "grid",
+    gap: 10,
+  },
+  dayDistributionLabel: {
     fontSize: 14,
     fontWeight: 600,
     color: "rgba(15, 23, 42, 0.62)",
     lineHeight: 1.35,
+  },
+  dayDistributionRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  dayDistributionPit: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  },
+  dayDistributionPitAssigned: {
+    background: "linear-gradient(180deg, #9ea1a8 0%, #c2c5cc 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(17,24,39,0.32), inset 0 -1px 0 rgba(255,255,255,0.5)",
   },
   dayBtn: {
     alignSelf: "flex-start",
