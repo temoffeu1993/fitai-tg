@@ -1357,7 +1357,7 @@ const s: Record<string, React.CSSProperties> = {
   dayCardMascot: {
     position: "absolute",
     right: -28,
-    bottom: -6,
+    bottom: -18,
     width: 150,
     height: "auto",
     opacity: 1,
