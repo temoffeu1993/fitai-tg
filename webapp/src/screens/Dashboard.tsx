@@ -9,11 +9,13 @@ import { resolveDayCopy } from "@/utils/dayLabelCopy";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.png";
+import zhimImg from "@/assets/zhim.png";
 import mascotImg from "@/assets/robonew.webp";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
-const DAY_MASCOT_SRC = tyagaImg;
+const BACK_MASCOT_SRC = tyagaImg;
+const CHEST_MASCOT_SRC = zhimImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 
@@ -761,6 +763,12 @@ export default function Dashboard() {
       ? "Тренировка на"
       : "День отдыха";
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
+  const dayMascotSrc = useMemo(() => {
+    const title = String(dayTitle || "").toLowerCase();
+    if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
+    if (title.includes("спина") && title.includes("бицепс")) return BACK_MASCOT_SRC;
+    return ROBOT_SRC;
+  }, [dayTitle]);
   const dayDurationText = formatDuration(workoutChips.minutes);
   const dayExercisesText =
     workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
@@ -915,7 +923,7 @@ export default function Dashboard() {
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
         <img
-          src={DAY_MASCOT_SRC}
+          src={dayMascotSrc}
           alt=""
           aria-hidden="true"
           style={s.dayCardMascot}
