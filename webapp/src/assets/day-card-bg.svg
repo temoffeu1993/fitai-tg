@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="600" viewBox="0 0 1000 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7D3E4"/>
+      <stop offset="0.45" stop-color="#C9B3F2"/>
+      <stop offset="1" stop-color="#8AA1F0"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.16" cy="0.14" r="0.55">
+      <stop offset="0" stop-color="#FFD9EC" stop-opacity="0.95"/>
+      <stop offset="0.65" stop-color="#FFD9EC" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.86" cy="0.18" r="0.55">
+      <stop offset="0" stop-color="#B7C2FF" stop-opacity="0.85"/>
+      <stop offset="0.7" stop-color="#B7C2FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow3" cx="0.8" cy="0.86" r="0.6">
+      <stop offset="0" stop-color="#F5A7EF" stop-opacity="0.8"/>
+      <stop offset="0.7" stop-color="#F5A7EF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1000" height="600" fill="url(#base)"/>
+  <rect width="1000" height="600" fill="url(#glow1)"/>
+  <rect width="1000" height="600" fill="url(#glow2)"/>
+  <rect width="1000" height="600" fill="url(#glow3)"/>
+</svg>
