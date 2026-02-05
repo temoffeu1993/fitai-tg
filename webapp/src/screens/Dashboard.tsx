@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate } from "react-router-dom";
 
 import { getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
+import { fireHapticImpact } from "@/utils/haptics";
 
 import robotImg from "../assets/morobot.png";
 import mascotImg from "@/assets/robonew.webp";
@@ -22,23 +23,24 @@ const XP_TIERS = [
 
 const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-const DS_ITEM_W = 64;
-const DS_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const DATE_ITEM_W = 64;
+const DATE_COUNT = 37;
+const DATE_PAST_DAYS = 7;
+const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
-function buildDsDates(range = 14) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(today);
-  start.setDate(today.getDate() - range);
-  const out: { date: Date; iso: string; dow: string; day: number; isToday: boolean }[] = [];
-  for (let i = 0; i <= range * 2; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const iso = toISODate(d);
-    const isToday = iso === toISODate(today);
-    out.push({ date: d, iso, dow: isToday ? "Сегодня" : DS_DOW[d.getDay()], day: d.getDate(), isToday });
-  }
-  return out;
+function buildDsDates(count: number, offsetDays: number) {
+  const now = new Date();
+  const todayKey = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i - offsetDays);
+    return {
+      date: d,
+      dow: DATE_DOW[d.getDay()],
+      day: d.getDate(),
+      idx: i,
+      isToday: d.getTime() === todayKey,
+    };
+  });
 }
 
 // ============================================================================
@@ -370,43 +372,55 @@ export default function Dashboard() {
   }, []);
 
   // ---------- Date scroller ----------
-  const dsDates = useMemo(() => buildDsDates(14), []);
+  const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
-  const [dsActiveIdx, setDsActiveIdx] = useState(dsTodayIdx >= 0 ? dsTodayIdx : 14);
+  const [dsActiveIdx, setDsActiveIdx] = useState(
+    dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS
+  );
   const dsScrollRef = useRef<HTMLDivElement>(null);
-  const dsRaf = useRef(0);
+  const dsScrollRafRef = useRef<number | null>(null);
+  const dsScrollStopTimer = useRef<number | null>(null);
+  const dsLastTickRef = useRef<number | null>(null);
+  const dsSuppressHapticsRef = useRef(true);
 
   useEffect(() => {
-    const el = dsScrollRef.current;
-    if (!el) return;
-    el.scrollLeft = dsActiveIdx * DS_ITEM_W;
+    dsScrollRef.current?.scrollTo({ left: dsActiveIdx * DATE_ITEM_W, behavior: "auto" });
+    dsLastTickRef.current = dsActiveIdx;
   }, []); // center on mount
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      dsSuppressHapticsRef.current = false;
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const handleDsScroll = useCallback(() => {
-    cancelAnimationFrame(dsRaf.current);
-    dsRaf.current = requestAnimationFrame(() => {
+    if (dsScrollRafRef.current == null) {
+      dsScrollRafRef.current = window.requestAnimationFrame(() => {
+        dsScrollRafRef.current = null;
+        const el = dsScrollRef.current;
+        if (!el) return;
+        const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
+        const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
+        if (dsLastTickRef.current !== clamped) {
+          dsLastTickRef.current = clamped;
+          if (!dsSuppressHapticsRef.current) fireHapticImpact("light");
+        }
+        if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
+      });
+    }
+    if (dsScrollStopTimer.current) window.clearTimeout(dsScrollStopTimer.current);
+    dsScrollStopTimer.current = window.setTimeout(() => {
       const el = dsScrollRef.current;
       if (!el) return;
-      const center = el.scrollLeft + el.clientWidth / 2;
-      const idx = Math.round((center - el.clientWidth / 2) / DS_ITEM_W);
-      setDsActiveIdx(Math.max(0, Math.min(idx, dsDates.length - 1)));
-    });
-  }, [dsDates.length]);
-
-  const getDotStatus = useCallback(
-    (d: Date): "completed" | "scheduled" | null => {
-      const iso = toISODate(d);
-      if (historyStats.completedDates.includes(iso)) return "completed";
-      const pw = plannedWorkouts.find(
-        (w) =>
-          w.scheduledFor?.slice(0, 10) === iso &&
-          (w.status === "scheduled" || w.status === "pending")
-      );
-      if (pw) return "scheduled";
-      return null;
-    },
-    [historyStats.completedDates, plannedWorkouts]
-  );
+      const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
+      const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
+      if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
+      el.scrollTo({ left: clamped * DATE_ITEM_W, behavior: "smooth" });
+      if (!dsSuppressHapticsRef.current) fireHapticImpact("light");
+    }, 80);
+  }, [dsDates.length, dsActiveIdx]);
 
   // Computed values
   const todayISO = useMemo(() => toISODate(new Date()), []);
@@ -426,19 +440,6 @@ export default function Dashboard() {
   const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
 
   const weekDays = useMemo(() => getWeekDays(), []);
-
-  const plannedDatesSet = useMemo(() => {
-    const set = new Set<string>();
-    plannedWorkouts
-      .filter((w) => w.status === "scheduled" || w.status === "pending")
-      .forEach((w) => set.add(w.scheduledFor));
-    return set;
-  }, [plannedWorkouts]);
-
-  const completedDatesSet = useMemo(
-    () => new Set(historyStats.completedDates),
-    [historyStats.completedDates]
-  );
 
   const mascotText = useMemo(
     () => getMascotText(historyStats, nextWorkout),
@@ -638,8 +639,8 @@ export default function Dashboard() {
       {/* BLOCK 2: Scrollable Date Picker */}
       <section style={s.dsWrap} className="dash-fade dash-delay-2">
         <style>{`
-          .ds-track::-webkit-scrollbar { display: none; }
-          .ds-item {
+          .date-track::-webkit-scrollbar { display: none; }
+          .date-item {
             appearance: none; outline: none; border: none; cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             touch-action: pan-x;
@@ -653,21 +654,21 @@ export default function Dashboard() {
             <div
               ref={dsScrollRef}
               style={s.dsTrack}
-              className="ds-track"
+              className="date-track"
               onScroll={handleDsScroll}
             >
               {dsDates.map((d, idx) => {
                 const active = idx === dsActiveIdx;
-                const dot = getDotStatus(d.date);
                 return (
                   <button
                     key={idx}
                     type="button"
-                    className="ds-item"
+                    className="date-item"
                     style={{ ...s.dsItem, scrollSnapAlign: "center" }}
                     onClick={() => {
+                      fireHapticImpact("light");
                       setDsActiveIdx(idx);
-                      dsScrollRef.current?.scrollTo({ left: idx * DS_ITEM_W, behavior: "smooth" });
+                      dsScrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
                     }}
                   >
                     <span style={{ ...s.dsDow, ...(active ? s.dsDowActive : undefined) }}>
@@ -675,16 +676,6 @@ export default function Dashboard() {
                     </span>
                     <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
                       {d.day}
-                    </span>
-                    <span style={s.dsDotWrap}>
-                      {dot && (
-                        <span
-                          style={{
-                            ...s.dsDot,
-                            ...(dot === "completed" ? s.dsDotCompleted : s.dsDotScheduled),
-                          }}
-                        />
-                      )}
                     </span>
                   </button>
                 );
@@ -989,13 +980,16 @@ const s: Record<string, React.CSSProperties> = {
   dsCard: {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "visible",
-    padding: "8px 0 6px",
+    alignSelf: "stretch",
+    width: "100%",
+    padding: "16px 14px 20px",
   },
   dsScroller: {
     position: "relative",
@@ -1005,9 +999,9 @@ const s: Record<string, React.CSSProperties> = {
   dsIndicator: {
     position: "absolute",
     left: "50%",
-    top: 6,
+    top: 8,
     width: 64,
-    height: 72,
+    height: 64,
     transform: "translateX(-50%)",
     borderRadius: 16,
     background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
@@ -1023,22 +1017,20 @@ const s: Record<string, React.CSSProperties> = {
     top: 0,
     bottom: 0,
     left: 0,
-    width: 76,
+    width: DATE_ITEM_W * 1.2,
     background: "linear-gradient(90deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 3,
-    borderRadius: "18px 0 0 18px",
   },
   dsFadeR: {
     position: "absolute",
     top: 0,
     bottom: 0,
     right: 0,
-    width: 76,
+    width: DATE_ITEM_W * 1.2,
     background: "linear-gradient(270deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
     pointerEvents: "none",
     zIndex: 3,
-    borderRadius: "0 18px 18px 0",
   },
   dsTrack: {
     overflowX: "auto",
@@ -1047,16 +1039,16 @@ const s: Record<string, React.CSSProperties> = {
     scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "10px 0 8px",
-    paddingLeft: "calc(50% - 32px)",
-    paddingRight: "calc(50% - 32px)",
+    padding: "18px 0 16px",
+    paddingLeft: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+    paddingRight: `calc(50% - ${DATE_ITEM_W / 2}px)`,
     position: "relative",
     zIndex: 2,
     display: "flex",
   } as React.CSSProperties,
   dsItem: {
-    width: 64,
-    minWidth: 64,
+    width: DATE_ITEM_W,
+    minWidth: DATE_ITEM_W,
     display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1087,27 +1079,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#111",
     fontWeight: 700,
     fontSize: 26,
-  },
-  dsDotWrap: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 12,
-    marginTop: 2,
-  },
-  dsDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    position: "relative",
-  } as React.CSSProperties,
-  dsDotScheduled: {
-    background: "linear-gradient(180deg, #d4d4d8 0%, #a1a1aa 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -1px 1px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)",
-  },
-  dsDotCompleted: {
-    background: "linear-gradient(180deg, #4ade80 0%, #22c55e 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 1px rgba(0,0,0,0.15), 0 1px 3px rgba(34,197,94,0.3)",
   },
 
   // ===== BLOCK 3: Next Action CTA =====
