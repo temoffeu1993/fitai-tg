@@ -27,6 +27,7 @@ const DATE_ITEM_W = 64;
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const DASH_MASCOT_W = 120;
 
 function buildDsDates(count: number, offsetDays: number) {
   const now = new Date();
@@ -940,7 +941,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 8,
   },
   mascotImg: {
-    width: 120,
+    width: DASH_MASCOT_W,
+    maxWidth: DASH_MASCOT_W,
     height: "auto",
     objectFit: "contain",
   },
