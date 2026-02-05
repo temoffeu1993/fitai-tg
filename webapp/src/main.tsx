@@ -1,5 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+
+import { getScheduleOverview } from "@/api/schedule";
 import App from "./App";
 import "./styles.css";
 import robotImg from "./assets/robot.png";
@@ -106,6 +108,7 @@ timeMark("boot:theme-applied");
 
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
+const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 const hideBootSplash = () => {
   const el = document.getElementById("boot-splash");
   if (el) {
@@ -128,6 +131,21 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+async function preloadScheduleCache() {
+  try {
+    if (typeof window === "undefined") return;
+    const data = await getScheduleOverview();
+    const payload = {
+      plannedWorkouts: Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [],
+      scheduleDates: data?.schedule?.dates ?? {},
+      ts: Date.now(),
+    };
+    localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore preload failures
+  }
 }
 
 function DebugOverlay() {
@@ -310,7 +328,7 @@ if (isDev && !tg?.initData) {
     breathImg,
     absImg,
   ];
-  Promise.all(allImages.map(preloadImage)).finally(() => {
+  Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]).finally(() => {
     timeMark("boot:critical-images-ready");
     root.render(
       <>
@@ -365,7 +383,7 @@ async function auth() {
       breathImg,
       absImg,
     ];
-    await Promise.all(allImages.map(preloadImage));
+    await Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]);
     timeMark("boot:critical-images-ready");
     root.render(
       <>
