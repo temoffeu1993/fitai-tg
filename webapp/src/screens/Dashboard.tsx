@@ -10,12 +10,14 @@ import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.png";
 import zhimImg from "@/assets/zhim.png";
+import nogiImg from "@/assets/nogi.png";
 import mascotImg from "@/assets/robonew.webp";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
 const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
+const LEGS_MASCOT_SRC = nogiImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 
@@ -765,6 +767,7 @@ export default function Dashboard() {
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
   const dayMascotSrc = useMemo(() => {
     const title = String(dayTitle || "").toLowerCase();
+    if (title.includes("ног") && title.includes("ягод")) return LEGS_MASCOT_SRC;
     if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
     if (title.includes("спина") && title.includes("бицепс")) return BACK_MASCOT_SRC;
     return ROBOT_SRC;
