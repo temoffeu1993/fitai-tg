@@ -1123,9 +1123,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 8,
     height: 8,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #3f3f46 0%, #111827 100%)",
+    background: "linear-gradient(180deg, #6b7280 0%, #3f3f46 100%)",
     boxShadow:
-      "0 2px 4px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.25)",
+      "0 2px 4px rgba(17,24,39,0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
