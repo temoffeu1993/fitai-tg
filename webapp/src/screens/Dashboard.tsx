@@ -913,7 +913,11 @@ export default function Dashboard() {
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
         <div
           className="day-card-body"
-          style={{ opacity: dayCardOpacity, transform: `translateX(${dayCardOffset}px)` }}
+          style={{
+            ...s.dayCardBody,
+            opacity: dayCardOpacity,
+            transform: `translateX(${dayCardOffset}px)`,
+          }}
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
@@ -1306,6 +1310,16 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 8,
     minHeight: 190,
+    height: 190,
+    position: "relative",
+    overflow: "hidden",
+  },
+  dayCardBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    height: "100%",
+    flex: 1,
   },
   dayHeader: {
     fontSize: 14,
