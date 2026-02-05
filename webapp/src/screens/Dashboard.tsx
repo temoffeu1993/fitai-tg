@@ -1036,9 +1036,9 @@ const s: Record<string, React.CSSProperties> = {
     left: "50%",
     top: "50%",
     width: 68,
-    height: 68,
+    height: 76,
     transform: "translate(-50%, -50%)",
-    borderRadius: 20,
+    borderRadius: 22,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
     border: "1px solid rgba(255,255,255,0.95)",
     boxShadow:
@@ -1067,13 +1067,13 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 4,
     padding: 0,
     background: "transparent",
     cursor: "pointer",
   } as React.CSSProperties,
   dsDow: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 500,
     color: "rgba(17,17,17,0.35)",
     lineHeight: 1.1,
@@ -1084,7 +1084,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   dsNum: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 500,
     color: "rgba(17,17,17,0.3)",
     lineHeight: 1.1,
@@ -1092,7 +1092,7 @@ const s: Record<string, React.CSSProperties> = {
   dsNumActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 30,
+    fontSize: 28,
   },
   dsDotWrap: {
     height: 14,
