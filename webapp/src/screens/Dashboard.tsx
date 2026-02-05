@@ -292,31 +292,6 @@ function resolveTelegramName() {
   return "Гость";
 }
 
-function resolveGoalLabel() {
-  try {
-    const raw = localStorage.getItem("onb_summary");
-    if (!raw) return "";
-    const data = JSON.parse(raw);
-    const custom = data?.motivation?.goalCustom;
-    if (typeof custom === "string" && custom.trim()) return custom.trim();
-    const code =
-      data?.motivation?.goal ||
-      data?.goals?.primary ||
-      data?.goals?.goal ||
-      "";
-    const map: Record<string, string> = {
-      lose_weight: "Сбросить лишнее",
-      build_muscle: "Набрать мышцы",
-      athletic_body: "Подтянуться и быть в форме",
-      health_wellness: "Здоровье и самочувствие",
-    };
-    return map[String(code)] || "";
-  } catch (err) {
-    console.error("Error parsing goal label:", err);
-  }
-  return "";
-}
-
 
 function hasOnb() {
   try {
@@ -334,7 +309,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [onbDone, setOnbDone] = useState<boolean>(hasOnb());
   const [name, setName] = useState<string>(() => resolveTelegramName());
-  const [goalLabel, setGoalLabel] = useState<string>(() => resolveGoalLabel());
   const [historyStats, setHistoryStats] = useState<HistorySnapshot>(() =>
     readHistorySnapshot()
   );
@@ -367,7 +341,6 @@ export default function Dashboard() {
       const done = hasOnb();
       setOnbDone(done);
       setName(resolveTelegramName());
-      setGoalLabel(resolveGoalLabel());
     };
     updateIdentity();
     window.addEventListener("focus", updateIdentity);
@@ -787,7 +760,6 @@ export default function Dashboard() {
       : dayState === "planned"
       ? "Тренировка на"
       : "День отдыха";
-  const dayGoalText = goalLabel ? `Цель: ${goalLabel}` : "Цель: —";
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
   const dayDurationText = formatDuration(workoutChips.minutes);
   const dayExercisesText =
@@ -968,7 +940,6 @@ export default function Dashboard() {
               ) : null}
             </div>
           )}
-          <div style={s.dayGoal}>{dayGoalText}</div>
           <button
             type="button"
             style={{ ...s.dayBtn, marginTop: "auto" }}
@@ -1387,11 +1358,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  dayGoal: {
-    fontSize: 14,
-    color: "rgba(15, 23, 42, 0.6)",
-    lineHeight: 1.5,
   },
   dayMetaRow: {
     display: "flex",
