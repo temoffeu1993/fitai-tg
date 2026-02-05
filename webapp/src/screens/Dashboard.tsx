@@ -708,9 +708,9 @@ export default function Dashboard() {
                         style={{
                           ...s.dsDotPit,
                           ...(dot === "scheduled" ? s.dsDotPitScheduled : undefined),
+                          ...(dot === "completed" ? s.dsDotPitCompleted : undefined),
                         }}
                       >
-                        {dot === "completed" && <span style={s.dsDotBall} />}
                       </span>
                     </span>
                   </button>
@@ -1116,17 +1116,14 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
   } as React.CSSProperties,
   dsDotPitScheduled: {
-    background: "linear-gradient(180deg, #3a3b3f 0%, #1e1f22 100%)",
+    background: "linear-gradient(180deg, #b6b8bd 0%, #d7d9de 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(0,0,0,0.55), inset 0 -1px 0 rgba(255,255,255,0.2)",
+      "inset 0 2px 3px rgba(17,24,39,0.28), inset 0 -1px 0 rgba(255,255,255,0.6)",
   } as React.CSSProperties,
-  dsDotBall: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #4ade80 0%, #22c55e 100%)",
+  dsDotPitCompleted: {
+    background: "linear-gradient(180deg, #c9f3d9 0%, #ddf7e7 100%)",
     boxShadow:
-      "0 2px 4px rgba(34,197,94,0.35), inset 0 1px 0 rgba(255,255,255,0.7)",
+      "inset 0 2px 3px rgba(34,197,94,0.25), inset 0 -1px 0 rgba(255,255,255,0.8)",
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
