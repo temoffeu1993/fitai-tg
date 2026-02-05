@@ -1037,7 +1037,7 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   } as React.CSSProperties,
   dsDow: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 500,
     color: "rgba(17,17,17,0.35)",
     lineHeight: 1.1,
@@ -1048,7 +1048,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   dsNum: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 500,
     color: "rgba(17,17,17,0.3)",
     lineHeight: 1.1,
@@ -1056,7 +1056,7 @@ const s: Record<string, React.CSSProperties> = {
   dsNumActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 32,
+    fontSize: 30,
   },
 
   // ===== BLOCK 3: Next Action CTA =====
