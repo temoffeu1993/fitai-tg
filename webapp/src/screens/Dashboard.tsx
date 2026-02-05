@@ -1359,7 +1359,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -4,
+    marginRight: -8,
   },
   dayBtnArrow: {
     fontSize: 18,
