@@ -1315,10 +1315,10 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 18,
     padding: "20px 18px",
     background:
-      "linear-gradient(135deg, rgba(98,79,224,0.95) 0%, rgba(46,103,211,0.95) 45%, rgba(136,156,175,0.95) 100%)",
-    border: "none",
+      "linear-gradient(135deg, rgba(98,79,224,0.88) 0%, rgba(46,103,211,0.88) 45%, rgba(136,156,175,0.88) 100%)",
+    border: "1px solid rgba(255,255,255,0.45)",
     boxShadow:
-      "0 18px 36px rgba(23, 32, 55, 0.35), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -6px 18px rgba(7,12,24,0.35)",
+      "0 14px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     display: "flex",
