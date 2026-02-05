@@ -1337,8 +1337,8 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   dayBtnIconWrap: {
-    width: 26,
-    height: 26,
+    width: 30,
+    height: 30,
     borderRadius: 999,
     background: "#fff",
     display: "inline-flex",
@@ -1346,7 +1346,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
   },
   dayBtnArrow: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
