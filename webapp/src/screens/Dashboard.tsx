@@ -83,11 +83,8 @@ function normalizeScheduleDates(
 function formatDuration(minutes?: number | null) {
   const total = Number(minutes);
   if (!Number.isFinite(total) || total <= 0) return "";
-  if (total < 60) return `${total} мин`;
-  const hrs = Math.floor(total / 60);
-  const mins = Math.round(total % 60);
-  if (mins > 0) return `${hrs} ч ${mins} мин`;
-  return `${hrs} ч`;
+  const rounded = Math.round(total / 10) * 10;
+  return `${rounded} мин`;
 }
 
 function ClockIcon({ size = 16 }: { size?: number }) {
