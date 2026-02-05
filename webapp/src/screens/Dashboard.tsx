@@ -919,7 +919,7 @@ export default function Dashboard() {
           <div style={s.dayTitle}>{dayTitle}</div>
           <button
             type="button"
-            style={s.dayBtn}
+            style={{ ...s.dayBtn, marginTop: "auto" }}
             className="dash-primary-btn day-cta"
             onClick={handleDayAction}
           >
@@ -1326,13 +1326,13 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 12,
-    padding: "10px 14px",
+    padding: "16px 18px",
     borderRadius: 999,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 600,
-    fontSize: 14,
+    fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
