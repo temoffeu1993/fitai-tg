@@ -2,8 +2,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getPlannedWorkouts, type PlannedWorkout } from "@/api/schedule";
+import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@/api/schedule";
+import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import { fireHapticImpact } from "@/utils/haptics";
+import { resolveDayCopy } from "@/utils/dayLabelCopy";
 
 import robotImg from "../assets/morobot.png";
 import mascotImg from "@/assets/robonew.webp";
@@ -61,6 +63,26 @@ function toISODate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
+
+function normalizeScheduleDates(
+  dates: Record<string, { time?: string }> | null | undefined
+): ScheduleByDate {
+  if (!dates) return {};
+  const out: ScheduleByDate = {};
+  Object.entries(dates).forEach(([iso, entry]) => {
+    if (entry && isValidTime(entry.time ?? "")) {
+      out[iso] = { time: entry.time as string };
+    }
+  });
+  return out;
+}
+
+function datePart(value?: string | null): string {
+  if (!value) return "";
+  return String(value).slice(0, 10);
 }
 
 function getWeekDays(): Date[] {
@@ -195,28 +217,6 @@ function getMascotText(
   return "Регулярность — ключ к результату";
 }
 
-function formatScheduledDate(scheduledFor: string): string {
-  try {
-    const d = new Date(scheduledFor + "T12:00:00");
-    return d.toLocaleDateString("ru-RU", {
-      weekday: "short",
-      day: "numeric",
-      month: "long",
-    });
-  } catch {
-    return scheduledFor;
-  }
-}
-
-function getWorkoutTitle(workout: PlannedWorkout): string {
-  const plan = workout.plan;
-  if (plan?.title) return plan.title;
-  if (plan?.name) return plan.name;
-  if (plan?.label) return plan.label;
-  if (plan?.scheme_label) return plan.scheme_label;
-  return "Тренировка";
-}
-
 // ============================================================================
 // PRELOAD
 // ============================================================================
@@ -285,6 +285,8 @@ export default function Dashboard() {
     readHistorySnapshot()
   );
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
+  const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
+  const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
 
   // Lock scroll for intro
@@ -325,13 +327,18 @@ export default function Dashboard() {
   const refreshPlanned = useCallback(async () => {
     if (!onbDone) {
       setPlannedWorkouts([]);
+      setScheduleDates({});
       return;
     }
     try {
-      const list = await getPlannedWorkouts();
-      setPlannedWorkouts(Array.isArray(list) ? list : []);
+      const data = await getScheduleOverview();
+      setPlannedWorkouts(
+        Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : []
+      );
+      setScheduleDates(normalizeScheduleDates(data?.schedule?.dates));
     } catch {
       setPlannedWorkouts([]);
+      setScheduleDates({});
     }
   }, [onbDone]);
 
@@ -349,6 +356,30 @@ export default function Dashboard() {
       window.removeEventListener("plan_completed" as any, refreshPlanned);
     };
   }, [refreshPlanned]);
+
+  // Selected scheme (for day label fallbacks)
+  useEffect(() => {
+    if (!onbDone) {
+      setSelectedScheme(null);
+      return;
+    }
+    let active = true;
+    const loadScheme = async () => {
+      try {
+        const scheme = await getSelectedScheme();
+        if (active) setSelectedScheme(scheme);
+      } catch {
+        if (active) setSelectedScheme(null);
+      }
+    };
+    loadScheme();
+    const onSchemeSelected = () => loadScheme();
+    window.addEventListener("scheme_selected" as any, onSchemeSelected);
+    return () => {
+      active = false;
+      window.removeEventListener("scheme_selected" as any, onSchemeSelected);
+    };
+  }, [onbDone]);
 
   // History updates
   useEffect(() => {
@@ -434,8 +465,11 @@ export default function Dashboard() {
         const iso = w.scheduledFor?.slice(0, 10);
         if (iso) set.add(iso);
       });
+    Object.keys(scheduleDates || {}).forEach((iso) => {
+      if (iso) set.add(iso);
+    });
     return set;
-  }, [plannedWorkouts]);
+  }, [plannedWorkouts, scheduleDates]);
 
   const completedDatesSet = useMemo(
     () => new Set(historyStats.completedDates),
@@ -452,6 +486,12 @@ export default function Dashboard() {
     [completedDatesSet, plannedDatesSet]
   );
 
+  const selectedDate = useMemo(
+    () => dsDates[dsActiveIdx]?.date || new Date(),
+    [dsDates, dsActiveIdx]
+  );
+  const selectedISO = useMemo(() => toISODate(selectedDate), [selectedDate]);
+
   const nextWorkout = useMemo(() => {
     return (
       plannedWorkouts
@@ -463,6 +503,77 @@ export default function Dashboard() {
         .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))[0] || null
     );
   }, [plannedWorkouts, todayISO]);
+
+  const plannedForSelected = useMemo(() => {
+    return plannedWorkouts
+      .filter((w) => w && w.status !== "cancelled")
+      .filter((w) => datePart(w.scheduledFor) === selectedISO)
+      .slice()
+      .sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")));
+  }, [plannedWorkouts, selectedISO]);
+
+  const completedForSelected = useMemo(
+    () => plannedForSelected.find((w) => w.status === "completed") || null,
+    [plannedForSelected]
+  );
+  const activeForSelected = useMemo(
+    () =>
+      plannedForSelected.find(
+        (w) => w.status === "scheduled" || w.status === "pending"
+      ) || null,
+    [plannedForSelected]
+  );
+
+  const slotForSelected = scheduleDates[selectedISO];
+  const isSelectedCompleted =
+    completedDatesSet.has(selectedISO) || Boolean(completedForSelected);
+  const isSelectedPlanned =
+    Boolean(activeForSelected) || (!isSelectedCompleted && Boolean(slotForSelected));
+
+  const selectedPlanned =
+    activeForSelected || completedForSelected || plannedForSelected[0] || null;
+
+  const fallbackSchemeTitle = useMemo(() => {
+    const firstLabel = selectedScheme?.dayLabels?.[0]?.label;
+    if (firstLabel) {
+      const resolved = resolveDayCopy(firstLabel, selectedScheme?.splitType || "", 0).title;
+      if (/^День\\s+\\d+/.test(resolved)) return firstLabel;
+      return resolved;
+    }
+    return "Тренировка";
+  }, [selectedScheme]);
+
+  const selectedWorkoutTitle = useMemo(() => {
+    const plan: any = selectedPlanned?.plan || {};
+    const raw =
+      String(
+        plan.dayLabel ||
+          plan.title ||
+          plan.name ||
+          plan.label ||
+          plan.scheme_label ||
+          ""
+      ).trim();
+    const idxRaw = Number(plan?.dayIndex);
+    const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
+    const splitType =
+      String(plan?.splitType || selectedScheme?.splitType || "").trim();
+    if (raw) {
+      const resolved = resolveDayCopy(raw, splitType, idx).title;
+      if (/^День\\s+\\d+/.test(resolved)) return raw;
+      return resolved;
+    }
+    return fallbackSchemeTitle;
+  }, [selectedPlanned, selectedScheme, fallbackSchemeTitle]);
+
+  const workoutChips = useMemo(() => {
+    const plan: any = selectedPlanned?.plan || {};
+    const totalExercises =
+      Number(plan?.totalExercises) ||
+      (Array.isArray(plan?.exercises) ? plan.exercises.length : 0);
+    const minutes = Number(plan?.estimatedDuration) || null;
+    return { totalExercises, minutes };
+  }, [selectedPlanned]);
 
   const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
 
@@ -595,7 +706,46 @@ export default function Dashboard() {
   // POST-ONBOARDING: New Dashboard
   // ========================================================================
 
-  const isWorkoutToday = nextWorkout?.scheduledFor === todayISO;
+  const dayState: "completed" | "planned" | "rest" = isSelectedCompleted
+    ? "completed"
+    : isSelectedPlanned
+    ? "planned"
+    : "rest";
+  const isSelectedToday = selectedISO === todayISO;
+  const dayHeaderText =
+    dayState === "completed"
+      ? "Тренировка выполнена"
+      : dayState === "planned"
+      ? isSelectedToday
+        ? "Сегодня тренировка"
+        : "Тренировка в этот день"
+      : isSelectedToday
+      ? "Сегодня отдыхаем"
+      : "В этот день отдыхаем";
+  const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
+  const showChips =
+    dayState !== "rest" &&
+    (workoutChips.totalExercises > 0 || Boolean(workoutChips.minutes));
+  const dayButtonText =
+    dayState === "completed"
+      ? "Посмотреть результат"
+      : dayState === "planned"
+      ? "Начать тренировку"
+      : "Посмотреть план";
+  const dayCardKey = `${selectedISO}-${dayState}-${selectedPlanned?.id || "none"}`;
+
+  const handleDayAction = () => {
+    if (dayState === "completed") {
+      const sessionId = selectedPlanned?.resultSessionId;
+      if (sessionId) {
+        navigate(`/workout/result?sessionId=${encodeURIComponent(sessionId)}`);
+        return;
+      }
+      navigate("/workout/result");
+      return;
+    }
+    navigate("/plan/one");
+  };
 
   return (
     <div style={s.page}>
@@ -641,9 +791,21 @@ export default function Dashboard() {
         .dash-quick-btn:active:not(:disabled) {
           transform: translateY(1px) scale(0.98) !important;
         }
+        @keyframes dayCardFade {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        .day-card-body {
+          animation: dayCardFade 220ms ease;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          height: 100%;
+        }
         @media (prefers-reduced-motion: reduce) {
           .dash-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
           .dash-primary-btn, .dash-quick-btn { transition: none !important; }
+          .day-card-body { animation: none !important; }
         }
       `}</style>
 
@@ -723,47 +885,28 @@ export default function Dashboard() {
 
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
-        <div style={s.ctaHeader}>
-          <span style={s.ctaHeaderIcon}>{isWorkoutToday ? "🔥" : "⭐"}</span>
-          <span style={s.ctaHeaderLabel}>Следующее действие</span>
+        <div key={dayCardKey} className="day-card-body">
+          <div style={s.dayHeader}>{dayHeaderText}</div>
+          <div style={s.ctaTitle}>{dayTitle}</div>
+          {showChips && (
+            <div style={s.dayChips}>
+              {workoutChips.totalExercises > 0 && (
+                <span style={s.dayChip}>{workoutChips.totalExercises} упражнений</span>
+              )}
+              {workoutChips.minutes && (
+                <span style={s.dayChip}>{workoutChips.minutes} мин</span>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            style={s.primaryBtn}
+            className="dash-primary-btn"
+            onClick={handleDayAction}
+          >
+            {dayButtonText}
+          </button>
         </div>
-        {nextWorkout ? (
-          <>
-            <div style={s.ctaTitle}>
-              {isWorkoutToday
-                ? "Пора тренироваться"
-                : getWorkoutTitle(nextWorkout)}
-            </div>
-            <div style={s.ctaDate}>
-              {isWorkoutToday
-                ? getWorkoutTitle(nextWorkout)
-                : formatScheduledDate(nextWorkout.scheduledFor)}
-            </div>
-            <button
-              type="button"
-              style={s.primaryBtn}
-              className="dash-primary-btn"
-              onClick={() => navigate("/plan/one")}
-            >
-              {isWorkoutToday ? "Начать тренировку" : "Посмотреть план"}
-            </button>
-          </>
-        ) : (
-          <>
-            <div style={s.ctaTitle}>Запланируй тренировку</div>
-            <div style={s.ctaDate}>
-              Выбери программу и назначь дату
-            </div>
-            <button
-              type="button"
-              style={s.primaryBtn}
-              className="dash-primary-btn"
-              onClick={() => navigate("/plan/one")}
-            >
-              Выбрать тренировку
-            </button>
-          </>
-        )}
       </section>
 
       {/* BLOCK 4: Progress (Streak + XP Bar) */}
@@ -1139,23 +1282,15 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(18px)",
     display: "flex",
     flexDirection: "column",
-    gap: 6,
-  },
-  ctaHeader: {
-    display: "flex",
-    alignItems: "center",
     gap: 8,
-    marginBottom: 4,
+    minHeight: 178,
   },
-  ctaHeaderIcon: {
-    fontSize: 16,
-  },
-  ctaHeaderLabel: {
+  dayHeader: {
     fontSize: 13,
     fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.55)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: "rgba(15, 23, 42, 0.6)",
+    textTransform: "none",
+    letterSpacing: 0,
   },
   ctaTitle: {
     fontSize: 24,
@@ -1164,12 +1299,26 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.15,
     letterSpacing: -0.3,
   },
-  ctaDate: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(30, 31, 34, 0.6)",
-    lineHeight: 1.3,
-    marginBottom: 8,
+  dayChips: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  dayChip: {
+    background: "rgba(255,255,255,0.6)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    padding: "5px 10px",
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#334155",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
   },
   primaryBtn: {
     width: "100%",
