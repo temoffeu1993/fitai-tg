@@ -911,7 +911,7 @@ export default function Dashboard() {
 
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
-        <div style={s.ctaBg} aria-hidden />
+        <img src={dayCardBg} alt="" style={s.ctaBgImg} aria-hidden />
         <div
           className="day-card-body"
           style={{
@@ -1321,7 +1321,8 @@ const s: Record<string, React.CSSProperties> = {
   ctaCard: {
     borderRadius: 18,
     padding: "20px 18px",
-    background: "transparent",
+    background:
+      "linear-gradient(135deg, rgba(248,214,236,0.9) 0%, rgba(201,178,245,0.9) 45%, rgba(141,164,241,0.9) 100%)",
     border: "1px solid rgba(255,255,255,0.45)",
     boxShadow:
       "0 14px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
@@ -1334,15 +1335,15 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     overflow: "hidden",
   },
-  ctaBg: {
+  ctaBgImg: {
     position: "absolute",
     inset: 0,
-    backgroundImage: `url(${dayCardBg}), linear-gradient(135deg, rgba(248,214,236,0.9) 0%, rgba(201,178,245,0.9) 45%, rgba(141,164,241,0.9) 100%)`,
-    backgroundSize: "cover, cover",
-    backgroundPosition: "center, center",
-    backgroundRepeat: "no-repeat, no-repeat",
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
     filter: "saturate(1.05)",
     zIndex: 0,
+    pointerEvents: "none",
   },
   dayHeader: {
     fontSize: 13,
