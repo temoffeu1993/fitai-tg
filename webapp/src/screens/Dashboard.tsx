@@ -6,7 +6,6 @@ import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import dayCardBg from "@/assets/day-card-bg.svg";
 
 import robotImg from "../assets/morobot.png";
 import mascotImg from "@/assets/robonew.webp";
@@ -1315,10 +1314,8 @@ const s: Record<string, React.CSSProperties> = {
   ctaCard: {
     borderRadius: 18,
     padding: "20px 18px",
-    backgroundImage: `url(${dayCardBg})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
+    background:
+      "radial-gradient(140% 120% at 8% 10%, rgba(255,214,232,0.9) 0%, rgba(255,214,232,0) 45%), radial-gradient(120% 120% at 85% 15%, rgba(173,185,255,0.85) 0%, rgba(173,185,255,0) 55%), radial-gradient(140% 140% at 78% 85%, rgba(243,155,235,0.8) 0%, rgba(243,155,235,0) 55%), linear-gradient(135deg, rgba(248,214,236,0.9) 0%, rgba(201,178,245,0.9) 45%, rgba(141,164,241,0.9) 100%)",
     border: "1px solid rgba(255,255,255,0.45)",
     boxShadow:
       "0 14px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
