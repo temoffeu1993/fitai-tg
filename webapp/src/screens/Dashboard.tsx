@@ -1402,7 +1402,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 12,
-    height: 46,
+    height: 50,
     padding: "0 14px",
     borderRadius: 999,
     border: "1px solid #1e1f22",
