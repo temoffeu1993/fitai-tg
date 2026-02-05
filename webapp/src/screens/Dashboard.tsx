@@ -406,13 +406,15 @@ export default function Dashboard() {
   // ---------- Date scroller ----------
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
-  const [dsActiveIdx, setDsActiveIdx] = useState(
-    dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS
-  );
+  const dsInitialIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
+  const [dsActiveIdx, setDsActiveIdx] = useState(dsInitialIdx);
+  const [dsSettledIdx, setDsSettledIdx] = useState(dsInitialIdx);
+  const [dayCardDir, setDayCardDir] = useState<"left" | "right">("right");
   const dsScrollRef = useRef<HTMLDivElement>(null);
   const dsScrollRafRef = useRef<number | null>(null);
   const dsScrollStopTimer = useRef<number | null>(null);
   const dsLastTickRef = useRef<number | null>(null);
+  const dsLastSettledRef = useRef<number>(dsInitialIdx);
   const dsSuppressHapticsRef = useRef(true);
 
   useEffect(() => {
@@ -449,6 +451,11 @@ export default function Dashboard() {
       const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
       const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
       if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
+      if (clamped !== dsLastSettledRef.current) {
+        setDayCardDir(clamped > dsLastSettledRef.current ? "right" : "left");
+        dsLastSettledRef.current = clamped;
+        setDsSettledIdx(clamped);
+      }
       el.scrollTo({ left: clamped * DATE_ITEM_W, behavior: "smooth" });
       if (!dsSuppressHapticsRef.current) fireHapticImpact("light");
     }, 80);
@@ -487,8 +494,8 @@ export default function Dashboard() {
   );
 
   const selectedDate = useMemo(
-    () => dsDates[dsActiveIdx]?.date || new Date(),
-    [dsDates, dsActiveIdx]
+    () => dsDates[dsSettledIdx]?.date || new Date(),
+    [dsDates, dsSettledIdx]
   );
   const selectedISO = useMemo(() => toISODate(selectedDate), [selectedDate]);
 
@@ -791,21 +798,30 @@ export default function Dashboard() {
         .dash-quick-btn:active:not(:disabled) {
           transform: translateY(1px) scale(0.98) !important;
         }
-        @keyframes dayCardFade {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
+        @keyframes dayCardInRight {
+          0% { opacity: 0; transform: translateX(20px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes dayCardInLeft {
+          0% { opacity: 0; transform: translateX(-20px); }
+          100% { opacity: 1; transform: translateX(0); }
         }
         .day-card-body {
-          animation: dayCardFade 220ms ease;
           display: flex;
           flex-direction: column;
           gap: 8px;
           height: 100%;
         }
+        .day-card-body.day-card-right {
+          animation: dayCardInRight 260ms ease;
+        }
+        .day-card-body.day-card-left {
+          animation: dayCardInLeft 260ms ease;
+        }
         @media (prefers-reduced-motion: reduce) {
           .dash-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
           .dash-primary-btn, .dash-quick-btn { transition: none !important; }
-          .day-card-body { animation: none !important; }
+          .day-card-body { animation: none !important; transform: none !important; opacity: 1 !important; }
         }
       `}</style>
 
@@ -885,7 +901,10 @@ export default function Dashboard() {
 
       {/* BLOCK 3: Next Action CTA */}
       <section style={s.ctaCard} className="dash-fade dash-delay-2">
-        <div key={dayCardKey} className="day-card-body">
+        <div
+          key={dayCardKey}
+          className={`day-card-body ${dayCardDir === "right" ? "day-card-right" : "day-card-left"}`}
+        >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.ctaTitle}>{dayTitle}</div>
           {showChips && (
@@ -900,7 +919,7 @@ export default function Dashboard() {
           )}
           <button
             type="button"
-            style={s.primaryBtn}
+            style={{ ...s.primaryBtn, marginTop: "auto" }}
             className="dash-primary-btn"
             onClick={handleDayAction}
           >
