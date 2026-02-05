@@ -87,7 +87,7 @@ function formatDuration(minutes?: number | null) {
   return `${rounded} мин`;
 }
 
-function ClockIcon({ size = 18 }: { size?: number }) {
+function ClockIcon({ size = 20 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -116,7 +116,7 @@ function ClockIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-function DumbbellIcon({ size = 18 }: { size?: number }) {
+function DumbbellIcon({ size = 20 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -952,13 +952,13 @@ export default function Dashboard() {
             <div style={s.dayMetaRow}>
               {dayDurationText ? (
                 <span style={s.dayMetaItem}>
-                  <ClockIcon size={16} />
+                  <ClockIcon size={20} />
                   <span>{dayDurationText}</span>
                 </span>
               ) : null}
               {dayExercisesText ? (
                 <span style={s.dayMetaItem}>
-                  <DumbbellIcon size={16} />
+                  <DumbbellIcon size={20} />
                   <span>{dayExercisesText}</span>
                 </span>
               ) : null}
