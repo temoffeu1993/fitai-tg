@@ -195,7 +195,15 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
   // Date picker state (scroll-snap centered, like OnbWeight)
   const dates = useMemo(() => buildDates(DATE_COUNT, DATE_PAST_DAYS), []);
-  const [activeIdx, setActiveIdx] = useState(DATE_PAST_DAYS);
+  const defaultDateIdx = useMemo(() => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowIso = toISODateLocal(tomorrow);
+    const idx = dates.findIndex((item) => toISODateLocal(item.date) === tomorrowIso);
+    if (idx >= 0) return idx;
+    return Math.min(DATE_PAST_DAYS + 1, dates.length - 1);
+  }, [dates]);
+  const [activeIdx, setActiveIdx] = useState(defaultDateIdx);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
   const scrollStopTimer = useRef<number | null>(null);
@@ -208,8 +216,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     () => Array.from({ length: MIN_BASE * MIN_CYCLES }, (_, i) => i % MIN_BASE),
     []
   );
-  const [activeHour, setActiveHour] = useState(() => new Date().getHours());
-  const [activeMinute, setActiveMinute] = useState(() => new Date().getMinutes());
+  const [activeHour, setActiveHour] = useState(9);
+  const [activeMinute, setActiveMinute] = useState(0);
   const hourRef = useRef<HTMLDivElement>(null);
   const minuteRef = useRef<HTMLDivElement>(null);
   const hourRafRef = useRef<number | null>(null);
