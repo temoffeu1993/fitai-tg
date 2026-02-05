@@ -913,7 +913,7 @@ export default function Dashboard() {
       </section>
 
       {/* BLOCK 3: Next Action CTA */}
-      <section style={s.ctaCard} className="dash-fade dash-delay-2">
+      <section style={s.ctaWrap} className="dash-fade dash-delay-2">
         <img
           src={DAY_MASCOT_SRC}
           alt=""
@@ -923,43 +923,45 @@ export default function Dashboard() {
           decoding="async"
           draggable={false}
         />
-        <div
-          className="day-card-body"
-          style={{
-            ...s.dayCardBody,
-            opacity: dayCardOpacity,
-            transform: `translateX(${dayCardOffset}px)`,
-          }}
-        >
-          <div style={s.dayHeader}>{dayHeaderText}</div>
-          <div style={s.dayTitle}>{dayTitle}</div>
-          {showDayMeta && (
-            <div style={s.dayMetaRow}>
-              {dayDurationText ? (
-                <span style={s.dayMetaItem}>
-                  <ClockIcon size={20} />
-                  <span>{dayDurationText}</span>
-                </span>
-              ) : null}
-              {dayExercisesText ? (
-                <span style={s.dayMetaItem}>
-                  <DumbbellIcon size={20} />
-                  <span>{dayExercisesText}</span>
-                </span>
-              ) : null}
-            </div>
-          )}
-          <button
-            type="button"
-            style={{ ...s.dayBtn, marginTop: "auto" }}
-            className="dash-primary-btn day-cta"
-            onClick={handleDayAction}
+        <div style={s.ctaCard}>
+          <div
+            className="day-card-body"
+            style={{
+              ...s.dayCardBody,
+              opacity: dayCardOpacity,
+              transform: `translateX(${dayCardOffset}px)`,
+            }}
           >
-            <span>{dayButtonText}</span>
-            <span style={s.dayBtnIconWrap}>
-              <span style={s.dayBtnArrow}>→</span>
-            </span>
-          </button>
+            <div style={s.dayHeader}>{dayHeaderText}</div>
+            <div style={s.dayTitle}>{dayTitle}</div>
+            {showDayMeta && (
+              <div style={s.dayMetaRow}>
+                {dayDurationText ? (
+                  <span style={s.dayMetaItem}>
+                    <ClockIcon size={20} />
+                    <span>{dayDurationText}</span>
+                  </span>
+                ) : null}
+                {dayExercisesText ? (
+                  <span style={s.dayMetaItem}>
+                    <DumbbellIcon size={20} />
+                    <span>{dayExercisesText}</span>
+                  </span>
+                ) : null}
+              </div>
+            )}
+            <button
+              type="button"
+              style={{ ...s.dayBtn, marginTop: "auto" }}
+              className="dash-primary-btn day-cta"
+              onClick={handleDayAction}
+            >
+              <span>{dayButtonText}</span>
+              <span style={s.dayBtnIconWrap}>
+                <span style={s.dayBtnArrow}>→</span>
+              </span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1340,6 +1342,10 @@ const s: Record<string, React.CSSProperties> = {
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
+  ctaWrap: {
+    position: "relative",
+    overflow: "visible",
+  },
   ctaCard: {
     borderRadius: 18,
     padding: "20px 18px",
@@ -1367,7 +1373,7 @@ const s: Record<string, React.CSSProperties> = {
     opacity: 1,
     filter: "none",
     pointerEvents: "none",
-    zIndex: 0,
+    zIndex: 2,
   },
   dayCardBody: {
     display: "flex",
