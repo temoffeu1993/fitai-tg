@@ -754,15 +754,13 @@ export default function Dashboard() {
       ? "Сегодня отдыхаем"
       : "В этот день отдыхаем";
   const dayTitle = dayState === "rest" ? "Выбрать тренировку" : selectedWorkoutTitle;
-  const showChips =
-    dayState !== "rest" &&
-    (workoutChips.totalExercises > 0 || Boolean(workoutChips.minutes));
+  const showChips = false;
   const dayButtonText =
     dayState === "completed"
-      ? "Посмотреть результат"
+      ? "Результат"
       : dayState === "planned"
-      ? "Начать тренировку"
-      : "Посмотреть план";
+      ? "Начать"
+      : "План";
   const handleDayAction = () => {
     if (dayState === "completed") {
       const sessionId = selectedPlanned?.resultSessionId;
@@ -819,6 +817,9 @@ export default function Dashboard() {
         }
         .dash-quick-btn:active:not(:disabled) {
           transform: translateY(1px) scale(0.98) !important;
+        }
+        .day-cta:active:not(:disabled) {
+          transform: translateY(1px) scale(0.99) !important;
         }
         .day-card-body {
           display: flex;
@@ -915,37 +916,17 @@ export default function Dashboard() {
           style={{ opacity: dayCardOpacity, transform: `translateX(${dayCardOffset}px)` }}
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
-          <div style={s.ctaTitle}>{dayTitle}</div>
-          <div
-            style={{
-              ...s.dayChips,
-              ...(showChips ? undefined : s.dayChipsHidden),
-            }}
-            aria-hidden={!showChips}
-          >
-            {showChips ? (
-              <>
-                {workoutChips.totalExercises > 0 && (
-                  <span style={s.dayChip}>{workoutChips.totalExercises} упражнений</span>
-                )}
-                {workoutChips.minutes && (
-                  <span style={s.dayChip}>{workoutChips.minutes} мин</span>
-                )}
-              </>
-            ) : (
-              <>
-                <span style={s.dayChip}>— упражнений</span>
-                <span style={s.dayChip}>— мин</span>
-              </>
-            )}
-          </div>
+          <div style={s.dayTitle}>{dayTitle}</div>
           <button
             type="button"
-            style={{ ...s.primaryBtn, marginTop: "auto" }}
-            className="dash-primary-btn"
+            style={s.dayBtn}
+            className="dash-primary-btn day-cta"
             onClick={handleDayAction}
           >
-            {dayButtonText}
+            <span>{dayButtonText}</span>
+            <span style={s.dayBtnIconWrap}>
+              <span style={s.dayBtnArrow}>→</span>
+            </span>
           </button>
         </div>
       </section>
@@ -1327,57 +1308,49 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: 190,
   },
   dayHeader: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
     color: "rgba(15, 23, 42, 0.6)",
-    textTransform: "none",
-    letterSpacing: 0,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  ctaTitle: {
-    fontSize: 24,
+  dayTitle: {
+    fontSize: 32,
     fontWeight: 700,
     color: "#0f172a",
-    lineHeight: 1.15,
-    letterSpacing: -0.3,
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
   },
-  dayChips: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    minHeight: 24,
-  },
-  dayChipsHidden: {
-    visibility: "hidden",
-  },
-  dayChip: {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#334155",
-    whiteSpace: "nowrap",
-    display: "flex",
+  dayBtn: {
+    alignSelf: "flex-start",
+    display: "inline-flex",
     alignItems: "center",
-    gap: 4,
-  },
-  primaryBtn: {
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
+    gap: 12,
+    padding: "10px 14px",
+    borderRadius: 999,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    fontWeight: 500,
-    fontSize: 18,
+    fontWeight: 600,
+    fontSize: 14,
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
-
+  dayBtnIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 999,
+    background: "#fff",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayBtnArrow: {
+    fontSize: 14,
+    lineHeight: 1,
+    color: "#0f172a",
+    fontWeight: 700,
+  },
   // ===== BLOCK 4: Progress =====
   progressCard: {
     ...glassCard,
