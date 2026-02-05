@@ -926,7 +926,11 @@ export default function Dashboard() {
           src={dayMascotSrc}
           alt=""
           aria-hidden="true"
-          style={s.dayCardMascot}
+          style={{
+            ...s.dayCardMascot,
+            opacity: dayCardOpacity,
+            transform: `translateX(${dayCardOffset}px)`,
+          }}
           loading="lazy"
           decoding="async"
           draggable={false}
@@ -1376,6 +1380,7 @@ const s: Record<string, React.CSSProperties> = {
     filter: "none",
     pointerEvents: "none",
     zIndex: 0,
+    transition: "opacity 220ms ease, transform 220ms ease",
   },
   dayCardBody: {
     display: "flex",
