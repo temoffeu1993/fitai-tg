@@ -897,33 +897,24 @@ export default function Dashboard() {
   // POST-ONBOARDING: New Dashboard
   // ========================================================================
 
-  const assignedCount = Math.min(plannedDatesSet.size, totalPlanDays);
-  const isWeeklyMode = assignedCount === 0;
-  const dayState: "weekly" | "completed" | "planned" | "rest" = isWeeklyMode
-    ? "weekly"
-    : isSelectedCompleted
+  const dayState: "weekly" | "completed" | "planned" = isSelectedCompleted
     ? "completed"
     : isSelectedPlanned
     ? "planned"
-    : "rest";
+    : "weekly";
   const dayHeaderText =
     dayState === "weekly"
-      ? "Недельный план готов"
+      ? "План на неделю"
       : dayState === "completed"
       ? "Тренировка выполнена"
-      : dayState === "planned"
-      ? "Тренировка на"
-      : "Свободный день";
+      : "Тренировка на";
   const dayTitle =
     dayState === "weekly"
       ? weeklyPlanTitle
-      : dayState === "rest"
-      ? "Распредели тренировки по датам"
       : selectedWorkoutTitle;
-  const dayRestProgressText = `Распределено ${assignedCount}/${totalPlanDays}`;
   const dayWeeklyProgressText = `Выполнено ${weeklyCompletedCount}/${totalPlanDays}`;
   const dayMascotSrc = useMemo(() => {
-    if (dayState === "weekly" || dayState === "rest") return REST_MASCOT_SRC;
+    if (dayState === "weekly") return REST_MASCOT_SRC;
     const title = String(dayTitle || "").toLowerCase();
     if (title.includes("ног") && title.includes("ягод")) return LEGS_MASCOT_SRC;
     if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
@@ -935,7 +926,6 @@ export default function Dashboard() {
     workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
   const showDayMeta =
     Boolean(dayDurationText || dayExercisesText) &&
-    dayState !== "rest" &&
     dayState !== "weekly";
   const dayButtonText =
     dayState === "completed"
@@ -1135,22 +1125,6 @@ export default function Dashboard() {
           {dayState === "weekly" ? (
             <div style={s.dayWeeklyMetaRow}>
               <span style={s.dayWeeklyMetaChip}>{dayWeeklyProgressText}</span>
-            </div>
-          ) : null}
-          {dayState === "rest" ? (
-            <div style={s.dayDistributionWrap}>
-              <div style={s.dayDistributionLabel}>{dayRestProgressText}</div>
-              <div style={s.dayDistributionRow}>
-                {Array.from({ length: totalPlanDays }, (_, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      ...s.dayDistributionPit,
-                      ...(i < assignedCount ? s.dayDistributionPitAssigned : undefined),
-                    }}
-                  />
-                ))}
-              </div>
             </div>
           ) : null}
           {showDayMeta && (
