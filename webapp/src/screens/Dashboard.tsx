@@ -1977,6 +1977,11 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Weekly Goal =====
   goalCard: {
     ...glassCard,
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    boxShadow: "0 12px 24px rgba(15,23,42,0.24)",
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
     padding: "18px 16px",
     display: "flex",
     alignItems: "center",
@@ -2007,13 +2012,13 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
-    color: "#1e1f22",
+    color: "#f8fafc",
   },
   goalSubtitle: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    color: "rgba(248, 250, 252, 0.78)",
   },
   goalBarWrap: {
     marginTop: 4,
@@ -2051,7 +2056,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    color: "rgba(248, 250, 252, 0.92)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
