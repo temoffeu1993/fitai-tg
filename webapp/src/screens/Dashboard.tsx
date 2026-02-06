@@ -859,8 +859,6 @@ export default function Dashboard() {
     return { totalExercises, minutes };
   }, [selectedPlanned]);
 
-  const levelProgress = gamification.level;
-
   const weekDays = useMemo(() => getWeekDays(), []);
   const dashboardUserContext = useMemo<UserContext>(() => {
     const summary = readOnboardingSummary();
@@ -930,19 +928,13 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
-  const levelTargetXp = useMemo(() => {
-    const target = Number(levelProgress.levelTargetXp);
-    return Number.isFinite(target) && target > 0 ? Math.round(target) : 1;
-  }, [levelProgress.levelTargetXp]);
-  const levelCurrentXp = useMemo(() => {
-    const current = Number(levelProgress.levelXp);
-    if (!Number.isFinite(current) || current <= 0) return 0;
-    return Math.min(levelTargetXp, Math.round(current));
-  }, [levelProgress.levelXp, levelTargetXp]);
-  const levelProgressValue = useMemo(
-    () => (levelTargetXp > 0 ? Math.max(0, Math.min(1, levelCurrentXp / levelTargetXp)) : 0),
-    [levelCurrentXp, levelTargetXp]
-  );
+  const progressWeekPitSize = useMemo(() => {
+    if (totalPlanDays <= 2) return 16;
+    if (totalPlanDays === 3) return 15;
+    if (totalPlanDays === 4) return 14;
+    if (totalPlanDays === 5) return 13;
+    return 12;
+  }, [totalPlanDays]);
   const completedWorkoutsTotal = useMemo(() => {
     const fromGamification = Number(gamification.counts.completedWorkouts);
     if (Number.isFinite(fromGamification)) return Math.max(0, Math.round(fromGamification));
@@ -1391,28 +1383,26 @@ export default function Dashboard() {
           </div>
           <div style={s.progressMain}>
             <div style={s.progressTopRow}>
-              <span style={s.progressValuePrimary}>{`${levelCurrentXp}/${levelTargetXp}`}</span>
-              <span style={s.progressLevelText}>{`Уровень ${levelProgress.currentLevel}`}</span>
-            </div>
-            <div style={s.xpBarTrack}>
-              <div
-                style={{
-                  ...s.xpBarFillLevelDark,
-                  width: `${Math.max(levelProgressValue * 100, 2)}%`,
-                }}
-              />
+              <span style={s.progressGoalTitle}>Цель недели</span>
             </div>
             <div style={s.progressWeekPitsRow}>
               {Array.from({ length: totalPlanDays }, (_, idx) => {
                 const isDone = idx < weeklyCompletedCount;
                 return (
-                  <span key={`progress-week-pit-${idx}`} style={s.progressWeekPit}>
+                  <span
+                    key={`progress-week-pit-${idx}`}
+                    style={{
+                      ...s.progressWeekPit,
+                      width: progressWeekPitSize,
+                      height: progressWeekPitSize,
+                    }}
+                  >
                     {isDone ? <span style={s.progressWeekPitDone}>✓</span> : null}
                   </span>
                 );
               })}
             </div>
-            <div style={s.progressWeekText}>{`Цель недели ${weeklyCompletedCount}/${totalPlanDays} тренировки`}</div>
+            <div style={s.progressWeekText}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</div>
           </div>
         </div>
       </section>
@@ -2015,28 +2005,19 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 10,
   },
   progressTopRow: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    gap: 12,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    minHeight: 22,
   },
-  progressValuePrimary: {
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    color: "#111827",
-    letterSpacing: -0.5,
-    whiteSpace: "nowrap",
-    fontVariantNumeric: "tabular-nums",
-  },
-  progressLevelText: {
-    fontSize: 13,
+  progressGoalTitle: {
+    fontSize: 14,
     fontWeight: 500,
-    lineHeight: 1.4,
-    color: "rgba(15, 23, 42, 0.54)",
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
     whiteSpace: "nowrap",
   },
   xpBarTrack: {
@@ -2060,14 +2041,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 6,
-    minHeight: 14,
+    minHeight: 16,
     width: "100%",
   },
   progressWeekPit: {
-    flex: 1,
-    minWidth: 10,
-    height: 14,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
@@ -2078,7 +2055,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressWeekPitDone: {
     color: "#8bff1a",
-    fontSize: 10,
+    fontSize: 9,
     lineHeight: 1,
     fontWeight: 800,
     textShadow:
