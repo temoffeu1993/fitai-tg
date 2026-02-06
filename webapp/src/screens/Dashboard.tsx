@@ -1,5 +1,13 @@
 // webapp/src/screens/Dashboard.tsx
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getGamificationSummary } from "@/api/progress";
@@ -588,6 +596,8 @@ export default function Dashboard() {
   const [dayCardOpacity, setDayCardOpacity] = useState(1);
   const [dayCardOffset, setDayCardOffset] = useState(0);
   const [dayCardDir, setDayCardDir] = useState<"left" | "right">("right");
+  const [progressSlideIdx, setProgressSlideIdx] = useState(0);
+  const [progressDragOffset, setProgressDragOffset] = useState(0);
   const dsScrollRef = useRef<HTMLDivElement>(null);
   const dsScrollRafRef = useRef<number | null>(null);
   const dsScrollStopTimer = useRef<number | null>(null);
@@ -598,6 +608,8 @@ export default function Dashboard() {
   const dsUserInteractedRef = useRef(false);
   const dsFirstRenderIdxRef = useRef(dsInitialIdx);
   const dayCardTimerRef = useRef<number | null>(null);
+  const progressSwipeStartXRef = useRef<number | null>(null);
+  const progressSwipeActiveRef = useRef(false);
   const hasAssignedDatesForDayCard = useMemo(
     () => collectAssignedDateKeys(plannedWorkouts, scheduleDates).length > 0,
     [plannedWorkouts, scheduleDates]
@@ -889,6 +901,63 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
+  const weeklyProgress = useMemo(
+    () => (totalPlanDays > 0 ? Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays)) : 0),
+    [weeklyCompletedCount, totalPlanDays]
+  );
+  const levelProgressValue = useMemo(
+    () => Math.max(0, Math.min(1, Number(levelProgress.progress) || 0)),
+    [levelProgress.progress]
+  );
+
+  const finishProgressSwipe = useCallback((delta: number) => {
+    progressSwipeActiveRef.current = false;
+    progressSwipeStartXRef.current = null;
+    setProgressDragOffset(0);
+    if (delta <= -42) {
+      setProgressSlideIdx(1);
+      return;
+    }
+    if (delta >= 42) {
+      setProgressSlideIdx(0);
+    }
+  }, []);
+
+  const handleProgressPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      progressSwipeStartXRef.current = e.clientX;
+      progressSwipeActiveRef.current = true;
+      setProgressDragOffset(0);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    []
+  );
+
+  const handleProgressPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (!progressSwipeActiveRef.current) return;
+      const startX = progressSwipeStartXRef.current;
+      if (startX == null) return;
+      const delta = e.clientX - startX;
+      const clamped = Math.max(-72, Math.min(72, delta));
+      setProgressDragOffset(clamped);
+    },
+    []
+  );
+
+  const handleProgressPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (!progressSwipeActiveRef.current) return;
+      const startX = progressSwipeStartXRef.current;
+      const delta = startX == null ? 0 : e.clientX - startX;
+      finishProgressSwipe(delta);
+    },
+    [finishProgressSwipe]
+  );
+
+  const handleProgressPointerCancel = useCallback(() => {
+    finishProgressSwipe(0);
+  }, [finishProgressSwipe]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -1321,18 +1390,64 @@ export default function Dashboard() {
       </section>
 
       {/* BLOCK 4: Progress (Level + XP) */}
-      <section style={s.progressCard} className="dash-fade dash-delay-3">
-        <div style={s.progressTop}>
-          <span style={s.progressLevel}>Уровень {levelProgress.currentLevel}</span>
-          <span style={s.progressTotalXp}>{levelProgress.totalXp} XP</span>
-        </div>
-        <div style={s.xpBarTrack}>
+      <section
+        style={s.progressCard}
+        className="dash-fade dash-delay-3"
+        onPointerDown={handleProgressPointerDown}
+        onPointerMove={handleProgressPointerMove}
+        onPointerUp={handleProgressPointerUp}
+        onPointerCancel={handleProgressPointerCancel}
+      >
+        <div style={s.progressViewport}>
           <div
             style={{
-              ...s.xpBarFill,
-              width: `${Math.max(levelProgress.progress * 100, 2)}%`,
+              ...s.progressTrack,
+              transform: `translateX(calc(${-progressSlideIdx * 50}% + ${progressDragOffset}px))`,
+              transition: progressSwipeActiveRef.current
+                ? "none"
+                : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
-          />
+          >
+            <div style={s.progressSlide}>
+              <div style={s.progressTop}>
+                <span style={s.progressTitle}>Цель недели</span>
+                <span style={s.progressValue}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</span>
+              </div>
+              <div style={s.xpBarTrack}>
+                <div
+                  style={{
+                    ...s.xpBarFillWeek,
+                    width: `${Math.max(weeklyProgress * 100, 2)}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <div style={s.progressSlide}>
+              <div style={s.progressTop}>
+                <span style={s.progressTitle}>{`Уровень ${levelProgress.currentLevel}`}</span>
+                <span style={s.progressValue}>{`${levelProgress.levelXp}/${levelProgress.levelTargetXp} опыта`}</span>
+              </div>
+              <div style={s.xpBarTrack}>
+                <div
+                  style={{
+                    ...s.xpBarFillLevel,
+                    width: `${Math.max(levelProgressValue * 100, 2)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={s.progressPager}>
+          {[0, 1].map((idx) => (
+            <span
+              key={`progress-page-${idx}`}
+              style={s.progressPagerPit}
+              onClick={() => setProgressSlideIdx(idx)}
+            >
+              {progressSlideIdx === idx ? <span style={s.progressPagerActiveSphere} /> : null}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -1885,21 +2000,47 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
+    minHeight: 96,
+    touchAction: "pan-y",
+  },
+  progressViewport: {
+    width: "100%",
+    overflow: "hidden",
+  },
+  progressTrack: {
+    width: "200%",
+    display: "flex",
+    willChange: "transform",
+  },
+  progressSlide: {
+    width: "50%",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
   progressTop: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
   },
-  progressLevel: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#1e1f22",
-  },
-  progressTotalXp: {
+  progressTitle: {
     fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(30, 31, 34, 0.68)",
+    fontWeight: 500,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  progressValue: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.1,
+    color: "#1e1f22",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   xpBarTrack: {
     width: "100%",
@@ -1910,13 +2051,45 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
   },
-  xpBarFill: {
+  xpBarFillWeek: {
     height: "100%",
     borderRadius: 999,
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
-    boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+    background: "#61d700",
     transition: "width 600ms ease-out",
+  },
+  xpBarFillLevel: {
+    height: "100%",
+    borderRadius: 999,
+    background: "#e3063a",
+    transition: "width 600ms ease-out",
+  },
+  progressPager: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    marginTop: 2,
+  },
+  progressPagerPit: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  progressPagerActiveSphere: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
+    boxShadow:
+      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
