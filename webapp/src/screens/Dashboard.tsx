@@ -1041,7 +1041,7 @@ export default function Dashboard() {
     dayState === "weekly"
       ? weeklyPlanTitle
       : selectedWorkoutTitle;
-  const dayWeeklyProgressText = `Выполнено ${weeklyCompletedCount}/${totalPlanDays}`;
+  const dayWeeklyProgressText = "Выполнено";
   const dayMascotSrc = useMemo(() => {
     if (dayState === "weekly") return REST_MASCOT_SRC;
     const title = String(dayTitle || "").toLowerCase();
@@ -1253,7 +1253,17 @@ export default function Dashboard() {
           <div style={s.dayTitle}>{dayTitle}</div>
           {dayState === "weekly" ? (
             <div style={s.dayWeeklyMetaRow}>
-              <span style={s.dayWeeklyMetaChip}>{dayWeeklyProgressText}</span>
+              <span style={s.dayWeeklyProgressLabel}>{dayWeeklyProgressText}</span>
+              <span style={s.dayWeeklyProgressPits}>
+                {Array.from({ length: totalPlanDays }, (_, idx) => {
+                  const done = idx < weeklyCompletedCount;
+                  return (
+                    <span key={`week-progress-${idx}`} style={s.dayWeeklyProgressPit}>
+                      {done ? <span style={s.dayWeeklyProgressSphere} /> : null}
+                    </span>
+                  );
+                })}
+              </span>
             </div>
           ) : null}
           {showDayMeta && (
@@ -1751,23 +1761,39 @@ const s: Record<string, React.CSSProperties> = {
   dayWeeklyMetaRow: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
-  dayWeeklyMetaChip: {
+  dayWeeklyProgressLabel: {
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: 30,
-    padding: "0 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.72)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(242,242,247,0.86) 100%)",
-    boxShadow:
-      "0 8px 16px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.88)",
-    color: "rgba(15, 23, 42, 0.74)",
+    color: "#0f172a",
     fontSize: 14,
     fontWeight: 600,
     lineHeight: 1,
+  },
+  dayWeeklyProgressPits: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
+  },
+  dayWeeklyProgressPit: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayWeeklyProgressSphere: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
+    boxShadow:
+      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
   },
   dayDistributionWrap: {
     display: "grid",
