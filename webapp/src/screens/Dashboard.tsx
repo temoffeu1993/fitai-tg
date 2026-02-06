@@ -20,13 +20,14 @@ import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
+import giryaNewImg from "@/assets/giryanew.png";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
 const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
-const REST_MASCOT_SRC = ROBOT_SRC;
+const REST_MASCOT_SRC = giryaNewImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
