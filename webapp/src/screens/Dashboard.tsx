@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -252,6 +251,40 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
       <path d="M17 8v8" stroke="#1e1f22" />
       <path d="M20 9v6" stroke="#1e1f22" />
       <path d="M7 12h10" stroke="#1e1f22" />
+    </svg>
+  );
+}
+
+function FlameBadgeIcon({ size = 64 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 80 80"
+      fill="none"
+      aria-hidden
+      focusable="false"
+    >
+      <defs>
+        <radialGradient id="flame-bg" cx="50%" cy="42%" r="58%">
+          <stop offset="0%" stopColor="#ff7a9b" />
+          <stop offset="56%" stopColor="#ff3f71" />
+          <stop offset="100%" stopColor="#de1248" />
+        </radialGradient>
+        <linearGradient id="flame-core" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#f7f8fa" />
+        </linearGradient>
+      </defs>
+      <circle cx="40" cy="40" r="33" fill="url(#flame-bg)" />
+      <path
+        d="M40 17c4 6 5 11 3 15 7-4 13 1 13 10 0 11-8 20-18 20s-18-8-18-18c0-10 8-16 13-22 3-4 5-7 7-11Z"
+        fill="url(#flame-bg)"
+      />
+      <path
+        d="M41 31c2 4 1 7-1 10 4-2 8 1 8 6 0 6-5 11-11 11s-11-5-11-11c0-5 4-9 7-12 2-2 4-4 5-8 1 2 2 3 3 4Z"
+        fill="url(#flame-core)"
+      />
     </svg>
   );
 }
@@ -596,8 +629,6 @@ export default function Dashboard() {
   const [dayCardOpacity, setDayCardOpacity] = useState(1);
   const [dayCardOffset, setDayCardOffset] = useState(0);
   const [dayCardDir, setDayCardDir] = useState<"left" | "right">("right");
-  const [progressSlideIdx, setProgressSlideIdx] = useState(0);
-  const [progressDragOffset, setProgressDragOffset] = useState(0);
   const dsScrollRef = useRef<HTMLDivElement>(null);
   const dsScrollRafRef = useRef<number | null>(null);
   const dsScrollStopTimer = useRef<number | null>(null);
@@ -608,8 +639,6 @@ export default function Dashboard() {
   const dsUserInteractedRef = useRef(false);
   const dsFirstRenderIdxRef = useRef(dsInitialIdx);
   const dayCardTimerRef = useRef<number | null>(null);
-  const progressSwipeStartXRef = useRef<number | null>(null);
-  const progressSwipeActiveRef = useRef(false);
   const hasAssignedDatesForDayCard = useMemo(
     () => collectAssignedDateKeys(plannedWorkouts, scheduleDates).length > 0,
     [plannedWorkouts, scheduleDates]
@@ -901,63 +930,28 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
-  const weeklyProgress = useMemo(
-    () => (totalPlanDays > 0 ? Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays)) : 0),
-    [weeklyCompletedCount, totalPlanDays]
+  const levelTargetXp = useMemo(() => {
+    const target = Number(levelProgress.levelTargetXp);
+    return Number.isFinite(target) && target > 0 ? Math.round(target) : 1;
+  }, [levelProgress.levelTargetXp]);
+  const levelCurrentXp = useMemo(() => {
+    const current = Number(levelProgress.levelXp);
+    if (!Number.isFinite(current) || current <= 0) return 0;
+    return Math.min(levelTargetXp, Math.round(current));
+  }, [levelProgress.levelXp, levelTargetXp]);
+  const levelRemainingXp = useMemo(
+    () => Math.max(0, levelTargetXp - levelCurrentXp),
+    [levelCurrentXp, levelTargetXp]
   );
   const levelProgressValue = useMemo(
-    () => Math.max(0, Math.min(1, Number(levelProgress.progress) || 0)),
-    [levelProgress.progress]
+    () => (levelTargetXp > 0 ? Math.max(0, Math.min(1, levelCurrentXp / levelTargetXp)) : 0),
+    [levelCurrentXp, levelTargetXp]
   );
-
-  const finishProgressSwipe = useCallback((delta: number) => {
-    progressSwipeActiveRef.current = false;
-    progressSwipeStartXRef.current = null;
-    setProgressDragOffset(0);
-    if (delta <= -42) {
-      setProgressSlideIdx(1);
-      return;
-    }
-    if (delta >= 42) {
-      setProgressSlideIdx(0);
-    }
-  }, []);
-
-  const handleProgressPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
-      progressSwipeStartXRef.current = e.clientX;
-      progressSwipeActiveRef.current = true;
-      setProgressDragOffset(0);
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    },
-    []
-  );
-
-  const handleProgressPointerMove = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
-      if (!progressSwipeActiveRef.current) return;
-      const startX = progressSwipeStartXRef.current;
-      if (startX == null) return;
-      const delta = e.clientX - startX;
-      const clamped = Math.max(-72, Math.min(72, delta));
-      setProgressDragOffset(clamped);
-    },
-    []
-  );
-
-  const handleProgressPointerUp = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
-      if (!progressSwipeActiveRef.current) return;
-      const startX = progressSwipeStartXRef.current;
-      const delta = startX == null ? 0 : e.clientX - startX;
-      finishProgressSwipe(delta);
-    },
-    [finishProgressSwipe]
-  );
-
-  const handleProgressPointerCancel = useCallback(() => {
-    finishProgressSwipe(0);
-  }, [finishProgressSwipe]);
+  const completedWorkoutsTotal = useMemo(() => {
+    const fromGamification = Number(gamification.counts.completedWorkouts);
+    if (Number.isFinite(fromGamification)) return Math.max(0, Math.round(fromGamification));
+    return Math.max(0, historyStats.total);
+  }, [gamification.counts.completedWorkouts, historyStats.total]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -1389,65 +1383,42 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 4: Progress (Level + XP) */}
-      <section
-        style={s.progressCard}
-        className="dash-fade dash-delay-3"
-        onPointerDown={handleProgressPointerDown}
-        onPointerMove={handleProgressPointerMove}
-        onPointerUp={handleProgressPointerUp}
-        onPointerCancel={handleProgressPointerCancel}
-      >
-        <div style={s.progressViewport}>
-          <div
-            style={{
-              ...s.progressTrack,
-              transform: `translateX(calc(${-progressSlideIdx * 50}% + ${progressDragOffset}px))`,
-              transition: progressSwipeActiveRef.current
-                ? "none"
-                : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
-            }}
-          >
-            <div style={s.progressSlide}>
-              <div style={s.progressTop}>
-                <span style={s.progressTitle}>Цель недели</span>
-                <span style={s.progressValue}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</span>
-              </div>
-              <div style={s.xpBarTrack}>
-                <div
-                  style={{
-                    ...s.xpBarFillWeek,
-                    width: `${Math.max(weeklyProgress * 100, 2)}%`,
-                  }}
-                />
-              </div>
-            </div>
-            <div style={s.progressSlide}>
-              <div style={s.progressTop}>
-                <span style={s.progressTitle}>{`Уровень ${levelProgress.currentLevel}`}</span>
-                <span style={s.progressValue}>{`${levelProgress.levelXp}/${levelProgress.levelTargetXp} опыта`}</span>
-              </div>
-              <div style={s.xpBarTrack}>
-                <div
-                  style={{
-                    ...s.xpBarFillLevel,
-                    width: `${Math.max(levelProgressValue * 100, 2)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style={s.progressPager}>
-          {[0, 1].map((idx) => (
-            <span
-              key={`progress-page-${idx}`}
-              style={s.progressPagerPit}
-              onClick={() => setProgressSlideIdx(idx)}
-            >
-              {progressSlideIdx === idx ? <span style={s.progressPagerActiveSphere} /> : null}
+      {/* BLOCK 4: Progress */}
+      <section style={s.progressCard} className="dash-fade dash-delay-3">
+        <div style={s.progressLayout}>
+          <div style={s.progressBadgePanel}>
+            <span style={s.progressBadgeIconWrap}>
+              <FlameBadgeIcon size={56} />
             </span>
-          ))}
+            <span style={s.progressBadgeValue}>{completedWorkoutsTotal}</span>
+            <span style={s.progressBadgeLabel}>всего тренировок</span>
+          </div>
+          <div style={s.progressMain}>
+            <div style={s.progressTopRow}>
+              <span style={s.progressValuePrimary}>{`${levelCurrentXp}/${levelTargetXp} XP`}</span>
+              <span style={s.progressLevelText}>{`Уровень ${levelProgress.currentLevel}`}</span>
+            </div>
+            <div style={s.progressNextText}>{`до следующего уровня ${levelRemainingXp} XP`}</div>
+            <div style={s.xpBarTrack}>
+              <div
+                style={{
+                  ...s.xpBarFillLevelDark,
+                  width: `${Math.max(levelProgressValue * 100, 2)}%`,
+                }}
+              />
+            </div>
+            <div style={s.progressWeekPitsRow}>
+              {Array.from({ length: totalPlanDays }, (_, idx) => {
+                const isDone = idx < weeklyCompletedCount;
+                return (
+                  <span key={`progress-week-pit-${idx}`} style={s.progressWeekPit}>
+                    {isDone ? <span style={s.progressWeekPitDone}>✓</span> : null}
+                  </span>
+                );
+              })}
+            </div>
+            <div style={s.progressWeekText}>{`Цель недели ${weeklyCompletedCount}/${totalPlanDays} тренировки`}</div>
+          </div>
         </div>
       </section>
 
@@ -1996,100 +1967,138 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Progress =====
   progressCard: {
     ...glassCard,
-    padding: "12px 18px",
+    padding: "10px 10px",
     display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    minHeight: 96,
-    touchAction: "pan-y",
+    minHeight: 156,
   },
-  progressViewport: {
+  progressLayout: {
     width: "100%",
-    overflow: "hidden",
-  },
-  progressTrack: {
-    width: "200%",
     display: "flex",
-    willChange: "transform",
+    gap: 10,
+    alignItems: "stretch",
   },
-  progressSlide: {
-    width: "50%",
+  progressBadgePanel: {
+    width: 110,
+    flexShrink: 0,
+    borderRadius: 18,
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(244,246,250,0.45) 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(148,163,184,0.22)",
     display: "flex",
     flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: "10px 8px",
+  },
+  progressBadgeIconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressBadgeValue: {
+    fontSize: 27,
+    lineHeight: 1,
+    fontWeight: 700,
+    color: "#111827",
+    fontVariantNumeric: "tabular-nums",
+  },
+  progressBadgeLabel: {
+    fontSize: 12,
+    lineHeight: 1.15,
+    fontWeight: 500,
+    color: "rgba(15, 23, 42, 0.58)",
+    textAlign: "center",
+  },
+  progressMain: {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
     gap: 8,
   },
-  progressTop: {
+  progressTopRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 12,
   },
-  progressTitle: {
+  progressValuePrimary: {
+    fontSize: 38,
+    fontWeight: 700,
+    lineHeight: 0.95,
+    color: "#111827",
+    letterSpacing: "-0.02em",
+    whiteSpace: "nowrap",
+    fontVariantNumeric: "tabular-nums",
+  },
+  progressLevelText: {
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(15, 23, 42, 0.54)",
+    whiteSpace: "nowrap",
+  },
+  progressNextText: {
     fontSize: 14,
     fontWeight: 500,
     lineHeight: 1.5,
     color: "rgba(15, 23, 42, 0.6)",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  progressValue: {
-    fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.1,
-    color: "#1e1f22",
-    whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
   xpBarTrack: {
     width: "100%",
-    height: 14,
+    height: 12,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
   },
-  xpBarFillWeek: {
+  xpBarFillLevelDark: {
     height: "100%",
     borderRadius: 999,
-    background: "#61d700",
-    transition: "width 600ms ease-out",
+    background: "linear-gradient(180deg, #1f242d 0%, #10141b 100%)",
+    boxShadow:
+      "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+    transition: "width 520ms ease-out",
   },
-  xpBarFillLevel: {
-    height: "100%",
-    borderRadius: 999,
-    background: "#e3063a",
-    transition: "width 600ms ease-out",
-  },
-  progressPager: {
+  progressWeekPitsRow: {
     display: "flex",
-    justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    width: "100%",
-    marginTop: 2,
+    minHeight: 14,
   },
-  progressPagerPit: {
-    width: 12,
-    height: 12,
+  progressWeekPit: {
+    width: 14,
+    height: 14,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "inline-flex",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    cursor: "pointer",
   },
-  progressPagerActiveSphere: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
-    boxShadow:
-      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
+  progressWeekPitDone: {
+    color: "#8bff1a",
+    fontSize: 10,
+    lineHeight: 1,
+    fontWeight: 800,
+    textShadow:
+      "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
+  },
+  progressWeekText: {
+    fontSize: 14,
+    fontWeight: 500,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
