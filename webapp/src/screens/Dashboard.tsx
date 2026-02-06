@@ -943,6 +943,26 @@ export default function Dashboard() {
       : dayState === "planned"
       ? "Начать"
       : "Выбрать тренировку";
+  const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
+
+  const handleDayStart = () => {
+    if (showPlannedStartReplace && selectedPlanned?.id) {
+      navigate("/check-in", {
+        state: {
+          workoutDate: selectedISO,
+          plannedWorkoutId: selectedPlanned.id,
+          returnTo: "/",
+        },
+      });
+      return;
+    }
+    handleDayAction();
+  };
+
+  const handleDayReplace = () => {
+    navigate("/plan/one");
+  };
+
   const handleDayAction = () => {
     if (dayState === "completed") {
       const sessionId = selectedPlanned?.resultSessionId;
@@ -1149,17 +1169,41 @@ export default function Dashboard() {
               ) : null}
             </div>
           )}
-          <button
-            type="button"
-            style={{ ...s.dayBtn, marginTop: "auto" }}
-            className="dash-primary-btn day-cta"
-            onClick={handleDayAction}
-          >
-            <span>{dayButtonText}</span>
-            <span style={s.dayBtnIconWrap}>
-              <span style={s.dayBtnArrow}>→</span>
-            </span>
-          </button>
+          {showPlannedStartReplace ? (
+            <div style={s.dayBtnRow}>
+              <button
+                type="button"
+                style={s.dayBtn}
+                className="dash-primary-btn day-cta"
+                onClick={handleDayStart}
+              >
+                <span>{dayButtonText}</span>
+                <span style={s.dayBtnIconWrap}>
+                  <span style={s.dayBtnArrow}>→</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                style={s.dayBtnSecondary}
+                className="day-cta"
+                onClick={handleDayReplace}
+              >
+                <span>Заменить</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              style={{ ...s.dayBtn, marginTop: "auto" }}
+              className="dash-primary-btn day-cta"
+              onClick={handleDayAction}
+            >
+              <span>{dayButtonText}</span>
+              <span style={s.dayBtnIconWrap}>
+                <span style={s.dayBtnArrow}>→</span>
+              </span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -1666,6 +1710,30 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
+  },
+  dayBtnRow: {
+    marginTop: "auto",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  dayBtnSecondary: {
+    alignSelf: "flex-start",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 50,
+    padding: "0 18px",
+    borderRadius: 999,
+    border: "1px solid rgba(30,31,34,0.24)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(242,242,247,0.9) 100%)",
+    color: "#1e1f22",
+    fontWeight: 600,
+    fontSize: 16,
+    cursor: "pointer",
+    boxShadow:
+      "0 8px 16px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.92)",
   },
   dayBtnIconWrap: {
     width: 34,
