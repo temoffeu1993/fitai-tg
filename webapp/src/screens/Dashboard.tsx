@@ -266,24 +266,24 @@ function FlameBadgeIcon({ size = 64 }: { size?: number }) {
       focusable="false"
     >
       <defs>
-        <radialGradient id="flame-bg" cx="50%" cy="42%" r="58%">
-          <stop offset="0%" stopColor="#ff7a9b" />
-          <stop offset="56%" stopColor="#ff3f71" />
-          <stop offset="100%" stopColor="#de1248" />
+        <radialGradient id="flame-bg-dark" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stopColor="#3a404d" />
+          <stop offset="58%" stopColor="#262b35" />
+          <stop offset="100%" stopColor="#141922" />
         </radialGradient>
-        <linearGradient id="flame-core" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#f7f8fa" />
+        <linearGradient id="flame-core-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#c7ccd7" />
+          <stop offset="100%" stopColor="#8f97a7" />
         </linearGradient>
       </defs>
-      <circle cx="40" cy="40" r="33" fill="url(#flame-bg)" />
+      <circle cx="40" cy="40" r="33" fill="url(#flame-bg-dark)" />
       <path
         d="M40 17c4 6 5 11 3 15 7-4 13 1 13 10 0 11-8 20-18 20s-18-8-18-18c0-10 8-16 13-22 3-4 5-7 7-11Z"
-        fill="url(#flame-bg)"
+        fill="url(#flame-bg-dark)"
       />
       <path
         d="M41 31c2 4 1 7-1 10 4-2 8 1 8 6 0 6-5 11-11 11s-11-5-11-11c0-5 4-9 7-12 2-2 4-4 5-8 1 2 2 3 3 4Z"
-        fill="url(#flame-core)"
+        fill="url(#flame-core-dark)"
       />
     </svg>
   );
@@ -939,10 +939,6 @@ export default function Dashboard() {
     if (!Number.isFinite(current) || current <= 0) return 0;
     return Math.min(levelTargetXp, Math.round(current));
   }, [levelProgress.levelXp, levelTargetXp]);
-  const levelRemainingXp = useMemo(
-    () => Math.max(0, levelTargetXp - levelCurrentXp),
-    [levelCurrentXp, levelTargetXp]
-  );
   const levelProgressValue = useMemo(
     () => (levelTargetXp > 0 ? Math.max(0, Math.min(1, levelCurrentXp / levelTargetXp)) : 0),
     [levelCurrentXp, levelTargetXp]
@@ -1391,14 +1387,13 @@ export default function Dashboard() {
               <FlameBadgeIcon size={56} />
             </span>
             <span style={s.progressBadgeValue}>{completedWorkoutsTotal}</span>
-            <span style={s.progressBadgeLabel}>всего тренировок</span>
+            <span style={s.progressBadgeLabel}>тренировок</span>
           </div>
           <div style={s.progressMain}>
             <div style={s.progressTopRow}>
-              <span style={s.progressValuePrimary}>{`${levelCurrentXp}/${levelTargetXp} XP`}</span>
+              <span style={s.progressValuePrimary}>{`${levelCurrentXp}/${levelTargetXp}`}</span>
               <span style={s.progressLevelText}>{`Уровень ${levelProgress.currentLevel}`}</span>
             </div>
-            <div style={s.progressNextText}>{`до следующего уровня ${levelRemainingXp} XP`}</div>
             <div style={s.xpBarTrack}>
               <div
                 style={{
@@ -2029,11 +2024,11 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   progressValuePrimary: {
-    fontSize: 38,
+    fontSize: 32,
     fontWeight: 700,
-    lineHeight: 0.95,
+    lineHeight: 1.1,
     color: "#111827",
-    letterSpacing: "-0.02em",
+    letterSpacing: -0.5,
     whiteSpace: "nowrap",
     fontVariantNumeric: "tabular-nums",
   },
@@ -2043,14 +2038,6 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
     color: "rgba(15, 23, 42, 0.54)",
     whiteSpace: "nowrap",
-  },
-  progressNextText: {
-    fontSize: 14,
-    fontWeight: 500,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
   },
   xpBarTrack: {
     width: "100%",
@@ -2072,11 +2059,14 @@ const s: Record<string, React.CSSProperties> = {
   progressWeekPitsRow: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    gap: 6,
     minHeight: 14,
+    width: "100%",
   },
   progressWeekPit: {
-    width: 14,
+    flex: 1,
+    minWidth: 10,
     height: 14,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
