@@ -648,25 +648,22 @@ export default function PlanOne() {
   })();
 
   const startCtaLabel = "🏁 Начать тренировку";
-  const replaceTargetDate = useMemo(() => {
+  const replaceTargetDate = (() => {
     const raw = (location.state as any)?.replaceDate;
     if (typeof raw !== "string") return null;
     const value = raw.trim();
     return ISO_DATE_RE.test(value) ? value : null;
-  }, [location.state]);
+  })();
 
-  const openScheduleForWorkout = useCallback(
-    (plannedWorkoutId: string) => {
-      nav("/schedule", {
-        state: {
-          plannedWorkoutId,
-          targetDate: replaceTargetDate,
-          forcePick: Boolean(replaceTargetDate),
-        },
-      });
-    },
-    [nav, replaceTargetDate]
-  );
+  const openScheduleForWorkout = (plannedWorkoutId: string) => {
+    nav("/schedule", {
+      state: {
+        plannedWorkoutId,
+        targetDate: replaceTargetDate,
+        forcePick: Boolean(replaceTargetDate),
+      },
+    });
+  };
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
