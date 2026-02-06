@@ -6,6 +6,14 @@ import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
+import {
+  getSchemeDisplayData,
+  type UserContext,
+  type UserGoal,
+  type ExperienceLevel,
+  type Location,
+  type SplitType,
+} from "@/utils/getSchemeDisplayData";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -39,6 +47,25 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DASH_AVATAR_SIZE = 56;
+const VALID_USER_GOALS: UserGoal[] = [
+  "lose_weight",
+  "build_muscle",
+  "athletic_body",
+  "health_wellness",
+];
+const VALID_EXPERIENCE_LEVELS: ExperienceLevel[] = [
+  "beginner",
+  "intermediate",
+  "advanced",
+];
+const VALID_LOCATIONS: Location[] = ["gym", "home_no_equipment", "home_with_gear"];
+const VALID_SPLIT_TYPES: SplitType[] = [
+  "full_body",
+  "upper_lower",
+  "push_pull_legs",
+  "conditioning",
+  "bro_split",
+];
 
 function buildDsDates(count: number, offsetDays: number) {
   const now = new Date();
@@ -67,11 +94,75 @@ type HistorySnapshot = {
   completedDates: string[];
 };
 
+type JsonRecord = Record<string, unknown>;
+
 function toISODate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : null;
+}
+
+function readOnboardingSummary(): JsonRecord | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("onb_summary");
+    if (!raw) return null;
+    return asRecord(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function toUserGoal(value: unknown): UserGoal {
+  return typeof value === "string" && VALID_USER_GOALS.includes(value as UserGoal)
+    ? (value as UserGoal)
+    : "athletic_body";
+}
+
+function toExperienceLevel(value: unknown): ExperienceLevel {
+  return typeof value === "string" && VALID_EXPERIENCE_LEVELS.includes(value as ExperienceLevel)
+    ? (value as ExperienceLevel)
+    : "beginner";
+}
+
+function toLocation(value: unknown): Location {
+  return typeof value === "string" && VALID_LOCATIONS.includes(value as Location)
+    ? (value as Location)
+    : "gym";
+}
+
+function toOptionalLocation(value: unknown): Location | null {
+  return typeof value === "string" && VALID_LOCATIONS.includes(value as Location)
+    ? (value as Location)
+    : null;
+}
+
+function toSplitType(value: unknown): SplitType {
+  return typeof value === "string" && VALID_SPLIT_TYPES.includes(value as SplitType)
+    ? (value as SplitType)
+    : "full_body";
+}
+
+function toLocations(value: unknown): Location[] {
+  if (!Array.isArray(value)) return [];
+  const out: Location[] = [];
+  value.forEach((item) => {
+    const location = toOptionalLocation(item);
+    if (location && !out.includes(location)) out.push(location);
+  });
+  return out;
 }
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
@@ -743,6 +834,37 @@ export default function Dashboard() {
   const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
 
   const weekDays = useMemo(() => getWeekDays(), []);
+  const dashboardUserContext = useMemo<UserContext>(() => {
+    const summary = readOnboardingSummary();
+    const motivation = asRecord(summary?.motivation);
+    const experienceNode = summary?.experience;
+    const experience = asRecord(experienceNode);
+    const trainingPlace = asRecord(summary?.trainingPlace);
+    const ageSex = asRecord(summary?.ageSex);
+    const body = asRecord(summary?.body);
+
+    const goal = toUserGoal(motivation?.goal ?? summary?.goal);
+    const experienceLevel = toExperienceLevel(experience?.level ?? experienceNode);
+    const location = toLocation(trainingPlace?.place ?? summary?.location);
+    const sexRaw = ageSex?.sex ?? summary?.sex;
+    const sex = sexRaw === "male" || sexRaw === "female" ? sexRaw : undefined;
+    const age = toOptionalNumber(ageSex?.age ?? summary?.age);
+    const weight = toOptionalNumber(body?.weight);
+    const height = toOptionalNumber(body?.height);
+    const bmi =
+      typeof weight === "number" && typeof height === "number" && height > 0
+        ? weight / ((height / 100) ** 2)
+        : undefined;
+
+    return {
+      goal,
+      experience: experienceLevel,
+      location,
+      sex,
+      age,
+      bmi,
+    };
+  }, [onbDone]);
   const totalPlanDays = useMemo(() => {
     const daysByScheme = Number(selectedScheme?.daysPerWeek);
     if (Number.isFinite(daysByScheme) && daysByScheme >= 2 && daysByScheme <= 6) {
@@ -755,10 +877,27 @@ export default function Dashboard() {
     return 3;
   }, [selectedScheme]);
   const weeklyPlanTitle = useMemo(() => {
+    if (selectedScheme) {
+      try {
+        const displayData = getSchemeDisplayData(
+          {
+            id: selectedScheme.id,
+            name: selectedScheme.name,
+            splitType: toSplitType(selectedScheme.splitType),
+            intensity: selectedScheme.intensity,
+            daysPerWeek: selectedScheme.daysPerWeek,
+            locations: toLocations(selectedScheme.equipmentRequired),
+          },
+          dashboardUserContext
+        );
+        const mapped = String(displayData?.title || "").trim();
+        if (mapped) return mapped;
+      } catch {}
+    }
     const named = String(selectedScheme?.russianName || selectedScheme?.name || "").trim();
     if (named) return named;
     return `План на ${totalPlanDays} тренировки`;
-  }, [selectedScheme, totalPlanDays]);
+  }, [selectedScheme, totalPlanDays, dashboardUserContext]);
   const weeklyCompletedCount = useMemo(() => {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
