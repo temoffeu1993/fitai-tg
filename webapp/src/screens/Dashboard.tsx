@@ -1334,9 +1334,6 @@ export default function Dashboard() {
             }}
           />
         </div>
-        <div style={s.xpLabel}>
-          {levelProgress.levelXp} / {levelProgress.levelTargetXp} XP
-        </div>
       </section>
 
       {/* BLOCK 5: Quick Actions 2×2 */}
@@ -1884,10 +1881,10 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Progress =====
   progressCard: {
     ...glassCard,
-    padding: "16px 18px",
+    padding: "12px 18px",
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 8,
   },
   progressTop: {
     display: "flex",
@@ -1906,21 +1903,20 @@ const s: Record<string, React.CSSProperties> = {
   },
   xpBarTrack: {
     width: "100%",
-    height: 6,
+    height: 14,
     borderRadius: 999,
-    background: "rgba(30, 31, 34, 0.08)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
   },
   xpBarFill: {
     height: "100%",
     borderRadius: 999,
-    background: "#1e1f22",
+    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
+    boxShadow:
+      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
     transition: "width 600ms ease-out",
-  },
-  xpLabel: {
-    fontSize: 13,
-    fontWeight: 500,
-    color: "rgba(30, 31, 34, 0.5)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
