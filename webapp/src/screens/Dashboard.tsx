@@ -186,7 +186,7 @@ function collectAssignedDateKeys(
 ): string[] {
   const set = new Set<string>();
   planned
-    .filter((w) => w.status === "scheduled" || w.status === "pending")
+    .filter((w) => w.status === "scheduled")
     .forEach((w) => {
       const iso = datePart(w.scheduledFor);
       if (iso) set.add(iso);
@@ -526,6 +526,10 @@ export default function Dashboard() {
   const dsUserInteractedRef = useRef(false);
   const dsFirstRenderIdxRef = useRef(dsInitialIdx);
   const dayCardTimerRef = useRef<number | null>(null);
+  const hasAssignedDatesForDayCard = useMemo(
+    () => collectAssignedDateKeys(plannedWorkouts, scheduleDates).length > 0,
+    [plannedWorkouts, scheduleDates]
+  );
 
   useEffect(() => {
     dsScrollRef.current?.scrollTo({ left: dsActiveIdx * DATE_ITEM_W, behavior: "auto" });
@@ -569,6 +573,13 @@ export default function Dashboard() {
   }, [dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx, dsActiveIdx, dsSettledIdx, dayCardIdx]);
 
   useEffect(() => {
+    if (!hasAssignedDatesForDayCard) {
+      if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
+      if (dayCardIdx !== dsSettledIdx) setDayCardIdx(dsSettledIdx);
+      if (dayCardOpacity !== 1) setDayCardOpacity(1);
+      if (dayCardOffset !== 0) setDayCardOffset(0);
+      return;
+    }
     if (dsSettledIdx === dayCardIdx) return;
     const dir = dsSettledIdx > dayCardIdx ? 1 : -1;
     setDayCardDir(dir > 0 ? "right" : "left");
@@ -586,7 +597,7 @@ export default function Dashboard() {
     return () => {
       if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
     };
-  }, [dsSettledIdx, dayCardIdx]);
+  }, [dsSettledIdx, dayCardIdx, dayCardOpacity, dayCardOffset, hasAssignedDatesForDayCard]);
 
   const handleDsScroll = useCallback(() => {
     if (dsScrollRafRef.current == null) {
@@ -626,7 +637,7 @@ export default function Dashboard() {
   const plannedDatesSet = useMemo(() => {
     const set = new Set<string>();
     plannedWorkouts
-      .filter((w) => w.status === "scheduled" || w.status === "pending")
+      .filter((w) => w.status === "scheduled")
       .forEach((w) => {
         const iso = w.scheduledFor?.slice(0, 10);
         if (iso) set.add(iso);
@@ -673,7 +684,7 @@ export default function Dashboard() {
   const activeForSelected = useMemo(
     () =>
       plannedForSelected.find(
-        (w) => w.status === "scheduled" || w.status === "pending"
+        (w) => w.status === "scheduled"
       ) || null,
     [plannedForSelected]
   );
@@ -733,9 +744,35 @@ export default function Dashboard() {
 
   const weekDays = useMemo(() => getWeekDays(), []);
   const totalPlanDays = useMemo(() => {
+    const daysByScheme = Number(selectedScheme?.daysPerWeek);
+    if (Number.isFinite(daysByScheme) && daysByScheme >= 2 && daysByScheme <= 6) {
+      return daysByScheme;
+    }
     const labels = selectedScheme?.dayLabels;
-    return Array.isArray(labels) && labels.length > 0 ? labels.length : 7;
+    if (Array.isArray(labels) && labels.length >= 2 && labels.length <= 6) {
+      return labels.length;
+    }
+    return 3;
   }, [selectedScheme]);
+  const weeklyPlanTitle = useMemo(() => {
+    const labels = Array.isArray(selectedScheme?.dayLabels) ? selectedScheme.dayLabels : [];
+    const splitType = String(selectedScheme?.splitType || "");
+    const resolvedTitles = labels
+      .slice(0, totalPlanDays)
+      .map((item, idx) => {
+        const raw = String(item?.label || `День ${idx + 1}`).trim();
+        return resolveDayCopy(raw, splitType, idx).title.trim();
+      })
+      .filter(Boolean);
+    const uniqueTitles = Array.from(new Set(resolvedTitles));
+    if (!uniqueTitles.length) return `План на ${totalPlanDays} тренировки`;
+    if (uniqueTitles.length <= 3) return uniqueTitles.join(", ");
+    return `${uniqueTitles.slice(0, 3).join(", ")} +${uniqueTitles.length - 3}`;
+  }, [selectedScheme, totalPlanDays]);
+  const weeklyCompletedCount = useMemo(() => {
+    const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
+    return Math.min(totalPlanDays, completed);
+  }, [plannedWorkouts, totalPlanDays]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -861,24 +898,32 @@ export default function Dashboard() {
   // ========================================================================
 
   const assignedCount = Math.min(plannedDatesSet.size, totalPlanDays);
-  const dayState: "completed" | "planned" | "rest" = isSelectedCompleted
+  const isWeeklyMode = assignedCount === 0;
+  const dayState: "weekly" | "completed" | "planned" | "rest" = isWeeklyMode
+    ? "weekly"
+    : isSelectedCompleted
     ? "completed"
     : isSelectedPlanned
     ? "planned"
     : "rest";
   const dayHeaderText =
-    dayState === "completed"
+    dayState === "weekly"
+      ? "Недельный план готов"
+      : dayState === "completed"
       ? "Тренировка выполнена"
       : dayState === "planned"
       ? "Тренировка на"
       : "Свободный день";
   const dayTitle =
-    dayState === "rest"
+    dayState === "weekly"
+      ? weeklyPlanTitle
+      : dayState === "rest"
       ? "Распредели тренировки по датам"
       : selectedWorkoutTitle;
   const dayRestProgressText = `Распределено ${assignedCount}/${totalPlanDays}`;
+  const dayWeeklyProgressText = `Выполнено ${weeklyCompletedCount}/${totalPlanDays}`;
   const dayMascotSrc = useMemo(() => {
-    if (dayState === "rest") return REST_MASCOT_SRC;
+    if (dayState === "weekly" || dayState === "rest") return REST_MASCOT_SRC;
     const title = String(dayTitle || "").toLowerCase();
     if (title.includes("ног") && title.includes("ягод")) return LEGS_MASCOT_SRC;
     if (title.includes("грудь") && title.includes("плеч")) return CHEST_MASCOT_SRC;
@@ -888,13 +933,16 @@ export default function Dashboard() {
   const dayDurationText = formatDuration(workoutChips.minutes);
   const dayExercisesText =
     workoutChips.totalExercises > 0 ? `${workoutChips.totalExercises} упражнений` : "";
-  const showDayMeta = Boolean(dayDurationText || dayExercisesText) && dayState !== "rest";
+  const showDayMeta =
+    Boolean(dayDurationText || dayExercisesText) &&
+    dayState !== "rest" &&
+    dayState !== "weekly";
   const dayButtonText =
     dayState === "completed"
       ? "Результат"
       : dayState === "planned"
       ? "Начать"
-      : "План";
+      : "Выбрать тренировку";
   const handleDayAction = () => {
     if (dayState === "completed") {
       const sessionId = selectedPlanned?.resultSessionId;
@@ -1064,6 +1112,11 @@ export default function Dashboard() {
         >
           <div style={s.dayHeader}>{dayHeaderText}</div>
           <div style={s.dayTitle}>{dayTitle}</div>
+          {dayState === "weekly" ? (
+            <div style={s.dayWeeklyMetaRow}>
+              <span style={s.dayWeeklyMetaChip}>{dayWeeklyProgressText}</span>
+            </div>
+          ) : null}
           {dayState === "rest" ? (
             <div style={s.dayDistributionWrap}>
               <div style={s.dayDistributionLabel}>{dayRestProgressText}</div>
@@ -1548,6 +1601,27 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     lineHeight: 1.1,
     letterSpacing: -0.5,
+  },
+  dayWeeklyMetaRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  dayWeeklyMetaChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 30,
+    padding: "0 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.72)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(242,242,247,0.86) 100%)",
+    boxShadow:
+      "0 8px 16px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.88)",
+    color: "rgba(15, 23, 42, 0.74)",
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1,
   },
   dayDistributionWrap: {
     display: "grid",
