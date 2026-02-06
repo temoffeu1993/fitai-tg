@@ -1226,13 +1226,10 @@ export default function Dashboard() {
                       <span
                         style={{
                           ...s.dsDotPit,
+                          ...(dot === "scheduled" ? s.dsDotPitScheduled : undefined),
+                          ...(dot === "completed" ? s.dsDotPitCompleted : undefined),
                         }}
                       >
-                        {dot === "scheduled" ? (
-                          <span style={s.dsDotSphereScheduled} />
-                        ) : dot === "completed" ? (
-                          <span style={s.dsDotSphereCompleted} />
-                        ) : null}
                       </span>
                     </span>
                   </button>
@@ -1703,21 +1700,15 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
   } as React.CSSProperties,
-  dsDotSphereScheduled: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
+  dsDotPitScheduled: {
+    background: "linear-gradient(180deg, #9ea1a8 0%, #c2c5cc 100%)",
     boxShadow:
-      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
+      "inset 0 2px 3px rgba(17,24,39,0.32), inset 0 -1px 0 rgba(255,255,255,0.5)",
   } as React.CSSProperties,
-  dsDotSphereCompleted: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
+  dsDotPitCompleted: {
+    background: "linear-gradient(180deg, #c9f3d9 0%, #ddf7e7 100%)",
     boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+      "inset 0 2px 3px rgba(34,197,94,0.25), inset 0 -1px 0 rgba(255,255,255,0.8)",
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
