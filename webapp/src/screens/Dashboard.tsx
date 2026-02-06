@@ -252,27 +252,6 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function ReplaceIcon({ size = 32 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth="2.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      focusable="false"
-    >
-      <path d="M7 10a5.5 5.5 0 0 1 9-4" stroke="#1e1f22" />
-      <path d="M16 4h3v3" stroke="#1e1f22" />
-      <path d="M17 14a5.5 5.5 0 0 1-9 4" stroke="#1e1f22" />
-      <path d="M8 20H5v-3" stroke="#1e1f22" />
-    </svg>
-  );
-}
-
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -1321,9 +1300,8 @@ export default function Dashboard() {
                 type="button"
                 style={s.dayBtnSecondary}
                 onClick={handleDayReplace}
-                aria-label="Заменить тренировку"
               >
-                <ReplaceIcon size={28} />
+                Заменить
               </button>
             </div>
           ) : (
@@ -1877,12 +1855,15 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 36,
-    height: 36,
+    height: "auto",
     padding: 0,
     borderRadius: 0,
     border: "none",
     background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontWeight: 400,
+    fontSize: 14,
+    lineHeight: 1.5,
     cursor: "pointer",
     boxShadow: "none",
     appearance: "none",
