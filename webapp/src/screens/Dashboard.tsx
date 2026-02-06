@@ -1982,11 +1982,12 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 12px 24px rgba(15,23,42,0.24)",
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
-    padding: "18px 16px",
+    padding: "18px 16px 18px 26px",
     display: "flex",
     alignItems: "center",
     gap: 6,
     minHeight: 100,
+    overflow: "hidden",
   },
   goalEmoji: {
     fontSize: 44,
@@ -1999,6 +2000,7 @@ const s: Record<string, React.CSSProperties> = {
     transform: "scale(2)",
     transformOrigin: "center",
     flexShrink: 0,
+    marginLeft: 4,
   },
   goalContent: {
     flex: 1,
@@ -2006,7 +2008,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 6,
     minWidth: 0,
-    marginLeft: 14,
+    marginLeft: 20,
   },
   goalTitle: {
     fontSize: 18,
@@ -2024,10 +2026,11 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
     display: "flex",
     justifyContent: "flex-start",
+    marginLeft: 2,
   },
   goalBarTrack: {
     position: "relative",
-    width: "88%",
+    width: "84%",
     height: 18,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
