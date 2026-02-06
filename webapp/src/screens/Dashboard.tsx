@@ -255,39 +255,6 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function FlameBadgeIcon({ size = 64 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 80 80"
-      fill="none"
-      aria-hidden
-      focusable="false"
-    >
-      <defs>
-        <radialGradient id="flame-bg-dark" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#3a404d" />
-          <stop offset="58%" stopColor="#262b35" />
-          <stop offset="100%" stopColor="#141922" />
-        </radialGradient>
-        <linearGradient id="flame-core-dark" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#c7ccd7" />
-          <stop offset="100%" stopColor="#8f97a7" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M40 17c4 6 5 11 3 15 7-4 13 1 13 10 0 11-8 20-18 20s-18-8-18-18c0-10 8-16 13-22 3-4 5-7 7-11Z"
-        fill="url(#flame-bg-dark)"
-      />
-      <path
-        d="M41 31c2 4 1 7-1 10 4-2 8 1 8 6 0 6-5 11-11 11s-11-5-11-11c0-5 4-9 7-12 2-2 4-4 5-8 1 2 2 3 3 4Z"
-        fill="url(#flame-core-dark)"
-      />
-    </svg>
-  );
-}
-
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -927,11 +894,18 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
-  const completedWorkoutsTotal = useMemo(() => {
-    const fromGamification = Number(gamification.counts.completedWorkouts);
-    if (Number.isFinite(fromGamification)) return Math.max(0, Math.round(fromGamification));
-    return Math.max(0, historyStats.total);
-  }, [gamification.counts.completedWorkouts, historyStats.total]);
+  const weeklyGoalProgress = useMemo(
+    () => (totalPlanDays > 0 ? Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays)) : 0),
+    [weeklyCompletedCount, totalPlanDays]
+  );
+  const weeklyGoalLabel = useMemo(() => {
+    if (totalPlanDays === 2) return "Две тренировки";
+    if (totalPlanDays === 3) return "Три тренировки";
+    if (totalPlanDays === 4) return "Четыре тренировки";
+    if (totalPlanDays === 5) return "Пять тренировок";
+    if (totalPlanDays === 6) return "Шесть тренировок";
+    return `${totalPlanDays} тренировки`;
+  }, [totalPlanDays]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -1365,30 +1339,23 @@ export default function Dashboard() {
 
       {/* BLOCK 4: Progress */}
       <section style={s.progressCard} className="dash-fade dash-delay-3">
-        <div style={s.progressLayout}>
-          <div style={s.progressBadgePanel}>
-            <span style={s.progressBadgeIconWrap}>
-              <FlameBadgeIcon size={56} />
-            </span>
-            <span style={s.progressBadgeValue}>{completedWorkoutsTotal}</span>
-            <span style={s.progressBadgeLabel}>тренировок</span>
-          </div>
-          <div style={s.progressMain}>
-            <div style={s.progressTopRow}>
-              <span style={s.progressGoalTitle}>Цель недели</span>
-              <span style={s.progressGoalValue}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</span>
-            </div>
-            <div style={s.progressWeekPitsRow}>
-              {Array.from({ length: totalPlanDays }, (_, idx) => (
-                <span
-                  key={`progress-week-pit-${idx}`}
-                  style={{
-                    ...s.progressWeekPit,
-                    width: 34,
-                    height: 34,
-                  }}
-                />
-              ))}
+        <div style={s.progressNeoWrap}>
+          <div style={s.progressNeoTitle}>Цель недели</div>
+          <div style={s.progressNeoTrack}>
+            <div
+              style={{
+                ...s.progressNeoFillGlow,
+                width: `${Math.max(weeklyGoalProgress * 100, 8)}%`,
+              }}
+            />
+            <div
+              style={{
+                ...s.progressNeoFill,
+                width: `${Math.max(weeklyGoalProgress * 100, 8)}%`,
+              }}
+            />
+            <div style={s.progressNeoTrackLabelWrap}>
+              <span style={s.progressNeoTrackLabel}>{weeklyGoalLabel}</span>
             </div>
           </div>
         </div>
@@ -1939,96 +1906,79 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Progress =====
   progressCard: {
     ...glassCard,
-    padding: "10px 10px",
+    padding: "18px 16px",
     display: "flex",
-    minHeight: 156,
+    minHeight: 126,
   },
-  progressLayout: {
+  progressNeoWrap: {
     width: "100%",
-    display: "flex",
-    gap: 10,
-    alignItems: "stretch",
-  },
-  progressBadgePanel: {
-    width: 110,
-    flexShrink: 0,
-    borderRadius: 18,
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(244,246,250,0.45) 100%)",
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(148,163,184,0.22)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    padding: "10px 8px",
-  },
-  progressBadgeIconWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressBadgeValue: {
-    fontSize: 27,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "#111827",
-    fontVariantNumeric: "tabular-nums",
-  },
-  progressBadgeLabel: {
-    fontSize: 14,
-    lineHeight: 1,
-    fontWeight: 600,
-    color: "#0f172a",
-    textAlign: "center",
-  },
-  progressMain: {
-    flex: 1,
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
-    gap: 10,
+    gap: 14,
   },
-  progressTopRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    minHeight: 24,
-    gap: 8,
-  },
-  progressGoalTitle: {
-    fontSize: 14,
-    fontWeight: 500,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
-    whiteSpace: "nowrap",
-  },
-  progressGoalValue: {
-    fontSize: 14,
-    lineHeight: 1,
-    fontWeight: 600,
+  progressNeoTitle: {
+    fontSize: 32,
+    fontWeight: 700,
+    lineHeight: 1.1,
     color: "#0f172a",
+    letterSpacing: -0.5,
     whiteSpace: "nowrap",
   },
-  progressWeekPitsRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 34,
+  progressNeoTrack: {
+    position: "relative",
     width: "100%",
-    gap: 8,
-  },
-  progressWeekPit: {
+    height: 52,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    background: "linear-gradient(180deg, #d8dde6 0%, #bfc8d5 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+      "inset 0 2px 4px rgba(15,23,42,0.24), inset 0 -1px 0 rgba(255,255,255,0.72)",
+    overflow: "visible",
+  },
+  progressNeoFillGlow: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
+    borderRadius: 999,
+    background: "linear-gradient(90deg, #9c67ff 0%, #8a63ff 44%, #6f81ff 100%)",
+    filter: "blur(7px)",
+    opacity: 0.75,
+    boxShadow: "0 0 20px rgba(138, 99, 255, 0.65), 0 0 34px rgba(111, 129, 255, 0.45)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  progressNeoFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
+    borderRadius: 999,
+    background: "linear-gradient(90deg, #a86dff 0%, #8f66ff 44%, #7991ff 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(53,47,104,0.42)",
+    zIndex: 2,
     flexShrink: 0,
+  },
+  progressNeoTrackLabelWrap: {
+    position: "absolute",
+    right: 16,
+    top: 0,
+    bottom: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    zIndex: 3,
+  },
+  progressNeoTrackLabel: {
+    fontSize: 20,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: "rgba(245,247,251,0.98)",
+    letterSpacing: -0.3,
+    textShadow: "0 1px 2px rgba(15,23,42,0.45)",
+    whiteSpace: "nowrap",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
