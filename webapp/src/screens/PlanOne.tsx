@@ -714,23 +714,21 @@ export default function PlanOne() {
     openScheduleForWorkout(fallback.id);
   };
 
-  const weekWorkouts = useMemo(() => {
-    return (plannedWorkouts || [])
-      .filter((w) => w && w.id && w.status !== "cancelled")
-      .slice()
-      .sort((a, b) => {
-        const ai = Number((a.plan as any)?.dayIndex);
-        const bi = Number((b.plan as any)?.dayIndex);
-        const hasAi = Number.isFinite(ai);
-        const hasBi = Number.isFinite(bi);
-        if (hasAi && hasBi && ai !== bi) return ai - bi;
-        if (hasAi && !hasBi) return -1;
-        if (!hasAi && hasBi) return 1;
-        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
-        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
-        return at - bt;
-      });
-  }, [plannedWorkouts]);
+  const weekWorkouts = (plannedWorkouts || [])
+    .filter((w) => w && w.id && w.status !== "cancelled")
+    .slice()
+    .sort((a, b) => {
+      const ai = Number((a.plan as any)?.dayIndex);
+      const bi = Number((b.plan as any)?.dayIndex);
+      const hasAi = Number.isFinite(ai);
+      const hasBi = Number.isFinite(bi);
+      if (hasAi && hasBi && ai !== bi) return ai - bi;
+      if (hasAi && !hasBi) return -1;
+      if (!hasAi && hasBi) return 1;
+      const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+      return at - bt;
+    });
   const totalWeekCount = weekWorkouts.length;
   const completedWeekCount = weekWorkouts.filter((w) => w.status === "completed").length;
 
