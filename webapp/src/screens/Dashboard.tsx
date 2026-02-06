@@ -32,13 +32,11 @@ const REST_MASCOT_SRC = sredneImg;
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 
-const XP_TIERS = [
-  { min: 0, name: "Новичок" },
-  { min: 1000, name: "Импульс" },
-  { min: 2500, name: "Темпо" },
-  { min: 5000, name: "Сталь" },
-  { min: 9000, name: "Легенда" },
-];
+const XP_ONBOARDING_COMPLETE = 120;
+const XP_WORKOUT_PLANNED = 40;
+const XP_WORKOUT_COMPLETED = 180;
+const LEVEL_BASE_XP = 200;
+const LEVEL_STEP_XP = 100;
 
 const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -89,9 +87,15 @@ function buildDsDates(count: number, offsetDays: number) {
 type HistorySnapshot = {
   total: number;
   lastCompletedAt: number | null;
-  xp: number;
-  streak: number;
   completedDates: string[];
+};
+
+type LevelProgress = {
+  level: number;
+  totalXp: number;
+  levelXp: number;
+  levelTargetXp: number;
+  progress: number;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -304,95 +308,57 @@ function resolvePreferredDateIndex(
 
 function readHistorySnapshot(): HistorySnapshot {
   if (typeof window === "undefined")
-    return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
+    return { total: 0, lastCompletedAt: null, completedDates: [] };
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
     if (!Array.isArray(raw))
-      return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
+      return { total: 0, lastCompletedAt: null, completedDates: [] };
 
-    const sorted = raw
-      .map((rec) => {
-        const dateValue = rec?.finishedAt || rec?.completedAt || rec?.date;
-        const ts = dateValue ? new Date(dateValue).getTime() : NaN;
-        return { ...rec, __ts: Number.isNaN(ts) ? null : ts };
-      })
-      .sort((a, b) => (a.__ts || 0) - (b.__ts || 0));
-
-    let last: number | null = null;
-    let xp = 0;
-    let streak = 0;
-    let prevDayNumber: number | null = null;
+    let lastCompletedAt: number | null = null;
     const completedDatesSet = new Set<string>();
 
-    for (const rec of sorted) {
-      const ts = rec.__ts;
-      const duration = Number(rec?.durationMin) || 0;
-      const exercisesCount = Array.isArray(rec?.exercises)
-        ? rec.exercises.length
-        : Array.isArray(rec?.items)
-        ? rec.items.length
-        : 0;
-
-      const base = 120;
-      const durationBonus = Math.min(90, Math.max(20, duration || 30)) * 1.5;
-      const varietyBonus = Math.min(10, Math.max(3, exercisesCount || 4)) * 12;
-      xp += Math.round(base + durationBonus + varietyBonus);
-
-      if (typeof ts === "number") {
-        const dayNumber = Math.floor(ts / 86400000);
-        if (prevDayNumber != null && dayNumber - prevDayNumber <= 2) {
-          streak += 1;
-        } else {
-          streak = 1;
-        }
-        xp += Math.max(0, streak - 1) * 25;
-        prevDayNumber = dayNumber;
-        if (last == null || ts > last) last = ts;
+    for (const rec of raw) {
+      const dateValue = rec?.finishedAt || rec?.completedAt || rec?.date;
+      const ts = dateValue ? new Date(dateValue).getTime() : NaN;
+      if (Number.isFinite(ts)) {
+        if (lastCompletedAt == null || ts > lastCompletedAt) lastCompletedAt = ts;
         completedDatesSet.add(toISODate(new Date(ts)));
       }
     }
 
-    const todayDayNumber = Math.floor(Date.now() / 86400000);
-    const lastDayNumber = last ? Math.floor(last / 86400000) : null;
-    const currentStreak =
-      lastDayNumber != null && todayDayNumber - lastDayNumber <= 2 ? streak : 0;
-
     return {
       total: raw.length,
-      lastCompletedAt: last,
-      xp,
-      streak: currentStreak,
+      lastCompletedAt,
       completedDates: Array.from(completedDatesSet),
     };
   } catch {
-    return { total: 0, lastCompletedAt: null, xp: 0, streak: 0, completedDates: [] };
+    return { total: 0, lastCompletedAt: null, completedDates: [] };
   }
 }
 
-function xpRankInfo(xp: number) {
-  for (let i = XP_TIERS.length - 1; i >= 0; i--) {
-    if (xp >= XP_TIERS[i].min) {
-      const nextTier = XP_TIERS[i + 1] || null;
-      const tierMin = XP_TIERS[i].min;
-      const target = nextTier ? nextTier.min - tierMin : 0;
-      const current = xp - tierMin;
-      return {
-        name: XP_TIERS[i].name,
-        nextName: nextTier?.name || null,
-        xpInTier: current,
-        xpToNext: target,
-        progress: target > 0 ? Math.min(1, current / target) : 1,
-        totalXp: xp,
-      };
-    }
+function xpTargetForLevel(level: number): number {
+  const safeLevel = Math.max(1, Math.floor(level) || 1);
+  return LEVEL_BASE_XP + (safeLevel - 1) * LEVEL_STEP_XP;
+}
+
+function computeLevelProgress(totalXpRaw: number): LevelProgress {
+  const totalXp = Math.max(0, Math.round(totalXpRaw) || 0);
+  let level = 1;
+  let remaining = totalXp;
+  let levelTargetXp = xpTargetForLevel(level);
+
+  while (remaining >= levelTargetXp) {
+    remaining -= levelTargetXp;
+    level += 1;
+    levelTargetXp = xpTargetForLevel(level);
   }
+
   return {
-    name: "Новичок",
-    nextName: "Импульс",
-    xpInTier: 0,
-    xpToNext: 1000,
-    progress: 0,
-    totalXp: 0,
+    level,
+    totalXp,
+    levelXp: remaining,
+    levelTargetXp,
+    progress: levelTargetXp > 0 ? Math.min(1, remaining / levelTargetXp) : 1,
   };
 }
 
@@ -731,8 +697,6 @@ export default function Dashboard() {
   }, [dsDates.length, dsActiveIdx]);
 
   // Computed values
-  const todayISO = useMemo(() => toISODate(new Date()), []);
-
   const plannedDatesSet = useMemo(() => {
     const set = new Set<string>();
     plannedWorkouts
@@ -839,7 +803,26 @@ export default function Dashboard() {
     return { totalExercises, minutes };
   }, [selectedPlanned]);
 
-  const rankInfo = useMemo(() => xpRankInfo(historyStats.xp), [historyStats.xp]);
+  const scheduledWorkoutCount = useMemo(() => {
+    const ids = new Set<string>();
+    plannedWorkouts.forEach((workout) => {
+      if (!workout?.id) return;
+      if (workout.status === "cancelled") return;
+      if (!workout.scheduledFor) return;
+      if (workout.status !== "scheduled" && workout.status !== "completed") return;
+      ids.add(workout.id);
+    });
+    return ids.size;
+  }, [plannedWorkouts]);
+
+  const totalXp = useMemo(() => {
+    const onboardingXp = onbDone ? XP_ONBOARDING_COMPLETE : 0;
+    const planningXp = scheduledWorkoutCount * XP_WORKOUT_PLANNED;
+    const completedWorkoutXp = historyStats.total * XP_WORKOUT_COMPLETED;
+    return onboardingXp + planningXp + completedWorkoutXp;
+  }, [onbDone, scheduledWorkoutCount, historyStats.total]);
+
+  const levelProgress = useMemo(() => computeLevelProgress(totalXp), [totalXp]);
 
   const weekDays = useMemo(() => getWeekDays(), []);
   const dashboardUserContext = useMemo<UserContext>(() => {
@@ -1341,42 +1324,22 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 4: Progress (Streak + XP Bar) */}
+      {/* BLOCK 4: Progress (Level + XP) */}
       <section style={s.progressCard} className="dash-fade dash-delay-3">
         <div style={s.progressTop}>
-          <div style={s.progressStreak}>
-            <span style={s.streakIcon}>🔥</span>
-            <span style={s.streakValue}>
-              {historyStats.streak}{" "}
-              {historyStats.streak === 1
-                ? "день"
-                : historyStats.streak >= 2 && historyStats.streak <= 4
-                ? "дня"
-                : "дней"}
-            </span>
-          </div>
-          <div style={s.progressRank}>
-            <span style={s.rankName}>{rankInfo.name}</span>
-            <span style={s.rankIcon}>⚡</span>
-          </div>
+          <span style={s.progressLevel}>Уровень {levelProgress.level}</span>
+          <span style={s.progressTotalXp}>{levelProgress.totalXp} XP</span>
         </div>
         <div style={s.xpBarTrack}>
           <div
             style={{
               ...s.xpBarFill,
-              width: `${Math.max(rankInfo.progress * 100, 2)}%`,
+              width: `${Math.max(levelProgress.progress * 100, 2)}%`,
             }}
           />
         </div>
         <div style={s.xpLabel}>
-          {rankInfo.nextName ? (
-            <>
-              {rankInfo.xpInTier} / {rankInfo.xpToNext} XP до ранга{" "}
-              {rankInfo.nextName}
-            </>
-          ) : (
-            <>{rankInfo.totalXp} XP — максимальный ранг</>
-          )}
+          {levelProgress.levelXp} / {levelProgress.levelTargetXp} XP
         </div>
       </section>
 
@@ -1935,31 +1898,15 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "center",
   },
-  progressStreak: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  streakIcon: {
-    fontSize: 18,
-  },
-  streakValue: {
+  progressLevel: {
     fontSize: 16,
-    fontWeight: 600,
+    fontWeight: 700,
     color: "#1e1f22",
   },
-  progressRank: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  rankName: {
-    fontSize: 16,
+  progressTotalXp: {
+    fontSize: 14,
     fontWeight: 600,
-    color: "#1e1f22",
-  },
-  rankIcon: {
-    fontSize: 16,
+    color: "rgba(30, 31, 34, 0.68)",
   },
   xpBarTrack: {
     width: "100%",
