@@ -276,7 +276,6 @@ function FlameBadgeIcon({ size = 64 }: { size?: number }) {
           <stop offset="100%" stopColor="#8f97a7" />
         </linearGradient>
       </defs>
-      <circle cx="40" cy="40" r="33" fill="url(#flame-bg-dark)" />
       <path
         d="M40 17c4 6 5 11 3 15 7-4 13 1 13 10 0 11-8 20-18 20s-18-8-18-18c0-10 8-16 13-22 3-4 5-7 7-11Z"
         fill="url(#flame-bg-dark)"
@@ -928,13 +927,6 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
-  const progressWeekPitSize = useMemo(() => {
-    if (totalPlanDays <= 2) return 16;
-    if (totalPlanDays === 3) return 15;
-    if (totalPlanDays === 4) return 14;
-    if (totalPlanDays === 5) return 13;
-    return 12;
-  }, [totalPlanDays]);
   const completedWorkoutsTotal = useMemo(() => {
     const fromGamification = Number(gamification.counts.completedWorkouts);
     if (Number.isFinite(fromGamification)) return Math.max(0, Math.round(fromGamification));
@@ -1384,25 +1376,20 @@ export default function Dashboard() {
           <div style={s.progressMain}>
             <div style={s.progressTopRow}>
               <span style={s.progressGoalTitle}>Цель недели</span>
+              <span style={s.progressGoalValue}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</span>
             </div>
             <div style={s.progressWeekPitsRow}>
-              {Array.from({ length: totalPlanDays }, (_, idx) => {
-                const isDone = idx < weeklyCompletedCount;
-                return (
-                  <span
-                    key={`progress-week-pit-${idx}`}
-                    style={{
-                      ...s.progressWeekPit,
-                      width: progressWeekPitSize,
-                      height: progressWeekPitSize,
-                    }}
-                  >
-                    {isDone ? <span style={s.progressWeekPitDone}>✓</span> : null}
-                  </span>
-                );
-              })}
+              {Array.from({ length: totalPlanDays }, (_, idx) => (
+                <span
+                  key={`progress-week-pit-${idx}`}
+                  style={{
+                    ...s.progressWeekPit,
+                    width: 34,
+                    height: 34,
+                  }}
+                />
+              ))}
             </div>
-            <div style={s.progressWeekText}>{`${weeklyCompletedCount}/${totalPlanDays} тренировки`}</div>
           </div>
         </div>
       </section>
@@ -1993,10 +1980,10 @@ const s: Record<string, React.CSSProperties> = {
     fontVariantNumeric: "tabular-nums",
   },
   progressBadgeLabel: {
-    fontSize: 12,
-    lineHeight: 1.15,
-    fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.58)",
+    fontSize: 14,
+    lineHeight: 1,
+    fontWeight: 600,
+    color: "#0f172a",
     textAlign: "center",
   },
   progressMain: {
@@ -2004,14 +1991,15 @@ const s: Record<string, React.CSSProperties> = {
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 10,
   },
   progressTopRow: {
     display: "flex",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    minHeight: 22,
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    minHeight: 24,
+    gap: 8,
   },
   progressGoalTitle: {
     fontSize: 14,
@@ -2020,52 +2008,27 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
     whiteSpace: "nowrap",
   },
-  xpBarTrack: {
-    width: "100%",
-    height: 12,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    overflow: "hidden",
-  },
-  xpBarFillLevelDark: {
-    height: "100%",
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #1f242d 0%, #10141b 100%)",
-    boxShadow:
-      "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
-    transition: "width 520ms ease-out",
+  progressGoalValue: {
+    fontSize: 14,
+    lineHeight: 1,
+    fontWeight: 600,
+    color: "#0f172a",
+    whiteSpace: "nowrap",
   },
   progressWeekPitsRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: 16,
+    minHeight: 34,
     width: "100%",
+    gap: 8,
   },
   progressWeekPit: {
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressWeekPitDone: {
-    color: "#8bff1a",
-    fontSize: 9,
-    lineHeight: 1,
-    fontWeight: 800,
-    textShadow:
-      "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
-  },
-  progressWeekText: {
-    fontSize: 14,
-    fontWeight: 500,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    flexShrink: 0,
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
