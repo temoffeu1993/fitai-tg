@@ -636,6 +636,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (dsAutoCenterAppliedRef.current || dsUserInteractedRef.current) return;
+    // Wait until assigned dates are available (from API/cache), otherwise
+    // the first render locks auto-centering on "today".
+    if (!hasAssignedDatesForDayCard) return;
     const preferredIdx = resolvePreferredDateIndex(
       dsDates,
       plannedWorkouts,
@@ -650,10 +653,6 @@ export default function Dashboard() {
       dsAutoCenterAppliedRef.current = true;
       return;
     }
-    if (preferredIdx === dsFirstRenderIdxRef.current) {
-      dsAutoCenterAppliedRef.current = true;
-      return;
-    }
     setDsActiveIdx(preferredIdx);
     setDsSettledIdx(preferredIdx);
     setDayCardIdx(preferredIdx);
@@ -661,7 +660,16 @@ export default function Dashboard() {
     dsLastSettledRef.current = preferredIdx;
     dsScrollRef.current?.scrollTo({ left: preferredIdx * DATE_ITEM_W, behavior: "auto" });
     dsAutoCenterAppliedRef.current = true;
-  }, [dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx, dsActiveIdx, dsSettledIdx, dayCardIdx]);
+  }, [
+    dsDates,
+    plannedWorkouts,
+    scheduleDates,
+    dsFallbackIdx,
+    dsActiveIdx,
+    dsSettledIdx,
+    dayCardIdx,
+    hasAssignedDatesForDayCard,
+  ]);
 
   useEffect(() => {
     if (!hasAssignedDatesForDayCard) {
