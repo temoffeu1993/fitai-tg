@@ -1396,40 +1396,38 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 4: Progress — Consistency Stats */}
-      <section style={s.progressCard} className="dash-fade dash-delay-3">
-        <div style={s.consistencyGrid}>
-          {/* Left: Total workouts */}
-          <div style={s.consistencyStat}>
-            <div style={s.consistencyValue}>{historyStats.total}</div>
-            <div style={s.consistencyLabel}>всего</div>
+      {/* BLOCK 4: Weekly Goal */}
+      <section style={s.goalCard} className="dash-fade dash-delay-3">
+        <div style={s.goalEmoji}>
+          {weeklyCompletedCount >= totalPlanDays ? "🎉" : "🎯"}
+        </div>
+        <div style={s.goalContent}>
+          <div style={s.goalTitle}>
+            {weeklyCompletedCount >= totalPlanDays
+              ? "Цель достигнута!"
+              : "Цель недели"}
           </div>
-
-          {/* Center: This week pits */}
-          <div style={s.consistencyStat}>
-            <div style={s.consistencyPits}>
-              {Array.from({ length: totalPlanDays }, (_, idx) => {
-                const done = idx < weeklyCompletedCount;
-                return (
-                  <span key={`consistency-pit-${idx}`} style={s.consistencyPit}>
-                    {done ? <span style={s.consistencyPitFilled} /> : null}
-                  </span>
-                );
-              })}
-            </div>
-            <div style={s.consistencyLabel}>
-              неделя {weeklyCompletedCount}/{totalPlanDays}
-            </div>
+          <div style={s.goalSubtitle}>
+            {weeklyCompletedCount >= totalPlanDays
+              ? "Отличная неделя"
+              : weeklyCompletedCount === 0
+              ? `Выполни ${totalPlanDays} тренировки`
+              : totalPlanDays - weeklyCompletedCount === 1
+              ? "Ещё 1 тренировка"
+              : `Ещё ${totalPlanDays - weeklyCompletedCount} тренировки`}
           </div>
-
-          {/* Right: Week streak */}
-          <div style={s.consistencyStat}>
-            <div style={s.consistencyStreakRow}>
-              <span style={s.consistencyValue}>{weekStreak}</span>
-              <span style={s.consistencyFireEmoji}>🔥</span>
+          <div style={s.goalBarWrap}>
+            <div style={s.goalBarTrack}>
+              <div
+                style={{
+                  ...s.goalBarFill,
+                  width: `${Math.max(weeklyGoalProgress * 100, 0)}%`,
+                }}
+              />
+              <div style={s.goalBarLabel}>
+                {weeklyCompletedCount}/{totalPlanDays}
+              </div>
             </div>
-            <div style={s.consistencyLabelSmall}>недель</div>
-            <div style={s.consistencyLabelSmall}>подряд</div>
           </div>
         </div>
       </section>
@@ -1976,79 +1974,76 @@ const s: Record<string, React.CSSProperties> = {
     textShadow:
       "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
   },
-  // ===== BLOCK 4: Consistency Stats =====
-  progressCard: {
+  // ===== BLOCK 4: Weekly Goal =====
+  goalCard: {
     ...glassCard,
-    padding: "20px 16px",
+    padding: "18px 16px",
     display: "flex",
+    alignItems: "center",
+    gap: 14,
     minHeight: 100,
   },
-  consistencyGrid: {
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    gap: 16,
+  goalEmoji: {
+    fontSize: 44,
+    lineHeight: 1,
+    flexShrink: 0,
   },
-  consistencyStat: {
+  goalContent: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: 4,
+    gap: 6,
+    minWidth: 0,
   },
-  consistencyValue: {
-    fontSize: 36,
+  goalTitle: {
+    fontSize: 18,
     fontWeight: 700,
-    lineHeight: 1,
-    color: "#0f172a",
-    letterSpacing: -0.5,
+    lineHeight: 1.2,
+    color: "#1e1f22",
   },
-  consistencyLabel: {
-    fontSize: 13,
+  goalSubtitle: {
+    fontSize: 15,
     fontWeight: 500,
-    lineHeight: 1.3,
-    color: "rgba(15, 23, 42, 0.55)",
-    textAlign: "center",
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.7)",
   },
-  consistencyLabelSmall: {
-    fontSize: 12,
-    fontWeight: 500,
-    lineHeight: 1.15,
-    color: "rgba(15, 23, 42, 0.55)",
-    textAlign: "center",
+  goalBarWrap: {
+    marginTop: 4,
   },
-  consistencyPits: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  consistencyPit: {
-    width: 20,
-    height: 20,
+  goalBarTrack: {
+    position: "relative",
+    width: "100%",
+    height: 18,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 4px rgba(15,23,42,0.2), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+      "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    overflow: "hidden",
   },
-  consistencyPitFilled: {
-    width: 14,
-    height: 14,
+  goalBarFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
     borderRadius: 999,
     background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
     boxShadow:
-      "0 2px 4px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+      "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+    transition: "width 300ms ease",
   },
-  consistencyStreakRow: {
+  goalBarLabel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     display: "flex",
     alignItems: "center",
-    gap: 4,
-  },
-  consistencyFireEmoji: {
-    fontSize: 28,
-    lineHeight: 1,
+    justifyContent: "center",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#0f172a",
+    letterSpacing: 0.3,
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
