@@ -252,23 +252,23 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function ReplaceIcon({ size = 28 }: { size?: number }) {
+function ReplaceIcon({ size = 32 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth="2.6"
+      strokeWidth="2.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
       focusable="false"
     >
-      <path d="M6 8h9a4 4 0 0 1 4 4" stroke="#1e1f22" />
-      <path d="m16 6 3 2-3 2" stroke="#1e1f22" />
-      <path d="M18 16H9a4 4 0 0 1-4-4" stroke="#1e1f22" />
-      <path d="m8 14-3 2 3 2" stroke="#1e1f22" />
+      <path d="M7 10a5.5 5.5 0 0 1 9-4" stroke="#1e1f22" />
+      <path d="M16 4h3v3" stroke="#1e1f22" />
+      <path d="M17 14a5.5 5.5 0 0 1-9 4" stroke="#1e1f22" />
+      <path d="M8 20H5v-3" stroke="#1e1f22" />
     </svg>
   );
 }
@@ -1876,10 +1876,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     padding: 0,
-    borderRadius: 999,
+    borderRadius: 0,
     border: "none",
     background: "transparent",
     cursor: "pointer",
