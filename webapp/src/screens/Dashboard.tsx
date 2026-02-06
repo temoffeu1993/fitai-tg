@@ -2058,7 +2058,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(248, 250, 252, 0.92)",
+    color: "rgba(15, 23, 42, 0.6)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
