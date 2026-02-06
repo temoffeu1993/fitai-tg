@@ -1335,7 +1335,6 @@ export default function Dashboard() {
         <div style={s.progressNeoWrap}>
           <div style={s.progressNeoTopRow}>
             <div style={s.progressNeoTitle}>Цель недели</div>
-            <div style={s.progressNeoValue}>{weeklyGoalLabel}</div>
           </div>
           <div style={s.progressNeoTrack}>
             <div
@@ -1351,6 +1350,7 @@ export default function Dashboard() {
               }}
             />
           </div>
+          <div style={s.progressNeoValue}>{weeklyGoalLabel}</div>
         </div>
       </section>
 
@@ -1901,7 +1901,7 @@ const s: Record<string, React.CSSProperties> = {
     ...glassCard,
     padding: "18px 16px",
     display: "flex",
-    minHeight: 104,
+    minHeight: 132,
   },
   progressNeoWrap: {
     width: "100%",
@@ -1914,22 +1914,24 @@ const s: Record<string, React.CSSProperties> = {
   progressNeoTopRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: 10,
   },
   progressNeoTitle: {
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 32,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    color: "#0f172a",
+    letterSpacing: -0.5,
     whiteSpace: "nowrap",
   },
   progressNeoValue: {
     fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1,
-    color: "#0f172a",
-    whiteSpace: "nowrap",
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
+    textAlign: "center",
+    width: "100%",
   },
   progressNeoTrack: {
     position: "relative",
