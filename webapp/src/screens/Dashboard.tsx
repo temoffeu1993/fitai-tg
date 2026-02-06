@@ -1980,12 +1980,19 @@ const s: Record<string, React.CSSProperties> = {
     padding: "18px 16px",
     display: "flex",
     alignItems: "center",
-    gap: 14,
+    gap: 6,
     minHeight: 100,
   },
   goalEmoji: {
     fontSize: 44,
     lineHeight: 1,
+    width: 44,
+    height: 44,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: "scale(2)",
+    transformOrigin: "center",
     flexShrink: 0,
   },
   goalContent: {
@@ -1994,6 +2001,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 6,
     minWidth: 0,
+    marginLeft: -8,
   },
   goalTitle: {
     fontSize: 18,
@@ -2012,7 +2020,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   goalBarTrack: {
     position: "relative",
-    width: "100%",
+    width: "88%",
     height: 18,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
