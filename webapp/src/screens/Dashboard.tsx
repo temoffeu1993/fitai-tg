@@ -1147,7 +1147,7 @@ export default function Dashboard() {
             <div style={s.dayBtnRow}>
               <button
                 type="button"
-                style={s.dayBtn}
+                style={{ ...s.dayBtn, ...s.dayBtnInRow }}
                 className="dash-primary-btn day-cta"
                 onClick={handleDayStart}
               >
@@ -1687,12 +1687,15 @@ const s: Record<string, React.CSSProperties> = {
   dayBtnRow: {
     marginTop: "auto",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 10,
     flexWrap: "wrap",
   },
+  dayBtnInRow: {
+    alignSelf: "flex-end",
+  },
   dayBtnSecondary: {
-    alignSelf: "center",
+    alignSelf: "flex-end",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
