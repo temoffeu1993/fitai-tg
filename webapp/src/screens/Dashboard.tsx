@@ -1258,7 +1258,8 @@ export default function Dashboard() {
             opacity: dayCardOpacity,
             transform: `translateX(${dayCardOffset}px)`,
           }}
-          loading="lazy"
+          loading="eager"
+          fetchPriority="high"
           decoding="async"
           draggable={false}
         />
