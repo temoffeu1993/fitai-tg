@@ -1070,6 +1070,7 @@ export default function Dashboard() {
       : dayState === "planned"
       ? "Начать"
       : "Выбрать тренировку";
+  const isResultButton = dayState === "completed";
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
 
   const handleDayStart = () => {
@@ -1326,7 +1327,11 @@ export default function Dashboard() {
             >
               <span>{dayButtonText}</span>
               <span style={s.dayBtnIconWrap}>
-                <span style={s.dayBtnArrow}>→</span>
+                {isResultButton ? (
+                  <span style={s.dayBtnDoneMark}>✓</span>
+                ) : (
+                  <span style={s.dayBtnArrow}>→</span>
+                )}
               </span>
             </button>
           )}
@@ -1899,6 +1904,14 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
+  },
+  dayBtnDoneMark: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#8bff1a",
+    fontWeight: 800,
+    textShadow:
+      "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
   },
   // ===== BLOCK 4: Progress =====
   progressCard: {
