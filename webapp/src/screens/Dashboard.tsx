@@ -335,6 +335,64 @@ function readHistorySnapshot(): HistorySnapshot {
   }
 }
 
+/**
+ * Calculate week streak: consecutive weeks where user completed ALL planned workouts.
+ * A week is Mon-Sun. We check backwards from current week.
+ */
+function calculateWeekStreak(
+  completedDates: string[],
+  plannedWorkouts: PlannedWorkout[],
+  daysPerWeek: number
+): number {
+  if (daysPerWeek <= 0) return 0;
+
+  const completedSet = new Set(completedDates);
+  const now = new Date();
+
+  // Get Monday of current week
+  const dayOfWeek = now.getDay();
+  const mondayOffset = (dayOfWeek + 6) % 7;
+  const currentMonday = new Date(now);
+  currentMonday.setDate(now.getDate() - mondayOffset);
+  currentMonday.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let weekMonday = new Date(currentMonday);
+
+  // Check up to 52 weeks back
+  for (let w = 0; w < 52; w++) {
+    const weekStart = new Date(weekMonday);
+    const weekEnd = new Date(weekMonday);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    // Count completed workouts this week
+    let weekCompleted = 0;
+    for (let d = 0; d < 7; d++) {
+      const checkDate = new Date(weekStart);
+      checkDate.setDate(checkDate.getDate() + d);
+      const iso = toISODate(checkDate);
+      if (completedSet.has(iso)) {
+        weekCompleted++;
+      }
+    }
+
+    // For current week, don't count yet (it's in progress)
+    if (w === 0) {
+      weekMonday.setDate(weekMonday.getDate() - 7);
+      continue;
+    }
+
+    // Check if week was fully completed
+    if (weekCompleted >= daysPerWeek) {
+      streak++;
+      weekMonday.setDate(weekMonday.getDate() - 7);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
 
 // ============================================================================
 // PRELOAD
@@ -900,6 +958,14 @@ export default function Dashboard() {
   );
   const weeklyGoalLabel = useMemo(() => `${totalPlanDays} тренировки`, [totalPlanDays]);
 
+  // Calculate week streak (consecutive weeks with all workouts completed)
+  const weekStreak = useMemo(() => {
+    return calculateWeekStreak(
+      historyStats.completedDates,
+      plannedWorkouts,
+      totalPlanDays
+    );
+  }, [historyStats.completedDates, plannedWorkouts, totalPlanDays]);
 
   const goOnb = () => navigate("/onb/age-sex");
 
@@ -1330,27 +1396,41 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 4: Progress */}
+      {/* BLOCK 4: Progress — Consistency Stats */}
       <section style={s.progressCard} className="dash-fade dash-delay-3">
-        <div style={s.progressNeoWrap}>
-          <div style={s.progressNeoTopRow}>
-            <div style={s.progressNeoTitle}>Цель недели</div>
+        <div style={s.consistencyGrid}>
+          {/* Left: Total workouts */}
+          <div style={s.consistencyStat}>
+            <div style={s.consistencyValue}>{historyStats.total}</div>
+            <div style={s.consistencyLabel}>всего</div>
           </div>
-          <div style={s.progressNeoTrack}>
-            <div
-              style={{
-                ...s.progressNeoFillGlow,
-                width: `${Math.max(weeklyGoalProgress * 100, 8)}%`,
-              }}
-            />
-            <div
-              style={{
-                ...s.progressNeoFill,
-                width: `${Math.max(weeklyGoalProgress * 100, 8)}%`,
-              }}
-            />
+
+          {/* Center: This week pits */}
+          <div style={s.consistencyStat}>
+            <div style={s.consistencyPits}>
+              {Array.from({ length: totalPlanDays }, (_, idx) => {
+                const done = idx < weeklyCompletedCount;
+                return (
+                  <span key={`consistency-pit-${idx}`} style={s.consistencyPit}>
+                    {done ? <span style={s.consistencyPitFilled} /> : null}
+                  </span>
+                );
+              })}
+            </div>
+            <div style={s.consistencyLabel}>
+              неделя {weeklyCompletedCount}/{totalPlanDays}
+            </div>
           </div>
-          <div style={s.progressNeoValue}>{weeklyGoalLabel}</div>
+
+          {/* Right: Week streak */}
+          <div style={s.consistencyStat}>
+            <div style={s.consistencyStreakRow}>
+              <span style={s.consistencyValue}>{weekStreak}</span>
+              <span style={s.consistencyFireEmoji}>🔥</span>
+            </div>
+            <div style={s.consistencyLabelSmall}>недель</div>
+            <div style={s.consistencyLabelSmall}>подряд</div>
+          </div>
         </div>
       </section>
 
@@ -1896,77 +1976,79 @@ const s: Record<string, React.CSSProperties> = {
     textShadow:
       "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
   },
-  // ===== BLOCK 4: Progress =====
+  // ===== BLOCK 4: Consistency Stats =====
   progressCard: {
     ...glassCard,
-    padding: "18px 16px",
+    padding: "20px 16px",
     display: "flex",
-    minHeight: 132,
+    minHeight: 100,
   },
-  progressNeoWrap: {
+  consistencyGrid: {
     width: "100%",
-    minWidth: 0,
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
+    alignItems: "center",
+    gap: 16,
+  },
+  consistencyStat: {
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
-    gap: 10,
-  },
-  progressNeoTopRow: {
-    display: "flex",
     alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
+    gap: 4,
   },
-  progressNeoTitle: {
-    fontSize: 32,
+  consistencyValue: {
+    fontSize: 36,
     fontWeight: 700,
-    lineHeight: 1.1,
+    lineHeight: 1,
     color: "#0f172a",
     letterSpacing: -0.5,
-    whiteSpace: "nowrap",
   },
-  progressNeoValue: {
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+  consistencyLabel: {
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: 1.3,
+    color: "rgba(15, 23, 42, 0.55)",
     textAlign: "center",
-    width: "100%",
   },
-  progressNeoTrack: {
-    position: "relative",
-    width: "100%",
-    height: 12,
+  consistencyLabelSmall: {
+    fontSize: 12,
+    fontWeight: 500,
+    lineHeight: 1.15,
+    color: "rgba(15, 23, 42, 0.55)",
+    textAlign: "center",
+  },
+  consistencyPits: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  consistencyPit: {
+    width: 20,
+    height: 20,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    overflow: "visible",
+      "inset 0 2px 4px rgba(15,23,42,0.2), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  progressNeoFillGlow: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: "100%",
+  consistencyPitFilled: {
+    width: 14,
+    height: 14,
     borderRadius: 999,
-    background: "linear-gradient(90deg, #9c67ff 0%, #8a63ff 44%, #6f81ff 100%)",
-    filter: "blur(5px)",
-    opacity: 0.72,
-    boxShadow: "0 0 10px rgba(138, 99, 255, 0.58), 0 0 18px rgba(111, 129, 255, 0.42)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  progressNeoFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: "100%",
-    borderRadius: 999,
-    background: "linear-gradient(90deg, #a86dff 0%, #8f66ff 44%, #7991ff 100%)",
+    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(53,47,104,0.42)",
-    zIndex: 2,
-    flexShrink: 0,
+      "0 2px 4px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+  },
+  consistencyStreakRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  },
+  consistencyFireEmoji: {
+    fontSize: 28,
+    lineHeight: 1,
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====

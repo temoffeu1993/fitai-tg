@@ -17,3 +17,17 @@ bot/.env
 .DS_Store.idea/
 
 .DS_Store
+
+# Local scripts/tests
+api/src/__test_schemes.ts
+seed_supabase.sh
+
+# Local assets
+webapp/src/assets/calendar.png
+webapp/src/assets/giryanew.png
+webapp/src/assets/muzh.png
+webapp/src/assets/planka.png
+webapp/src/assets/smotrchas.png
+webapp/src/assets/watch.png
+webapp/src/assets/zhen.png
+webapp/src/assets/fonts/

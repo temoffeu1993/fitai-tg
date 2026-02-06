@@ -30,6 +30,7 @@ export type GamificationSummary = {
   };
   level: GamificationLevel;
   config: typeof GAMIFICATION_XP_CONFIG;
+  weekStreak: number;
 };
 
 function toNonNegativeInt(value: number): number {
@@ -66,8 +67,12 @@ export function buildLevelProgress(totalXpRaw: number): GamificationLevel {
   };
 }
 
+export type GamificationCountsWithStreak = GamificationCounts & {
+  weekStreak?: number;
+};
+
 export function buildGamificationSummaryFromCounts(
-  input: GamificationCounts
+  input: GamificationCountsWithStreak
 ): GamificationSummary {
   const counts: GamificationCounts = {
     onboardingCompleted: Boolean(input.onboardingCompleted),
@@ -92,6 +97,7 @@ export function buildGamificationSummaryFromCounts(
     },
     level: buildLevelProgress(total),
     config: GAMIFICATION_XP_CONFIG,
+    weekStreak: toNonNegativeInt(input.weekStreak ?? 0),
   };
 }
 
