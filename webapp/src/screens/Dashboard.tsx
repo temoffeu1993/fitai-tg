@@ -1995,11 +1995,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   // ===== BLOCK 4: Progress =====
   progressCard: {
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "#1e1f22",
-    boxShadow:
-      "0 10px 20px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)",
+    ...glassCard,
     padding: "12px 18px",
     display: "flex",
     flexDirection: "column",
@@ -2032,7 +2028,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 500,
     lineHeight: 1.5,
-    color: "rgba(255,255,255,0.72)",
+    color: "rgba(15, 23, 42, 0.6)",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -2041,7 +2037,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 500,
     lineHeight: 1.1,
-    color: "#ffffff",
+    color: "#1e1f22",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -2050,9 +2046,9 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     height: 14,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #2a2f37 0%, #20242b 100%)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(5,8,12,0.45), inset 0 -1px 0 rgba(255,255,255,0.05)",
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
   },
   xpBarFillWeek: {
@@ -2079,9 +2075,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 12,
     height: 12,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #2a2f37 0%, #20242b 100%)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(5,8,12,0.45), inset 0 -1px 0 rgba(255,255,255,0.05)",
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -2091,9 +2087,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 8,
     height: 8,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #d5d9df 0%, #9ea7b4 62%, #6f7784 100%)",
+    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
     boxShadow:
-      "0 1px 2px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(70,78,88,0.5)",
+      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
