@@ -45,10 +45,12 @@ const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
 const DATE_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DASH_AVATAR_SIZE = 56;
-const PROGRESS_RING_SIZE = 112;
-const PROGRESS_RING_OUTER_RADIUS = 44;
-const PROGRESS_RING_INNER_RADIUS = 31;
+const PROGRESS_RING_SIZE = 134;
+const PROGRESS_RING_OUTER_RADIUS = 51;
+const PROGRESS_RING_MIDDLE_RADIUS = 39;
+const PROGRESS_RING_INNER_RADIUS = 27;
 const PROGRESS_RING_OUTER_CIRC = 2 * Math.PI * PROGRESS_RING_OUTER_RADIUS;
+const PROGRESS_RING_MIDDLE_CIRC = 2 * Math.PI * PROGRESS_RING_MIDDLE_RADIUS;
 const PROGRESS_RING_INNER_CIRC = 2 * Math.PI * PROGRESS_RING_INNER_RADIUS;
 const VALID_USER_GOALS: UserGoal[] = [
   "lose_weight",
@@ -102,6 +104,16 @@ function toISODate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function getRingMarkerPosition(radius: number, progress: number) {
+  const center = PROGRESS_RING_SIZE / 2;
+  const clamped = Math.max(0, Math.min(1, progress));
+  const angle = -Math.PI / 2 + clamped * Math.PI * 2;
+  return {
+    x: center + Math.cos(angle) * radius,
+    y: center + Math.sin(angle) * radius,
+  };
 }
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -902,13 +914,38 @@ export default function Dashboard() {
     if (!totalPlanDays) return 0;
     return Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays));
   }, [weeklyCompletedCount, totalPlanDays]);
+  const dailyCompletedCount = useMemo(
+    () => (completedDatesSet.has(toISODate(new Date())) ? 1 : 0),
+    [completedDatesSet]
+  );
+  const dailyGoalCount = 1;
+  const dailyRingProgress = useMemo(
+    () => Math.max(0, Math.min(1, dailyCompletedCount / dailyGoalCount)),
+    [dailyCompletedCount]
+  );
   const levelRingOffset = useMemo(
     () => PROGRESS_RING_OUTER_CIRC * (1 - levelRingProgress),
     [levelRingProgress]
   );
   const weeklyRingOffset = useMemo(
-    () => PROGRESS_RING_INNER_CIRC * (1 - weeklyRingProgress),
+    () => PROGRESS_RING_MIDDLE_CIRC * (1 - weeklyRingProgress),
     [weeklyRingProgress]
+  );
+  const dailyRingOffset = useMemo(
+    () => PROGRESS_RING_INNER_CIRC * (1 - dailyRingProgress),
+    [dailyRingProgress]
+  );
+  const levelRingMarker = useMemo(
+    () => getRingMarkerPosition(PROGRESS_RING_OUTER_RADIUS, levelRingProgress),
+    [levelRingProgress]
+  );
+  const weeklyRingMarker = useMemo(
+    () => getRingMarkerPosition(PROGRESS_RING_MIDDLE_RADIUS, weeklyRingProgress),
+    [weeklyRingProgress]
+  );
+  const dailyRingMarker = useMemo(
+    () => getRingMarkerPosition(PROGRESS_RING_INNER_RADIUS, dailyRingProgress),
+    [dailyRingProgress]
   );
 
 
@@ -1345,26 +1382,22 @@ export default function Dashboard() {
       <section style={s.progressCard} className="dash-fade dash-delay-3">
         <div style={s.progressSplit}>
           <div style={s.progressLegend}>
-            <div style={s.progressLegendRow}>
-              <span style={{ ...s.progressLegendDot, ...s.progressLegendDotLevel }} />
-              <div style={s.progressLegendText}>
-                <span style={{ ...s.progressLegendLabel, ...s.progressLegendLabelLevel }}>
-                  Уровень
-                </span>
-                <span style={s.progressLegendValue}>
-                  {`Уровень ${levelProgress.currentLevel} · ${levelProgress.levelXp}/${levelProgress.levelTargetXp} опыта`}
-                </span>
+            <div style={s.progressLegendItem}>
+              <div style={s.progressLegendTitle}>Опыт</div>
+              <div style={{ ...s.progressLegendValue, ...s.progressLegendValueRed }}>
+                {`${levelProgress.levelXp}/${levelProgress.levelTargetXp} опыта`}
               </div>
             </div>
-            <div style={s.progressLegendRow}>
-              <span style={{ ...s.progressLegendDot, ...s.progressLegendDotWeek }} />
-              <div style={s.progressLegendText}>
-                <span style={{ ...s.progressLegendLabel, ...s.progressLegendLabelWeek }}>
-                  Неделя
-                </span>
-                <span style={s.progressLegendValue}>
-                  {`${weeklyCompletedCount}/${totalPlanDays} тренировок`}
-                </span>
+            <div style={s.progressLegendItem}>
+              <div style={s.progressLegendTitle}>Тренировки</div>
+              <div style={{ ...s.progressLegendValue, ...s.progressLegendValueGreen }}>
+                {`${weeklyCompletedCount}/${totalPlanDays} за неделю`}
+              </div>
+            </div>
+            <div style={s.progressLegendItem}>
+              <div style={s.progressLegendTitle}>День</div>
+              <div style={{ ...s.progressLegendValue, ...s.progressLegendValueBlue }}>
+                {`${dailyCompletedCount}/${dailyGoalCount} выполнено`}
               </div>
             </div>
           </div>
@@ -1377,19 +1410,20 @@ export default function Dashboard() {
               focusable="false"
             >
               <defs>
-                <linearGradient id="progress-track-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#f3f4f6" />
-                  <stop offset="100%" stopColor="#d9dde3" />
+                <linearGradient id="progress-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ff5a76" />
+                  <stop offset="55%" stopColor="#ff2f5f" />
+                  <stop offset="100%" stopColor="#e3063a" />
                 </linearGradient>
-                <linearGradient id="progress-level-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#d7ff52" />
-                  <stop offset="62%" stopColor="#8bff1a" />
-                  <stop offset="100%" stopColor="#61d700" />
+                <linearGradient id="progress-green-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#b2ff3e" />
+                  <stop offset="55%" stopColor="#7bff1a" />
+                  <stop offset="100%" stopColor="#4fd500" />
                 </linearGradient>
-                <linearGradient id="progress-week-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#9fd7ff" />
-                  <stop offset="65%" stopColor="#4ea6ff" />
-                  <stop offset="100%" stopColor="#2f77ea" />
+                <linearGradient id="progress-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#64ecff" />
+                  <stop offset="55%" stopColor="#26d8ff" />
+                  <stop offset="100%" stopColor="#00b0ff" />
                 </linearGradient>
               </defs>
               <g transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${PROGRESS_RING_SIZE / 2})`}>
@@ -1398,27 +1432,47 @@ export default function Dashboard() {
                   cy={PROGRESS_RING_SIZE / 2}
                   r={PROGRESS_RING_OUTER_RADIUS}
                   fill="none"
-                  stroke="url(#progress-track-grad)"
-                  strokeWidth="12"
+                  stroke="rgba(255, 47, 95, 0.24)"
+                  strokeWidth="13"
                 />
                 <circle
                   cx={PROGRESS_RING_SIZE / 2}
                   cy={PROGRESS_RING_SIZE / 2}
                   r={PROGRESS_RING_OUTER_RADIUS}
                   fill="none"
-                  stroke="url(#progress-level-grad)"
-                  strokeWidth="12"
+                  stroke="url(#progress-red-grad)"
+                  strokeWidth="13"
                   strokeLinecap="round"
                   strokeDasharray={`${PROGRESS_RING_OUTER_CIRC} ${PROGRESS_RING_OUTER_CIRC}`}
                   strokeDashoffset={levelRingOffset}
-                  style={s.progressRingLevelStroke}
+                  style={s.progressRingRedStroke}
+                />
+                <circle
+                  cx={PROGRESS_RING_SIZE / 2}
+                  cy={PROGRESS_RING_SIZE / 2}
+                  r={PROGRESS_RING_MIDDLE_RADIUS}
+                  fill="none"
+                  stroke="rgba(123, 255, 26, 0.22)"
+                  strokeWidth="11"
+                />
+                <circle
+                  cx={PROGRESS_RING_SIZE / 2}
+                  cy={PROGRESS_RING_SIZE / 2}
+                  r={PROGRESS_RING_MIDDLE_RADIUS}
+                  fill="none"
+                  stroke="url(#progress-green-grad)"
+                  strokeWidth="11"
+                  strokeLinecap="round"
+                  strokeDasharray={`${PROGRESS_RING_MIDDLE_CIRC} ${PROGRESS_RING_MIDDLE_CIRC}`}
+                  strokeDashoffset={weeklyRingOffset}
+                  style={s.progressRingGreenStroke}
                 />
                 <circle
                   cx={PROGRESS_RING_SIZE / 2}
                   cy={PROGRESS_RING_SIZE / 2}
                   r={PROGRESS_RING_INNER_RADIUS}
                   fill="none"
-                  stroke="url(#progress-track-grad)"
+                  stroke="rgba(38, 216, 255, 0.2)"
                   strokeWidth="10"
                 />
                 <circle
@@ -1426,16 +1480,21 @@ export default function Dashboard() {
                   cy={PROGRESS_RING_SIZE / 2}
                   r={PROGRESS_RING_INNER_RADIUS}
                   fill="none"
-                  stroke="url(#progress-week-grad)"
+                  stroke="url(#progress-blue-grad)"
                   strokeWidth="10"
                   strokeLinecap="round"
                   strokeDasharray={`${PROGRESS_RING_INNER_CIRC} ${PROGRESS_RING_INNER_CIRC}`}
-                  strokeDashoffset={weeklyRingOffset}
-                  style={s.progressRingWeekStroke}
+                  strokeDashoffset={dailyRingOffset}
+                  style={s.progressRingBlueStroke}
                 />
               </g>
+              <circle cx={levelRingMarker.x} cy={levelRingMarker.y} r="12.5" fill="#e3063a" />
+              <text x={levelRingMarker.x} y={levelRingMarker.y + 0.5} textAnchor="middle" dominantBaseline="middle" style={s.progressRingMarkerText}>→</text>
+              <circle cx={weeklyRingMarker.x} cy={weeklyRingMarker.y} r="11.5" fill="#5ee100" />
+              <text x={weeklyRingMarker.x} y={weeklyRingMarker.y + 0.5} textAnchor="middle" dominantBaseline="middle" style={s.progressRingMarkerText}>»</text>
+              <circle cx={dailyRingMarker.x} cy={dailyRingMarker.y} r="10.5" fill="#00c9ff" />
+              <text x={dailyRingMarker.x} y={dailyRingMarker.y + 0.5} textAnchor="middle" dominantBaseline="middle" style={s.progressRingMarkerText}>↑</text>
             </svg>
-            <span style={s.progressRingCenterText}>XP</span>
           </div>
         </div>
       </section>
@@ -1984,7 +2043,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   // ===== BLOCK 4: Progress =====
   progressCard: {
-    ...glassCard,
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "linear-gradient(180deg, #23262d 0%, #14171d 100%)",
+    boxShadow:
+      "0 18px 32px rgba(2,6,23,0.36), inset 0 1px 0 rgba(255,255,255,0.08)",
     padding: "12px 16px",
     display: "flex",
     alignItems: "center",
@@ -1999,60 +2062,42 @@ const s: Record<string, React.CSSProperties> = {
   progressLegend: {
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 12,
     minWidth: 0,
     flex: 1,
   },
-  progressLegendRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-    minWidth: 0,
-  },
-  progressLegendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    flex: "0 0 auto",
-    marginTop: 6,
-  },
-  progressLegendDotLevel: {
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
-    boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
-  },
-  progressLegendDotWeek: {
-    background: "linear-gradient(180deg, #9fd7ff 0%, #4ea6ff 65%, #2f77ea 100%)",
-    boxShadow:
-      "0 1px 2px rgba(47, 119, 234, 0.35), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(25, 72, 151, 0.42)",
-  },
-  progressLegendText: {
+  progressLegendItem: {
     display: "flex",
     flexDirection: "column",
     gap: 2,
     minWidth: 0,
   },
-  progressLegendLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    lineHeight: 1.1,
-    letterSpacing: 0.25,
-    textTransform: "uppercase",
-  },
-  progressLegendLabelLevel: {
-    color: "rgba(86, 150, 0, 0.9)",
-  },
-  progressLegendLabelWeek: {
-    color: "rgba(42, 110, 206, 0.9)",
+  progressLegendTitle: {
+    fontSize: 16,
+    lineHeight: 1.08,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.98)",
   },
   progressLegendValue: {
-    fontSize: 14,
-    lineHeight: 1.2,
-    fontWeight: 600,
-    color: "#1e1f22",
+    fontSize: 25,
+    lineHeight: 1.03,
+    fontWeight: 700,
+    letterSpacing: -0.45,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
+  },
+  progressLegendValueRed: {
+    color: "#ff2f5f",
+    textShadow: "0 0 10px rgba(255,47,95,0.2)",
+  },
+  progressLegendValueGreen: {
+    color: "#7bff1a",
+    textShadow: "0 0 10px rgba(123,255,26,0.18)",
+  },
+  progressLegendValueBlue: {
+    color: "#26d8ff",
+    textShadow: "0 0 10px rgba(38,216,255,0.18)",
   },
   progressRingsWrap: {
     width: PROGRESS_RING_SIZE,
@@ -2062,24 +2107,22 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     placeItems: "center",
   },
-  progressRingLevelStroke: {
-    filter: "drop-shadow(0 1px 2px rgba(86, 190, 0, 0.45))",
+  progressRingRedStroke: {
+    filter: "drop-shadow(0 0 6px rgba(255, 47, 95, 0.35))",
     transition: "stroke-dashoffset 620ms cubic-bezier(0.22, 1, 0.36, 1)",
   },
-  progressRingWeekStroke: {
-    filter: "drop-shadow(0 1px 2px rgba(47, 119, 234, 0.35))",
+  progressRingGreenStroke: {
+    filter: "drop-shadow(0 0 6px rgba(123, 255, 26, 0.32))",
     transition: "stroke-dashoffset 620ms cubic-bezier(0.22, 1, 0.36, 1)",
   },
-  progressRingCenterText: {
-    position: "absolute",
-    inset: 0,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 11,
+  progressRingBlueStroke: {
+    filter: "drop-shadow(0 0 6px rgba(38, 216, 255, 0.32))",
+    transition: "stroke-dashoffset 620ms cubic-bezier(0.22, 1, 0.36, 1)",
+  },
+  progressRingMarkerText: {
+    fontSize: 12,
     fontWeight: 700,
-    letterSpacing: 0.6,
-    color: "rgba(15, 23, 42, 0.52)",
-    pointerEvents: "none",
+    fill: "#0c1017",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
