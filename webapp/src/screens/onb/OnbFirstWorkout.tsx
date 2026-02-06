@@ -3,7 +3,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import smotrchasImg from "@/assets/smotrchas.webp";
 import morobotImg from "@/assets/morobot.webp";
-import { upsertScheduleDateSlot } from "@/api/schedule";
+import { generatePlan } from "@/api/plan";
+import {
+  getScheduleOverview,
+  updatePlannedWorkout,
+  type PlannedWorkout,
+} from "@/api/schedule";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -65,6 +70,39 @@ function toISODateLocal(date: Date): string {
 
 function toHHMM(hours: number, minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function toDayIndex(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function plannedWorkoutSort(a: PlannedWorkout, b: PlannedWorkout): number {
+  const ai = toDayIndex((a?.plan as any)?.dayIndex);
+  const bi = toDayIndex((b?.plan as any)?.dayIndex);
+  if (ai != null && bi != null && ai !== bi) return ai - bi;
+  if (ai != null && bi == null) return -1;
+  if (ai == null && bi != null) return 1;
+  const at = a?.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+  const bt = b?.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+  return at - bt;
+}
+
+function pickFirstWorkoutFromPlan(plannedWorkouts: PlannedWorkout[]): PlannedWorkout | null {
+  const active = plannedWorkouts.filter((w) => w && w.id && w.status !== "cancelled" && w.status !== "completed");
+  if (!active.length) return null;
+
+  const pending = active
+    .filter((w) => w.status === "pending")
+    .sort(plannedWorkoutSort);
+  if (pending.length) return pending[0];
+
+  const scheduled = active
+    .filter((w) => w.status === "scheduled")
+    .sort(plannedWorkoutSort);
+  if (scheduled.length) return scheduled[0];
+
+  return active.slice().sort(plannedWorkoutSort)[0] || null;
 }
 
 // ── Confetti: foil popper explosion (JS physics) ─────────────
@@ -268,15 +306,40 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
     setSaveError(null);
     setIsSaving(true);
     try {
-      await upsertScheduleDateSlot(isoDate, hhmm);
+      const scheduledAt = new Date(`${isoDate}T${hhmm}`);
+      if (!Number.isFinite(scheduledAt.getTime())) {
+        throw new Error("invalid_datetime");
+      }
+
+      let overview = await getScheduleOverview();
+      let targetWorkout = pickFirstWorkoutFromPlan(overview.plannedWorkouts || []);
+
+      // На новых аккаунтах плана еще может не быть — генерируем неделю и берём первый день схемы.
+      if (!targetWorkout) {
+        await generatePlan({ force: true });
+        overview = await getScheduleOverview();
+        targetWorkout = pickFirstWorkoutFromPlan(overview.plannedWorkouts || []);
+      }
+
+      if (!targetWorkout?.id) {
+        throw new Error("missing_first_workout");
+      }
+
+      await updatePlannedWorkout(targetWorkout.id, {
+        status: "scheduled",
+        scheduledFor: scheduledAt.toISOString(),
+        scheduledTime: hhmm,
+      });
+
       persistScheduleCache(isoDate, hhmm);
       try {
         window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
       } catch {
         // ignore event dispatch failures
       }
     } catch {
-      setSaveError("Не удалось сохранить дату. Проверь интернет и попробуй еще раз.");
+      setSaveError("Не удалось запланировать первую тренировку. Проверь интернет и попробуй еще раз.");
       setIsSaving(false);
       fireHapticImpact("light");
       return;
