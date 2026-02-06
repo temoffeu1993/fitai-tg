@@ -17,6 +17,7 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
+import mascotImg from "@/assets/robonew.webp";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -704,8 +705,56 @@ export default function PlanOne() {
   };
 
   const handleScheduleSelected = () => {
-    if (!selectedPlanned) return;
-    openScheduleForWorkout(selectedPlanned.id);
+    const fallback =
+      selectedPlanned ||
+      remainingPlanned[0] ||
+      plannedWorkouts.find((w) => w.status === "scheduled" || w.status === "pending") ||
+      null;
+    if (!fallback) return;
+    openScheduleForWorkout(fallback.id);
+  };
+
+  const weekWorkouts = useMemo(() => {
+    return (plannedWorkouts || [])
+      .filter((w) => w && w.id && w.status !== "cancelled")
+      .slice()
+      .sort((a, b) => {
+        const ai = Number((a.plan as any)?.dayIndex);
+        const bi = Number((b.plan as any)?.dayIndex);
+        const hasAi = Number.isFinite(ai);
+        const hasBi = Number.isFinite(bi);
+        if (hasAi && hasBi && ai !== bi) return ai - bi;
+        if (hasAi && !hasBi) return -1;
+        if (!hasAi && hasBi) return 1;
+        const at = a.scheduledFor ? new Date(a.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+        const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
+        return at - bt;
+      });
+  }, [plannedWorkouts]);
+  const totalWeekCount = weekWorkouts.length;
+  const completedWeekCount = weekWorkouts.filter((w) => w.status === "completed").length;
+
+  const handleWorkoutPrimary = (workout: PlannedWorkout) => {
+    if (workout.status === "completed") {
+      if (workout.resultSessionId) {
+        nav(`/workout/result?sessionId=${encodeURIComponent(String(workout.resultSessionId))}`);
+      } else {
+        nav("/workout/result");
+      }
+      return;
+    }
+    if (workout.status === "scheduled" && workout.scheduledFor) {
+      const workoutDate = new Date(workout.scheduledFor).toISOString().slice(0, 10);
+      nav("/check-in", {
+        state: {
+          workoutDate,
+          plannedWorkoutId: workout.id,
+          returnTo: "/plan/one",
+        },
+      });
+      return;
+    }
+    openScheduleForWorkout(workout.id);
   };
 
   return (
@@ -714,46 +763,92 @@ export default function PlanOne() {
       <TypingDotsStyles />
       <style>{pickStyles}</style>
 
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
+      <section style={pick.weekHeroCard}>
+        <div style={pick.weekHeroTop}>
           <span style={s.pill}>{heroDateChip}</span>
           <span style={s.credits}>{weekChip}</span>
         </div>
-        <div style={s.heroTitle}>Выбери тренировку</div>
-        <div style={s.heroSubtitle}>Из твоего недельного плана и нажми кнопку начать тренировку</div>
-
-	        <button
-	          type="button"
-	          className="planone-start-btn"
-	          style={{
-	            ...s.heroStartBtn,
-	            opacity: canStart ? 1 : 0.6,
-	            cursor: canStart ? "pointer" : "not-allowed",
-	          }}
-	          onClick={handleStartSelected}
-	          disabled={!canStart}
-	        >
-	          🏁 начать
-	        </button>
-
-        {/* regenerate button removed by request */}
+        <div style={pick.weekHeroBody}>
+          <div style={pick.weekHeroText}>
+            <div style={pick.weekHeroCaption}>План на неделю</div>
+            <div style={pick.weekHeroTitle}>{schemeTitle}</div>
+            <div style={pick.weekHeroSubtitle}>
+              Все тренировки недели в одном месте. Выбери нужный день и запусти тренировку.
+            </div>
+            <div style={pick.weekProgressRow}>
+              <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
+              <span style={pick.weekProgressPits}>
+                {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
+                  <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
+                    {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
+                  </span>
+                ))}
+              </span>
+            </div>
+          </div>
+          <img src={mascotImg} alt="" style={pick.weekHeroMascot} loading="eager" decoding="async" />
+        </div>
+        <div style={pick.weekHeroActions}>
+          <button
+            type="button"
+            className="planone-start-btn"
+            style={{
+              ...pick.weekPrimaryBtn,
+              opacity: canStart ? 1 : 0.55,
+              cursor: canStart ? "pointer" : "not-allowed",
+            }}
+            onClick={handleStartSelected}
+            disabled={!canStart}
+          >
+            Начать выбранную тренировку
+          </button>
+          <button
+            type="button"
+            style={{
+              ...pick.weekSecondaryBtn,
+              opacity: selectedPlanned || remainingPlanned.length ? 1 : 0.55,
+              cursor: selectedPlanned || remainingPlanned.length ? "pointer" : "not-allowed",
+            }}
+            onClick={handleScheduleSelected}
+            disabled={!selectedPlanned && !remainingPlanned.length}
+          >
+            Заменить дату
+          </button>
+        </div>
       </section>
 
-      {remainingPlanned.length ? (
-        <>
-          <div style={{ height: 18 }} />
-          <section style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gap: 12 }}>
-            {remainingPlanned.map((w, index) => {
+      {weekWorkouts.length ? (
+        <section style={pick.weekListWrap}>
+          <div style={pick.weekListHeader}>
+            <div style={pick.weekListTitle}>Тренировки недели</div>
+            <div style={pick.weekListHint}>Выбери тренировку по дню</div>
+          </div>
+          <div style={pick.weekListGrid}>
+            {weekWorkouts.map((w, index) => {
               const p: any = w.plan || {};
+              const dayIndexRaw = Number(p?.dayIndex);
+              const dayIndex = Number.isFinite(dayIndexRaw) && dayIndexRaw > 0 ? dayIndexRaw : index + 1;
               const isSelected = w.id === selectedPlannedId;
               const isRecommended = w.id === recommendedPlannedId;
+              const status = w.status || "pending";
+              const statusText =
+                status === "completed"
+                  ? "Выполнена"
+                  : status === "scheduled"
+                  ? "Запланирована"
+                  : "Свободный день";
+              const statusStyle =
+                status === "completed"
+                  ? pick.statusDone
+                  : status === "scheduled"
+                  ? pick.statusScheduled
+                  : pick.statusPending;
               const { totalExercises, minutes } = workoutChips(p);
               const rawLabel = String(p.dayLabel || p.title || "Тренировка");
               const label = dayLabelRU(rawLabel);
               const dayDesc = dayDescriptionRU(rawLabel);
               const focusRaw = String(p.dayFocus || p.focus || p.description || "").trim();
-              const focus = dayDesc || focusRaw || "Сделал тренировку под твою схему и текущее состояние.";
+              const focus = dayDesc || focusRaw || "План тренировки сформирован по твоей схеме и цели.";
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const mappedExercises: Exercise[] = (Array.isArray(p.exercises) ? p.exercises : []).map((ex: any) => ({
@@ -764,72 +859,88 @@ export default function PlanOne() {
                 restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
                 cues: String(ex?.notes || ex?.cues || "").trim() || undefined,
               }));
+              const dateHint = w.scheduledFor ? formatPlannedDateTime(w.scheduledFor) : "Дата не назначена";
+              const primaryActionLabel =
+                status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
+              const secondaryActionLabel = status === "scheduled" ? "Заменить" : "Запланировать";
 
               return (
                 <div
                   key={w.id}
                   className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
                   style={{
-                    ...pick.schemeCard,
-                    ...(isSelected ? pick.schemeCardSelected : null),
-                    animationDelay: `${index * 120}ms`,
+                    ...pick.weekCard,
+                    ...(isSelected ? pick.weekCardSelected : null),
+                    animationDelay: `${index * 90}ms`,
                   }}
-                  onClick={() => setSelectedPlannedId(w.id)}
+                  onClick={() => {
+                    if (w.status !== "completed") setSelectedPlannedId(w.id);
+                  }}
                 >
                   {isRecommended ? (
                     <div style={pick.recommendedBadge}>
                       <span style={{ fontSize: 12 }}>⭐</span>
-                      <span>Начни с этой</span>
+                      <span>Первая по схеме</span>
                     </div>
                   ) : null}
 
-                  <div style={{ ...pick.radioCircle, borderColor: isSelected ? "#0f172a" : "rgba(0,0,0,0.1)" }}>
-                    <div
-                      style={{
-                        ...pick.radioDot,
-                        transform: isSelected ? "scale(1)" : "scale(0)",
-                        opacity: isSelected ? 1 : 0,
-                      }}
-                    />
+                  <div style={pick.weekCardTop}>
+                    <span style={pick.weekDayPill}>День {dayIndex}</span>
+                    <span style={{ ...pick.weekStatusPill, ...statusStyle }}>{statusText}</span>
                   </div>
 
-                  <div style={pick.schemeName}>{label}</div>
+                  <div style={pick.weekCardTitle}>{label}</div>
+                  <div style={pick.weekCardDate}>{dateHint}</div>
 
-                  <div style={pick.schemeInfo}>
+                  <div style={pick.weekCardMeta}>
                     <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
                     {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
                     {activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" ? (
                       <span style={{ ...pick.infoChip, background: "rgba(15,23,42,0.08)" }}>✅ {activeProgress}%</span>
                     ) : null}
-                    {w.status === "scheduled" && w.scheduledFor ? (
-                      <span style={{ ...pick.infoChip, ...pick.infoChipScheduled }}>
-                        📅 {formatPlannedDateTime(w.scheduledFor)}
-                      </span>
-                    ) : null}
                   </div>
 
-                  {focus ? <div style={pick.schemeDescription}>{focus}</div> : null}
+                  <div style={pick.weekCardDesc}>{focus}</div>
 
-                  <div style={pick.actionRow} onClick={(e) => e.stopPropagation()}>
+                  <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      style={pick.actionBtn}
-                      onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
+                      style={pick.weekActionPrimary}
+                      onClick={() => handleWorkoutPrimary(w)}
                     >
-                      {expanded ? "Свернуть" : "Подробнее"}{" "}
-                      <span style={{ fontSize: 12, opacity: 0.75 }}>{expanded ? "▲" : "▼"}</span>
+                      {primaryActionLabel}
                     </button>
+                    {status !== "completed" ? (
+                      <button
+                        type="button"
+                        style={pick.weekActionSecondary}
+                        onClick={() => openScheduleForWorkout(w.id)}
+                      >
+                        {secondaryActionLabel}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        style={pick.weekActionSecondary}
+                        onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
+                      >
+                        {expanded ? "Скрыть" : "Состав"}
+                      </button>
+                    )}
+                  </div>
+
+                  {status !== "completed" ? (
                     <button
                       type="button"
-                      style={pick.actionBtn}
-                      onClick={() => {
-                        setSelectedPlannedId(w.id);
-                        openScheduleForWorkout(w.id);
+                      style={pick.detailsLinkBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                       }}
                     >
-                      🗓️ запланировать
+                      {expanded ? "Скрыть упражнения" : "Показать упражнения"}
                     </button>
-                  </div>
+                  ) : null}
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
@@ -846,9 +957,7 @@ export default function PlanOne() {
               );
             })}
           </div>
-          </section>
-          <div style={{ height: 12 }} />
-        </>
+        </section>
       ) : (
         <section style={s.blockWhite}>
           <h3 style={{ marginTop: 0 }}>Тренировок на неделю пока нет</h3>
@@ -2897,6 +3006,289 @@ const pickStyles = `
 `;
 
 const pick: Record<string, React.CSSProperties> = {
+  weekHeroCard: {
+    position: "relative",
+    marginTop: 2,
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.42)",
+    background:
+      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.86) 46%, rgba(255,216,194,.84) 100%)",
+    boxShadow: "0 14px 34px rgba(0,0,0,.14)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    padding: 18,
+    overflow: "hidden",
+  },
+  weekHeroTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  weekHeroBody: {
+    marginTop: 10,
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "center",
+    gap: 10,
+  },
+  weekHeroText: {
+    display: "grid",
+    gap: 6,
+    minWidth: 0,
+  },
+  weekHeroCaption: {
+    fontSize: 13,
+    color: "rgba(15,23,42,0.72)",
+    fontWeight: 600,
+    letterSpacing: 0.2,
+  },
+  weekHeroTitle: {
+    fontSize: 28,
+    lineHeight: 1.05,
+    letterSpacing: -0.4,
+    color: "#0f172a",
+    fontWeight: 800,
+  },
+  weekHeroSubtitle: {
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: "rgba(15,23,42,0.74)",
+    maxWidth: 460,
+  },
+  weekHeroMascot: {
+    width: 118,
+    maxWidth: 118,
+    height: "auto",
+    objectFit: "contain",
+    transform: "translateX(10px)",
+    userSelect: "none",
+    pointerEvents: "none",
+  },
+  weekProgressRow: {
+    marginTop: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  weekProgressLabel: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#111827",
+    whiteSpace: "nowrap",
+  },
+  weekProgressPits: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  weekProgressPit: {
+    width: 18,
+    height: 10,
+    borderRadius: 999,
+    border: "1px solid rgba(0,0,0,0.09)",
+    background: "rgba(255,255,255,0.75)",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.14)",
+    display: "grid",
+    placeItems: "center",
+  },
+  weekProgressDone: {
+    width: 6,
+    height: 6,
+    borderRadius: "50%",
+    background: "#A3E635",
+    boxShadow: "0 0 0 1px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.25)",
+  },
+  weekHeroActions: {
+    marginTop: 14,
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 10,
+    alignItems: "center",
+  },
+  weekPrimaryBtn: {
+    minHeight: 48,
+    borderRadius: 999,
+    border: "1px solid rgba(15,23,42,.9)",
+    background: "#0f172a",
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: 700,
+    padding: "0 16px",
+    cursor: "pointer",
+    boxShadow: "0 8px 16px rgba(15,23,42,.28)",
+    textAlign: "left",
+  },
+  weekSecondaryBtn: {
+    minHeight: 48,
+    borderRadius: 999,
+    border: "1px solid rgba(15,23,42,.2)",
+    background: "rgba(255,255,255,.72)",
+    color: "#0f172a",
+    fontSize: 14,
+    fontWeight: 700,
+    padding: "0 16px",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+  },
+  weekListWrap: {
+    marginTop: 14,
+    display: "grid",
+    gap: 10,
+  },
+  weekListHeader: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: "2px 2px 0",
+  },
+  weekListTitle: {
+    fontSize: 17,
+    fontWeight: 800,
+    color: "#0f172a",
+    letterSpacing: -0.2,
+  },
+  weekListHint: {
+    fontSize: 12,
+    color: "rgba(15,23,42,0.62)",
+    fontWeight: 500,
+  },
+  weekListGrid: {
+    display: "grid",
+    gap: 12,
+  },
+  weekCard: {
+    position: "relative",
+    padding: 16,
+    borderRadius: 18,
+    background: "rgba(255,255,255,0.72)",
+    border: "1px solid rgba(0,0,0,0.08)",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    transition: "transform 220ms ease, box-shadow 220ms ease",
+    cursor: "pointer",
+  },
+  weekCardSelected: {
+    background: "rgba(255,255,255,0.92)",
+    transform: "translateY(-1px)",
+    boxShadow: "0 10px 20px rgba(15,23,42,0.14)",
+  },
+  weekCardTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  weekDayPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 22,
+    padding: "0 10px",
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.08)",
+    color: "#0f172a",
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  weekStatusPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 22,
+    padding: "0 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 700,
+    border: "1px solid transparent",
+    whiteSpace: "nowrap",
+  },
+  statusScheduled: {
+    background: "rgba(17,24,39,.1)",
+    borderColor: "rgba(17,24,39,.14)",
+    color: "#111827",
+  },
+  statusPending: {
+    background: "rgba(255,255,255,.78)",
+    borderColor: "rgba(0,0,0,.08)",
+    color: "rgba(17,24,39,.74)",
+  },
+  statusDone: {
+    background: "rgba(163,230,53,.18)",
+    borderColor: "rgba(132,204,22,.42)",
+    color: "#3f6212",
+  },
+  weekCardTitle: {
+    marginTop: 10,
+    fontSize: 23,
+    lineHeight: 1.1,
+    fontWeight: 800,
+    color: "#0f172a",
+    letterSpacing: -0.2,
+  },
+  weekCardDate: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "rgba(15,23,42,.64)",
+    fontWeight: 600,
+  },
+  weekCardMeta: {
+    marginTop: 10,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 7,
+    alignItems: "center",
+  },
+  weekCardDesc: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 1.5,
+    color: "rgba(15,23,42,.72)",
+    fontWeight: 500,
+  },
+  weekCardActions: {
+    marginTop: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
+  weekActionPrimary: {
+    border: "1px solid rgba(15,23,42,.9)",
+    borderRadius: 12,
+    background: "#0f172a",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 700,
+    minHeight: 40,
+    padding: "0 12px",
+    cursor: "pointer",
+  },
+  weekActionSecondary: {
+    border: "1px solid rgba(0,0,0,0.09)",
+    borderRadius: 12,
+    background: "rgba(255,255,255,.82)",
+    color: "#0f172a",
+    fontSize: 14,
+    fontWeight: 700,
+    minHeight: 40,
+    padding: "0 12px",
+    cursor: "pointer",
+  },
+  detailsLinkBtn: {
+    marginTop: 8,
+    border: "none",
+    background: "transparent",
+    color: "rgba(15,23,42,.75)",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    padding: 0,
+    textAlign: "left",
+  },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
   headerHint: { fontSize: 13, color: "rgba(0,0,0,0.6)" },
