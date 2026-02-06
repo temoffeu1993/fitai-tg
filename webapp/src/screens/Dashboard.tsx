@@ -2006,7 +2006,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 6,
     minWidth: 0,
-    marginLeft: -8,
+    marginLeft: 14,
   },
   goalTitle: {
     fontSize: 18,
@@ -2022,6 +2022,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   goalBarWrap: {
     marginTop: 4,
+    display: "flex",
+    justifyContent: "flex-start",
   },
   goalBarTrack: {
     position: "relative",
