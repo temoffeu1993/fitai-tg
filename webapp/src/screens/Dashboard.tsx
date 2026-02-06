@@ -2,8 +2,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getGamificationSummary } from "@/api/progress";
 import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@/api/schedule";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
+import {
+  EMPTY_GAMIFICATION_SUMMARY,
+  buildGamificationSummaryFromCounts,
+  type GamificationSummary,
+} from "@/lib/gamification";
 import { fireHapticImpact } from "@/utils/haptics";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import {
@@ -31,12 +37,6 @@ const REST_MASCOT_SRC = sredneImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
-
-const XP_ONBOARDING_COMPLETE = 120;
-const XP_WORKOUT_PLANNED = 40;
-const XP_WORKOUT_COMPLETED = 180;
-const LEVEL_BASE_XP = 200;
-const LEVEL_STEP_XP = 100;
 
 const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -88,14 +88,6 @@ type HistorySnapshot = {
   total: number;
   lastCompletedAt: number | null;
   completedDates: string[];
-};
-
-type LevelProgress = {
-  level: number;
-  totalXp: number;
-  levelXp: number;
-  levelTargetXp: number;
-  progress: number;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -336,32 +328,6 @@ function readHistorySnapshot(): HistorySnapshot {
   }
 }
 
-function xpTargetForLevel(level: number): number {
-  const safeLevel = Math.max(1, Math.floor(level) || 1);
-  return LEVEL_BASE_XP + (safeLevel - 1) * LEVEL_STEP_XP;
-}
-
-function computeLevelProgress(totalXpRaw: number): LevelProgress {
-  const totalXp = Math.max(0, Math.round(totalXpRaw) || 0);
-  let level = 1;
-  let remaining = totalXp;
-  let levelTargetXp = xpTargetForLevel(level);
-
-  while (remaining >= levelTargetXp) {
-    remaining -= levelTargetXp;
-    level += 1;
-    levelTargetXp = xpTargetForLevel(level);
-  }
-
-  return {
-    level,
-    totalXp,
-    levelXp: remaining,
-    levelTargetXp,
-    progress: levelTargetXp > 0 ? Math.min(1, remaining / levelTargetXp) : 1,
-  };
-}
-
 
 // ============================================================================
 // PRELOAD
@@ -441,6 +407,9 @@ export default function Dashboard() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>(() => {
     return readScheduleCache()?.scheduleDates ?? {};
   });
+  const [gamification, setGamification] = useState<GamificationSummary>(
+    EMPTY_GAMIFICATION_SUMMARY
+  );
   const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
 
@@ -558,6 +527,52 @@ export default function Dashboard() {
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
+
+  const localGamificationFallback = useMemo(() => {
+    const plannedCount = plannedWorkouts.filter((workout) => {
+      if (!workout?.id) return false;
+      if (workout.status === "cancelled") return false;
+      return workout.status === "scheduled" || workout.status === "completed";
+    }).length;
+
+    return buildGamificationSummaryFromCounts({
+      onboardingCompleted: onbDone,
+      plannedWorkouts: plannedCount,
+      completedWorkouts: historyStats.total,
+    });
+  }, [onbDone, plannedWorkouts, historyStats.total]);
+
+  const refreshGamification = useCallback(async () => {
+    if (!onbDone) {
+      setGamification(EMPTY_GAMIFICATION_SUMMARY);
+      return;
+    }
+    try {
+      const summary = await getGamificationSummary();
+      setGamification(summary);
+    } catch {
+      setGamification(localGamificationFallback);
+    }
+  }, [onbDone, localGamificationFallback]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    refreshGamification();
+    window.addEventListener("focus", refreshGamification);
+    window.addEventListener("history_updated" as any, refreshGamification);
+    window.addEventListener("planned_workouts_updated" as any, refreshGamification);
+    window.addEventListener("schedule_updated" as any, refreshGamification);
+    window.addEventListener("plan_completed" as any, refreshGamification);
+    window.addEventListener("onb_complete" as any, refreshGamification);
+    return () => {
+      window.removeEventListener("focus", refreshGamification);
+      window.removeEventListener("history_updated" as any, refreshGamification);
+      window.removeEventListener("planned_workouts_updated" as any, refreshGamification);
+      window.removeEventListener("schedule_updated" as any, refreshGamification);
+      window.removeEventListener("plan_completed" as any, refreshGamification);
+      window.removeEventListener("onb_complete" as any, refreshGamification);
+    };
+  }, [refreshGamification]);
 
   // ---------- Date scroller ----------
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
@@ -803,26 +818,7 @@ export default function Dashboard() {
     return { totalExercises, minutes };
   }, [selectedPlanned]);
 
-  const scheduledWorkoutCount = useMemo(() => {
-    const ids = new Set<string>();
-    plannedWorkouts.forEach((workout) => {
-      if (!workout?.id) return;
-      if (workout.status === "cancelled") return;
-      if (!workout.scheduledFor) return;
-      if (workout.status !== "scheduled" && workout.status !== "completed") return;
-      ids.add(workout.id);
-    });
-    return ids.size;
-  }, [plannedWorkouts]);
-
-  const totalXp = useMemo(() => {
-    const onboardingXp = onbDone ? XP_ONBOARDING_COMPLETE : 0;
-    const planningXp = scheduledWorkoutCount * XP_WORKOUT_PLANNED;
-    const completedWorkoutXp = historyStats.total * XP_WORKOUT_COMPLETED;
-    return onboardingXp + planningXp + completedWorkoutXp;
-  }, [onbDone, scheduledWorkoutCount, historyStats.total]);
-
-  const levelProgress = useMemo(() => computeLevelProgress(totalXp), [totalXp]);
+  const levelProgress = gamification.level;
 
   const weekDays = useMemo(() => getWeekDays(), []);
   const dashboardUserContext = useMemo<UserContext>(() => {
@@ -1327,7 +1323,7 @@ export default function Dashboard() {
       {/* BLOCK 4: Progress (Level + XP) */}
       <section style={s.progressCard} className="dash-fade dash-delay-3">
         <div style={s.progressTop}>
-          <span style={s.progressLevel}>Уровень {levelProgress.level}</span>
+          <span style={s.progressLevel}>Уровень {levelProgress.currentLevel}</span>
           <span style={s.progressTotalXp}>{levelProgress.totalXp} XP</span>
         </div>
         <div style={s.xpBarTrack}>

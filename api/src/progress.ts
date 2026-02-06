@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { loadScheduleData } from "./utils/scheduleStore.js";
+import { buildGamificationSummary } from "./gamification.js";
 
 export const progress = Router();
 
@@ -555,6 +556,43 @@ progress.get(
     };
 
     res.json(response);
+  })
+);
+
+progress.get(
+  "/gamification",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = resolveUserId(req);
+
+    const [onboardingRow] = await q<{ has_onboarding: boolean }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM onboardings WHERE user_id = $1
+       ) AS has_onboarding`,
+      [userId]
+    );
+
+    const [plannedRow] = await q<{ planned_count: number }>(
+      `SELECT COUNT(*)::int AS planned_count
+         FROM planned_workouts
+        WHERE user_id = $1
+          AND status IN ('scheduled', 'completed')`,
+      [userId]
+    );
+
+    const [completedRow] = await q<{ completed_count: number }>(
+      `SELECT COUNT(*)::int AS completed_count
+         FROM workout_sessions
+        WHERE user_id = $1`,
+      [userId]
+    );
+
+    const summary = buildGamificationSummary({
+      onboardingCompleted: Boolean(onboardingRow?.has_onboarding),
+      plannedWorkouts: Number(plannedRow?.planned_count || 0),
+      completedWorkouts: Number(completedRow?.completed_count || 0),
+    });
+
+    res.json(summary);
   })
 );
 

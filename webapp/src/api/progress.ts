@@ -1,3 +1,6 @@
+import { apiFetch } from "@/lib/apiClient";
+import type { GamificationSummary } from "@/lib/gamification";
+
 export type ProgressSummary = {
   stats: {
     currentWeightKg: number | null;
@@ -44,7 +47,24 @@ export async function getProgressSummary(): Promise<ProgressSummary> {
   return r.json();
 }
 
-export async function saveBodyMetric(input: { recordedAt?: string; weight?: number; bodyFat?: number; muscleMass?: number; notes?: string }) {
+export async function getGamificationSummary(): Promise<GamificationSummary> {
+  const r = await apiFetch("/api/progress/gamification", { credentials: "include" });
+  if (!r.ok) throw new Error("failed_to_load_gamification");
+  const data = await r.json();
+  const level = (data as any)?.level;
+  if (!level || !Number.isFinite(Number(level.currentLevel))) {
+    throw new Error("invalid_gamification_payload");
+  }
+  return data as GamificationSummary;
+}
+
+export async function saveBodyMetric(input: {
+  recordedAt?: string;
+  weight?: number;
+  bodyFat?: number;
+  muscleMass?: number;
+  notes?: string;
+}) {
   const r = await apiFetch("/api/progress/body-metrics", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -54,4 +74,3 @@ export async function saveBodyMetric(input: { recordedAt?: string; weight?: numb
   if (!r.ok) throw new Error("failed_to_save_body_metric");
   return r.json();
 }
-import { apiFetch } from "@/lib/apiClient";
