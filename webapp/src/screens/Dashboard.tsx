@@ -755,19 +755,9 @@ export default function Dashboard() {
     return 3;
   }, [selectedScheme]);
   const weeklyPlanTitle = useMemo(() => {
-    const labels = Array.isArray(selectedScheme?.dayLabels) ? selectedScheme.dayLabels : [];
-    const splitType = String(selectedScheme?.splitType || "");
-    const resolvedTitles = labels
-      .slice(0, totalPlanDays)
-      .map((item, idx) => {
-        const raw = String(item?.label || `День ${idx + 1}`).trim();
-        return resolveDayCopy(raw, splitType, idx).title.trim();
-      })
-      .filter(Boolean);
-    const uniqueTitles = Array.from(new Set(resolvedTitles));
-    if (!uniqueTitles.length) return `План на ${totalPlanDays} тренировки`;
-    if (uniqueTitles.length <= 3) return uniqueTitles.join(", ");
-    return `${uniqueTitles.slice(0, 3).join(", ")} +${uniqueTitles.length - 3}`;
+    const named = String(selectedScheme?.russianName || selectedScheme?.name || "").trim();
+    if (named) return named;
+    return `План на ${totalPlanDays} тренировки`;
   }, [selectedScheme, totalPlanDays]);
   const weeklyCompletedCount = useMemo(() => {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
