@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { loadHistory } from "@/lib/history";
 import {
@@ -32,6 +32,7 @@ const formatPlannedDateTime = (iso: string) => {
 };
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
@@ -81,6 +82,7 @@ export type Exercise = {
 
 export default function PlanOne() {
   const nav = useNavigate();
+  const location = useLocation();
   const {
     plan,
     status: planStatus,
@@ -646,6 +648,25 @@ export default function PlanOne() {
   })();
 
   const startCtaLabel = "🏁 Начать тренировку";
+  const replaceTargetDate = useMemo(() => {
+    const raw = (location.state as any)?.replaceDate;
+    if (typeof raw !== "string") return null;
+    const value = raw.trim();
+    return ISO_DATE_RE.test(value) ? value : null;
+  }, [location.state]);
+
+  const openScheduleForWorkout = useCallback(
+    (plannedWorkoutId: string) => {
+      nav("/schedule", {
+        state: {
+          plannedWorkoutId,
+          targetDate: replaceTargetDate,
+          forcePick: Boolean(replaceTargetDate),
+        },
+      });
+    },
+    [nav, replaceTargetDate]
+  );
 
   const handleGenerateWeek = async () => {
     if (sub.locked) {
@@ -687,7 +708,7 @@ export default function PlanOne() {
 
   const handleScheduleSelected = () => {
     if (!selectedPlanned) return;
-    nav("/schedule", { state: { plannedWorkoutId: selectedPlanned.id } });
+    openScheduleForWorkout(selectedPlanned.id);
   };
 
   return (
@@ -806,7 +827,7 @@ export default function PlanOne() {
                       style={pick.actionBtn}
                       onClick={() => {
                         setSelectedPlannedId(w.id);
-                        nav("/schedule", { state: { plannedWorkoutId: w.id } });
+                        openScheduleForWorkout(w.id);
                       }}
                     >
                       🗓️ запланировать

@@ -34,6 +34,7 @@ const dayCodeShort = (label: string) => {
 };
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const defaultTimeSuggestion = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "18:00" : "09:00";
@@ -53,6 +54,7 @@ const normalizeScheduleDates = (dates: Record<string, { time?: string }> | null 
 type ModalState = {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
+  allowScheduledPick: boolean;
   date: string;
   time: string;
   saving: boolean;
@@ -94,36 +96,77 @@ export default function Schedule() {
     };
   }, [reload]);
 
-  // If navigated from PlanOne with a specific planned workout, open its scheduling modal.
-  const requestedPlannedIdRef = useRef<string | null>(null);
+  // If navigated from PlanOne with replace context, open scheduling modal in pick mode.
+  const requestedOpenRef = useRef<{
+    plannedWorkoutId: string | null;
+    targetDate: string | null;
+    forcePick: boolean;
+  }>({
+    plannedWorkoutId: null,
+    targetDate: null,
+    forcePick: false,
+  });
   useEffect(() => {
-    const id = (location.state as any)?.plannedWorkoutId;
-    if (typeof id === "string" && id.trim()) {
-      requestedPlannedIdRef.current = id.trim();
-    }
+    const state = (location.state as any) || {};
+    const id =
+      typeof state.plannedWorkoutId === "string" && state.plannedWorkoutId.trim()
+        ? state.plannedWorkoutId.trim()
+        : null;
+    if (!id) return;
+    const targetDate =
+      typeof state.targetDate === "string" && ISO_DATE_RE.test(state.targetDate.trim())
+        ? state.targetDate.trim()
+        : null;
+    requestedOpenRef.current = {
+      plannedWorkoutId: id,
+      targetDate,
+      forcePick: Boolean(state.forcePick),
+    };
   }, [location.state]);
 
   useEffect(() => {
-    const id = requestedPlannedIdRef.current;
+    const req = requestedOpenRef.current;
+    const id = req.plannedWorkoutId;
     if (!id) return;
     if (!planned.length) return;
     const w = planned.find((x) => x.id === id);
     if (!w) return;
 
     const todayKey = toDateKey(stripTime(new Date()));
-    const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
-    const date = w.status === "pending" ? todayKey : toDateInput(w.scheduledFor);
-    const time = w.status === "pending" ? initialTime : toTimeInput(w.scheduledFor);
-    setModal({
-      workout: w,
-      selectedWorkoutId: w.id,
-      date,
-      time,
-      saving: false,
-      error: null,
-    });
+    const requestedDate = req.targetDate || null;
+    const openInPickMode = Boolean(req.forcePick || requestedDate);
+    if (openInPickMode) {
+      const date = requestedDate || todayKey;
+      const fallbackTime =
+        w.status === "scheduled" && w.scheduledFor
+          ? toTimeInput(w.scheduledFor)
+          : defaultTimeSuggestion();
+      const time = scheduleDates[date]?.time ?? fallbackTime;
+      setModal({
+        workout: null,
+        selectedWorkoutId: w.id,
+        allowScheduledPick: true,
+        date,
+        time,
+        saving: false,
+        error: null,
+      });
+    } else {
+      const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
+      const date = w.status === "pending" ? todayKey : toDateInput(w.scheduledFor);
+      const time = w.status === "pending" ? initialTime : toTimeInput(w.scheduledFor);
+      setModal({
+        workout: w,
+        selectedWorkoutId: w.id,
+        allowScheduledPick: false,
+        date,
+        time,
+        saving: false,
+        error: null,
+      });
+    }
 
-    requestedPlannedIdRef.current = null;
+    requestedOpenRef.current = { plannedWorkoutId: null, targetDate: null, forcePick: false };
     nav(".", { replace: true, state: null });
   }, [planned, scheduleDates, nav]);
 
@@ -152,6 +195,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
   // For picking in the calendar, show only not-yet-scheduled workouts.
   const pendingWorkouts = useMemo(() => planned.filter((w) => w.status === "pending"), [planned]);
+  const assignableWorkouts = useMemo(
+    () => planned.filter((w) => w.status === "pending" || w.status === "scheduled"),
+    [planned]
+  );
 
   const upcoming = useMemo(() => {
     const nowTs = Date.now();
@@ -195,6 +242,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     setModal({
       workout: null,
       selectedWorkoutId: firstPending,
+      allowScheduledPick: false,
       date: key,
       time: initialTime,
       saving: false,
@@ -210,6 +258,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     setModal({
       workout,
       selectedWorkoutId: workout.id,
+      allowScheduledPick: false,
       date,
       time,
       saving: false,
@@ -219,10 +268,11 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
   const handleModalSave = async () => {
     if (!modal) return;
-    const { workout, date, time, selectedWorkoutId } = modal;
+    const { workout, date, time, selectedWorkoutId, allowScheduledPick } = modal;
     if (workout?.status === "completed") return;
+    const candidatePool = allowScheduledPick ? assignableWorkouts : pendingWorkouts;
     const effectiveWorkout =
-      workout ?? pendingWorkouts.find((w) => w.id === selectedWorkoutId) ?? null;
+      workout ?? candidatePool.find((w) => w.id === selectedWorkoutId) ?? null;
     if (!effectiveWorkout) {
       setModal((prev) =>
         prev ? { ...prev, error: "Выбери тренировку" } : prev
@@ -238,6 +288,16 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
+      const conflicts = planned.filter(
+        (w) =>
+          w.id !== effectiveWorkout.id &&
+          w.status === "scheduled" &&
+          toDateInput(w.scheduledFor) === date
+      );
+      for (const conflict of conflicts) {
+        await updatePlannedWorkout(conflict.id, { status: "pending" });
+      }
+
       const updated = await updatePlannedWorkout(effectiveWorkout.id, {
         status: "scheduled",
         scheduledFor: when.toISOString(),
@@ -491,7 +551,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
         <PlanPreviewModal
           workout={modal.workout}
           selectedWorkoutId={modal.selectedWorkoutId}
-          availableWorkouts={pendingWorkouts}
+          availableWorkouts={modal.allowScheduledPick ? assignableWorkouts : pendingWorkouts}
           date={modal.date}
           time={modal.time}
           saving={modal.saving}

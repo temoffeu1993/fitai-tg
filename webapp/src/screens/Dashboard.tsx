@@ -1079,7 +1079,12 @@ export default function Dashboard() {
   };
 
   const handleDayReplace = () => {
-    navigate("/plan/one");
+    navigate("/plan/one", {
+      state: {
+        replaceDate: selectedISO,
+        replaceFromPlannedWorkoutId: selectedPlanned?.id || null,
+      },
+    });
   };
 
   const handleDayAction = () => {
