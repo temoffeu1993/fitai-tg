@@ -898,14 +898,7 @@ export default function Dashboard() {
     () => (totalPlanDays > 0 ? Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays)) : 0),
     [weeklyCompletedCount, totalPlanDays]
   );
-  const weeklyGoalLabel = useMemo(() => {
-    if (totalPlanDays === 2) return "Две тренировки";
-    if (totalPlanDays === 3) return "Три тренировки";
-    if (totalPlanDays === 4) return "Четыре тренировки";
-    if (totalPlanDays === 5) return "Пять тренировок";
-    if (totalPlanDays === 6) return "Шесть тренировок";
-    return `${totalPlanDays} тренировки`;
-  }, [totalPlanDays]);
+  const weeklyGoalLabel = useMemo(() => `${totalPlanDays} тренировки`, [totalPlanDays]);
 
 
   const goOnb = () => navigate("/onb/age-sex");
@@ -1340,7 +1333,10 @@ export default function Dashboard() {
       {/* BLOCK 4: Progress */}
       <section style={s.progressCard} className="dash-fade dash-delay-3">
         <div style={s.progressNeoWrap}>
-          <div style={s.progressNeoTitle}>Цель недели</div>
+          <div style={s.progressNeoTopRow}>
+            <div style={s.progressNeoTitle}>Цель недели</div>
+            <div style={s.progressNeoValue}>{weeklyGoalLabel}</div>
+          </div>
           <div style={s.progressNeoTrack}>
             <div
               style={{
@@ -1354,9 +1350,6 @@ export default function Dashboard() {
                 width: `${Math.max(weeklyGoalProgress * 100, 8)}%`,
               }}
             />
-            <div style={s.progressNeoTrackLabelWrap}>
-              <span style={s.progressNeoTrackLabel}>{weeklyGoalLabel}</span>
-            </div>
           </div>
         </div>
       </section>
@@ -1908,7 +1901,7 @@ const s: Record<string, React.CSSProperties> = {
     ...glassCard,
     padding: "18px 16px",
     display: "flex",
-    minHeight: 126,
+    minHeight: 104,
   },
   progressNeoWrap: {
     width: "100%",
@@ -1916,24 +1909,36 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
-    gap: 14,
+    gap: 10,
+  },
+  progressNeoTopRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
   },
   progressNeoTitle: {
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1.1,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
+    whiteSpace: "nowrap",
+  },
+  progressNeoValue: {
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1,
     color: "#0f172a",
-    letterSpacing: -0.5,
     whiteSpace: "nowrap",
   },
   progressNeoTrack: {
     position: "relative",
     width: "100%",
-    height: 52,
+    height: 12,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #d8dde6 0%, #bfc8d5 100%)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 4px rgba(15,23,42,0.24), inset 0 -1px 0 rgba(255,255,255,0.72)",
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "visible",
   },
   progressNeoFillGlow: {
@@ -1943,9 +1948,9 @@ const s: Record<string, React.CSSProperties> = {
     height: "100%",
     borderRadius: 999,
     background: "linear-gradient(90deg, #9c67ff 0%, #8a63ff 44%, #6f81ff 100%)",
-    filter: "blur(7px)",
-    opacity: 0.75,
-    boxShadow: "0 0 20px rgba(138, 99, 255, 0.65), 0 0 34px rgba(111, 129, 255, 0.45)",
+    filter: "blur(5px)",
+    opacity: 0.72,
+    boxShadow: "0 0 10px rgba(138, 99, 255, 0.58), 0 0 18px rgba(111, 129, 255, 0.42)",
     pointerEvents: "none",
     zIndex: 1,
   },
@@ -1960,25 +1965,6 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(53,47,104,0.42)",
     zIndex: 2,
     flexShrink: 0,
-  },
-  progressNeoTrackLabelWrap: {
-    position: "absolute",
-    right: 16,
-    top: 0,
-    bottom: 0,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    zIndex: 3,
-  },
-  progressNeoTrackLabel: {
-    fontSize: 20,
-    fontWeight: 700,
-    lineHeight: 1,
-    color: "rgba(245,247,251,0.98)",
-    letterSpacing: -0.3,
-    textShadow: "0 1px 2px rgba(15,23,42,0.45)",
-    whiteSpace: "nowrap",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
