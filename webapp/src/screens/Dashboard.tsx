@@ -2002,10 +2002,10 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
   },
   goalSubtitle: {
-    fontSize: 15,
-    fontWeight: 500,
-    lineHeight: 1.4,
-    color: "rgba(30, 31, 34, 0.7)",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
   },
   goalBarWrap: {
     marginTop: 4,
@@ -2040,10 +2040,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#0f172a",
-    letterSpacing: 0.3,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
   },
 
   // ===== BLOCK 5: Quick Actions 2×2 =====
