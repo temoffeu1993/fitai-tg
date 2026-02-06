@@ -1159,10 +1159,9 @@ export default function Dashboard() {
               <button
                 type="button"
                 style={s.dayBtnSecondary}
-                className="day-cta"
                 onClick={handleDayReplace}
               >
-                <span>Заменить</span>
+                Заменить
               </button>
             </div>
           ) : (
@@ -1693,21 +1692,23 @@ const s: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
   },
   dayBtnSecondary: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    height: 50,
-    padding: "0 18px",
-    borderRadius: 999,
-    border: "1px solid rgba(30,31,34,0.24)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(242,242,247,0.9) 100%)",
-    color: "#1e1f22",
-    fontWeight: 600,
-    fontSize: 16,
+    height: "auto",
+    padding: 0,
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontWeight: 400,
+    fontSize: 14,
+    lineHeight: 1.5,
     cursor: "pointer",
-    boxShadow:
-      "0 8px 16px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.92)",
+    boxShadow: "none",
+    appearance: "none",
+    WebkitTapHighlightColor: "transparent",
   },
   dayBtnIconWrap: {
     width: 34,
