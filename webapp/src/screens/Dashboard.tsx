@@ -1991,9 +1991,10 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
   goalCompactValue: {
-    fontSize: 44,
-    fontWeight: 900,
-    lineHeight: 0.9,
+    fontSize: 32,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
     color: "#f8fafc",
     whiteSpace: "nowrap",
   },
