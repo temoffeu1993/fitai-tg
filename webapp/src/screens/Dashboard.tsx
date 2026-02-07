@@ -1952,7 +1952,7 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     minHeight: 82,
     gap: 4,
-    marginLeft: -10,
+    marginLeft: -18,
     paddingRight: 8,
   },
   goalCompactImage: {
