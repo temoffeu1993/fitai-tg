@@ -1967,7 +1967,7 @@ const s: Record<string, React.CSSProperties> = {
   goalCompactTextCol: {
     marginTop: 6,
     marginLeft: -8,
-    transform: "translateY(14px)",
+    transform: "translateY(18px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
