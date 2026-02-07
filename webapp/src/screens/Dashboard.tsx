@@ -1977,11 +1977,10 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Weekly Goal =====
   goalCard: {
     borderRadius: 24,
-    background:
-      "linear-gradient(180deg, #2b2f39 0%, #1f232c 58%, #171a21 100%)",
-    border: "1px solid #151922",
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
     boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(2,6,23,0.55)",
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
     padding: "10px 18px",
     display: "grid",
     gridTemplateColumns: "92px minmax(0, 1fr)",
