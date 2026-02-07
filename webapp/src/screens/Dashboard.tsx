@@ -34,7 +34,6 @@ import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
 import sredneImg from "@/assets/sredne.webp";
-import goalImg from "@/assets/cel1.png";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
@@ -42,7 +41,6 @@ const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
 const REST_MASCOT_SRC = sredneImg;
-const GOAL_IMG_SRC = goalImg;
 const PROGRESS_CTA_BAR_METRICS = [
   { track: 52, fill: 0.62 },
   { track: 72, fill: 0.8 },
@@ -221,6 +219,15 @@ function formatDuration(minutes?: number | null) {
   if (!Number.isFinite(total) || total <= 0) return "";
   const rounded = Math.round(total / 10) * 10;
   return `${rounded} мин`;
+}
+
+function formatWorkoutCountRu(count: number) {
+  const n = Math.abs(Math.trunc(count));
+  const rem10 = n % 10;
+  const rem100 = n % 100;
+  if (rem10 === 1 && rem100 !== 11) return `${n} тренировка`;
+  if (rem10 >= 2 && rem10 <= 4 && (rem100 < 12 || rem100 > 14)) return `${n} тренировки`;
+  return `${n} тренировок`;
 }
 
 function ClockIcon({ size = 20 }: { size?: number }) {
@@ -961,11 +968,17 @@ export default function Dashboard() {
     const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
     return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
-  const weeklyGoalProgress = useMemo(
-    () => (totalPlanDays > 0 ? Math.max(0, Math.min(1, weeklyCompletedCount / totalPlanDays)) : 0),
-    [weeklyCompletedCount, totalPlanDays]
-  );
-  const weeklyGoalLabel = useMemo(() => `${totalPlanDays} тренировки`, [totalPlanDays]);
+  const goalDotColumns = useMemo(() => {
+    if (totalPlanDays <= 3) return totalPlanDays;
+    if (totalPlanDays === 4) return 2;
+    return 3;
+  }, [totalPlanDays]);
+  const goalDotSize = useMemo(() => {
+    if (totalPlanDays <= 3) return 32;
+    if (totalPlanDays === 4) return 28;
+    return 24;
+  }, [totalPlanDays]);
+  const weeklyGoalLabel = useMemo(() => formatWorkoutCountRu(totalPlanDays), [totalPlanDays]);
 
   // Calculate week streak (consecutive weeks with all workouts completed)
   const weekStreak = useMemo(() => {
@@ -1408,28 +1421,30 @@ export default function Dashboard() {
       {/* BLOCK 4-5: Weekly Goal + Progress CTA */}
       <section style={s.goalProgressRow} className="dash-fade dash-delay-3">
         <div style={s.goalCompactCard}>
-          <div style={s.goalCompactTopRow}>
-            <img src={GOAL_IMG_SRC} alt="" style={s.goalCompactImage} />
-            <div style={s.goalCompactTextCol}>
-              <div style={s.goalCompactHeadlineRow}>
-                <span style={s.goalCompactLabel}>Цель</span>
-                <span style={s.goalCompactValue}>{totalPlanDays}</span>
-              </div>
-              <div style={s.goalCompactUnit}>тренировки</div>
-              <div style={s.goalCompactUnit}>за неделю</div>
-            </div>
+          <div style={s.goalCompactTitle}>Цель недели</div>
+          <div
+            style={{
+              ...s.goalCompactDotsWrap,
+              gridTemplateColumns: `repeat(${goalDotColumns}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: totalPlanDays }, (_, idx) => {
+              const done = idx < weeklyCompletedCount;
+              return (
+                <span key={`goal-dot-${idx}`} style={s.goalCompactDotCell}>
+                  <span
+                    style={{
+                      ...s.goalCompactDotPit,
+                      width: goalDotSize,
+                      height: goalDotSize,
+                      ...(done ? s.goalCompactDotFilled : undefined),
+                    }}
+                  />
+                </span>
+              );
+            })}
           </div>
-          <div style={s.goalCompactBarTrack}>
-            <div
-              style={{
-                ...s.goalCompactBarFill,
-                width: `${Math.max(weeklyGoalProgress * 100, 0)}%`,
-              }}
-            />
-            <div style={s.goalCompactBarLabel}>
-              {weeklyCompletedCount}/{totalPlanDays}
-            </div>
-          </div>
+          <div style={s.goalCompactCaption}>{weeklyGoalLabel}</div>
         </div>
 
         <button
@@ -1957,103 +1972,55 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "flex-start",
     gap: 0,
     minHeight: 160,
+    height: 160,
     color: "#f8fafc",
     overflow: "hidden",
   },
-  goalCompactTopRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    width: "100%",
-    minHeight: 82,
-    gap: 4,
-    marginLeft: -18,
-    paddingRight: 8,
-  },
-  goalCompactImage: {
-    width: 142,
-    height: 142,
-    marginLeft: -56,
-    marginTop: -6,
-    objectFit: "contain",
-    flexShrink: 0,
-    pointerEvents: "none",
-  },
-  goalCompactTextCol: {
-    marginTop: 6,
-    marginLeft: -8,
-    transform: "translateY(22px)",
-    display: "grid",
-    rowGap: 2,
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    minWidth: 92,
-    flexShrink: 0,
-    paddingRight: 6,
-  },
-  goalCompactHeadlineRow: {
-    display: "inline-flex",
-    alignItems: "baseline",
-    gap: 8,
-    flexWrap: "nowrap",
-    whiteSpace: "nowrap",
-  },
-  goalCompactLabel: {
+  goalCompactTitle: {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
     color: "#f8fafc",
     whiteSpace: "nowrap",
   },
-  goalCompactValue: {
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    letterSpacing: -0.5,
-    color: "#f8fafc",
-    whiteSpace: "nowrap",
-  },
-  goalCompactUnit: {
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.2,
-    color: "rgba(248, 250, 252, 0.75)",
-    whiteSpace: "nowrap",
-  },
-  goalCompactBarTrack: {
-    marginTop: -14,
-    position: "relative",
+  goalCompactDotsWrap: {
+    marginTop: 10,
+    height: 78,
     width: "100%",
-    height: 18,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow:
-      "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    overflow: "hidden",
+    display: "grid",
+    alignContent: "center",
+    justifyItems: "stretch",
+    rowGap: 8,
+    columnGap: 10,
+    padding: "0 6px",
   },
-  goalCompactBarFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: "100%",
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
-    boxShadow:
-      "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
-    transition: "width 300ms ease",
-  },
-  goalCompactBarLabel: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  goalCompactDotCell: {
+    width: "100%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 13,
-    fontWeight: 600,
-    lineHeight: 1,
-    color: "rgba(15, 23, 42, 0.65)",
+  },
+  goalCompactDotPit: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  },
+  goalCompactDotFilled: {
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow:
+      "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+  },
+  goalCompactCaption: {
+    marginTop: "auto",
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(248, 250, 252, 0.75)",
   },
   progressCtaCard: {
     borderRadius: 24,
