@@ -100,7 +100,7 @@ export default function NavBar({
     >
       <div style={st.tabbarInner}>
         <TabBtn
-          emoji="🏠"
+          icon={<HomeIcon />}
           label="Главная"
           active={current === "home"}
           onClick={() => onChange?.("home")}
@@ -108,21 +108,21 @@ export default function NavBar({
           disabled={false}
         />
         <TabBtn
-          emoji="📅"
+          icon={<CalendarIcon />}
           label="Календарь"
           active={current === "plan"}
           onClick={() => onChange?.("plan")}
           disabled={lock}
         />
         <TabBtn
-          emoji="💬"
+          icon={<CoachIcon />}
           label="Тренер"
           active={current === "coach"}
           onClick={() => onChange?.("coach")}
           disabled={lock}
         />
         <TabBtn
-          emoji="👤"
+          icon={<ProfileIcon />}
           label="Профиль"
           active={current === "profile"}
           onClick={() => onChange?.("profile")}
@@ -134,13 +134,13 @@ export default function NavBar({
 }
 
 function TabBtn({
-  emoji,
+  icon,
   label,
   active,
   onClick,
   disabled,
 }: {
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   active?: boolean;
   onClick?: () => void;
@@ -155,10 +155,10 @@ function TabBtn({
       disabled={disabled}
       aria-disabled={disabled}
     >
-      <div style={{ ...st.emojiWrap }}>
-        <span style={{ fontSize: 26, lineHeight: 1 }}>{emoji}</span>
+      <div style={{ ...st.iconOrb, ...(active ? st.iconOrbActive : undefined) }}>
+        <span style={{ ...st.iconGlyph, ...(active ? st.iconGlyphActive : undefined) }}>{icon}</span>
       </div>
-      <div style={{ fontSize: 11, fontWeight: 700 }}>{label}</div>
+      <div style={{ ...st.tabLabel, ...(active ? st.tabLabelActive : undefined) }}>{label}</div>
     </button>
   );
 }
@@ -169,7 +169,7 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    padding: "0 16px 20px",
+    padding: "0 14px calc(env(safe-area-inset-bottom, 0px) + 12px)",
     pointerEvents: "none",
     zIndex: 20,
     transition: "transform .2s ease",
@@ -178,52 +178,121 @@ const st: Record<string, React.CSSProperties> = {
     pointerEvents: "auto",
     margin: "0 auto",
     maxWidth: 640,
-    background: "rgba(255,255,255,0.1)",
-    backdropFilter: "blur(18px) saturate(180%)",
-    WebkitBackdropFilter: "blur(18px) saturate(180%)",
-    boxShadow: "0 12px 30px rgba(0,0,0,.18)",
-    borderRadius: 28,
-    padding: "10px 12px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(242,245,250,0.68) 100%)",
+    backdropFilter: "blur(24px) saturate(170%)",
+    WebkitBackdropFilter: "blur(24px) saturate(170%)",
+    boxShadow:
+      "0 14px 34px rgba(15,23,42,0.16), inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(148,163,184,0.22)",
+    borderRadius: 34,
+    padding: "8px",
     display: "grid",
     gridTemplateColumns: "repeat(4,1fr)",
-    gap: 8,
-    border: "1px solid rgba(255,255,255,0.15)",
+    gap: 6,
+    border: "1px solid rgba(255,255,255,0.82)",
   },
   tabBtn: {
     border: "none",
-    borderRadius: 16,
-    padding: "10px 6px 6px",
+    borderRadius: 26,
+    padding: "8px 6px 7px",
+    minHeight: 66,
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    gap: 1,
+    gap: 4,
     cursor: "pointer",
-    fontWeight: 700,
-    color: "#1b1b1b",
-    transition: "background .2s, color .2s, opacity .2s",
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.72)",
+    transition: "background .2s, color .2s, opacity .2s, transform .16s ease",
     position: "relative",
     overflow: "hidden",
   },
   tabBtnActive: {
-    background: "rgba(255,255,255,0.4)",
-    color: "#000",
-    border: "0px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.84) 0%, rgba(234,238,244,0.72) 100%)",
+    color: "#1e1f22",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.88), inset 0 -1px 0 rgba(148,163,184,0.24), 0 4px 12px rgba(15,23,42,0.12)",
   },
   tabBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
     cursor: "default",
     pointerEvents: "none",
   },
-  emojiWrap: {
-    width: 40,
-    height: 40,
+  iconOrb: {
+    width: 34,
+    height: 34,
     borderRadius: 999,
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    transition: "background .2s",
+    transition: "background .2s, box-shadow .2s",
+  },
+  iconOrbActive: {
+    background: "linear-gradient(180deg, #2e2f34 0%, #1e1f22 56%, #16171a 100%)",
+    boxShadow:
+      "0 2px 5px rgba(2,6,23,0.3), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(2,6,23,0.45)",
+  },
+  iconGlyph: {
+    width: 22,
+    height: 22,
+    color: "rgba(15,23,42,0.72)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconGlyphActive: {
+    color: "#f8fafc",
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: 500,
+    lineHeight: 1.1,
+    color: "rgba(15,23,42,0.68)",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
+  tabLabelActive: {
+    color: "#1e1f22",
+    fontWeight: 700,
   },
 };
+
+function HomeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4.5 10.3L12 4.5L19.5 10.3V18.5H14.5V13.6H9.5V18.5H4.5V10.3Z" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4.5" y="6.5" width="15" height="13" rx="3.2" stroke="currentColor" strokeWidth="2.1" />
+      <path d="M8 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M16 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M4.5 10H19.5" stroke="currentColor" strokeWidth="2.1" />
+    </svg>
+  );
+}
+
+function CoachIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6.2 7.2H17.8C19 7.2 20 8.2 20 9.4V15C20 16.2 19 17.2 17.8 17.2H12.3L8.7 20V17.2H6.2C5 17.2 4 16.2 4 15V9.4C4 8.2 5 7.2 6.2 7.2Z" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" />
+      <circle cx="9" cy="12.2" r="1" fill="currentColor" />
+      <circle cx="12" cy="12.2" r="1" fill="currentColor" />
+      <circle cx="15" cy="12.2" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ProfileIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="9.2" r="2.7" stroke="currentColor" strokeWidth="2.1" />
+      <circle cx="15.4" cy="8.6" r="2.2" stroke="currentColor" strokeWidth="2.1" />
+      <path d="M4.6 18C4.6 15.7 6.7 13.9 9.2 13.9C11.7 13.9 13.8 15.7 13.8 18" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+      <path d="M13.2 17.4C13.4 15.8 14.9 14.6 16.8 14.6C18.6 14.6 20 15.7 20 17.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+    </svg>
+  );
+}
