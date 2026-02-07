@@ -1979,10 +1979,10 @@ const s: Record<string, React.CSSProperties> = {
     ...glassCard,
     borderRadius: 24,
     background:
-      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    border: "1px solid rgba(255,255,255,0.75)",
+      "linear-gradient(180deg, rgba(42,46,56,0.88) 0%, rgba(22,25,32,0.82) 100%)",
+    border: "1px solid rgba(255,255,255,0.22)",
     boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+      "0 16px 32px rgba(15,23,42,0.28), inset 0 1px 0 rgba(255,255,255,0.26), inset 0 -1px 0 rgba(2,6,23,0.45)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     padding: "10px 18px",
@@ -2011,13 +2011,13 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
-    color: "#0f172a",
+    color: "#f8fafc",
   },
   goalSubtitle: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    color: "rgba(248, 250, 252, 0.78)",
   },
   goalBarWrap: {
     marginTop: 0,
