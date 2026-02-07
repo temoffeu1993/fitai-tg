@@ -1990,7 +1990,7 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: 96,
   },
   goalEmoji: {
-    fontSize: 84,
+    fontSize: 90,
     lineHeight: 1,
     width: 92,
     height: 92,
@@ -2001,7 +2001,7 @@ const s: Record<string, React.CSSProperties> = {
   goalContent: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 4,
     minWidth: 0,
   },
   goalTitle: {
@@ -2009,6 +2009,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     lineHeight: 1.2,
     color: "#f8fafc",
+    marginTop: 2,
   },
   goalSubtitle: {
     fontSize: 14,
