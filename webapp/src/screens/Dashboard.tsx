@@ -2004,7 +2004,7 @@ const s: Record<string, React.CSSProperties> = {
   goalContent: {
     display: "flex",
     flexDirection: "column",
-    gap: 3,
+    gap: 6,
     minWidth: 0,
   },
   goalTitle: {
@@ -2020,7 +2020,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(248, 250, 252, 0.78)",
   },
   goalBarWrap: {
-    marginTop: 0,
+    marginTop: 6,
     display: "flex",
     justifyContent: "flex-start",
     marginLeft: 0,
