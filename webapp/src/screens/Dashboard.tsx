@@ -2022,11 +2022,12 @@ const s: Record<string, React.CSSProperties> = {
   goalCompactDotCheck: {
     fontSize: 14,
     lineHeight: 1,
-    fontWeight: 800,
-    color: "#8a92a0",
+    fontWeight: 700,
+    color: "rgba(243, 244, 246, 0.7)",
     textShadow:
-      "0 1px 0 rgba(255,255,255,0.75), 0 -1px 0 rgba(75,85,99,0.35)",
+      "0 1px 0 rgba(15,23,42,0.08), 0 -1px 0 rgba(255,255,255,0.35)",
     transform: "translateY(-0.5px)",
+    opacity: 0.5,
   },
   goalCompactCaption: {
     marginTop: 2,
