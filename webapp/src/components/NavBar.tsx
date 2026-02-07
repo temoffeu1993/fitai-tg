@@ -3,6 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 
 export type TabKey = "home" | "plan" | "coach" | "profile";
 export type NavCurrent = TabKey | "none";
+const TAB_ORDER: TabKey[] = ["home", "plan", "coach", "profile"];
+const TAB_COUNT = 4;
+const TABBAR_INNER_PADDING = 6;
+const TAB_GAP = 6;
 
 /** Локальная проверка завершения онбординга */
 function isOnboardingCompleteLocal(): boolean {
@@ -89,6 +93,14 @@ export default function NavBar({
     if (typeof disabledAll === "boolean") return disabledAll;
     return !complete;
   }, [disabledAll, complete]);
+  const activeIndex = useMemo(
+    () => TAB_ORDER.indexOf(current as TabKey),
+    [current]
+  );
+  const activeTrackTransform = useMemo(() => {
+    if (activeIndex < 0) return "translateX(0)";
+    return `translateX(calc(${activeIndex} * ((100% - ${TABBAR_INNER_PADDING * 2}px - ${TAB_GAP * (TAB_COUNT - 1)}px) / ${TAB_COUNT} + ${TAB_GAP}px)))`;
+  }, [activeIndex]);
 
   return (
     <nav
@@ -99,6 +111,14 @@ export default function NavBar({
       aria-label="Навигация"
     >
       <div style={st.tabbarInner}>
+        <span
+          aria-hidden
+          style={{
+            ...st.activeTrack,
+            transform: activeTrackTransform,
+            opacity: activeIndex >= 0 ? 1 : 0,
+          }}
+        />
         <TabBtn
           icon={<HomeIcon />}
           label="Главная"
@@ -189,6 +209,23 @@ const st: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(4,1fr)",
     gap: 6,
     border: "1px solid rgba(255,255,255,0.58)",
+    position: "relative",
+    overflow: "hidden",
+  },
+  activeTrack: {
+    position: "absolute",
+    left: TABBAR_INNER_PADDING,
+    top: TABBAR_INNER_PADDING,
+    bottom: TABBAR_INNER_PADDING,
+    width: `calc((100% - ${TABBAR_INNER_PADDING * 2}px - ${TAB_GAP * (TAB_COUNT - 1)}px) / ${TAB_COUNT})`,
+    borderRadius: 26,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(234,238,244,0.74) 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.88), 0 2px 8px rgba(15,23,42,0.08)",
+    transition:
+      "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease",
+    zIndex: 0,
+    willChange: "transform",
   },
   tabBtn: {
     border: "none",
@@ -202,15 +239,15 @@ const st: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontWeight: 600,
     color: "rgba(15,23,42,0.72)",
-    transition: "background .2s, color .2s, opacity .2s, transform .16s ease",
+    transition: "color .24s ease, opacity .24s ease, transform .24s ease",
     position: "relative",
     overflow: "hidden",
+    zIndex: 1,
   },
   tabBtnActive: {
-    background: "linear-gradient(180deg, rgba(255,255,255,0.84) 0%, rgba(234,238,244,0.72) 100%)",
+    background: "transparent",
     color: "#1e1f22",
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.86), 0 2px 8px rgba(15,23,42,0.08)",
+    transform: "translateY(-0.5px)",
   },
   tabBtnDisabled: {
     opacity: 0.45,
@@ -224,34 +261,40 @@ const st: Record<string, React.CSSProperties> = {
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    transition: "background .2s, box-shadow .2s",
+    transition: "opacity .24s ease, transform .24s ease",
   },
   iconOrbActive: {
     background: "transparent",
     boxShadow: "none",
+    transform: "translateY(-0.5px)",
   },
   iconGlyph: {
     width: 27,
     height: 27,
-    color: "rgba(15,23,42,0.46)",
+    color: "rgba(15,23,42,0.42)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    transition: "color .24s ease, opacity .24s ease, transform .24s ease",
   },
   iconGlyphActive: {
     color: "#1e1f22",
+    opacity: 1,
+    transform: "translateY(-0.5px)",
   },
   tabLabel: {
     fontSize: 11,
     fontWeight: 500,
     lineHeight: 1.1,
-    color: "rgba(15,23,42,0.46)",
+    color: "rgba(15,23,42,0.42)",
     textAlign: "center",
     whiteSpace: "nowrap",
+    transition: "color .24s ease, opacity .24s ease, transform .24s ease",
   },
   tabLabelActive: {
     color: "#1e1f22",
     fontWeight: 700,
+    transform: "translateY(-0.5px)",
   },
 };
 
