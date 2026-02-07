@@ -34,6 +34,7 @@ import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
 import sredneImg from "@/assets/sredne.webp";
+import goalImg from "@/assets/сel.png";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
@@ -41,6 +42,7 @@ const BACK_MASCOT_SRC = tyagaImg;
 const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
 const REST_MASCOT_SRC = sredneImg;
+const GOAL_IMG_SRC = goalImg;
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
@@ -1399,12 +1401,13 @@ export default function Dashboard() {
       {/* BLOCK 4-5: Weekly Goal + Progress CTA */}
       <section style={s.goalProgressRow} className="dash-fade dash-delay-3">
         <div style={s.goalCompactCard}>
-          <div style={s.goalCompactEmoji}>
-            {weeklyCompletedCount >= totalPlanDays ? "🎉" : "🎯"}
+          <div style={s.goalCompactTopRow}>
+            <img src={GOAL_IMG_SRC} alt="" style={s.goalCompactImage} />
+            <div style={s.goalCompactTextCol}>
+              <div style={s.goalCompactHeadline}>Цель {totalPlanDays}</div>
+              <div style={s.goalCompactUnit}>тренировки</div>
+            </div>
           </div>
-          <div style={s.goalCompactCaption}>Цель</div>
-          <div style={s.goalCompactValue}>{totalPlanDays}</div>
-          <div style={s.goalCompactUnit}>тренировки</div>
           <div style={s.goalCompactBarTrack}>
             <div
               style={{
@@ -1929,38 +1932,53 @@ const s: Record<string, React.CSSProperties> = {
     border: "1px solid #1e1f22",
     boxShadow:
       "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
-    padding: "12px 12px 10px",
+    padding: "10px 12px 10px",
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
+    alignItems: "stretch",
     justifyContent: "space-between",
     minHeight: 160,
     color: "#f8fafc",
   },
-  goalCompactEmoji: {
-    fontSize: 42,
-    lineHeight: 1,
+  goalCompactTopRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    width: "100%",
+    minHeight: 92,
   },
-  goalCompactCaption: {
-    fontSize: 12,
-    fontWeight: 500,
-    lineHeight: 1.2,
-    color: "rgba(248, 250, 252, 0.75)",
+  goalCompactImage: {
+    width: 112,
+    height: 112,
+    marginLeft: -30,
+    marginTop: -12,
+    objectFit: "contain",
+    flexShrink: 0,
+    pointerEvents: "none",
   },
-  goalCompactValue: {
-    fontSize: 30,
+  goalCompactTextCol: {
+    marginTop: 8,
+    marginLeft: -6,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    minWidth: 0,
+  },
+  goalCompactHeadline: {
+    fontSize: 22,
     fontWeight: 700,
-    lineHeight: 1,
+    lineHeight: 1.1,
     color: "#f8fafc",
   },
   goalCompactUnit: {
-    fontSize: 12,
+    marginTop: 2,
+    fontSize: 14,
     fontWeight: 500,
     lineHeight: 1.2,
     color: "rgba(248, 250, 252, 0.75)",
   },
   goalCompactBarTrack: {
-    marginTop: 8,
+    marginTop: 6,
     position: "relative",
     width: "100%",
     height: 18,
