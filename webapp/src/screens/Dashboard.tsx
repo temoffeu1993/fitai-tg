@@ -43,6 +43,13 @@ const CHEST_MASCOT_SRC = zhimImg;
 const LEGS_MASCOT_SRC = nogiImg;
 const REST_MASCOT_SRC = sredneImg;
 const GOAL_IMG_SRC = goalImg;
+const PROGRESS_CTA_BAR_METRICS = [
+  { track: 36, fill: 0.62 },
+  { track: 52, fill: 0.8 },
+  { track: 42, fill: 0.58 },
+  { track: 58, fill: 0.9 },
+  { track: 48, fill: 0.72 },
+];
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
@@ -1431,19 +1438,15 @@ export default function Dashboard() {
           className="dash-quick-btn"
           onClick={() => navigate("/progress")}
         >
-          <svg
-            viewBox="0 0 320 160"
-            aria-hidden
-            focusable="false"
-            style={s.progressCtaCurve}
-          >
-            <path
-              d="M -20 112 C 56 76, 126 98, 192 78 C 250 62, 300 90, 348 70"
-              style={s.progressCtaCurvePath}
-            />
-          </svg>
           <div style={s.progressCtaArrowPit}>
             <span style={s.progressCtaArrow}>→</span>
+          </div>
+          <div style={s.progressCtaBars} aria-hidden>
+            {PROGRESS_CTA_BAR_METRICS.map((bar, idx) => (
+              <span key={`progress-cta-bar-${idx}`} style={{ ...s.progressCtaBarTrack, height: bar.track }}>
+                <span style={{ ...s.progressCtaBarFill, height: `${bar.fill * 100}%` }} />
+              </span>
+            ))}
           </div>
           <div style={s.progressCtaTitle}>Прогресс</div>
         </button>
@@ -2072,22 +2075,6 @@ const s: Record<string, React.CSSProperties> = {
     position: "relative",
     overflow: "hidden",
   },
-  progressCtaCurve: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    pointerEvents: "none",
-    zIndex: 0,
-  },
-  progressCtaCurvePath: {
-    fill: "none",
-    stroke: "#1e1f22",
-    strokeWidth: 8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    opacity: 0.55,
-  },
   progressCtaArrowPit: {
     width: 34,
     height: 34,
@@ -2101,6 +2088,35 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     zIndex: 1,
+  },
+  progressCtaBars: {
+    minHeight: 60,
+    marginTop: 10,
+    marginLeft: 2,
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 8,
+    position: "relative",
+    zIndex: 1,
+  },
+  progressCtaBarTrack: {
+    width: 14,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    overflow: "hidden",
+    display: "inline-flex",
+    alignItems: "flex-end",
+    flexShrink: 0,
+  },
+  progressCtaBarFill: {
+    width: "100%",
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow:
+      "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   progressCtaTitle: {
     fontSize: 18,
