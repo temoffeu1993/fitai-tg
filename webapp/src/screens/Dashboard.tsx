@@ -978,6 +978,10 @@ export default function Dashboard() {
     if (totalPlanDays === 4) return 28;
     return 24;
   }, [totalPlanDays]);
+  const goalCheckSize = useMemo(
+    () => Math.max(12, Math.round(goalDotSize * 0.58)),
+    [goalDotSize]
+  );
   const weeklyGoalLabel = useMemo(() => formatWorkoutCountRu(totalPlanDays), [totalPlanDays]);
 
   // Calculate week streak (consecutive weeks with all workouts completed)
@@ -1442,7 +1446,15 @@ export default function Dashboard() {
                     }}
                   >
                     {!done ? (
-                      <svg viewBox="0 0 20 18" aria-hidden style={s.goalCompactDotCheckSvg}>
+                      <svg
+                        viewBox="0 0 20 18"
+                        aria-hidden
+                        style={{
+                          ...s.goalCompactDotCheckSvg,
+                          width: goalCheckSize,
+                          height: Math.round(goalCheckSize * 0.9),
+                        }}
+                      >
                         <path
                           d="M4.3 9.2L8.1 12.9L15.8 5.2"
                           fill="none"
@@ -2048,11 +2060,10 @@ const s: Record<string, React.CSSProperties> = {
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   goalCompactDotCheckSvg: {
-    width: 15,
-    height: 14,
     transform: "translateY(-0.2px)",
-    mixBlendMode: "multiply",
-    opacity: 0.84,
+    filter:
+      "drop-shadow(0 1px 0 rgba(255,255,255,0.48)) drop-shadow(0 -1px 0 rgba(15,23,42,0.1))",
+    opacity: 0.9,
   },
   goalCompactCaption: {
     marginTop: 2,
