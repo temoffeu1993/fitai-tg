@@ -1365,13 +1365,13 @@ export default function Dashboard() {
             <div style={s.dayMetaRow}>
               {dayDurationText ? (
                 <span style={s.dayMetaItem}>
-                  <ClockIcon size={20} />
+                  <ClockIcon size={14} />
                   <span>{dayDurationText}</span>
                 </span>
               ) : null}
               {dayExercisesText ? (
                 <span style={s.dayMetaItem}>
-                  <DumbbellIcon size={20} />
+                  <DumbbellIcon size={14} />
                   <span>{dayExercisesText}</span>
                 </span>
               ) : null}
@@ -1821,9 +1821,10 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   dayHeader: {
-    fontSize: 14,
+    fontSize: 18,
+    fontWeight: 700,
     color: "rgba(15, 23, 42, 0.6)",
-    lineHeight: 1.5,
+    lineHeight: 1.2,
   },
   dayMetaRow: {
     display: "flex",
@@ -1836,8 +1837,8 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 8,
     fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1,
+    fontWeight: 400,
+    lineHeight: 1.5,
   },
   dayTitle: {
     fontSize: 32,
