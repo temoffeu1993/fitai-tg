@@ -1985,12 +1985,12 @@ const s: Record<string, React.CSSProperties> = {
       "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    padding: "18px 18px",
+    padding: "10px 18px",
     display: "grid",
     gridTemplateColumns: "92px minmax(0, 1fr)",
     columnGap: 14,
     alignItems: "center",
-    minHeight: 112,
+    minHeight: 96,
   },
   goalEmoji: {
     fontSize: 84,
@@ -2004,7 +2004,7 @@ const s: Record<string, React.CSSProperties> = {
   goalContent: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 3,
     minWidth: 0,
   },
   goalTitle: {
@@ -2020,7 +2020,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(15, 23, 42, 0.6)",
   },
   goalBarWrap: {
-    marginTop: 4,
+    marginTop: 0,
     display: "flex",
     justifyContent: "flex-start",
     marginLeft: 0,
