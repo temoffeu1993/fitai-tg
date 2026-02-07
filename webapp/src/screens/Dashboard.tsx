@@ -44,11 +44,11 @@ const LEGS_MASCOT_SRC = nogiImg;
 const REST_MASCOT_SRC = sredneImg;
 const GOAL_IMG_SRC = goalImg;
 const PROGRESS_CTA_BAR_METRICS = [
-  { track: 36, fill: 0.62 },
-  { track: 52, fill: 0.8 },
-  { track: 42, fill: 0.58 },
-  { track: 58, fill: 0.9 },
-  { track: 48, fill: 0.72 },
+  { track: 52, fill: 0.62 },
+  { track: 72, fill: 0.8 },
+  { track: 60, fill: 0.58 },
+  { track: 78, fill: 0.9 },
+  { track: 66, fill: 0.72 },
 ];
 
 const HISTORY_KEY = "history_sessions_v1";
@@ -2090,7 +2090,7 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   progressCtaBars: {
-    minHeight: 60,
+    minHeight: 80,
     marginTop: 10,
     marginLeft: 2,
     display: "flex",
