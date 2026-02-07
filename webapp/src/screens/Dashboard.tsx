@@ -1431,6 +1431,17 @@ export default function Dashboard() {
           className="dash-quick-btn"
           onClick={() => navigate("/progress")}
         >
+          <svg
+            viewBox="0 0 320 160"
+            aria-hidden
+            focusable="false"
+            style={s.progressCtaCurve}
+          >
+            <path
+              d="M -20 112 C 56 76, 126 98, 192 78 C 250 62, 300 90, 348 70"
+              style={s.progressCtaCurvePath}
+            />
+          </svg>
           <div style={s.progressCtaArrowPit}>
             <span style={s.progressCtaArrow}>→</span>
           </div>
@@ -2058,6 +2069,24 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     minHeight: 160,
     color: "#0f172a",
+    position: "relative",
+    overflow: "hidden",
+  },
+  progressCtaCurve: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  progressCtaCurvePath: {
+    fill: "none",
+    stroke: "#1e1f22",
+    strokeWidth: 8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    opacity: 0.55,
   },
   progressCtaArrowPit: {
     width: 34,
@@ -2070,6 +2099,8 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: "flex-end",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    zIndex: 1,
   },
   progressCtaTitle: {
     fontSize: 18,
@@ -2079,6 +2110,8 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: "auto",
     alignSelf: "flex-start",
     textAlign: "left",
+    position: "relative",
+    zIndex: 1,
   },
   progressCtaArrow: {
     fontSize: 18,
