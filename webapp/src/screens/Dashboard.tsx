@@ -1446,16 +1446,24 @@ export default function Dashboard() {
                         <path
                           d="M4.2 9.5L8.1 13.3L16 5.4"
                           fill="none"
-                          stroke="rgba(71,85,105,0.35)"
-                          strokeWidth="2.8"
+                          stroke="rgba(17,24,39,0.28)"
+                          strokeWidth="3.2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                         <path
                           d="M4.2 8.8L8.1 12.6L16 4.7"
                           fill="none"
-                          stroke="rgba(248,250,252,0.82)"
+                          stroke="rgba(241,245,249,0.96)"
                           strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M4.2 9.1L8.1 12.9L16 5"
+                          fill="none"
+                          stroke="rgba(148,163,184,0.92)"
+                          strokeWidth="1.6"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
@@ -2039,12 +2047,12 @@ const s: Record<string, React.CSSProperties> = {
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   goalCompactDotCheckSvg: {
-    width: 15,
-    height: 14,
+    width: 16,
+    height: 15,
     transform: "translateY(-0.5px)",
     filter:
-      "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 -1px 0 rgba(15,23,42,0.08))",
-    opacity: 0.72,
+      "drop-shadow(0 1px 0 rgba(255,255,255,0.58)) drop-shadow(0 -1px 0 rgba(15,23,42,0.12))",
+    opacity: 0.95,
   },
   goalCompactCaption: {
     marginTop: 2,
