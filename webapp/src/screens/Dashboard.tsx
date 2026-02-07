@@ -2026,11 +2026,11 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 4,
     display: "flex",
     justifyContent: "flex-start",
-    marginLeft: 2,
+    marginLeft: 0,
   },
   goalBarTrack: {
     position: "relative",
-    width: "84%",
+    width: "100%",
     height: 18,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
