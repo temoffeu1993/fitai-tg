@@ -1440,7 +1440,9 @@ export default function Dashboard() {
                       height: goalDotSize,
                       ...(done ? s.goalCompactDotFilled : undefined),
                     }}
-                  />
+                  >
+                    {!done ? <span style={s.goalCompactDotCheck}>✓</span> : null}
+                  </span>
                 </span>
               );
             })}
@@ -2016,6 +2018,15 @@ const s: Record<string, React.CSSProperties> = {
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow:
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+  },
+  goalCompactDotCheck: {
+    fontSize: 14,
+    lineHeight: 1,
+    fontWeight: 800,
+    color: "#8a92a0",
+    textShadow:
+      "0 1px 0 rgba(255,255,255,0.75), 0 -1px 0 rgba(75,85,99,0.35)",
+    transform: "translateY(-0.5px)",
   },
   goalCompactCaption: {
     marginTop: 2,
