@@ -1981,7 +1981,7 @@ const s: Record<string, React.CSSProperties> = {
       "linear-gradient(180deg, #2b2f39 0%, #1f232c 58%, #171a21 100%)",
     border: "1px solid #151922",
     boxShadow:
-      "0 14px 24px rgba(2,6,23,0.32), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(2,6,23,0.55)",
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(2,6,23,0.55)",
     padding: "10px 18px",
     display: "grid",
     gridTemplateColumns: "92px minmax(0, 1fr)",
