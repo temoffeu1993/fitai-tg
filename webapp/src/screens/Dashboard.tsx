@@ -1985,8 +1985,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   goalCompactLabel: {
     fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1,
+    fontWeight: 700,
+    lineHeight: 1.2,
     color: "#f8fafc",
     whiteSpace: "nowrap",
   },
