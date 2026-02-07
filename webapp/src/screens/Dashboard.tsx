@@ -2036,10 +2036,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   progressCtaCard: {
     borderRadius: 24,
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
     boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     padding: "14px 12px",
     display: "flex",
     flexDirection: "column",
@@ -2049,7 +2052,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     cursor: "pointer",
     minHeight: 160,
-    color: "#f8fafc",
+    color: "#0f172a",
   },
   progressCtaEmoji: {
     fontSize: 36,
@@ -2059,18 +2062,18 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
-    color: "#f8fafc",
+    color: "#0f172a",
   },
   progressCtaHint: {
     fontSize: 13,
     fontWeight: 500,
     lineHeight: 1.3,
-    color: "rgba(248, 250, 252, 0.78)",
+    color: "rgba(15, 23, 42, 0.62)",
   },
   progressCtaArrow: {
     fontSize: 20,
     lineHeight: 1,
     fontWeight: 700,
-    color: "rgba(248, 250, 252, 0.92)",
+    color: "#0f172a",
   },
 };
