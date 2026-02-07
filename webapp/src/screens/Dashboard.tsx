@@ -1977,11 +1977,14 @@ const s: Record<string, React.CSSProperties> = {
   // ===== BLOCK 4: Weekly Goal =====
   goalCard: {
     ...glassCard,
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
-    boxShadow: "0 12px 24px rgba(15,23,42,0.24)",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
+    borderRadius: 24,
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    boxShadow:
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     padding: "18px 18px",
     display: "grid",
     gridTemplateColumns: "92px minmax(0, 1fr)",
@@ -2008,13 +2011,13 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
-    color: "#f8fafc",
+    color: "#0f172a",
   },
   goalSubtitle: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(248, 250, 252, 0.78)",
+    color: "rgba(15, 23, 42, 0.6)",
   },
   goalBarWrap: {
     marginTop: 4,
