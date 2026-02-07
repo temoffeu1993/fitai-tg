@@ -1404,8 +1404,12 @@ export default function Dashboard() {
           <div style={s.goalCompactTopRow}>
             <img src={GOAL_IMG_SRC} alt="" style={s.goalCompactImage} />
             <div style={s.goalCompactTextCol}>
-              <div style={s.goalCompactHeadline}>Цель {totalPlanDays}</div>
+              <div style={s.goalCompactHeadlineRow}>
+                <span style={s.goalCompactLabel}>Цель</span>
+                <span style={s.goalCompactValue}>{totalPlanDays}</span>
+              </div>
               <div style={s.goalCompactUnit}>тренировки</div>
+              <div style={s.goalCompactUnit}>за неделю</div>
             </div>
           </div>
           <div style={s.goalCompactBarTrack}>
@@ -1947,34 +1951,45 @@ const s: Record<string, React.CSSProperties> = {
     minHeight: 92,
   },
   goalCompactImage: {
-    width: 112,
-    height: 112,
-    marginLeft: -30,
-    marginTop: -12,
+    width: 136,
+    height: 136,
+    marginLeft: -48,
+    marginTop: -20,
     objectFit: "contain",
     flexShrink: 0,
     pointerEvents: "none",
   },
   goalCompactTextCol: {
-    marginTop: 8,
-    marginLeft: -6,
+    marginTop: 10,
+    marginLeft: -10,
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
     justifyContent: "flex-start",
     minWidth: 0,
   },
-  goalCompactHeadline: {
-    fontSize: 22,
-    fontWeight: 700,
-    lineHeight: 1.1,
+  goalCompactHeadlineRow: {
+    display: "inline-flex",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  goalCompactLabel: {
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(248, 250, 252, 0.75)",
+  },
+  goalCompactValue: {
+    fontSize: 44,
+    fontWeight: 900,
+    lineHeight: 0.9,
     color: "#f8fafc",
   },
   goalCompactUnit: {
-    marginTop: 2,
+    marginTop: 0,
     fontSize: 14,
-    fontWeight: 500,
-    lineHeight: 1.2,
+    fontWeight: 400,
+    lineHeight: 1.5,
     color: "rgba(248, 250, 252, 0.75)",
   },
   goalCompactBarTrack: {
