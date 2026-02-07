@@ -1422,6 +1422,7 @@ export default function Dashboard() {
       <section style={s.goalProgressRow} className="dash-fade dash-delay-3">
         <div style={s.goalCompactCard}>
           <div style={s.goalCompactTitle}>Цель недели</div>
+          <div style={s.goalCompactCaption}>{weeklyGoalLabel}</div>
           <div
             style={{
               ...s.goalCompactDotsWrap,
@@ -1444,7 +1445,6 @@ export default function Dashboard() {
               );
             })}
           </div>
-          <div style={s.goalCompactCaption}>{weeklyGoalLabel}</div>
         </div>
 
         <button
@@ -2018,8 +2018,8 @@ const s: Record<string, React.CSSProperties> = {
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   goalCompactCaption: {
-    marginTop: "auto",
-    textAlign: "center",
+    marginTop: 2,
+    textAlign: "left",
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
