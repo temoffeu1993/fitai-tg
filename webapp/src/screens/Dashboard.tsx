@@ -1951,7 +1951,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
     width: "100%",
     minHeight: 82,
-    gap: 10,
+    gap: 4,
     marginLeft: -10,
     paddingRight: 8,
   },
@@ -1966,7 +1966,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   goalCompactTextCol: {
     marginTop: 6,
-    marginLeft: 0,
+    marginLeft: -8,
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
@@ -1999,7 +1999,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "rgba(248, 250, 252, 0.75)",
   },
   goalCompactBarTrack: {
-    marginTop: -8,
+    marginTop: -14,
     position: "relative",
     width: "100%",
     height: 18,
