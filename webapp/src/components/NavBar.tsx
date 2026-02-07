@@ -99,7 +99,8 @@ export default function NavBar({
   );
   const activeTrackTransform = useMemo(() => {
     if (activeIndex < 0) return "translateX(0)";
-    return `translateX(calc(${activeIndex} * ((100% - ${TABBAR_INNER_PADDING * 2}px - ${TAB_GAP * (TAB_COUNT - 1)}px) / ${TAB_COUNT} + ${TAB_GAP}px)))`;
+    // activeTrack width equals one tab cell width, so one step is (its own width + inter-tab gap)
+    return `translateX(calc(${activeIndex} * (100% + ${TAB_GAP}px)))`;
   }, [activeIndex]);
 
   return (
