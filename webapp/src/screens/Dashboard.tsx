@@ -1961,11 +1961,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   goalCompactCard: {
     borderRadius: 24,
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
     boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
-    padding: "10px 12px 10px",
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    padding: "14px 12px 10px",
     display: "flex",
     flexDirection: "column",
     alignItems: "stretch",
@@ -1973,14 +1976,14 @@ const s: Record<string, React.CSSProperties> = {
     gap: 0,
     minHeight: 160,
     height: 160,
-    color: "#f8fafc",
+    color: "#0f172a",
     overflow: "hidden",
   },
   goalCompactTitle: {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
-    color: "#f8fafc",
+    color: "#0f172a",
     whiteSpace: "nowrap",
   },
   goalCompactDotsWrap: {
@@ -2020,7 +2023,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
-    color: "rgba(248, 250, 252, 0.75)",
+    color: "rgba(15, 23, 42, 0.6)",
   },
   progressCtaCard: {
     borderRadius: 24,
