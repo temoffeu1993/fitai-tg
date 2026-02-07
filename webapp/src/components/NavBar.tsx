@@ -182,19 +182,19 @@ const st: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(24px) saturate(170%)",
     WebkitBackdropFilter: "blur(24px) saturate(170%)",
     boxShadow:
-      "0 14px 34px rgba(15,23,42,0.16), inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(148,163,184,0.22)",
+      "0 10px 24px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.86)",
     borderRadius: 34,
-    padding: "8px",
+    padding: "6px",
     display: "grid",
     gridTemplateColumns: "repeat(4,1fr)",
     gap: 6,
-    border: "1px solid rgba(255,255,255,0.82)",
+    border: "1px solid rgba(255,255,255,0.58)",
   },
   tabBtn: {
     border: "none",
     borderRadius: 26,
-    padding: "8px 6px 7px",
-    minHeight: 66,
+    padding: "6px 6px 5px",
+    minHeight: 60,
     background: "transparent",
     display: "grid",
     placeItems: "center",
@@ -210,7 +210,7 @@ const st: Record<string, React.CSSProperties> = {
     background: "linear-gradient(180deg, rgba(255,255,255,0.84) 0%, rgba(234,238,244,0.72) 100%)",
     color: "#1e1f22",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.88), inset 0 -1px 0 rgba(148,163,184,0.24), 0 4px 12px rgba(15,23,42,0.12)",
+      "inset 0 1px 0 rgba(255,255,255,0.86), 0 2px 8px rgba(15,23,42,0.08)",
   },
   tabBtnDisabled: {
     opacity: 0.45,
@@ -218,8 +218,8 @@ const st: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   iconOrb: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 999,
     background: "transparent",
     display: "grid",
@@ -227,26 +227,25 @@ const st: Record<string, React.CSSProperties> = {
     transition: "background .2s, box-shadow .2s",
   },
   iconOrbActive: {
-    background: "linear-gradient(180deg, #2e2f34 0%, #1e1f22 56%, #16171a 100%)",
-    boxShadow:
-      "0 2px 5px rgba(2,6,23,0.3), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(2,6,23,0.45)",
+    background: "transparent",
+    boxShadow: "none",
   },
   iconGlyph: {
-    width: 22,
-    height: 22,
-    color: "rgba(15,23,42,0.72)",
+    width: 27,
+    height: 27,
+    color: "rgba(15,23,42,0.46)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
   },
   iconGlyphActive: {
-    color: "#f8fafc",
+    color: "#1e1f22",
   },
   tabLabel: {
     fontSize: 11,
     fontWeight: 500,
     lineHeight: 1.1,
-    color: "rgba(15,23,42,0.68)",
+    color: "rgba(15,23,42,0.46)",
     textAlign: "center",
     whiteSpace: "nowrap",
   },
@@ -258,7 +257,7 @@ const st: Record<string, React.CSSProperties> = {
 
 function HomeIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M4.5 10.3L12 4.5L19.5 10.3V18.5H14.5V13.6H9.5V18.5H4.5V10.3Z" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -266,7 +265,7 @@ function HomeIcon() {
 
 function CalendarIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="4.5" y="6.5" width="15" height="13" rx="3.2" stroke="currentColor" strokeWidth="2.1" />
       <path d="M8 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
       <path d="M16 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
@@ -277,7 +276,7 @@ function CalendarIcon() {
 
 function CoachIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M6.2 7.2H17.8C19 7.2 20 8.2 20 9.4V15C20 16.2 19 17.2 17.8 17.2H12.3L8.7 20V17.2H6.2C5 17.2 4 16.2 4 15V9.4C4 8.2 5 7.2 6.2 7.2Z" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" />
       <circle cx="9" cy="12.2" r="1" fill="currentColor" />
       <circle cx="12" cy="12.2" r="1" fill="currentColor" />
@@ -288,7 +287,7 @@ function CoachIcon() {
 
 function ProfileIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="9" cy="9.2" r="2.7" stroke="currentColor" strokeWidth="2.1" />
       <circle cx="15.4" cy="8.6" r="2.2" stroke="currentColor" strokeWidth="2.1" />
       <path d="M4.6 18C4.6 15.7 6.7 13.9 9.2 13.9C11.7 13.9 13.8 15.7 13.8 18" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
