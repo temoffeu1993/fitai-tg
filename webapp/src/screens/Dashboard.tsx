@@ -1396,63 +1396,38 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* BLOCK 4: Weekly Goal */}
-      <section style={s.goalCard} className="dash-fade dash-delay-3">
-        <div style={s.goalEmoji}>
-          {weeklyCompletedCount >= totalPlanDays ? "🎉" : "🎯"}
-        </div>
-        <div style={s.goalContent}>
-          <div style={s.goalTitle}>
-            {weeklyCompletedCount >= totalPlanDays
-              ? "Цель достигнута!"
-              : "Цель недели"}
+      {/* BLOCK 4-5: Weekly Goal + Progress CTA */}
+      <section style={s.goalProgressRow} className="dash-fade dash-delay-3">
+        <div style={s.goalCompactCard}>
+          <div style={s.goalCompactEmoji}>
+            {weeklyCompletedCount >= totalPlanDays ? "🎉" : "🎯"}
           </div>
-          <div style={s.goalSubtitle}>
-            {weeklyCompletedCount >= totalPlanDays
-              ? "Отличная неделя"
-              : weeklyCompletedCount === 0
-              ? `Выполни ${totalPlanDays} тренировки`
-              : totalPlanDays - weeklyCompletedCount === 1
-              ? "Ещё 1 тренировка"
-              : `Ещё ${totalPlanDays - weeklyCompletedCount} тренировки`}
-          </div>
-          <div style={s.goalBarWrap}>
-            <div style={s.goalBarTrack}>
-              <div
-                style={{
-                  ...s.goalBarFill,
-                  width: `${Math.max(weeklyGoalProgress * 100, 0)}%`,
-                }}
-              />
-              <div style={s.goalBarLabel}>
-                {weeklyCompletedCount}/{totalPlanDays}
-              </div>
+          <div style={s.goalCompactCaption}>Цель</div>
+          <div style={s.goalCompactValue}>{totalPlanDays}</div>
+          <div style={s.goalCompactUnit}>тренировки</div>
+          <div style={s.goalCompactBarTrack}>
+            <div
+              style={{
+                ...s.goalCompactBarFill,
+                width: `${Math.max(weeklyGoalProgress * 100, 0)}%`,
+              }}
+            />
+            <div style={s.goalCompactBarLabel}>
+              {weeklyCompletedCount}/{totalPlanDays}
             </div>
           </div>
         </div>
-      </section>
 
-      {/* BLOCK 5: Quick Actions 2×2 */}
-      <section style={s.quickGrid} className="dash-fade dash-delay-3">
         <button
           type="button"
-          style={s.quickCard}
-          className="dash-quick-btn"
-          onClick={() => navigate("/history")}
-        >
-          <div style={s.quickEmoji}>🗂️</div>
-          <div style={s.quickTitle}>История тренировок</div>
-          <div style={s.quickHint}>Сессии и результаты</div>
-        </button>
-        <button
-          type="button"
-          style={s.quickCard}
+          style={s.progressCtaCard}
           className="dash-quick-btn"
           onClick={() => navigate("/progress")}
         >
-          <div style={s.quickEmoji}>📊</div>
-          <div style={s.quickTitle}>Твой прогресс</div>
-          <div style={s.quickHint}>Метрики и динамика</div>
+          <div style={s.progressCtaEmoji}>📊</div>
+          <div style={s.progressCtaTitle}>Твой прогресс</div>
+          <div style={s.progressCtaHint}>Открыть аналитику</div>
+          <div style={s.progressCtaArrow}>→</div>
         </button>
       </section>
 
@@ -1464,18 +1439,6 @@ export default function Dashboard() {
 // ============================================================================
 // STYLES
 // ============================================================================
-
-const glassCard: React.CSSProperties = {
-  borderRadius: 18,
-  padding: "16px 16px",
-  background:
-    "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-  border: "1px solid rgba(255,255,255,0.6)",
-  boxShadow:
-    "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-};
 
 const s: Record<string, React.CSSProperties> = {
   // Page
@@ -1954,55 +1917,50 @@ const s: Record<string, React.CSSProperties> = {
     textShadow:
       "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
   },
-  // ===== BLOCK 4: Weekly Goal =====
-  goalCard: {
+  // ===== BLOCK 4-5: Weekly Goal + Progress CTA =====
+  goalProgressRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  goalCompactCard: {
     borderRadius: 24,
     background: "#1e1f22",
     border: "1px solid #1e1f22",
     boxShadow:
       "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
-    padding: "10px 18px",
-    display: "grid",
-    gridTemplateColumns: "92px minmax(0, 1fr)",
-    columnGap: 14,
-    alignItems: "center",
-    minHeight: 96,
-  },
-  goalEmoji: {
-    fontSize: 90,
-    lineHeight: 1,
-    width: 92,
-    height: 92,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  goalContent: {
+    padding: "12px 12px 10px",
     display: "flex",
     flexDirection: "column",
-    gap: 4,
-    minWidth: 0,
-  },
-  goalTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    lineHeight: 1.2,
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 160,
     color: "#f8fafc",
-    marginTop: 2,
   },
-  goalSubtitle: {
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(248, 250, 252, 0.78)",
+  goalCompactEmoji: {
+    fontSize: 42,
+    lineHeight: 1,
   },
-  goalBarWrap: {
-    marginTop: 6,
-    display: "flex",
-    justifyContent: "flex-start",
-    marginLeft: 0,
+  goalCompactCaption: {
+    fontSize: 12,
+    fontWeight: 500,
+    lineHeight: 1.2,
+    color: "rgba(248, 250, 252, 0.75)",
   },
-  goalBarTrack: {
+  goalCompactValue: {
+    fontSize: 30,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: "#f8fafc",
+  },
+  goalCompactUnit: {
+    fontSize: 12,
+    fontWeight: 500,
+    lineHeight: 1.2,
+    color: "rgba(248, 250, 252, 0.75)",
+  },
+  goalCompactBarTrack: {
+    marginTop: 8,
     position: "relative",
     width: "100%",
     height: 18,
@@ -2012,7 +1970,7 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
   },
-  goalBarFill: {
+  goalCompactBarFill: {
     position: "absolute",
     left: 0,
     top: 0,
@@ -2023,7 +1981,7 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
     transition: "width 300ms ease",
   },
-  goalBarLabel: {
+  goalCompactBarLabel: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -2032,45 +1990,48 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1,
+    color: "rgba(15, 23, 42, 0.65)",
   },
-
-  // ===== BLOCK 5: Quick Actions 2×2 =====
-  quickGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  quickCard: {
-    ...glassCard,
-    padding: "18px 14px",
+  progressCtaCard: {
+    borderRadius: 24,
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    boxShadow:
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(2,6,23,0.48)",
+    padding: "14px 12px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     textAlign: "center",
     cursor: "pointer",
-    minHeight: 110,
-    color: "#1e1f22",
+    minHeight: 160,
+    color: "#f8fafc",
   },
-  quickEmoji: {
-    fontSize: 28,
+  progressCtaEmoji: {
+    fontSize: 36,
     lineHeight: 1,
   },
-  quickTitle: {
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1e1f22",
+  progressCtaTitle: {
+    fontSize: 18,
+    fontWeight: 700,
     lineHeight: 1.2,
+    color: "#f8fafc",
   },
-  quickHint: {
-    fontSize: 12,
+  progressCtaHint: {
+    fontSize: 13,
     fontWeight: 500,
-    color: "rgba(30, 31, 34, 0.5)",
-    lineHeight: 1.2,
+    lineHeight: 1.3,
+    color: "rgba(248, 250, 252, 0.78)",
+  },
+  progressCtaArrow: {
+    fontSize: 20,
+    lineHeight: 1,
+    fontWeight: 700,
+    color: "rgba(248, 250, 252, 0.92)",
   },
 };
