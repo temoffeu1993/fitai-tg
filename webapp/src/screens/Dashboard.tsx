@@ -34,7 +34,7 @@ import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import mascotImg from "@/assets/robonew.webp";
 import sredneImg from "@/assets/sredne.webp";
-import goalImg from "@/assets/cel.png";
+import goalImg from "@/assets/cel1.png";
 
 const ROBOT_SRC = robotImg;
 const MASCOT_SRC = mascotImg;
