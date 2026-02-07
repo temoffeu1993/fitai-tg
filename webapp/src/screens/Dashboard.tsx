@@ -257,6 +257,45 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+function ProgressTrendIcon({ size = 44 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden
+      focusable="false"
+    >
+      <rect
+        x="4.5"
+        y="4.5"
+        width="39"
+        height="39"
+        rx="12"
+        fill="url(#progressBg)"
+        stroke="rgba(15,23,42,0.18)"
+      />
+      <path
+        d="M11 32.5L19.5 24L25.5 27.5L36 17"
+        stroke="#0f172a"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="19.5" cy="24" r="2.4" fill="#0f172a" />
+      <circle cx="25.5" cy="27.5" r="2.4" fill="#0f172a" />
+      <circle cx="36" cy="17" r="3.2" fill="#8bff1a" />
+      <defs>
+        <linearGradient id="progressBg" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#f8fafc" />
+          <stop offset="1" stopColor="#e5e7eb" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -1431,7 +1470,9 @@ export default function Dashboard() {
           className="dash-quick-btn"
           onClick={() => navigate("/progress")}
         >
-          <div style={s.progressCtaEmoji}>📊</div>
+          <div style={s.progressCtaEmoji}>
+            <ProgressTrendIcon size={44} />
+          </div>
           <div style={s.progressCtaTitle}>Твой прогресс</div>
           <div style={s.progressCtaHint}>Открыть аналитику</div>
           <div style={s.progressCtaArrow}>→</div>
@@ -2062,8 +2103,11 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
   },
   progressCtaEmoji: {
-    fontSize: 36,
-    lineHeight: 1,
+    width: 44,
+    height: 44,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   progressCtaTitle: {
     fontSize: 18,
