@@ -257,45 +257,6 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-function ProgressTrendIcon({ size = 44 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      aria-hidden
-      focusable="false"
-    >
-      <rect
-        x="4.5"
-        y="4.5"
-        width="39"
-        height="39"
-        rx="12"
-        fill="url(#progressBg)"
-        stroke="rgba(15,23,42,0.18)"
-      />
-      <path
-        d="M11 32.5L19.5 24L25.5 27.5L36 17"
-        stroke="#0f172a"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="19.5" cy="24" r="2.4" fill="#0f172a" />
-      <circle cx="25.5" cy="27.5" r="2.4" fill="#0f172a" />
-      <circle cx="36" cy="17" r="3.2" fill="#8bff1a" />
-      <defs>
-        <linearGradient id="progressBg" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#f8fafc" />
-          <stop offset="1" stopColor="#e5e7eb" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
@@ -1470,12 +1431,10 @@ export default function Dashboard() {
           className="dash-quick-btn"
           onClick={() => navigate("/progress")}
         >
-          <div style={s.progressCtaEmoji}>
-            <ProgressTrendIcon size={44} />
+          <div style={s.progressCtaArrowPit}>
+            <span style={s.progressCtaArrow}>→</span>
           </div>
-          <div style={s.progressCtaTitle}>Твой прогресс</div>
-          <div style={s.progressCtaHint}>Открыть аналитику</div>
-          <div style={s.progressCtaArrow}>→</div>
+          <div style={s.progressCtaTitle}>Прогресс</div>
         </button>
       </section>
 
@@ -2093,35 +2052,35 @@ const s: Record<string, React.CSSProperties> = {
     padding: "14px 12px",
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    textAlign: "center",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
     cursor: "pointer",
     minHeight: 160,
     color: "#0f172a",
   },
-  progressCtaEmoji: {
-    width: 44,
-    height: 44,
+  progressCtaArrowPit: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "flex-end",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
   progressCtaTitle: {
     fontSize: 18,
     fontWeight: 700,
     lineHeight: 1.2,
     color: "#0f172a",
-  },
-  progressCtaHint: {
-    fontSize: 13,
-    fontWeight: 500,
-    lineHeight: 1.3,
-    color: "rgba(15, 23, 42, 0.62)",
+    marginTop: "auto",
+    alignSelf: "flex-start",
+    textAlign: "left",
   },
   progressCtaArrow: {
-    fontSize: 20,
+    fontSize: 18,
     lineHeight: 1,
     fontWeight: 700,
     color: "#0f172a",
