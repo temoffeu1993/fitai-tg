@@ -2090,7 +2090,7 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   progressCtaBars: {
-    minHeight: 80,
+    height: 60,
     marginTop: 10,
     marginLeft: 2,
     display: "flex",
@@ -2098,6 +2098,7 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
     position: "relative",
     zIndex: 1,
+    overflow: "visible",
   },
   progressCtaBarTrack: {
     width: 14,
