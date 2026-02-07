@@ -237,14 +237,14 @@ function ClockIcon({ size = 20 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth="2.6"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
       focusable="false"
     >
-      <circle cx="12" cy="12" r="8.5" stroke="#1e1f22" />
-      <path d="M12 7.5v5l3.5 2" stroke="#1e1f22" />
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" />
+      <path d="M12 7.5v5l3.5 2" stroke="currentColor" />
     </svg>
   );
 }
@@ -256,17 +256,17 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth="2.6"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
       focusable="false"
     >
-      <path d="M4 9v6" stroke="#1e1f22" />
-      <path d="M7 8v8" stroke="#1e1f22" />
-      <path d="M17 8v8" stroke="#1e1f22" />
-      <path d="M20 9v6" stroke="#1e1f22" />
-      <path d="M7 12h10" stroke="#1e1f22" />
+      <path d="M4 9v6" stroke="currentColor" />
+      <path d="M7 8v8" stroke="currentColor" />
+      <path d="M17 8v8" stroke="currentColor" />
+      <path d="M20 9v6" stroke="currentColor" />
+      <path d="M7 12h10" stroke="currentColor" />
     </svg>
   );
 }
@@ -1823,14 +1823,14 @@ const s: Record<string, React.CSSProperties> = {
   dayHeader: {
     fontSize: 18,
     fontWeight: 700,
-    color: "rgba(15, 23, 42, 0.6)",
+    color: "#0f172a",
     lineHeight: 1.2,
   },
   dayMetaRow: {
     display: "flex",
     alignItems: "center",
     gap: 14,
-    color: "#0f172a",
+    color: "rgba(15, 23, 42, 0.6)",
   },
   dayMetaItem: {
     display: "inline-flex",
@@ -1839,6 +1839,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
   },
   dayTitle: {
     fontSize: 32,
