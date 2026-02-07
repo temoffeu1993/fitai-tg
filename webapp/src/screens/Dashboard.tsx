@@ -1438,21 +1438,11 @@ export default function Dashboard() {
           type="button"
           style={s.quickCard}
           className="dash-quick-btn"
-          onClick={() => navigate("/plan/one")}
+          onClick={() => navigate("/history")}
         >
-          <div style={s.quickEmoji}>🏋️</div>
-          <div style={s.quickTitle}>План</div>
-          <div style={s.quickHint}>Тренировки</div>
-        </button>
-        <button
-          type="button"
-          style={s.quickCard}
-          className="dash-quick-btn"
-          onClick={() => navigate("/nutrition/today")}
-        >
-          <div style={s.quickEmoji}>🍎</div>
-          <div style={s.quickTitle}>Питание</div>
-          <div style={s.quickHint}>Сегодня</div>
+          <div style={s.quickEmoji}>🗂️</div>
+          <div style={s.quickTitle}>История тренировок</div>
+          <div style={s.quickHint}>Сессии и результаты</div>
         </button>
         <button
           type="button"
@@ -1461,18 +1451,8 @@ export default function Dashboard() {
           onClick={() => navigate("/progress")}
         >
           <div style={s.quickEmoji}>📊</div>
-          <div style={s.quickTitle}>Прогресс</div>
-          <div style={s.quickHint}>Данные</div>
-        </button>
-        <button
-          type="button"
-          style={s.quickCard}
-          className="dash-quick-btn"
-          onClick={() => navigate("/coach")}
-        >
-          <div style={s.quickEmoji}>🤖</div>
-          <div style={s.quickTitle}>Тренер</div>
-          <div style={s.quickHint}>Задать вопрос</div>
+          <div style={s.quickTitle}>Твой прогресс</div>
+          <div style={s.quickHint}>Метрики и динамика</div>
         </button>
       </section>
 
