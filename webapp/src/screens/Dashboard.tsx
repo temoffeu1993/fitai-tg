@@ -1441,7 +1441,26 @@ export default function Dashboard() {
                       ...(done ? s.goalCompactDotFilled : undefined),
                     }}
                   >
-                    {!done ? <span style={s.goalCompactDotCheck}>✓</span> : null}
+                    {!done ? (
+                      <svg viewBox="0 0 20 18" aria-hidden style={s.goalCompactDotCheckSvg}>
+                        <path
+                          d="M4.2 9.5L8.1 13.3L16 5.4"
+                          fill="none"
+                          stroke="rgba(71,85,105,0.35)"
+                          strokeWidth="2.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M4.2 8.8L8.1 12.6L16 4.7"
+                          fill="none"
+                          stroke="rgba(248,250,252,0.82)"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
                   </span>
                 </span>
               );
@@ -2019,15 +2038,13 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
-  goalCompactDotCheck: {
-    fontSize: 14,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "rgba(243, 244, 246, 0.7)",
-    textShadow:
-      "0 1px 0 rgba(15,23,42,0.08), 0 -1px 0 rgba(255,255,255,0.35)",
+  goalCompactDotCheckSvg: {
+    width: 15,
+    height: 14,
     transform: "translateY(-0.5px)",
-    opacity: 0.5,
+    filter:
+      "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 -1px 0 rgba(15,23,42,0.08))",
+    opacity: 0.72,
   },
   goalCompactCaption: {
     marginTop: 2,
