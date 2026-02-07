@@ -1,7 +1,7 @@
 // webapp/src/components/NavBar.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
-export type TabKey = "home" | "plan" | "coach" | "nutrition" | "profile";
+export type TabKey = "home" | "plan" | "coach" | "profile";
 export type NavCurrent = TabKey | "none";
 
 /** Локальная проверка завершения онбординга */
@@ -109,7 +109,7 @@ export default function NavBar({
         />
         <TabBtn
           emoji="📅"
-          label="План"
+          label="Календарь"
           active={current === "plan"}
           onClick={() => onChange?.("plan")}
           disabled={lock}
@@ -119,13 +119,6 @@ export default function NavBar({
           label="Тренер"
           active={current === "coach"}
           onClick={() => onChange?.("coach")}
-          disabled={lock}
-        />
-        <TabBtn
-          emoji="🍽️"
-          label="Питание"
-          active={current === "nutrition"}
-          onClick={() => onChange?.("nutrition")}
           disabled={lock}
         />
         <TabBtn
@@ -192,7 +185,7 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 28,
     padding: "10px 12px",
     display: "grid",
-    gridTemplateColumns: "repeat(5,1fr)",
+    gridTemplateColumns: "repeat(4,1fr)",
     gap: 8,
     border: "1px solid rgba(255,255,255,0.15)",
   },

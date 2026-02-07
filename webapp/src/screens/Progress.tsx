@@ -268,8 +268,8 @@ export default function Progress() {
         current="none"
         onChange={(t) => {
           if (t === "home") navigate("/");
-          if (t === "plan") navigate("/plan/one");
-          if (t === "nutrition") navigate("/nutrition");
+          if (t === "plan") navigate("/schedule");
+          if (t === "coach") navigate("/coach");
           if (t === "profile") navigate("/profile");
         }}
       />

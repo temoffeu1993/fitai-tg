@@ -299,8 +299,8 @@ export default function NutritionToday() {
           current="none"
           onChange={(t) => {
             if (t === "home") navigate("/");
-            if (t === "history") navigate("/history");
-            if (t === "nutrition") navigate("/nutrition");
+            if (t === "plan") navigate("/schedule");
+            if (t === "coach") navigate("/coach");
             if (t === "profile") navigate("/profile");
           }}
         />
@@ -486,8 +486,8 @@ const pillDateLabel = new Date().toLocaleDateString("ru-RU", {
         current="none"
         onChange={(t) => {
           if (t === "home") navigate("/");
-          if (t === "history") navigate("/history");
-          if (t === "nutrition") navigate("/nutrition");
+          if (t === "plan") navigate("/schedule");
+          if (t === "coach") navigate("/coach");
           if (t === "profile") navigate("/profile");
         }}
       />

@@ -11,7 +11,6 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   if (pathname === "/" || pathname.startsWith("/dashboard")) return "home";
   if (pathname.startsWith("/schedule")) return "plan";
   if (pathname.startsWith("/coach")) return "coach";
-  if (pathname === "/nutrition" || pathname.startsWith("/nutrition")) return "nutrition";
   if (pathname.startsWith("/profile")) return "profile";
   return "none";
 }
@@ -154,7 +153,6 @@ export default function LayoutWithNav() {
     if (t === "home") navigate("/");
     if (t === "plan") navigate("/schedule");
     if (t === "coach") navigate("/coach");
-    if (t === "nutrition") navigate("/nutrition");
     if (t === "profile") navigate("/profile");
   };
 
