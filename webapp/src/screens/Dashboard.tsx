@@ -1823,10 +1823,10 @@ const s: Record<string, React.CSSProperties> = {
   dayWeeklyProgressLabel: {
     display: "inline-flex",
     alignItems: "center",
-    color: "#0f172a",
+    color: "rgba(15, 23, 42, 0.6)",
     fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1,
+    fontWeight: 400,
+    lineHeight: 1.5,
   },
   dayWeeklyProgressPits: {
     display: "inline-flex",
