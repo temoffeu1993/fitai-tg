@@ -18,7 +18,7 @@ import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import { ChevronDown, Clock3, Dumbbell, Pencil } from "lucide-react";
+import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
@@ -942,21 +942,35 @@ export default function PlanOne() {
 
                       <button
                         type="button"
-                        style={pick.detailsLinkBtn}
+                        style={{
+                          ...pick.detailsLinkBtn,
+                          top: expanded ? 190 : 191,
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                         }}
                         aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
                       >
-                        <ChevronDown
-                          size={18}
-                          strokeWidth={2.2}
+                        <svg
+                          viewBox="0 0 20 12"
+                          width="20"
+                          height="12"
+                          aria-hidden
                           style={{
                             ...pick.detailsChevronIcon,
                             transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
                           }}
-                        />
+                        >
+                          <path
+                            d="M2 2.5L10 9.5L18 2.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </button>
                     </>
                   ) : (
@@ -3500,7 +3514,9 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   detailsLinkBtn: {
-    marginTop: 8,
+    position: "absolute",
+    left: "50%",
+    transform: "translateX(-50%)",
     border: "none",
     background: "transparent",
     cursor: "pointer",
@@ -3514,6 +3530,7 @@ const pick: Record<string, React.CSSProperties> = {
   detailsChevronIcon: {
     color: "rgba(15,23,42,0.62)",
     transition: "transform 180ms ease",
+    transformOrigin: "50% 50%",
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
