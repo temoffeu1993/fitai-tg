@@ -3293,18 +3293,21 @@ const pick: Record<string, React.CSSProperties> = {
     width: "fit-content",
     position: "relative",
     zIndex: 1,
+    transition: "background 180ms ease, box-shadow 180ms ease, color 180ms ease",
   },
   weekDateChipPending: {
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "rgba(15,23,42,0.72)",
+    color: "rgba(17,29,46,0.48)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(15,23,42,0.14)",
   },
   weekDateChipScheduled: {
-    background: "linear-gradient(180deg, rgba(203,230,177,0.95) 0%, rgba(186,214,158,0.92) 100%)",
+    background: "linear-gradient(180deg, rgba(222,236,208,0.98) 0%, rgba(206,226,188,0.96) 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(84,113,63,0.26), inset 0 -1px 0 rgba(255,255,255,0.5)",
-    color: "rgba(27,49,15,0.9)",
+      "inset 0 2px 3px rgba(46,74,29,0.2), inset 0 -1px 0 rgba(255,255,255,0.82)",
+    color: "rgba(26,56,16,0.62)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.88), 0 -1px 0 rgba(35,71,19,0.2)",
   },
   weekDateChipDisabled: {
     cursor: "default",
