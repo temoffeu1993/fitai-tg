@@ -962,19 +962,6 @@ export default function PlanOne() {
                         >
                           <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
                         </div>
-                        {showEditPencil ? (
-                          <button
-                            type="button"
-                            style={pick.weekDateChipEditBtn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openScheduleForWorkout(w.id);
-                            }}
-                            aria-label="Изменить дату и время тренировки"
-                          >
-                            <Pencil size={14} strokeWidth={2.1} style={pick.weekDateChipEditIcon} />
-                          </button>
-                        ) : null}
                       </div>
                       <div style={pick.weekCardCollapsedTitle}>{label}</div>
                     </div>
