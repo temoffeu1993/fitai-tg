@@ -17,7 +17,7 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
-import mascotImg from "@/assets/robonew.webp";
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, Dumbbell } from "lucide-react";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -763,28 +763,23 @@ export default function PlanOne() {
 
       <section style={pick.weekHeroCard}>
         <div style={pick.weekHeroTop}>
-          <span style={s.pill}>{heroDateChip}</span>
-          <span style={s.credits}>{weekChip}</span>
+          <div style={pick.weekHeroCaption}>План на неделю</div>
+          <span style={pick.weekHeroChip}>{weekChip}</span>
         </div>
-        <div style={pick.weekHeroBody}>
-          <div style={pick.weekHeroText}>
-            <div style={pick.weekHeroCaption}>План на неделю</div>
-            <div style={pick.weekHeroTitle}>{schemeTitle}</div>
-            <div style={pick.weekHeroSubtitle}>
-              Все тренировки недели в одном месте. Выбери нужный день и запусти тренировку.
-            </div>
-            <div style={pick.weekProgressRow}>
-              <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
-              <span style={pick.weekProgressPits}>
-                {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
-                  <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
-                    {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
-                  </span>
-                ))}
+        <div style={pick.weekHeroTitle}>{schemeTitle}</div>
+        <div style={pick.weekHeroDate}>{heroDateChip}</div>
+        <div style={pick.weekHeroSubtitle}>
+          Выбери нужный день и запусти тренировку. Статусы обновляются автоматически после выполнения.
+        </div>
+        <div style={pick.weekProgressRow}>
+          <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
+          <span style={pick.weekProgressPits}>
+            {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
+              <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
+                {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
               </span>
-            </div>
-          </div>
-          <img src={mascotImg} alt="" style={pick.weekHeroMascot} loading="eager" decoding="async" />
+            ))}
+          </span>
         </div>
         <div style={pick.weekHeroActions}>
           <button
@@ -798,7 +793,7 @@ export default function PlanOne() {
             onClick={handleStartSelected}
             disabled={!canStart}
           >
-            Начать выбранную тренировку
+            Начать выбранную
           </button>
           <button
             type="button"
@@ -810,7 +805,7 @@ export default function PlanOne() {
             onClick={handleScheduleSelected}
             disabled={!selectedPlanned && !remainingPlanned.length}
           >
-            Заменить дату
+            Выбрать дату
           </button>
         </div>
       </section>
@@ -860,7 +855,8 @@ export default function PlanOne() {
               const dateHint = w.scheduledFor ? formatPlannedDateTime(w.scheduledFor) : "Дата не назначена";
               const primaryActionLabel =
                 status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
-              const secondaryActionLabel = status === "scheduled" ? "Заменить" : "Запланировать";
+              const secondaryActionLabel = status === "scheduled" ? "Заменить дату" : "Назначить дату";
+              const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number";
 
               return (
                 <div
@@ -877,8 +873,7 @@ export default function PlanOne() {
                 >
                   {isRecommended ? (
                     <div style={pick.recommendedBadge}>
-                      <span style={{ fontSize: 12 }}>⭐</span>
-                      <span>Первая по схеме</span>
+                      <span>Рекомендуем</span>
                     </div>
                   ) : null}
 
@@ -888,13 +883,24 @@ export default function PlanOne() {
                   </div>
 
                   <div style={pick.weekCardTitle}>{label}</div>
-                  <div style={pick.weekCardDate}>{dateHint}</div>
+                  <div style={pick.weekCardDate}>
+                    <CalendarDays size={14} strokeWidth={2.2} />
+                    <span>{dateHint}</span>
+                  </div>
 
                   <div style={pick.weekCardMeta}>
-                    <span style={pick.infoChip}>💪 {totalExercises} упр.</span>
-                    {minutes ? <span style={pick.infoChip}>⏱️ {minutes} мин</span> : null}
-                    {activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" ? (
-                      <span style={{ ...pick.infoChip, background: "rgba(15,23,42,0.08)" }}>✅ {activeProgress}%</span>
+                    <span style={pick.infoChip}>
+                      <Dumbbell size={14} strokeWidth={2.2} />
+                      <span>{totalExercises} упражнений</span>
+                    </span>
+                    {minutes ? (
+                      <span style={pick.infoChip}>
+                        <Clock3 size={14} strokeWidth={2.2} />
+                        <span>{minutes} мин</span>
+                      </span>
+                    ) : null}
+                    {hasActiveProgress ? (
+                      <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span>
                     ) : null}
                   </div>
 
@@ -911,34 +917,26 @@ export default function PlanOne() {
                     {status !== "completed" ? (
                       <button
                         type="button"
-                        style={pick.weekActionSecondary}
+                        style={pick.weekActionGhost}
                         onClick={() => openScheduleForWorkout(w.id)}
                       >
+                        <CalendarDays size={14} strokeWidth={2.2} />
                         {secondaryActionLabel}
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        style={pick.weekActionSecondary}
-                        onClick={() => setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }))}
-                      >
-                        {expanded ? "Скрыть" : "Состав"}
-                      </button>
-                    )}
+                    ) : null}
                   </div>
 
-                  {status !== "completed" ? (
-                    <button
-                      type="button"
-                      style={pick.detailsLinkBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
-                      }}
-                    >
-                      {expanded ? "Скрыть упражнения" : "Показать упражнения"}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    style={pick.detailsLinkBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
+                    }}
+                  >
+                    <span>{expanded ? "Скрыть упражнения" : "Состав тренировки"}</span>
+                    {expanded ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
+                  </button>
 
                   {expanded ? (
                     <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
@@ -3008,13 +3006,14 @@ const pick: Record<string, React.CSSProperties> = {
     position: "relative",
     marginTop: 2,
     borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.42)",
+    border: "1px solid rgba(255,255,255,0.75)",
     background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.86) 46%, rgba(255,216,194,.84) 100%)",
-    boxShadow: "0 14px 34px rgba(0,0,0,.14)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
-    padding: 18,
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    boxShadow:
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    padding: "16px 14px",
     overflow: "hidden",
   },
   weekHeroTop: {
@@ -3036,22 +3035,45 @@ const pick: Record<string, React.CSSProperties> = {
     minWidth: 0,
   },
   weekHeroCaption: {
-    fontSize: 13,
-    color: "rgba(15,23,42,0.72)",
-    fontWeight: 600,
+    fontSize: 18,
+    color: "#0f172a",
+    fontWeight: 700,
     letterSpacing: 0.2,
   },
+  weekHeroChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 22,
+    padding: "0 10px",
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.06)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    color: "rgba(15,23,42,0.72)",
+    fontSize: 12,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  },
   weekHeroTitle: {
-    fontSize: 28,
-    lineHeight: 1.05,
-    letterSpacing: -0.4,
+    marginTop: 10,
+    fontSize: 30,
+    lineHeight: 1.07,
+    letterSpacing: -0.5,
     color: "#0f172a",
     fontWeight: 800,
   },
-  weekHeroSubtitle: {
+  weekHeroDate: {
+    marginTop: 6,
     fontSize: 14,
-    lineHeight: 1.45,
-    color: "rgba(15,23,42,0.74)",
+    lineHeight: 1.3,
+    color: "rgba(15,23,42,0.58)",
+    fontWeight: 500,
+  },
+  weekHeroSubtitle: {
+    marginTop: 7,
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: "rgba(15,23,42,0.64)",
     maxWidth: 460,
   },
   weekHeroMascot: {
@@ -3064,7 +3086,7 @@ const pick: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   weekProgressRow: {
-    marginTop: 8,
+    marginTop: 12,
     display: "flex",
     alignItems: "center",
     gap: 10,
@@ -3083,21 +3105,23 @@ const pick: Record<string, React.CSSProperties> = {
     flexWrap: "wrap",
   },
   weekProgressPit: {
-    width: 18,
+    width: 16,
     height: 10,
     borderRadius: 999,
-    border: "1px solid rgba(0,0,0,0.09)",
-    background: "rgba(255,255,255,0.75)",
-    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.14)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "grid",
-    placeItems: "center",
+    alignItems: "flex-end",
+    overflow: "hidden",
   },
   weekProgressDone: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "#A3E635",
-    boxShadow: "0 0 0 1px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.25)",
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow:
+      "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   weekHeroActions: {
     marginTop: 14,
@@ -3109,32 +3133,32 @@ const pick: Record<string, React.CSSProperties> = {
   weekPrimaryBtn: {
     minHeight: 48,
     borderRadius: 999,
-    border: "1px solid rgba(15,23,42,.9)",
-    background: "#0f172a",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    fontSize: 15,
-    fontWeight: 700,
+    fontSize: 16,
+    fontWeight: 500,
     padding: "0 16px",
     cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(15,23,42,.28)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     textAlign: "left",
   },
   weekSecondaryBtn: {
     minHeight: 48,
     borderRadius: 999,
-    border: "1px solid rgba(15,23,42,.2)",
-    background: "rgba(255,255,255,.72)",
-    color: "#0f172a",
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
     fontSize: 14,
-    fontWeight: 700,
-    padding: "0 16px",
+    fontWeight: 500,
+    padding: "0 4px",
     cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+    boxShadow: "none",
   },
   weekListWrap: {
-    marginTop: 14,
+    marginTop: 12,
     display: "grid",
-    gap: 10,
+    gap: 8,
   },
   weekListHeader: {
     display: "flex",
@@ -3150,23 +3174,25 @@ const pick: Record<string, React.CSSProperties> = {
     letterSpacing: -0.2,
   },
   weekListHint: {
-    fontSize: 12,
+    fontSize: 13,
     color: "rgba(15,23,42,0.62)",
     fontWeight: 500,
   },
   weekListGrid: {
     display: "grid",
-    gap: 12,
+    gap: 10,
   },
   weekCard: {
     position: "relative",
-    padding: 16,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.72)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    padding: "14px 12px",
+    borderRadius: 22,
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    boxShadow:
+      "0 12px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     transition: "transform 220ms ease, box-shadow 220ms ease",
     cursor: "pointer",
   },
@@ -3188,7 +3214,7 @@ const pick: Record<string, React.CSSProperties> = {
     minHeight: 22,
     padding: "0 10px",
     borderRadius: 999,
-    background: "rgba(15,23,42,0.08)",
+    background: "rgba(15,23,42,0.06)",
     color: "#0f172a",
     fontSize: 12,
     fontWeight: 700,
@@ -3216,76 +3242,87 @@ const pick: Record<string, React.CSSProperties> = {
     color: "rgba(17,24,39,.74)",
   },
   statusDone: {
-    background: "rgba(163,230,53,.18)",
-    borderColor: "rgba(132,204,22,.42)",
-    color: "#3f6212",
+    background: "rgba(30,31,34,0.09)",
+    borderColor: "rgba(30,31,34,0.2)",
+    color: "#1e1f22",
   },
   weekCardTitle: {
-    marginTop: 10,
-    fontSize: 23,
-    lineHeight: 1.1,
+    marginTop: 9,
+    fontSize: 28,
+    lineHeight: 1.06,
     fontWeight: 800,
     color: "#0f172a",
-    letterSpacing: -0.2,
+    letterSpacing: -0.45,
   },
   weekCardDate: {
-    marginTop: 4,
+    marginTop: 5,
     fontSize: 13,
     color: "rgba(15,23,42,.64)",
-    fontWeight: 600,
+    fontWeight: 500,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
   },
   weekCardMeta: {
-    marginTop: 10,
+    marginTop: 8,
     display: "flex",
     flexWrap: "wrap",
-    gap: 7,
+    gap: 12,
     alignItems: "center",
   },
   weekCardDesc: {
-    marginTop: 10,
+    marginTop: 9,
     fontSize: 13,
-    lineHeight: 1.5,
-    color: "rgba(15,23,42,.72)",
-    fontWeight: 500,
+    lineHeight: 1.45,
+    color: "rgba(15,23,42,.56)",
+    fontWeight: 400,
   },
   weekCardActions: {
     marginTop: 12,
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "1fr auto",
     gap: 8,
+    alignItems: "center",
   },
   weekActionPrimary: {
-    border: "1px solid rgba(15,23,42,.9)",
-    borderRadius: 12,
-    background: "#0f172a",
+    border: "1px solid #1e1f22",
+    borderRadius: 999,
+    background: "#1e1f22",
     color: "#fff",
-    fontSize: 14,
-    fontWeight: 700,
-    minHeight: 40,
-    padding: "0 12px",
+    fontSize: 16,
+    fontWeight: 500,
+    minHeight: 46,
+    padding: "0 16px",
     cursor: "pointer",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.22)",
   },
-  weekActionSecondary: {
-    border: "1px solid rgba(0,0,0,0.09)",
-    borderRadius: 12,
-    background: "rgba(255,255,255,.82)",
-    color: "#0f172a",
+  weekActionGhost: {
+    border: "none",
+    borderRadius: 999,
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 500,
     minHeight: 40,
-    padding: "0 12px",
+    padding: "0 6px",
     cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
   },
   detailsLinkBtn: {
     marginTop: 8,
     border: "none",
     background: "transparent",
     color: "rgba(15,23,42,.75)",
-    fontSize: 12,
-    fontWeight: 700,
+    fontSize: 13,
+    fontWeight: 500,
     cursor: "pointer",
-    padding: 0,
+    padding: "0 2px",
     textAlign: "left",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
@@ -3311,18 +3348,19 @@ const pick: Record<string, React.CSSProperties> = {
   },
   recommendedBadge: {
     position: "absolute",
-    top: -10,
-    right: 16,
-    background: "#0f172a",
-    color: "#fff",
-    padding: "5px 12px",
+    top: 12,
+    right: 12,
+    background: "rgba(30,31,34,0.08)",
+    border: "1px solid rgba(30,31,34,0.16)",
+    color: "#1e1f22",
+    padding: "2px 8px",
     borderRadius: "100px",
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 10,
+    fontWeight: 600,
     display: "flex",
     alignItems: "center",
-    gap: 5,
-    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.3)",
+    gap: 4,
+    boxShadow: "none",
     zIndex: 10,
   },
   radioCircle: {
@@ -3366,20 +3404,31 @@ const pick: Record<string, React.CSSProperties> = {
     WebkitOverflowScrolling: "touch",
   },
   infoChip: {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#334155",
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    padding: 0,
+    borderRadius: 0,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15, 23, 42, 0.6)",
     whiteSpace: "nowrap",
-    display: "flex",
+    display: "inline-flex",
     alignItems: "center",
-    gap: 4,
+    gap: 7,
+    lineHeight: 1.5,
+  },
+  infoChipSoft: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 24,
+    padding: "0 9px",
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.07)",
+    border: "1px solid rgba(15,23,42,0.1)",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.72)",
   },
   infoChipScheduled: {
     background: "rgba(255,230,128,.25)",
