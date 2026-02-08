@@ -746,19 +746,20 @@ export default function PlanOne() {
     });
   const totalWeekCount = weekWorkouts.length;
   const completedWeekCount = weekWorkouts.filter((w) => w.status === "completed").length;
-  const activeStackId = useMemo(() => {
-    if (!weekWorkouts.length) return null;
-    if (selectedPlannedId && weekWorkouts.some((w) => w.id === selectedPlannedId)) return selectedPlannedId;
-    return weekWorkouts[0].id;
-  }, [weekWorkouts, selectedPlannedId]);
+  const activeStackId =
+    weekWorkouts.length === 0
+      ? null
+      : selectedPlannedId && weekWorkouts.some((w) => w.id === selectedPlannedId)
+      ? selectedPlannedId
+      : weekWorkouts[0].id;
   const activeStackIndex = activeStackId ? weekWorkouts.findIndex((w) => w.id === activeStackId) : -1;
-  const stackOrder = useMemo(() => {
+  const stackOrder = (() => {
     if (!weekWorkouts.length) return [];
     if (activeStackIndex < 0) return weekWorkouts.map((_, i) => i);
     const order = weekWorkouts.map((_, i) => i).filter((i) => i !== activeStackIndex);
     order.push(activeStackIndex);
     return order;
-  }, [weekWorkouts, activeStackIndex]);
+  })();
   const stackHeight = weekWorkouts.length
     ? (weekWorkouts.length - 1) * WEEK_STACK_OFFSET + WEEK_STACK_ACTIVE_H
     : 0;
