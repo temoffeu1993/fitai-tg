@@ -889,12 +889,12 @@ export default function PlanOne() {
 
                       <div style={pick.weekCardMeta}>
                         <span style={pick.infoChip}>
-                          <Clock3 size={14} strokeWidth={2.1} />
-                          <span>{minutes ? `${minutes} мин` : "—"}</span>
+                          <Clock3 size={13} strokeWidth={2.1} style={pick.infoChipClockIcon} />
+                          <span style={pick.infoChipMinutesText}>{minutes ? `${minutes} мин` : "—"}</span>
                         </span>
                         <span style={pick.infoChip}>
                           <Dumbbell size={14} strokeWidth={2.1} />
-                          <span>{totalExercises} упражнений</span>
+                          <span style={pick.infoChipExercisesText}>{totalExercises} упражнений</span>
                         </span>
                         {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
                       </div>
@@ -3547,6 +3547,20 @@ const pick: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 7,
+    lineHeight: 1.5,
+  },
+  infoChipClockIcon: {
+    transform: "translateY(0.2px)",
+    flex: "0 0 auto",
+  },
+  infoChipMinutesText: {
+    fontSize: 13,
+    fontWeight: 400,
+    lineHeight: 1.5,
+  },
+  infoChipExercisesText: {
+    fontSize: 14,
+    fontWeight: 400,
     lineHeight: 1.5,
   },
   infoChipSoft: {
