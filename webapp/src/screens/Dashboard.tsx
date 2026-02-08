@@ -27,7 +27,7 @@ import {
   type Location,
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
-import { Clock3, Dumbbell } from "lucide-react";
+import { Clock3, Dumbbell, RefreshCw } from "lucide-react";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -1362,8 +1362,9 @@ export default function Dashboard() {
                 type="button"
                 style={s.dayBtnSecondary}
                 onClick={handleDayReplace}
+                aria-label="Заменить тренировку"
               >
-                Заменить
+                <RefreshCw size={18} strokeWidth={2.2} aria-hidden />
               </button>
             </div>
           ) : (
@@ -1910,9 +1911,10 @@ const s: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    height: "auto",
+    width: 34,
+    height: 34,
     padding: 0,
-    borderRadius: 0,
+    borderRadius: 999,
     border: "none",
     background: "transparent",
     color: "rgba(15, 23, 42, 0.6)",
