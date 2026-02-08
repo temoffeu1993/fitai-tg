@@ -1512,7 +1512,6 @@ const s: Record<string, React.CSSProperties> = {
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 0",
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     background: "transparent",
-    minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
     gap: 12,

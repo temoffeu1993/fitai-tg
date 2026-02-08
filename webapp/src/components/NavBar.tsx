@@ -1,5 +1,5 @@
 // webapp/src/components/NavBar.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, House, MessageCircle, UserRound } from "lucide-react";
 
 export type TabKey = "home" | "plan" | "coach" | "profile";
@@ -48,13 +48,16 @@ export default function NavBar({
   pushDown = 0,
   /** Если передан, имеет приоритет над автоопределением */
   disabledAll,
+  onHeightChange,
 }: {
   current: NavCurrent;
   onChange?: (t: TabKey) => void;
   pushDown?: number;
   disabledAll?: boolean;
+  onHeightChange?: (height: number) => void;
 }) {
   const [complete, setComplete] = useState<boolean>(isOnboardingCompleteLocal());
+  const navRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const handler = () => setComplete(isOnboardingCompleteLocal());
@@ -106,8 +109,35 @@ export default function NavBar({
     return `translateX(calc(${activeIndex} * (100% + ${TAB_GAP}px)))`;
   }, [activeIndex]);
 
+  useEffect(() => {
+    if (!onHeightChange) return;
+    const el = navRef.current;
+    if (!el) return;
+
+    let raf: number | null = null;
+    const emit = () => {
+      const next = Math.round(el.getBoundingClientRect().height);
+      onHeightChange(next);
+    };
+
+    emit();
+    const ro = new ResizeObserver(() => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(emit);
+    });
+    ro.observe(el);
+    window.addEventListener("resize", emit);
+
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", emit);
+    };
+  }, [onHeightChange]);
+
   return (
     <nav
+      ref={navRef}
       style={{
         ...st.tabbar,
         transform: pushDown ? `translateY(${pushDown}px)` : undefined,

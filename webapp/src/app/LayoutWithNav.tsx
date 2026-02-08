@@ -78,6 +78,7 @@ export default function LayoutWithNav() {
   const keyboardOffset = useKeyboardOffset();
 
   const [onbDone, setOnbDone] = useState<boolean>(hasOnbLocal());
+  const [navHeight, setNavHeight] = useState<number>(72);
 
   // Фикс: если предыдущий экран был проскроллен, /coach иногда открывается "со сдвигом".
   // Скроллится не window, а #root (см. styles.css), поэтому сбрасываем именно его ДО отрисовки.
@@ -163,7 +164,7 @@ export default function LayoutWithNav() {
       style={{
         minHeight: "100%",
         background: "transparent",
-        paddingBottom: hideNav ? 0 : 72,
+        paddingBottom: hideNav ? 0 : navHeight,
         position: "relative",
       }}
     >
@@ -184,6 +185,9 @@ export default function LayoutWithNav() {
           onChange={handleChange}
           pushDown={disableKeyboardShift ? 0 : keyboardOffset}
           disabledAll={!onbDone}
+          onHeightChange={(height) => {
+            setNavHeight((prev) => (Math.abs(prev - height) > 1 ? height : prev));
+          }}
         />
       )}
     </div>
