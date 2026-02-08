@@ -938,40 +938,37 @@ export default function PlanOne() {
                             <span style={pick.weekActionPrimaryArrow}>→</span>
                           </span>
                         </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        style={{
-                          ...pick.detailsLinkBtn,
-                          top: expanded ? 190 : 191,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
-                        }}
-                        aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
-                      >
-                        <svg
-                          viewBox="0 0 20 12"
-                          width="20"
-                          height="12"
-                          aria-hidden
-                          style={{
-                            ...pick.detailsChevronIcon,
-                            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                        <button
+                          type="button"
+                          style={pick.detailsLinkBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                           }}
+                          aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
                         >
-                          <path
-                            d="M2 2.5L10 9.5L18 2.5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            viewBox="0 0 20 12"
+                            width="20"
+                            height="12"
+                            aria-hidden
+                            style={{
+                              ...pick.detailsChevronIcon,
+                              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                            }}
+                          >
+                            <path
+                              d="M2 2.5L10 9.5L18 2.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <span style={pick.weekActionsRightSpacer} aria-hidden />
+                      </div>
                     </>
                   ) : (
                     <div style={pick.weekCardCollapsedBody}>
@@ -3475,8 +3472,10 @@ const pick: Record<string, React.CSSProperties> = {
   },
   weekCardActions: {
     marginTop: 12,
-    display: "flex",
-    alignItems: "center",
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
+    alignItems: "end",
+    width: "100%",
   },
   weekActionPrimary: {
     alignSelf: "flex-start",
@@ -3514,9 +3513,6 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   detailsLinkBtn: {
-    position: "absolute",
-    left: "50%",
-    transform: "translateX(-50%)",
     border: "none",
     background: "transparent",
     cursor: "pointer",
@@ -3526,11 +3522,18 @@ const pick: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     width: 18,
     height: 18,
+    justifySelf: "center",
+    alignSelf: "end",
   },
   detailsChevronIcon: {
     color: "rgba(15,23,42,0.62)",
     transition: "transform 180ms ease",
     transformOrigin: "50% 50%",
+  },
+  weekActionsRightSpacer: {
+    justifySelf: "end",
+    width: 1,
+    height: 1,
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
