@@ -958,7 +958,7 @@ export default function PlanOne() {
                             }}
                           >
                             <path
-                              d="M2 2.5L10 9.5L18 2.5"
+                              d="M2 4.5L10 7.5L18 4.5"
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2.2"
