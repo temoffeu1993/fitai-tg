@@ -27,6 +27,7 @@ import {
   type Location,
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
+import { Clock3, Dumbbell } from "lucide-react";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -231,44 +232,11 @@ function formatWorkoutCountRu(count: number) {
 }
 
 function ClockIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      focusable="false"
-    >
-      <circle cx="12" cy="12" r="8.5" stroke="currentColor" />
-      <path d="M12 7.5v5l3.5 2" stroke="currentColor" />
-    </svg>
-  );
+  return <Clock3 size={size} strokeWidth={2.2} aria-hidden />;
 }
 
 function DumbbellIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      focusable="false"
-    >
-      <path d="M4 9v6" stroke="currentColor" />
-      <path d="M7 8v8" stroke="currentColor" />
-      <path d="M17 8v8" stroke="currentColor" />
-      <path d="M20 9v6" stroke="currentColor" />
-      <path d="M7 12h10" stroke="currentColor" />
-    </svg>
-  );
+  return <Dumbbell size={size} strokeWidth={2.2} aria-hidden />;
 }
 
 function datePart(value?: string | null): string {
