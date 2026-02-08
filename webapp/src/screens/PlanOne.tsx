@@ -61,7 +61,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_STACK_OFFSET_MIN = 78;
 const WEEK_STACK_OFFSET_MAX = 86;
 const WEEK_STACK_COLLAPSED_H = 104;
-const WEEK_STACK_ACTIVE_H = 232;
+const WEEK_STACK_ACTIVE_H = 210;
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
