@@ -948,23 +948,15 @@ export default function PlanOne() {
                           aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
                         >
                           <svg
-                            viewBox="0 0 20 12"
+                            viewBox="0 0 20 6"
                             width="20"
-                            height="12"
+                            height="6"
                             aria-hidden
-                            style={{
-                              ...pick.detailsChevronIcon,
-                              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                            }}
+                            style={pick.detailsChevronIcon}
                           >
-                            <path
-                              d="M2 4.5L10 7.5L18 4.5"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
+                            <circle cx="3" cy="3" r="1.15" fill="currentColor" />
+                            <circle cx="10" cy="3" r="1.15" fill="currentColor" />
+                            <circle cx="17" cy="3" r="1.15" fill="currentColor" />
                           </svg>
                         </button>
                         <span style={pick.weekActionsRightSpacer} aria-hidden />
@@ -3437,6 +3429,8 @@ const pick: Record<string, React.CSSProperties> = {
     gap: 6,
     width: "fit-content",
     maxWidth: "100%",
+    marginLeft: "auto",
+    justifySelf: "end",
     position: "relative",
     zIndex: 1,
   },
@@ -3520,15 +3514,13 @@ const pick: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 10,
     justifySelf: "center",
     alignSelf: "end",
   },
   detailsChevronIcon: {
     color: "rgba(15,23,42,0.62)",
-    transition: "transform 180ms ease",
-    transformOrigin: "50% 50%",
   },
   weekActionsRightSpacer: {
     justifySelf: "end",
