@@ -6,8 +6,8 @@ export type TabKey = "home" | "plan" | "coach" | "profile";
 export type NavCurrent = TabKey | "none";
 const TAB_ORDER: TabKey[] = ["home", "plan", "coach", "profile"];
 const TAB_COUNT = 4;
-const TABBAR_INNER_PADDING = 6;
-const TAB_GAP = 6;
+const TABBAR_INNER_PADDING = 5;
+const TAB_GAP = 5;
 const NAV_ICON_SIZE = 25;
 const NAV_ICON_STROKE = 2.2;
 
@@ -206,13 +206,13 @@ const st: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(24px) saturate(170%)",
     WebkitBackdropFilter: "blur(24px) saturate(170%)",
     boxShadow:
-      "0 10px 24px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.86)",
-    borderRadius: 34,
-    padding: "6px",
+      "0 8px 18px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.84)",
+    borderRadius: 999,
+    padding: `${TABBAR_INNER_PADDING}px`,
     display: "grid",
     gridTemplateColumns: "repeat(4,1fr)",
-    gap: 6,
-    border: "1px solid rgba(255,255,255,0.58)",
+    gap: TAB_GAP,
+    border: "1px solid rgba(255,255,255,0.44)",
     position: "relative",
     overflow: "hidden",
   },
@@ -222,7 +222,7 @@ const st: Record<string, React.CSSProperties> = {
     top: TABBAR_INNER_PADDING,
     bottom: TABBAR_INNER_PADDING,
     width: `calc((100% - ${TABBAR_INNER_PADDING * 2}px - ${TAB_GAP * (TAB_COUNT - 1)}px) / ${TAB_COUNT})`,
-    borderRadius: 26,
+    borderRadius: 999,
     background: "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(234,238,244,0.74) 100%)",
     boxShadow:
       "inset 0 1px 0 rgba(255,255,255,0.88), 0 2px 8px rgba(15,23,42,0.08)",
@@ -233,13 +233,13 @@ const st: Record<string, React.CSSProperties> = {
   },
   tabBtn: {
     border: "none",
-    borderRadius: 26,
-    padding: "6px 6px 5px",
-    minHeight: 60,
+    borderRadius: 999,
+    padding: "4px 6px",
+    minHeight: 54,
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    gap: 4,
+    gap: 1,
     cursor: "pointer",
     fontWeight: 600,
     color: "rgba(15,23,42,0.72)",
@@ -259,8 +259,8 @@ const st: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   iconOrb: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 999,
     background: "transparent",
     display: "grid",
