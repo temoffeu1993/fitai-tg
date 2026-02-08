@@ -3425,7 +3425,7 @@ const pick: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 6,
     width: "fit-content",
-    maxWidth: "90%",
+    maxWidth: "100%",
     position: "relative",
     zIndex: 1,
   },
@@ -3436,7 +3436,7 @@ const pick: Record<string, React.CSSProperties> = {
     padding: "0 9px",
     borderRadius: 999,
     width: "fit-content",
-    maxWidth: "84%",
+    maxWidth: "100%",
     fontSize: 11,
     fontWeight: 600,
     lineHeight: 1,
@@ -3446,8 +3446,8 @@ const pick: Record<string, React.CSSProperties> = {
   weekDateChipCollapsedText: {
     display: "inline-block",
     whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    overflow: "visible",
+    textOverflow: "clip",
   },
   weekCardCollapsedTitle: {
     fontSize: 20,
