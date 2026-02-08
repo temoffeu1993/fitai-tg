@@ -744,8 +744,6 @@ export default function PlanOne() {
       const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
       return at - bt;
     });
-  const totalWeekCount = weekWorkouts.length;
-  const completedWeekCount = weekWorkouts.filter((w) => w.status === "completed").length;
   const activeStackId =
     weekWorkouts.length === 0
       ? null
@@ -803,20 +801,10 @@ export default function PlanOne() {
             <img src={mascotImg} alt="" style={pick.programAvatarImg} loading="eager" decoding="async" />
           </span>
           <div style={pick.programHeaderText}>
-            Твоя программа тренировок на неделю. Запланируй или сразу начинай.
+            <div style={pick.programHeaderTitle}>План на неделю</div>
+            <div style={pick.programHeaderSub}>Запланируй тренировку или сразу начинай</div>
           </div>
         </div>
-      </section>
-
-      <section style={pick.programProgressRow}>
-        <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
-        <span style={pick.weekProgressPits}>
-          {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
-            <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
-              {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
-            </span>
-          ))}
-        </span>
       </section>
 
       {weekWorkouts.length ? (
@@ -824,10 +812,7 @@ export default function PlanOne() {
           <div style={{ ...pick.weekListGrid, height: stackHeight }}>
             {weekWorkouts.map((w, index) => {
               const p: any = w.plan || {};
-              const dayIndexRaw = Number(p?.dayIndex);
-              const dayIndex = Number.isFinite(dayIndexRaw) && dayIndexRaw > 0 ? dayIndexRaw : index + 1;
               const isSelected = w.id === activeStackId;
-              const isRecommended = w.id === recommendedPlannedId;
               const stackIndex = stackOrder.indexOf(index);
               const top = stackIndex * WEEK_STACK_OFFSET;
               const status = w.status || "pending";
@@ -872,16 +857,11 @@ export default function PlanOne() {
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
-                  {isRecommended ? (
-                    <div style={pick.recommendedBadge}>
-                      <span>Рекомендуем</span>
+                  {status !== "pending" ? (
+                    <div style={pick.weekCardTop}>
+                      <span style={{ ...pick.weekStatusPill, ...statusStyle }}>{statusText}</span>
                     </div>
                   ) : null}
-
-                  <div style={pick.weekCardTop}>
-                    <span style={pick.weekDayPill}>День {dayIndex}</span>
-                    <span style={{ ...pick.weekStatusPill, ...statusStyle }}>{statusText}</span>
-                  </div>
 
                   {isSelected ? (
                     <>
@@ -950,17 +930,6 @@ export default function PlanOne() {
                 </div>
               );
             })}
-          </div>
-          <div style={pick.weekStackDots}>
-            {weekWorkouts.map((w) => (
-              <span
-                key={`stack-dot-${w.id}`}
-                style={{
-                  ...pick.weekStackDot,
-                  ...(w.id === activeStackId ? pick.weekStackDotActive : undefined),
-                }}
-              />
-            ))}
           </div>
           {activeStackWorkout && activeStackExpanded ? (
             <div style={pick.detailsSection}>
@@ -3057,10 +3026,20 @@ const pick: Record<string, React.CSSProperties> = {
     borderRadius: 999,
   },
   programHeaderText: {
+    display: "grid",
+    gap: 2,
+  },
+  programHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#1e1f22",
+    lineHeight: 1.2,
+  },
+  programHeaderSub: {
     fontSize: 15,
     fontWeight: 500,
     lineHeight: 1.4,
-    color: "rgba(30, 31, 34, 0.8)",
+    color: "rgba(30, 31, 34, 0.7)",
   },
   programProgressRow: {
     marginTop: 8,
@@ -3282,7 +3261,7 @@ const pick: Record<string, React.CSSProperties> = {
   weekCardTop: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 10,
   },
   weekDayPill: {
@@ -3422,28 +3401,6 @@ const pick: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 5,
-  },
-  weekStackDots: {
-    marginTop: 6,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    justifyContent: "center",
-    justifySelf: "center",
-  },
-  weekStackDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.2)",
-    transition: "transform 240ms ease, background-color 240ms ease, opacity 240ms ease",
-    opacity: 0.65,
-  },
-  weekStackDotActive: {
-    width: 16,
-    borderRadius: 999,
-    background: "rgba(30,31,34,0.72)",
-    opacity: 1,
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
