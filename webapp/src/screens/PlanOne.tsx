@@ -41,7 +41,8 @@ const formatScheduledDateChip = (iso: string) => {
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_STACK_OFFSET = 66;
+const WEEK_STACK_OFFSET_MIN = 74;
+const WEEK_STACK_OFFSET_MAX = 80;
 const WEEK_STACK_COLLAPSED_H = 104;
 const WEEK_STACK_ACTIVE_H = 232;
 
@@ -132,6 +133,9 @@ export default function PlanOne() {
   const [initialPlanRequested, setInitialPlanRequested] = useState(false);
   const [initialWeekRequested, setInitialWeekRequested] = useState(false);
   const [needsCheckIn, setNeedsCheckIn] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== "undefined" ? window.innerHeight : 812
+  );
 
   const activeDraft = useMemo(() => readSessionDraft(), []);
   const activeProgress = useMemo(() => {
@@ -256,6 +260,14 @@ export default function PlanOne() {
     if (selectedPlannedId && selectable.some((w) => w.id === selectedPlannedId)) return;
     setSelectedPlannedId(recommendedPlannedId || selectable[0].id);
   }, [plannedWorkouts, recommendedPlannedId, selectedPlannedId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setViewportHeight(window.innerHeight || 812);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -753,8 +765,17 @@ export default function PlanOne() {
     order.push(activeStackIndex);
     return order;
   })();
+  const weekStackOffset = useMemo(() => {
+    const vh = Number(viewportHeight) || 812;
+    if (vh <= 700) return WEEK_STACK_OFFSET_MIN;
+    if (vh >= 920) return WEEK_STACK_OFFSET_MAX;
+    const t = (vh - 700) / 220;
+    return Math.round(
+      WEEK_STACK_OFFSET_MIN + (WEEK_STACK_OFFSET_MAX - WEEK_STACK_OFFSET_MIN) * t
+    );
+  }, [viewportHeight]);
   const stackHeight = weekWorkouts.length
-    ? (weekWorkouts.length - 1) * WEEK_STACK_OFFSET + WEEK_STACK_ACTIVE_H + 8
+    ? (weekWorkouts.length - 1) * weekStackOffset + WEEK_STACK_ACTIVE_H + 8
     : 0;
   const activeStackWorkout = activeStackId ? weekWorkouts.find((w) => w.id === activeStackId) || null : null;
   const activeStackExpanded = Boolean(activeStackWorkout && expandedPlannedIds[activeStackWorkout.id]);
@@ -809,7 +830,7 @@ export default function PlanOne() {
               const p: any = w.plan || {};
               const isSelected = w.id === activeStackId;
               const stackIndex = stackOrder.indexOf(index);
-              const top = stackIndex * WEEK_STACK_OFFSET;
+              const top = stackIndex * weekStackOffset;
               const status = w.status || "pending";
               const { totalExercises, minutes } = workoutChips(p);
               const label = dayLabelRU(p);
@@ -3335,7 +3356,7 @@ const pick: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   weekCardCollapsedBody: {
-    marginTop: 8,
+    marginTop: 3,
     display: "grid",
     gap: 6,
     alignContent: "start",
