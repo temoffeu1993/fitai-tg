@@ -864,26 +864,36 @@ export default function PlanOne() {
                     <>
                       <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
 
-                      <button
-                        type="button"
-                        style={{
-                          ...pick.weekDateChipButton,
-                          ...chipToneStyle,
-                          ...(canEditSchedule ? null : pick.weekDateChipDisabled),
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!canEditSchedule) return;
-                          openScheduleForWorkout(w.id);
-                        }}
-                        aria-label={
-                          hasScheduledDate ? "Изменить дату и время тренировки" : "Выбрать дату и время тренировки"
-                        }
-                        disabled={!canEditSchedule}
-                      >
-                        {showEditPencil ? <Pencil size={13} strokeWidth={2.2} style={pick.weekDateChipIcon} /> : null}
-                        <span>{dateChipLabel}</span>
-                      </button>
+                      <div style={pick.weekDateChipRow} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          style={{
+                            ...pick.weekDateChipButton,
+                            ...chipToneStyle,
+                            ...(canEditSchedule ? null : pick.weekDateChipDisabled),
+                          }}
+                          onClick={() => {
+                            if (!canEditSchedule) return;
+                            openScheduleForWorkout(w.id);
+                          }}
+                          aria-label={
+                            hasScheduledDate ? "Изменить дату и время тренировки" : "Выбрать дату и время тренировки"
+                          }
+                          disabled={!canEditSchedule}
+                        >
+                          <span>{dateChipLabel}</span>
+                        </button>
+                        {showEditPencil ? (
+                          <button
+                            type="button"
+                            style={pick.weekDateChipEditBtn}
+                            onClick={() => openScheduleForWorkout(w.id)}
+                            aria-label="Изменить дату и время тренировки"
+                          >
+                            <Pencil size={14} strokeWidth={2.1} style={pick.weekDateChipEditIcon} />
+                          </button>
+                        ) : null}
+                      </div>
 
                       <div style={pick.weekCardTitle}>{label}</div>
 
@@ -926,16 +936,28 @@ export default function PlanOne() {
                     </>
                   ) : (
                     <div style={pick.weekCardCollapsedBody}>
-                      <div
-                        style={{
-                          ...pick.weekDateChipCollapsed,
-                          ...chipToneStyle,
-                        }}
-                      >
+                      <div style={pick.weekDateChipCollapsedRow}>
+                        <div
+                          style={{
+                            ...pick.weekDateChipCollapsed,
+                            ...chipToneStyle,
+                          }}
+                        >
+                          <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
+                        </div>
                         {showEditPencil ? (
-                          <Pencil size={11} strokeWidth={2.2} style={pick.weekDateChipCollapsedIcon} />
+                          <button
+                            type="button"
+                            style={pick.weekDateChipEditBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openScheduleForWorkout(w.id);
+                            }}
+                            aria-label="Изменить дату и время тренировки"
+                          >
+                            <Pencil size={14} strokeWidth={2.1} style={pick.weekDateChipEditIcon} />
+                          </button>
                         ) : null}
-                        <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
                       </div>
                       <div style={pick.weekCardCollapsedTitle}>{label}</div>
                     </div>
@@ -3309,11 +3331,18 @@ const pick: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+  weekDateChipRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    width: "fit-content",
+    position: "relative",
+    zIndex: 1,
+  },
   weekDateChipButton: {
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+    justifyContent: "flex-start",
     minHeight: 28,
     padding: "0 12px",
     borderRadius: 999,
@@ -3346,9 +3375,23 @@ const pick: Record<string, React.CSSProperties> = {
     cursor: "default",
     opacity: 0.8,
   },
-  weekDateChipIcon: {
-    opacity: 0.94,
-    color: "rgba(32,48,70,0.52)",
+  weekDateChipEditBtn: {
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    padding: 0,
+    margin: 0,
+    width: 14,
+    height: 14,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    color: "rgba(15,23,42,0.6)",
+    flex: "0 0 auto",
+  },
+  weekDateChipEditIcon: {
+    color: "rgba(15,23,42,0.6)",
     flex: "0 0 auto",
   },
   weekCardMeta: {
@@ -3365,10 +3408,18 @@ const pick: Record<string, React.CSSProperties> = {
     gap: 6,
     alignContent: "start",
   },
+  weekDateChipCollapsedRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    width: "fit-content",
+    maxWidth: "90%",
+    position: "relative",
+    zIndex: 1,
+  },
   weekDateChipCollapsed: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 4,
     minHeight: 22,
     padding: "0 9px",
     borderRadius: 999,
@@ -3379,11 +3430,6 @@ const pick: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     position: "relative",
     zIndex: 1,
-  },
-  weekDateChipCollapsedIcon: {
-    opacity: 0.92,
-    color: "rgba(32,48,70,0.5)",
-    flex: "0 0 auto",
   },
   weekDateChipCollapsedText: {
     display: "inline-block",
