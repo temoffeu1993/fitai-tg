@@ -6,7 +6,7 @@ export type TabKey = "home" | "plan" | "coach" | "profile";
 export type NavCurrent = TabKey | "none";
 const TAB_ORDER: TabKey[] = ["home", "plan", "coach", "profile"];
 const TAB_COUNT = 4;
-const TABBAR_INNER_PADDING = 5;
+const TABBAR_INNER_PADDING = 6;
 const TAB_GAP = 5;
 const NAV_ICON_SIZE = 25;
 const NAV_ICON_STROKE = 2.2;
@@ -223,7 +223,7 @@ const st: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    padding: "0 14px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+    padding: "0 12px calc(env(safe-area-inset-bottom, 0px) + 12px)",
     pointerEvents: "none",
     zIndex: 20,
     transition: "transform .2s ease",
@@ -242,7 +242,7 @@ const st: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(4,1fr)",
     gap: TAB_GAP,
-    border: "1px solid rgba(255,255,255,0.44)",
+    border: "none",
     position: "relative",
     overflow: "hidden",
   },
@@ -255,7 +255,7 @@ const st: Record<string, React.CSSProperties> = {
     borderRadius: 999,
     background: "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(234,238,244,0.74) 100%)",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.88), 0 2px 8px rgba(15,23,42,0.08)",
+      "inset 0 1px 0 rgba(255,255,255,0.88), 0 2px 8px rgba(15,23,42,0.07)",
     transition:
       "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease",
     zIndex: 0,
@@ -264,12 +264,12 @@ const st: Record<string, React.CSSProperties> = {
   tabBtn: {
     border: "none",
     borderRadius: 999,
-    padding: "4px 6px",
-    minHeight: 54,
+    padding: "5px 6px",
+    minHeight: 55,
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    gap: 0,
+    gap: 1,
     cursor: "pointer",
     fontWeight: 600,
     color: "rgba(15,23,42,0.72)",
@@ -324,7 +324,6 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(15,23,42,0.42)",
     textAlign: "center",
     whiteSpace: "nowrap",
-    marginTop: -1,
     transition: "color .24s ease, opacity .24s ease, transform .24s ease",
   },
   tabLabelActive: {
