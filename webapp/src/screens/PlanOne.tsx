@@ -17,6 +17,7 @@ import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
+import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import { Clock3, Dumbbell } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -593,16 +594,24 @@ export default function PlanOne() {
   })();
   const weekChip = mesoWeek ? `Неделя ${mesoWeek}` : "Неделя";
 
-  const dayLabelRU = (label: string) => {
-    const v = String(label || "").toLowerCase();
-    if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Грудь, плечи и трицепс";
-    if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Спина и бицепс";
-    if (v.includes("leg") || v.includes("ног")) return "Ноги и ягодицы";
-    if (v.includes("upper") || v.includes("верх")) return "Верхняя часть тела";
-    if (v.includes("lower") || v.includes("низ")) return "Нижняя часть тела";
-    if (v.includes("full")) return "Всё тело";
-    if (v.includes("recovery") || v.includes("восстанов")) return "Восстановление";
-    return label || "Тренировка";
+  const dayLabelRU = (planLike: any) => {
+    const raw = String(
+      planLike?.dayLabel ||
+        planLike?.title ||
+        planLike?.name ||
+        planLike?.label ||
+        planLike?.scheme_label ||
+        ""
+    ).trim();
+    const idxRaw = Number(planLike?.dayIndex);
+    const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
+    const splitType = String(planLike?.splitType || planLike?.meta?.splitType || "").trim();
+    if (raw) {
+      const resolved = resolveDayCopy(raw, splitType, idx).title;
+      if (/^День\s+\d+/.test(resolved)) return raw;
+      return resolved;
+    }
+    return "Тренировка";
   };
 
   const dayMascotForLabel = (label: string) => {
@@ -638,8 +647,7 @@ export default function PlanOne() {
   const selectedDayLabel = (() => {
     if (!selectedPlanned) return null;
     const p: any = selectedPlanned.plan || {};
-    const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-    return dayLabelRU(rawLabel);
+    return dayLabelRU(p);
   })();
 
   const startCtaLabel = "🏁 Начать тренировку";
@@ -796,9 +804,8 @@ export default function PlanOne() {
               const top = stackIndex * WEEK_STACK_OFFSET;
               const status = w.status || "pending";
               const { totalExercises, minutes } = workoutChips(p);
-              const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-              const label = dayLabelRU(rawLabel);
-              const dayMascotSrc = dayMascotForLabel(rawLabel);
+              const label = dayLabelRU(p);
+              const dayMascotSrc = dayMascotForLabel(label);
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const primaryActionLabel =
