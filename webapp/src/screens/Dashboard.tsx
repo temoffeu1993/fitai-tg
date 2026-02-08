@@ -27,7 +27,7 @@ import {
   type Location,
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
-import { Clock3, Dumbbell, RefreshCw } from "lucide-react";
+import { Clock3, Dumbbell } from "lucide-react";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -1346,27 +1346,17 @@ export default function Dashboard() {
             </div>
           )}
           {showPlannedStartReplace ? (
-            <div style={s.dayBtnRow}>
-              <button
-                type="button"
-                style={{ ...s.dayBtn, ...s.dayBtnInRow }}
-                className="dash-primary-btn day-cta"
-                onClick={handleDayStart}
-              >
-                <span>{dayButtonText}</span>
-                <span style={s.dayBtnIconWrap}>
-                  <span style={s.dayBtnArrow}>→</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                style={s.dayBtnSecondary}
-                onClick={handleDayReplace}
-                aria-label="Заменить тренировку"
-              >
-                <RefreshCw size={18} strokeWidth={2.2} aria-hidden />
-              </button>
-            </div>
+            <button
+              type="button"
+              style={{ ...s.dayBtn, marginTop: "auto" }}
+              className="dash-primary-btn day-cta"
+              onClick={handleDayStart}
+            >
+              <span>{dayButtonText}</span>
+              <span style={s.dayBtnIconWrap}>
+                <span style={s.dayBtnArrow}>→</span>
+              </span>
+            </button>
           ) : (
             <button
               type="button"
