@@ -61,7 +61,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_STACK_OFFSET_MIN = 62;
 const WEEK_STACK_OFFSET_MAX = 72;
 const WEEK_STACK_COLLAPSED_H = 104;
-const WEEK_STACK_ACTIVE_H = 210;
+const WEEK_STACK_ACTIVE_H = 224;
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
@@ -3472,7 +3472,8 @@ const pick: Record<string, React.CSSProperties> = {
     textOverflow: "ellipsis",
   },
   weekCardActions: {
-    marginTop: 12,
+    marginTop: "auto",
+    paddingTop: 12,
     display: "grid",
     gridTemplateColumns: "1fr auto 1fr",
     alignItems: "end",
