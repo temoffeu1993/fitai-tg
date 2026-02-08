@@ -902,6 +902,17 @@ export default function PlanOne() {
                     </>
                   ) : (
                     <div style={pick.weekCardCollapsedBody}>
+                      <div
+                        style={{
+                          ...pick.weekDateChipCollapsed,
+                          ...(hasScheduledDate ? pick.weekDateChipScheduled : pick.weekDateChipPending),
+                        }}
+                      >
+                        {!hasScheduledDate ? (
+                          <Pencil size={11} strokeWidth={2.2} style={pick.weekDateChipCollapsedIcon} />
+                        ) : null}
+                        <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
+                      </div>
                       <div style={pick.weekCardCollapsedTitle}>{label}</div>
                     </div>
                   )}
@@ -3324,9 +3335,35 @@ const pick: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   weekCardCollapsedBody: {
-    marginTop: 10,
+    marginTop: 8,
     display: "grid",
+    gap: 6,
+    alignContent: "start",
+  },
+  weekDateChipCollapsed: {
+    display: "inline-flex",
+    alignItems: "center",
     gap: 4,
+    minHeight: 22,
+    padding: "0 9px",
+    borderRadius: 999,
+    width: "fit-content",
+    maxWidth: "84%",
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1,
+    position: "relative",
+    zIndex: 1,
+  },
+  weekDateChipCollapsedIcon: {
+    opacity: 0.72,
+    flex: "0 0 auto",
+  },
+  weekDateChipCollapsedText: {
+    display: "inline-block",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   weekCardCollapsedTitle: {
     fontSize: 20,
