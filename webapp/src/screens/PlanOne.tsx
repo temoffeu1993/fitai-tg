@@ -857,6 +857,7 @@ export default function PlanOne() {
                       <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
+                          className="dash-primary-btn day-cta"
                           style={pick.weekActionPrimary}
                           onClick={() => handleWorkoutPrimary(w)}
                         >
@@ -2963,8 +2964,22 @@ const pickStyles = `
   .plan-stack-card:active:not(:disabled) {
     transform: translateY(1px) scale(0.98);
   }
+  .dash-primary-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  }
+  .dash-primary-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99) !important;
+    background-color: #1e1f22 !important;
+  }
+  .day-cta:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99) !important;
+  }
   @media (prefers-reduced-motion: reduce) {
     .plan-stack-card { transition: none !important; }
+    .dash-primary-btn { transition: none !important; }
   }
 `;
 
@@ -3299,6 +3314,7 @@ const pick: Record<string, React.CSSProperties> = {
   },
   weekActionPrimary: {
     alignSelf: "flex-start",
+    justifySelf: "start",
     display: "inline-flex",
     alignItems: "center",
     gap: 12,
