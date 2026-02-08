@@ -31,6 +31,14 @@ const defaultScheduleTime = () => {
   return hour < 12 ? "18:00" : "09:00";
 };
 
+const formatScheduledDateChip = (iso: string) => {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  const date = dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+  const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${time}`;
+};
+
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_STACK_OFFSET = 66;
@@ -812,6 +820,8 @@ export default function PlanOne() {
                 status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
               const secondaryActionLabel = status === "scheduled" ? "Заменить дату" : "Назначить дату";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
+              const scheduledDateChip =
+                status === "scheduled" && w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
 
               return (
                 <div
@@ -830,6 +840,7 @@ export default function PlanOne() {
                     <>
                       <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
                       <div style={pick.weekCardTitle}>{label}</div>
+                      {scheduledDateChip ? <div style={pick.weekDateChip}>{scheduledDateChip}</div> : null}
 
                       <div style={pick.weekCardMeta}>
                         <span style={pick.infoChip}>
@@ -3237,7 +3248,24 @@ const pick: Record<string, React.CSSProperties> = {
     letterSpacing: -0.5,
     position: "relative",
     zIndex: 1,
-    maxWidth: "68%",
+  },
+  weekDateChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 28,
+    padding: "0 12px",
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "rgba(15,23,42,0.72)",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+    width: "fit-content",
+    position: "relative",
+    zIndex: 1,
   },
   weekCardMeta: {
     display: "flex",
