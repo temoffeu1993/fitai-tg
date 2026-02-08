@@ -41,8 +41,8 @@ const formatScheduledDateChip = (iso: string) => {
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_STACK_OFFSET_MIN = 74;
-const WEEK_STACK_OFFSET_MAX = 80;
+const WEEK_STACK_OFFSET_MIN = 78;
+const WEEK_STACK_OFFSET_MAX = 86;
 const WEEK_STACK_COLLAPSED_H = 104;
 const WEEK_STACK_ACTIVE_H = 232;
 
@@ -3360,7 +3360,7 @@ const pick: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   weekCardCollapsedBody: {
-    marginTop: 3,
+    marginTop: 1,
     display: "grid",
     gap: 6,
     alignContent: "start",
