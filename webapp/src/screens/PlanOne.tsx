@@ -856,7 +856,9 @@ export default function PlanOne() {
               const weekCardMascotStyle =
                 labelLower.includes("спина") && labelLower.includes("бицепс")
                   ? { ...pick.weekCardMascot, bottom: -6 }
-                  : pick.weekCardMascot;
+                  : labelLower.includes("ноги") && labelLower.includes("ягодиц")
+                    ? { ...pick.weekCardMascot, bottom: -10 }
+                    : pick.weekCardMascot;
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const primaryActionLabel = "Начать";
