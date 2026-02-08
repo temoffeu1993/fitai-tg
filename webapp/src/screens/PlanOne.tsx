@@ -816,18 +816,8 @@ export default function PlanOne() {
               const stackIndex = stackOrder.indexOf(index);
               const top = stackIndex * WEEK_STACK_OFFSET;
               const status = w.status || "pending";
-              const statusText =
-                status === "completed"
-                  ? "Выполнена"
-                  : status === "scheduled"
-                  ? "Запланирована"
-                  : "Свободный день";
-              const statusStyle =
-                status === "completed"
-                  ? pick.statusDone
-                  : status === "scheduled"
-                  ? pick.statusScheduled
-                  : pick.statusPending;
+              const statusText = status === "completed" ? "Выполнена" : "";
+              const statusStyle = pick.statusDone;
               const { totalExercises, minutes } = workoutChips(p);
               const rawLabel = String(p.dayLabel || p.title || "Тренировка");
               const label = dayLabelRU(rawLabel);
@@ -855,7 +845,7 @@ export default function PlanOne() {
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
-                  {status !== "pending" ? (
+                  {status === "completed" ? (
                     <div style={pick.weekCardTop}>
                       <span style={{ ...pick.weekStatusPill, ...statusStyle }}>{statusText}</span>
                     </div>
@@ -922,7 +912,6 @@ export default function PlanOne() {
                   ) : (
                     <div style={pick.weekCardCollapsedBody}>
                       <div style={pick.weekCardCollapsedTitle}>{label}</div>
-                      <div style={pick.weekCardCollapsedHint}>Нажми, чтобы открыть карточку</div>
                     </div>
                   )}
                 </div>
@@ -3286,16 +3275,6 @@ const pick: Record<string, React.CSSProperties> = {
     border: "1px solid transparent",
     whiteSpace: "nowrap",
   },
-  statusScheduled: {
-    background: "rgba(17,24,39,.1)",
-    borderColor: "rgba(17,24,39,.14)",
-    color: "#111827",
-  },
-  statusPending: {
-    background: "rgba(255,255,255,.78)",
-    borderColor: "rgba(0,0,0,.08)",
-    color: "rgba(17,24,39,.74)",
-  },
   statusDone: {
     background: "rgba(30,31,34,0.09)",
     borderColor: "rgba(30,31,34,0.2)",
@@ -3346,12 +3325,6 @@ const pick: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-  },
-  weekCardCollapsedHint: {
-    fontSize: 12,
-    lineHeight: 1.35,
-    color: "rgba(15,23,42,0.52)",
-    fontWeight: 500,
   },
   weekCardActions: {
     marginTop: 12,
