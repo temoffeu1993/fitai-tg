@@ -1,5 +1,6 @@
 // webapp/src/components/NavBar.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { CalendarDays, House, MessageCircle, UserRound } from "lucide-react";
 
 export type TabKey = "home" | "plan" | "coach" | "profile";
 export type NavCurrent = TabKey | "none";
@@ -7,6 +8,8 @@ const TAB_ORDER: TabKey[] = ["home", "plan", "coach", "profile"];
 const TAB_COUNT = 4;
 const TABBAR_INNER_PADDING = 6;
 const TAB_GAP = 6;
+const NAV_ICON_SIZE = 25;
+const NAV_ICON_STROKE = 2.2;
 
 /** Локальная проверка завершения онбординга */
 function isOnboardingCompleteLocal(): boolean {
@@ -121,7 +124,7 @@ export default function NavBar({
           }}
         />
         <TabBtn
-          icon={<HomeIcon />}
+          icon={<House size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />}
           label="Главная"
           active={current === "home"}
           onClick={() => onChange?.("home")}
@@ -129,21 +132,21 @@ export default function NavBar({
           disabled={false}
         />
         <TabBtn
-          icon={<CalendarIcon />}
+          icon={<CalendarDays size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />}
           label="Календарь"
           active={current === "plan"}
           onClick={() => onChange?.("plan")}
           disabled={lock}
         />
         <TabBtn
-          icon={<CoachIcon />}
+          icon={<MessageCircle size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />}
           label="Тренер"
           active={current === "coach"}
           onClick={() => onChange?.("coach")}
           disabled={lock}
         />
         <TabBtn
-          icon={<ProfileIcon />}
+          icon={<UserRound size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />}
           label="Профиль"
           active={current === "profile"}
           onClick={() => onChange?.("profile")}
@@ -298,44 +301,3 @@ const st: Record<string, React.CSSProperties> = {
     transform: "translateY(-0.5px)",
   },
 };
-
-function HomeIcon() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4.5 10.3L12 4.5L19.5 10.3V18.5H14.5V13.6H9.5V18.5H4.5V10.3Z" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="4.5" y="6.5" width="15" height="13" rx="3.2" stroke="currentColor" strokeWidth="2.1" />
-      <path d="M8 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M16 4.7V8" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M4.5 10H19.5" stroke="currentColor" strokeWidth="2.1" />
-    </svg>
-  );
-}
-
-function CoachIcon() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6.2 7.2H17.8C19 7.2 20 8.2 20 9.4V15C20 16.2 19 17.2 17.8 17.2H12.3L8.7 20V17.2H6.2C5 17.2 4 16.2 4 15V9.4C4 8.2 5 7.2 6.2 7.2Z" stroke="currentColor" strokeWidth="2.1" strokeLinejoin="round" />
-      <circle cx="9" cy="12.2" r="1" fill="currentColor" />
-      <circle cx="12" cy="12.2" r="1" fill="currentColor" />
-      <circle cx="15" cy="12.2" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ProfileIcon() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="9" cy="9.2" r="2.7" stroke="currentColor" strokeWidth="2.1" />
-      <circle cx="15.4" cy="8.6" r="2.2" stroke="currentColor" strokeWidth="2.1" />
-      <path d="M4.6 18C4.6 15.7 6.7 13.9 9.2 13.9C11.7 13.9 13.8 15.7 13.8 18" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M13.2 17.4C13.4 15.8 14.9 14.6 16.8 14.6C18.6 14.6 20 15.7 20 17.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
-    </svg>
-  );
-}
