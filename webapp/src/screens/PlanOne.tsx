@@ -851,7 +851,12 @@ export default function PlanOne() {
               const status = w.status || "pending";
               const { totalExercises, minutes } = workoutChips(p);
               const label = dayLabelRU(p);
+              const labelLower = String(label).toLowerCase();
               const dayMascotSrc = dayMascotForLabel(label);
+              const weekCardMascotStyle =
+                labelLower.includes("спина") && labelLower.includes("бицепс")
+                  ? { ...pick.weekCardMascot, bottom: -6 }
+                  : pick.weekCardMascot;
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const primaryActionLabel = "Начать";
@@ -879,7 +884,7 @@ export default function PlanOne() {
                 >
                   {isSelected ? (
                     <>
-                      <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
+                      <img src={dayMascotSrc} alt="" style={weekCardMascotStyle} loading="lazy" decoding="async" />
 
                       <div style={pick.weekDateChipRow} onClick={(e) => e.stopPropagation()}>
                         <button
@@ -954,9 +959,9 @@ export default function PlanOne() {
                             aria-hidden
                             style={pick.detailsChevronIcon}
                           >
-                            <circle cx="3" cy="3" r="1.15" fill="currentColor" />
-                            <circle cx="10" cy="3" r="1.15" fill="currentColor" />
-                            <circle cx="17" cy="3" r="1.15" fill="currentColor" />
+                            <circle cx="3" cy="3" r="1.45" fill="currentColor" />
+                            <circle cx="10" cy="3" r="1.45" fill="currentColor" />
+                            <circle cx="17" cy="3" r="1.45" fill="currentColor" />
                           </svg>
                         </button>
                         <span style={pick.weekActionsRightSpacer} aria-hidden />
@@ -964,6 +969,7 @@ export default function PlanOne() {
                     </>
                   ) : (
                     <div style={pick.weekCardCollapsedBody}>
+                      <div style={pick.weekCardCollapsedTitle}>{label}</div>
                       <div style={pick.weekDateChipCollapsedRow}>
                         <div
                           style={{
@@ -974,7 +980,6 @@ export default function PlanOne() {
                           <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
                         </div>
                       </div>
-                      <div style={pick.weekCardCollapsedTitle}>{label}</div>
                     </div>
                   )}
                 </div>
@@ -3418,19 +3423,19 @@ const pick: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   weekCardCollapsedBody: {
-    marginTop: 1,
-    display: "grid",
-    gap: 6,
-    alignContent: "start",
+    marginTop: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    width: "100%",
   },
   weekDateChipCollapsedRow: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
     width: "fit-content",
     maxWidth: "100%",
-    marginLeft: "auto",
-    justifySelf: "end",
+    flexShrink: 0,
     position: "relative",
     zIndex: 1,
   },
@@ -3460,6 +3465,8 @@ const pick: Record<string, React.CSSProperties> = {
     letterSpacing: -0.3,
     fontWeight: 700,
     color: "#0f172a",
+    flex: 1,
+    minWidth: 0,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -3520,7 +3527,7 @@ const pick: Record<string, React.CSSProperties> = {
     alignSelf: "end",
   },
   detailsChevronIcon: {
-    color: "rgba(15,23,42,0.62)",
+    color: "#0f172a",
   },
   weekActionsRightSpacer: {
     justifySelf: "end",
