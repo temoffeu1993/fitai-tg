@@ -1496,7 +1496,6 @@ export default function Dashboard() {
         </button>
       </section>
 
-      <div style={{ height: 120 }} />
     </div>
   );
 }
