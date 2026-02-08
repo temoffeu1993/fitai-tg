@@ -18,6 +18,7 @@ import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { CalendarDays, ChevronDown, ChevronUp, Clock3, Dumbbell } from "lucide-react";
+import mascotImg from "@/assets/robonew.webp";
 
 const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 const defaultScheduleTime = () => {
@@ -34,6 +35,9 @@ const formatPlannedDateTime = (iso: string) => {
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const WEEK_STACK_OFFSET = 66;
+const WEEK_STACK_COLLAPSED_H = 104;
+const WEEK_STACK_ACTIVE_H = 308;
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
@@ -238,13 +242,14 @@ export default function PlanOne() {
   }, [remainingPlanned]);
 
   useEffect(() => {
-    if (!remainingPlanned.length) {
+    const selectable = (plannedWorkouts || []).filter((w) => w && w.id && w.status !== "cancelled");
+    if (!selectable.length) {
       setSelectedPlannedId(null);
       return;
     }
-    if (selectedPlannedId && remainingPlanned.some((w) => w.id === selectedPlannedId)) return;
-    setSelectedPlannedId(recommendedPlannedId || remainingPlanned[0].id);
-  }, [remainingPlanned, recommendedPlannedId, selectedPlannedId]);
+    if (selectedPlannedId && selectable.some((w) => w.id === selectedPlannedId)) return;
+    setSelectedPlannedId(recommendedPlannedId || selectable[0].id);
+  }, [plannedWorkouts, recommendedPlannedId, selectedPlannedId]);
 
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
@@ -641,6 +646,16 @@ export default function PlanOne() {
     return { totalExercises, minutes };
   };
 
+  const mapPlanExercises = (p: any): Exercise[] =>
+    (Array.isArray(p?.exercises) ? p.exercises : []).map((ex: any) => ({
+      exerciseId: String(ex?.exerciseId || ex?.id || ex?.exercise?.id || "") || undefined,
+      name: String(ex?.name || ex?.exerciseName || "Упражнение"),
+      sets: Number(ex?.sets) || 1,
+      reps: ex?.reps || ex?.repsRange || "",
+      restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
+      cues: String(ex?.notes || ex?.cues || "").trim() || undefined,
+    }));
+
   const selectedDayLabel = (() => {
     if (!selectedPlanned) return null;
     const p: any = selectedPlanned.plan || {};
@@ -731,6 +746,26 @@ export default function PlanOne() {
     });
   const totalWeekCount = weekWorkouts.length;
   const completedWeekCount = weekWorkouts.filter((w) => w.status === "completed").length;
+  const activeStackId = useMemo(() => {
+    if (!weekWorkouts.length) return null;
+    if (selectedPlannedId && weekWorkouts.some((w) => w.id === selectedPlannedId)) return selectedPlannedId;
+    return weekWorkouts[0].id;
+  }, [weekWorkouts, selectedPlannedId]);
+  const activeStackIndex = activeStackId ? weekWorkouts.findIndex((w) => w.id === activeStackId) : -1;
+  const stackOrder = useMemo(() => {
+    if (!weekWorkouts.length) return [];
+    if (activeStackIndex < 0) return weekWorkouts.map((_, i) => i);
+    const order = weekWorkouts.map((_, i) => i).filter((i) => i !== activeStackIndex);
+    order.push(activeStackIndex);
+    return order;
+  }, [weekWorkouts, activeStackIndex]);
+  const stackHeight = weekWorkouts.length
+    ? (weekWorkouts.length - 1) * WEEK_STACK_OFFSET + WEEK_STACK_ACTIVE_H
+    : 0;
+  const activeStackWorkout = activeStackId ? weekWorkouts.find((w) => w.id === activeStackId) || null : null;
+  const activeStackExpanded = Boolean(activeStackWorkout && expandedPlannedIds[activeStackWorkout.id]);
+  const activeStackPlan: any = activeStackWorkout?.plan || {};
+  const activeStackExercises = mapPlanExercises(activeStackPlan);
 
   const handleWorkoutPrimary = (workout: PlannedWorkout) => {
     if (workout.status === "completed") {
@@ -761,68 +796,39 @@ export default function PlanOne() {
       <TypingDotsStyles />
       <style>{pickStyles}</style>
 
-      <section style={pick.weekHeroCard}>
-        <div style={pick.weekHeroTop}>
-          <div style={pick.weekHeroCaption}>План на неделю</div>
-          <span style={pick.weekHeroChip}>{weekChip}</span>
-        </div>
-        <div style={pick.weekHeroTitle}>{schemeTitle}</div>
-        <div style={pick.weekHeroDate}>{heroDateChip}</div>
-        <div style={pick.weekHeroSubtitle}>
-          Выбери нужный день и запусти тренировку. Статусы обновляются автоматически после выполнения.
-        </div>
-        <div style={pick.weekProgressRow}>
-          <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
-          <span style={pick.weekProgressPits}>
-            {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
-              <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
-                {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
-              </span>
-            ))}
+      <section style={pick.programHeaderRow}>
+        <div style={pick.programHeaderLeft}>
+          <span style={pick.programAvatarCircle}>
+            <img src={mascotImg} alt="" style={pick.programAvatarImg} loading="eager" decoding="async" />
           </span>
+          <div style={pick.programHeaderText}>
+            Твоя программа тренировок на неделю. Запланируй или сразу начинай.
+          </div>
         </div>
-        <div style={pick.weekHeroActions}>
-          <button
-            type="button"
-            className="planone-start-btn"
-            style={{
-              ...pick.weekPrimaryBtn,
-              opacity: canStart ? 1 : 0.55,
-              cursor: canStart ? "pointer" : "not-allowed",
-            }}
-            onClick={handleStartSelected}
-            disabled={!canStart}
-          >
-            Начать выбранную
-          </button>
-          <button
-            type="button"
-            style={{
-              ...pick.weekSecondaryBtn,
-              opacity: selectedPlanned || remainingPlanned.length ? 1 : 0.55,
-              cursor: selectedPlanned || remainingPlanned.length ? "pointer" : "not-allowed",
-            }}
-            onClick={handleScheduleSelected}
-            disabled={!selectedPlanned && !remainingPlanned.length}
-          >
-            Выбрать дату
-          </button>
-        </div>
+      </section>
+
+      <section style={pick.programProgressRow}>
+        <span style={pick.weekProgressLabel}>Выполнено {completedWeekCount}/{Math.max(totalWeekCount, 1)}</span>
+        <span style={pick.weekProgressPits}>
+          {Array.from({ length: Math.max(totalWeekCount, 1) }, (_, i) => (
+            <span key={`week-pit-${i}`} style={pick.weekProgressPit}>
+              {i < completedWeekCount ? <span style={pick.weekProgressDone} /> : null}
+            </span>
+          ))}
+        </span>
       </section>
 
       {weekWorkouts.length ? (
         <section style={pick.weekListWrap}>
-          <div style={pick.weekListHeader}>
-            <div style={pick.weekListTitle}>Тренировки недели</div>
-            <div style={pick.weekListHint}>Выбери тренировку по дню</div>
-          </div>
-          <div style={pick.weekListGrid}>
+          <div style={{ ...pick.weekListGrid, height: stackHeight }}>
             {weekWorkouts.map((w, index) => {
               const p: any = w.plan || {};
               const dayIndexRaw = Number(p?.dayIndex);
               const dayIndex = Number.isFinite(dayIndexRaw) && dayIndexRaw > 0 ? dayIndexRaw : index + 1;
-              const isSelected = w.id === selectedPlannedId;
+              const isSelected = w.id === activeStackId;
               const isRecommended = w.id === recommendedPlannedId;
+              const stackIndex = stackOrder.indexOf(index);
+              const top = stackIndex * WEEK_STACK_OFFSET;
               const status = w.status || "pending";
               const statusText =
                 status === "completed"
@@ -844,14 +850,6 @@ export default function PlanOne() {
               const focus = dayDesc || focusRaw || "План тренировки сформирован по твоей схеме и цели.";
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
-              const mappedExercises: Exercise[] = (Array.isArray(p.exercises) ? p.exercises : []).map((ex: any) => ({
-                exerciseId: String(ex?.exerciseId || ex?.id || ex?.exercise?.id || "") || undefined,
-                name: String(ex?.name || ex?.exerciseName || "Упражнение"),
-                sets: Number(ex?.sets) || 1,
-                reps: ex?.reps || ex?.repsRange || "",
-                restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
-                cues: String(ex?.notes || ex?.cues || "").trim() || undefined,
-              }));
               const dateHint = w.scheduledFor ? formatPlannedDateTime(w.scheduledFor) : "Дата не назначена";
               const primaryActionLabel =
                 status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
@@ -865,11 +863,13 @@ export default function PlanOne() {
                   style={{
                     ...pick.weekCard,
                     ...(isSelected ? pick.weekCardSelected : null),
+                    ...(isSelected ? pick.weekCardFront : pick.weekCardBack),
+                    top,
+                    zIndex: stackIndex + 1,
+                    height: isSelected ? WEEK_STACK_ACTIVE_H : WEEK_STACK_COLLAPSED_H,
                     animationDelay: `${index * 90}ms`,
                   }}
-                  onClick={() => {
-                    if (w.status !== "completed") setSelectedPlannedId(w.id);
-                  }}
+                  onClick={() => setSelectedPlannedId(w.id)}
                 >
                   {isRecommended ? (
                     <div style={pick.recommendedBadge}>
@@ -882,77 +882,96 @@ export default function PlanOne() {
                     <span style={{ ...pick.weekStatusPill, ...statusStyle }}>{statusText}</span>
                   </div>
 
-                  <div style={pick.weekCardTitle}>{label}</div>
-                  <div style={pick.weekCardDate}>
-                    <CalendarDays size={14} strokeWidth={2.2} />
-                    <span>{dateHint}</span>
-                  </div>
+                  {isSelected ? (
+                    <>
+                      <div style={pick.weekCardTitle}>{label}</div>
+                      <div style={pick.weekCardDate}>
+                        <CalendarDays size={14} strokeWidth={2.2} />
+                        <span>{dateHint}</span>
+                      </div>
 
-                  <div style={pick.weekCardMeta}>
-                    <span style={pick.infoChip}>
-                      <Dumbbell size={14} strokeWidth={2.2} />
-                      <span>{totalExercises} упражнений</span>
-                    </span>
-                    {minutes ? (
-                      <span style={pick.infoChip}>
-                        <Clock3 size={14} strokeWidth={2.2} />
-                        <span>{minutes} мин</span>
-                      </span>
-                    ) : null}
-                    {hasActiveProgress ? (
-                      <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span>
-                    ) : null}
-                  </div>
+                      <div style={pick.weekCardMeta}>
+                        <span style={pick.infoChip}>
+                          <Dumbbell size={14} strokeWidth={2.2} />
+                          <span>{totalExercises} упражнений</span>
+                        </span>
+                        {minutes ? (
+                          <span style={pick.infoChip}>
+                            <Clock3 size={14} strokeWidth={2.2} />
+                            <span>{minutes} мин</span>
+                          </span>
+                        ) : null}
+                        {hasActiveProgress ? (
+                          <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span>
+                        ) : null}
+                      </div>
 
-                  <div style={pick.weekCardDesc}>{focus}</div>
+                      <div style={pick.weekCardDesc}>{focus}</div>
 
-                  <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      style={pick.weekActionPrimary}
-                      onClick={() => handleWorkoutPrimary(w)}
-                    >
-                      {primaryActionLabel}
-                    </button>
-                    {status !== "completed" ? (
+                      <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          style={pick.weekActionPrimary}
+                          onClick={() => handleWorkoutPrimary(w)}
+                        >
+                          {primaryActionLabel}
+                        </button>
+                        {status !== "completed" ? (
+                          <button
+                            type="button"
+                            style={pick.weekActionGhost}
+                            onClick={() => openScheduleForWorkout(w.id)}
+                          >
+                            <CalendarDays size={14} strokeWidth={2.2} />
+                            {secondaryActionLabel}
+                          </button>
+                        ) : null}
+                      </div>
+
                       <button
                         type="button"
-                        style={pick.weekActionGhost}
-                        onClick={() => openScheduleForWorkout(w.id)}
-                      >
-                        <CalendarDays size={14} strokeWidth={2.2} />
-                        {secondaryActionLabel}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    style={pick.detailsLinkBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
-                    }}
-                  >
-                    <span>{expanded ? "Скрыть упражнения" : "Состав тренировки"}</span>
-                    {expanded ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
-                  </button>
-
-                  {expanded ? (
-                    <div style={pick.detailsSection} onClick={(e) => e.stopPropagation()}>
-                      <PlannedExercisesEditor
-                        plannedWorkout={w}
-                        displayItems={mappedExercises}
-                        onUpdated={(pw) => {
-                          setPlannedWorkouts((prev) => prev.map((x) => (x.id === pw.id ? pw : x)));
+                        style={pick.detailsLinkBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                         }}
-                      />
+                      >
+                        <span>{expanded ? "Скрыть упражнения" : "Состав тренировки"}</span>
+                        {expanded ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
+                      </button>
+                    </>
+                  ) : (
+                    <div style={pick.weekCardCollapsedBody}>
+                      <div style={pick.weekCardCollapsedTitle}>{label}</div>
+                      <div style={pick.weekCardCollapsedHint}>Нажми, чтобы открыть карточку</div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
               );
             })}
           </div>
+          <div style={pick.weekStackDots}>
+            {weekWorkouts.map((w) => (
+              <span
+                key={`stack-dot-${w.id}`}
+                style={{
+                  ...pick.weekStackDot,
+                  ...(w.id === activeStackId ? pick.weekStackDotActive : undefined),
+                }}
+              />
+            ))}
+          </div>
+          {activeStackWorkout && activeStackExpanded ? (
+            <div style={pick.detailsSection}>
+              <PlannedExercisesEditor
+                plannedWorkout={activeStackWorkout}
+                displayItems={activeStackExercises}
+                onUpdated={(pw) => {
+                  setPlannedWorkouts((prev) => prev.map((x) => (x.id === pw.id ? pw : x)));
+                }}
+              />
+            </div>
+          ) : null}
         </section>
       ) : (
         <section style={s.blockWhite}>
@@ -3002,6 +3021,53 @@ const pickStyles = `
 `;
 
 const pick: Record<string, React.CSSProperties> = {
+  programHeaderRow: {
+    marginTop: 2,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  programHeaderLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+  },
+  programAvatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    border: "none",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    flex: "0 0 auto",
+    padding: 2,
+  },
+  programAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center 10%",
+    borderRadius: 999,
+  },
+  programHeaderText: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.8)",
+  },
+  programProgressRow: {
+    marginTop: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
   weekHeroCard: {
     position: "relative",
     marginTop: 2,
@@ -3179,11 +3245,13 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
   weekListGrid: {
-    display: "grid",
-    gap: 10,
+    position: "relative",
+    width: "100%",
   },
   weekCard: {
-    position: "relative",
+    position: "absolute",
+    left: 0,
+    right: 0,
     padding: "14px 12px",
     borderRadius: 22,
     background:
@@ -3193,13 +3261,22 @@ const pick: Record<string, React.CSSProperties> = {
       "0 12px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    transition: "transform 220ms ease, box-shadow 220ms ease",
+    transition: "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease, opacity 240ms ease",
     cursor: "pointer",
+    overflow: "hidden",
   },
   weekCardSelected: {
     background: "rgba(255,255,255,0.92)",
-    transform: "translateY(-1px)",
+    transform: "translateY(-4px) scale(1)",
     boxShadow: "0 10px 20px rgba(15,23,42,0.14)",
+  },
+  weekCardFront: {
+    opacity: 1,
+  },
+  weekCardBack: {
+    opacity: 0.88,
+    transform: "scale(0.985)",
+    boxShadow: "0 8px 14px rgba(15,23,42,0.09), inset 0 1px 0 rgba(255,255,255,0.86)",
   },
   weekCardTop: {
     display: "flex",
@@ -3277,6 +3354,27 @@ const pick: Record<string, React.CSSProperties> = {
     color: "rgba(15,23,42,.56)",
     fontWeight: 400,
   },
+  weekCardCollapsedBody: {
+    marginTop: 10,
+    display: "grid",
+    gap: 4,
+  },
+  weekCardCollapsedTitle: {
+    fontSize: 20,
+    lineHeight: 1.12,
+    letterSpacing: -0.3,
+    fontWeight: 700,
+    color: "#0f172a",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  weekCardCollapsedHint: {
+    fontSize: 12,
+    lineHeight: 1.35,
+    color: "rgba(15,23,42,0.52)",
+    fontWeight: 500,
+  },
   weekCardActions: {
     marginTop: 12,
     display: "grid",
@@ -3323,6 +3421,28 @@ const pick: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 5,
+  },
+  weekStackDots: {
+    marginTop: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    justifyContent: "center",
+    justifySelf: "center",
+  },
+  weekStackDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.2)",
+    transition: "transform 240ms ease, background-color 240ms ease, opacity 240ms ease",
+    opacity: 0.65,
+  },
+  weekStackDotActive: {
+    width: 16,
+    borderRadius: 999,
+    background: "rgba(30,31,34,0.72)",
+    opacity: 1,
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
