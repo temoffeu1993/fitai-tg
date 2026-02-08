@@ -765,7 +765,7 @@ export default function PlanOne() {
     order.push(activeStackIndex);
     return order;
   })();
-  const weekStackOffset = useMemo(() => {
+  const weekStackOffset = (() => {
     const vh = Number(viewportHeight) || 812;
     if (vh <= 700) return WEEK_STACK_OFFSET_MIN;
     if (vh >= 920) return WEEK_STACK_OFFSET_MAX;
@@ -773,7 +773,7 @@ export default function PlanOne() {
     return Math.round(
       WEEK_STACK_OFFSET_MIN + (WEEK_STACK_OFFSET_MAX - WEEK_STACK_OFFSET_MIN) * t
     );
-  }, [viewportHeight]);
+  })();
   const stackHeight = weekWorkouts.length
     ? (weekWorkouts.length - 1) * weekStackOffset + WEEK_STACK_ACTIVE_H + 8
     : 0;
@@ -843,6 +843,9 @@ export default function PlanOne() {
               const hasScheduledDate = Boolean(scheduledDateChip);
               const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
               const canEditSchedule = status !== "completed";
+              const isCompletedWorkout = status === "completed";
+              const chipToneStyle = isCompletedWorkout ? pick.weekDateChipScheduled : pick.weekDateChipPending;
+              const showEditPencil = !isCompletedWorkout;
 
               return (
                 <div
@@ -865,7 +868,7 @@ export default function PlanOne() {
                         type="button"
                         style={{
                           ...pick.weekDateChipButton,
-                          ...(hasScheduledDate ? pick.weekDateChipScheduled : pick.weekDateChipPending),
+                          ...chipToneStyle,
                           ...(canEditSchedule ? null : pick.weekDateChipDisabled),
                         }}
                         onClick={(e) => {
@@ -878,7 +881,7 @@ export default function PlanOne() {
                         }
                         disabled={!canEditSchedule}
                       >
-                        {!hasScheduledDate ? <Pencil size={13} strokeWidth={2.2} style={pick.weekDateChipIcon} /> : null}
+                        {showEditPencil ? <Pencil size={13} strokeWidth={2.2} style={pick.weekDateChipIcon} /> : null}
                         <span>{dateChipLabel}</span>
                       </button>
 
@@ -926,10 +929,10 @@ export default function PlanOne() {
                       <div
                         style={{
                           ...pick.weekDateChipCollapsed,
-                          ...(hasScheduledDate ? pick.weekDateChipScheduled : pick.weekDateChipPending),
+                          ...chipToneStyle,
                         }}
                       >
-                        {!hasScheduledDate ? (
+                        {showEditPencil ? (
                           <Pencil size={11} strokeWidth={2.2} style={pick.weekDateChipCollapsedIcon} />
                         ) : null}
                         <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
@@ -3344,7 +3347,8 @@ const pick: Record<string, React.CSSProperties> = {
     opacity: 0.8,
   },
   weekDateChipIcon: {
-    opacity: 0.74,
+    opacity: 0.94,
+    color: "rgba(32,48,70,0.52)",
     flex: "0 0 auto",
   },
   weekCardMeta: {
@@ -3377,7 +3381,8 @@ const pick: Record<string, React.CSSProperties> = {
     zIndex: 1,
   },
   weekDateChipCollapsedIcon: {
-    opacity: 0.72,
+    opacity: 0.92,
+    color: "rgba(32,48,70,0.5)",
     flex: "0 0 auto",
   },
   weekDateChipCollapsedText: {
