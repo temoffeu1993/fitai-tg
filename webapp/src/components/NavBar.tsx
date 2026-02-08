@@ -275,7 +275,8 @@ const st: Record<string, React.CSSProperties> = {
   iconGlyph: {
     width: 27,
     height: 27,
-    color: "rgba(15,23,42,0.42)",
+    // Use opaque color (no alpha) so overlapping strokes stay one-tone.
+    color: "#8a93a2",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
