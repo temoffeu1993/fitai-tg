@@ -759,7 +759,7 @@ export default function PlanOne() {
     return order;
   })();
   const stackHeight = weekWorkouts.length
-    ? (weekWorkouts.length - 1) * WEEK_STACK_OFFSET + WEEK_STACK_ACTIVE_H
+    ? (weekWorkouts.length - 1) * WEEK_STACK_OFFSET + WEEK_STACK_ACTIVE_H + 8
     : 0;
   const activeStackWorkout = activeStackId ? weekWorkouts.find((w) => w.id === activeStackId) || null : null;
   const activeStackExpanded = Boolean(activeStackWorkout && expandedPlannedIds[activeStackWorkout.id]);
@@ -845,15 +845,13 @@ export default function PlanOne() {
               return (
                 <div
                   key={w.id}
-                  className={`scheme-card scheme-enter ${isSelected ? "selected" : ""}`}
+                  className="plan-stack-card"
                   style={{
                     ...pick.weekCard,
                     ...(isSelected ? pick.weekCardSelected : null),
-                    ...(isSelected ? pick.weekCardFront : pick.weekCardBack),
                     top,
                     zIndex: stackIndex + 1,
                     height: isSelected ? WEEK_STACK_ACTIVE_H : WEEK_STACK_COLLAPSED_H,
-                    animationDelay: `${index * 90}ms`,
                   }}
                   onClick={() => setSelectedPlannedId(w.id)}
                 >
@@ -2988,6 +2986,17 @@ const pickStyles = `
     outline: 3px solid rgba(15, 23, 42, 0.18);
     outline-offset: 2px;
   }
+  .plan-stack-card {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 220ms ease, box-shadow 220ms ease;
+    will-change: transform;
+  }
+  .plan-stack-card:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .plan-stack-card { transition: none !important; }
+  }
 `;
 
 const pick: Record<string, React.CSSProperties> = {
@@ -3241,23 +3250,12 @@ const pick: Record<string, React.CSSProperties> = {
       "0 12px 24px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    transition: "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease, opacity 240ms ease",
+    transition: "top 320ms ease, height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
+    willChange: "top, height, transform",
     cursor: "pointer",
     overflow: "hidden",
   },
-  weekCardSelected: {
-    background: "rgba(255,255,255,0.92)",
-    transform: "translateY(-4px) scale(1)",
-    boxShadow: "0 10px 20px rgba(15,23,42,0.14)",
-  },
-  weekCardFront: {
-    opacity: 1,
-  },
-  weekCardBack: {
-    opacity: 0.88,
-    transform: "scale(0.985)",
-    boxShadow: "0 8px 14px rgba(15,23,42,0.09), inset 0 1px 0 rgba(255,255,255,0.86)",
-  },
+  weekCardSelected: {},
   weekCardTop: {
     display: "flex",
     alignItems: "center",
