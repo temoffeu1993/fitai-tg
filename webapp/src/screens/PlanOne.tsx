@@ -58,8 +58,8 @@ const formatWeekTitleRu = (week: number | null) => {
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_STACK_OFFSET_MIN = 78;
-const WEEK_STACK_OFFSET_MAX = 86;
+const WEEK_STACK_OFFSET_MIN = 66;
+const WEEK_STACK_OFFSET_MAX = 76;
 const WEEK_STACK_COLLAPSED_H = 104;
 const WEEK_STACK_ACTIVE_H = 210;
 
