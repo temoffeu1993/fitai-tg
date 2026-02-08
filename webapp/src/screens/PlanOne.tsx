@@ -818,7 +818,6 @@ export default function PlanOne() {
               const expanded = Boolean(expandedPlannedIds[key]);
               const primaryActionLabel =
                 status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
-              const secondaryActionLabel = status === "scheduled" ? "Заменить дату" : "Назначить дату";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
               const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
               const hasScheduledDate = Boolean(scheduledDateChip);
@@ -842,6 +841,19 @@ export default function PlanOne() {
                     <>
                       <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
                       <div style={pick.weekCardTitle}>{label}</div>
+
+                      <div style={pick.weekCardMeta}>
+                        <span style={pick.infoChip}>
+                          <Clock3 size={14} strokeWidth={2.1} />
+                          <span>{minutes ? `${minutes} мин` : "—"}</span>
+                        </span>
+                        <span style={pick.infoChip}>
+                          <Dumbbell size={14} strokeWidth={2.1} />
+                          <span>{totalExercises} упражнений</span>
+                        </span>
+                        {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
+                      </div>
+
                       <button
                         type="button"
                         style={{
@@ -863,18 +875,6 @@ export default function PlanOne() {
                         <span>{dateChipLabel}</span>
                       </button>
 
-                      <div style={pick.weekCardMeta}>
-                        <span style={pick.infoChip}>
-                          <Clock3 size={14} strokeWidth={2.1} />
-                          <span>{minutes ? `${minutes} мин` : "—"}</span>
-                        </span>
-                        <span style={pick.infoChip}>
-                          <Dumbbell size={14} strokeWidth={2.1} />
-                          <span>{totalExercises} упражнений</span>
-                        </span>
-                        {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
-                      </div>
-
                       <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
@@ -889,15 +889,6 @@ export default function PlanOne() {
                             </span>
                           </span>
                         </button>
-                        {status !== "completed" ? (
-                          <button
-                            type="button"
-                            style={pick.weekActionGhost}
-                            onClick={() => openScheduleForWorkout(w.id)}
-                          >
-                            {secondaryActionLabel}
-                          </button>
-                        ) : null}
                       </div>
 
                       <button
@@ -3348,9 +3339,7 @@ const pick: Record<string, React.CSSProperties> = {
   },
   weekCardActions: {
     marginTop: 12,
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 8,
+    display: "flex",
     alignItems: "center",
   },
   weekActionPrimary: {
@@ -3395,20 +3384,6 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     textShadow:
       "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
-  },
-  weekActionGhost: {
-    border: "none",
-    borderRadius: 999,
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.6)",
-    fontSize: 14,
-    fontWeight: 500,
-    minHeight: 40,
-    padding: "0 6px",
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
   },
   detailsLinkBtn: {
     marginTop: 8,
