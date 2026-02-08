@@ -18,7 +18,7 @@ import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import { Clock3, Dumbbell } from "lucide-react";
+import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
@@ -820,8 +820,10 @@ export default function PlanOne() {
                 status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
               const secondaryActionLabel = status === "scheduled" ? "Заменить дату" : "Назначить дату";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
-              const scheduledDateChip =
-                status === "scheduled" && w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
+              const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
+              const hasScheduledDate = Boolean(scheduledDateChip);
+              const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
+              const canEditSchedule = status !== "completed";
 
               return (
                 <div
@@ -840,7 +842,26 @@ export default function PlanOne() {
                     <>
                       <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
                       <div style={pick.weekCardTitle}>{label}</div>
-                      {scheduledDateChip ? <div style={pick.weekDateChip}>{scheduledDateChip}</div> : null}
+                      <button
+                        type="button"
+                        style={{
+                          ...pick.weekDateChipButton,
+                          ...(hasScheduledDate ? pick.weekDateChipScheduled : pick.weekDateChipPending),
+                          ...(canEditSchedule ? null : pick.weekDateChipDisabled),
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!canEditSchedule) return;
+                          openScheduleForWorkout(w.id);
+                        }}
+                        aria-label={
+                          hasScheduledDate ? "Изменить дату и время тренировки" : "Выбрать дату и время тренировки"
+                        }
+                        disabled={!canEditSchedule}
+                      >
+                        {!hasScheduledDate ? <Pencil size={13} strokeWidth={2.2} style={pick.weekDateChipIcon} /> : null}
+                        <span>{dateChipLabel}</span>
+                      </button>
 
                       <div style={pick.weekCardMeta}>
                         <span style={pick.infoChip}>
@@ -3264,16 +3285,16 @@ const pick: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
-  weekDateChip: {
+  weekDateChipButton: {
     display: "inline-flex",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
     minHeight: 28,
     padding: "0 12px",
     borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "rgba(15,23,42,0.72)",
+    border: "none",
+    cursor: "pointer",
     fontSize: 13,
     fontWeight: 600,
     lineHeight: 1,
@@ -3281,6 +3302,26 @@ const pick: Record<string, React.CSSProperties> = {
     width: "fit-content",
     position: "relative",
     zIndex: 1,
+  },
+  weekDateChipPending: {
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "rgba(15,23,42,0.72)",
+  },
+  weekDateChipScheduled: {
+    background: "linear-gradient(180deg, rgba(203,230,177,0.95) 0%, rgba(186,214,158,0.92) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(84,113,63,0.26), inset 0 -1px 0 rgba(255,255,255,0.5)",
+    color: "rgba(27,49,15,0.9)",
+  },
+  weekDateChipDisabled: {
+    cursor: "default",
+    opacity: 0.8,
+  },
+  weekDateChipIcon: {
+    opacity: 0.74,
+    flex: "0 0 auto",
   },
   weekCardMeta: {
     display: "flex",
