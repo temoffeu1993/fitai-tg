@@ -18,7 +18,7 @@ import { CheckInForm } from "@/components/CheckInForm";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import { Clock3, Dumbbell, Pencil } from "lucide-react";
+import { ChevronDown, Clock3, Dumbbell, Pencil } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
@@ -947,8 +947,16 @@ export default function PlanOne() {
                           e.stopPropagation();
                           setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
                         }}
+                        aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
                       >
-                        {expanded ? "Скрыть детали" : "Детали тренировки"}
+                        <ChevronDown
+                          size={18}
+                          strokeWidth={2.2}
+                          style={{
+                            ...pick.detailsChevronIcon,
+                            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                          }}
+                        />
                       </button>
                     </>
                   ) : (
@@ -3495,15 +3503,17 @@ const pick: Record<string, React.CSSProperties> = {
     marginTop: 8,
     border: "none",
     background: "transparent",
-    color: "rgba(15,23,42,.75)",
-    fontSize: 13,
-    fontWeight: 500,
     cursor: "pointer",
-    padding: "0 2px",
-    textAlign: "left",
+    padding: 0,
     display: "inline-flex",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "center",
+    width: 18,
+    height: 18,
+  },
+  detailsChevronIcon: {
+    color: "rgba(15,23,42,0.62)",
+    transition: "transform 180ms ease",
   },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
