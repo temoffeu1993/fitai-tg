@@ -39,6 +39,23 @@ const formatScheduledDateChip = (iso: string) => {
   return `${date} · ${time}`;
 };
 
+const formatWeekTitleRu = (week: number | null) => {
+  const n = Number(week);
+  if (!Number.isFinite(n) || n <= 1) return "Первая неделя";
+  const words: Record<number, string> = {
+    2: "Вторая неделя",
+    3: "Третья неделя",
+    4: "Четвертая неделя",
+    5: "Пятая неделя",
+    6: "Шестая неделя",
+    7: "Седьмая неделя",
+    8: "Восьмая неделя",
+    9: "Девятая неделя",
+    10: "Десятая неделя",
+  };
+  return words[Math.round(n)] || `${Math.round(n)}-я неделя`;
+};
+
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_STACK_OFFSET_MIN = 78;
@@ -612,7 +629,7 @@ export default function PlanOne() {
     }
     return "Тренировки";
   })();
-  const weekChip = mesoWeek ? `Неделя ${mesoWeek}` : "Неделя";
+  const weekHeaderTitle = formatWeekTitleRu(mesoWeek);
 
   const dayLabelRU = (planLike: any) => {
     const raw = String(
@@ -817,7 +834,7 @@ export default function PlanOne() {
             <img src={mascotImg} alt="" style={pick.programAvatarImg} loading="eager" decoding="async" />
           </span>
           <div style={pick.programHeaderText}>
-            <div style={pick.programHeaderTitle}>План на неделю</div>
+            <div style={pick.programHeaderTitle}>{weekHeaderTitle}</div>
             <div style={pick.programHeaderSub}>Запланируй тренировку или сразу начинай</div>
           </div>
         </div>
