@@ -816,8 +816,7 @@ export default function PlanOne() {
               const dayMascotSrc = dayMascotForLabel(label);
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
-              const primaryActionLabel =
-                status === "completed" ? "Результат" : status === "scheduled" ? "Начать" : "Выбрать дату";
+              const primaryActionLabel = "Начать";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
               const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
               const hasScheduledDate = Boolean(scheduledDateChip);
@@ -885,9 +884,7 @@ export default function PlanOne() {
                         >
                           <span>{primaryActionLabel}</span>
                           <span style={pick.weekActionPrimaryIconWrap}>
-                            <span style={status === "completed" ? pick.weekActionPrimaryDone : pick.weekActionPrimaryArrow}>
-                              {status === "completed" ? "✓" : "→"}
-                            </span>
+                            <span style={pick.weekActionPrimaryArrow}>→</span>
                           </span>
                         </button>
                       </div>
@@ -3380,14 +3377,6 @@ const pick: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
-  },
-  weekActionPrimaryDone: {
-    fontSize: 18,
-    lineHeight: 1,
-    color: "#8bff1a",
-    fontWeight: 800,
-    textShadow:
-      "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
   },
   detailsLinkBtn: {
     marginTop: 8,
