@@ -840,19 +840,6 @@ export default function PlanOne() {
                   {isSelected ? (
                     <>
                       <img src={dayMascotSrc} alt="" style={pick.weekCardMascot} loading="lazy" decoding="async" />
-                      <div style={pick.weekCardTitle}>{label}</div>
-
-                      <div style={pick.weekCardMeta}>
-                        <span style={pick.infoChip}>
-                          <Clock3 size={14} strokeWidth={2.1} />
-                          <span>{minutes ? `${minutes} мин` : "—"}</span>
-                        </span>
-                        <span style={pick.infoChip}>
-                          <Dumbbell size={14} strokeWidth={2.1} />
-                          <span>{totalExercises} упражнений</span>
-                        </span>
-                        {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
-                      </div>
 
                       <button
                         type="button"
@@ -874,6 +861,20 @@ export default function PlanOne() {
                         {!hasScheduledDate ? <Pencil size={13} strokeWidth={2.2} style={pick.weekDateChipIcon} /> : null}
                         <span>{dateChipLabel}</span>
                       </button>
+
+                      <div style={pick.weekCardTitle}>{label}</div>
+
+                      <div style={pick.weekCardMeta}>
+                        <span style={pick.infoChip}>
+                          <Clock3 size={14} strokeWidth={2.1} />
+                          <span>{minutes ? `${minutes} мин` : "—"}</span>
+                        </span>
+                        <span style={pick.infoChip}>
+                          <Dumbbell size={14} strokeWidth={2.1} />
+                          <span>{totalExercises} упражнений</span>
+                        </span>
+                        {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
+                      </div>
 
                       <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
                         <button
