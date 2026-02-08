@@ -239,7 +239,7 @@ const st: Record<string, React.CSSProperties> = {
     background: "transparent",
     display: "grid",
     placeItems: "center",
-    gap: 1,
+    gap: 0,
     cursor: "pointer",
     fontWeight: 600,
     color: "rgba(15,23,42,0.72)",
@@ -294,6 +294,7 @@ const st: Record<string, React.CSSProperties> = {
     color: "rgba(15,23,42,0.42)",
     textAlign: "center",
     whiteSpace: "nowrap",
+    marginTop: -1,
     transition: "color .24s ease, opacity .24s ease, transform .24s ease",
   },
   tabLabelActive: {
