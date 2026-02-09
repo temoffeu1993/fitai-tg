@@ -27,7 +27,7 @@ import {
   type Location,
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
-import { Clock3, Dumbbell } from "lucide-react";
+import { Clock3, Dumbbell, Pencil } from "lucide-react";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -222,6 +222,14 @@ function formatDuration(minutes?: number | null) {
   return `${rounded} мин`;
 }
 
+function formatScheduledDateChip(iso: string) {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  const date = dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+  const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${time}`;
+}
+
 function formatWorkoutCountRu(count: number) {
   const n = Math.abs(Math.trunc(count));
   const rem10 = n % 10;
@@ -260,17 +268,22 @@ function getWeekDays(): Date[] {
 
 function collectAssignedDateKeys(
   planned: PlannedWorkout[],
-  scheduleByDate: ScheduleByDate
+  scheduleByDate: ScheduleByDate,
+  minIsoDate?: string
 ): string[] {
   const set = new Set<string>();
   planned
     .filter((w) => w.status === "scheduled")
     .forEach((w) => {
       const iso = datePart(w.scheduledFor);
-      if (iso) set.add(iso);
+      if (!iso) return;
+      if (minIsoDate && iso < minIsoDate) return;
+      set.add(iso);
     });
   Object.keys(scheduleByDate || {}).forEach((iso) => {
-    if (iso) set.add(iso);
+    if (!iso) return;
+    if (minIsoDate && iso < minIsoDate) return;
+    set.add(iso);
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
@@ -627,10 +640,8 @@ export default function Dashboard() {
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
   const dsFallbackIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
-  const dsInitialIdx = useMemo(
-    () => resolvePreferredDateIndex(dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx),
-    [dsDates, plannedWorkouts, scheduleDates, dsFallbackIdx]
-  );
+  const todayIso = useMemo(() => toISODate(new Date()), []);
+  const dsInitialIdx = dsFallbackIdx;
   const [dsActiveIdx, setDsActiveIdx] = useState(dsInitialIdx);
   const [dsSettledIdx, setDsSettledIdx] = useState(dsInitialIdx);
   const [dayCardIdx, setDayCardIdx] = useState(dsInitialIdx);
@@ -643,13 +654,19 @@ export default function Dashboard() {
   const dsLastTickRef = useRef<number | null>(null);
   const dsLastSettledRef = useRef<number>(dsInitialIdx);
   const dsSuppressHapticsRef = useRef(true);
-  const dsAutoCenterAppliedRef = useRef(false);
   const dsUserInteractedRef = useRef(false);
-  const dsFirstRenderIdxRef = useRef(dsInitialIdx);
   const dayCardTimerRef = useRef<number | null>(null);
+  const visibleScheduleDates = useMemo(() => {
+    const out: ScheduleByDate = {};
+    Object.entries(scheduleDates || {}).forEach(([iso, slot]) => {
+      if (!iso || iso < todayIso) return;
+      out[iso] = slot;
+    });
+    return out;
+  }, [scheduleDates, todayIso]);
   const hasAssignedDatesForDayCard = useMemo(
-    () => collectAssignedDateKeys(plannedWorkouts, scheduleDates).length > 0,
-    [plannedWorkouts, scheduleDates]
+    () => collectAssignedDateKeys(plannedWorkouts, visibleScheduleDates, todayIso).length > 0,
+    [plannedWorkouts, visibleScheduleDates, todayIso]
   );
 
   useEffect(() => {
@@ -663,43 +680,6 @@ export default function Dashboard() {
     }, 200);
     return () => window.clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    if (dsAutoCenterAppliedRef.current || dsUserInteractedRef.current) return;
-    // Wait until assigned dates are available (from API/cache), otherwise
-    // the first render locks auto-centering on "today".
-    if (!hasAssignedDatesForDayCard) return;
-    const preferredIdx = resolvePreferredDateIndex(
-      dsDates,
-      plannedWorkouts,
-      scheduleDates,
-      dsFallbackIdx
-    );
-    const stillOnInitial =
-      dsActiveIdx === dsFirstRenderIdxRef.current &&
-      dsSettledIdx === dsFirstRenderIdxRef.current &&
-      dayCardIdx === dsFirstRenderIdxRef.current;
-    if (!stillOnInitial) {
-      dsAutoCenterAppliedRef.current = true;
-      return;
-    }
-    setDsActiveIdx(preferredIdx);
-    setDsSettledIdx(preferredIdx);
-    setDayCardIdx(preferredIdx);
-    dsLastTickRef.current = preferredIdx;
-    dsLastSettledRef.current = preferredIdx;
-    dsScrollRef.current?.scrollTo({ left: preferredIdx * DATE_ITEM_W, behavior: "auto" });
-    dsAutoCenterAppliedRef.current = true;
-  }, [
-    dsDates,
-    plannedWorkouts,
-    scheduleDates,
-    dsFallbackIdx,
-    dsActiveIdx,
-    dsSettledIdx,
-    dayCardIdx,
-    hasAssignedDatesForDayCard,
-  ]);
 
   useEffect(() => {
     if (!hasAssignedDatesForDayCard) {
@@ -767,13 +747,13 @@ export default function Dashboard() {
       .filter((w) => w.status === "scheduled")
       .forEach((w) => {
         const iso = w.scheduledFor?.slice(0, 10);
-        if (iso) set.add(iso);
+        if (iso && iso >= todayIso) set.add(iso);
       });
-    Object.keys(scheduleDates || {}).forEach((iso) => {
-      if (iso) set.add(iso);
+    Object.keys(visibleScheduleDates || {}).forEach((iso) => {
+      if (iso && iso >= todayIso) set.add(iso);
     });
     return set;
-  }, [plannedWorkouts, scheduleDates]);
+  }, [plannedWorkouts, visibleScheduleDates, todayIso]);
 
   const completedDatesSet = useMemo(
     () => new Set(historyStats.completedDates),
@@ -799,10 +779,15 @@ export default function Dashboard() {
   const plannedForSelected = useMemo(() => {
     return plannedWorkouts
       .filter((w) => w && w.status !== "cancelled")
+      .filter((w) => {
+        if (w.status !== "scheduled") return true;
+        const iso = datePart(w.scheduledFor);
+        return Boolean(iso) && iso >= todayIso;
+      })
       .filter((w) => datePart(w.scheduledFor) === selectedISO)
       .slice()
       .sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")));
-  }, [plannedWorkouts, selectedISO]);
+  }, [plannedWorkouts, selectedISO, todayIso]);
 
   const completedForSelected = useMemo(
     () => plannedForSelected.find((w) => w.status === "completed") || null,
@@ -816,7 +801,7 @@ export default function Dashboard() {
     [plannedForSelected]
   );
 
-  const slotForSelected = scheduleDates[selectedISO];
+  const slotForSelected = selectedISO >= todayIso ? visibleScheduleDates[selectedISO] : undefined;
   const isSelectedCompleted =
     completedDatesSet.has(selectedISO) || Boolean(completedForSelected);
   const isSelectedPlanned =
@@ -1117,6 +1102,12 @@ export default function Dashboard() {
       : "Выбрать тренировку";
   const isResultButton = dayState === "completed";
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
+  const dayDateChipLabel = useMemo(() => {
+    if (dayState !== "planned" || !selectedPlanned?.scheduledFor) return "";
+    const iso = datePart(selectedPlanned.scheduledFor);
+    if (!iso || iso < todayIso) return "";
+    return formatScheduledDateChip(selectedPlanned.scheduledFor);
+  }, [dayState, selectedPlanned, todayIso]);
 
   const handleDayStart = () => {
     if (showPlannedStartReplace && selectedPlanned?.id) {
@@ -1312,7 +1303,28 @@ export default function Dashboard() {
             transform: `translateX(${dayCardOffset}px)`,
           }}
         >
-          <div style={s.dayHeader}>{dayHeaderText}</div>
+          {dayDateChipLabel ? (
+            <div style={s.dayDateChipRow}>
+              <button
+                type="button"
+                style={s.dayDateChipButton}
+                onClick={handleDayReplace}
+                aria-label="Изменить дату и время тренировки"
+              >
+                <span>{dayDateChipLabel}</span>
+              </button>
+              <button
+                type="button"
+                style={s.dayDateChipEditBtn}
+                onClick={handleDayReplace}
+                aria-label="Изменить дату и время тренировки"
+              >
+                <Pencil size={14} strokeWidth={2.1} style={s.dayDateChipEditIcon} />
+              </button>
+            </div>
+          ) : (
+            <div style={s.dayHeader}>{dayHeaderText}</div>
+          )}
           <div style={s.dayTitle}>{dayTitle}</div>
           {dayState === "weekly" ? (
             <div style={s.dayWeeklyMetaRow}>
@@ -1782,6 +1794,46 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     color: "#0f172a",
     lineHeight: 1.2,
+  },
+  dayDateChipRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  dayDateChipButton: {
+    height: 32,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.88)",
+    background: "linear-gradient(180deg, #eef1f5 0%, #e4e8ee 100%)",
+    boxShadow:
+      "inset 0 2px 4px rgba(15,23,42,0.16), inset 0 -1px 0 rgba(255,255,255,0.92), 0 1px 2px rgba(15,23,42,0.08)",
+    color: "rgba(15,23,42,0.7)",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1,
+    padding: "0 12px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  dayDateChipEditBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    border: "none",
+    background: "transparent",
+    color: "rgba(15,23,42,0.6)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+    WebkitTapHighlightColor: "transparent",
+  },
+  dayDateChipEditIcon: {
+    color: "currentColor",
   },
   dayMetaRow: {
     display: "flex",

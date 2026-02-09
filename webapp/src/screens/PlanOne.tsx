@@ -38,6 +38,7 @@ const formatScheduledDateChip = (iso: string) => {
   const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   return `${date} · ${time}`;
 };
+const datePart = (value?: string | null) => (value ? String(value).slice(0, 10) : "");
 
 const formatWeekTitleRu = (week: number | null) => {
   const n = Number(week);
@@ -310,6 +311,7 @@ export default function PlanOne() {
     []
   );
   const today = useMemo(() => new Date(), []);
+  const todayIso = useMemo(() => datePart(new Date().toISOString()), []);
   const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
   const chips = useMemo(() => {
@@ -818,8 +820,13 @@ export default function PlanOne() {
       }
       return;
     }
-    if (workout.status === "scheduled" && workout.scheduledFor) {
-      const workoutDate = new Date(workout.scheduledFor).toISOString().slice(0, 10);
+    const scheduledIso = datePart(workout.scheduledFor);
+    const hasFreshSchedule =
+      workout.status === "scheduled" &&
+      Boolean(scheduledIso) &&
+      scheduledIso >= todayIso;
+    if (hasFreshSchedule) {
+      const workoutDate = scheduledIso;
       nav("/check-in", {
         state: {
           workoutDate,
@@ -874,8 +881,10 @@ export default function PlanOne() {
               const isCompletedWorkout = status === "completed";
               const primaryActionLabel = isCompletedWorkout ? "Результат" : "Начать";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
+              const scheduledIso = datePart(w.scheduledFor);
+              const isStaleSchedule = status !== "completed" && Boolean(scheduledIso) && scheduledIso < todayIso;
               const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
-              const hasScheduledDate = Boolean(scheduledDateChip);
+              const hasScheduledDate = Boolean(scheduledDateChip) && !isStaleSchedule;
               const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
               const canEditSchedule = status !== "completed";
               const chipToneStyle = isCompletedWorkout ? pick.weekDateChipScheduled : pick.weekDateChipPending;
