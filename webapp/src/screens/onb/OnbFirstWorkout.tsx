@@ -6,7 +6,7 @@ import morobotImg from "@/assets/morobot.webp";
 import { generatePlan } from "@/api/plan";
 import {
   getScheduleOverview,
-  updatePlannedWorkout,
+  reschedulePlannedWorkout,
   type PlannedWorkout,
 } from "@/api/schedule";
 import { fireHapticImpact } from "@/utils/haptics";
@@ -325,10 +325,13 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         throw new Error("missing_first_workout");
       }
 
-      await updatePlannedWorkout(targetWorkout.id, {
-        status: "scheduled",
-        scheduledFor: scheduledAt.toISOString(),
-        scheduledTime: hhmm,
+      const utcOffsetMinutes = scheduledAt.getTimezoneOffset();
+      const dayUtcOffsetMinutes = new Date(`${isoDate}T00:00`).getTimezoneOffset();
+      await reschedulePlannedWorkout(targetWorkout.id, {
+        date: isoDate,
+        time: hhmm,
+        utcOffsetMinutes,
+        dayUtcOffsetMinutes,
       });
 
       persistScheduleCache(isoDate, hhmm);

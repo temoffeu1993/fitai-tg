@@ -5,9 +5,11 @@ import {
   cancelPlannedWorkout,
   getScheduleOverview,
   updatePlannedWorkout,
+  reschedulePlannedWorkout,
   PlannedWorkout,
   ScheduleByDate,
 } from "@/api/schedule";
+import { useToast, ToastContainer } from "@/components/Toast";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -70,6 +72,7 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [monthOffset, setMonthOffset] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
+  const scheduleToast = useToast();
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -288,29 +291,34 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
-      const conflicts = planned.filter(
-        (w) =>
-          w.id !== effectiveWorkout.id &&
-          w.status === "scheduled" &&
-          toDateInput(w.scheduledFor) === date
-      );
-      for (const conflict of conflicts) {
-        await updatePlannedWorkout(conflict.id, { status: "pending" });
-      }
-
-      const updated = await updatePlannedWorkout(effectiveWorkout.id, {
-        status: "scheduled",
-        scheduledFor: when.toISOString(),
-        scheduledTime: time,
+      const utcOffsetMinutes = when.getTimezoneOffset();
+      const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
+      const { plannedWorkout: updated, unscheduledIds } = await reschedulePlannedWorkout(effectiveWorkout.id, {
+        date,
+        time,
+        utcOffsetMinutes,
+        dayUtcOffsetMinutes,
       });
       setPlanned((prev) => mergePlanned(prev, updated));
+      if (unscheduledIds.length > 0) {
+        setPlanned((prev) =>
+          prev.map((w) =>
+            unscheduledIds.includes(w.id) ? { ...w, status: "pending" as const } : w
+          )
+        );
+      }
       await reload();
       setModal(null);
+      if (unscheduledIds.length > 0) {
+        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
+      }
     } catch (err) {
-      console.error("update planned workout failed", err);
+      console.error("reschedule planned workout failed", err);
+      const msg = err instanceof Error ? err.message : "";
+      const isPast = msg.includes("past_datetime");
       setModal((prev) =>
         prev
-          ? { ...prev, saving: false, error: "Не удалось сохранить. Попробуй ещё раз." }
+          ? { ...prev, saving: false, error: isPast ? "Нельзя выбрать прошедшие дату и время" : "Не удалось сохранить. Попробуй ещё раз." }
           : prev
       );
     }
@@ -572,6 +580,8 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           onDetails={handleModalDetails}
         />
       )}
+
+      <ToastContainer toasts={scheduleToast.toasts} />
     </div>
   );
 }

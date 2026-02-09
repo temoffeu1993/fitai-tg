@@ -3,7 +3,12 @@ import { Router, Request, Response } from "express";
 import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import type { WorkoutSchedulePayload } from "./types.js";
-import { loadScheduleData, saveScheduleData, upsertScheduleDate } from "./utils/scheduleStore.js";
+import {
+  loadScheduleData,
+  saveScheduleData,
+  upsertScheduleDate,
+  syncScheduleDatesWithPlannedWorkouts,
+} from "./utils/scheduleStore.js";
 import { getExerciseById, isReplacementAllowed } from "./exerciseAlternatives.js";
 import { logExerciseChangeEvent } from "./exerciseChangeEvents.js";
 import { buildUserProfile } from "./userProfile.js";
@@ -299,9 +304,10 @@ schedule.post(
     );
 
     const isoDate = isoDateString(scheduledFor);
-    if (isoDate) {
+    if (row.status === "scheduled" && isoDate) {
       await upsertScheduleDate(userId, isoDate, slotTime);
     }
+    await syncScheduleDatesWithPlannedWorkouts(userId);
 
     const userProfile = await buildUserProfile(userId);
     res.status(201).json({ plannedWorkout: serializePlannedWorkout(row, userProfile.timeBucket) });
@@ -426,6 +432,7 @@ schedule.patch(
       }
 
       await upsertScheduleDate(userId, date, time);
+      await syncScheduleDatesWithPlannedWorkouts(userId);
 
       return { updated, conflictIds };
     });
@@ -524,9 +531,10 @@ schedule.patch(
     const slotTime = resolveTime(effectiveDate, preferredTime);
     const isoDate = isoDateString(effectiveDate);
 
-    if (isoDate) {
+    if (updated.status === "scheduled" && isoDate) {
       await upsertScheduleDate(userId, isoDate, slotTime);
     }
+    await syncScheduleDatesWithPlannedWorkouts(userId);
 
     const userProfile = await buildUserProfile(userId);
     res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
@@ -818,6 +826,7 @@ schedule.delete(
     if (!rows[0]) {
       return res.status(404).json({ error: "not_found" });
     }
+    await syncScheduleDatesWithPlannedWorkouts(userId);
 
     const userProfile = await buildUserProfile(userId);
     res.json({ plannedWorkout: serializePlannedWorkout(rows[0], userProfile.timeBucket) });

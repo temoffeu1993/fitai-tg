@@ -17,6 +17,7 @@ import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationPr
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import DateTimeWheelModal from "@/components/DateTimeWheelModal";
+import { useToast, ToastContainer } from "@/components/Toast";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
@@ -183,6 +184,7 @@ export default function PlanOne() {
   const [inlineScheduleModal, setInlineScheduleModal] = useState<PlanOneInlineScheduleState | null>(null);
   const [inlineScheduleSaving, setInlineScheduleSaving] = useState(false);
   const [inlineScheduleError, setInlineScheduleError] = useState<string | null>(null);
+  const scheduleToast = useToast();
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(cachedPlanned);
   const [plannedLoading, setPlannedLoading] = useState(!hasInitialPlannedCache);
   const [plannedFetchedOnce, setPlannedFetchedOnce] = useState(false);
@@ -804,7 +806,7 @@ export default function PlanOne() {
     try {
       const utcOffsetMinutes = when.getTimezoneOffset();
       const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
-      await reschedulePlannedWorkout(target.id, {
+      const { unscheduledIds } = await reschedulePlannedWorkout(target.id, {
         date,
         time,
         utcOffsetMinutes,
@@ -813,6 +815,9 @@ export default function PlanOne() {
 
       await loadPlanned({ silent: true });
       setInlineScheduleModal(null);
+      if (unscheduledIds.length > 0) {
+        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
+      }
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
@@ -1000,11 +1005,16 @@ export default function PlanOne() {
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
               const scheduledIso = datePart(w.scheduledFor);
               const isStaleSchedule = status !== "completed" && Boolean(scheduledIso) && scheduledIso < todayIso;
-              const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
+              const isUserScheduled = status === "scheduled" || status === "completed";
+              const scheduledDateChip = isUserScheduled && w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
               const hasScheduledDate = Boolean(scheduledDateChip) && !isStaleSchedule;
               const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
               const canEditSchedule = status !== "completed";
-              const chipToneStyle = isCompletedWorkout ? pick.weekDateChipScheduled : pick.weekDateChipPending;
+              const chipToneStyle = isCompletedWorkout
+                ? pick.weekDateChipScheduled
+                : isUserScheduled && hasScheduledDate
+                  ? pick.weekDateChipScheduled
+                  : pick.weekDateChipPending;
               const showEditPencil = !isCompletedWorkout;
 
               return (
@@ -1322,6 +1332,7 @@ export default function PlanOne() {
         </>
       )}
 
+      <ToastContainer toasts={scheduleToast.toasts} />
     </div>
   );
 }

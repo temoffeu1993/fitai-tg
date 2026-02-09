@@ -23,6 +23,7 @@ import {
   type GamificationSummary,
 } from "@/lib/gamification";
 import { fireHapticImpact } from "@/utils/haptics";
+import { useToast, ToastContainer } from "@/components/Toast";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import {
   getSchemeDisplayData,
@@ -314,7 +315,6 @@ function getWeekDays(): Date[] {
 
 function collectAssignedDateKeys(
   planned: PlannedWorkout[],
-  scheduleByDate: ScheduleByDate,
   minIsoDate?: string
 ): string[] {
   const set = new Set<string>();
@@ -326,21 +326,15 @@ function collectAssignedDateKeys(
       if (minIsoDate && iso < minIsoDate) return;
       set.add(iso);
     });
-  Object.keys(scheduleByDate || {}).forEach((iso) => {
-    if (!iso) return;
-    if (minIsoDate && iso < minIsoDate) return;
-    set.add(iso);
-  });
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
 function resolvePreferredDateIndex(
   dsDates: Array<{ date: Date }>,
   planned: PlannedWorkout[],
-  scheduleByDate: ScheduleByDate,
   fallbackIdx: number
 ): number {
-  const assigned = collectAssignedDateKeys(planned, scheduleByDate);
+  const assigned = collectAssignedDateKeys(planned);
   if (!assigned.length) return fallbackIdx;
   const today = toISODate(new Date());
   const preferredIso = assigned.find((iso) => iso >= today) || assigned[0];
@@ -523,6 +517,7 @@ export default function Dashboard() {
   const [dayScheduleModal, setDayScheduleModal] = useState<DayScheduleModalState | null>(null);
   const [dayScheduleSaving, setDayScheduleSaving] = useState(false);
   const [dayScheduleError, setDayScheduleError] = useState<string | null>(null);
+  const scheduleToast = useToast();
 
   // Lock scroll for intro
   useLayoutEffect(() => {
@@ -705,17 +700,9 @@ export default function Dashboard() {
   const dsSuppressHapticsRef = useRef(true);
   const dsUserInteractedRef = useRef(false);
   const dayCardTimerRef = useRef<number | null>(null);
-  const visibleScheduleDates = useMemo(() => {
-    const out: ScheduleByDate = {};
-    Object.entries(scheduleDates || {}).forEach(([iso, slot]) => {
-      if (!iso || iso < todayIso) return;
-      out[iso] = slot;
-    });
-    return out;
-  }, [scheduleDates, todayIso]);
   const hasAssignedDatesForDayCard = useMemo(
-    () => collectAssignedDateKeys(plannedWorkouts, visibleScheduleDates, todayIso).length > 0,
-    [plannedWorkouts, visibleScheduleDates, todayIso]
+    () => collectAssignedDateKeys(plannedWorkouts, todayIso).length > 0,
+    [plannedWorkouts, todayIso]
   );
 
   useEffect(() => {
@@ -798,11 +785,8 @@ export default function Dashboard() {
         const iso = w.scheduledFor?.slice(0, 10);
         if (iso && iso >= todayIso) set.add(iso);
       });
-    Object.keys(visibleScheduleDates || {}).forEach((iso) => {
-      if (iso && iso >= todayIso) set.add(iso);
-    });
     return set;
-  }, [plannedWorkouts, visibleScheduleDates, todayIso]);
+  }, [plannedWorkouts, todayIso]);
 
   const completedDatesSet = useMemo(
     () => new Set(historyStats.completedDates),
@@ -850,11 +834,9 @@ export default function Dashboard() {
     [plannedForSelected]
   );
 
-  const slotForSelected = selectedISO >= todayIso ? visibleScheduleDates[selectedISO] : undefined;
   const isSelectedCompleted =
     completedDatesSet.has(selectedISO) || Boolean(completedForSelected);
-  const isSelectedPlanned =
-    Boolean(activeForSelected) || (!isSelectedCompleted && Boolean(slotForSelected));
+  const isSelectedPlanned = Boolean(activeForSelected);
 
   const selectedPlanned =
     activeForSelected || completedForSelected || plannedForSelected[0] || null;
@@ -1152,7 +1134,7 @@ export default function Dashboard() {
   const isResultButton = dayState === "completed";
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
   const dayDateChipLabel = useMemo(() => {
-    if (dayState !== "planned" || !selectedPlanned?.scheduledFor) return "";
+    if (dayState !== "planned" || selectedPlanned?.status !== "scheduled" || !selectedPlanned?.scheduledFor) return "";
     const iso = datePart(selectedPlanned.scheduledFor);
     if (!iso || iso < todayIso) return "";
     return formatScheduledDateChip(selectedPlanned.scheduledFor);
@@ -1229,7 +1211,7 @@ export default function Dashboard() {
     try {
       const utcOffsetMinutes = when.getTimezoneOffset();
       const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
-      await reschedulePlannedWorkout(target.id, {
+      const { unscheduledIds } = await reschedulePlannedWorkout(target.id, {
         date,
         time,
         utcOffsetMinutes,
@@ -1237,6 +1219,9 @@ export default function Dashboard() {
       });
       await refreshPlanned();
       setDayScheduleModal(null);
+      if (unscheduledIds.length > 0) {
+        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
+      }
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
@@ -1612,6 +1597,7 @@ export default function Dashboard() {
         />
       ) : null}
 
+      <ToastContainer toasts={scheduleToast.toasts} />
     </div>
   );
 }
