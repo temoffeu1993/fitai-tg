@@ -10,7 +10,12 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { getGamificationSummary } from "@/api/progress";
-import { getScheduleOverview, type PlannedWorkout, type ScheduleByDate } from "@/api/schedule";
+import {
+  getScheduleOverview,
+  reschedulePlannedWorkout,
+  type PlannedWorkout,
+  type ScheduleByDate,
+} from "@/api/schedule";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
 import {
   EMPTY_GAMIFICATION_SUMMARY,
@@ -28,6 +33,7 @@ import {
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
 import { Clock3, Dumbbell, Pencil } from "lucide-react";
+import DateTimeWheelModal from "@/components/DateTimeWheelModal";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -103,6 +109,13 @@ type HistorySnapshot = {
   total: number;
   lastCompletedAt: number | null;
   completedDates: string[];
+};
+
+type DayScheduleModalState = {
+  plannedWorkoutId: string;
+  title: string;
+  date: string;
+  time: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -250,6 +263,39 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
 function datePart(value?: string | null): string {
   if (!value) return "";
   return String(value).slice(0, 10);
+}
+
+function toDateKeyLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toLocalDateInput(iso: string): string {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  return toDateKeyLocal(dt);
+}
+
+function toLocalTimeInput(iso: string): string {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+}
+
+function extractApiErrorCode(err: any): string | null {
+  const bodyError = err?.body?.error;
+  if (typeof bodyError === "string" && bodyError.trim()) return bodyError.trim();
+  const raw = typeof err?.message === "string" ? err.message.trim() : "";
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const code = parsed?.error;
+    return typeof code === "string" && code.trim() ? code.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 function getWeekDays(): Date[] {
@@ -474,6 +520,9 @@ export default function Dashboard() {
   );
   const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
+  const [dayScheduleModal, setDayScheduleModal] = useState<DayScheduleModalState | null>(null);
+  const [dayScheduleSaving, setDayScheduleSaving] = useState(false);
+  const [dayScheduleError, setDayScheduleError] = useState<string | null>(null);
 
   // Lock scroll for intro
   useLayoutEffect(() => {
@@ -1124,12 +1173,89 @@ export default function Dashboard() {
   };
 
   const handleDayReplace = () => {
-    navigate("/plan/one", {
-      state: {
-        replaceDate: selectedISO,
-        replaceFromPlannedWorkoutId: selectedPlanned?.id || null,
-      },
+    if (dayState !== "planned" || !selectedPlanned?.id || !selectedPlanned?.scheduledFor) {
+      navigate("/plan/one", {
+        state: {
+          replaceDate: selectedISO,
+          replaceFromPlannedWorkoutId: selectedPlanned?.id || null,
+        },
+      });
+      return;
+    }
+
+    const todayLocalIso = toDateKeyLocal(new Date());
+    const localDate = toLocalDateInput(selectedPlanned.scheduledFor);
+    const localTime = toLocalTimeInput(selectedPlanned.scheduledFor);
+    const initialDate = localDate && localDate >= todayLocalIso ? localDate : todayLocalIso;
+    const initialTime = isValidTime(localTime) ? localTime : "18:00";
+
+    setDayScheduleModal({
+      plannedWorkoutId: selectedPlanned.id,
+      title: selectedWorkoutTitle,
+      date: initialDate,
+      time: initialTime,
     });
+    setDayScheduleError(null);
+    setDayScheduleSaving(false);
+  };
+
+  const handleDayScheduleSave = async (date: string, time: string) => {
+    if (!dayScheduleModal || dayScheduleSaving) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidTime(time)) {
+      setDayScheduleError("Укажи корректные дату и время");
+      return;
+    }
+    const when = new Date(`${date}T${time}`);
+    if (!Number.isFinite(when.getTime())) {
+      setDayScheduleError("Укажи корректные дату и время");
+      return;
+    }
+    const nowMinute = new Date();
+    nowMinute.setSeconds(0, 0);
+    if (when.getTime() < nowMinute.getTime()) {
+      setDayScheduleError("Нельзя выбрать прошедшие дату и время");
+      return;
+    }
+
+    const target =
+      plannedWorkouts.find((w) => w.id === dayScheduleModal.plannedWorkoutId) || null;
+    if (!target || target.status === "completed" || target.status === "cancelled") {
+      setDayScheduleError("Тренировку нельзя перенести");
+      return;
+    }
+
+    setDayScheduleSaving(true);
+    setDayScheduleError(null);
+    try {
+      const utcOffsetMinutes = when.getTimezoneOffset();
+      const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
+      await reschedulePlannedWorkout(target.id, {
+        date,
+        time,
+        utcOffsetMinutes,
+        dayUtcOffsetMinutes,
+      });
+      await refreshPlanned();
+      setDayScheduleModal(null);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      } catch {}
+    } catch (err) {
+      console.error("dashboard day schedule save failed", err);
+      const code = extractApiErrorCode(err);
+      if (code === "past_datetime") {
+        setDayScheduleError("Нельзя выбрать прошедшие дату и время");
+      } else if (code === "planned_workout_completed") {
+        setDayScheduleError("Тренировка уже завершена и недоступна для переноса");
+      } else if (code === "planned_workout_cancelled") {
+        setDayScheduleError("Тренировка отменена и недоступна для переноса");
+      } else {
+        setDayScheduleError("Не удалось сохранить. Попробуй ещё раз.");
+      }
+    } finally {
+      setDayScheduleSaving(false);
+    }
   };
 
   const handleDayAction = () => {
@@ -1466,6 +1592,25 @@ export default function Dashboard() {
           <div style={s.progressCtaTitle}>Прогресс</div>
         </button>
       </section>
+
+      {dayScheduleModal ? (
+        <DateTimeWheelModal
+          key={dayScheduleModal.plannedWorkoutId}
+          title="Дата и время"
+          subtitle={dayScheduleModal.title}
+          initialDate={dayScheduleModal.date}
+          initialTime={dayScheduleModal.time}
+          disallowPast
+          saving={dayScheduleSaving}
+          error={dayScheduleError}
+          onClose={() => {
+            if (dayScheduleSaving) return;
+            setDayScheduleModal(null);
+            setDayScheduleError(null);
+          }}
+          onSave={handleDayScheduleSave}
+        />
+      ) : null}
 
     </div>
   );

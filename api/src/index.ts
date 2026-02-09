@@ -21,6 +21,7 @@ import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler, errorHandler } from "./middleware/errorHandler.js";
 import { startProgressionJobWorker } from "./progressionJobs.js";
 import { startCoachJobWorker } from "./coachJobs.js";
+import { q } from "./db.js";
 
 const app = express();
 
@@ -68,18 +69,22 @@ app.get(
 // error handler
 app.use(errorHandler);
 
-app.listen(config.port, () => {
+const listenHost = process.env.API_HOST || process.env.HOST || "0.0.0.0";
+const server = app.listen(config.port, listenHost, () => {
   console.log("api:" + config.port);
+  console.log("api-host:" + listenHost);
   console.log("=== API INDEX LOADED ===");
+});
+
+server.on("error", (err) => {
+  console.error("HTTP server startup failed:", err);
+  process.exit(1);
 });
 
 // Background worker: догоняет прогрессию из outbox очереди
 startProgressionJobWorker();
 // Background worker: генерирует "тренерский" фидбек (best-effort)
 startCoachJobWorker();
-
-// api/src/index.ts (после app.listen)
-import { q } from "./db.js";
 
 (async () => {
   try {
