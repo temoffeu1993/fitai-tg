@@ -838,7 +838,7 @@ export default function PlanOne() {
       <TypingDotsStyles />
       <style>{pickStyles}</style>
 
-      <section style={pick.programHeaderRow}>
+      <section style={pick.programHeaderRow} className="plan-fade plan-delay-1">
         <div style={pick.programHeaderLeft}>
           <span style={pick.programAvatarCircle}>
             <img src={mascotImg} alt="" style={pick.programAvatarImg} loading="eager" decoding="async" />
@@ -851,7 +851,7 @@ export default function PlanOne() {
       </section>
 
       {weekWorkouts.length ? (
-        <section style={pick.weekListWrap}>
+        <section style={pick.weekListWrap} className="plan-fade plan-delay-2">
           <div style={{ ...pick.weekListGrid, height: stackHeight }}>
             {weekWorkouts.map((w, index) => {
               const p: any = w.plan || {};
@@ -999,7 +999,7 @@ export default function PlanOne() {
             })}
           </div>
           {activeStackWorkout && activeStackExpanded ? (
-            <div style={pick.detailsSection}>
+            <div style={pick.detailsSection} className="plan-fade plan-delay-3">
               <PlannedExercisesEditor
                 plannedWorkout={activeStackWorkout}
                 displayItems={activeStackExercises}
@@ -1011,7 +1011,7 @@ export default function PlanOne() {
           ) : null}
         </section>
       ) : (
-        <section style={s.blockWhite}>
+        <section style={s.blockWhite} className="plan-fade plan-delay-2">
           <h3 style={{ marginTop: 0 }}>Тренировок на неделю пока нет</h3>
           <p style={{ marginTop: 6, color: "#555" }}>
             Сгенерируем набор тренировок под твою схему. После выполнения они будут исчезать из списка.
@@ -2999,6 +2999,17 @@ const metricNumStyle: React.CSSProperties = {
 };
 
 const pickStyles = `
+  @keyframes planFadeUp {
+    0% { opacity: 0; transform: translateY(14px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .plan-fade {
+    animation: planFadeUp 520ms ease-out both;
+  }
+  .plan-delay-1 { animation-delay: 80ms; }
+  .plan-delay-2 { animation-delay: 160ms; }
+  .plan-delay-3 { animation-delay: 240ms; }
+
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(24px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
@@ -3052,6 +3063,10 @@ const pickStyles = `
     transform: translateY(1px) scale(0.99) !important;
   }
   @media (prefers-reduced-motion: reduce) {
+    .plan-fade,
+    .plan-delay-1,
+    .plan-delay-2,
+    .plan-delay-3 { animation: none !important; opacity: 1 !important; transform: none !important; }
     .plan-stack-card { transition: none !important; }
     .dash-primary-btn { transition: none !important; }
   }
