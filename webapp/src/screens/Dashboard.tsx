@@ -13,6 +13,7 @@ import { getGamificationSummary } from "@/api/progress";
 import {
   getScheduleOverview,
   reschedulePlannedWorkout,
+  updatePlannedWorkout,
   type PlannedWorkout,
   type ScheduleByDate,
 } from "@/api/schedule";
@@ -23,7 +24,7 @@ import {
   type GamificationSummary,
 } from "@/lib/gamification";
 import { fireHapticImpact } from "@/utils/haptics";
-import { useToast, ToastContainer } from "@/components/Toast";
+import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import {
   getSchemeDisplayData,
@@ -115,6 +116,15 @@ type HistorySnapshot = {
 type DayScheduleModalState = {
   plannedWorkoutId: string;
   title: string;
+  date: string;
+  time: string;
+  canDelete: boolean;
+};
+
+type DayScheduleReplaceConfirmState = {
+  targetWorkoutId: string;
+  targetTitle: string;
+  conflictTitle: string;
   date: string;
   time: string;
 };
@@ -517,7 +527,8 @@ export default function Dashboard() {
   const [dayScheduleModal, setDayScheduleModal] = useState<DayScheduleModalState | null>(null);
   const [dayScheduleSaving, setDayScheduleSaving] = useState(false);
   const [dayScheduleError, setDayScheduleError] = useState<string | null>(null);
-  const scheduleToast = useToast();
+  const [dayScheduleReplaceConfirm, setDayScheduleReplaceConfirm] =
+    useState<DayScheduleReplaceConfirmState | null>(null);
 
   // Lock scroll for intro
   useLayoutEffect(() => {
@@ -874,6 +885,31 @@ export default function Dashboard() {
     return fallbackSchemeTitle;
   }, [selectedPlanned, selectedScheme, fallbackSchemeTitle]);
 
+  const resolveWorkoutTitle = useCallback(
+    (workout: PlannedWorkout | null) => {
+      const plan: any = workout?.plan || {};
+      const raw =
+        String(
+          plan.dayLabel ||
+            plan.title ||
+            plan.name ||
+            plan.label ||
+            plan.scheme_label ||
+            ""
+        ).trim();
+      const idxRaw = Number(plan?.dayIndex);
+      const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
+      const splitType = String(plan?.splitType || selectedScheme?.splitType || "").trim();
+      if (raw) {
+        const resolved = resolveDayCopy(raw, splitType, idx).title;
+        if (/^День\s+\d+/.test(resolved)) return raw;
+        return resolved;
+      }
+      return fallbackSchemeTitle;
+    },
+    [selectedScheme, fallbackSchemeTitle]
+  );
+
   const workoutChips = useMemo(() => {
     const plan: any = selectedPlanned?.plan || {};
     const totalExercises =
@@ -1176,6 +1212,7 @@ export default function Dashboard() {
       title: selectedWorkoutTitle,
       date: initialDate,
       time: initialTime,
+      canDelete: selectedPlanned.status === "scheduled",
     });
     setDayScheduleError(null);
     setDayScheduleSaving(false);
@@ -1206,12 +1243,39 @@ export default function Dashboard() {
       return;
     }
 
+    const conflict = plannedWorkouts.find((w) => {
+      if (!w || w.id === target.id) return false;
+      if (w.status !== "scheduled" || !w.scheduledFor) return false;
+      const localDate = toLocalDateInput(w.scheduledFor);
+      return localDate === date;
+    });
+    if (conflict) {
+      setDayScheduleReplaceConfirm({
+        targetWorkoutId: target.id,
+        targetTitle: dayScheduleModal.title,
+        conflictTitle: resolveWorkoutTitle(conflict),
+        date,
+        time,
+      });
+      return;
+    }
+
+    await performDayScheduleSave(target.id, date, time);
+  };
+
+  const performDayScheduleSave = async (targetWorkoutId: string, date: string, time: string) => {
+    const when = new Date(`${date}T${time}`);
+    if (!Number.isFinite(when.getTime())) {
+      setDayScheduleError("Укажи корректные дату и время");
+      return;
+    }
+
     setDayScheduleSaving(true);
     setDayScheduleError(null);
     try {
       const utcOffsetMinutes = when.getTimezoneOffset();
       const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
-      const { unscheduledIds } = await reschedulePlannedWorkout(target.id, {
+      await reschedulePlannedWorkout(targetWorkoutId, {
         date,
         time,
         utcOffsetMinutes,
@@ -1219,9 +1283,7 @@ export default function Dashboard() {
       });
       await refreshPlanned();
       setDayScheduleModal(null);
-      if (unscheduledIds.length > 0) {
-        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
-      }
+      setDayScheduleReplaceConfirm(null);
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
@@ -1238,6 +1300,42 @@ export default function Dashboard() {
       } else {
         setDayScheduleError("Не удалось сохранить. Попробуй ещё раз.");
       }
+    } finally {
+      setDayScheduleSaving(false);
+    }
+  };
+
+  const handleDayScheduleReplaceConfirm = async () => {
+    if (!dayScheduleReplaceConfirm || dayScheduleSaving) return;
+    await performDayScheduleSave(
+      dayScheduleReplaceConfirm.targetWorkoutId,
+      dayScheduleReplaceConfirm.date,
+      dayScheduleReplaceConfirm.time
+    );
+  };
+
+  const handleDayScheduleDelete = async () => {
+    if (!dayScheduleModal || dayScheduleSaving || !dayScheduleModal.canDelete) return;
+    const target = plannedWorkouts.find((w) => w.id === dayScheduleModal.plannedWorkoutId) || null;
+    if (!target || target.status !== "scheduled") {
+      setDayScheduleError("Тренировка уже не запланирована");
+      return;
+    }
+
+    setDayScheduleSaving(true);
+    setDayScheduleError(null);
+    try {
+      await updatePlannedWorkout(target.id, { status: "pending" });
+      await refreshPlanned();
+      setDayScheduleModal(null);
+      setDayScheduleReplaceConfirm(null);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      } catch {}
+    } catch (err) {
+      console.error("dashboard day schedule delete failed", err);
+      setDayScheduleError("Не удалось удалить дату и время. Попробуй ещё раз.");
     } finally {
       setDayScheduleSaving(false);
     }
@@ -1591,13 +1689,24 @@ export default function Dashboard() {
           onClose={() => {
             if (dayScheduleSaving) return;
             setDayScheduleModal(null);
+            setDayScheduleReplaceConfirm(null);
             setDayScheduleError(null);
           }}
           onSave={handleDayScheduleSave}
+          onDelete={dayScheduleModal.canDelete ? handleDayScheduleDelete : undefined}
         />
       ) : null}
-
-      <ToastContainer toasts={scheduleToast.toasts} />
+      {dayScheduleReplaceConfirm ? (
+        <ScheduleReplaceConfirmModal
+          message={`На эту дату уже стоит тренировка «${dayScheduleReplaceConfirm.conflictTitle}». Заменить ее на «${dayScheduleReplaceConfirm.targetTitle}»?`}
+          busy={dayScheduleSaving}
+          onConfirm={handleDayScheduleReplaceConfirm}
+          onCancel={() => {
+            if (dayScheduleSaving) return;
+            setDayScheduleReplaceConfirm(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

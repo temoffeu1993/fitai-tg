@@ -44,6 +44,8 @@ export type DateTimeWheelModalProps = {
   saving?: boolean;
   error?: string | null;
   saveLabel?: string;
+  deleteLabel?: string;
+  onDelete?: () => void;
   onClose: () => void;
   onSave: (date: string, time: string) => void;
 };
@@ -102,6 +104,8 @@ export default function DateTimeWheelModal({
   disallowPast = true,
   saving = false,
   saveLabel = "Сохранить",
+  deleteLabel = "Удалить",
+  onDelete,
   onClose,
   onSave,
 }: DateTimeWheelModalProps) {
@@ -528,6 +532,23 @@ export default function DateTimeWheelModal({
         >
           {saving ? "Сохраняем..." : saveLabel}
         </button>
+
+        {onDelete ? (
+          <button
+            type="button"
+            style={{
+              ...st.deleteBtnText,
+              ...(saving ? st.deleteBtnTextDisabled : null),
+            }}
+            disabled={saving}
+            onClick={() => {
+              if (saving) return;
+              onDelete();
+            }}
+          >
+            {deleteLabel}
+          </button>
+        ) : null}
       </div>
     </div>,
     document.body
@@ -900,5 +921,22 @@ const st: Record<string, CSSProperties> = {
     opacity: 0.72,
     cursor: "default",
     boxShadow: "0 4px 8px rgba(0,0,0,0.14)",
+  },
+  deleteBtnText: {
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    padding: 0,
+    margin: "2px 0 0",
+    alignSelf: "center",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(220, 38, 38, 0.6)",
+    cursor: "pointer",
+  },
+  deleteBtnTextDisabled: {
+    opacity: 0.6,
+    cursor: "default",
   },
 };

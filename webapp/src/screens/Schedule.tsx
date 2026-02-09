@@ -9,7 +9,7 @@ import {
   PlannedWorkout,
   ScheduleByDate,
 } from "@/api/schedule";
-import { useToast, ToastContainer } from "@/components/Toast";
+import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -63,6 +63,14 @@ type ModalState = {
   error: string | null;
 };
 
+type ReplaceConfirmState = {
+  targetWorkoutId: string;
+  targetTitle: string;
+  conflictTitle: string;
+  date: string;
+  time: string;
+};
+
 export default function Schedule() {
   const nav = useNavigate();
   const location = useLocation();
@@ -72,7 +80,7 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [monthOffset, setMonthOffset] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
-  const scheduleToast = useToast();
+  const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -289,11 +297,44 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       );
       return;
     }
+    const conflict = planned.find(
+      (w) =>
+        w.id !== effectiveWorkout.id &&
+        w.status === "scheduled" &&
+        Boolean(w.scheduledFor) &&
+        toDateInput(w.scheduledFor) === date
+    );
+    if (conflict) {
+      const targetPlan: any = effectiveWorkout.plan || {};
+      const conflictPlan: any = conflict.plan || {};
+      const targetTitle = dayLabelRU(String(targetPlan.dayLabel || targetPlan.title || "Тренировка"));
+      const conflictTitle = dayLabelRU(String(conflictPlan.dayLabel || conflictPlan.title || "Тренировка"));
+      setReplaceConfirm({
+        targetWorkoutId: effectiveWorkout.id,
+        targetTitle,
+        conflictTitle,
+        date,
+        time,
+      });
+      return;
+    }
+
+    await performModalSave(effectiveWorkout.id, date, time);
+  };
+
+  const performModalSave = async (targetWorkoutId: string, date: string, time: string) => {
+    const when = parseLocalDateTime(date, time);
+    if (!when) {
+      setModal((prev) =>
+        prev ? { ...prev, error: "Укажи корректные дату и время" } : prev
+      );
+      return;
+    }
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
       const utcOffsetMinutes = when.getTimezoneOffset();
       const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
-      const { plannedWorkout: updated, unscheduledIds } = await reschedulePlannedWorkout(effectiveWorkout.id, {
+      const { plannedWorkout: updated, unscheduledIds } = await reschedulePlannedWorkout(targetWorkoutId, {
         date,
         time,
         utcOffsetMinutes,
@@ -309,9 +350,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       }
       await reload();
       setModal(null);
-      if (unscheduledIds.length > 0) {
-        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
-      }
+      setReplaceConfirm(null);
     } catch (err) {
       console.error("reschedule planned workout failed", err);
       const msg = err instanceof Error ? err.message : "";
@@ -324,6 +363,11 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
     }
   };
 
+  const handleReplaceConfirm = async () => {
+    if (!replaceConfirm || !modal || modal.saving) return;
+    await performModalSave(replaceConfirm.targetWorkoutId, replaceConfirm.date, replaceConfirm.time);
+  };
+
   const handleModalDelete = async () => {
     if (!modal) return;
     const workoutId = modal.workout?.id;
@@ -334,6 +378,7 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       setPlanned((prev) => mergePlanned(prev, updated));
       await reload();
       setModal(null);
+      setReplaceConfirm(null);
     } catch (err) {
       console.error("unschedule planned workout failed", err);
       setModal((prev) =>
@@ -564,7 +609,10 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           time={modal.time}
           saving={modal.saving}
           error={modal.error}
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setModal(null);
+            setReplaceConfirm(null);
+          }}
           onDateChange={(val) =>
             setModal((prev) => (prev ? { ...prev, date: val } : prev))
           }
@@ -580,8 +628,17 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           onDetails={handleModalDetails}
         />
       )}
-
-      <ToastContainer toasts={scheduleToast.toasts} />
+      {replaceConfirm ? (
+        <ScheduleReplaceConfirmModal
+          message={`На эту дату уже стоит тренировка «${replaceConfirm.conflictTitle}». Заменить ее на «${replaceConfirm.targetTitle}»?`}
+          busy={Boolean(modal?.saving)}
+          onConfirm={handleReplaceConfirm}
+          onCancel={() => {
+            if (modal?.saving) return;
+            setReplaceConfirm(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

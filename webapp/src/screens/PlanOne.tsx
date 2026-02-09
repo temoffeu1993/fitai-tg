@@ -8,6 +8,7 @@ import {
   removePlannedWorkoutExercise,
   reschedulePlannedWorkout,
   replacePlannedWorkoutExercise,
+  updatePlannedWorkout,
   type PlannedWorkout,
 } from "@/api/schedule";
 import { getMesocycleCurrent, submitCheckIn, type CheckInPayload } from "@/api/plan";
@@ -17,7 +18,7 @@ import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationPr
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
 import DateTimeWheelModal from "@/components/DateTimeWheelModal";
-import { useToast, ToastContainer } from "@/components/Toast";
+import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
@@ -72,6 +73,15 @@ const WEEK_STACK_ACTIVE_H = 224;
 type PlanOneInlineScheduleState = {
   plannedWorkoutId: string;
   title: string;
+  date: string;
+  time: string;
+  canDelete: boolean;
+};
+
+type PlanOneScheduleReplaceConfirmState = {
+  targetWorkoutId: string;
+  targetTitle: string;
+  conflictTitle: string;
   date: string;
   time: string;
 };
@@ -184,7 +194,8 @@ export default function PlanOne() {
   const [inlineScheduleModal, setInlineScheduleModal] = useState<PlanOneInlineScheduleState | null>(null);
   const [inlineScheduleSaving, setInlineScheduleSaving] = useState(false);
   const [inlineScheduleError, setInlineScheduleError] = useState<string | null>(null);
-  const scheduleToast = useToast();
+  const [inlineScheduleReplaceConfirm, setInlineScheduleReplaceConfirm] =
+    useState<PlanOneScheduleReplaceConfirmState | null>(null);
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(cachedPlanned);
   const [plannedLoading, setPlannedLoading] = useState(!hasInitialPlannedCache);
   const [plannedFetchedOnce, setPlannedFetchedOnce] = useState(false);
@@ -773,6 +784,7 @@ export default function PlanOne() {
       title: dayTitle,
       date: nextDate,
       time: nextTime,
+      canDelete: workout.status === "scheduled",
     });
     setInlineScheduleError(null);
     setInlineScheduleSaving(false);
@@ -801,12 +813,39 @@ export default function PlanOne() {
       return;
     }
 
+    const conflict = plannedWorkouts.find((w) => {
+      if (!w || w.id === target.id) return false;
+      if (w.status !== "scheduled" || !w.scheduledFor) return false;
+      const localDate = toLocalDateInput(w.scheduledFor);
+      return localDate === date;
+    });
+    if (conflict) {
+      setInlineScheduleReplaceConfirm({
+        targetWorkoutId: target.id,
+        targetTitle: inlineScheduleModal.title,
+        conflictTitle: dayLabelRU(conflict.plan || {}),
+        date,
+        time,
+      });
+      return;
+    }
+
+    await performInlineScheduleSave(target.id, date, time);
+  };
+
+  const performInlineScheduleSave = async (targetWorkoutId: string, date: string, time: string) => {
+    const when = new Date(`${date}T${time}`);
+    if (!Number.isFinite(when.getTime())) {
+      setInlineScheduleError("Укажи корректные дату и время");
+      return;
+    }
+
     setInlineScheduleSaving(true);
     setInlineScheduleError(null);
     try {
       const utcOffsetMinutes = when.getTimezoneOffset();
       const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
-      const { unscheduledIds } = await reschedulePlannedWorkout(target.id, {
+      await reschedulePlannedWorkout(targetWorkoutId, {
         date,
         time,
         utcOffsetMinutes,
@@ -815,9 +854,7 @@ export default function PlanOne() {
 
       await loadPlanned({ silent: true });
       setInlineScheduleModal(null);
-      if (unscheduledIds.length > 0) {
-        scheduleToast.show(`Запланировано! ${unscheduledIds.length} тренировка снята с этого дня`);
-      }
+      setInlineScheduleReplaceConfirm(null);
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
@@ -834,6 +871,42 @@ export default function PlanOne() {
       } else {
         setInlineScheduleError("Не удалось сохранить. Попробуй ещё раз.");
       }
+    } finally {
+      setInlineScheduleSaving(false);
+    }
+  };
+
+  const handleInlineScheduleReplaceConfirm = async () => {
+    if (!inlineScheduleReplaceConfirm || inlineScheduleSaving) return;
+    await performInlineScheduleSave(
+      inlineScheduleReplaceConfirm.targetWorkoutId,
+      inlineScheduleReplaceConfirm.date,
+      inlineScheduleReplaceConfirm.time
+    );
+  };
+
+  const handleInlineScheduleDelete = async () => {
+    if (!inlineScheduleModal || inlineScheduleSaving || !inlineScheduleModal.canDelete) return;
+    const target = plannedWorkouts.find((w) => w.id === inlineScheduleModal.plannedWorkoutId) || null;
+    if (!target || target.status !== "scheduled") {
+      setInlineScheduleError("Тренировка уже не запланирована");
+      return;
+    }
+
+    setInlineScheduleSaving(true);
+    setInlineScheduleError(null);
+    try {
+      await updatePlannedWorkout(target.id, { status: "pending" });
+      await loadPlanned({ silent: true });
+      setInlineScheduleModal(null);
+      setInlineScheduleReplaceConfirm(null);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      } catch {}
+    } catch (err) {
+      console.error("inline schedule delete failed", err);
+      setInlineScheduleError("Не удалось удалить дату и время. Попробуй ещё раз.");
     } finally {
       setInlineScheduleSaving(false);
     }
@@ -1012,9 +1085,7 @@ export default function PlanOne() {
               const canEditSchedule = status !== "completed";
               const chipToneStyle = isCompletedWorkout
                 ? pick.weekDateChipScheduled
-                : isUserScheduled && hasScheduledDate
-                  ? pick.weekDateChipScheduled
-                  : pick.weekDateChipPending;
+                : pick.weekDateChipPending;
               const showEditPencil = !isCompletedWorkout;
 
               return (
@@ -1172,9 +1243,22 @@ export default function PlanOne() {
           onClose={() => {
             if (inlineScheduleSaving) return;
             setInlineScheduleModal(null);
+            setInlineScheduleReplaceConfirm(null);
             setInlineScheduleError(null);
           }}
           onSave={handleInlineScheduleSave}
+          onDelete={inlineScheduleModal.canDelete ? handleInlineScheduleDelete : undefined}
+        />
+      ) : null}
+      {inlineScheduleReplaceConfirm ? (
+        <ScheduleReplaceConfirmModal
+          message={`На эту дату уже стоит тренировка «${inlineScheduleReplaceConfirm.conflictTitle}». Заменить ее на «${inlineScheduleReplaceConfirm.targetTitle}»?`}
+          busy={inlineScheduleSaving}
+          onConfirm={handleInlineScheduleReplaceConfirm}
+          onCancel={() => {
+            if (inlineScheduleSaving) return;
+            setInlineScheduleReplaceConfirm(null);
+          }}
         />
       ) : null}
     </div>
@@ -1332,7 +1416,17 @@ export default function PlanOne() {
         </>
       )}
 
-      <ToastContainer toasts={scheduleToast.toasts} />
+      {inlineScheduleReplaceConfirm ? (
+        <ScheduleReplaceConfirmModal
+          message={`На эту дату уже стоит тренировка «${inlineScheduleReplaceConfirm.conflictTitle}». Заменить ее на «${inlineScheduleReplaceConfirm.targetTitle}»?`}
+          busy={inlineScheduleSaving}
+          onConfirm={handleInlineScheduleReplaceConfirm}
+          onCancel={() => {
+            if (inlineScheduleSaving) return;
+            setInlineScheduleReplaceConfirm(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
