@@ -24,6 +24,16 @@ const MIN_MID = Math.floor(MIN_CYCLES / 2);
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
+const REMINDER_OPTIONS = [
+  "За 1 час",
+  "За 30 минут",
+  "За 15 минут",
+  "За 5 минут",
+  "В момент события",
+  "Не напоминать",
+  "За 1 день",
+];
+
 export type DateTimeWheelModalProps = {
   title?: string;
   subtitle?: string;
@@ -142,10 +152,14 @@ export default function DateTimeWheelModal({
   const [activeIdx, setActiveIdx] = useState(initialIdx);
   const [activeHour, setActiveHour] = useState(initialTimeParsed.hh);
   const [activeMinute, setActiveMinute] = useState(initialTimeParsed.mm);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderValue, setReminderValue] = useState(REMINDER_OPTIONS[0]);
+  const [reminderWidth, setReminderWidth] = useState<number | null>(null);
 
   const dateRef = useRef<HTMLDivElement>(null);
   const hourRef = useRef<HTMLDivElement>(null);
   const minuteRef = useRef<HTMLDivElement>(null);
+  const reminderRef = useRef<HTMLDivElement>(null);
 
   const dateRafRef = useRef<number | null>(null);
   const hourRafRef = useRef<number | null>(null);
@@ -189,6 +203,42 @@ export default function DateTimeWheelModal({
       suppressHapticsRef.current = false;
     }, 200);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!reminderOpen) return;
+    const onClick = (e: MouseEvent | TouchEvent) => {
+      if (!reminderRef.current) return;
+      if (!reminderRef.current.contains(e.target as Node)) setReminderOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("touchstart", onClick);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("touchstart", onClick);
+    };
+  }, [reminderOpen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const measurer = document.createElement("div");
+    measurer.style.position = "absolute";
+    measurer.style.visibility = "hidden";
+    measurer.style.pointerEvents = "none";
+    measurer.style.whiteSpace = "nowrap";
+    measurer.style.fontSize = "16px";
+    measurer.style.fontWeight = "500";
+    measurer.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    measurer.style.padding = "12px 16px";
+    document.body.appendChild(measurer);
+    let max = 0;
+    for (const opt of REMINDER_OPTIONS) {
+      measurer.textContent = opt;
+      max = Math.max(max, measurer.offsetWidth);
+    }
+    document.body.removeChild(measurer);
+    const viewportMax = typeof window !== "undefined" ? Math.max(0, window.innerWidth - 48) : max;
+    setReminderWidth(Math.min(max, viewportMax));
   }, []);
 
   const handleDateScroll = useCallback(() => {
@@ -415,6 +465,54 @@ export default function DateTimeWheelModal({
           </div>
         </div>
 
+        <div ref={reminderRef} style={st.reminderWrap}>
+          <div style={st.reminderCard}>
+            <button
+              type="button"
+              style={st.reminderRow}
+              onClick={() => {
+                fireHapticImpact("light");
+                setReminderOpen((v) => !v);
+              }}
+            >
+              <span style={st.reminderLabel}>🔔 Напомнить</span>
+              <span style={st.reminderValue}>
+                <span>{reminderValue}</span>
+                <span style={st.reminderChevrons}>
+                  <span>▴</span>
+                  <span>▾</span>
+                </span>
+              </span>
+            </button>
+          </div>
+          {reminderOpen ? (
+            <div
+              style={{
+                ...st.reminderList,
+                ...(reminderWidth ? { width: reminderWidth } : null),
+              }}
+            >
+              {REMINDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  style={{
+                    ...st.reminderOption,
+                    ...(opt === reminderValue ? st.reminderOptionActive : null),
+                  }}
+                  onClick={() => {
+                    setReminderValue(opt);
+                    setReminderOpen(false);
+                    fireHapticImpact("light");
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         <button
           type="button"
           style={{
@@ -481,13 +579,13 @@ const st: Record<string, CSSProperties> = {
     position: "fixed",
     inset: 0,
     zIndex: 2400,
-    background: "rgba(255,255,255,0.02)",
-    backdropFilter: "blur(3px)",
-    WebkitBackdropFilter: "blur(3px)",
+    background: "rgba(255,255,255,0.01)",
+    backdropFilter: "blur(2px)",
+    WebkitBackdropFilter: "blur(2px)",
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "center",
-    padding: "20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)",
+    padding: "20px",
   },
 
   card: {
@@ -495,14 +593,14 @@ const st: Record<string, CSSProperties> = {
     maxWidth: 680,
     minWidth: 280,
     borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.78)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,250,0.96) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "visible",
-    padding: "16px 14px calc(env(safe-area-inset-bottom, 0px) + 20px)",
+    padding: "16px 14px 20px",
     display: "flex",
     flexDirection: "column",
     gap: 18,
@@ -696,6 +794,91 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1,
     background: "transparent",
     boxShadow: "none",
+  },
+
+  reminderWrap: {
+    width: "100%",
+    alignSelf: "stretch",
+    position: "relative",
+    overflow: "visible",
+    display: "grid",
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 0,
+  },
+  reminderCard: {
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    padding: 0,
+  },
+  reminderRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+    background: "transparent",
+    border: "none",
+    padding: "16px 18px",
+  },
+  reminderLabel: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#1e1f22",
+  },
+  reminderValue: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 18,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.75)",
+  },
+  reminderChevrons: {
+    display: "grid",
+    fontSize: 12,
+    lineHeight: 0.8,
+    color: "rgba(30,31,34,0.55)",
+    textAlign: "center",
+  },
+  reminderList: {
+    position: "absolute",
+    right: 0,
+    left: "auto",
+    transform: "none",
+    bottom: "calc(100% + 4px)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.65)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    boxShadow:
+      "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
+    overflow: "visible",
+    zIndex: 7,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    width: "auto",
+    maxWidth: "calc(100vw - 48px)",
+  },
+  reminderOption: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "none",
+    background: "transparent",
+    fontSize: 16,
+    fontWeight: 500,
+    color: "#1e1f22",
+    textAlign: "left",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  reminderOptionActive: {
+    background: "rgba(30,31,34,0.06)",
+    fontWeight: 600,
   },
 
   primaryBtn: {
