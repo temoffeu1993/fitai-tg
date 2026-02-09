@@ -80,6 +80,27 @@ export async function updatePlannedWorkout(
   return data?.plannedWorkout;
 }
 
+export async function reschedulePlannedWorkout(
+  id: string,
+  input: { date: string; time: string; utcOffsetMinutes: number; dayUtcOffsetMinutes?: number }
+): Promise<{ plannedWorkout: PlannedWorkout; unscheduledIds: string[] }> {
+  const r = await apiFetch(`/api/planned-workouts/${id}/reschedule`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || "failed_to_reschedule_planned_workout");
+  }
+  const data = await r.json();
+  return {
+    plannedWorkout: data?.plannedWorkout as PlannedWorkout,
+    unscheduledIds: Array.isArray(data?.unscheduledIds) ? data.unscheduledIds : [],
+  };
+}
+
 export async function cancelPlannedWorkout(id: string): Promise<PlannedWorkout> {
   const r = await apiFetch(`/api/planned-workouts/${id}`, {
     method: "DELETE",

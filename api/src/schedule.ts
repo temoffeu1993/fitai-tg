@@ -18,6 +18,8 @@ function getUserId(req: any) {
 const isHHMM = (s: unknown) => typeof s === "string" && /^\d{2}:\d{2}$/.test(s);
 const isISODate = (s: unknown) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const isUUID = (s: unknown) => typeof s === "string" && /^[0-9a-fA-F-]{32,36}$/.test(s);
+const isUtcOffsetMinutes = (n: unknown) =>
+  typeof n === "number" && Number.isInteger(n) && n >= -14 * 60 && n <= 14 * 60;
 
 type PlannedWorkoutRow = {
   id: string;
@@ -48,6 +50,53 @@ const resolveTime = (scheduledFor: Date, preferred?: string) => {
   if (preferred && isHHMM(preferred)) return preferred;
   return timeFromDate(scheduledFor);
 };
+
+function parseISODateParts(value: string) {
+  if (!isISODate(value)) return null;
+  const [yearRaw, monthRaw, dayRaw] = value.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  const probe = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  if (
+    probe.getUTCFullYear() !== year ||
+    probe.getUTCMonth() !== month - 1 ||
+    probe.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+function parseHHMMParts(value: string) {
+  if (!isHHMM(value)) return null;
+  const [hoursRaw, minutesRaw] = value.split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return { hours, minutes };
+}
+
+function localDateTimeToUtc(date: string, time: string, utcOffsetMinutes: number): Date | null {
+  const dateParts = parseISODateParts(date);
+  const timeParts = parseHHMMParts(time);
+  if (!dateParts || !timeParts || !isUtcOffsetMinutes(utcOffsetMinutes)) return null;
+  const ts =
+    Date.UTC(
+      dateParts.year,
+      dateParts.month - 1,
+      dateParts.day,
+      timeParts.hours,
+      timeParts.minutes,
+      0,
+      0
+    ) +
+    utcOffsetMinutes * 60_000;
+  const dt = new Date(ts);
+  return Number.isFinite(dt.getTime()) ? dt : null;
+}
 
 const parsePlan = (value: any) => {
   if (!value) return {};
@@ -256,6 +305,136 @@ schedule.post(
 
     const userProfile = await buildUserProfile(userId);
     res.status(201).json({ plannedWorkout: serializePlannedWorkout(row, userProfile.timeBucket) });
+  })
+);
+
+schedule.patch(
+  "/planned-workouts/:id/reschedule",
+  asyncHandler(async (req: Request, res: Response) => {
+    const userId = await getUserId(req as any);
+    const { id } = req.params;
+
+    if (!isUUID(id)) {
+      return res.status(400).json({ error: "invalid_id" });
+    }
+
+    const body = req.body ?? {};
+    const date = typeof body.date === "string" ? body.date : "";
+    const time = typeof body.time === "string" ? body.time : "";
+    const utcOffsetMinutesRaw = body.utcOffsetMinutes;
+    const dayUtcOffsetMinutesRaw =
+      body.dayUtcOffsetMinutes != null ? body.dayUtcOffsetMinutes : utcOffsetMinutesRaw;
+
+    if (!isISODate(date)) {
+      return res.status(400).json({ error: "invalid_date" });
+    }
+    if (!isHHMM(time)) {
+      return res.status(400).json({ error: "invalid_time" });
+    }
+    if (!isUtcOffsetMinutes(utcOffsetMinutesRaw)) {
+      return res.status(400).json({ error: "invalid_utc_offset_minutes" });
+    }
+    const utcOffsetMinutes = Number(utcOffsetMinutesRaw);
+    if (!isUtcOffsetMinutes(dayUtcOffsetMinutesRaw)) {
+      return res.status(400).json({ error: "invalid_day_utc_offset_minutes" });
+    }
+    const dayUtcOffsetMinutes = Number(dayUtcOffsetMinutesRaw);
+
+    const scheduledFor = localDateTimeToUtc(date, time, utcOffsetMinutes);
+    if (!scheduledFor) {
+      return res.status(400).json({ error: "invalid_datetime" });
+    }
+
+    const nowMinute = new Date();
+    nowMinute.setSeconds(0, 0);
+    if (scheduledFor.getTime() < nowMinute.getTime()) {
+      return res.status(400).json({ error: "past_datetime" });
+    }
+
+    const dayStartUtc = localDateTimeToUtc(date, "00:00", dayUtcOffsetMinutes);
+    if (!dayStartUtc) {
+      return res.status(400).json({ error: "invalid_date" });
+    }
+    const dayEndUtc = new Date(dayStartUtc.getTime() + 24 * 60 * 60 * 1000);
+
+    const txResult = await withTransaction(async () => {
+      // Lock relevant rows for this user/day in deterministic order to avoid race updates.
+      await q<{ id: string }>(
+        `SELECT id
+           FROM planned_workouts
+          WHERE user_id = $1
+            AND (id = $2 OR (status = 'scheduled' AND scheduled_for >= $3 AND scheduled_for < $4))
+          ORDER BY id
+          FOR UPDATE`,
+        [userId, id, dayStartUtc.toISOString(), dayEndUtc.toISOString()]
+      );
+
+      const targetRows = await q<PlannedWorkoutRow>(
+        `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, created_at, updated_at
+           FROM planned_workouts
+          WHERE user_id = $1 AND id = $2
+          LIMIT 1`,
+        [userId, id]
+      );
+      const target = targetRows[0];
+      if (!target) {
+        throw new AppError("not_found", 404);
+      }
+      if (target.status === "completed") {
+        throw new AppError("planned_workout_completed", 409);
+      }
+      if (target.status === "cancelled") {
+        throw new AppError("planned_workout_cancelled", 409);
+      }
+
+      const conflictRows = await q<{ id: string }>(
+        `SELECT id
+           FROM planned_workouts
+          WHERE user_id = $1
+            AND id <> $2
+            AND status = 'scheduled'
+            AND scheduled_for >= $3
+            AND scheduled_for < $4
+          ORDER BY id`,
+        [userId, id, dayStartUtc.toISOString(), dayEndUtc.toISOString()]
+      );
+
+      const conflictIds = conflictRows.map((row) => row.id);
+      if (conflictIds.length > 0) {
+        await q(
+          `UPDATE planned_workouts
+              SET status = 'pending',
+                  scheduled_for = COALESCE(workout_date::timestamp, scheduled_for),
+                  updated_at = now()
+            WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+          [userId, conflictIds]
+        );
+      }
+
+      const updatedRows = await q<PlannedWorkoutRow>(
+        `UPDATE planned_workouts
+            SET status = 'scheduled',
+                scheduled_for = $3,
+                updated_at = now()
+          WHERE user_id = $1 AND id = $2
+          RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+        [userId, id, scheduledFor.toISOString()]
+      );
+      const updated = updatedRows[0];
+      if (!updated) {
+        throw new AppError("not_found", 404);
+      }
+
+      await upsertScheduleDate(userId, date, time);
+
+      return { updated, conflictIds };
+    });
+
+    const userProfile = await buildUserProfile(userId);
+    res.json({
+      plannedWorkout: serializePlannedWorkout(txResult.updated, userProfile.timeBucket),
+      unscheduledIds: txResult.conflictIds,
+    });
   })
 );
 

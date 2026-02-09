@@ -6,6 +6,7 @@ import {
   createPlannedWorkout,
   getScheduleOverview,
   removePlannedWorkoutExercise,
+  reschedulePlannedWorkout,
   replacePlannedWorkoutExercise,
   type PlannedWorkout,
 } from "@/api/schedule";
@@ -15,6 +16,7 @@ import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { CheckInForm } from "@/components/CheckInForm";
+import DateTimeWheelModal from "@/components/DateTimeWheelModal";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
@@ -60,10 +62,44 @@ const formatWeekTitleRu = (week: number | null) => {
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const HHMM_RE = /^\d{2}:\d{2}$/;
 const WEEK_STACK_OFFSET_MIN = 62;
 const WEEK_STACK_OFFSET_MAX = 72;
 const WEEK_STACK_COLLAPSED_H = 104;
 const WEEK_STACK_ACTIVE_H = 224;
+
+type PlanOneInlineScheduleState = {
+  plannedWorkoutId: string;
+  title: string;
+  date: string;
+  time: string;
+};
+
+function toDateKeyLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toLocalDateInput(iso: string): string {
+  return toDateKeyLocal(new Date(iso));
+}
+
+function toLocalTimeInput(iso: string): string {
+  const dt = new Date(iso);
+  return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+}
+
+function parseHHMM(value: string | null | undefined): { hh: number; mm: number } | null {
+  if (!value || !HHMM_RE.test(value)) return null;
+  const [hhRaw, mmRaw] = value.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+  return { hh, mm };
+}
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
@@ -144,6 +180,9 @@ export default function PlanOne() {
   const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [inlineScheduleModal, setInlineScheduleModal] = useState<PlanOneInlineScheduleState | null>(null);
+  const [inlineScheduleSaving, setInlineScheduleSaving] = useState(false);
+  const [inlineScheduleError, setInlineScheduleError] = useState<string | null>(null);
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(cachedPlanned);
   const [plannedLoading, setPlannedLoading] = useState(!hasInitialPlannedCache);
   const [plannedFetchedOnce, setPlannedFetchedOnce] = useState(false);
@@ -708,13 +747,91 @@ export default function PlanOne() {
   })();
 
   const openScheduleForWorkout = (plannedWorkoutId: string) => {
-    nav("/schedule", {
-      state: {
-        plannedWorkoutId,
-        targetDate: replaceTargetDate,
-        forcePick: Boolean(replaceTargetDate),
-      },
+    const workout = plannedWorkouts.find((w) => w.id === plannedWorkoutId) || null;
+    if (!workout || workout.status === "completed" || workout.status === "cancelled") return;
+
+    const todayIso = toDateKeyLocal(new Date());
+    const hasFreshSchedule = workout.status === "scheduled" && Boolean(workout.scheduledFor);
+    const scheduledDate = hasFreshSchedule && workout.scheduledFor ? toLocalDateInput(workout.scheduledFor) : null;
+    const scheduledTime = hasFreshSchedule && workout.scheduledFor ? toLocalTimeInput(workout.scheduledFor) : null;
+    const safeReplaceDate =
+      replaceTargetDate && replaceTargetDate >= todayIso ? replaceTargetDate : null;
+    const nextDate =
+      scheduledDate && scheduledDate >= todayIso
+        ? scheduledDate
+        : safeReplaceDate || todayIso;
+    const nextTime =
+      scheduledTime && parseHHMM(scheduledTime)
+        ? scheduledTime
+        : defaultScheduleTime();
+    const dayTitle = dayLabelRU(workout.plan || {});
+
+    setInlineScheduleModal({
+      plannedWorkoutId: workout.id,
+      title: dayTitle,
+      date: nextDate,
+      time: nextTime,
     });
+    setInlineScheduleError(null);
+    setInlineScheduleSaving(false);
+  };
+
+  const handleInlineScheduleSave = async (date: string, time: string) => {
+    if (!inlineScheduleModal || inlineScheduleSaving) return;
+    if (!ISO_DATE_RE.test(date) || !HHMM_RE.test(time)) {
+      setInlineScheduleError("Укажи корректные дату и время");
+      return;
+    }
+    const when = new Date(`${date}T${time}`);
+    if (!Number.isFinite(when.getTime())) {
+      setInlineScheduleError("Укажи корректные дату и время");
+      return;
+    }
+    const nowMinute = new Date();
+    nowMinute.setSeconds(0, 0);
+    if (when.getTime() < nowMinute.getTime()) {
+      setInlineScheduleError("Нельзя выбрать прошедшие дату и время");
+      return;
+    }
+    const target = plannedWorkouts.find((w) => w.id === inlineScheduleModal.plannedWorkoutId) || null;
+    if (!target || target.status === "completed" || target.status === "cancelled") {
+      setInlineScheduleError("Эту тренировку нельзя запланировать");
+      return;
+    }
+
+    setInlineScheduleSaving(true);
+    setInlineScheduleError(null);
+    try {
+      const utcOffsetMinutes = when.getTimezoneOffset();
+      const dayUtcOffsetMinutes = new Date(`${date}T00:00`).getTimezoneOffset();
+      await reschedulePlannedWorkout(target.id, {
+        date,
+        time,
+        utcOffsetMinutes,
+        dayUtcOffsetMinutes,
+      });
+
+      await loadPlanned({ silent: true });
+      setInlineScheduleModal(null);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      } catch {}
+    } catch (err) {
+      console.error("inline schedule save failed", err);
+      const code = extractApiErrorCode(err);
+      if (code === "past_datetime") {
+        setInlineScheduleError("Нельзя выбрать прошедшие дату и время");
+      } else if (code === "planned_workout_completed") {
+        setInlineScheduleError("Тренировка уже завершена и недоступна для переноса");
+      } else if (code === "planned_workout_cancelled") {
+        setInlineScheduleError("Тренировка отменена и недоступна для переноса");
+      } else {
+        setInlineScheduleError("Не удалось сохранить. Попробуй ещё раз.");
+      }
+    } finally {
+      setInlineScheduleSaving(false);
+    }
   };
 
   const handleGenerateWeek = async () => {
@@ -1032,6 +1149,24 @@ export default function PlanOne() {
       )}
 
       <div style={{ height: 16 }} />
+      {inlineScheduleModal ? (
+        <DateTimeWheelModal
+          key={inlineScheduleModal.plannedWorkoutId}
+          title="Дата и время"
+          subtitle={inlineScheduleModal.title}
+          initialDate={inlineScheduleModal.date}
+          initialTime={inlineScheduleModal.time}
+          disallowPast
+          saving={inlineScheduleSaving}
+          error={inlineScheduleError}
+          onClose={() => {
+            if (inlineScheduleSaving) return;
+            setInlineScheduleModal(null);
+            setInlineScheduleError(null);
+          }}
+          onSave={handleInlineScheduleSave}
+        />
+      ) : null}
     </div>
   );
 
@@ -1258,6 +1393,20 @@ function extractPlanError(err: any): string {
     return `${message} ${nextLabel}`.trim();
   }
   return message;
+}
+
+function extractApiErrorCode(err: any): string | null {
+  const bodyError = err?.body?.error;
+  if (typeof bodyError === "string" && bodyError.trim()) return bodyError.trim();
+  const raw = typeof err?.message === "string" ? err.message.trim() : "";
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const code = parsed?.error;
+    return typeof code === "string" && code.trim() ? code.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 function pluralizeTrainings(count: number) {
