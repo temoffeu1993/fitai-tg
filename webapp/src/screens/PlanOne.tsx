@@ -57,6 +57,7 @@ const formatWeekTitleRu = (week: number | null) => {
 };
 
 const PLANNED_WORKOUTS_COUNT_KEY = "planned_workouts_count_v1";
+const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_STACK_OFFSET_MIN = 62;
 const WEEK_STACK_OFFSET_MAX = 72;
@@ -81,6 +82,19 @@ function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] 
       const bt = b.scheduledFor ? new Date(b.scheduledFor).getTime() : Number.POSITIVE_INFINITY;
       return at - bt;
     });
+}
+
+function readPlannedCache(): PlannedWorkout[] {
+  try {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const cached = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+    return normalizePlanned(cached as PlannedWorkout[]);
+  } catch {
+    return [];
+  }
 }
 
 export type Exercise = {
@@ -112,6 +126,8 @@ export type Exercise = {
 export default function PlanOne() {
   const nav = useNavigate();
   const location = useLocation();
+  const cachedPlanned = useMemo(() => readPlannedCache(), []);
+  const hasInitialPlannedCache = cachedPlanned.length > 0;
   const {
     plan,
     status: planStatus,
@@ -127,8 +143,9 @@ export default function PlanOne() {
   const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
-  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>([]);
-  const [plannedLoading, setPlannedLoading] = useState(true);
+  const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(cachedPlanned);
+  const [plannedLoading, setPlannedLoading] = useState(!hasInitialPlannedCache);
+  const [plannedFetchedOnce, setPlannedFetchedOnce] = useState(false);
   const [plannedError, setPlannedError] = useState<string | null>(null);
   const [selectedPlannedId, setSelectedPlannedId] = useState<string | null>(null);
   const [expandedPlannedIds, setExpandedPlannedIds] = useState<Record<string, boolean>>({});
@@ -193,8 +210,9 @@ export default function PlanOne() {
     }
   }, []);
 
-  const loadPlanned = useCallback(async () => {
-    setPlannedLoading(true);
+  const loadPlanned = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent);
+    if (!silent) setPlannedLoading(true);
     setPlannedError(null);
     try {
       const data = await getScheduleOverview();
@@ -212,20 +230,21 @@ export default function PlanOne() {
       console.error("Failed to load planned workouts", err);
       setPlannedError("Не удалось загрузить тренировки недели");
     } finally {
-      setPlannedLoading(false);
+      if (!silent) setPlannedLoading(false);
+      setPlannedFetchedOnce(true);
     }
   }, []);
 
   useEffect(() => {
-    loadPlanned().catch(() => {});
-    const onScheduleUpdated = () => loadPlanned().catch(() => {});
+    loadPlanned({ silent: hasInitialPlannedCache }).catch(() => {});
+    const onScheduleUpdated = () => loadPlanned({ silent: true }).catch(() => {});
     window.addEventListener("schedule_updated" as any, onScheduleUpdated);
     window.addEventListener("plan_completed" as any, onScheduleUpdated);
     return () => {
       window.removeEventListener("schedule_updated" as any, onScheduleUpdated);
       window.removeEventListener("plan_completed" as any, onScheduleUpdated);
     };
-  }, [loadPlanned]);
+  }, [loadPlanned, hasInitialPlannedCache]);
 
   useEffect(() => {
     getMesocycleCurrent()
@@ -300,31 +319,28 @@ export default function PlanOne() {
     const kcal = Math.round(minutes * 6);
     return { sets, minutes, kcal };
   }, [plan]);
-  const {
-    progress: loaderProgress,
-    startManual: kickProgress,
-  } = useNutritionGenerationProgress(planStatus, {
+  const { startManual: kickProgress } = useNutritionGenerationProgress(planStatus, {
     steps: steps.length,
     storageKey: "workout_generation_started_at",
     durationMs: 40_000,
   });
 
-  const { loaderStepIndex, loaderStepNumber } = useMemo(() => {
-    const fraction = Math.min(1, loaderProgress / 75); // 75% ≈ 30 секунд
-    const number = Math.min(steps.length, Math.max(1, Math.ceil(fraction * steps.length)));
-    return { loaderStepIndex: number - 1, loaderStepNumber: number };
-  }, [loaderProgress, steps.length]);
-
   const error = planError || metaError || null;
   const isProcessing = planStatus === "processing";
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
+  const showInitialPlannedLoader = plannedLoading && !hasInitialPlannedCache && !plannedFetchedOnce;
   const [paywall, setPaywall] = useState(false);
   const effectivePlan = needsCheckIn ? null : plan;
 
   // When there are no planned workouts, we immediately show the loader while the auto-generation effect kicks in.
   // This avoids a UI "flash" where the user briefly sees the empty-state button after navigating from dashboard.
   const shouldAutoGenerateWeek =
-    !plannedLoading && !weekGenerating && remainingPlanned.length === 0 && !sub.locked && !initialWeekRequested;
+    plannedFetchedOnce &&
+    !plannedLoading &&
+    !weekGenerating &&
+    remainingPlanned.length === 0 &&
+    !sub.locked &&
+    !initialWeekRequested;
   
   // Формируем понятное название тренировки на русском
   const planTitle = useMemo(() => {
@@ -378,6 +394,7 @@ export default function PlanOne() {
 
   // Auto-generate week workouts only when there is nothing planned/remaining
   useEffect(() => {
+    if (!plannedFetchedOnce) return;
     if (plannedLoading) return;
     if (remainingPlanned.length > 0) return;
     if (weekGenerating) return;
@@ -389,10 +406,10 @@ export default function PlanOne() {
     setWeekGenerating(true);
     kickProgress();
     refresh({ force: true })
-      .then(() => loadPlanned())
+      .then(() => loadPlanned({ silent: true }))
       .catch(() => {})
       .finally(() => setWeekGenerating(false));
-  }, [plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialWeekRequested, kickProgress, refresh, loadPlanned]);
+  }, [plannedFetchedOnce, plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialWeekRequested, kickProgress, refresh, loadPlanned]);
 
   useEffect(() => {
     const onPlanCompleted = () => {
@@ -500,15 +517,8 @@ export default function PlanOne() {
     }
   };
 
-  if (plannedLoading || weekGenerating || showLoader || shouldAutoGenerateWeek) {
-    return (
-      <WorkoutLoader
-        steps={steps}
-        progress={loaderProgress}
-        stepIndex={loaderStepIndex}
-        stepNumber={loaderStepNumber}
-      />
-    );
+  if (showInitialPlannedLoader || weekGenerating || showLoader || shouldAutoGenerateWeek) {
+    return <WorkoutLoader />;
   }
 
   if (paywall || sub.locked) {
@@ -861,13 +871,13 @@ export default function PlanOne() {
                     : pick.weekCardMascot;
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
-              const primaryActionLabel = "Начать";
+              const isCompletedWorkout = status === "completed";
+              const primaryActionLabel = isCompletedWorkout ? "Результат" : "Начать";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
               const scheduledDateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
               const hasScheduledDate = Boolean(scheduledDateChip);
               const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
               const canEditSchedule = status !== "completed";
-              const isCompletedWorkout = status === "completed";
               const chipToneStyle = isCompletedWorkout ? pick.weekDateChipScheduled : pick.weekDateChipPending;
               const showEditPencil = !isCompletedWorkout;
 
@@ -942,7 +952,7 @@ export default function PlanOne() {
                         >
                           <span>{primaryActionLabel}</span>
                           <span style={pick.weekActionPrimaryIconWrap}>
-                            <span style={pick.weekActionPrimaryArrow}>→</span>
+                            <span style={pick.weekActionPrimaryArrow}>{isCompletedWorkout ? "✓" : "→"}</span>
                           </span>
                         </button>
                         <button
@@ -1314,78 +1324,34 @@ function formatSec(s?: number) {
 
 /* ----------------- Компоненты UI ----------------- */
 
-function WorkoutLoader({
-  steps,
-  progress,
-  stepIndex,
-  stepNumber,
-}: {
-  steps: string[];
-  progress: number;
-  stepIndex: number;
-  stepNumber: number;
-}) {
-  const safeIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
-  const safeStep = steps[safeIndex] || steps[0] || "";
-  const spinnerHints = [
-    "Собираю анкету и ограничения",
-    "Проверяю цели и инвентарь",
-    "Подбираю упражнения и вариации",
-    "Балансирую нагрузку и отдых",
-    "Формирую финальный план",
-  ];
-  const hint = spinnerHints[Math.min(safeIndex, spinnerHints.length - 1)];
-  const displayProgress = Math.max(5, Math.min(99, Math.round(progress || 0)));
-  const analyticsState = safeIndex >= 1 ? "анализ готов" : "в процессе";
-  const selectionState = safeIndex >= 3 ? "готовится" : "подбор идёт";
-
+function WorkoutLoader() {
   return (
-    <div style={s.page}>
-      <SoftGlowStyles />
-      <TypingDotsStyles />
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>Загрузка</span>
-          <span style={s.credits}>ИИ работает</span>
+    <div style={loaderSimple.wrap}>
+      <style>{`
+        .plan-boot-loader{
+          display:flex;
+          gap:10px;
+          align-items:center;
+          justify-content:center;
+        }
+        .plan-boot-loader span{
+          width:10px;
+          height:10px;
+          border-radius:50%;
+          background:#111;
+          animation: planBootPulse 1s ease-in-out infinite;
+        }
+        .plan-boot-loader span:nth-child(2){ animation-delay: .15s; }
+        .plan-boot-loader span:nth-child(3){ animation-delay: .3s; }
+        @keyframes planBootPulse{ 0%,100%{ transform: scale(.7); opacity:.35; } 50%{ transform: scale(1); opacity:1; } }
+      `}</style>
+      <div style={loaderSimple.inner}>
+        <div className="plan-boot-loader" aria-label="Загрузка">
+          <span />
+          <span />
+          <span />
         </div>
-
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13 }}>
-          Шаг {Math.min(stepNumber, steps.length)} из {steps.length}
-        </div>
-        <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>{safeStep}</div>
-        <div style={s.heroTitle}>Создаю персональную тренировку</div>
-        <div style={s.loadWrap}>
-          <Spinner />
-          <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>{hint}</div>
-        </div>
-      </section>
-
-      <section style={s.statsRow}>
-        <ChipStatSquare emoji="🧠" label="Аналитика" value={analyticsState} />
-        <ChipStatSquare emoji="🧩" label="Подбор" value={selectionState} />
-        <ChipStatSquare emoji="⚡" label="Прогресс" value={`${displayProgress}%`} />
-      </section>
-
-      <section style={s.blockWhite}>
-        <SkeletonLine />
-        <SkeletonLine w={80} />
-        <SkeletonLine w={60} />
-      </section>
-
-      <div style={notesStyles.fabWrapLoading}>
-        <div style={notesStyles.speechBubble}>
-          <div style={notesStyles.speechText}>
-            <span className="typing-dots">
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
-            </span>
-          </div>
-          <div style={notesStyles.speechArrow} />
-        </div>
-        <div style={notesStyles.fabCircle}>
-          <span style={{ fontSize: 35, lineHeight: 1 }}>🤖</span>
-        </div>
+        <div style={loaderSimple.label}>Готовлю тренировки</div>
       </div>
     </div>
   );
@@ -2451,6 +2417,25 @@ function TypingDotsStyles() {
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
 const BLOCK_GRADIENT =
   "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+const loaderSimple = {
+  wrap: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    background: "#ffffff",
+    padding: 16,
+  } as React.CSSProperties,
+  inner: {
+    display: "grid",
+    gap: 10,
+    justifyItems: "center",
+  } as React.CSSProperties,
+  label: {
+    fontSize: 13,
+    color: "rgba(15,23,42,0.62)",
+    fontWeight: 600,
+  } as React.CSSProperties,
+};
 const s: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
