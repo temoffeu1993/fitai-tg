@@ -162,12 +162,9 @@ export default function DateTimeWheelModal({
 
   useLayoutEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
-    const prevBodyTouchAction = document.body.style.touchAction;
     document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
     return () => {
       document.body.style.overflow = prevBodyOverflow;
-      document.body.style.touchAction = prevBodyTouchAction;
     };
   }, []);
 
@@ -484,48 +481,51 @@ const st: Record<string, CSSProperties> = {
     position: "fixed",
     inset: 0,
     zIndex: 2400,
-    background: "rgba(0, 0, 0, 0.38)",
+    background: "rgba(255,255,255,0.02)",
+    backdropFilter: "blur(3px)",
+    WebkitBackdropFilter: "blur(3px)",
     display: "flex",
     alignItems: "flex-end",
     justifyContent: "center",
-    padding: 12,
+    padding: "20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)",
   },
 
   card: {
     width: "100%",
-    maxWidth: 720,
+    maxWidth: 680,
     minWidth: 280,
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     position: "relative",
     overflow: "visible",
-    padding: "44px 14px calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    padding: "16px 14px calc(env(safe-area-inset-bottom, 0px) + 20px)",
     display: "flex",
     flexDirection: "column",
-    gap: 16,
+    gap: 18,
   },
 
   close: {
     position: "absolute",
-    right: 12,
+    right: 10,
     top: 10,
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
     borderRadius: 999,
-    border: "1px solid rgba(30,31,34,0.18)",
-    background: "rgba(255,255,255,0.72)",
-    color: "#1e1f22",
-    fontSize: 18,
-    fontWeight: 600,
+    border: "1px solid rgba(30,31,34,0.12)",
+    background: "rgba(255,255,255,0.5)",
+    color: "rgba(30,31,34,0.9)",
+    fontSize: 20,
+    fontWeight: 500,
     lineHeight: 1,
     display: "grid",
     placeItems: "center",
     cursor: "pointer",
     padding: 0,
+    zIndex: 6,
   },
 
   dateScroller: {
