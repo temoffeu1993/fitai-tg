@@ -1079,32 +1079,13 @@ export default function PlanOne() {
     });
   };
 
-  const handlePlanBack = () => {
-    const returnTo = (location.state as any)?.returnTo;
-    if (typeof returnTo === "string" && returnTo.trim()) {
-      nav(returnTo);
-      return;
-    }
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      nav(-1);
-      return;
-    }
-    nav("/");
-  };
-
   return (
     <div style={s.page}>
       <SoftGlowStyles />
       <TypingDotsStyles />
       <style>{pickStyles}</style>
 
-      <section style={pick.topNavRow} className="plan-fade plan-delay-1">
-        <button type="button" style={pick.topBackBtn} onClick={handlePlanBack}>
-          Назад
-        </button>
-      </section>
-
-      <section style={pick.programHeaderRow} className="plan-fade plan-delay-2">
+      <section style={pick.programHeaderRow} className="plan-fade plan-delay-1">
         <div style={pick.programHeaderLeft}>
           <span style={pick.programAvatarCircle}>
             <img src={mascotImg} alt="" style={pick.programAvatarImg} loading="eager" decoding="async" />
@@ -1117,7 +1098,7 @@ export default function PlanOne() {
       </section>
 
       {weekWorkouts.length ? (
-        <section style={pick.weekListWrap} className="plan-fade plan-delay-3">
+        <section style={pick.weekListWrap} className="plan-fade plan-delay-2">
           <div style={{ ...pick.weekListGrid, height: stackHeight }}>
             {weekWorkouts.map((w, index) => {
               const p: any = w.plan || {};
@@ -3595,29 +3576,6 @@ const pickStyles = `
 `;
 
 const pick: Record<string, React.CSSProperties> = {
-  topNavRow: {
-    marginTop: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-  topBackBtn: {
-    border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.6)",
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    padding: "10px 14px 10px 2px",
-    minWidth: 44,
-    minHeight: 44,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    cursor: "pointer",
-    textAlign: "left",
-    WebkitTapHighlightColor: "transparent",
-  },
   programHeaderRow: {
     marginTop: 2,
     display: "flex",
