@@ -218,6 +218,19 @@ export default function CheckIn() {
     }
   };
 
+  const handleTopBack = () => {
+    if (skipLoading || loading) return;
+    if (returnTo) {
+      nav(returnTo);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      nav(-1);
+      return;
+    }
+    nav("/plan/one");
+  };
+
   const bubbleText = !result
     ? "Отметь самочувствие за 30 секунд."
     : summaryPhase === "thinking"
@@ -231,14 +244,25 @@ export default function CheckIn() {
       <style>{screenCss + thinkingCss}</style>
       {phase === "intro" ? (
         <>
-          <button
-            type="button"
-            style={{ ...styles.introSkipTopBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
-            onClick={handleSkipCheckIn}
-            disabled={skipLoading || loading}
-          >
-            {skipLoading ? "Открываем..." : "Пропустить"}
-          </button>
+          <div style={styles.introTopRow}>
+            <button
+              type="button"
+              style={{ ...styles.introTopBackBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
+              onClick={handleTopBack}
+              disabled={skipLoading || loading}
+              aria-label="Назад"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.introSkipTopBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
+              onClick={handleSkipCheckIn}
+              disabled={skipLoading || loading}
+            >
+              {skipLoading ? "Открываем..." : "Пропустить"}
+            </button>
+          </div>
           <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.introBubble} className="speech-bubble-bottom">
               <span style={styles.introBubbleText}>
@@ -531,10 +555,34 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 10,
     paddingBottom: 0,
   },
-  introSkipTopBtn: {
+  introTopRow: {
     position: "absolute",
     top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+    left: "clamp(16px, 4vw, 20px)",
     right: "clamp(16px, 4vw, 20px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 3,
+  },
+  introTopBackBtn: {
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    padding: "10px 14px 10px 2px",
+    minWidth: 44,
+    minHeight: 44,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    cursor: "pointer",
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+  },
+  introSkipTopBtn: {
     border: "none",
     background: "transparent",
     color: "rgba(15, 23, 42, 0.6)",
