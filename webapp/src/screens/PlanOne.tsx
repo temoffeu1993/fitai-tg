@@ -1069,18 +1069,14 @@ export default function PlanOne() {
       workout.status === "scheduled" &&
       Boolean(scheduledIso) &&
       scheduledIso >= todayIso;
-    if (hasFreshSchedule) {
-      const workoutDate = scheduledIso;
-      nav("/check-in", {
-        state: {
-          workoutDate,
-          plannedWorkoutId: workout.id,
-          returnTo: "/plan/one",
-        },
-      });
-      return;
-    }
-    openScheduleForWorkout(workout.id);
+    const workoutDate = hasFreshSchedule ? scheduledIso : todayIso;
+    nav("/check-in", {
+      state: {
+        workoutDate,
+        plannedWorkoutId: workout.id,
+        returnTo: "/plan/one",
+      },
+    });
   };
 
   return (
