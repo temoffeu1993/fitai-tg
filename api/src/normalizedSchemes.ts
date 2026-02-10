@@ -56,6 +56,9 @@ export type DayBlueprint = {
   focus: string; // human readable
   templateRulesId?: string; // must exist in TRAINING_RULES_LIBRARY (your file)
   requiredPatterns: Pattern[];
+  // NOTE: optionalPatterns is NOT used by the generator.
+  // Optional slots come from TRAINING_RULES_LIBRARY[templateRulesId].optional.
+  // This field is kept for documentation / future use only.
   optionalPatterns?: Pattern[];
 };
 
@@ -215,7 +218,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Эффективная база: присед/жим/тяга + кор (контролируемый объём).",
         templateRulesId: "Full Body A",
         requiredPatterns: ["squat", "horizontal_push", "horizontal_pull", "core"],
-        optionalPatterns: ["arms_iso", "calves"],
+        optionalPatterns: ["calves"],
       },
       {
         day: 2,
@@ -260,7 +263,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Передняя цепь + база: присед/жим/тяга + кор.",
         templateRulesId: "Full Body A",
         requiredPatterns: ["squat", "horizontal_push", "horizontal_pull", "core"],
-        optionalPatterns: ["arms_iso", "calves"],
+        optionalPatterns: ["calves"],
       },
       {
         day: 2,
@@ -268,7 +271,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Задняя цепь + вертикаль: хиндж/тяга сверху/наклонный жим + кор.",
         templateRulesId: "Full Body B",
         requiredPatterns: ["hinge", "vertical_pull", "incline_push", "core"],
-        optionalPatterns: ["rear_delts", "arms_iso", "calves"],
+        optionalPatterns: ["rear_delts", "calves"],
       },
       {
         day: 3,
@@ -307,7 +310,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Верх тела: жимы + тяги + плечи/руки дозировано.",
         templateRulesId: "Upper Body",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-        optionalPatterns: ["incline_push", "delts_iso", "arms_iso", "rear_delts", "core"],
+        optionalPatterns: ["incline_push", "delts_iso", "rear_delts", "core"],
       },
       {
         day: 2,
@@ -323,7 +326,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Всё тело: баланс + слабые места (по ощущениям).",
         templateRulesId: "Full Body C",
         requiredPatterns: ["horizontal_push", "vertical_pull", "lunge", "core"],
-        optionalPatterns: ["rear_delts", "calves", "arms_iso"],
+        optionalPatterns: ["rear_delts", "calves"],
       },
     ],
     benefits: [
@@ -411,7 +414,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Круговая силовая (контролируемая техника) + кор.",
         templateRulesId: "Full Body C",
         requiredPatterns: ["lunge", "horizontal_pull", "incline_push", "core", "conditioning_low_impact"],
-        optionalPatterns: ["arms_iso", "rear_delts"],
+        optionalPatterns: ["rear_delts"],
       },
       {
         day: 3,
@@ -456,7 +459,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Грудь/горизонталь + тяги для баланса.",
         templateRulesId: "Upper A",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-        optionalPatterns: ["incline_push", "delts_iso", "arms_iso", "rear_delts", "core"],
+        optionalPatterns: ["incline_push", "delts_iso", "rear_delts", "core"],
       },
       {
         day: 2,
@@ -472,7 +475,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Спина/вертикаль + жимы под другим углом.",
         templateRulesId: "Upper B",
         requiredPatterns: ["vertical_pull", "horizontal_pull", "incline_push"],
-        optionalPatterns: ["horizontal_push", "rear_delts", "arms_iso", "delts_iso", "core"],
+        optionalPatterns: ["horizontal_push", "rear_delts", "delts_iso", "core"],
       },
       {
         day: 4,
@@ -511,7 +514,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Тяжёлые жим/тяга + минимум аксессуаров.",
         templateRulesId: "Upper A",
         requiredPatterns: ["horizontal_push", "horizontal_pull"],
-        optionalPatterns: ["vertical_pull", "arms_iso", "rear_delts"],
+        optionalPatterns: ["vertical_pull", "rear_delts"],
       },
       {
         day: 2,
@@ -526,7 +529,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         label: "Upper Hypertrophy",
         focus: "Объём на грудь/спину/плечи/руки.",
         templateRulesId: "Upper B",
-        requiredPatterns: ["incline_push", "vertical_pull", "horizontal_pull", "delts_iso", "arms_iso"],
+        requiredPatterns: ["incline_push", "vertical_pull", "horizontal_pull", "delts_iso", "biceps_iso"],
         optionalPatterns: ["rear_delts"],
       },
       {
@@ -566,7 +569,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Силовой верх + короткая low-impact концовка.",
         templateRulesId: "Upper A",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "conditioning_low_impact"],
-        optionalPatterns: ["rear_delts", "arms_iso"],
+        optionalPatterns: ["rear_delts"],
       },
       {
         day: 2,
@@ -706,7 +709,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Средний диапазон повторений: форма/мышцы.",
         templateRulesId: "Full Body B",
         requiredPatterns: ["lunge", "vertical_pull", "incline_push", "core"],
-        optionalPatterns: ["delts_iso", "arms_iso"],
+        optionalPatterns: ["delts_iso"],
       },
       {
         day: 4,
@@ -784,9 +787,9 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
     days: [
       { day: 1, label: "Upper Heavy", focus: "Тяжёлые жим/тяга.", templateRulesId: "Upper A", requiredPatterns: ["horizontal_push", "horizontal_pull"], optionalPatterns: ["vertical_pull"] },
       { day: 2, label: "Lower Heavy", focus: "Тяжёлые ноги (контроль техники).", templateRulesId: "Lower A", requiredPatterns: ["squat", "hinge", "core"], optionalPatterns: ["calves"] },
-      { day: 3, label: "Upper Volume", focus: "Объём на верх.", templateRulesId: "Upper B", requiredPatterns: ["incline_push", "vertical_pull", "horizontal_pull", "delts_iso"], optionalPatterns: ["arms_iso", "rear_delts"] },
+      { day: 3, label: "Upper Volume", focus: "Объём на верх.", templateRulesId: "Upper B", requiredPatterns: ["incline_push", "vertical_pull", "horizontal_pull", "delts_iso"], optionalPatterns: ["rear_delts"] },
       { day: 4, label: "Lower Volume", focus: "Объём на низ.", templateRulesId: "Lower B", requiredPatterns: ["lunge", "hip_thrust", "hinge", "core"], optionalPatterns: ["calves"] },
-      { day: 5, label: "Upper Pump", focus: "Пампинг/изоляция верха.", templateRulesId: "Upper Body", requiredPatterns: ["rear_delts", "arms_iso", "horizontal_pull"], optionalPatterns: ["incline_push"] },
+      { day: 5, label: "Upper Pump", focus: "Пампинг/изоляция верха.", templateRulesId: "Upper Body", requiredPatterns: ["rear_delts", "biceps_iso", "triceps_iso", "horizontal_pull"], optionalPatterns: ["incline_push"] },
       { day: 6, label: "Lower Pump", focus: "Пампинг ног: односторонка + изоляция.", templateRulesId: "Lower Body", requiredPatterns: ["lunge", "core"], optionalPatterns: ["calves", "hip_thrust"] },
     ],
     benefits: [
@@ -816,7 +819,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
       { day: 3, label: "Shoulders", focus: "Плечи: дельты + задняя дельта.", templateRulesId: "Shoulders Day", requiredPatterns: ["delts_iso", "rear_delts"], optionalPatterns: ["vertical_push"] }, // ИЗМЕНЕНО: templateRulesId (rear_delts допустимы в день плеч bro-split)
       { day: 4, label: "Legs", focus: "Ноги: квадры + задняя + икры.", templateRulesId: "Legs Day", requiredPatterns: ["squat", "hinge", "calves"], optionalPatterns: ["lunge", "core"] },
       { day: 5, label: "Arms", focus: "Руки: суперсеты бицепс/трицепс + добивка груди/спины.", templateRulesId: "Upper Body", requiredPatterns: ["biceps_iso", "triceps_iso", "horizontal_push", "horizontal_pull"], optionalPatterns: ["rear_delts"] },
-      { day: 6, label: "Weak Points", focus: "Слабые места + кондиция + кор/икры.", templateRulesId: "Full Body C", requiredPatterns: ["core", "conditioning_low_impact"], optionalPatterns: ["calves", "rear_delts", "arms_iso", "delts_iso"] },
+      { day: 6, label: "Weak Points", focus: "Слабые места + кондиция + кор/икры.", templateRulesId: "Full Body C", requiredPatterns: ["core", "conditioning_low_impact"], optionalPatterns: ["calves", "rear_delts", "delts_iso"] },
     ],
     benefits: [
       "Психологически «кайфовый» формат для бодибилдинга.",
@@ -884,7 +887,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Всё тело: умеренная силовая для баланса и слабых зон.",
         templateRulesId: "Full Body B",
         requiredPatterns: ["horizontal_push", "vertical_pull", "lunge", "core"],
-        optionalPatterns: ["rear_delts", "arms_iso"],
+        optionalPatterns: ["rear_delts"],
       },
       {
         day: 6,
@@ -965,7 +968,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Лёгкий пампинг: изоляция + кор + слабые зоны.",
         templateRulesId: "Full Body C",
         requiredPatterns: ["core", "conditioning_low_impact"],
-        optionalPatterns: ["arms_iso", "rear_delts", "calves"],
+        optionalPatterns: ["rear_delts", "calves"],
       },
     ],
     benefits: [
@@ -1010,7 +1013,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Верх тела: жимы/тяги для баланса и осанки.",
         templateRulesId: "Upper Body",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "core"],
-        optionalPatterns: ["rear_delts", "delts_iso", "arms_iso"],
+        optionalPatterns: ["rear_delts", "delts_iso"],
       },
       {
         day: 3,
@@ -1059,7 +1062,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Верх тела: полноценная тренировка жим/тяга/плечи.",
         templateRulesId: "Upper Body",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull", "rear_delts"],
-        optionalPatterns: ["delts_iso", "arms_iso", "core"],
+        optionalPatterns: ["delts_iso", "core"],
       },
       {
         day: 3,
@@ -1113,7 +1116,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Верх: жимы гантелями + тяги + плечи.",
         templateRulesId: "Upper A",
         requiredPatterns: ["horizontal_push", "horizontal_pull", "vertical_pull"],
-        optionalPatterns: ["delts_iso", "arms_iso", "rear_delts"],
+        optionalPatterns: ["delts_iso", "rear_delts"],
       },
       {
         day: 2,
@@ -1129,7 +1132,7 @@ export const NORMALIZED_SCHEMES: NormalizedWorkoutScheme[] = [
         focus: "Верх: тяги в приоритете + жимы под углом.",
         templateRulesId: "Upper B",
         requiredPatterns: ["vertical_pull", "horizontal_pull", "incline_push"],
-        optionalPatterns: ["rear_delts", "arms_iso", "core"],
+        optionalPatterns: ["rear_delts", "core"],
       },
       {
         day: 4,

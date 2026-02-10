@@ -162,6 +162,15 @@ export const TRAINING_RULES_LIBRARY: Record<string, DayPatternRules> = {
     optional: ["calves", "squat"],
     preferredDoubles: ["hip_thrust"],
   },
+
+  // --------------------------------------------------------------------------
+  // SHOULDERS DAY (bro-split)
+  // --------------------------------------------------------------------------
+  "Shoulders Day": {
+    required: ["vertical_push", "delts_iso", "rear_delts"],
+    optional: ["triceps_iso", "core"],
+    preferredDoubles: ["delts_iso"],
+  },
 };
 
 // ============================================================================
@@ -336,73 +345,67 @@ export function buildDaySlots(args: {
   // CRITICAL: Всегда достигаем slotBudget (для правильной утилизации времени!)
   // -------------------------------------------------------------------------
   
+  // -------------------------------------------------------------------------
+  // FILLER MAP: строгое соответствие типов дней допустимым filler-паттернам.
+  // Ноги (calves/squat/hinge/lunge) НИКОГДА не попадают в Push/Pull/Upper/Shoulders.
+  // -------------------------------------------------------------------------
+  const FILLER_MAP: Record<string, Pattern[]> = {
+    "Push Day":  ["rear_delts", "core"],
+    "Push A":    ["rear_delts", "core", "delts_iso"],
+    "Push B":    ["rear_delts", "core"],
+    "Pull Day":  ["core"],
+    "Pull A":    ["core", "horizontal_pull"],
+    "Pull B":    ["core"],
+    "Legs Day":  ["calves", "core", "hip_thrust"],
+    "Legs A":    ["calves", "core", "hinge", "hip_thrust"],
+    "Legs B":    ["calves", "core", "squat"],
+    "Lower Body":["calves", "hip_thrust"],
+    "Lower A":   ["calves", "hinge", "hip_thrust"],
+    "Lower B":   ["calves", "squat"],
+    "Upper Body":["core", "biceps_iso", "triceps_iso", "rear_delts", "delts_iso", "incline_push"],
+    "Upper A":   ["core", "biceps_iso", "rear_delts", "delts_iso"],
+    "Upper B":   ["core", "triceps_iso", "rear_delts", "delts_iso"],
+    "Full Body A":["calves", "triceps_iso", "rear_delts"],
+    "Full Body B":["calves", "biceps_iso"],
+    "Full Body C":["calves", "triceps_iso", "rear_delts"],
+    "Shoulders Day":["core", "vertical_push"],
+  };
+
   if (usedBudget < slotBudget) {
-    // Приоритет filler patterns (помогают балансу, не критичны)
-    const fillerPatterns: Pattern[] = [];
-    
-    // Для Push days: добавить rear_delts (задние дельты помогают балансу)
-    if (templateRulesId.toLowerCase().includes("push")) {
-      if (!usedPatterns.has("rear_delts")) fillerPatterns.push("rear_delts");
-      if (!usedPatterns.has("core")) fillerPatterns.push("core");
-      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
-    }
-    
-    // Для Pull days: добавить core
-    if (templateRulesId.toLowerCase().includes("pull")) {
-      if (!usedPatterns.has("core")) fillerPatterns.push("core");
-      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
-    }
-    
-    // Для Legs days: calves, core
-    if (templateRulesId.toLowerCase().includes("leg")) {
-      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
-      if (!usedPatterns.has("core")) fillerPatterns.push("core");
-    }
-    
-    // Для Upper days: core, biceps/triceps iso, calves
-    if (templateRulesId.toLowerCase().includes("upper")) {
-      if (!usedPatterns.has("core")) fillerPatterns.push("core");
-      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
-      if (!usedPatterns.has("biceps_iso")) fillerPatterns.push("biceps_iso");
-      if (!usedPatterns.has("triceps_iso")) fillerPatterns.push("triceps_iso");
-      if (!usedPatterns.has("rear_delts")) fillerPatterns.push("rear_delts");
-    }
-    
-    // Для Full Body: calves, biceps/triceps
-    if (templateRulesId.toLowerCase().includes("full")) {
-      if (!usedPatterns.has("calves")) fillerPatterns.push("calves");
-      if (!usedPatterns.has("biceps_iso")) fillerPatterns.push("biceps_iso");
-      if (!usedPatterns.has("triceps_iso")) fillerPatterns.push("triceps_iso");
-    }
-    
-    // Fallback: core если ещё не добавлен
-    if (!usedPatterns.has("core")) fillerPatterns.push("core");
-    
+    // Берём filler-паттерны из строгой карты (без .includes() хаков)
+    const fillerPatterns: Pattern[] = (FILLER_MAP[templateRulesId] || ["core"])
+      .filter(p => !usedPatterns.has(p));
+
     // Добавляем filler patterns до достижения budget
     for (const pattern of fillerPatterns) {
       if (usedBudget >= slotBudget) break;
-      if (usedPatterns.has(pattern)) continue;
-      
+
       slots.push({ pattern, count: 1, role: "accessory" });
       usedPatterns.add(pattern);
       usedBudget += 1;
     }
-    
-    // КРИТИЧНО: ВСЕГДА достигаем budget через дубликаты
-    // Это гарантирует правильную утилизацию времени (90min → 9 упражнений)
-    while (usedBudget < slotBudget && usedPatterns.size > 0) {
-      const existingPatterns = Array.from(usedPatterns);
-      
-      // Приоритет для дубликатов: compound patterns > isolation
-      const compoundPatterns = existingPatterns.filter(p => 
-        ["squat", "hinge", "lunge", "horizontal_push", "incline_push", "vertical_push", 
-         "horizontal_pull", "vertical_pull", "hip_thrust"].includes(p)
-      );
-      
-      const patternToDouble = compoundPatterns[0] || existingPatterns[0];
-      
-      slots.push({ pattern: patternToDouble, count: 1, role: "accessory" });
-      usedBudget += 1;
+
+    // Достигаем budget через дубликаты (round-robin через preferredDoubles → остальные compound)
+    if (usedBudget < slotBudget && usedPatterns.size > 0) {
+      // Приоритет: preferredDoubles данного дня → compound паттерны дня → isolation паттерны дня
+      const doublesPool: Pattern[] = [
+        ...(rules.preferredDoubles || []).filter(p => usedPatterns.has(p)),
+        ...Array.from(usedPatterns).filter(p =>
+          isCompoundPattern(p) && !(rules.preferredDoubles || []).includes(p)
+        ),
+        ...Array.from(usedPatterns).filter(p =>
+          !isCompoundPattern(p) && p !== "core" && p !== "calves" && p !== "carry"
+        ),
+      ];
+
+      // Round-robin: каждая итерация берёт следующий паттерн из пула
+      let roundIdx = 0;
+      while (usedBudget < slotBudget && doublesPool.length > 0) {
+        const pattern = doublesPool[roundIdx % doublesPool.length];
+        slots.push({ pattern, count: 1, role: "accessory" });
+        usedBudget += 1;
+        roundIdx += 1;
+      }
     }
   }
 
