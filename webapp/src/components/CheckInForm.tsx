@@ -19,37 +19,21 @@ type Props = {
   hideBackOnFirstStep?: boolean;
 };
 
-const chipStyle: React.CSSProperties = {
-  padding: "14px 14px",
-  borderRadius: 16,
-  border: "1px solid rgba(255,255,255,0.5)",
-  background: "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.12) 100%)",
+const selectionTileStyle: React.CSSProperties = {
+  borderRadius: 18,
+  border: "1px solid var(--tile-border)",
+  background: "var(--tile-bg)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
   boxShadow:
-    "0 6px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.72), inset 0 0 0 1px rgba(255,255,255,0.25)",
-  backdropFilter: "blur(14px)",
-  WebkitBackdropFilter: "blur(14px)",
-  cursor: "pointer",
-  fontSize: 16,
+    "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+  color: "var(--tile-color)",
+  fontSize: 18,
   fontWeight: 500,
-  color: "#1e1f22",
-  transition: "all .15s ease",
-  whiteSpace: "normal",
-  wordBreak: "break-word",
-  lineHeight: 1.2,
+  padding: "18px 10px",
   textAlign: "center",
-  minHeight: 62,
+  cursor: "pointer",
   width: "100%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const chipActive: React.CSSProperties = {
-  ...chipStyle,
-  background: "#1e1f22",
-  color: "#fff",
-  border: "1px solid #1e1f22",
-  boxShadow: "0 6px 10px rgba(0,0,0,0.2)",
 };
 
 const sliderCss = `
@@ -107,6 +91,20 @@ const sliderCss = `
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-step-animate { animation: none !important; }
+}
+
+.checkin-tile-card {
+  appearance: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+  will-change: transform, background, border-color;
+}
+.checkin-tile-card:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  background: var(--tile-bg) !important;
+  border-color: var(--tile-border) !important;
+  color: var(--tile-color) !important;
 }
 
 .checkin-primary-btn,
@@ -250,9 +248,9 @@ export function CheckInForm({
     { key: "very_high" as const, label: "Очень высокий", emoji: "😵", desc: "На пределе — бережёмся, фокус на восстановлении." },
   ];
   const durationOptions = [
-    { value: 45, label: "45 мин", emoji: "⏱️" },
-    { value: 60, label: "60 мин", emoji: "⏲️" },
-    { value: 90, label: "90 мин", emoji: "🕰️" },
+    { value: 45, label: "45 минут" },
+    { value: 60, label: "60 минут" },
+    { value: 90, label: "90 минут" },
   ];
   const sleepIndex = Math.max(0, sleepOptions.findIndex((o) => o.key === sleepQuality));
   const sleepOpt = sleepOptions[sleepIndex] || sleepOptions[2];
@@ -264,7 +262,6 @@ export function CheckInForm({
   const stressKey = stressLevel || "medium";
   const stressIndex = Math.max(0, stressOptions.findIndex((o) => o.key === stressKey));
   const stressOpt = stressOptions[stressIndex] || stressOptions[1];
-  const durationOpt = durationOptions.find((o) => o.value === availableMinutes) || durationOptions[1];
 
   const totalSteps = 5;
   const lastStep = totalSteps - 1;
@@ -507,21 +504,24 @@ export function CheckInForm({
           {step === 3 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
-              <div style={modal.value}>
-                <div style={modal.valueTitleRow}>
-                  <span style={modal.valueTitle}>{durationOpt.label}</span>
-                  <span style={modal.valueEmoji} aria-hidden>{durationOpt.emoji}</span>
-                </div>
-              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {durationOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
-                    style={availableMinutes === option.value ? chipActive : chipStyle}
+                    className="checkin-tile-card"
+                    style={{
+                      ...selectionTileStyle,
+                      ["--tile-bg" as never]:
+                        availableMinutes === option.value
+                          ? "#1e1f22"
+                          : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                      ["--tile-border" as never]: availableMinutes === option.value ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                      ["--tile-color" as never]: availableMinutes === option.value ? "#fff" : "#1e1f22",
+                    }}
                     onClick={() => setAvailableMinutes(option.value)}
                   >
-                    {option.emoji} {option.label}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -535,7 +535,16 @@ export function CheckInForm({
               <div style={modal.binaryRow}>
                 <button
                   type="button"
-                  style={!hasPain ? chipActive : chipStyle}
+                  className="checkin-tile-card"
+                  style={{
+                    ...selectionTileStyle,
+                    ["--tile-bg" as never]:
+                      !hasPain
+                        ? "#1e1f22"
+                        : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                    ["--tile-border" as never]: !hasPain ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                    ["--tile-color" as never]: !hasPain ? "#fff" : "#1e1f22",
+                  }}
                   onClick={() => {
                     setHasPain(false);
                     setPainMap({});
@@ -543,7 +552,20 @@ export function CheckInForm({
                 >
                   Нет
                 </button>
-                <button type="button" style={hasPain ? chipActive : chipStyle} onClick={() => setHasPain(true)}>
+                <button
+                  type="button"
+                  className="checkin-tile-card"
+                  style={{
+                    ...selectionTileStyle,
+                    ["--tile-bg" as never]:
+                      hasPain
+                        ? "#1e1f22"
+                        : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                    ["--tile-border" as never]: hasPain ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                    ["--tile-color" as never]: hasPain ? "#fff" : "#1e1f22",
+                  }}
+                  onClick={() => setHasPain(true)}
+                >
                   Да
                 </button>
               </div>
@@ -559,7 +581,16 @@ export function CheckInForm({
                         <div key={z.key} style={modal.painZoneCell}>
                           <button
                             type="button"
-                            style={active ? chipActive : chipStyle}
+                            className="checkin-tile-card"
+                            style={{
+                              ...selectionTileStyle,
+                              ["--tile-bg" as never]:
+                                active
+                                  ? "#1e1f22"
+                                  : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                              ["--tile-border" as never]: active ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                              ["--tile-color" as never]: active ? "#fff" : "#1e1f22",
+                            }}
                             onClick={() => {
                               setPainMap((prev) => {
                                 const next = { ...prev };
@@ -747,8 +778,6 @@ const modal: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    filter: "grayscale(1) saturate(0) contrast(1.05) brightness(0.55)",
-    opacity: 0.86,
   },
   valueTitleIcon: {
     width: 24,
@@ -853,12 +882,13 @@ const modal: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
+    padding: "14px clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + 14px)",
     marginTop: 0,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
     maxWidth: "100%",
+    justifyItems: "center",
     background: "transparent",
     border: "none",
     boxShadow: "none",
@@ -874,6 +904,7 @@ const modal: Record<string, React.CSSProperties> = {
   },
   save: {
     width: "100%",
+    maxWidth: 420,
     borderRadius: 16,
     padding: "16px 18px",
     height: "auto",
@@ -901,6 +932,7 @@ const modal: Record<string, React.CSSProperties> = {
   },
   backTextBtn: {
     width: "100%",
+    maxWidth: 420,
     border: "none",
     background: "transparent",
     color: "#1e1f22",
