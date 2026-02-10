@@ -360,6 +360,20 @@ export default function PlanOne() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Always start PlanOne from the top, not from any preserved previous route scroll state.
+  useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    const resetScrollTop = () => {
+      if (root) root.scrollTop = 0;
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    resetScrollTop();
+    const raf = window.requestAnimationFrame(resetScrollTop);
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+
   const steps = useMemo(
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
     []

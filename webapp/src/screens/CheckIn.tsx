@@ -50,6 +50,15 @@ export default function CheckIn() {
     const prevBodyOverflow = document.body.style.overflowY;
     const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
 
+    const resetScrollTop = () => {
+      if (root) root.scrollTop = 0;
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    resetScrollTop();
+    const raf = window.requestAnimationFrame(resetScrollTop);
+
     if (root) {
       root.style.overflowY = "hidden";
       root.style.overscrollBehaviorY = "none";
@@ -58,6 +67,7 @@ export default function CheckIn() {
     document.body.style.overscrollBehaviorY = "none";
 
     return () => {
+      window.cancelAnimationFrame(raf);
       if (root) {
         root.style.overflowY = prevRootOverflow || "";
         root.style.overscrollBehaviorY = prevRootOverscroll || "";
@@ -427,7 +437,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateRows: "1fr auto",
     padding:
-      "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(96px, 14vh, 116px))",
+      "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(84px, 11vh, 96px))",
     gap: "clamp(8px, 1.3vh, 12px)",
   },
   mascotRow: {
@@ -467,7 +477,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     gap: "clamp(10px, 2.1vh, 18px)",
-    paddingTop: "clamp(8px, 1.2vh, 14px)",
+    paddingTop: "clamp(12px, 1.8vh, 18px)",
     marginTop: 0,
   },
   introBubble: {

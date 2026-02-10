@@ -530,6 +530,21 @@ export default function Dashboard() {
   const [dayScheduleReplaceConfirm, setDayScheduleReplaceConfirm] =
     useState<DayScheduleReplaceConfirmState | null>(null);
 
+  // Always open dashboard from the top, not from a preserved previous screen scroll position.
+  useLayoutEffect(() => {
+    if (!onbDone) return;
+    const root = document.getElementById("root");
+    const resetScrollTop = () => {
+      if (root) root.scrollTop = 0;
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    resetScrollTop();
+    const raf = window.requestAnimationFrame(resetScrollTop);
+    return () => window.cancelAnimationFrame(raf);
+  }, [onbDone]);
+
   // Lock scroll for intro
   useLayoutEffect(() => {
     const root = document.getElementById("root");
