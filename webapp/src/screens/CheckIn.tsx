@@ -427,7 +427,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateRows: "1fr auto",
     padding:
-      "calc(env(safe-area-inset-top, 0px) + clamp(10px, 1.6vh, 16px)) 20px calc(env(safe-area-inset-bottom, 0px) + clamp(10px, 1.8vh, 24px))",
+      "calc(env(safe-area-inset-top, 0px) + clamp(12px, 2vh, 20px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(82px, 12vh, 98px))",
     gap: "clamp(8px, 1.3vh, 12px)",
   },
   mascotRow: {
@@ -461,17 +461,19 @@ const styles: Record<string, React.CSSProperties> = {
   },
   introCenter: {
     minHeight: 0,
+    width: "100%",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
     gap: "clamp(10px, 2.1vh, 18px)",
     marginTop: 0,
-    paddingInline: "clamp(2px, 1vw, 6px)",
   },
   introBubble: {
     position: "relative",
-    width: "min(420px, 94vw)",
+    width: "100%",
+    maxWidth: 420,
+    boxSizing: "border-box",
     textAlign: "center",
     padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
     borderRadius: 20,
@@ -495,10 +497,13 @@ const styles: Record<string, React.CSSProperties> = {
     objectFit: "contain",
   },
   introActions: {
+    width: "100%",
+    maxWidth: 420,
+    boxSizing: "border-box",
+    justifySelf: "center",
     display: "grid",
     gap: 10,
-    paddingBottom:
-      "calc(env(safe-area-inset-bottom, 0px) + clamp(56px, 8.2vh, 76px))",
+    paddingBottom: 0,
   },
   formWrap: {
     marginTop: 2,
@@ -577,6 +582,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     padding: "16px 18px",
     width: "100%",
+    boxSizing: "border-box",
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
@@ -588,6 +594,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   summaryBackBtn: {
     width: "100%",
+    boxSizing: "border-box",
     border: "none",
     background: "transparent",
     color: "#1e1f22",
