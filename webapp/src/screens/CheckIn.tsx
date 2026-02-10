@@ -27,7 +27,6 @@ export default function CheckIn() {
   }>(null);
   const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
   const [formStep, setFormStep] = useState(0);
-  const [formTotalSteps, setFormTotalSteps] = useState(5);
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
   const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
@@ -249,8 +248,6 @@ export default function CheckIn() {
     : summary?.subtitle || "Готово. Тренировка адаптирована.";
 
   const pageStyle = phase === "intro" ? { ...styles.page, ...styles.pageIntro } : styles.page;
-  const formProgressPercent = Math.max(0, Math.min(100, ((formStep + 1) / Math.max(1, formTotalSteps)) * 100));
-
   return (
     <div style={pageStyle}>
       <style>{screenCss + thinkingCss}</style>
@@ -302,31 +299,6 @@ export default function CheckIn() {
         </>
       ) : null}
 
-      {phase === "form" ? (
-        <>
-          {formStep === 0 ? (
-            <div style={styles.formTopRow} className="onb-fade onb-fade-delay-1">
-              <button
-                type="button"
-                style={{ ...styles.introTopBackBtn, ...(loading ? styles.backDisabled : null) }}
-                onClick={handleTopBack}
-                disabled={loading}
-                aria-label="Назад"
-              >
-                Назад
-              </button>
-              <span style={styles.formTopRowSpacer} aria-hidden />
-            </div>
-          ) : null}
-          <section style={styles.formProgressWrap} className="onb-fade onb-fade-delay-1">
-            <div style={styles.formProgressTrack}>
-              <div style={{ ...styles.formProgressFill, width: `${formProgressPercent}%` }} />
-            </div>
-            <div style={styles.formProgressText}>Шаг {formStep + 1} из {formTotalSteps}</div>
-          </section>
-        </>
-      ) : null}
-
       {phase !== "intro" ? (
         <section style={styles.mascotRow} className={phase === "form" ? "onb-fade onb-fade-delay-2" : "onb-fade onb-fade-delay-1"}>
           <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
@@ -344,9 +316,8 @@ export default function CheckIn() {
               setError(null);
               setPhase("intro");
             }}
-            onStepChange={(stepIndex, total) => {
+            onStepChange={(stepIndex) => {
               setFormStep(stepIndex);
-              setFormTotalSteps(total);
             }}
             loading={loading}
             error={error}
@@ -355,7 +326,6 @@ export default function CheckIn() {
             title="Как ты сегодня?"
             hideStepMeta={true}
             hideStepTitle={true}
-            hideBackOnFirstStep={true}
           />
         </div>
       ) : null}
@@ -598,44 +568,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     paddingBottom: "clamp(24px, 3.2vh, 32px)",
-  },
-  formTopRow: {
-    position: "relative",
-    marginTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    zIndex: 3,
-  },
-  formTopRowSpacer: {
-    minWidth: 44,
-    minHeight: 44,
-    display: "inline-block",
-  },
-  formProgressWrap: {
-    display: "grid",
-    gap: 8,
-    marginTop: 2,
-  },
-  formProgressTrack: {
-    height: 6,
-    borderRadius: 999,
-    background: "rgba(15, 23, 42, 0.08)",
-    overflow: "hidden",
-  },
-  formProgressFill: {
-    height: "100%",
-    background: "#1e1f22",
-    borderRadius: 999,
-    boxShadow: "0 2px 6px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255,255,255,0.35)",
-  },
-  formProgressText: {
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: 0.25,
-    color: "rgba(30,31,34,0.55)",
-    textTransform: "uppercase",
-    textAlign: "center",
   },
   introTopRow: {
     position: "absolute",

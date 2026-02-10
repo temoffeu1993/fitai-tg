@@ -1,6 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
-import { BedSingle, CloudMoon, Moon, Sun, Sunrise } from "lucide-react";
 
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
@@ -224,11 +223,11 @@ export function CheckInForm({
   const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
 
   const sleepOptions = [
-    { key: "poor" as const, label: "Плохо", icon: "poor", desc: "Сон был прерывистым или коротким — восстановление слабое." },
-    { key: "fair" as const, label: "Так себе", icon: "fair", desc: "В целом спал, но бодрости меньше обычного." },
-    { key: "ok" as const, label: "Нормально", icon: "ok", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
-    { key: "good" as const, label: "Хорошо", icon: "good", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
-    { key: "excellent" as const, label: "Отлично", icon: "excellent", desc: "Полностью восстановился — максимум энергии и готовности." },
+    { key: "poor" as const, label: "Плохо", emoji: "🌙", desc: "Сон был прерывистым или коротким — восстановление слабое." },
+    { key: "fair" as const, label: "Так себе", emoji: "☁️", desc: "В целом спал, но бодрости меньше обычного." },
+    { key: "ok" as const, label: "Нормально", emoji: "🛏️", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
+    { key: "good" as const, label: "Хорошо", emoji: "🌤️", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
+    { key: "excellent" as const, label: "Отлично", emoji: "☀️", desc: "Полностью восстановился — максимум энергии и готовности." },
   ];
   const energyOptions = [
     { key: "low" as const, label: "Низкая", desc: "Сил мало — лучше держать умеренный темп и не форсировать." },
@@ -351,19 +350,6 @@ export function CheckInForm({
   const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее";
   const shouldShowBackTextBtn = !(hideBackOnFirstStep && step === 0);
 
-  const renderSleepIcon = (kind: "poor" | "fair" | "ok" | "good" | "excellent", size = 18) => {
-    const iconProps = {
-      size,
-      strokeWidth: 2.1,
-      color: "rgba(15, 23, 42, 0.62)",
-    };
-    if (kind === "poor") return <Moon {...iconProps} />;
-    if (kind === "fair") return <CloudMoon {...iconProps} />;
-    if (kind === "ok") return <BedSingle {...iconProps} />;
-    if (kind === "good") return <Sunrise {...iconProps} />;
-    return <Sun {...iconProps} />;
-  };
-
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
       <style>{sliderCss}</style>
@@ -391,13 +377,10 @@ export function CheckInForm({
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
-                  <span style={modal.valueTitleIcon}>{renderSleepIcon(sleepOpt.icon, 20)}</span>
                   <span style={modal.valueTitle}>{sleepOpt.label}</span>
+                  <span style={modal.valueEmoji} aria-hidden>{sleepOpt.emoji}</span>
                 </div>
-                <div style={{ ...modal.valueDescRow, minHeight: descMinHeight || undefined }}>
-                  <span style={modal.valueDescIcon}>{renderSleepIcon(sleepOpt.icon, 16)}</span>
-                  <span>{sleepOpt.desc}</span>
-                </div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
               </div>
               <div aria-hidden style={modal.measureWrap}>
                 {sleepOptions.map((o, i) => (
@@ -736,6 +719,15 @@ const modal: Record<string, React.CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 10,
+  },
+  valueEmoji: {
+    fontSize: 20,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    filter: "grayscale(1) saturate(0) contrast(1.05) brightness(0.55)",
+    opacity: 0.86,
   },
   valueTitleIcon: {
     width: 24,
