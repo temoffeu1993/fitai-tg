@@ -13,7 +13,14 @@ type Props = {
   submitLabel?: string;
   onBack?: () => void;
   backLabel?: string;
-  onStepChange?: (step: number, totalSteps: number) => void;
+  onStepChange?: (
+    step: number,
+    totalSteps: number,
+    context?: {
+      sleepQuality: SleepQuality;
+      sleepTouched: boolean;
+    }
+  ) => void;
   hideStepMeta?: boolean;
   hideStepTitle?: boolean;
   hideBackOnFirstStep?: boolean;
@@ -239,6 +246,7 @@ export function CheckInForm({
   hideBackOnFirstStep = false,
 }: Props) {
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
+  const [sleepTouched, setSleepTouched] = useState(false);
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
   const [stressLevel, setStressLevel] = useState<CheckInPayload["stressLevel"]>("medium");
   const [availableMinutes, setAvailableMinutes] = useState<number>(60);
@@ -248,27 +256,27 @@ export function CheckInForm({
   const [step, setStep] = useState(0);
 
   const sleepOptions = [
-    { key: "poor" as const, label: "Плохо", emoji: "🌙", desc: "Сон был прерывистым или коротким — восстановление слабое." },
-    { key: "fair" as const, label: "Так себе", emoji: "☁️", desc: "В целом спал, но бодрости меньше обычного." },
-    { key: "ok" as const, label: "Нормально", emoji: "🛏️", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
-    { key: "good" as const, label: "Хорошо", emoji: "🌤️", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
-    { key: "excellent" as const, label: "Отлично", emoji: "☀️", desc: "Полностью восстановился — максимум энергии и готовности." },
+    { key: "poor" as const, label: "Плохо", emoji: "😴" },
+    { key: "fair" as const, label: "Так себе", emoji: "🥱" },
+    { key: "ok" as const, label: "Нормально", emoji: "🙂" },
+    { key: "good" as const, label: "Хорошо", emoji: "😊" },
+    { key: "excellent" as const, label: "Отлично", emoji: "🤩" },
   ];
   const energyOptions = [
-    { key: "low" as const, label: "Низкая", desc: "Сил мало — лучше держать умеренный темп и не форсировать." },
-    { key: "medium" as const, label: "Средняя", desc: "Обычный уровень — стандартная тренировка должна зайти." },
-    { key: "high" as const, label: "Высокая", desc: "Много сил — можно работать увереннее, сохраняя технику." },
+    { key: "low" as const, label: "Низкая", emoji: "🪫" },
+    { key: "medium" as const, label: "Средняя", emoji: "🔋" },
+    { key: "high" as const, label: "Высокая", emoji: "⚡️" },
   ];
   const stressOptions = [
-    { key: "low" as const, label: "Низкий", desc: "Спокойно — нервная система не перегружена." },
-    { key: "medium" as const, label: "Средний", desc: "Есть напряжение, но оно контролируемое." },
-    { key: "high" as const, label: "Высокий", desc: "Сильно напряжён — лучше снизить интенсивность и объем." },
-    { key: "very_high" as const, label: "Очень высокий", desc: "На пределе — бережёмся, фокус на восстановлении." },
+    { key: "low" as const, label: "Низкий", emoji: "🧘" },
+    { key: "medium" as const, label: "Средний", emoji: "😬" },
+    { key: "high" as const, label: "Высокий", emoji: "😓" },
+    { key: "very_high" as const, label: "Очень высокий", emoji: "😵" },
   ];
   const durationOptions = [
-    { value: 45, label: "45 минут", desc: "Короткая, но эффективная тренировка." },
-    { value: 60, label: "60 минут", desc: "Стандартный сбалансированный формат." },
-    { value: 90, label: "90 минут", desc: "Полный объём с дополнительной проработкой." },
+    { value: 45, label: "45 минут", emoji: "⏱️" },
+    { value: 60, label: "60 минут", emoji: "⏲️" },
+    { value: 90, label: "90 минут", emoji: "🕰️" },
   ] as const;
 
   const totalSteps = 5;
@@ -276,8 +284,11 @@ export function CheckInForm({
   const isLastStep = step >= lastStep;
 
   React.useEffect(() => {
-    onStepChange?.(step, totalSteps);
-  }, [onStepChange, step, totalSteps]);
+    onStepChange?.(step, totalSteps, {
+      sleepQuality,
+      sleepTouched,
+    });
+  }, [onStepChange, step, totalSteps, sleepQuality, sleepTouched]);
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
@@ -383,15 +394,17 @@ export function CheckInForm({
                         ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
                         ...(isActive ? modal.optionCardActive : {}),
                       }}
-                      onClick={() => setSleepQuality(option.key)}
+                      onClick={() => {
+                        setSleepQuality(option.key);
+                        setSleepTouched(true);
+                      }}
                     >
                       <div style={modal.optionCardTitleRow}>
-                        <div style={modal.optionCardTitle}>{option.label}</div>
                         <span style={modal.optionCardEmoji} aria-hidden>
                           {option.emoji}
                         </span>
+                        <div style={modal.optionCardTitle}>{option.label}</div>
                       </div>
-                      <div style={modal.optionCardDesc}>{option.desc}</div>
                     </button>
                   );
                 })}
@@ -422,8 +435,12 @@ export function CheckInForm({
                       }}
                       onClick={() => setEnergyLevel(option.key)}
                     >
-                      <div style={modal.optionCardTitle}>{option.label}</div>
-                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                      <div style={modal.optionCardTitleRow}>
+                        <span style={modal.optionCardEmoji} aria-hidden>
+                          {option.emoji}
+                        </span>
+                        <div style={modal.optionCardTitle}>{option.label}</div>
+                      </div>
                     </button>
                   );
                 })}
@@ -454,8 +471,12 @@ export function CheckInForm({
                       }}
                       onClick={() => setStressLevel(option.key)}
                     >
-                      <div style={modal.optionCardTitle}>{option.label}</div>
-                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                      <div style={modal.optionCardTitleRow}>
+                        <span style={modal.optionCardEmoji} aria-hidden>
+                          {option.emoji}
+                        </span>
+                        <div style={modal.optionCardTitle}>{option.label}</div>
+                      </div>
                     </button>
                   );
                 })}
@@ -486,8 +507,12 @@ export function CheckInForm({
                       }}
                       onClick={() => setAvailableMinutes(option.value)}
                     >
-                      <div style={modal.optionCardTitle}>{option.label}</div>
-                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                      <div style={modal.optionCardTitleRow}>
+                        <span style={modal.optionCardEmoji} aria-hidden>
+                          {option.emoji}
+                        </span>
+                        <div style={modal.optionCardTitle}>{option.label}</div>
+                      </div>
                     </button>
                   );
                 })}
@@ -784,10 +809,12 @@ const modal: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     color: "#1e1f22",
-    padding: "14px 14px",
+    fontSize: 18,
+    fontWeight: 500,
+    padding: "18px 16px",
     textAlign: "left",
-    display: "grid",
-    gap: 6,
+    display: "flex",
+    gap: 0,
     alignItems: "flex-start",
     justifyContent: "flex-start",
     width: "100%",
@@ -799,31 +826,22 @@ const modal: Record<string, React.CSSProperties> = {
     color: "#fff",
   },
   optionCardTitleRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
+    display: "inline-flex",
     alignItems: "center",
-    gap: 10,
-    width: "100%",
+    gap: 8,
   },
   optionCardTitle: {
     fontSize: 18,
-    lineHeight: 1.25,
+    lineHeight: 1.22,
     fontWeight: 500,
   },
-  optionCardDesc: {
-    fontSize: 14,
-    lineHeight: 1.4,
-    color: "inherit",
-    opacity: 0.76,
-  },
   optionCardEmoji: {
-    fontSize: 20,
+    fontSize: 18,
     lineHeight: 1,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    filter: "grayscale(1) saturate(0) contrast(1.05) brightness(0.62)",
-    opacity: 0.88,
+    transform: "translateY(1px)",
   },
   cardWide: {
     padding: "2px 2px 0",
