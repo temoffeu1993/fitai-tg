@@ -26,7 +26,6 @@ import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
-import zhimCardImg from "@/assets/zhim.png";
 import nogiImg from "@/assets/nogi.webp";
 import sredneImg from "@/assets/sredne.webp";
 
@@ -2181,7 +2180,9 @@ function PlannedExercisesEditor({
     setLoading(true);
     setErr(null);
     try {
-      const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 3 });
+      // Collect all unique patterns from current workout to restrict alternatives to same day type
+      const dayPatterns = [...new Set(exercisesRaw.map((ex: any) => ex.pattern).filter(Boolean))].join(",");
+      const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 3, allowedPatterns: dayPatterns || undefined });
       const list = Array.isArray(res?.alternatives) ? res.alternatives : [];
       setAlts(list.slice(0, 3));
       goMode("replace");
@@ -2293,6 +2294,13 @@ function PlannedExercisesEditor({
     lineHeight: 1.2,
     color: "#0f172a",
   };
+  const exerciseCues: React.CSSProperties = {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
+  };
   const volumeChip: React.CSSProperties = {
     background: "transparent",
     border: "none",
@@ -2311,15 +2319,6 @@ function PlannedExercisesEditor({
   const volumeChipIcon: React.CSSProperties = {
     transform: "translateY(0.2px)",
     flex: "0 0 auto",
-  };
-  const exerciseVisual: React.CSSProperties = {
-    width: 62,
-    height: 62,
-    borderRadius: 16,
-    objectFit: "cover",
-    objectPosition: "center",
-    flex: "0 0 auto",
-    display: "block",
   };
   const overlay: React.CSSProperties = {
     position: "fixed",
@@ -2442,21 +2441,13 @@ function PlannedExercisesEditor({
   const subText: React.CSSProperties = { fontSize: 12, color: "#475569", fontWeight: 700 };
 
   return (
-    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+    <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
       {displayItems.map((it, i) => {
         const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
         const isOpen = menuIndex === i;
         return (
           <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
-            <img
-              src={zhimCardImg}
-              alt=""
-              aria-hidden="true"
-              style={exerciseVisual}
-              loading="lazy"
-              decoding="async"
-            />
-            <div style={{ flex: 1, minWidth: 0, marginRight: 6 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={exerciseTitle}>
                 {it.name || `Упражнение ${i + 1}`}{" "}
                 {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
@@ -2467,6 +2458,7 @@ function PlannedExercisesEditor({
                   <span>{it.sets}×{formatReps(it.reps)}</span>
                 </span>
               </div>
+              {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
             </div>
             <div style={{ display: "flex", alignItems: "flex-start" }}>
               <button

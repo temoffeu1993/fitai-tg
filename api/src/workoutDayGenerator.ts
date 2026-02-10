@@ -1059,6 +1059,30 @@ export async function generateWorkoutDay(args: {
   }
 
   // -------------------------------------------------------------------------
+  // STEP 2.4: POST-GENERATION VALIDATION — remove exercises outside day scope
+  // Источник правды — уже построенные slots (required + optional + fillers + doubles)
+  // -------------------------------------------------------------------------
+  const postValidationWarnings: string[] = [];
+  {
+    const slotPatterns = new Set<string>(slots.map(s => String(s.pattern)));
+    const templateId = dayBlueprint.templateRulesId ?? dayBlueprint.label;
+
+    const beforeCount = selectedExercises.length;
+    for (let i = selectedExercises.length - 1; i >= 0; i--) {
+      const ex = selectedExercises[i].ex;
+      const hasAllowedPattern = ex.patterns.some(p => slotPatterns.has(String(p)));
+      if (!hasAllowedPattern) {
+        console.warn(`⚠️  POST-VALIDATION: Removing "${ex.name}" (patterns: ${ex.patterns.join(",")}) — не соответствует слотам дня ${templateId}`);
+        postValidationWarnings.push(`Убрали "${ex.name}" — не подходит для дня ${templateId}`);
+        selectedExercises.splice(i, 1);
+      }
+    }
+    if (selectedExercises.length < beforeCount) {
+      console.log(`  Post-validation removed ${beforeCount - selectedExercises.length} exercise(s)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // STEP 2.5: НОВОЕ - Get progression recommendations
   // -------------------------------------------------------------------------
   let progressionRecommendations = new Map<string, ProgressionRecommendation>();
@@ -1227,6 +1251,11 @@ export async function generateWorkoutDay(args: {
 
   // НОВОЕ: Используем warnings из readiness (единый источник правды)
   warnings.push(...readiness.warnings);
+
+  // Post-generation validation warnings (exercises removed for wrong day type)
+  if (postValidationWarnings.length > 0) {
+    warnings.push(...postValidationWarnings);
+  }
   
   // НОВОЕ: Добавляем объяснения пропущенных паттернов
   if (missedPatternExplanations.length > 0) {

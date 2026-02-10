@@ -18,10 +18,13 @@ export async function getExerciseAlternatives(args: {
   exerciseId: string;
   reason?: string;
   limit?: number;
+  /** Comma-separated patterns to restrict alternatives to the current day type */
+  allowedPatterns?: string;
 }): Promise<{ ok: boolean; original: any; alternatives: ExerciseAlternative[] }> {
   const q = new URLSearchParams();
   if (args.reason) q.set("reason", args.reason);
   if (args.limit) q.set("limit", String(args.limit));
+  if (args.allowedPatterns) q.set("allowedPatterns", args.allowedPatterns);
 
   const r = await apiFetch(`/plan/exercises/${encodeURIComponent(args.exerciseId)}/alternatives?${q.toString()}`);
   if (!r.ok) {

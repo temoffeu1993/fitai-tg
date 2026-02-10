@@ -145,6 +145,18 @@ workoutGeneration.get(
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
+    const allowedPatternsRaw =
+      typeof req.query?.allowedPatterns === "string" ? String(req.query.allowedPatterns) : "";
+    const allowedPatterns = allowedPatternsRaw
+      ? allowedPatternsRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null;
+
+    if (!allowedPatterns) {
+      console.log(`[alternatives] allowedPatterns empty for exercise ${exerciseId} — legacy data or missing pattern field`);
+    }
 
     const userProfile = await buildUserProfile(uid);
 
@@ -167,6 +179,7 @@ workoutGeneration.get(
         requireEquipment: requireEquipment as any,
         reason: reason as any,
         limit,
+        allowedPatterns: allowedPatterns as any,
       },
     });
 
@@ -491,6 +504,7 @@ workoutGeneration.post(
 	        exercises: workout.exercises.map(ex => ({
 	          exerciseId: ex.exercise.id,
 	          exerciseName: ex.exercise.name,
+	          pattern: ex.exercise.patterns?.[0] ?? null,
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
@@ -507,17 +521,17 @@ workoutGeneration.post(
 	        adaptationNotes: workout.adaptationNotes,
         warnings: workout.warnings,
       };
-      
+
       await q(
-        `INSERT INTO planned_workouts 
+        `INSERT INTO planned_workouts
          (user_id, workout_date, data, plan, scheduled_for, status)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
                  (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
-         ON CONFLICT (user_id, workout_date) 
-         DO UPDATE SET 
+         ON CONFLICT (user_id, workout_date)
+         DO UPDATE SET
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'pending', 
+           status = 'pending',
            updated_at = now()
          WHERE planned_workouts.status <> 'completed'`,
         [uid, i, workoutData]
@@ -860,6 +874,7 @@ workoutGeneration.post(
 	        exercises: workout.exercises.map(ex => ({
 	          exerciseId: ex.exercise.id,
 	          exerciseName: ex.exercise.name,
+	          pattern: ex.exercise.patterns?.[0] ?? null,
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
@@ -876,16 +891,16 @@ workoutGeneration.post(
       adaptationNotes: workout.adaptationNotes,
       warnings: workout.warnings,
     };
-    
+
     await q(
-      `INSERT INTO planned_workouts 
+      `INSERT INTO planned_workouts
        (user_id, workout_date, data, plan, scheduled_for, status)
        VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
-       ON CONFLICT (user_id, workout_date) 
-       DO UPDATE SET 
+       ON CONFLICT (user_id, workout_date)
+       DO UPDATE SET
          data = $2::jsonb,
          plan = $2::jsonb,
-         status = 'pending', 
+         status = 'pending',
          updated_at = now()`,
       [uid, workoutData]
     );
@@ -989,6 +1004,7 @@ workoutGeneration.post(
         exercises: workout.exercises.map(ex => ({
           exerciseId: ex.exercise.id,
           exerciseName: ex.exercise.name,
+          pattern: ex.exercise.patterns?.[0] ?? null,
           sets: ex.sets,
           repsRange: ex.repsRange,
           restSec: ex.restSec,
@@ -1236,6 +1252,7 @@ workoutGeneration.post(
 	        exercises: recoveryWorkout.exercises.map(ex => ({
 	          exerciseId: ex.exercise.id,
 	          exerciseName: ex.exercise.name,
+	          pattern: ex.exercise.patterns?.[0] ?? null,
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,
@@ -1434,6 +1451,7 @@ workoutGeneration.post(
 	          exercises: adaptedWorkout.exercises.map((ex) => ({
 	            exerciseId: ex.exercise.id,
 	            exerciseName: ex.exercise.name,
+	            pattern: ex.exercise.patterns?.[0] ?? null,
 	            sets: ex.sets,
 	            repsRange: ex.repsRange,
 	            restSec: ex.restSec,
@@ -1596,6 +1614,7 @@ workoutGeneration.post(
 	        exercises: adaptedWorkout.exercises.map(ex => ({
 	          exerciseId: ex.exercise.id,
 	          exerciseName: ex.exercise.name,
+	          pattern: ex.exercise.patterns?.[0] ?? null,
 	          sets: ex.sets,
 	          repsRange: ex.repsRange,
 	          restSec: ex.restSec,

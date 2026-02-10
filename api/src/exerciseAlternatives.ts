@@ -46,6 +46,10 @@ export type AlternativesContext = {
   requireEquipment?: Equipment[] | null;
   reason?: AlternativesReason | null;
   limit?: number | null;
+  // When provided, only exercises that share at least one of these patterns
+  // are allowed. Use this to prevent e.g. leg exercises appearing as
+  // alternatives on a push day.
+  allowedPatterns?: Pattern[] | null;
 };
 
 export type ExerciseAlternative = {
@@ -86,6 +90,10 @@ export function getExerciseAlternatives(args: {
   const exp = ctx.userExperience ?? original.minLevel;
   const expRank = lvRank(exp);
   const avail = Array.isArray(ctx.equipmentAvailable) ? ctx.equipmentAvailable : null;
+  const allowedPatternsSet: Set<Pattern> | null =
+    Array.isArray(ctx.allowedPatterns) && ctx.allowedPatterns.length > 0
+      ? new Set(ctx.allowedPatterns)
+      : null;
 
   const scored: ExerciseAlternative[] = [];
   for (const ex of EXERCISE_LIBRARY) {
@@ -102,6 +110,9 @@ export function getExerciseAlternatives(args: {
 
     // Require equipment (optional filter)
     if (requireEq.size > 0 && !ex.equipment.some((eq) => requireEq.has(eq))) continue;
+
+    // Day-type gate: exercise must have at least one pattern from the allowed set
+    if (allowedPatternsSet && !ex.patterns.some((p) => allowedPatternsSet.has(p))) continue;
 
     const sharedPatterns = intersectCount(original.patterns, ex.patterns);
     const sharedPrimary = intersectCount(original.primaryMuscles, ex.primaryMuscles);

@@ -578,7 +578,9 @@ export default function WorkoutSession() {
     setAltsLoading(true);
     setAltsError(null);
     try {
-      const res = await getExerciseAlternatives({ exerciseId: String(fromId), reason: "equipment_busy", limit: 12 });
+      // Collect all unique patterns from current workout to restrict alternatives to same day type
+      const dayPatterns = [...new Set(items.map(i => i.pattern).filter(Boolean))].join(",");
+      const res = await getExerciseAlternatives({ exerciseId: String(fromId), reason: "equipment_busy", limit: 12, allowedPatterns: dayPatterns || undefined });
       setAlts(Array.isArray(res?.alternatives) ? res.alternatives : []);
       setExerciseMenu({ index: ei, mode: "replace" });
     } catch (e) {
