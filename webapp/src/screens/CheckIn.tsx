@@ -612,8 +612,8 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   introPrimaryBtn: {
-    width: "100%",
-    boxSizing: "border-box",
+    width: "fit-content",
+    maxWidth: "100%",
     height: 50,
     borderRadius: 999,
     border: "1px solid #1e1f22",
@@ -626,12 +626,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     cursor: "pointer",
     boxShadow: "none",
+    justifySelf: "center",
     WebkitTapHighlightColor: "transparent",
   },
   introPrimaryBtnText: {
     fontSize: 18,
     fontWeight: 500,
-    textAlign: "left",
+    textAlign: "center",
     lineHeight: 1,
   },
   introPrimaryBtnIconWrap: {
