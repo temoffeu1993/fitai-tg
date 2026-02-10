@@ -1197,27 +1197,29 @@ export default function PlanOne() {
                             <span style={pick.weekActionPrimaryArrow}>{isCompletedWorkout ? "✓" : "→"}</span>
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          style={pick.detailsLinkBtn}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
-                          }}
-                          aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
-                        >
-                          <svg
-                            viewBox="0 0 20 6"
-                            width="20"
-                            height="6"
-                            aria-hidden
-                            style={pick.detailsChevronIcon}
+                        <div style={pick.detailsLinkHitbox}>
+                          <button
+                            type="button"
+                            style={pick.detailsLinkBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedPlannedIds((prev) => ({ ...prev, [key]: !expanded }));
+                            }}
+                            aria-label={expanded ? "Скрыть детали тренировки" : "Показать детали тренировки"}
                           >
-                            <circle cx="3" cy="3" r="1.45" fill="currentColor" />
-                            <circle cx="10" cy="3" r="1.45" fill="currentColor" />
-                            <circle cx="17" cy="3" r="1.45" fill="currentColor" />
-                          </svg>
-                        </button>
+                            <svg
+                              viewBox="0 0 20 6"
+                              width="20"
+                              height="6"
+                              aria-hidden
+                              style={pick.detailsChevronIcon}
+                            >
+                              <circle cx="3" cy="3" r="1.45" fill="currentColor" />
+                              <circle cx="10" cy="3" r="1.45" fill="currentColor" />
+                              <circle cx="17" cy="3" r="1.45" fill="currentColor" />
+                            </svg>
+                          </button>
+                        </div>
                         <span style={pick.weekActionsRightSpacer} aria-hidden />
                       </div>
                     </>
@@ -3966,18 +3968,31 @@ const pick: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     fontWeight: 700,
   },
+  detailsLinkHitbox: {
+    justifySelf: "center",
+    alignSelf: "end",
+    width: 20,
+    height: 10,
+    display: "grid",
+    placeItems: "center",
+    position: "relative",
+  },
   detailsLinkBtn: {
     border: "none",
     background: "transparent",
     cursor: "pointer",
     padding: 0,
+    margin: 0,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 20,
-    height: 10,
-    justifySelf: "center",
-    alignSelf: "end",
+    width: 44,
+    height: 34,
+    minWidth: 44,
+    minHeight: 34,
+    borderRadius: 12,
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
   detailsChevronIcon: {
     color: "#0f172a",
