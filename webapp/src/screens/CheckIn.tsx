@@ -242,12 +242,15 @@ export default function CheckIn() {
           <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
             <button
               type="button"
-              style={{ ...styles.summaryPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
+              style={{ ...styles.introPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
               className="intro-primary-btn"
               onClick={() => setPhase("form")}
               disabled={skipLoading || loading}
             >
-              Пройти чекин
+              <span style={styles.introPrimaryBtnText}>Пройти чекин</span>
+              <span style={styles.introPrimaryBtnIconWrap} aria-hidden>
+                <span style={styles.introPrimaryBtnArrow}>→</span>
+              </span>
             </button>
             <button
               type="button"
@@ -607,6 +610,48 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     WebkitTapHighlightColor: "transparent",
+  },
+  introPrimaryBtn: {
+    width: "100%",
+    boxSizing: "border-box",
+    height: 50,
+    borderRadius: 999,
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    padding: "0 14px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    cursor: "pointer",
+    boxShadow: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
+  introPrimaryBtnText: {
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left",
+    lineHeight: 1,
+  },
+  introPrimaryBtnIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    flex: "0 0 auto",
+  },
+  introPrimaryBtnArrow: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#0f172a",
+    fontWeight: 700,
   },
   summaryBackBtn: {
     width: "100%",
