@@ -2339,6 +2339,34 @@ function PlannedExercisesEditor({
     cursor: "pointer",
     color: "#0f172a",
   };
+  const menuTouchWrap: React.CSSProperties = {
+    width: 20,
+    height: 10,
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+  };
+  const menuBtnHitTarget: React.CSSProperties = {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 44,
+    height: 34,
+    minWidth: 44,
+    minHeight: 34,
+    padding: 0,
+    margin: 0,
+    border: "none",
+    borderRadius: 12,
+    background: "transparent",
+    boxShadow: "none",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  };
   const exerciseTitle: React.CSSProperties = {
     fontSize: 18,
     fontWeight: 700,
@@ -2527,25 +2555,38 @@ function PlannedExercisesEditor({
               {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
             </div>
             <div style={{ display: "flex", alignItems: "flex-start" }}>
-              <button
-                type="button"
-                style={menuBtn}
-                ref={(el) => {
-                  menuBtnRefs.current[i] = el;
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isOpen) close();
-                  else openMenu(i);
-                }}
-                aria-label="Опции"
-              >
-                <svg viewBox="0 0 20 6" width="20" height="6" aria-hidden style={{ color: "#0f172a" }}>
-                  <circle cx="3" cy="3" r="1.45" fill="currentColor" />
-                  <circle cx="10" cy="3" r="1.45" fill="currentColor" />
-                  <circle cx="17" cy="3" r="1.45" fill="currentColor" />
-                </svg>
-              </button>
+              <div style={menuTouchWrap}>
+                <button
+                  type="button"
+                  style={menuBtn}
+                  ref={(el) => {
+                    menuBtnRefs.current[i] = el;
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isOpen) close();
+                    else openMenu(i);
+                  }}
+                  aria-label="Опции"
+                >
+                  <svg viewBox="0 0 20 6" width="20" height="6" aria-hidden style={{ color: "#0f172a" }}>
+                    <circle cx="3" cy="3" r="1.45" fill="currentColor" />
+                    <circle cx="10" cy="3" r="1.45" fill="currentColor" />
+                    <circle cx="17" cy="3" r="1.45" fill="currentColor" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  style={menuBtnHitTarget}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isOpen) close();
+                    else openMenu(i);
+                  }}
+                />
+              </div>
             </div>
           </div>
         );
