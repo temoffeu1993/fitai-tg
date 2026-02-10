@@ -2019,7 +2019,7 @@ function ExercisesList({
 
   // Для main показываем каждое упражнение отдельным блоком БЕЗ общего контейнера
   return (
-    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+    <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
       {items.map((item, i) => {
         const isString = typeof item === "string";
         const name = isString ? item : item.name;
@@ -2292,13 +2292,6 @@ function PlannedExercisesEditor({
     lineHeight: 1.2,
     color: "#0f172a",
   };
-  const exerciseCues: React.CSSProperties = {
-    marginTop: 2,
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
-  };
   const volumeChip: React.CSSProperties = {
     background: "transparent",
     border: "none",
@@ -2449,9 +2442,14 @@ function PlannedExercisesEditor({
               <div style={exerciseTitle}>
                 {it.name || `Упражнение ${i + 1}`} {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
               </div>
-              {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
+              <div style={{ marginTop: 2 }}>
+                <span style={volumeChip}>
+                  <Dumbbell size={14} strokeWidth={2.1} style={volumeChipIcon} />
+                  <span>{it.sets}×{formatReps(it.reps)}</span>
+                </span>
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
               <button
                 type="button"
                 style={menuBtn}
@@ -2471,10 +2469,6 @@ function PlannedExercisesEditor({
                   <circle cx="17" cy="3" r="1.45" fill="currentColor" />
                 </svg>
               </button>
-              <span style={volumeChip}>
-                <Dumbbell size={14} strokeWidth={2.1} style={volumeChipIcon} />
-                <span>{it.sets}×{formatReps(it.reps)}</span>
-              </span>
             </div>
           </div>
         );
@@ -4001,7 +3995,7 @@ const pick: Record<string, React.CSSProperties> = {
     lineHeight: 1.2,
   },
   detailsSection: {
-    marginTop: 12,
+    marginTop: 6,
     padding: 0,
     background: "transparent",
     borderRadius: 0,
