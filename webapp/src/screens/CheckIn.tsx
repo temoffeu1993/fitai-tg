@@ -252,7 +252,7 @@ export default function CheckIn() {
               disabled={skipLoading || loading}
               aria-label="Назад"
             >
-              ⟵
+              <span style={styles.introTopBackArrow}>→</span>
             </button>
             <button
               type="button"
@@ -581,6 +581,14 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "left",
     WebkitTapHighlightColor: "transparent",
+  },
+  introTopBackArrow: {
+    display: "inline-block",
+    transform: "rotate(180deg)",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 13,
+    fontWeight: 400,
+    lineHeight: 1,
   },
   introSkipTopBtn: {
     border: "none",
