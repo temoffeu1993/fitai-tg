@@ -4,6 +4,7 @@ import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
+import mascotImg from "@/assets/robonew.webp";
 
 export default function CheckIn() {
   const nav = useNavigate();
@@ -148,45 +149,50 @@ export default function CheckIn() {
     nav(returnTo || "/plan/one");
   };
 
+  const bubbleText = !result
+    ? "Отметь самочувствие за 30 секунд."
+    : summaryPhase === "thinking"
+    ? "Секунду, адаптирую тренировку."
+    : summary?.subtitle || "Готово. Тренировка адаптирована.";
+
   return (
     <div style={styles.page}>
-      {!result ? (
-        <>
-          {/* Верхний блок с заголовком */}
-          <section style={styles.heroCard}>
-            <div style={styles.heroTitle}>Твоё состояние перед тренировкой</div>
-            <div style={styles.heroSubtitle}>
-              Расскажи как ты себя чувствуешь, и мы адаптируем тренировку под тебя
-            </div>
-          </section>
-          <div style={{ height: 16 }} />
-        </>
-      ) : null}
+      <style>{screenCss + thinkingCss}</style>
+      <section style={styles.mascotRow} className="onb-fade onb-fade-delay-1">
+        <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
+        <div style={styles.bubble} className="speech-bubble">
+          <span style={styles.bubbleText}>{bubbleText}</span>
+        </div>
+      </section>
 
       {!result ? (
-        <CheckInForm
-          onSubmit={handleSubmit}
-          onBack={handleSkip}
-          loading={loading}
-          error={error}
-          inline={true}
-          submitLabel="Продолжить"
-          title="Как ты сегодня? 💬"
-        />
-      ) : (
+        <div style={styles.formWrap} className="onb-fade onb-fade-delay-2">
+          <CheckInForm
+            onSubmit={handleSubmit}
+            onBack={handleSkip}
+            loading={loading}
+            error={error}
+            inline={true}
+            submitLabel="Продолжить"
+            title="Как ты сегодня?"
+          />
+        </div>
+      ) : null}
+
+      {result ? (
         <>
-          <section style={styles.summaryCard}>
-            <div style={styles.summaryKicker}>🧠 Анализируем чек-ин</div>
+          <section style={styles.summaryCard} className="onb-fade onb-fade-delay-2">
+            <div style={styles.summaryKicker}>Адаптация тренировки</div>
 
             {summaryPhase === "thinking" ? (
               <div style={styles.thinkingRow} aria-live="polite">
                 <div style={styles.thinkingDot} />
                 <div style={styles.thinkingText}>
-                  Подстраиваем тренировку под самочувствие<span className="thinking-dots" />
+                  Подстраиваем тренировку<span className="thinking-dots" />
                 </div>
               </div>
             ) : (
-              <div style={styles.summaryBody}>
+              <div style={styles.summaryBody} className="onb-fade">
                 <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
                 {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
 
@@ -202,11 +208,10 @@ export default function CheckIn() {
               </div>
             )}
 
-            <style>{thinkingCss}</style>
           </section>
 
           {summaryPhase === "ready" ? (
-            <div style={styles.summaryFooter}>
+            <div style={styles.summaryFooter} className="onb-fade onb-fade-delay-3">
               <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading}>
                 Начать тренировку
               </button>
@@ -224,10 +229,39 @@ export default function CheckIn() {
             </div>
           ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
+
+const screenCss = `
+@keyframes onbFadeUp {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.onb-fade { animation: onbFadeUp 520ms ease-out both; }
+.onb-fade-delay-1 { animation-delay: 80ms; }
+.onb-fade-delay-2 { animation-delay: 160ms; }
+.onb-fade-delay-3 { animation-delay: 240ms; }
+.speech-bubble:before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+}
+@media (prefers-reduced-motion: reduce) {
+  .onb-fade,
+  .onb-fade-delay-1,
+  .onb-fade-delay-2,
+  .onb-fade-delay-3 { animation: none !important; }
+}
+`;
 
 const thinkingCss = `
 @keyframes thinkingPulse {
@@ -255,47 +289,62 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     maxWidth: 720,
     margin: "0 auto",
-    padding: "16px",
-    paddingBottom: "100px",
-    fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
-    background: "transparent",
     minHeight: "100vh",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    background: "transparent",
+    color: "#1e1f22",
   },
-  heroCard: {
-    position: "relative",
-    padding: 20,
-    borderRadius: 24,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#0f172a",
-    color: "#fff",
-    overflow: "hidden",
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: 800,
-    marginTop: 0,
-    color: "#fff",
-  },
-  heroSubtitle: {
-    opacity: 0.85,
+  mascotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    alignItems: "center",
+    gap: 12,
     marginTop: 8,
-    fontSize: 14,
-    lineHeight: 1.5,
-    color: "rgba(255,255,255,.85)",
+  },
+  mascotImg: {
+    width: 132,
+    height: "auto",
+    objectFit: "contain",
+  },
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    color: "#1e1f22",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+  },
+  bubbleText: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1.35,
+    color: "#1e1f22",
+  },
+  formWrap: {
+    marginTop: 2,
   },
   summaryCard: {
     position: "relative",
-    padding: 18,
-    borderRadius: 24,
-    background: "#ffffff",
-    boxShadow: "0 2px 10px rgba(15, 23, 42, .10)",
-    border: "1px solid rgba(15, 23, 42, .06)",
+    borderRadius: 20,
+    padding: "20px 18px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
   summaryKicker: {
     fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: 0.3,
-    color: "rgba(15, 23, 42, .72)",
+    fontWeight: 700,
+    letterSpacing: 0.25,
+    color: "rgba(30,31,34,0.62)",
     textTransform: "uppercase",
   },
   thinkingRow: {
@@ -309,67 +358,68 @@ const styles: Record<string, React.CSSProperties> = {
     width: 12,
     height: 12,
     borderRadius: 999,
-    background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+    background: "linear-gradient(135deg, #2f3035 0%, #1e1f22 100%)",
     animation: "thinkingPulse 1.05s ease-in-out infinite",
     flex: "0 0 auto",
   },
   thinkingText: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "rgba(15, 23, 42, .88)",
+    fontSize: 15,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.82)",
   },
   summaryBody: {
     paddingTop: 14,
     animation: "fadeInUp .35s ease-out both",
   },
   summaryTitle: {
-    fontSize: 20,
-    fontWeight: 900,
-    color: "#0f172a",
-    letterSpacing: -0.2,
+    fontSize: 28,
+    lineHeight: 1.15,
+    fontWeight: 700,
+    color: "#1e1f22",
+    letterSpacing: -0.6,
   },
   summarySubtitle: {
     marginTop: 6,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 1.45,
-    color: "rgba(15, 23, 42, .70)",
+    color: "rgba(30,31,34,0.72)",
   },
   notesList: {
     marginTop: 12,
     display: "grid",
-    gap: 8,
+    gap: 7,
   },
   noteItem: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 1.4,
-    color: "rgba(15, 23, 42, .84)",
+    color: "rgba(30,31,34,0.84)",
   },
   summaryFooter: {
-    marginTop: 16,
+    marginTop: 6,
     display: "grid",
     gridTemplateColumns: "1fr",
-    gap: 12,
+    gap: 10,
   },
   summaryPrimaryBtn: {
     borderRadius: 16,
     padding: "16px 18px",
     width: "100%",
-    border: "1px solid #0f172a",
-    background: "#0f172a",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    fontWeight: 800,
-    fontSize: 17,
+    fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     WebkitTapHighlightColor: "transparent",
   },
   summaryBackBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#111827",
+    color: "#1e1f22",
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",

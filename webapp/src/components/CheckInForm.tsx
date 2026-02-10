@@ -17,16 +17,17 @@ type Props = {
 
 const chipStyle: React.CSSProperties = {
   padding: "14px 14px",
-  borderRadius: 12,
-  border: "1px solid rgba(0,0,0,0.06)",
-  background: "rgba(255,255,255,0.6)",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-  backdropFilter: "blur(8px)",
-  WebkitBackdropFilter: "blur(8px)",
+  borderRadius: 16,
+  border: "1px solid rgba(255,255,255,0.5)",
+  background: "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.12) 100%)",
+  boxShadow:
+    "0 6px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.72), inset 0 0 0 1px rgba(255,255,255,0.25)",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
   cursor: "pointer",
-  fontSize: 15,
-  fontWeight: 700,
-  color: "#111827",
+  fontSize: 16,
+  fontWeight: 500,
+  color: "#1e1f22",
   transition: "all .15s ease",
   whiteSpace: "normal",
   wordBreak: "break-word",
@@ -41,9 +42,10 @@ const chipStyle: React.CSSProperties = {
 
 const chipActive: React.CSSProperties = {
   ...chipStyle,
-  background: "#0f172a",
+  background: "#1e1f22",
   color: "#fff",
-  border: "1px solid #0f172a",
+  border: "1px solid #1e1f22",
+  boxShadow: "0 6px 10px rgba(0,0,0,0.2)",
 };
 
 const sliderCss = `
@@ -90,7 +92,7 @@ const sliderCss = `
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 .checkin-step-animate {
-  animation: checkinStepIn 840ms cubic-bezier(.4,0,.2,1) both;
+  animation: checkinStepIn 420ms cubic-bezier(.4,0,.2,1) both;
   will-change: transform, opacity;
   transform-origin: 50% 50%;
 }
@@ -351,9 +353,13 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
+          <div style={modal.stepMeta}>
+            <span style={modal.stepText}>Шаг {step + 1} из {totalSteps}</span>
+          </div>
+
           {step === 0 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>😴 Как ты поспал?</div>
+              <div style={modal.cardMiniTitle}>Как ты поспал?</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{sleepOpt.label}</div>
                 <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
@@ -389,7 +395,7 @@ export function CheckInForm({
 
           {step === 1 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>⚡ Энергия</div>
+              <div style={modal.cardMiniTitle}>Энергия</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{energyOpt.label}</div>
                 <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{energyOpt.desc}</div>
@@ -425,7 +431,7 @@ export function CheckInForm({
 
           {step === 2 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>😰 Стресс</div>
+              <div style={modal.cardMiniTitle}>Стресс</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{stressOpt.label}</div>
                 <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{stressOpt.desc}</div>
@@ -461,7 +467,7 @@ export function CheckInForm({
 
           {step === 3 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>⏱️ Время на тренировку</div>
+              <div style={modal.cardMiniTitle}>Время на тренировку</div>
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{availableMinutes} мин</div>
               </div>
@@ -482,7 +488,7 @@ export function CheckInForm({
 
           {step >= 4 ? (
             <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.groupTitle}>🩹 Есть боль/дискомфорт сегодня?</div>
+              <div style={modal.groupTitle}>Есть боль или дискомфорт?</div>
 
               <div style={modal.binaryRow}>
                 <button
@@ -617,7 +623,7 @@ const modal: Record<string, React.CSSProperties> = {
   wrap: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.35)",
+    background: "rgba(0,0,0,0.24)",
     display: "grid",
     placeItems: "center",
     padding: 16,
@@ -626,9 +632,12 @@ const modal: Record<string, React.CSSProperties> = {
   card: {
     width: "100%",
     maxWidth: 520,
-    background: "#fff",
-    borderRadius: 20,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     overflow: "hidden",
   },
   inlineWrap: {
@@ -638,18 +647,23 @@ const modal: Record<string, React.CSSProperties> = {
   },
   inlineCard: {
     width: "100%",
-    background: "transparent",
-    borderRadius: 16,
-    padding: 0,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    overflow: "hidden",
+    padding: "16px 14px 20px",
   },
   header: {
-    padding: "16px 18px",
+    padding: "16px 18px 10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottom: "1px solid rgba(0,0,0,0.06)",
+    borderBottom: "1px solid rgba(255,255,255,0.6)",
   },
-  title: { fontSize: 18, fontWeight: 700 },
+  title: { fontSize: 22, fontWeight: 700, color: "#1e1f22" },
   close: {
     border: "none",
     background: "transparent",
@@ -657,16 +671,28 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     lineHeight: 1,
   },
-  bodyInline: { padding: "0", display: "grid", gap: 16 },
+  bodyInline: { padding: "0", display: "grid", gap: 14 },
+  stepMeta: {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: -2,
+  },
+  stepText: {
+    fontSize: 12,
+    fontWeight: 600,
+    letterSpacing: 0.25,
+    color: "rgba(30,31,34,0.55)",
+    textTransform: "uppercase",
+  },
   subLabel: { fontSize: 14, opacity: 0.82, marginTop: 2, lineHeight: 1.35 },
   value: {
     display: "grid",
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 8,
   },
-  valueTitle: { fontSize: 17, fontWeight: 900, color: "#111827" },
-  valueDesc: { fontSize: 14, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
+  valueTitle: { fontSize: 34, lineHeight: 1.02, fontWeight: 700, color: "#1e1f22", letterSpacing: -0.6 },
+  valueDesc: { fontSize: 15, color: "rgba(30,31,34,0.75)", lineHeight: 1.42 },
   measureWrap: {
     position: "absolute",
     left: 0,
@@ -676,67 +702,75 @@ const modal: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
   },
   cardMini: {
-    padding: 16,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.58)",
-    border: "1px solid rgba(0,0,0,0.05)",
-    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
-    display: "grid",
-    gap: 10,
-    position: "relative",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-  },
-  cardMiniTitle: {
-    fontSize: 18,
-    opacity: 0.92,
-    marginBottom: 0,
-    fontWeight: 900,
-  },
-  cardWide: {
-    padding: 16,
-    borderRadius: 18,
-    background: "rgba(255,255,255,0.58)",
-    border: "1px solid rgba(0,0,0,0.05)",
-    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
+    padding: "2px 2px 0",
+    borderRadius: 0,
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
     display: "grid",
     gap: 12,
     position: "relative",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
   },
-  groupTitle: { fontSize: 18, fontWeight: 900, marginBottom: 4, opacity: 0.92 },
+  cardMiniTitle: {
+    fontSize: 30,
+    lineHeight: 1.06,
+    opacity: 0.92,
+    marginBottom: 0,
+    fontWeight: 700,
+    letterSpacing: -0.8,
+    color: "#1e1f22",
+  },
+  cardWide: {
+    padding: "2px 2px 0",
+    borderRadius: 0,
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    display: "grid",
+    gap: 12,
+    position: "relative",
+  },
+  groupTitle: {
+    fontSize: 30,
+    lineHeight: 1.06,
+    fontWeight: 700,
+    marginBottom: 4,
+    opacity: 0.92,
+    letterSpacing: -0.8,
+    color: "#1e1f22",
+  },
   binaryRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" },
-  chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" },
+  chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(162px, 1fr))" },
   painZoneCell: { display: "grid", gap: 10, alignItems: "start" },
   painInline: {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    borderRadius: 16,
-    padding: 12,
-    boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
+    background: "transparent",
+    border: "none",
+    borderTop: "1px solid rgba(30,31,34,0.12)",
+    borderRadius: 0,
+    padding: "10px 0 0",
+    boxShadow: "none",
     display: "grid",
     gap: 10,
   },
-  painInlineTitle: { fontSize: 14, fontWeight: 900, opacity: 0.9 },
+  painInlineTitle: { fontSize: 14, fontWeight: 600, opacity: 0.86, color: "#1e1f22" },
   painInlineValue: { display: "grid", gap: 6 },
-  painInlineValueTitle: { fontSize: 14, fontWeight: 900, color: "#111827" },
-  painInlineValueDesc: { fontSize: 13.5, color: "rgba(17,24,39,0.75)", lineHeight: 1.4 },
+  painInlineValueTitle: { fontSize: 16, fontWeight: 600, color: "#1e1f22" },
+  painInlineValueDesc: { fontSize: 14, color: "rgba(30,31,34,0.72)", lineHeight: 1.4 },
   footer: {
-    padding: "12px 18px 16px",
+    padding: "0 18px 16px",
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
-    borderTop: "1px solid rgba(0,0,0,0.06)",
+    borderTop: "none",
     position: "relative",
     zIndex: 2,
   },
   footerInline: {
     padding: "0",
-    marginTop: 16,
+    marginTop: 12,
     display: "grid",
     gridTemplateColumns: "1fr",
-    gap: 12,
+    gap: 10,
     position: "relative",
     zIndex: 2,
   },
@@ -752,33 +786,32 @@ const modal: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     padding: "16px 18px",
     width: "100%",
-    border: "1px solid #1f1f1f",
-    background: "#1f1f1f",
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    fontWeight: 800,
-    fontSize: 17,
+    fontWeight: 500,
+    fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.16)",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     WebkitTapHighlightColor: "transparent",
   },
   backTextBtn: {
     width: "100%",
     border: "none",
     background: "transparent",
-    color: "#111827",
+    color: "#1e1f22",
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: "14px 16px",
     cursor: "pointer",
     textAlign: "center",
     WebkitTapHighlightColor: "transparent",
   },
   error: {
-    background: "rgba(255,0,0,0.07)",
-    color: "#a12020",
-    borderRadius: 12,
-    padding: "10px 12px",
+    color: "#b91c1c",
     fontSize: 13,
-    border: "1px solid rgba(161,32,32,0.2)",
+    fontWeight: 500,
+    lineHeight: 1.35,
+    textAlign: "center",
   },
 };
