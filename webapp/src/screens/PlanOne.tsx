@@ -26,6 +26,7 @@ import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
+import zhimCardImg from "@/assets/zhim.png";
 import nogiImg from "@/assets/nogi.webp";
 import sredneImg from "@/assets/sredne.webp";
 
@@ -2311,6 +2312,15 @@ function PlannedExercisesEditor({
     transform: "translateY(0.2px)",
     flex: "0 0 auto",
   };
+  const exerciseVisual: React.CSSProperties = {
+    width: 62,
+    height: 62,
+    borderRadius: 16,
+    objectFit: "cover",
+    objectPosition: "center",
+    flex: "0 0 auto",
+    display: "block",
+  };
   const overlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -2438,9 +2448,18 @@ function PlannedExercisesEditor({
         const isOpen = menuIndex === i;
         return (
           <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <img
+              src={zhimCardImg}
+              alt=""
+              aria-hidden="true"
+              style={exerciseVisual}
+              loading="lazy"
+              decoding="async"
+            />
+            <div style={{ flex: 1, minWidth: 0, marginRight: 6 }}>
               <div style={exerciseTitle}>
-                {it.name || `Упражнение ${i + 1}`} {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
+                {it.name || `Упражнение ${i + 1}`}{" "}
+                {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
               </div>
               <div style={{ marginTop: 2 }}>
                 <span style={volumeChip}>
