@@ -467,7 +467,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateRows: "1fr auto",
     padding:
-      "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(88px, 11.4vh, 100px))",
+      "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(96px, 12.4vh, 108px))",
     gap: "clamp(8px, 1.3vh, 12px)",
   },
   mascotRow: {
