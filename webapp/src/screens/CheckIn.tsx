@@ -206,6 +206,7 @@ export default function CheckIn() {
             <button
               type="button"
               style={{ ...styles.summaryPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
+              className="intro-primary-btn"
               onClick={() => setPhase("form")}
               disabled={skipLoading || loading}
             >
@@ -340,6 +341,15 @@ const screenCss = `
   border-top: 10px solid rgba(255,255,255,0.9);
   filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
 }
+.intro-primary-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.intro-primary-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99) !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .onb-fade,
   .onb-fade-delay-1,
@@ -424,25 +434,26 @@ const styles: Record<string, React.CSSProperties> = {
   },
   introBubble: {
     position: "relative",
-    maxWidth: 420,
+    maxWidth: 340,
     textAlign: "center",
-    padding: "18px 18px",
+    padding: "20px 24px",
     borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
     color: "#1e1f22",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
   },
   introBubbleText: {
-    fontSize: 21,
-    lineHeight: 1.35,
+    fontSize: 18,
+    lineHeight: 1.4,
     fontWeight: 500,
     color: "#1e1f22",
+    whiteSpace: "pre-line",
   },
   introMascotImg: {
-    width: 270,
+    width: 220,
     maxWidth: "78vw",
     height: "auto",
     objectFit: "contain",
@@ -451,7 +462,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "auto",
     display: "grid",
     gap: 10,
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
   },
   formWrap: {
     marginTop: 2,
