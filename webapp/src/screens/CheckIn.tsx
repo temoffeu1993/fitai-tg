@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
@@ -41,6 +41,31 @@ export default function CheckIn() {
       nav("/workout/session", { state: { plannedWorkoutId } });
     }
   }, [nav, plannedWorkoutId]);
+
+  useLayoutEffect(() => {
+    if (phase !== "intro") return;
+    const root = document.getElementById("root");
+    const prevRootOverflow = root?.style.overflowY;
+    const prevRootOverscroll = root?.style.overscrollBehaviorY;
+    const prevBodyOverflow = document.body.style.overflowY;
+    const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
+
+    if (root) {
+      root.style.overflowY = "hidden";
+      root.style.overscrollBehaviorY = "none";
+    }
+    document.body.style.overflowY = "hidden";
+    document.body.style.overscrollBehaviorY = "none";
+
+    return () => {
+      if (root) {
+        root.style.overflowY = prevRootOverflow || "";
+        root.style.overscrollBehaviorY = prevRootOverscroll || "";
+      }
+      document.body.style.overflowY = prevBodyOverflow || "";
+      document.body.style.overscrollBehaviorY = prevBodyOverscroll || "";
+    };
+  }, [phase]);
 
   useEffect(() => {
     if (!result) return;
@@ -189,8 +214,10 @@ export default function CheckIn() {
     ? "Секунду, адаптирую тренировку."
     : summary?.subtitle || "Готово. Тренировка адаптирована.";
 
+  const pageStyle = phase === "intro" ? { ...styles.page, ...styles.pageIntro } : styles.page;
+
   return (
-    <div style={styles.page}>
+    <div style={pageStyle}>
       <style>{screenCss + thinkingCss}</style>
       {phase === "intro" ? (
         <>
@@ -393,6 +420,14 @@ const styles: Record<string, React.CSSProperties> = {
     background: "transparent",
     color: "#1e1f22",
   },
+  pageIntro: {
+    minHeight: "100dvh",
+    height: "100dvh",
+    overflow: "hidden",
+    padding:
+      "calc(env(safe-area-inset-top, 0px) + clamp(10px, 1.6vh, 16px)) 20px calc(env(safe-area-inset-bottom, 0px) + clamp(10px, 1.8vh, 24px))",
+    gap: "clamp(8px, 1.3vh, 12px)",
+  },
   mascotRow: {
     display: "grid",
     gridTemplateColumns: "auto 1fr",
@@ -424,19 +459,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   introCenter: {
     flex: 1,
-    minHeight: "60vh",
+    minHeight: 0,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    gap: 14,
-    marginTop: 8,
+    gap: "clamp(8px, 1.6vh, 14px)",
+    marginTop: "clamp(2px, 0.8vh, 8px)",
+    paddingInline: "clamp(2px, 1vw, 6px)",
   },
   introBubble: {
     position: "relative",
-    maxWidth: 340,
+    width: "min(340px, 92vw)",
     textAlign: "center",
-    padding: "20px 24px",
+    padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
     borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.6)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
@@ -446,15 +482,15 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(18px)",
   },
   introBubbleText: {
-    fontSize: 18,
+    fontSize: "clamp(16px, 2.05vh, 18px)",
     lineHeight: 1.4,
     fontWeight: 500,
     color: "#1e1f22",
     whiteSpace: "pre-line",
   },
   introMascotImg: {
-    width: 220,
-    maxWidth: "78vw",
+    width: "clamp(172px, 28vh, 220px)",
+    maxWidth: "80vw",
     height: "auto",
     objectFit: "contain",
   },
@@ -462,7 +498,8 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "auto",
     display: "grid",
     gap: 10,
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+    paddingBottom:
+      "calc(env(safe-area-inset-bottom, 0px) + clamp(84px, 12.5vh, 108px))",
   },
   formWrap: {
     marginTop: 2,

@@ -2491,7 +2491,7 @@ function PlannedExercisesEditor({
   };
 
   return (
-    <div style={{ marginTop: 2, display: "grid", gap: 8 }}>
+    <div style={{ marginTop: 2, padding: "8px 4px 12px", display: "grid", gap: 12, overflow: "visible" }}>
       {displayItems.map((it, i) => {
         const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
         const isOpen = menuIndex === i;
