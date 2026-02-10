@@ -2300,8 +2300,7 @@ function PlannedExercisesEditor({
     background:
       "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     border: "1px solid rgba(255,255,255,0.75)",
-    boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     overflow: "hidden",
