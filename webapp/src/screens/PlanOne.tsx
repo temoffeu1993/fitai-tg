@@ -69,6 +69,7 @@ const WEEK_STACK_OFFSET_MIN = 62;
 const WEEK_STACK_OFFSET_MAX = 72;
 const WEEK_STACK_COLLAPSED_H = 104;
 const WEEK_STACK_ACTIVE_H = 224;
+const DETAILS_PANEL_ANIM_MS = 220;
 
 type PlanOneInlineScheduleState = {
   plannedWorkoutId: string;
@@ -202,6 +203,8 @@ export default function PlanOne() {
   const [plannedError, setPlannedError] = useState<string | null>(null);
   const [selectedPlannedId, setSelectedPlannedId] = useState<string | null>(null);
   const [expandedPlannedIds, setExpandedPlannedIds] = useState<Record<string, boolean>>({});
+  const [detailsPhase, setDetailsPhase] = useState<"closed" | "entering" | "open" | "closing">("closed");
+  const detailsTimerRef = useRef<number | null>(null);
   const [weekGenerating, setWeekGenerating] = useState(false);
   const [mesoWeek, setMesoWeek] = useState<number | null>(null);
 
@@ -1005,6 +1008,39 @@ export default function PlanOne() {
   const activeStackExpanded = Boolean(activeStackWorkout && expandedPlannedIds[activeStackWorkout.id]);
   const activeStackPlan: any = activeStackWorkout?.plan || {};
   const activeStackExercises = mapPlanExercises(activeStackPlan);
+  const shouldOpenDetails = Boolean(activeStackWorkout && activeStackExpanded);
+  const shouldRenderDetails = Boolean(activeStackWorkout) && detailsPhase !== "closed";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (detailsTimerRef.current != null) {
+      window.clearTimeout(detailsTimerRef.current);
+      detailsTimerRef.current = null;
+    }
+
+    if (shouldOpenDetails) {
+      setDetailsPhase((prev) => (prev === "open" ? prev : "entering"));
+      const raf = window.requestAnimationFrame(() => setDetailsPhase("open"));
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    setDetailsPhase((prev) => {
+      if (prev === "closed") return prev;
+      detailsTimerRef.current = window.setTimeout(() => {
+        setDetailsPhase("closed");
+        detailsTimerRef.current = null;
+      }, DETAILS_PANEL_ANIM_MS);
+      return "closing";
+    });
+
+    return () => {
+      if (detailsTimerRef.current != null) {
+        window.clearTimeout(detailsTimerRef.current);
+        detailsTimerRef.current = null;
+      }
+    };
+  }, [shouldOpenDetails, activeStackWorkout?.id]);
 
   const handleWorkoutPrimary = (workout: PlannedWorkout) => {
     if (workout.status === "completed") {
@@ -1205,8 +1241,8 @@ export default function PlanOne() {
               );
             })}
           </div>
-          {activeStackWorkout && activeStackExpanded ? (
-            <div style={pick.detailsSection} className="plan-fade plan-delay-3">
+          {shouldRenderDetails && activeStackWorkout ? (
+            <div style={pick.detailsSection} className={`workout-details-panel workout-details-${detailsPhase}`}>
               <PlannedExercisesEditor
                 plannedWorkout={activeStackWorkout}
                 displayItems={activeStackExercises}
@@ -2295,7 +2331,7 @@ function PlannedExercisesEditor({
     color: "#0f172a",
   };
   const exerciseCues: React.CSSProperties = {
-    marginTop: 2,
+    marginTop: 8,
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.5,
@@ -2365,7 +2401,7 @@ function PlannedExercisesEditor({
     const preferredWidth =
       mode === "replace"
         ? Math.min(280, window.innerWidth - pad * 2)
-        : null;
+        : Math.min(236, window.innerWidth - pad * 2);
     // Keep the menu fully within the viewport even when the dots button is near the left edge.
     const minLeft = pad + (preferredWidth ?? 0);
     const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
@@ -2384,11 +2420,14 @@ function PlannedExercisesEditor({
   })();
   const sheet: React.CSSProperties = {
     ...popover,
-    background: "var(--tg-theme-bg-color, #f5f6fb)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.10)",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-    padding: 8,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.65)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    boxShadow:
+      "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
+    padding: 0,
     transformOrigin: openUpward ? "bottom right" : "top right",
     transform: sheetTransform,
     opacity: sheetOpacity,
@@ -2406,17 +2445,23 @@ function PlannedExercisesEditor({
   };
   const actionBtn: React.CSSProperties = {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.08)",
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    color: "#0B1220",
-    fontSize: 12,
-    fontWeight: 600,
+    padding: "12px 16px",
+    border: "none",
+    borderRadius: 0,
+    background: "transparent",
+    color: "#1e1f22",
+    fontSize: 16,
+    fontWeight: 500,
     cursor: "pointer",
     textAlign: "left",
     whiteSpace: "nowrap",
+  };
+  const actionBtnTopBorder: React.CSSProperties = {
+    borderTop: "1px solid rgba(30,31,34,0.08)",
+  };
+  const actionBtnActive: React.CSSProperties = {
+    background: "rgba(30,31,34,0.06)",
+    fontWeight: 600,
   };
   const actionBtnWrap: React.CSSProperties = {
     ...actionBtn,
@@ -2425,23 +2470,29 @@ function PlannedExercisesEditor({
   };
   const dangerBtn: React.CSSProperties = {
     ...actionBtn,
-    background: "rgba(239,68,68,.08)",
-    borderColor: "rgba(239,68,68,.2)",
-    color: "#0B1220",
+    color: "#b42318",
   };
   const softBtn: React.CSSProperties = {
     ...actionBtn,
-    background: "transparent",
-    boxShadow: "none",
-    border: "none",
-    padding: "10px 12px",
-    fontWeight: 500,
   };
-  const subTitle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#0B1220" };
-  const subText: React.CSSProperties = { fontSize: 12, color: "#475569", fontWeight: 700 };
+  const subTitle: React.CSSProperties = {
+    padding: "10px 16px",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "rgba(30,31,34,0.62)",
+    borderBottom: "1px solid rgba(30,31,34,0.08)",
+  };
+  const subText: React.CSSProperties = {
+    padding: "10px 16px",
+    fontSize: 13,
+    color: "rgba(30,31,34,0.7)",
+    fontWeight: 500,
+    lineHeight: 1.4,
+    borderBottom: "1px solid rgba(30,31,34,0.08)",
+  };
 
   return (
-    <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
+    <div style={{ marginTop: 2, display: "grid", gap: 8 }}>
       {displayItems.map((it, i) => {
         const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
         const isOpen = menuIndex === i;
@@ -2505,64 +2556,108 @@ function PlannedExercisesEditor({
 
                   <div style={panelStyle}>
                     {mode === "menu" ? (
-                      <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 0 }}>
                         <button
                           type="button"
+                          className="exercise-menu-option"
                           style={actionBtn}
                           disabled={loading || !currentId}
                           onClick={() => void fetchAlternatives()}
                         >
-                          🔀 Заменить
+                          Заменить
                         </button>
-                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => goMode("confirm_remove")}>
-                          🗑️ Удалить
+                        <button
+                          type="button"
+                          className="exercise-menu-option exercise-menu-option-danger"
+                          style={{ ...dangerBtn, ...actionBtnTopBorder }}
+                          disabled={loading}
+                          onClick={() => goMode("confirm_remove")}
+                        >
+                          Удалить
                         </button>
-                        <button type="button" style={softBtn} disabled={loading || !currentId} onClick={() => goMode("confirm_ban")}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option"
+                          style={{ ...softBtn, ...actionBtnTopBorder }}
+                          disabled={loading || !currentId}
+                          onClick={() => goMode("confirm_ban")}
+                        >
                           Заблокировать
                         </button>
                       </div>
                     ) : null}
 
                     {mode === "confirm_remove" ? (
-                      <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 0 }}>
                         <div style={subText}>Удалить упражнение из этого плана?</div>
-                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyRemove()}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option exercise-menu-option-danger is-active"
+                          style={{ ...dangerBtn, ...actionBtnActive }}
+                          disabled={loading}
+                          onClick={() => void applyRemove()}
+                        >
                           Да, удалить
                         </button>
-                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option"
+                          style={{ ...actionBtn, ...actionBtnTopBorder }}
+                          disabled={loading}
+                          onClick={() => goMode("menu")}
+                        >
                           ← Назад
                         </button>
                       </div>
                     ) : null}
 
                     {mode === "confirm_ban" ? (
-                      <div style={{ display: "grid", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 0 }}>
                         <div style={subText}>Убрать упражнение из будущих генераций?</div>
-                        <button type="button" style={dangerBtn} disabled={loading} onClick={() => void applyBan()}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option exercise-menu-option-danger is-active"
+                          style={{ ...dangerBtn, ...actionBtnActive }}
+                          disabled={loading}
+                          onClick={() => void applyBan()}
+                        >
                           Да, больше не предлагать
                         </button>
-                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option"
+                          style={{ ...actionBtn, ...actionBtnTopBorder }}
+                          disabled={loading}
+                          onClick={() => goMode("menu")}
+                        >
                           ← Назад
                         </button>
                       </div>
                     ) : null}
 
                     {mode === "replace" ? (
-                      <div style={{ display: "grid", gap: 8, maxHeight: replaceMaxHeight, overflow: "auto" }}>
+                      <div style={{ display: "grid", gap: 0, maxHeight: replaceMaxHeight, overflow: "auto" }}>
                         <div style={subTitle}>Выбери замену</div>
-                        {loading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
-                        {alts.map((a) => (
+                        {loading ? <div style={{ ...subText, borderBottom: "none" }}>Загружаю…</div> : null}
+                        {alts.map((a, idx) => (
                           <button
                             key={a.exerciseId}
                             type="button"
-                            style={actionBtnWrap}
+                            className="exercise-menu-option"
+                            style={idx > 0 ? { ...actionBtnWrap, ...actionBtnTopBorder } : actionBtnWrap}
                             disabled={loading}
                             onClick={() => void applyReplace(a.exerciseId)}
                           >
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#0B1220" }}>{a.name}</div>
+                            <div style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22" }}>{a.name}</div>
                           </button>
                         ))}
-                        <button type="button" style={actionBtn} disabled={loading} onClick={() => goMode("menu")}>
+                        <button
+                          type="button"
+                          className="exercise-menu-option"
+                          style={{ ...actionBtn, ...actionBtnTopBorder }}
+                          disabled={loading}
+                          onClick={() => goMode("menu")}
+                        >
                           ← Назад
                         </button>
                       </div>
@@ -2681,7 +2776,7 @@ function SoftGlowStyles() {
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
       .exercise-card-enter {
-        animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        animation: fadeInUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
       }
     `}</style>
   );
@@ -3313,6 +3408,27 @@ const pickStyles = `
   .plan-delay-1 { animation-delay: 80ms; }
   .plan-delay-2 { animation-delay: 160ms; }
   .plan-delay-3 { animation-delay: 240ms; }
+  .workout-details-panel {
+    overflow: hidden;
+    transform-origin: top center;
+    will-change: max-height, opacity, transform;
+    transition:
+      max-height 220ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 180ms ease,
+      transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .workout-details-entering,
+  .workout-details-closing {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+    pointer-events: none;
+  }
+  .workout-details-open {
+    max-height: 1200px;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(24px) scale(0.98); }
@@ -3366,13 +3482,43 @@ const pickStyles = `
   .day-cta:active:not(:disabled) {
     transform: translateY(1px) scale(0.99) !important;
   }
+  .exercise-menu-option {
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms ease, color 140ms ease, font-weight 140ms ease;
+  }
+  .exercise-menu-option:active:not(:disabled),
+  .exercise-menu-option.is-active:not(:disabled) {
+    background: rgba(30,31,34,0.06) !important;
+    font-weight: 600 !important;
+  }
+  @media (hover: hover) {
+    .exercise-menu-option:hover:not(:disabled) {
+      background: rgba(30,31,34,0.05);
+    }
+  }
+  .exercise-menu-option-danger {
+    color: #b42318 !important;
+  }
+  .exercise-menu-option:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .exercise-menu-option:focus-visible {
+    outline: 2px solid rgba(30,31,34,0.2);
+    outline-offset: -2px;
+  }
   @media (prefers-reduced-motion: reduce) {
     .plan-fade,
     .plan-delay-1,
     .plan-delay-2,
     .plan-delay-3 { animation: none !important; opacity: 1 !important; transform: none !important; }
+    .workout-details-panel,
+    .workout-details-entering,
+    .workout-details-closing,
+    .workout-details-open { transition: none !important; animation: none !important; }
     .plan-stack-card { transition: none !important; }
     .dash-primary-btn { transition: none !important; }
+    .exercise-menu-option { transition: none !important; }
   }
 `;
 
@@ -4006,7 +4152,7 @@ const pick: Record<string, React.CSSProperties> = {
     lineHeight: 1.2,
   },
   detailsSection: {
-    marginTop: 6,
+    marginTop: 2,
     padding: 0,
     background: "transparent",
     borderRadius: 0,
