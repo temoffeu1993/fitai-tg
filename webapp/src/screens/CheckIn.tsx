@@ -497,7 +497,8 @@ const styles: Record<string, React.CSSProperties> = {
     objectFit: "contain",
   },
   introActions: {
-    width: "min(92%, 392px)",
+    width: "100%",
+    maxWidth: 420,
     boxSizing: "border-box",
     justifySelf: "center",
     display: "grid",
