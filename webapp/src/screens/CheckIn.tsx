@@ -427,7 +427,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateRows: "1fr auto",
     padding:
-      "calc(env(safe-area-inset-top, 0px) + clamp(12px, 2vh, 20px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(82px, 12vh, 98px))",
+      "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(72px, 10vh, 90px))",
     gap: "clamp(8px, 1.3vh, 12px)",
   },
   mascotRow: {
@@ -467,6 +467,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     gap: "clamp(10px, 2.1vh, 18px)",
+    paddingTop: "clamp(8px, 1.2vh, 14px)",
     marginTop: 0,
   },
   introBubble: {
