@@ -1170,6 +1170,14 @@ workoutGeneration.post(
     const row = plannedRows[0];
     const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
     const originalDayIndex = basePlan.dayIndex;
+    const effectiveWorkoutDate =
+      typeof row.workout_date === "string" && row.workout_date ? row.workout_date : workoutDate;
+
+    if (plannedWorkoutId && workoutDate !== effectiveWorkoutDate) {
+      console.warn(
+        `[START WORKOUT] date mismatch for plannedWorkoutId=${plannedWorkoutId}: request=${workoutDate}, db=${effectiveWorkoutDate}; using db date`
+      );
+    }
     
     console.log(`   Base plan: Day ${originalDayIndex} - ${basePlan.dayLabel}`);
     
@@ -1276,15 +1284,27 @@ workoutGeneration.post(
       };
       
       // Save recovery workout to DB
-      await q(
-        `UPDATE planned_workouts 
-         SET base_plan = COALESCE(base_plan, plan),
-             data = $2::jsonb, 
-             plan = $2::jsonb,
-             updated_at = NOW()
-         WHERE user_id = $1 AND workout_date = $3`,
-        [uid, workoutData, workoutDate]
-      );
+      if (plannedWorkoutId) {
+        await q(
+          `UPDATE planned_workouts 
+           SET base_plan = COALESCE(base_plan, plan),
+               data = $2::jsonb, 
+               plan = $2::jsonb,
+               updated_at = NOW()
+           WHERE user_id = $1 AND id = $3::uuid`,
+          [uid, workoutData, plannedWorkoutId]
+        );
+      } else {
+        await q(
+          `UPDATE planned_workouts 
+           SET base_plan = COALESCE(base_plan, plan),
+               data = $2::jsonb, 
+               plan = $2::jsonb,
+               updated_at = NOW()
+           WHERE user_id = $1 AND workout_date = $3`,
+          [uid, workoutData, effectiveWorkoutDate]
+        );
+      }
       
       console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
       console.log("=====================================================\n");
@@ -1650,15 +1670,27 @@ workoutGeneration.post(
     // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
     // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
     // Meta info preserves the swap history for tracking and future adjustments.
-    await q(
-      `UPDATE planned_workouts 
-       SET base_plan = COALESCE(base_plan, plan),
-           data = $2::jsonb, 
-           plan = $2::jsonb,
-           updated_at = NOW()
-       WHERE user_id = $1 AND workout_date = $3`,
-      [uid, workoutData, workoutDate]
-    );
+    if (plannedWorkoutId) {
+      await q(
+        `UPDATE planned_workouts 
+         SET base_plan = COALESCE(base_plan, plan),
+             data = $2::jsonb, 
+             plan = $2::jsonb,
+             updated_at = NOW()
+         WHERE user_id = $1 AND id = $3::uuid`,
+        [uid, workoutData, plannedWorkoutId]
+      );
+    } else {
+      await q(
+        `UPDATE planned_workouts 
+         SET base_plan = COALESCE(base_plan, plan),
+             data = $2::jsonb, 
+             plan = $2::jsonb,
+             updated_at = NOW()
+         WHERE user_id = $1 AND workout_date = $3`,
+        [uid, workoutData, effectiveWorkoutDate]
+      );
+    }
     
     // If swapped, mark future occurrence of finalDayIndex as "already done today"
     if (decision.action === "swap_day") {
@@ -1671,7 +1703,7 @@ workoutGeneration.post(
            AND (data->>'dayIndex')::int = $3
          ORDER BY workout_date ASC
          LIMIT 1`,
-        [uid, workoutDate, finalDayIndex]
+        [uid, effectiveWorkoutDate, finalDayIndex]
       );
 
       if (nextRows.length) {
@@ -1690,7 +1722,7 @@ workoutGeneration.post(
            updated_at = NOW()
            WHERE user_id = $1
              AND workout_date = $2`,
-          [uid, nextDate, workoutDate, originalDayIndex, finalDayIndex, markedAt]
+          [uid, nextDate, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
         );
 
         console.log(`      Marked future dayIndex=${finalDayIndex} on ${nextDate} as swapped`);

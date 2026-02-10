@@ -29,7 +29,7 @@ import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import sredneImg from "@/assets/sredne.webp";
 
-const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
+const toDateInput = (d: Date) => toDateKeyLocal(d);
 const defaultScheduleTime = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "18:00" : "09:00";
@@ -42,7 +42,6 @@ const formatScheduledDateChip = (iso: string) => {
   const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   return `${date} · ${time}`;
 };
-const datePart = (value?: string | null) => (value ? String(value).slice(0, 10) : "");
 
 const formatWeekTitleRu = (week: number | null) => {
   const n = Number(week);
@@ -366,7 +365,7 @@ export default function PlanOne() {
     []
   );
   const today = useMemo(() => new Date(), []);
-  const todayIso = useMemo(() => datePart(new Date().toISOString()), []);
+  const todayIso = useMemo(() => toDateKeyLocal(new Date()), []);
   const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
   const chips = useMemo(() => {
@@ -640,7 +639,7 @@ export default function PlanOne() {
   // New UI: show all generated workouts (remaining ones) as selectable cards
   const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
   const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
-  const startWorkoutDate = selectedPlanned?.scheduledFor ? new Date(selectedPlanned.scheduledFor).toISOString().slice(0, 10) : null;
+  const startWorkoutDate = selectedPlanned?.scheduledFor ? toLocalDateInput(selectedPlanned.scheduledFor) : null;
   const normalizeSchemeTitleRU = (raw: string) => {
     let s = String(raw || "").trim();
     if (!s) return "Схема тренировок";
@@ -1051,7 +1050,7 @@ export default function PlanOne() {
       }
       return;
     }
-    const scheduledIso = datePart(workout.scheduledFor);
+    const scheduledIso = workout.scheduledFor ? toLocalDateInput(workout.scheduledFor) : "";
     const hasFreshSchedule =
       workout.status === "scheduled" &&
       Boolean(scheduledIso) &&
@@ -1112,7 +1111,7 @@ export default function PlanOne() {
               const isCompletedWorkout = status === "completed";
               const primaryActionLabel = isCompletedWorkout ? "Результат" : "Начать";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
-              const scheduledIso = datePart(w.scheduledFor);
+              const scheduledIso = w.scheduledFor ? toLocalDateInput(w.scheduledFor) : "";
               const isStaleSchedule = status !== "completed" && Boolean(scheduledIso) && scheduledIso < todayIso;
               const isUserScheduled = status === "scheduled" || status === "completed";
               const scheduledDateChip = isUserScheduled && w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
@@ -1328,7 +1327,7 @@ export default function PlanOne() {
               // Navigate to check-in screen
               nav("/check-in", {
                 state: {
-                  workoutDate: new Date().toISOString().split('T')[0],
+                  workoutDate: toDateInput(new Date()),
                   returnTo: "/plan/one",
                 },
               });
