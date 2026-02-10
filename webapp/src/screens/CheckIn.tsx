@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload } from "@/api/plan";
+import { getScheduleOverview } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import mascotImg from "@/assets/robonew.webp";
@@ -9,7 +10,9 @@ import mascotImg from "@/assets/robonew.webp";
 export default function CheckIn() {
   const nav = useNavigate();
   const location = useLocation();
+  const [phase, setPhase] = useState<"intro" | "form" | "result">("intro");
   const [loading, setLoading] = useState(false);
+  const [skipLoading, setSkipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<null | {
     action: "keep_day" | "swap_day" | "recovery";
@@ -41,6 +44,7 @@ export default function CheckIn() {
 
   useEffect(() => {
     if (!result) return;
+    setPhase("result");
     setSummaryPhase("thinking");
     const t = window.setTimeout(() => setSummaryPhase("ready"), 1700);
     return () => window.clearTimeout(t);
@@ -144,9 +148,39 @@ export default function CheckIn() {
     }
   };
 
-  const handleSkip = () => {
-    // Вернуться назад без чек-ина
-    nav(returnTo || "/plan/one");
+  const handleSkipCheckIn = async () => {
+    if (skipLoading || loading) return;
+    setSkipLoading(true);
+    setError(null);
+    try {
+      if (plannedWorkoutId) {
+        const overview = await getScheduleOverview();
+        const target = (overview.plannedWorkouts || []).find((w) => w.id === plannedWorkoutId) || null;
+        if (target?.plan) {
+          const sessionPlan = toSessionPlan(target.plan);
+          nav("/workout/session", {
+            state: {
+              plan: sessionPlan,
+              plannedWorkoutId: target.id,
+              checkinSummary: null,
+            },
+          });
+          return;
+        }
+        nav("/workout/session", { state: { plannedWorkoutId } });
+        return;
+      }
+      nav(returnTo || "/plan/one");
+    } catch (err) {
+      console.error("Skip check-in failed:", err);
+      if (plannedWorkoutId) {
+        nav("/workout/session", { state: { plannedWorkoutId } });
+        return;
+      }
+      nav(returnTo || "/plan/one");
+    } finally {
+      setSkipLoading(false);
+    }
   };
 
   const bubbleText = !result
@@ -158,18 +192,54 @@ export default function CheckIn() {
   return (
     <div style={styles.page}>
       <style>{screenCss + thinkingCss}</style>
-      <section style={styles.mascotRow} className="onb-fade onb-fade-delay-1">
-        <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
-        <div style={styles.bubble} className="speech-bubble">
-          <span style={styles.bubbleText}>{bubbleText}</span>
-        </div>
-      </section>
+      {phase === "intro" ? (
+        <>
+          <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
+            <div style={styles.introBubble} className="speech-bubble-bottom">
+              <span style={styles.introBubbleText}>
+                Ответь на пару вопросов о самочувствии, чтобы я подстроил тренировку
+              </span>
+            </div>
+            <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
+          </section>
+          <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
+            <button
+              type="button"
+              style={{ ...styles.summaryPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
+              onClick={() => setPhase("form")}
+              disabled={skipLoading || loading}
+            >
+              Пройти чекин
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.summaryBackBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
+              onClick={handleSkipCheckIn}
+              disabled={skipLoading || loading}
+            >
+              {skipLoading ? "Открываем тренировку..." : "Пропустить"}
+            </button>
+          </section>
+        </>
+      ) : null}
 
-      {!result ? (
+      {phase !== "intro" ? (
+        <section style={styles.mascotRow} className="onb-fade onb-fade-delay-1">
+          <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
+          <div style={styles.bubble} className="speech-bubble">
+            <span style={styles.bubbleText}>{bubbleText}</span>
+          </div>
+        </section>
+      ) : null}
+
+      {phase === "form" ? (
         <div style={styles.formWrap} className="onb-fade onb-fade-delay-2">
           <CheckInForm
             onSubmit={handleSubmit}
-            onBack={handleSkip}
+            onBack={() => {
+              setError(null);
+              setPhase("intro");
+            }}
             loading={loading}
             error={error}
             inline={true}
@@ -179,7 +249,7 @@ export default function CheckIn() {
         </div>
       ) : null}
 
-      {result ? (
+      {phase === "result" && result ? (
         <>
           <section style={styles.summaryCard} className="onb-fade onb-fade-delay-2">
             <div style={styles.summaryKicker}>Адаптация тренировки</div>
@@ -221,6 +291,7 @@ export default function CheckIn() {
                 onClick={() => {
                   setResult(null);
                   setError(null);
+                  setPhase("form");
                 }}
                 disabled={loading}
               >
@@ -254,6 +325,20 @@ const screenCss = `
   border-bottom: 8px solid transparent;
   border-right: 8px solid rgba(255,255,255,0.9);
   filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+}
+.speech-bubble-bottom:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  top: auto;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
 }
 @media (prefers-reduced-motion: reduce) {
   .onb-fade,
@@ -326,6 +411,47 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     lineHeight: 1.35,
     color: "#1e1f22",
+  },
+  introCenter: {
+    flex: 1,
+    minHeight: "60vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 8,
+  },
+  introBubble: {
+    position: "relative",
+    maxWidth: 420,
+    textAlign: "center",
+    padding: "18px 18px",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    color: "#1e1f22",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+  },
+  introBubbleText: {
+    fontSize: 21,
+    lineHeight: 1.35,
+    fontWeight: 500,
+    color: "#1e1f22",
+  },
+  introMascotImg: {
+    width: 270,
+    maxWidth: "78vw",
+    height: "auto",
+    objectFit: "contain",
+  },
+  introActions: {
+    marginTop: "auto",
+    display: "grid",
+    gap: 10,
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
   },
   formWrap: {
     marginTop: 2,
@@ -424,5 +550,14 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center",
     WebkitTapHighlightColor: "transparent",
+  },
+  primaryDisabled: {
+    opacity: 0.72,
+    cursor: "default",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.14)",
+  },
+  backDisabled: {
+    opacity: 0.5,
+    cursor: "default",
   },
 };
