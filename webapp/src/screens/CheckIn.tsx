@@ -252,7 +252,7 @@ export default function CheckIn() {
               disabled={skipLoading || loading}
               aria-label="Назад"
             >
-              ←
+              ⟵
             </button>
             <button
               type="button"
