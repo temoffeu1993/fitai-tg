@@ -291,9 +291,6 @@ export default function CheckIn() {
               disabled={skipLoading || loading}
             >
               <span style={styles.introPrimaryBtnText}>Пройти чекин</span>
-              <span style={styles.introPrimaryBtnIconWrap} aria-hidden>
-                <span style={styles.introPrimaryBtnArrow}>→</span>
-              </span>
             </button>
           </section>
         </>
@@ -562,7 +559,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   introActions: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: "100%",
     boxSizing: "border-box",
     justifySelf: "center",
     display: "grid",
@@ -702,21 +699,20 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   introPrimaryBtn: {
-    width: "fit-content",
-    maxWidth: "100%",
+    width: "100%",
     height: 50,
     borderRadius: 999,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    padding: "0 14px",
+    padding: "0 22px",
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    justifyContent: "center",
+    gap: 0,
     cursor: "pointer",
     boxShadow: "none",
-    justifySelf: "center",
+    justifySelf: "stretch",
     WebkitTapHighlightColor: "transparent",
   },
   introPrimaryBtnText: {
@@ -724,25 +720,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     textAlign: "center",
     lineHeight: 1,
-  },
-  introPrimaryBtnIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: -8,
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    flex: "0 0 auto",
-  },
-  introPrimaryBtnArrow: {
-    fontSize: 18,
-    lineHeight: 1,
-    color: "#0f172a",
-    fontWeight: 700,
   },
   summaryBackBtn: {
     width: "100%",

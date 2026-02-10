@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
 
 type Props = {
@@ -109,6 +109,25 @@ const sliderCss = `
   .checkin-step-animate { animation: none !important; }
 }
 
+.checkin-option-card {
+  appearance: none;
+  outline: none;
+  transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
+  will-change: transform, background, border-color;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.checkin-option-card:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  background: var(--checkin-card-bg) !important;
+  border-color: var(--checkin-card-border) !important;
+  color: var(--checkin-card-color) !important;
+}
+.checkin-option-card:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+
 .checkin-primary-btn,
 .checkin-text-btn {
   -webkit-tap-highlight-color: transparent;
@@ -120,9 +139,18 @@ const sliderCss = `
 }
 .checkin-primary-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.99) !important;
-  background-color: #141619 !important;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.14) !important;
-  filter: brightness(0.99) !important;
+  background-color: #1e1f22 !important;
+  border-color: #1e1f22 !important;
+}
+.checkin-primary-btn:disabled {
+  background-color: #1e1f22 !important;
+  border-color: #1e1f22 !important;
+  color: #fff !important;
+  box-shadow: 0 6px 10px rgba(0,0,0,0.24) !important;
+  filter: none !important;
+}
+.checkin-primary-btn:disabled {
+  opacity: 1 !important;
 }
 @media (hover: hover) {
   .checkin-primary-btn:hover:not(:disabled) {
@@ -218,9 +246,6 @@ export function CheckInForm({
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
-  const stepCardRef = useRef<HTMLDivElement | null>(null);
-  const measureRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
 
   const sleepOptions = [
     { key: "poor" as const, label: "Плохо", emoji: "🌙", desc: "Сон был прерывистым или коротким — восстановление слабое." },
@@ -240,50 +265,15 @@ export function CheckInForm({
     { key: "high" as const, label: "Высокий", desc: "Сильно напряжён — лучше снизить интенсивность и объем." },
     { key: "very_high" as const, label: "Очень высокий", desc: "На пределе — бережёмся, фокус на восстановлении." },
   ];
-  const sleepIndex = Math.max(0, sleepOptions.findIndex((o) => o.key === sleepQuality));
-  const sleepOpt = sleepOptions[sleepIndex] || sleepOptions[2];
-
-  const energyKey = energyLevel || "medium";
-  const energyIndex = Math.max(0, energyOptions.findIndex((o) => o.key === energyKey));
-  const energyOpt = energyOptions[energyIndex] || energyOptions[1];
-
-  const stressKey = stressLevel || "medium";
-  const stressIndex = Math.max(0, stressOptions.findIndex((o) => o.key === stressKey));
-  const stressOpt = stressOptions[stressIndex] || stressOptions[1];
+  const durationOptions = [
+    { value: 45, label: "45 минут", desc: "Короткая, но эффективная тренировка." },
+    { value: 60, label: "60 минут", desc: "Стандартный сбалансированный формат." },
+    { value: 90, label: "90 минут", desc: "Полный объём с дополнительной проработкой." },
+  ] as const;
 
   const totalSteps = 5;
   const lastStep = totalSteps - 1;
   const isLastStep = step >= lastStep;
-
-  const measureCount = step === 0 ? sleepOptions.length : step === 1 ? energyOptions.length : step === 2 ? stressOptions.length : 0;
-  measureRefs.current.length = measureCount;
-
-  useLayoutEffect(() => {
-    if (measureCount === 0) return;
-
-    const measure = () => {
-      const heights = measureRefs.current.slice(0, measureCount).map((el) => (el ? el.offsetHeight : 0));
-      const max = Math.max(0, ...heights);
-      if (max <= 0) return;
-      setDescMinHeightByStep((prev) => {
-        const prevVal = prev[step] || 0;
-        if (Math.abs(prevVal - max) < 1) return prev;
-        return { ...prev, [step]: max };
-      });
-    };
-
-    measure();
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && stepCardRef.current) {
-      ro = new ResizeObserver(() => window.requestAnimationFrame(measure));
-      ro.observe(stepCardRef.current);
-    }
-    return () => {
-      ro?.disconnect();
-    };
-  }, [measureCount, step]);
-
-  const descMinHeight = descMinHeightByStep[step] || 0;
 
   React.useEffect(() => {
     onStepChange?.(step, totalSteps);
@@ -373,139 +363,140 @@ export function CheckInForm({
           ) : null}
 
           {step === 0 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
-              <div style={modal.value}>
-                <div style={modal.valueTitleRow}>
-                  <span style={modal.valueTitle}>{sleepOpt.label}</span>
-                  <span style={modal.valueEmoji} aria-hidden>{sleepOpt.emoji}</span>
-                </div>
-                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
+              <div style={modal.optionList}>
+                {sleepOptions.map((option) => {
+                  const isActive = sleepQuality === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className="checkin-option-card"
+                      style={{
+                        ...modal.optionCard,
+                        ["--checkin-card-bg" as never]:
+                          isActive
+                            ? "#1e1f22"
+                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
+                        ...(isActive ? modal.optionCardActive : {}),
+                      }}
+                      onClick={() => setSleepQuality(option.key)}
+                    >
+                      <div style={modal.optionCardTitleRow}>
+                        <div style={modal.optionCardTitle}>{option.label}</div>
+                        <span style={modal.optionCardEmoji} aria-hidden>
+                          {option.emoji}
+                        </span>
+                      </div>
+                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <div aria-hidden style={modal.measureWrap}>
-                {sleepOptions.map((o, i) => (
-                  <div
-                    key={o.key}
-                    ref={(el) => {
-                      measureRefs.current[i] = el;
-                    }}
-                    style={modal.valueDesc}
-                  >
-                    {o.desc}
-                  </div>
-                ))}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={4}
-                step={1}
-                value={sleepIndex}
-                onChange={(e) => {
-                  const idx = Number(e.target.value);
-                  setSleepQuality(sleepOptions[idx]?.key || "ok");
-                }}
-                style={{ ...sliderStyle(0, 4, sleepIndex, [0, 25, 50, 75, 100]) }}
-                className="checkin-slider"
-              />
             </div>
           ) : null}
 
           {step === 1 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Энергия</div> : null}
-              <div style={modal.value}>
-                <div style={modal.valueTitle}>{energyOpt.label}</div>
-                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{energyOpt.desc}</div>
+              <div style={modal.optionList}>
+                {energyOptions.map((option) => {
+                  const isActive = energyLevel === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className="checkin-option-card"
+                      style={{
+                        ...modal.optionCard,
+                        ["--checkin-card-bg" as never]:
+                          isActive
+                            ? "#1e1f22"
+                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
+                        ...(isActive ? modal.optionCardActive : {}),
+                      }}
+                      onClick={() => setEnergyLevel(option.key)}
+                    >
+                      <div style={modal.optionCardTitle}>{option.label}</div>
+                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <div aria-hidden style={modal.measureWrap}>
-                {energyOptions.map((o, i) => (
-                  <div
-                    key={o.key}
-                    ref={(el) => {
-                      measureRefs.current[i] = el;
-                    }}
-                    style={modal.valueDesc}
-                  >
-                    {o.desc}
-                  </div>
-                ))}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={2}
-                step={1}
-                value={energyIndex}
-                onChange={(e) => {
-                  const idx = Number(e.target.value);
-                  setEnergyLevel(energyOptions[idx]?.key || "medium");
-                }}
-                style={{ ...sliderStyle(0, 2, energyIndex, [0, 50, 100]) }}
-                className="checkin-slider"
-              />
             </div>
           ) : null}
 
           {step === 2 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Стресс</div> : null}
-              <div style={modal.value}>
-                <div style={modal.valueTitle}>{stressOpt.label}</div>
-                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{stressOpt.desc}</div>
+              <div style={modal.optionList}>
+                {stressOptions.map((option) => {
+                  const isActive = stressLevel === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className="checkin-option-card"
+                      style={{
+                        ...modal.optionCard,
+                        ["--checkin-card-bg" as never]:
+                          isActive
+                            ? "#1e1f22"
+                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
+                        ...(isActive ? modal.optionCardActive : {}),
+                      }}
+                      onClick={() => setStressLevel(option.key)}
+                    >
+                      <div style={modal.optionCardTitle}>{option.label}</div>
+                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <div aria-hidden style={modal.measureWrap}>
-                {stressOptions.map((o, i) => (
-                  <div
-                    key={o.key}
-                    ref={(el) => {
-                      measureRefs.current[i] = el;
-                    }}
-                    style={modal.valueDesc}
-                  >
-                    {o.desc}
-                  </div>
-                ))}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={1}
-                value={stressIndex}
-                onChange={(e) => {
-                  const idx = Number(e.target.value);
-                  setStressLevel(stressOptions[idx]?.key || "medium");
-                }}
-                style={{ ...sliderStyle(0, 3, stressIndex, [0, 33.333, 66.666, 100]) }}
-                className="checkin-slider"
-              />
             </div>
           ) : null}
 
           {step === 3 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
-              <div style={modal.value}>
-                <div style={modal.valueTitle}>{availableMinutes} мин</div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                {[45, 60, 90].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    style={availableMinutes === m ? chipActive : chipStyle}
-                    onClick={() => setAvailableMinutes(m)}
-                  >
-                    {m} мин
-                  </button>
-                ))}
+              <div style={modal.optionList}>
+                {durationOptions.map((option) => {
+                  const isActive = availableMinutes === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className="checkin-option-card"
+                      style={{
+                        ...modal.optionCard,
+                        ["--checkin-card-bg" as never]:
+                          isActive
+                            ? "#1e1f22"
+                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
+                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
+                        ...(isActive ? modal.optionCardActive : {}),
+                      }}
+                      onClick={() => setAvailableMinutes(option.value)}
+                    >
+                      <div style={modal.optionCardTitle}>{option.label}</div>
+                      <div style={modal.optionCardDesc}>{option.desc}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : null}
 
           {step >= 4 ? (
-            <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
+            <div style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.groupTitle}>Есть боль или дискомфорт?</div> : null}
 
               <div style={modal.binaryRow}>
@@ -595,9 +586,6 @@ export function CheckInForm({
             className="checkin-primary-btn"
           >
             <span style={modal.saveText}>{loading && isLastStep ? "Сохраняем..." : primaryLabel}</span>
-            <span style={modal.saveIconWrap} aria-hidden>
-              <span style={modal.saveArrow}>→</span>
-            </span>
           </button>
           {shouldShowBackTextBtn ? (
             <button
@@ -677,7 +665,7 @@ const modal: Record<string, React.CSSProperties> = {
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
     overflow: "visible",
-    padding: "16px 14px 20px",
+    padding: "16px 14px calc(env(safe-area-inset-bottom, 0px) + 154px)",
   },
   header: {
     padding: "16px 18px 10px",
@@ -694,7 +682,7 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     lineHeight: 1,
   },
-  bodyInline: { padding: "0", display: "grid", gap: 14 },
+  bodyInline: { padding: "0", display: "grid", gap: 12 },
   stepMeta: {
     display: "flex",
     justifyContent: "center",
@@ -782,6 +770,61 @@ const modal: Record<string, React.CSSProperties> = {
     letterSpacing: -0.8,
     color: "#1e1f22",
   },
+  optionList: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 10,
+  },
+  optionCard: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    color: "#1e1f22",
+    padding: "14px 14px",
+    textAlign: "left",
+    display: "grid",
+    gap: 6,
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    width: "100%",
+    cursor: "pointer",
+  },
+  optionCardActive: {
+    background: "#1e1f22",
+    border: "1px solid #1e1f22",
+    color: "#fff",
+  },
+  optionCardTitleRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "center",
+    gap: 10,
+    width: "100%",
+  },
+  optionCardTitle: {
+    fontSize: 18,
+    lineHeight: 1.25,
+    fontWeight: 500,
+  },
+  optionCardDesc: {
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: "inherit",
+    opacity: 0.76,
+  },
+  optionCardEmoji: {
+    fontSize: 20,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    filter: "grayscale(1) saturate(0) contrast(1.05) brightness(0.62)",
+    opacity: 0.88,
+  },
   cardWide: {
     padding: "2px 2px 0",
     borderRadius: 0,
@@ -828,13 +871,20 @@ const modal: Record<string, React.CSSProperties> = {
     zIndex: 2,
   },
   footerInline: {
-    padding: "0",
-    marginTop: 12,
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: "14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px)",
+    marginTop: 0,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
-    position: "relative",
-    zIndex: 2,
+    maxWidth: "100%",
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    zIndex: 6,
   },
   ghostBtn: {
     borderRadius: 12,
@@ -845,49 +895,31 @@ const modal: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   save: {
-    width: "fit-content",
-    maxWidth: "100%",
-    height: 50,
-    borderRadius: 999,
-    padding: "0 14px",
+    width: "100%",
+    borderRadius: 16,
+    padding: "16px 18px",
+    height: "auto",
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    justifySelf: "center",
+    justifyContent: "center",
+    gap: 0,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "none",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     WebkitTapHighlightColor: "transparent",
+    appearance: "none",
+    WebkitAppearance: "none",
+    outline: "none",
   },
   saveText: {
     fontSize: 18,
     fontWeight: 500,
     textAlign: "center",
     lineHeight: 1,
-  },
-  saveIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: -8,
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    flex: "0 0 auto",
-  },
-  saveArrow: {
-    fontSize: 18,
-    lineHeight: 1,
-    color: "#0f172a",
-    fontWeight: 700,
   },
   backTextBtn: {
     width: "100%",
