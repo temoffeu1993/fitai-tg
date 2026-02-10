@@ -473,7 +473,7 @@ const styles: Record<string, React.CSSProperties> = {
   introBubble: {
     position: "relative",
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 392,
     boxSizing: "border-box",
     textAlign: "center",
     padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
@@ -493,7 +493,7 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: "pre-line",
   },
   introMascotImg: {
-    width: "min(78vw, clamp(200px, 33vh, 290px))",
+    width: "min(72vw, clamp(186px, 30vh, 262px))",
     height: "auto",
     objectFit: "contain",
   },
