@@ -2491,7 +2491,7 @@ function PlannedExercisesEditor({
   };
 
   return (
-    <div style={{ marginTop: 2, padding: "8px 4px 12px", display: "grid", gap: 12, overflow: "visible" }}>
+    <div style={{ marginTop: 2, padding: "2px 0 4px", display: "grid", gap: 8, overflow: "visible" }}>
       {displayItems.map((it, i) => {
         const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
         const isOpen = menuIndex === i;
@@ -3427,6 +3427,7 @@ const pickStyles = `
     max-height: 1200px;
     opacity: 1;
     transform: translateY(0) scale(1);
+    overflow: visible;
   }
 
   @keyframes fadeInUp {
