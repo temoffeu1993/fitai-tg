@@ -508,7 +508,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "clamp(10px, 2.1vh, 18px)",
     paddingTop: "clamp(12px, 1.8vh, 18px)",
-    marginTop: 0,
+    marginTop: "clamp(12px, 1.8vh, 22px)",
   },
   introBubble: {
     position: "relative",
@@ -553,7 +553,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifySelf: "center",
     display: "grid",
     gap: 10,
-    paddingBottom: "clamp(52px, 6.6vh, 60px)",
+    paddingBottom: "clamp(24px, 3.2vh, 32px)",
   },
   introTopRow: {
     position: "absolute",
