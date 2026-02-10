@@ -231,6 +231,14 @@ export default function CheckIn() {
       <style>{screenCss + thinkingCss}</style>
       {phase === "intro" ? (
         <>
+          <button
+            type="button"
+            style={{ ...styles.introSkipTopBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
+            onClick={handleSkipCheckIn}
+            disabled={skipLoading || loading}
+          >
+            {skipLoading ? "Открываем..." : "Пропустить"}
+          </button>
           <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.introBubble} className="speech-bubble-bottom">
               <span style={styles.introBubbleText}>
@@ -251,14 +259,6 @@ export default function CheckIn() {
               <span style={styles.introPrimaryBtnIconWrap} aria-hidden>
                 <span style={styles.introPrimaryBtnArrow}>→</span>
               </span>
-            </button>
-            <button
-              type="button"
-              style={{ ...styles.summaryBackBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
-              onClick={handleSkipCheckIn}
-              disabled={skipLoading || loading}
-            >
-              {skipLoading ? "Открываем тренировку..." : "Пропустить"}
             </button>
           </section>
         </>
@@ -437,6 +437,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100dvh",
     height: "100dvh",
     overflow: "hidden",
+    position: "relative",
     display: "grid",
     gridTemplateRows: "1fr auto",
     padding:
@@ -523,6 +524,27 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     paddingBottom: 0,
+  },
+  introSkipTopBtn: {
+    position: "absolute",
+    top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+    right: "clamp(16px, 4vw, 20px)",
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    padding: "10px 2px 10px 14px",
+    minWidth: 44,
+    minHeight: 44,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    cursor: "pointer",
+    textAlign: "right",
+    WebkitTapHighlightColor: "transparent",
+    zIndex: 3,
   },
   formWrap: {
     marginTop: 2,
