@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
-import { startWorkout, type CheckInPayload, type SleepQuality } from "@/api/plan";
+import { startWorkout, type CheckInPayload } from "@/api/plan";
 import { getScheduleOverview } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
@@ -27,8 +27,6 @@ export default function CheckIn() {
   }>(null);
   const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
   const [formStep, setFormStep] = useState(0);
-  const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
-  const [sleepTouched, setSleepTouched] = useState(false);
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
   const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
@@ -241,25 +239,13 @@ export default function CheckIn() {
     "Сколько времени на тренировку?",
     "Есть боль или дискомфорт?",
   ];
-  const sleepBubbleMap: Record<SleepQuality, string> = {
-    poor: "Плохо. Сон был рваный или короткий, сегодня лучше бережный темп.",
-    fair: "Так себе. Ресурс средний, начнём аккуратно и по самочувствию.",
-    ok: "Нормально. Базовый режим — рабочий темп без перегруза.",
-    good: "Хорошо. Отличная база, можно тренироваться увереннее.",
-    excellent: "Отлично. Ты в ресурсе, можно работать мощно и технично.",
-  };
   const bubbleText = phase === "form"
-    ? formStep === 0
-      ? sleepTouched
-        ? sleepBubbleMap[sleepQuality]
-        : "Как ты поспал?"
-      : formQuestions[Math.max(0, Math.min(formQuestions.length - 1, formStep))] || "Как ты сегодня?"
+    ? formQuestions[Math.max(0, Math.min(formQuestions.length - 1, formStep))] || "Как ты сегодня?"
     : !result
     ? "Отметь самочувствие за 30 секунд."
     : summaryPhase === "thinking"
     ? "Секунду, адаптирую тренировку."
     : summary?.subtitle || "Готово. Тренировка адаптирована.";
-  const bubbleKey = `${phase}-${formStep}-${sleepQuality}-${sleepTouched ? 1 : 0}-${summaryPhase}`;
 
   const pageStyle = phase === "intro" ? { ...styles.page, ...styles.pageIntro } : styles.page;
   return (
@@ -314,7 +300,7 @@ export default function CheckIn() {
         <section style={styles.mascotRow} className={phase === "form" ? "onb-fade onb-fade-delay-2" : "onb-fade onb-fade-delay-1"}>
           <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
           <div style={styles.bubble} className="speech-bubble">
-            <span key={bubbleKey} style={styles.bubbleText} className="checkin-bubble-swap">{bubbleText}</span>
+            <span style={styles.bubbleText}>{bubbleText}</span>
           </div>
         </section>
       ) : null}
@@ -326,15 +312,9 @@ export default function CheckIn() {
             onBack={() => {
               setError(null);
               setPhase("intro");
-              setSleepTouched(false);
-              setSleepQuality("ok");
             }}
-            onStepChange={(stepIndex, _total, context) => {
+            onStepChange={(stepIndex) => {
               setFormStep(stepIndex);
-              if (context) {
-                setSleepQuality(context.sleepQuality);
-                setSleepTouched(context.sleepTouched);
-              }
             }}
             loading={loading}
             error={error}
@@ -408,18 +388,10 @@ const screenCss = `
   0% { opacity: 0; transform: translateY(14px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-@keyframes checkinBubbleSwap {
-  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
 .onb-fade { animation: onbFadeUp 520ms ease-out both; }
 .onb-fade-delay-1 { animation-delay: 80ms; }
 .onb-fade-delay-2 { animation-delay: 160ms; }
 .onb-fade-delay-3 { animation-delay: 240ms; }
-.checkin-bubble-swap {
-  animation: checkinBubbleSwap 240ms ease-out both;
-  will-change: opacity, transform;
-}
 .speech-bubble:before {
   content: "";
   position: absolute;
@@ -471,7 +443,6 @@ const screenCss = `
   .onb-fade-delay-1,
   .onb-fade-delay-2,
   .onb-fade-delay-3 { animation: none !important; }
-  .checkin-bubble-swap { animation: none !important; }
   .intro-primary-btn { transition: none !important; }
 }
 `;

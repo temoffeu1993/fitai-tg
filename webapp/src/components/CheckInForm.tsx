@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
 
 type Props = {
@@ -13,14 +13,7 @@ type Props = {
   submitLabel?: string;
   onBack?: () => void;
   backLabel?: string;
-  onStepChange?: (
-    step: number,
-    totalSteps: number,
-    context?: {
-      sleepQuality: SleepQuality;
-      sleepTouched: boolean;
-    }
-  ) => void;
+  onStepChange?: (step: number, totalSteps: number) => void;
   hideStepMeta?: boolean;
   hideStepTitle?: boolean;
   hideBackOnFirstStep?: boolean;
@@ -114,25 +107,6 @@ const sliderCss = `
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-step-animate { animation: none !important; }
-}
-
-.checkin-option-card {
-  appearance: none;
-  outline: none;
-  transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease;
-  will-change: transform, background, border-color;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.checkin-option-card:active:not(:disabled) {
-  transform: translateY(1px) scale(0.99);
-  background: var(--checkin-card-bg) !important;
-  border-color: var(--checkin-card-border) !important;
-  color: var(--checkin-card-color) !important;
-}
-.checkin-option-card:focus-visible {
-  outline: 3px solid rgba(15, 23, 42, 0.18);
-  outline-offset: 2px;
 }
 
 .checkin-primary-btn,
@@ -246,7 +220,6 @@ export function CheckInForm({
   hideBackOnFirstStep = false,
 }: Props) {
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
-  const [sleepTouched, setSleepTouched] = useState(false);
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
   const [stressLevel, setStressLevel] = useState<CheckInPayload["stressLevel"]>("medium");
   const [availableMinutes, setAvailableMinutes] = useState<number>(60);
@@ -254,41 +227,82 @@ export function CheckInForm({
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
+  const stepCardRef = useRef<HTMLDivElement | null>(null);
+  const measureRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
 
   const sleepOptions = [
-    { key: "poor" as const, label: "Плохо", emoji: "😴" },
-    { key: "fair" as const, label: "Так себе", emoji: "🥱" },
-    { key: "ok" as const, label: "Нормально", emoji: "🙂" },
-    { key: "good" as const, label: "Хорошо", emoji: "😊" },
-    { key: "excellent" as const, label: "Отлично", emoji: "🤩" },
+    { key: "poor" as const, label: "Плохо", emoji: "😴", desc: "Сон был прерывистым или коротким — восстановление слабое." },
+    { key: "fair" as const, label: "Так себе", emoji: "🥱", desc: "В целом спал, но бодрости меньше обычного." },
+    { key: "ok" as const, label: "Нормально", emoji: "🙂", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
+    { key: "good" as const, label: "Хорошо", emoji: "😊", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
+    { key: "excellent" as const, label: "Отлично", emoji: "🤩", desc: "Полностью восстановился — максимум энергии и готовности." },
   ];
   const energyOptions = [
-    { key: "low" as const, label: "Низкая", emoji: "🪫" },
-    { key: "medium" as const, label: "Средняя", emoji: "🔋" },
-    { key: "high" as const, label: "Высокая", emoji: "⚡️" },
+    { key: "low" as const, label: "Низкая", emoji: "🪫", desc: "Сил мало — лучше держать умеренный темп и не форсировать." },
+    { key: "medium" as const, label: "Средняя", emoji: "🔋", desc: "Обычный уровень — стандартная тренировка должна зайти." },
+    { key: "high" as const, label: "Высокая", emoji: "⚡️", desc: "Много сил — можно работать увереннее, сохраняя технику." },
   ];
   const stressOptions = [
-    { key: "low" as const, label: "Низкий", emoji: "🧘" },
-    { key: "medium" as const, label: "Средний", emoji: "😬" },
-    { key: "high" as const, label: "Высокий", emoji: "😓" },
-    { key: "very_high" as const, label: "Очень высокий", emoji: "😵" },
+    { key: "low" as const, label: "Низкий", emoji: "🧘", desc: "Спокойно — нервная система не перегружена." },
+    { key: "medium" as const, label: "Средний", emoji: "😬", desc: "Есть напряжение, но оно контролируемое." },
+    { key: "high" as const, label: "Высокий", emoji: "😓", desc: "Сильно напряжён — лучше снизить интенсивность и объем." },
+    { key: "very_high" as const, label: "Очень высокий", emoji: "😵", desc: "На пределе — бережёмся, фокус на восстановлении." },
   ];
   const durationOptions = [
-    { value: 45, label: "45 минут", emoji: "⏱️" },
-    { value: 60, label: "60 минут", emoji: "⏲️" },
-    { value: 90, label: "90 минут", emoji: "🕰️" },
-  ] as const;
+    { value: 45, label: "45 мин", emoji: "⏱️" },
+    { value: 60, label: "60 мин", emoji: "⏲️" },
+    { value: 90, label: "90 мин", emoji: "🕰️" },
+  ];
+  const sleepIndex = Math.max(0, sleepOptions.findIndex((o) => o.key === sleepQuality));
+  const sleepOpt = sleepOptions[sleepIndex] || sleepOptions[2];
+
+  const energyKey = energyLevel || "medium";
+  const energyIndex = Math.max(0, energyOptions.findIndex((o) => o.key === energyKey));
+  const energyOpt = energyOptions[energyIndex] || energyOptions[1];
+
+  const stressKey = stressLevel || "medium";
+  const stressIndex = Math.max(0, stressOptions.findIndex((o) => o.key === stressKey));
+  const stressOpt = stressOptions[stressIndex] || stressOptions[1];
+  const durationOpt = durationOptions.find((o) => o.value === availableMinutes) || durationOptions[1];
 
   const totalSteps = 5;
   const lastStep = totalSteps - 1;
   const isLastStep = step >= lastStep;
 
+  const measureCount = step === 0 ? sleepOptions.length : step === 1 ? energyOptions.length : step === 2 ? stressOptions.length : 0;
+  measureRefs.current.length = measureCount;
+
+  useLayoutEffect(() => {
+    if (measureCount === 0) return;
+
+    const measure = () => {
+      const heights = measureRefs.current.slice(0, measureCount).map((el) => (el ? el.offsetHeight : 0));
+      const max = Math.max(0, ...heights);
+      if (max <= 0) return;
+      setDescMinHeightByStep((prev) => {
+        const prevVal = prev[step] || 0;
+        if (Math.abs(prevVal - max) < 1) return prev;
+        return { ...prev, [step]: max };
+      });
+    };
+
+    measure();
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && stepCardRef.current) {
+      ro = new ResizeObserver(() => window.requestAnimationFrame(measure));
+      ro.observe(stepCardRef.current);
+    }
+    return () => {
+      ro?.disconnect();
+    };
+  }, [measureCount, step]);
+
+  const descMinHeight = descMinHeightByStep[step] || 0;
+
   React.useEffect(() => {
-    onStepChange?.(step, totalSteps, {
-      sleepQuality,
-      sleepTouched,
-    });
-  }, [onStepChange, step, totalSteps, sleepQuality, sleepTouched]);
+    onStepChange?.(step, totalSteps);
+  }, [onStepChange, step, totalSteps]);
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
@@ -374,154 +388,148 @@ export function CheckInForm({
           ) : null}
 
           {step === 0 ? (
-            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
-              <div style={modal.optionList}>
-                {sleepOptions.map((option) => {
-                  const isActive = sleepQuality === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      className="checkin-option-card"
-                      style={{
-                        ...modal.optionCard,
-                        ["--checkin-card-bg" as never]:
-                          isActive
-                            ? "#1e1f22"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
-                        ...(isActive ? modal.optionCardActive : {}),
-                      }}
-                      onClick={() => {
-                        setSleepQuality(option.key);
-                        setSleepTouched(true);
-                      }}
-                    >
-                      <div style={modal.optionCardTitleRow}>
-                        <span style={modal.optionCardEmoji} aria-hidden>
-                          {option.emoji}
-                        </span>
-                        <div style={modal.optionCardTitle}>{option.label}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div style={modal.value}>
+                <div style={modal.valueTitleRow}>
+                  <span style={modal.valueTitle}>{sleepOpt.label}</span>
+                  <span style={modal.valueEmoji} aria-hidden>{sleepOpt.emoji}</span>
+                </div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
               </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {sleepOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={sleepIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSleepQuality(sleepOptions[idx]?.key || "ok");
+                }}
+                style={{ ...sliderStyle(0, 4, sleepIndex, [0, 25, 50, 75, 100]) }}
+                className="checkin-slider"
+              />
             </div>
           ) : null}
 
           {step === 1 ? (
-            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Энергия</div> : null}
-              <div style={modal.optionList}>
-                {energyOptions.map((option) => {
-                  const isActive = energyLevel === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      className="checkin-option-card"
-                      style={{
-                        ...modal.optionCard,
-                        ["--checkin-card-bg" as never]:
-                          isActive
-                            ? "#1e1f22"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
-                        ...(isActive ? modal.optionCardActive : {}),
-                      }}
-                      onClick={() => setEnergyLevel(option.key)}
-                    >
-                      <div style={modal.optionCardTitleRow}>
-                        <span style={modal.optionCardEmoji} aria-hidden>
-                          {option.emoji}
-                        </span>
-                        <div style={modal.optionCardTitle}>{option.label}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div style={modal.value}>
+                <div style={modal.valueTitleRow}>
+                  <span style={modal.valueTitle}>{energyOpt.label}</span>
+                  <span style={modal.valueEmoji} aria-hidden>{energyOpt.emoji}</span>
+                </div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{energyOpt.desc}</div>
               </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {energyOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={2}
+                step={1}
+                value={energyIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setEnergyLevel(energyOptions[idx]?.key || "medium");
+                }}
+                style={{ ...sliderStyle(0, 2, energyIndex, [0, 50, 100]) }}
+                className="checkin-slider"
+              />
             </div>
           ) : null}
 
           {step === 2 ? (
-            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Стресс</div> : null}
-              <div style={modal.optionList}>
-                {stressOptions.map((option) => {
-                  const isActive = stressLevel === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      className="checkin-option-card"
-                      style={{
-                        ...modal.optionCard,
-                        ["--checkin-card-bg" as never]:
-                          isActive
-                            ? "#1e1f22"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
-                        ...(isActive ? modal.optionCardActive : {}),
-                      }}
-                      onClick={() => setStressLevel(option.key)}
-                    >
-                      <div style={modal.optionCardTitleRow}>
-                        <span style={modal.optionCardEmoji} aria-hidden>
-                          {option.emoji}
-                        </span>
-                        <div style={modal.optionCardTitle}>{option.label}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div style={modal.value}>
+                <div style={modal.valueTitleRow}>
+                  <span style={modal.valueTitle}>{stressOpt.label}</span>
+                  <span style={modal.valueEmoji} aria-hidden>{stressOpt.emoji}</span>
+                </div>
+                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{stressOpt.desc}</div>
               </div>
+              <div aria-hidden style={modal.measureWrap}>
+                {stressOptions.map((o, i) => (
+                  <div
+                    key={o.key}
+                    ref={(el) => {
+                      measureRefs.current[i] = el;
+                    }}
+                    style={modal.valueDesc}
+                  >
+                    {o.desc}
+                  </div>
+                ))}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={3}
+                step={1}
+                value={stressIndex}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setStressLevel(stressOptions[idx]?.key || "medium");
+                }}
+                style={{ ...sliderStyle(0, 3, stressIndex, [0, 33.333, 66.666, 100]) }}
+                className="checkin-slider"
+              />
             </div>
           ) : null}
 
           {step === 3 ? (
-            <div style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
-              <div style={modal.optionList}>
-                {durationOptions.map((option) => {
-                  const isActive = availableMinutes === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className="checkin-option-card"
-                      style={{
-                        ...modal.optionCard,
-                        ["--checkin-card-bg" as never]:
-                          isActive
-                            ? "#1e1f22"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                        ["--checkin-card-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                        ["--checkin-card-color" as never]: isActive ? "#fff" : "#1e1f22",
-                        ...(isActive ? modal.optionCardActive : {}),
-                      }}
-                      onClick={() => setAvailableMinutes(option.value)}
-                    >
-                      <div style={modal.optionCardTitleRow}>
-                        <span style={modal.optionCardEmoji} aria-hidden>
-                          {option.emoji}
-                        </span>
-                        <div style={modal.optionCardTitle}>{option.label}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div style={modal.value}>
+                <div style={modal.valueTitleRow}>
+                  <span style={modal.valueTitle}>{durationOpt.label}</span>
+                  <span style={modal.valueEmoji} aria-hidden>{durationOpt.emoji}</span>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {durationOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    style={availableMinutes === option.value ? chipActive : chipStyle}
+                    onClick={() => setAvailableMinutes(option.value)}
+                  >
+                    {option.emoji} {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           ) : null}
 
           {step >= 4 ? (
-            <div style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.groupTitle}>Есть боль или дискомфорт?</div> : null}
 
               <div style={modal.binaryRow}>
@@ -707,7 +715,7 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     lineHeight: 1,
   },
-  bodyInline: { padding: "0", display: "grid", gap: 12 },
+  bodyInline: { padding: "0", display: "grid", gap: 14 },
   stepMeta: {
     display: "flex",
     justifyContent: "center",
@@ -794,54 +802,6 @@ const modal: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     letterSpacing: -0.8,
     color: "#1e1f22",
-  },
-  optionList: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: 10,
-  },
-  optionCard: {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    color: "#1e1f22",
-    fontSize: 18,
-    fontWeight: 500,
-    padding: "18px 16px",
-    textAlign: "left",
-    display: "flex",
-    gap: 0,
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    width: "100%",
-    cursor: "pointer",
-  },
-  optionCardActive: {
-    background: "#1e1f22",
-    border: "1px solid #1e1f22",
-    color: "#fff",
-  },
-  optionCardTitleRow: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  optionCardTitle: {
-    fontSize: 18,
-    lineHeight: 1.22,
-    fontWeight: 500,
-  },
-  optionCardEmoji: {
-    fontSize: 18,
-    lineHeight: 1,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transform: "translateY(1px)",
   },
   cardWide: {
     padding: "2px 2px 0",
