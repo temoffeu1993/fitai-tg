@@ -553,7 +553,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifySelf: "center",
     display: "grid",
     gap: 10,
-    paddingBottom: 0,
+    paddingBottom: "clamp(52px, 6.6vh, 60px)",
   },
   introTopRow: {
     position: "absolute",
