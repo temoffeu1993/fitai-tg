@@ -2257,24 +2257,66 @@ function PlannedExercisesEditor({
   };
 
   const rowStyle: React.CSSProperties = {
-    padding: 8,
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.06)",
+    padding: "20px 18px",
+    borderRadius: 24,
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    boxShadow:
+      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    overflow: "hidden",
     display: "flex",
-    gap: 10,
+    gap: 12,
     alignItems: "flex-start",
     justifyContent: "space-between",
   };
   const menuBtn: React.CSSProperties = {
-    border: "1px solid rgba(0,0,0,0.1)",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.8)",
-    padding: "6px 10px",
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    padding: 0,
+    margin: 0,
+    width: 20,
+    height: 10,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     cursor: "pointer",
-    fontWeight: 800,
-    color: "#0B1220",
-    lineHeight: 1,
+    color: "#0f172a",
+  };
+  const exerciseTitle: React.CSSProperties = {
+    fontSize: 18,
+    fontWeight: 700,
+    lineHeight: 1.2,
+    color: "#0f172a",
+  };
+  const exerciseCues: React.CSSProperties = {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
+  };
+  const volumeChip: React.CSSProperties = {
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    padding: 0,
+    borderRadius: 0,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15, 23, 42, 0.6)",
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
+    lineHeight: 1.5,
+  };
+  const volumeChipIcon: React.CSSProperties = {
+    transform: "translateY(0.2px)",
+    flex: "0 0 auto",
   };
   const overlay: React.CSSProperties = {
     position: "fixed",
@@ -2404,10 +2446,10 @@ function PlannedExercisesEditor({
         return (
           <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#0B1220" }}>
+              <div style={exerciseTitle}>
                 {it.name || `Упражнение ${i + 1}`} {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
               </div>
-              {it.cues ? <div style={{ fontSize: 11, color: "#4a5568", lineHeight: 1.3 }}>{it.cues}</div> : null}
+              {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
               <button
@@ -2423,21 +2465,15 @@ function PlannedExercisesEditor({
                 }}
                 aria-label="Опции"
               >
-                {isOpen ? "✕" : "⋮"}
+                <svg viewBox="0 0 20 6" width="20" height="6" aria-hidden style={{ color: "#0f172a" }}>
+                  <circle cx="3" cy="3" r="1.45" fill="currentColor" />
+                  <circle cx="10" cy="3" r="1.45" fill="currentColor" />
+                  <circle cx="17" cy="3" r="1.45" fill="currentColor" />
+                </svg>
               </button>
-              <span
-                style={{
-                  background: "rgba(255,255,255,0.6)",
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  padding: "5px 10px",
-                  borderRadius: 10,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#334155",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                💪 {it.sets}×{formatReps(it.reps)}
+              <span style={volumeChip}>
+                <Dumbbell size={14} strokeWidth={2.1} style={volumeChipIcon} />
+                <span>{it.sets}×{formatReps(it.reps)}</span>
               </span>
             </div>
           </div>
