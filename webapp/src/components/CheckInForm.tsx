@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
+import { BedSingle, CloudMoon, Moon, Sun, Sunrise } from "lucide-react";
 
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
@@ -13,6 +14,10 @@ type Props = {
   submitLabel?: string;
   onBack?: () => void;
   backLabel?: string;
+  onStepChange?: (step: number, totalSteps: number) => void;
+  hideStepMeta?: boolean;
+  hideStepTitle?: boolean;
+  hideBackOnFirstStep?: boolean;
 };
 
 const chipStyle: React.CSSProperties = {
@@ -201,6 +206,10 @@ export function CheckInForm({
   submitLabel,
   onBack,
   backLabel,
+  onStepChange,
+  hideStepMeta = false,
+  hideStepTitle = false,
+  hideBackOnFirstStep = false,
 }: Props) {
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("ok");
   const [energyLevel, setEnergyLevel] = useState<CheckInPayload["energyLevel"]>("medium");
@@ -215,11 +224,11 @@ export function CheckInForm({
   const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
 
   const sleepOptions = [
-    { key: "poor" as const, label: "Плохо", desc: "Сон был прерывистым или коротким — восстановление слабое." },
-    { key: "fair" as const, label: "Так себе", desc: "В целом спал, но бодрости меньше обычного." },
-    { key: "ok" as const, label: "Нормально", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
-    { key: "good" as const, label: "Хорошо", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
-    { key: "excellent" as const, label: "Отлично", desc: "Полностью восстановился — максимум энергии и готовности." },
+    { key: "poor" as const, label: "Плохо", icon: "poor", desc: "Сон был прерывистым или коротким — восстановление слабое." },
+    { key: "fair" as const, label: "Так себе", icon: "fair", desc: "В целом спал, но бодрости меньше обычного." },
+    { key: "ok" as const, label: "Нормально", icon: "ok", desc: "Обычный сон — можно работать и тренироваться в привычном режиме." },
+    { key: "good" as const, label: "Хорошо", icon: "good", desc: "Выспался — чувствуешь заметную бодрость и ясность." },
+    { key: "excellent" as const, label: "Отлично", icon: "excellent", desc: "Полностью восстановился — максимум энергии и готовности." },
   ];
   const energyOptions = [
     { key: "low" as const, label: "Низкая", desc: "Сил мало — лучше держать умеренный темп и не форсировать." },
@@ -276,6 +285,10 @@ export function CheckInForm({
   }, [measureCount, step]);
 
   const descMinHeight = descMinHeightByStep[step] || 0;
+
+  React.useEffect(() => {
+    onStepChange?.(step, totalSteps);
+  }, [onStepChange, step, totalSteps]);
 
   const shouldRender = inline || open;
   if (!shouldRender) return null;
@@ -335,7 +348,21 @@ export function CheckInForm({
   const cardStyle = inline ? modal.inlineCard : modal.card;
   const footerStyle = inline ? modal.footerInline : modal.footer;
 
-  const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее →";
+  const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее";
+  const shouldShowBackTextBtn = !(hideBackOnFirstStep && step === 0);
+
+  const renderSleepIcon = (kind: "poor" | "fair" | "ok" | "good" | "excellent", size = 18) => {
+    const iconProps = {
+      size,
+      strokeWidth: 2.1,
+      color: "rgba(15, 23, 42, 0.62)",
+    };
+    if (kind === "poor") return <Moon {...iconProps} />;
+    if (kind === "fair") return <CloudMoon {...iconProps} />;
+    if (kind === "ok") return <BedSingle {...iconProps} />;
+    if (kind === "good") return <Sunrise {...iconProps} />;
+    return <Sun {...iconProps} />;
+  };
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
@@ -353,16 +380,24 @@ export function CheckInForm({
         )}
 
         <div style={modal.bodyInline}>
-          <div style={modal.stepMeta}>
-            <span style={modal.stepText}>Шаг {step + 1} из {totalSteps}</span>
-          </div>
+          {!hideStepMeta ? (
+            <div style={modal.stepMeta}>
+              <span style={modal.stepText}>Шаг {step + 1} из {totalSteps}</span>
+            </div>
+          ) : null}
 
           {step === 0 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>Как ты поспал?</div>
+              {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
               <div style={modal.value}>
-                <div style={modal.valueTitle}>{sleepOpt.label}</div>
-                <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{sleepOpt.desc}</div>
+                <div style={modal.valueTitleRow}>
+                  <span style={modal.valueTitleIcon}>{renderSleepIcon(sleepOpt.icon, 20)}</span>
+                  <span style={modal.valueTitle}>{sleepOpt.label}</span>
+                </div>
+                <div style={{ ...modal.valueDescRow, minHeight: descMinHeight || undefined }}>
+                  <span style={modal.valueDescIcon}>{renderSleepIcon(sleepOpt.icon, 16)}</span>
+                  <span>{sleepOpt.desc}</span>
+                </div>
               </div>
               <div aria-hidden style={modal.measureWrap}>
                 {sleepOptions.map((o, i) => (
@@ -395,7 +430,7 @@ export function CheckInForm({
 
           {step === 1 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>Энергия</div>
+              {!hideStepTitle ? <div style={modal.cardMiniTitle}>Энергия</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{energyOpt.label}</div>
                 <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{energyOpt.desc}</div>
@@ -431,7 +466,7 @@ export function CheckInForm({
 
           {step === 2 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>Стресс</div>
+              {!hideStepTitle ? <div style={modal.cardMiniTitle}>Стресс</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{stressOpt.label}</div>
                 <div style={{ ...modal.valueDesc, minHeight: descMinHeight || undefined }}>{stressOpt.desc}</div>
@@ -467,7 +502,7 @@ export function CheckInForm({
 
           {step === 3 ? (
             <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.cardMiniTitle}>Время на тренировку</div>
+              {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitle}>{availableMinutes} мин</div>
               </div>
@@ -488,7 +523,7 @@ export function CheckInForm({
 
           {step >= 4 ? (
             <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
-              <div style={modal.groupTitle}>Есть боль или дискомфорт?</div>
+              {!hideStepTitle ? <div style={modal.groupTitle}>Есть боль или дискомфорт?</div> : null}
 
               <div style={modal.binaryRow}>
                 <button
@@ -576,17 +611,22 @@ export function CheckInForm({
             disabled={loading}
             className="checkin-primary-btn"
           >
-            {loading && isLastStep ? "Сохраняем..." : primaryLabel}
+            <span style={modal.saveText}>{loading && isLastStep ? "Сохраняем..." : primaryLabel}</span>
+            <span style={modal.saveIconWrap} aria-hidden>
+              <span style={modal.saveArrow}>→</span>
+            </span>
           </button>
-          <button
-            style={modal.backTextBtn}
-            onClick={handleBackClick}
-            type="button"
-            disabled={loading}
-            className="checkin-text-btn"
-          >
-            {backLabel || "Назад"}
-          </button>
+          {shouldShowBackTextBtn ? (
+            <button
+              style={modal.backTextBtn}
+              onClick={handleBackClick}
+              type="button"
+              disabled={loading}
+              className="checkin-text-btn"
+            >
+              {backLabel || "Назад"}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -647,13 +687,13 @@ const modal: Record<string, React.CSSProperties> = {
   },
   inlineCard: {
     width: "100%",
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    overflow: "hidden",
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
+    overflow: "visible",
     padding: "16px 14px 20px",
   },
   header: {
@@ -692,7 +732,37 @@ const modal: Record<string, React.CSSProperties> = {
     marginBottom: 8,
   },
   valueTitle: { fontSize: 34, lineHeight: 1.02, fontWeight: 700, color: "#1e1f22", letterSpacing: -0.6 },
+  valueTitleRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  valueTitleIcon: {
+    width: 24,
+    height: 24,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+  },
   valueDesc: { fontSize: 15, color: "rgba(30,31,34,0.75)", lineHeight: 1.42 },
+  valueDescRow: {
+    display: "inline-flex",
+    alignItems: "flex-start",
+    gap: 8,
+    fontSize: 15,
+    color: "rgba(30,31,34,0.75)",
+    lineHeight: 1.42,
+  },
+  valueDescIcon: {
+    width: 18,
+    height: 18,
+    marginTop: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+  },
   measureWrap: {
     position: "absolute",
     left: 0,
@@ -783,17 +853,49 @@ const modal: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
   save: {
-    borderRadius: 16,
-    padding: "16px 18px",
-    width: "100%",
+    width: "fit-content",
+    maxWidth: "100%",
+    height: 50,
+    borderRadius: 999,
+    padding: "0 14px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    justifySelf: "center",
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    boxShadow: "none",
     WebkitTapHighlightColor: "transparent",
+  },
+  saveText: {
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "center",
+    lineHeight: 1,
+  },
+  saveIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    flex: "0 0 auto",
+  },
+  saveArrow: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#0f172a",
+    fontWeight: 700,
   },
   backTextBtn: {
     width: "100%",
