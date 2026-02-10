@@ -242,7 +242,9 @@ export default function CheckIn() {
           <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.introBubble} className="speech-bubble-bottom">
               <span style={styles.introBubbleText}>
-                Ответь на пару вопросов о самочувствии, чтобы я подстроил тренировку
+                Пару вопросов{" "}
+                <span style={styles.introBubbleTextStrong}>о самочувствии</span>
+                {", чтобы подстроить тренировку"}
               </span>
             </div>
             <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
@@ -510,6 +512,10 @@ const styles: Record<string, React.CSSProperties> = {
     overflowWrap: "break-word",
     wordBreak: "normal",
     textWrap: "balance",
+  },
+  introBubbleTextStrong: {
+    fontWeight: 700,
+    color: "#1e1f22",
   },
   introMascotImg: {
     width: "min(72vw, clamp(186px, 30vh, 262px))",
