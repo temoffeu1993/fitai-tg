@@ -128,6 +128,7 @@ export type GeneratedWorkoutDay = {
     shortenedForTime?: boolean;
     trimmedForCaps?: boolean;
     intentAdjusted?: boolean;
+    safetyAdjusted?: boolean;
   };
   warnings?: string[];
 };
@@ -487,12 +488,22 @@ export function generateRecoverySession(args: {
   userProfile: UserProfile;
   painAreas?: string[];
   availableMinutes?: number;
+  blockedPatterns?: string[];
+  avoidFlags?: JointFlag[];
 }): GeneratedWorkoutDay {
-  const { userProfile, painAreas = [], availableMinutes = 30 } = args;
+  const {
+    userProfile,
+    painAreas = [],
+    availableMinutes = 30,
+    blockedPatterns = [],
+    avoidFlags = [],
+  } = args;
   const normalizedAvailableMinutes =
     typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
       ? Math.max(0, Math.round(availableMinutes))
       : 30;
+  const blockedSet = normalizeBlockedPatterns(blockedPatterns);
+  const avoidSet = new Set<JointFlag>(avoidFlags);
   
   // Base recovery exercises (mobility + stretching)
   const baseRecovery = [
@@ -537,6 +548,7 @@ export function generateRecoverySession(args: {
         kind: "isolation" as ExerciseKind,
         repRangeDefault: { min: 10, max: 15 },
         restSecDefault: 30,
+        jointFlags: ["shoulder_sensitive" as JointFlag],
         cues: ["Контролируй движение", "Без боли"],
       },
     },
@@ -559,6 +571,7 @@ export function generateRecoverySession(args: {
         kind: "compound" as ExerciseKind,
         repRangeDefault: { min: 20, max: 30 },
         restSecDefault: 45,
+        jointFlags: ["knee_sensitive" as JointFlag, "hip_sensitive" as JointFlag],
         cues: ["Пятки на полу", "Спина прямая"],
       },
     },
@@ -581,6 +594,7 @@ export function generateRecoverySession(args: {
         kind: "isolation" as ExerciseKind,
         repRangeDefault: { min: 30, max: 45 },
         restSecDefault: 30,
+        jointFlags: ["shoulder_sensitive" as JointFlag],
         cues: ["Дыши глубоко", "Без боли"],
       },
     },
@@ -632,7 +646,15 @@ export function generateRecoverySession(args: {
   
 	  // Adjust duration if needed
 	  // NEW: добавляем coversPatterns для совместимости с DayExercise type
-	  let exercises: DayExercise[] = baseRecovery.map(ex => ({
+  const safeRecovery = baseRecovery.filter((entry) => {
+    const hasBlockedPattern = entry.exercise.patterns.some((p) => blockedSet.has(String(p).toLowerCase()));
+    if (hasBlockedPattern) return false;
+    const flags = entry.exercise.jointFlags || [];
+    return !flags.some((flag) => avoidSet.has(flag));
+  });
+  const removedForSafety = Math.max(0, baseRecovery.length - safeRecovery.length);
+
+	  let exercises: DayExercise[] = safeRecovery.map(ex => ({
 	    ...ex,
 	    coversPatterns: ex.exercise.patterns,
 	    ...inferLoadInfo(ex.exercise),
@@ -657,8 +679,13 @@ export function generateRecoverySession(args: {
 	    "Все движения выполняй медленно и подконтрольно.",
 	    "Если появляется боль — останови упражнение.",
 	  ];
+  if (removedForSafety > 0) {
+    adaptationNotes.push(`🛡️ Убрали ${removedForSafety} упражн. с потенциальной нагрузкой на чувствительные зоны.`);
+  }
 	  if (normalizedAvailableMinutes <= 0) {
 	    adaptationNotes.unshift("⏱️ Сегодня почти нет времени — сделай хотя бы 1-2 минуты лёгкой разминки/дыхания.");
+  } else if (exercises.length === 0) {
+    adaptationNotes.unshift("🫁 Сегодня делаем только лёгкую активность и дыхание — силовые/растяжки убраны для безопасности.");
 	  }
   
   if (painAreas.length > 0) {
@@ -702,7 +729,13 @@ export function generateRecoverySession(args: {
 	    adaptationNotes,
       changeNotes: adaptationNotes,
       infoNotes: [],
-      changeMeta: { volumeAdjusted: false, deload: false, shortenedForTime: false, trimmedForCaps: false },
+      changeMeta: {
+        volumeAdjusted: false,
+        deload: false,
+        shortenedForTime: false,
+        trimmedForCaps: false,
+        safetyAdjusted: removedForSafety > 0,
+      },
 	    warnings: [],
 	  };
 }
