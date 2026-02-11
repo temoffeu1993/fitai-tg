@@ -250,9 +250,11 @@ export function buildDaySlots(args: {
   timeBucket: TimeBucket;
   intent: Intent;
   availableMinutes?: number; // Optional fine-tuning
-  experience?: "beginner" | "intermediate" | "advanced"; // NEW: влияет на slot budget
+  experience?: "beginner" | "intermediate" | "advanced"; // влияет на slot budget
+  blockedPatterns?: string[]; // паттерны, заблокированные из-за боли (readiness)
 }): Slot[] {
-  const { templateRulesId, timeBucket, intent, availableMinutes, experience } = args;
+  const { templateRulesId, timeBucket, intent, availableMinutes, experience, blockedPatterns } = args;
+  const blocked = new Set(blockedPatterns ?? []);
 
   const rules = TRAINING_RULES_LIBRARY[templateRulesId];
   if (!rules) {
@@ -299,6 +301,7 @@ export function buildDaySlots(args: {
   let isFirstCompound = true;
 
   for (const pattern of rules.required) {
+    if (blocked.has(pattern)) continue; // пропускаем заблокированные (боль)
     if (usedBudget >= slotBudget) break; // ИСПРАВЛЕНО: usedBudget вместо slots.length
 
     const canDouble =
@@ -322,8 +325,8 @@ export function buildDaySlots(args: {
   
   if (rules.optional && usedBudget < slotBudget) { // ИСПРАВЛЕНО: usedBudget
 
-    // Prioritize optionals that fill gaps
-    const priorityOptionals = rules.optional.filter(p => !usedPatterns.has(p));
+    // Prioritize optionals that fill gaps, exclude blocked
+    const priorityOptionals = rules.optional.filter(p => !usedPatterns.has(p) && !blocked.has(p));
 
     for (const pattern of priorityOptionals) {
       if (usedBudget >= slotBudget) break; // ИСПРАВЛЕНО: usedBudget
@@ -374,7 +377,7 @@ export function buildDaySlots(args: {
   if (usedBudget < slotBudget) {
     // Берём filler-паттерны из строгой карты (без .includes() хаков)
     const fillerPatterns: Pattern[] = (FILLER_MAP[templateRulesId] || ["core"])
-      .filter(p => !usedPatterns.has(p));
+      .filter(p => !usedPatterns.has(p) && !blocked.has(p));
 
     // Добавляем filler patterns до достижения budget
     for (const pattern of fillerPatterns) {
@@ -388,13 +391,14 @@ export function buildDaySlots(args: {
     // Достигаем budget через дубликаты (round-robin через preferredDoubles → остальные compound)
     if (usedBudget < slotBudget && usedPatterns.size > 0) {
       // Приоритет: preferredDoubles данного дня → compound паттерны дня → isolation паттерны дня
+      // Все фильтруются через blocked (нельзя дублировать заблокированный паттерн)
       const doublesPool: Pattern[] = [
-        ...(rules.preferredDoubles || []).filter(p => usedPatterns.has(p)),
+        ...(rules.preferredDoubles || []).filter(p => usedPatterns.has(p) && !blocked.has(p)),
         ...Array.from(usedPatterns).filter(p =>
-          isCompoundPattern(p) && !(rules.preferredDoubles || []).includes(p)
+          isCompoundPattern(p) && !(rules.preferredDoubles || []).includes(p) && !blocked.has(p)
         ),
         ...Array.from(usedPatterns).filter(p =>
-          !isCompoundPattern(p) && p !== "core" && p !== "calves" && p !== "carry"
+          !isCompoundPattern(p) && p !== "core" && p !== "calves" && p !== "carry" && !blocked.has(p)
         ),
       ];
 

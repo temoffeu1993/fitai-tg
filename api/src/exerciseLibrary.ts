@@ -76,7 +76,8 @@ export type JointFlag =
   | "shoulder_sensitive"
   | "wrist_sensitive"
   | "hip_sensitive"
-  | "elbow_sensitive";
+  | "elbow_sensitive"
+  | "neck_sensitive";
 
 export type ExerciseKind = "compound" | "isolation" | "conditioning" | "carry" | "core";
 
@@ -1864,6 +1865,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 90,
+  jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
   cnsLoad: 2,
@@ -1894,6 +1896,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 90,
+  jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Плечи вниз", "Тяни локтями", "Пауза в конце"],
   cnsLoad: 2,
@@ -1924,6 +1927,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 120,
+  jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Пауза в конце", "Тяни локтями", "Контроль возврата"],
   cnsLoad: 2,
@@ -1954,6 +1958,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 90,
+  jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Тяни локтями", "Пауза в конце", "Не раскачивайся"],
   cnsLoad: 2,
@@ -1984,6 +1989,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 90,
+  jointFlags: ["shoulder_sensitive"],
   plane: "sagittal",
   cues: ["Не раскачивайся", "Пауза в конце", "Тяни локтями"],
   cnsLoad: 2,
@@ -2045,6 +2051,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 60,
+  jointFlags: ["shoulder_sensitive"],
   plane: "transverse",
   cues: ["Не махай", "Локоть чуть выше кисти", "Плечи вниз"],
   cnsLoad: 1,
@@ -2099,6 +2106,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     max: 20,
   },
   restSecDefault: 60,
+  jointFlags: ["shoulder_sensitive"],
   plane: "transverse",
   cues: ["Контроль амплитуды", "Локоть чуть выше кисти", "Плечи вниз"],
   cnsLoad: 1,
@@ -2159,6 +2167,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 60,
+  jointFlags: ["shoulder_sensitive"],
   plane: "frontal",
   cues: ["Плечи вниз", "Контроль амплитуды", "Локоть чуть выше кисти"],
   cnsLoad: 1,
@@ -2188,6 +2197,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   },
 
   restSecDefault: 60,
+  jointFlags: ["shoulder_sensitive"],
   plane: "frontal",
   cues: ["Постоянное натяжение", "Плечи вниз", "Не махай"],
   cnsLoad: 1,
@@ -2671,7 +2681,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
 {
   id: "ca_farmer_s_walk",
   name: "Прогулка фермера",
-  nameEn: "Farmer’s Walk",
+  nameEn: "Farmer's Walk",
   patterns: ["carry"],
   primaryMuscles: ["core", "forearms"],
   secondaryMuscles: ["upper_back", "glutes"],
@@ -2681,6 +2691,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   setupCost: 1,
   stabilityDemand: 2,
   tags: ["good_for_circuit", "low_setup", "grip"],
+  jointFlags: ["neck_sensitive"],
   kind: "carry",
   repRangeDefault: {
     min: 20,
@@ -2711,6 +2722,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   setupCost: 1,
   stabilityDemand: 3,
   tags: ["anti_lateral_flexion", "good_for_circuit"],
+  jointFlags: ["neck_sensitive"],
   kind: "carry",
   repRangeDefault: {
     min: 20,
@@ -2742,6 +2754,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
   setupCost: 1,
   stabilityDemand: 3,
   tags: ["posture", "good_for_circuit"],
+  jointFlags: ["neck_sensitive"],
   kind: "carry",
   repRangeDefault: {
     min: 20,

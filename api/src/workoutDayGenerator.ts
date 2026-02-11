@@ -172,6 +172,21 @@ function inferLoadInfo(exercise: Exercise): {
   };
 }
 
+/**
+ * Adjusts suggested weight based on current intent.
+ * Only applies to "external" loads — bodyweight has no weight to scale,
+ * and "assisted" means more kg = more help (reducing would increase difficulty).
+ */
+export function adjustWeightForIntent(
+  weight: number,
+  intent: Intent,
+  loadType: "bodyweight" | "external" | "assisted",
+): number {
+  if (loadType !== "external") return weight;
+  if (intent === "light") return Math.round(weight * 0.85 * 2) / 2; // −15%, round to 0.5kg
+  return weight;
+}
+
 function calculateSetsReps(args: {
   role: "main" | "secondary" | "accessory" | "pump" | "conditioning";
   experience: ExperienceLevel;
@@ -1003,7 +1018,8 @@ export async function generateWorkoutDay(args: {
     templateRulesId: dayBlueprint.templateRulesId ?? dayBlueprint.label,
     timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
     intent,
-    experience: userProfile.experience, // NEW: влияет на slot budget (advanced = больше слотов)
+    experience: userProfile.experience, // влияет на slot budget (advanced = больше слотов)
+    blockedPatterns: readiness.blockedPatterns, // фильтруем паттерны, заблокированные из-за боли
   });
 
   console.log(`  Slots: ${slots.length} | Intent: ${intent} | TimeBucket: ${effectiveTimeBucket}min`);
@@ -1148,7 +1164,9 @@ export async function generateWorkoutDay(args: {
     
 	    if (recommendation) {
 	      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
-	        suggestedWeight = recommendation.newWeight;
+	        const rawWeight = recommendation.newWeight;
+	        const { loadType } = inferLoadInfo(ex);
+	        suggestedWeight = adjustWeightForIntent(rawWeight, intent, loadType);
 	      }
 
         const emojiByAction: Record<ProgressionRecommendation["action"], string> = {

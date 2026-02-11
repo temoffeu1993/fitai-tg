@@ -17,9 +17,10 @@ import {
 } from "./coachJobs.js";
 import { getCoachChatHistoryForUser, sendCoachChatMessage } from "./coachChat.js";
 import { getNextWorkoutRecommendations } from "./progressionService.js";
-import { 
+import {
   generateWorkoutDay,
   generateWeekPlan,
+  adjustWeightForIntent,
   type CheckInData,
   type WorkoutHistory,
 } from "./workoutDayGenerator.js";
@@ -1144,8 +1145,12 @@ workoutGeneration.post(
     console.log(`   User: ${uid} | Date: ${workoutDate}`);
     if (plannedWorkoutId) console.log(`   PlannedWorkoutId: ${plannedWorkoutId}`);
     
-    // 1. Get base planned workout for this date
-    const plannedRows = await q<{ 
+    // Wrap entire read-modify-write in a transaction to prevent race conditions
+    const txResult = await withTransaction(async () => {
+
+    // 1. Get base planned workout for this date (with row lock to prevent race conditions)
+    const plannedRows = await q<{
+      id: string,
       data: any,
       plan: any,
       base_plan: any,
@@ -1153,13 +1158,15 @@ workoutGeneration.post(
       workout_date: string,
     }>(
       plannedWorkoutId
-        ? `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
+        ? `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND id = $2::uuid
-           LIMIT 1`
-        : `SELECT data, plan, base_plan, status, workout_date FROM planned_workouts 
+           LIMIT 1
+           FOR UPDATE`
+        : `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND workout_date = $2
            ORDER BY scheduled_for DESC NULLS LAST, updated_at DESC NULLS LAST
-           LIMIT 1`,
+           LIMIT 1
+           FOR UPDATE`,
       plannedWorkoutId ? [uid, plannedWorkoutId] : [uid, workoutDate]
     );
     
@@ -1168,6 +1175,7 @@ workoutGeneration.post(
     }
     
     const row = plannedRows[0];
+    const rowId = row.id; // конкретный id записи — используем для UPDATE вместо workout_date
     const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
     const originalDayIndex = basePlan.dayIndex;
     const effectiveWorkoutDate =
@@ -1226,8 +1234,8 @@ workoutGeneration.post(
       // Skip workout - return recovery info
       console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
       console.log("=====================================================\n");
-      return res.json({
-        action: "skip",
+      return {
+        action: "skip" as const,
         notes: decision.notes,
         summary: {
           changed: true,
@@ -1235,7 +1243,7 @@ workoutGeneration.post(
           infoNotes: [],
         },
         originalDay: basePlan.dayLabel,
-      });
+      };
     }
     
 	    if (decision.action === "recovery") {
@@ -1284,32 +1292,21 @@ workoutGeneration.post(
       };
       
       // Save recovery workout to DB
-      if (plannedWorkoutId) {
-        await q(
-          `UPDATE planned_workouts 
-           SET base_plan = COALESCE(base_plan, plan),
-               data = $2::jsonb, 
-               plan = $2::jsonb,
-               updated_at = NOW()
-           WHERE user_id = $1 AND id = $3::uuid`,
-          [uid, workoutData, plannedWorkoutId]
-        );
-      } else {
-        await q(
-          `UPDATE planned_workouts 
-           SET base_plan = COALESCE(base_plan, plan),
-               data = $2::jsonb, 
-               plan = $2::jsonb,
-               updated_at = NOW()
-           WHERE user_id = $1 AND workout_date = $3`,
-          [uid, workoutData, effectiveWorkoutDate]
-        );
-      }
-      
+      // Обновляем по конкретному rowId (как и основная ветка)
+      await q(
+        `UPDATE planned_workouts
+         SET base_plan = COALESCE(base_plan, plan),
+             data = $2::jsonb,
+             plan = $2::jsonb,
+             updated_at = NOW()
+         WHERE user_id = $1 AND id = $3::uuid`,
+        [uid, workoutData, rowId]
+      );
+
       console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
       console.log("=====================================================\n");
-      return res.json({
-        action: "recovery",
+      return {
+        action: "recovery" as const,
         notes: decision.notes,
         summary: {
           changed: true,
@@ -1320,7 +1317,7 @@ workoutGeneration.post(
           changeMeta: (recoveryWorkout as any)?.changeMeta,
         },
         workout: workoutData,
-      });
+      };
     }
     
     let finalDayIndex = originalDayIndex;
@@ -1546,7 +1543,12 @@ workoutGeneration.post(
 	                const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
 	                const rec = typeof id === "string" ? recs.get(id) : undefined;
 	                const suggested = rec?.newWeight;
-	                const suggestedWeight = toFinitePositiveNumberOrNull(suggested);
+	                let suggestedWeight = toFinitePositiveNumberOrNull(suggested);
+	                // Adjust weight for current intent (light = −15% for external loads)
+	                if (suggestedWeight && suggestedWeight > 0) {
+	                  const lt = (ex?.loadType as "bodyweight" | "external" | "assisted") || "external";
+	                  suggestedWeight = adjustWeightForIntent(suggestedWeight, readiness.intent, lt);
+	                }
 	                return {
 	                  ...ex,
 	                  // Keep stored weight if present; otherwise attach suggested (null for BW).
@@ -1670,33 +1672,23 @@ workoutGeneration.post(
     // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
     // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
     // Meta info preserves the swap history for tracking and future adjustments.
-    if (plannedWorkoutId) {
-      await q(
-        `UPDATE planned_workouts 
-         SET base_plan = COALESCE(base_plan, plan),
-             data = $2::jsonb, 
-             plan = $2::jsonb,
-             updated_at = NOW()
-         WHERE user_id = $1 AND id = $3::uuid`,
-        [uid, workoutData, plannedWorkoutId]
-      );
-    } else {
-      await q(
-        `UPDATE planned_workouts 
-         SET base_plan = COALESCE(base_plan, plan),
-             data = $2::jsonb, 
-             plan = $2::jsonb,
-             updated_at = NOW()
-         WHERE user_id = $1 AND workout_date = $3`,
-        [uid, workoutData, effectiveWorkoutDate]
-      );
-    }
+    // Всегда обновляем по конкретному id строки (rowId из SELECT ... FOR UPDATE)
+    // Это гарантирует, что обновится ровно 1 запись, даже если на дату попало несколько
+    await q(
+      `UPDATE planned_workouts
+       SET base_plan = COALESCE(base_plan, plan),
+           data = $2::jsonb,
+           plan = $2::jsonb,
+           updated_at = NOW()
+       WHERE user_id = $1 AND id = $3::uuid`,
+      [uid, workoutData, rowId]
+    );
     
     // If swapped, mark future occurrence of finalDayIndex as "already done today"
     if (decision.action === "swap_day") {
       // Find the next planned workout that corresponds to finalDayIndex and mark it as already done.
-      const nextRows = await q<{ workout_date: string }>(
-        `SELECT workout_date
+      const nextRows = await q<{ id: string; workout_date: string }>(
+        `SELECT id, workout_date
          FROM planned_workouts
          WHERE user_id = $1
            AND workout_date > $2
@@ -1707,6 +1699,7 @@ workoutGeneration.post(
       );
 
       if (nextRows.length) {
+        const nextRowId = nextRows[0].id;
         const nextDate = nextRows[0].workout_date;
         const markedAt = new Date().toISOString();
 
@@ -1721,8 +1714,8 @@ workoutGeneration.post(
            ),
            updated_at = NOW()
            WHERE user_id = $1
-             AND workout_date = $2`,
-          [uid, nextDate, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
+             AND id = $2::uuid`,
+          [uid, nextRowId, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
         );
 
         console.log(`      Marked future dayIndex=${finalDayIndex} on ${nextDate} as swapped`);
@@ -1739,7 +1732,7 @@ workoutGeneration.post(
       ...(workoutData.adaptationNotes || []),
     ];
 
-    res.json({
+    return {
       action: decision.action,
       notes: combinedNotes.length > 0 ? combinedNotes : undefined,
       summary: {
@@ -1757,7 +1750,11 @@ workoutGeneration.post(
       },
       workout: workoutData,
       swapInfo,
-    });
+    };
+
+    }); // end withTransaction
+
+    res.json(txResult);
   })
 );
 
