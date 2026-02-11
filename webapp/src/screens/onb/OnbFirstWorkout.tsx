@@ -10,6 +10,7 @@ import {
   type PlannedWorkout,
 } from "@/api/schedule";
 import { fireHapticImpact } from "@/utils/haptics";
+import { useTypewriterText } from "@/hooks/useTypewriterText";
 
 type Props = {
   onComplete: () => void;
@@ -47,6 +48,8 @@ const REMINDER_OPTIONS = [
   "Не напоминать",
   "За 1 день",
 ];
+const FORM_BUBBLE_TARGET = "План идеален! Давай запланируем первую тренировку.";
+const SUCCESS_BUBBLE_PREFIX = "Еее! Жду первую тренировку!\n";
 
 function buildDates(count: number, offsetDays: number): DateItem[] {
   const now = new Date();
@@ -564,6 +567,28 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
 
   const isLeaving = phase === "leaving";
   const isSuccess = phase === "success";
+  const formBubbleTyped = useTypewriterText(isSuccess ? "" : FORM_BUBBLE_TARGET, {
+    charIntervalMs: 30,
+    startDelayMs: 120,
+  });
+  const successBubbleTarget = `${SUCCESS_BUBBLE_PREFIX}${formattedDateTime}`;
+  const successBubbleTyped = useTypewriterText(isSuccess ? successBubbleTarget : "", {
+    charIntervalMs: 30,
+    startDelayMs: 120,
+  });
+
+  const renderSuccessBubbleText = () => {
+    const typed = successBubbleTyped || "\u00A0";
+    if (typed.length <= SUCCESS_BUBBLE_PREFIX.length) return <>{typed}</>;
+    return (
+      <>
+        {SUCCESS_BUBBLE_PREFIX}
+        <strong style={s.successDateBold}>
+          {typed.slice(SUCCESS_BUBBLE_PREFIX.length)}
+        </strong>
+      </>
+    );
+  };
 
   return (
     <div style={s.page}>
@@ -653,7 +678,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
             <img src={smotrchasImg} alt="" style={s.mascotImg} />
             <div style={s.bubble} className="speech-bubble">
               <span style={s.bubbleText}>
-                План идеален! Давай запланируем первую тренировку.
+                {formBubbleTyped || "\u00A0"}
               </span>
             </div>
           </div>
@@ -873,10 +898,7 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
         <div style={s.successWrap}>
           <div style={s.successBubbleWrap} className="onb-success-in">
             <div style={s.successBubble} className="speech-bubble-bottom">
-              <span style={s.successBubbleText}>
-                Еее! Жду первую тренировку!{"\n"}
-                <strong style={s.successDateBold}>{formattedDateTime}</strong>
-              </span>
+              <span style={s.successBubbleText}>{renderSuccessBubbleText()}</span>
             </div>
           </div>
 

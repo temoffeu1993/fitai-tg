@@ -6,6 +6,12 @@ import { getScheduleOverview } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import mascotImg from "@/assets/robonew.webp";
+import { useTypewriterText } from "@/hooks/useTypewriterText";
+
+const INTRO_BUBBLE_PREFIX = "Пару вопросов ";
+const INTRO_BUBBLE_STRONG = "о самочувствии";
+const INTRO_BUBBLE_SUFFIX = ", чтобы подстроить тренировку";
+const INTRO_BUBBLE_TARGET = `${INTRO_BUBBLE_PREFIX}${INTRO_BUBBLE_STRONG}${INTRO_BUBBLE_SUFFIX}`;
 
 export default function CheckIn() {
   const nav = useNavigate();
@@ -220,19 +226,6 @@ export default function CheckIn() {
     }
   };
 
-  const handleTopBack = () => {
-    if (skipLoading || loading) return;
-    if (returnTo) {
-      nav(returnTo);
-      return;
-    }
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      nav(-1);
-      return;
-    }
-    nav("/plan/one");
-  };
-
   const formQuestions = [
     "Как ты поспал?",
     "Какой уровень энергии?",
@@ -247,6 +240,36 @@ export default function CheckIn() {
     : summaryPhase === "thinking"
     ? "Секунду, адаптирую тренировку."
     : summary?.subtitle || "Готово. Тренировка адаптирована.";
+  const introBubbleTyped = useTypewriterText(
+    phase === "intro" ? INTRO_BUBBLE_TARGET : "",
+    { charIntervalMs: 26, startDelayMs: 120 }
+  );
+  const phaseBubbleTyped = useTypewriterText(
+    phase !== "intro" ? bubbleText : "",
+    { charIntervalMs: 26, startDelayMs: 60 }
+  );
+
+  const renderIntroBubbleText = () => {
+    const typed = introBubbleTyped || "\u00A0";
+    if (typed.length <= INTRO_BUBBLE_PREFIX.length) return <>{typed}</>;
+    if (typed.length <= INTRO_BUBBLE_PREFIX.length + INTRO_BUBBLE_STRONG.length) {
+      return (
+        <>
+          {INTRO_BUBBLE_PREFIX}
+          <span style={styles.introBubbleTextStrong}>
+            {typed.slice(INTRO_BUBBLE_PREFIX.length)}
+          </span>
+        </>
+      );
+    }
+    return (
+      <>
+        {INTRO_BUBBLE_PREFIX}
+        <span style={styles.introBubbleTextStrong}>{INTRO_BUBBLE_STRONG}</span>
+        {typed.slice(INTRO_BUBBLE_PREFIX.length + INTRO_BUBBLE_STRONG.length)}
+      </>
+    );
+  };
 
   const pageStyle =
     phase === "intro"
@@ -259,32 +282,9 @@ export default function CheckIn() {
       <style>{screenCss + thinkingCss}</style>
       {phase === "intro" ? (
         <>
-          <div style={styles.introTopRow}>
-            <button
-              type="button"
-              style={{ ...styles.introTopBackBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
-              onClick={handleTopBack}
-              disabled={skipLoading || loading}
-              aria-label="Назад"
-            >
-              Назад
-            </button>
-            <button
-              type="button"
-              style={{ ...styles.introSkipTopBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
-              onClick={handleSkipCheckIn}
-              disabled={skipLoading || loading}
-            >
-              {skipLoading ? "Открываем..." : "Пропустить"}
-            </button>
-          </div>
           <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.introBubble} className="speech-bubble-bottom">
-              <span style={styles.introBubbleText}>
-                Пару вопросов{" "}
-                <span style={styles.introBubbleTextStrong}>о самочувствии</span>
-                {", чтобы подстроить тренировку"}
-              </span>
+              <span style={styles.introBubbleText}>{renderIntroBubbleText()}</span>
             </div>
             <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
@@ -298,21 +298,32 @@ export default function CheckIn() {
             >
               Пройти чекин
             </button>
+            <button
+              type="button"
+              style={{ ...styles.introSkipBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
+              onClick={handleSkipCheckIn}
+              disabled={skipLoading || loading}
+            >
+              {skipLoading ? "Открываем..." : "Пропустить"}
+            </button>
           </section>
         </>
       ) : null}
 
       {phase !== "intro" ? (
-        <section style={styles.mascotRow} className={phase === "form" ? "onb-fade onb-fade-delay-2" : "onb-fade onb-fade-delay-1"}>
+        <section
+          style={styles.mascotRow}
+          className={phase === "form" ? "onb-fade-target onb-fade onb-fade-delay-1" : "onb-fade onb-fade-delay-1"}
+        >
           <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
           <div style={styles.bubble} className="speech-bubble">
-            <span style={styles.bubbleText}>{bubbleText}</span>
+            <span style={styles.bubbleText}>{phaseBubbleTyped || "\u00A0"}</span>
           </div>
         </section>
       ) : null}
 
       {phase === "form" ? (
-        <div style={styles.formWrap}>
+        <div style={styles.formWrap} className="onb-fade-target onb-fade onb-fade-delay-2">
           <CheckInForm
             onSubmit={handleSubmit}
             onBack={() => {
@@ -394,6 +405,7 @@ const screenCss = `
   0% { opacity: 0; transform: translateY(14px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+.onb-fade-target { opacity: 0; }
 .onb-fade { animation: onbFadeUp 520ms ease-out both; }
 .onb-fade-delay-1 { animation-delay: 80ms; }
 .onb-fade-delay-2 { animation-delay: 160ms; }
@@ -445,6 +457,7 @@ const screenCss = `
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
+  .onb-fade-target { opacity: 1 !important; transform: none !important; }
   .onb-fade,
   .onb-fade-delay-1,
   .onb-fade-delay-2,
@@ -588,6 +601,23 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
     paddingBottom: "clamp(24px, 3.2vh, 32px)",
+  },
+  introSkipBtn: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    padding: "10px 16px",
+    minHeight: 44,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    textAlign: "center",
+    WebkitTapHighlightColor: "transparent",
   },
   introTopRow: {
     position: "absolute",

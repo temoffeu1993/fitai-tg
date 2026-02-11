@@ -16,6 +16,7 @@ import {
 } from "@/utils/getSchemeDisplayData";
 import maleRobotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
+import { useTypewriterText } from "@/hooks/useTypewriterText";
 
 type Props = {
   onComplete: () => void;
@@ -496,6 +497,12 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
     leaveTimerRef.current = window.setTimeout(() => onBack(), 220);
   };
 
+  const typedBubbleText = useTypewriterText(bubbleText, {
+    charIntervalMs: 30,
+    startDelayMs: 120,
+  });
+  const bubbleDisplayText = typedBubbleText || "\u00A0";
+
   // Error state
   if (error && schemes.length === 0) {
     return (
@@ -518,7 +525,6 @@ export default function OnbSchemeSelection({ onComplete, onBack }: Props) {
   const recommendedScheme = isReady ? schemes.find(s => s.id === recommendedId) || null : null;
   const alternatives = isReady ? schemes.filter(s => s.id !== recommendedId) : [];
   const activeId = selectedId || recommendedId;
-  const bubbleDisplayText = bubbleText || "\u00A0";
 
   return (
     <div style={s.page} className={isLeaving ? "onb-leave" : undefined}>
