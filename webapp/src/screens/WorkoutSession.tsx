@@ -6,6 +6,7 @@ import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
+import { fireHapticImpact } from "@/utils/haptics";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
@@ -310,6 +311,12 @@ export default function WorkoutSession() {
   useEffect(() => {
     if (restSecLeft == null) return;
     if (restSecLeft <= 0) {
+      // Вибрация при окончании отдыха (Telegram HapticFeedback)
+      fireHapticImpact("heavy");
+      setTimeout(() => fireHapticImpact("heavy"), 150);
+      setTimeout(() => fireHapticImpact("medium"), 350);
+      // Уведомление через Telegram
+      try { (window as any)?.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); } catch {}
       setRestSecLeft(null);
       return;
     }
@@ -384,7 +391,7 @@ export default function WorkoutSession() {
     return false;
   };
 
-  const onSwipeStart = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+  const onSwipeStart = (e: TouchEvent<HTMLElement> | PointerEvent<HTMLElement>) => {
     if (isNoSwipeTarget(e.target)) return;
     const p =
       "touches" in e && e.touches?.[0]
@@ -396,7 +403,7 @@ export default function WorkoutSession() {
     swipeStart.current = { ...p, at: Date.now() };
   };
 
-  const onSwipeEnd = (e: TouchEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>) => {
+  const onSwipeEnd = (e: TouchEvent<HTMLElement> | PointerEvent<HTMLElement>) => {
     const start = swipeStart.current;
     swipeStart.current = null;
     if (!start) return;
@@ -768,7 +775,7 @@ export default function WorkoutSession() {
 		        durationMin,
 		      });
 		      saveResponse = result;
-		      if (typeof result?.sessionId === "string") savedSessionId = result.sessionId;
+		      if (typeof (result as any)?.sessionId === "string") savedSessionId = (result as any).sessionId;
 		      saveOk = true;
 		    } catch {
 	      // не блокируем UX если сеть/сервер упали
@@ -834,754 +841,628 @@ export default function WorkoutSession() {
 	    }
 	  };
 
+  /* ---- computed helpers for focus-card view ---- */
+  const totalSetsAll = items.reduce((s, it) => s + it.sets.length, 0);
+  const doneSetsAll = items.reduce((s, it) => s + it.sets.filter(x => x.done).length, 0);
+  const setsProgress = totalSetsAll ? Math.round((doneSetsAll / totalSetsAll) * 100) : 0;
+  const [miniMap, setMiniMap] = useState(false);
+
+  // Flatten current exercise set index for focus-card dot navigation
+  const currentItem = items[activeIndex];
+  const currentSetCount = currentItem?.sets.length ?? 0;
+  const [focusSetIdx, setFocusSetIdx] = useState(0);
+
+  // Keep focusSetIdx in bounds
+  useEffect(() => {
+    if (focusSetIdx >= currentSetCount) setFocusSetIdx(Math.max(0, currentSetCount - 1));
+  }, [currentSetCount, focusSetIdx]);
+
+  // Auto-advance to next undone set on exercise change
+  useEffect(() => {
+    if (!currentItem) return;
+    const firstUndone = currentItem.sets.findIndex(s => !s.done);
+    setFocusSetIdx(firstUndone >= 0 ? firstUndone : 0);
+  }, [activeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ====== Dark theme styles (dk) ====== */
+  const accentColor = "#d7ff52";
+  const dk: Record<string, React.CSSProperties> = {
+    page: { minHeight: "100vh", background: "#0a0e1a", color: "#fff", fontFamily: "system-ui, -apple-system, Inter, Roboto", position: "relative", paddingBottom: 80, overflow: "hidden" },
+    header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px 8px", position: "sticky", top: 0, zIndex: 100, background: "rgba(10,14,26,0.92)", backdropFilter: "blur(12px)" },
+    backBtn: { width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", padding: 0, fontSize: 16 },
+    headerCenter: { flex: 1, textAlign: "center", minWidth: 0 },
+    headerTitle: { fontSize: 15, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+    headerSub: { fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 1 },
+    timerPill: { display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "5px 10px", fontSize: 13, fontWeight: 600, color: "#fff", fontVariantNumeric: "tabular-nums" },
+    timerToggle: { background: "transparent", border: "none", color: accentColor, fontSize: 12, cursor: "pointer", padding: "2px 4px", lineHeight: 1 },
+    progressWrap: { height: 3, background: "rgba(255,255,255,0.06)", position: "relative" },
+    progressFill: { position: "absolute", left: 0, top: 0, bottom: 0, background: `linear-gradient(90deg, ${accentColor}, #a3e635)`, borderRadius: 4, transition: "width 0.4s ease" },
+    main: { flex: 1, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12, touchAction: "pan-y" },
+    focusCard: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "20px 16px", display: "grid", gap: 14 },
+    exHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
+    exName: { fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.2 },
+    exMeta: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 3 },
+    menuBtn: { width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", cursor: "pointer", display: "grid", placeItems: "center", padding: 0, flexShrink: 0 },
+    setIndicator: { display: "flex", alignItems: "baseline", gap: 6 },
+    setNum: { fontSize: 28, fontWeight: 800, color: accentColor, lineHeight: 1 },
+    setOf: { fontSize: 14, color: "rgba(255,255,255,0.35)", fontWeight: 500 },
+    prevHint: { fontSize: 12, color: "rgba(255,255,255,0.3)", fontStyle: "italic", marginTop: -6 },
+    bigInputWrap: { display: "grid", gap: 4 },
+    bigInputLabel: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", letterSpacing: "0.05em" },
+    bigInput: { width: "100%", height: 72, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, color: "#fff", fontSize: 28, fontWeight: 800, textAlign: "center", boxSizing: "border-box", outline: "none", caretColor: accentColor },
+    steppers: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 4 },
+    stepBtn: { height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 700, cursor: "pointer" },
+    errorHint: { fontSize: 12, color: "#ef4444", fontWeight: 600, textAlign: "center", padding: "4px 0" },
+    doneBtn: { width: "100%", height: 56, borderRadius: 16, border: "none", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", fontSize: 17, fontWeight: 700, cursor: "pointer", transition: "all 0.2s ease" },
+    doneBtnActive: { background: accentColor, color: "#0a0e1a" },
+    effortWrap: { display: "grid", gap: 8 },
+    effortLabel: { fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.04em" },
+    effortBtns: { display: "flex", gap: 8, justifyContent: "center" },
+    effortBtn: { width: 48, height: 48, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", fontSize: 20, cursor: "pointer", display: "grid", placeItems: "center", padding: 0, transition: "all 0.15s ease" },
+    effortBtnActive: { background: "rgba(215,255,82,0.15)", borderColor: accentColor, boxShadow: `0 0 12px rgba(215,255,82,0.2)` },
+    effortDesc: { fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center" },
+    setDots: { display: "flex", justifyContent: "center", gap: 8, paddingTop: 4 },
+    setDot: { width: 10, height: 10, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", cursor: "pointer", padding: 0, transition: "all 0.15s ease" },
+    setDotDone: { background: accentColor, borderColor: accentColor },
+    setDotActive: { borderColor: "#fff", boxShadow: "0 0 0 3px rgba(255,255,255,0.15)", transform: "scale(1.3)" },
+    quickActions: { display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" },
+    qBtn: { border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+    exDoneBtn: { width: "100%", height: 48, borderRadius: 14, border: "none", background: `linear-gradient(135deg, ${accentColor}, #a3e635)`, color: "#0a0e1a", fontSize: 15, fontWeight: 800, cursor: "pointer" },
+    // Rest overlay
+    restOverlay: { position: "fixed", inset: 0, background: "rgba(10,14,26,0.92)", backdropFilter: "blur(16px)", zIndex: 200, display: "grid", placeItems: "center", padding: 24 },
+    restCard: { textAlign: "center", display: "grid", gap: 8, justifyItems: "center" },
+    restLabel: { fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" },
+    restTime: { fontSize: 64, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums", lineHeight: 1 },
+    restRing: { margin: "8px 0" },
+    restBtn: { border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer" },
+    // Mini-map
+    miniMapOverlay: { position: "fixed", inset: 0, background: "rgba(10,14,26,0.85)", backdropFilter: "blur(10px)", zIndex: 300, display: "grid", placeItems: "center", padding: 20 },
+    miniMapCard: { width: "min(90vw, 400px)", maxHeight: "75vh", overflowY: "auto", background: "#141926", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 16, display: "grid", gap: 4 },
+    miniMapHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 },
+    miniMapClose: { width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 14 },
+    miniMapRow: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", color: "#fff", cursor: "pointer", width: "100%", textAlign: "left", fontSize: 14, transition: "background 0.15s" },
+    miniMapRowActive: { background: "rgba(215,255,82,0.08)", borderRadius: 12 },
+    miniMapRowDone: { opacity: 0.5 },
+    miniMapIcon: { fontSize: 14, width: 20, textAlign: "center", flexShrink: 0, color: accentColor },
+    miniMapName: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 },
+    miniMapSets: { fontSize: 12, color: "rgba(255,255,255,0.35)", flexShrink: 0 },
+    // Modal
+    modalOverlay: { position: "fixed", inset: 0, background: "rgba(10,14,26,0.88)", backdropFilter: "blur(12px)", display: "grid", placeItems: "center", padding: 20, zIndex: 400 },
+    modalCard: { width: "min(90vw, 380px)", background: "#141926", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: 20, display: "grid", gap: 12 },
+    modalTitle: { fontSize: 18, fontWeight: 800, color: "#fff" },
+    modalText: { fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 },
+    modalPrimary: { width: "100%", height: 48, borderRadius: 14, border: "none", background: accentColor, color: "#0a0e1a", fontSize: 15, fontWeight: 700, cursor: "pointer" },
+    modalDanger: { width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: 14, fontWeight: 600, cursor: "pointer" },
+    modalCancel: { width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer" },
+    // Bottom sheet
+    sheetCard: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#141926", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "22px 22px 0 0", padding: "16px 16px 32px", maxHeight: "70vh", overflowY: "auto", zIndex: 500 },
+    sheetClose: { width: 32, height: 32, borderRadius: 10, border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 14 },
+    sheetError: { fontSize: 13, color: "#ef4444", padding: "8px 12px", background: "rgba(239,68,68,0.1)", borderRadius: 10, marginBottom: 8 },
+    sheetBtn: { width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" },
+    sheetBtnDanger: { width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#ef4444", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" },
+    sheetBtnBack: { width: "100%", padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center" },
+    sheetHint: { fontSize: 14, color: "rgba(255,255,255,0.5)", fontWeight: 600 },
+    // Finish modal
+    finishLabel: { display: "grid", gap: 4 },
+    finishLabelText: { fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" },
+    finishInput: { width: "100%", height: 44, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, padding: "0 12px", boxSizing: "border-box" },
+    // Footer
+    footer: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 16px 20px", background: "linear-gradient(to top, #0a0e1a 60%, transparent)", zIndex: 50 },
+    footerBtn: { width: "100%", height: 56, borderRadius: 16, border: "none", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", fontSize: 16, fontWeight: 700, cursor: "pointer", transition: "all 0.2s ease" },
+    footerBtnReady: { background: `linear-gradient(135deg, ${accentColor}, #a3e635)`, color: "#0a0e1a", boxShadow: `0 8px 24px rgba(215,255,82,0.25)` },
+  };
+
+  const darkCSS = `
+    * { box-sizing: border-box; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    input:focus { outline: none; border-color: ${accentColor} !important; box-shadow: 0 0 0 3px rgba(215,255,82,0.15) !important; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    .dk-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.12); border-radius: 999px; outline: none; }
+    .dk-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: ${accentColor}; cursor: pointer; border: 2px solid #0a0e1a; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .dk-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: ${accentColor}; cursor: pointer; border: 2px solid #0a0e1a; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+    button:disabled { opacity: 0.35; cursor: default; }
+    button:active:not(:disabled) { transform: scale(0.97); }
+  `;
+
   return (
-    <div style={page.outer}>
-      <div style={page.inner}>
-      <SoftGlowStyles />
-      <style>{noSpinnersCSS + lavaCSS + responsiveCSS + lockCSS + confettiCSS + sliderCss}</style>
+    <div style={dk.page}>
+      <style>{darkCSS}</style>
 
-      {/* HERO */}
-      <section style={s.heroCard}>
-        <div style={s.heroContent}>
-          <div style={s.heroHeader}>
-            <button style={btn.back} onClick={() => setExitConfirm(true)} aria-label="Назад к генерации">←</button>
-            <span style={s.pill}>Тренировка</span>
-            <span style={{ width: 34 }} />
+      {/* ====== COMPACT HEADER ====== */}
+      <header style={dk.header}>
+        <button style={dk.backBtn} onClick={() => setExitConfirm(true)} aria-label="Назад">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div style={dk.headerCenter}>
+          <div style={dk.headerTitle}>{plan.title}</div>
+          <div style={dk.headerSub}>
+            Упр. {activeIndex + 1}/{items.length} · Сет {doneSetsAll}/{totalSetsAll}
           </div>
-
-          <div style={s.heroDate}>
-            {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
-          </div>
-          <div style={s.heroTitle}>{plan.title}</div>
-          <div style={s.heroSubtitle}>
-            Держи темп. Заполняй подходы по мере выполнения.
-          </div>
-
-          {/* прогресс «лава» */}
-          <div style={s.heroCtas}>
-            <div style={progressBar.wrap}>
-              <div style={progressBar.track} className="lava-track">
-                <div style={{ ...progressBar.fill, width: `${progress}%` }} className="lava-fill" />
-                <div style={{ ...progressBar.flame, left: `calc(${progress}% - 14px)` }} className="flame-dot">
-                  <span className="flame-emoji">🔥</span>
-                </div>
-              </div>
-              <div style={progressBar.meta}>
-                <span />
-                <span>{progress}%</span>
-              </div>
-            </div>
-
-            <button
-              className="soft-glow"
-              style={{
-                ...s.primaryBtn,
-                opacity: exercisesDone === exercisesTotal ? 1 : 0.5,
-                pointerEvents: exercisesDone === exercisesTotal ? "auto" : "none",
-              }}
-              onClick={handleComplete}
-              disabled={exercisesDone !== exercisesTotal}
-            >
-              {finishModal ? "Подтвердить" : "Сохранить тренировку"}
-            </button>
-          {exercisesDone !== exercisesTotal && (
-            <div style={s.completeHint}>Отметь все упражнения выполненными, чтобы сохранить тренировку</div>
-          )}
         </div>
-        </div>
-      </section>
-
-      {/* Упражнения */}
-      <main style={{ display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <button type="button" style={btn.ghost} onClick={goPrev} disabled={activeIndex <= 0} data-noswipe="1">
-            ←
-          </button>
-          <div style={{ display: "grid", gap: 4, textAlign: "center" }}>
-            <div style={{ fontWeight: 900, color: "#0B1220", opacity: 0.9, fontSize: 14 }}>
-              Упражнение {Math.min(items.length, activeIndex + 1)} / {items.length || 0}
-            </div>
-            <div style={{ display: "flex", gap: 6, justifyContent: "center", alignItems: "center" }}>
-              {items.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => goToIndex(idx)}
-                  style={{
-                    width: idx === activeIndex ? 24 : 8,
-                    height: 8,
-                    borderRadius: 999,
-                    border: "none",
-                    background: items[idx].done
-                      ? "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(16,185,129,0.9))"
-                      : idx === activeIndex
-                        ? "rgba(15,23,42,0.9)"
-                        : "rgba(15,23,42,0.25)",
-                    cursor: "pointer",
-                    padding: 0,
-                    transition: "all 0.2s ease",
-                  }}
-                  aria-label={`Перейти к упражнению ${idx + 1}`}
-                  data-noswipe="1"
-                />
-              ))}
-            </div>
-          </div>
+        <div style={dk.timerPill}>
+          <span style={{ fontSize: 11, opacity: 0.5 }}>⏱</span>
+          <span>{formatClock(elapsed)}</span>
           <button
             type="button"
-            style={btn.ghost}
-            onClick={goNext}
-            disabled={activeIndex >= items.length - 1}
-            data-noswipe="1"
-          >
-            →
-          </button>
+            style={dk.timerToggle}
+            onClick={() => setRunning(r => !r)}
+            aria-label={running ? "Пауза" : "Продолжить"}
+          >{running ? "⏸" : "▶"}</button>
         </div>
+      </header>
 
-        {restSecLeft != null ? (() => {
-          const activeItem = items[activeIndex];
-          const totalRest = activeItem?.restSec || 90;
-          const progressPercent = Math.max(0, Math.min(100, ((totalRest - restSecLeft) / totalRest) * 100));
-          return (
-            <div
-              style={{
-                position: "sticky",
-                top: 10,
-                zIndex: 10,
-                background: "rgba(255,255,255,0.95)",
-                border: "2px solid rgba(34,197,94,0.3)",
-                borderRadius: 18,
-                padding: "14px 16px",
-                display: "grid",
-                gap: 8,
-                backdropFilter: "blur(10px)",
-                boxShadow: "0 8px 24px rgba(34,197,94,0.15)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <div style={{ fontWeight: 900, color: "#0B1220", fontSize: 18 }}>⏱ Отдых: {formatClock(restSecLeft)}</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    type="button"
-                    style={{ ...btn.ghost, padding: "8px 12px", fontSize: 13 }}
-                    onClick={() => setRestSecLeft((s) => (s == null ? null : s + 15))}
-                    data-noswipe="1"
-                  >
-                    +15с
-                  </button>
-                  <button
-                    type="button"
-                    style={{ ...btn.ghost, padding: "8px 12px", fontSize: 13 }}
-                    onClick={() => setRestSecLeft(null)}
-                    data-noswipe="1"
-                  >
-                    ✕
-                  </button>
-                </div>
+      {/* progress bar */}
+      <div style={dk.progressWrap}>
+        <div style={{ ...dk.progressFill, width: `${setsProgress}%` }} />
+      </div>
+
+      {/* ====== REST TIMER FULLSCREEN ====== */}
+      {restSecLeft != null && (() => {
+        const totalRest = currentItem?.restSec || 90;
+        const pct = Math.max(0, Math.min(100, ((totalRest - restSecLeft) / totalRest) * 100));
+        return (
+          <div style={dk.restOverlay} onClick={() => setRestSecLeft(null)}>
+            <div style={dk.restCard} onClick={e => e.stopPropagation()}>
+              <div style={dk.restLabel}>Отдых</div>
+              <div style={dk.restTime}>{formatClock(restSecLeft)}</div>
+              <div style={dk.restRing}>
+                <svg viewBox="0 0 100 100" width="120" height="120">
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                  <circle
+                    cx="50" cy="50" r="44"
+                    fill="none" stroke="#d7ff52" strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 44}`}
+                    strokeDashoffset={`${2 * Math.PI * 44 * (1 - pct / 100)}`}
+                    transform="rotate(-90 50 50)"
+                    style={{ transition: "stroke-dashoffset 0.4s ease" }}
+                  />
+                </svg>
               </div>
-              <div style={{
-                width: "100%",
-                height: 6,
-                borderRadius: 999,
-                background: "rgba(34,197,94,0.15)",
-                overflow: "hidden"
-              }}>
-                <div style={{
-                  height: "100%",
-                  width: `${progressPercent}%`,
-                  background: "linear-gradient(90deg, rgba(34,197,94,0.9), rgba(16,185,129,0.9))",
-                  borderRadius: 999,
-                  transition: "width 0.3s ease",
-                }} />
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button style={dk.restBtn} onClick={() => setRestSecLeft(s => s == null ? null : s + 15)}>+15с</button>
+                <button style={dk.restBtn} onClick={() => setRestSecLeft(s => s == null ? null : Math.max(0, s - 15))}>−15с</button>
+                <button style={{ ...dk.restBtn, background: "rgba(215,255,82,0.15)", color: "#d7ff52" }} onClick={() => setRestSecLeft(null)}>Пропустить</button>
               </div>
             </div>
-          );
-        })() : null}
+          </div>
+        );
+      })()}
 
+      {/* ====== FOCUS CARD ====== */}
+      <main
+        style={dk.main}
+        onTouchStart={onSwipeStart}
+        onTouchEnd={onSwipeEnd}
+        onPointerDown={onSwipeStart}
+        onPointerUp={onSwipeEnd}
+      >
         {(() => {
           const ei = activeIndex;
           const it = items[ei];
           if (!it) return null;
 
+          const si = focusSetIdx;
+          const s = it.sets[si];
+          if (!s) return null;
+
           const isBodyweight = isBodyweightLike(it.name + " " + (it.pattern || ""));
-          const hasExplicitWeight =
-            typeof it.targetWeight === "number" ||
-            (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
+          const hasExplicitWeight = typeof it.targetWeight === "number" || (typeof it.targetWeight === "string" && /\d/.test(it.targetWeight));
           const loadType = it.loadType || (!isBodyweight || hasExplicitWeight ? "external" : "bodyweight");
           const showWeightInput = loadType !== "bodyweight";
-          const requiresWeight =
-            typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
-          const weightPlaceholder =
-            typeof it.weightLabel === "string" && it.weightLabel.trim()
-              ? it.weightLabel.toLowerCase().includes("помощ")
-                ? "помощь кг"
-                : "кг"
-              : loadType === "assisted"
-                ? "помощь кг"
-                : "кг";
+          const requiresWeight = typeof it.requiresWeightInput === "boolean" ? it.requiresWeightInput : showWeightInput;
+          const weightPlaceholder = typeof it.weightLabel === "string" && it.weightLabel.trim()
+            ? it.weightLabel.toLowerCase().includes("помощ") ? "помощь" : "кг"
+            : loadType === "assisted" ? "помощь" : "кг";
           const recKg = formatKg(it.targetWeight);
           const isAssist = weightPlaceholder.includes("помощ");
           const weightStep = isAssist ? 5 : 2.5;
 
+          const advanceToNextSet = () => {
+            // Auto-advance: next undone set in this exercise, or next exercise
+            const nextUndone = it.sets.findIndex((ss, idx) => idx > si && !ss.done);
+            if (nextUndone >= 0) {
+              setFocusSetIdx(nextUndone);
+            } else if (ei < items.length - 1) {
+              // Check if all sets done → mark exercise done if effort set
+              const allSetsDone = it.sets.every(ss => ss.done);
+              if (allSetsDone && it.effort) {
+                setItems(prev => {
+                  const next = structuredClone(prev);
+                  next[ei].done = true;
+                  return next;
+                });
+              }
+              goNext();
+            }
+          };
+
+          const handleSetDone = () => {
+            const hasReps = s.reps != null && s.reps !== undefined;
+            const hasWeight = !requiresWeight || (s.weight != null && s.weight !== undefined);
+            if (!(hasReps && hasWeight) && !s.done) {
+              fireHapticImpact("rigid");
+              try { (window as any)?.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("error"); } catch {}
+              setBlockedSet({ ei, si });
+              if (blockTimer.current) window.clearTimeout(blockTimer.current);
+              blockTimer.current = window.setTimeout(() => setBlockedSet(null), 2200);
+              return;
+            }
+            toggleSetDone(ei, si, requiresWeight);
+            if (!s.done) {
+              fireHapticImpact("medium");
+              // Will become done → advance
+              setTimeout(() => {
+                if (restEnabled && it.restSec) {
+                  // rest timer will show, advance happens after rest or skip
+                } else {
+                  advanceToNextSet();
+                }
+              }, 300);
+            }
+          };
+
           return (
-            <section
-              key={ei}
-              style={{ ...card.wrap, touchAction: "pan-y" }}
-              className={it.done ? "locked" : ""}
-              onTouchStart={onSwipeStart}
-              onTouchEnd={onSwipeEnd}
-              onPointerDown={onSwipeStart}
-              onPointerUp={onSwipeEnd}
-            >
-              <button
-                type="button"
-                onClick={() => toggleExerciseDone(ei, requiresWeight)}
-                className="check-toggle"
-                style={{ ...checkBtn.base, ...(it.done ? checkBtn.active : {}) }}
-                aria-label={it.done ? "Отменить отметку" : "Отметить выполнено"}
-                data-noswipe="1"
-              >
-                ✓
-              </button>
-              {blockedCheck === ei && <div style={checkBtn.hint}>Заполни повторы, вес и отметь легко или тяжело</div>}
-              <div style={card.head}>
-                <div style={{ width: "100%" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <div style={card.title}>{it.name}</div>
-                    <button
-                      type="button"
-                      onClick={() => openExerciseMenu(ei)}
-                      style={{
-                        border: "1px solid rgba(0,0,0,0.12)",
-                        background: "rgba(255,255,255,0.85)",
-                        color: "#0f172a",
-                        borderRadius: 12,
-                        padding: "8px 10px",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                      }}
-                      aria-label="Опции упражнения"
-                      data-noswipe="1"
-                    >
-                      ⋮
-                    </button>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                    <div style={card.metaChips}>
-                      <Chip label={`${it.sets.length}×`} />
-                      <Chip label={`повт. ${formatRepsLabel(it.targetReps)}`} />
-                      {recKg ? <Chip label={isAssist ? `помощь ${recKg}` : `реком. ${recKg}`} /> : null}
-                      {it.restSec ? <Chip label={`отдых ${it.restSec}с`} /> : null}
-                    </div>
-                    {(() => {
-                      const doneSets = it.sets.filter(s => s.done).length;
-                      const totalSets = it.sets.length;
-                      return (
-                        <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: "auto" }}>
-                          {it.sets.map((s, si) => (
-                            <div
-                              key={si}
-                              style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: s.done ? "rgba(34,197,94,0.9)" : "rgba(148,163,184,0.3)",
-                                transition: "background 0.2s ease",
-                              }}
-                              title={`Сет ${si + 1}: ${s.done ? "выполнен" : "не выполнен"}`}
-                            />
-                          ))}
-                        </div>
-                      );
-                    })()}
+            <div style={dk.focusCard}>
+              {/* Exercise name + menu */}
+              <div style={dk.exHeader}>
+                <div>
+                  <div style={dk.exName}>{it.name}</div>
+                  <div style={dk.exMeta}>
+                    {it.sets.length}×{formatRepsLabel(it.targetReps)}
+                    {recKg ? ` · ${isAssist ? "помощь" : "реком."} ${recKg}` : ""}
+                    {it.restSec ? ` · отдых ${it.restSec}с` : ""}
                   </div>
                 </div>
+                <button type="button" style={dk.menuBtn} onClick={() => openExerciseMenu(ei)} data-noswipe="1" aria-label="Меню">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                </button>
               </div>
 
-              <div style={{ display: "grid", gap: 8 }} aria-disabled={it.done}>
-                {it.sets.map((s, si) => (
-                  <div key={si} style={setrow.wrap} className={s.done ? "set-done set-row" : "set-row"}>
-                    <div style={setrow.label} className="set-label">
-                      Сет {si + 1}
-                    </div>
+              {/* Set indicator */}
+              <div style={dk.setIndicator}>
+                <span style={dk.setNum}>Подход {si + 1}</span>
+                <span style={dk.setOf}>из {it.sets.length}</span>
+              </div>
 
-                    <div
-                      style={{
-                        ...setrow.inputs,
-                        display: "grid",
-                        gridTemplateColumns: showWeightInput ? "minmax(0,1fr) minmax(0,1fr) auto" : "minmax(0,1fr) auto",
-                      }}
-                      className="sets-grid"
-                    >
-                      <StepperNum
-                        value={s.reps}
-                        placeholder={
-                          it.targetReps
-                            ? Array.isArray(it.targetReps)
-                              ? it.targetReps.join("-")
-                              : String(it.targetReps)
-                            : "повт./сек"
-                        }
-                        onChange={(v) => setValue(ei, si, "reps", v)}
-                        onMinus={() => bump(ei, si, "reps", -1)}
-                        onPlus={() => bump(ei, si, "reps", +1)}
-                        disabled={it.done || !!s.done}
-                        stepLabel="±1"
-                        hasError={blockedSet?.ei === ei && blockedSet?.si === si && !s.reps}
-                      />
-                      {showWeightInput ? (
-                        <StepperNum
-                          value={s.weight}
-                          placeholder={weightPlaceholder}
-                          onChange={(v) => setValue(ei, si, "weight", v)}
-                          onMinus={() => bump(ei, si, "weight", -weightStep)}
-                          onPlus={() => bump(ei, si, "weight", +weightStep)}
-                          disabled={it.done || !!s.done}
-                          stepLabel={`±${weightStep}`}
-                          hasError={blockedSet?.ei === ei && blockedSet?.si === si && requiresWeight && !s.weight}
-                        />
-                      ) : null}
+              {/* Previous performance hint */}
+              {it.targetWeight || it.targetReps ? (
+                <div style={dk.prevHint}>
+                  прошлый раз: {formatRepsLabel(it.targetReps)} × {recKg || "—"}
+                </div>
+              ) : null}
 
-                      <button
-                        type="button"
-                        onClick={() => toggleSetDone(ei, si, requiresWeight)}
-                        style={{
-                          border: "1px solid rgba(0,0,0,0.12)",
-                          background: s.done ? "rgba(34,197,94,0.14)" : "rgba(15,23,42,0.04)",
-                          color: "#0f172a",
-                          borderRadius: 12,
-                          padding: "10px 10px",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                          minWidth: 48,
-                        }}
-                        aria-label={s.done ? "Отменить сет" : "Отметить сет"}
-                        data-noswipe="1"
-                      >
-                        ✓
-                      </button>
-                    </div>
-
-                    {blockedSet?.ei === ei && blockedSet?.si === si ? (
-                      <div style={{ gridColumn: "1 / -1", marginTop: 6, fontSize: 12, fontWeight: 800, color: "#7f1d1d" }}>
-                        Заполни повторы{requiresWeight ? " и вес" : ""} перед отметкой сета
-                      </div>
-                    ) : null}
+              {/* Big inputs */}
+              <div style={{ display: "grid", gridTemplateColumns: showWeightInput ? "1fr 1fr" : "1fr", gap: 12, marginTop: 8 }}>
+                <div style={dk.bigInputWrap}>
+                  <label style={dk.bigInputLabel}>повторы</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    style={{
+                      ...dk.bigInput,
+                      ...(blockedSet?.ei === ei && blockedSet?.si === si && !s.reps ? { border: "2px solid #ef4444" } : {}),
+                    }}
+                    value={s.reps ?? ""}
+                    placeholder={it.targetReps ? (Array.isArray(it.targetReps) ? it.targetReps.join("-") : String(it.targetReps)) : "—"}
+                    onChange={e => setValue(ei, si, "reps", e.target.value)}
+                    disabled={it.done || !!s.done}
+                    data-noswipe="1"
+                  />
+                  <div style={dk.steppers}>
+                    <button style={dk.stepBtn} onClick={() => bump(ei, si, "reps", -1)} disabled={it.done || !!s.done} data-noswipe="1">−</button>
+                    <button style={dk.stepBtn} onClick={() => bump(ei, si, "reps", +1)} disabled={it.done || !!s.done} data-noswipe="1">+</button>
                   </div>
+                </div>
+                {showWeightInput && (
+                  <div style={dk.bigInputWrap}>
+                    <label style={dk.bigInputLabel}>{weightPlaceholder}</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      style={{
+                        ...dk.bigInput,
+                        ...(blockedSet?.ei === ei && blockedSet?.si === si && requiresWeight && !s.weight ? { border: "2px solid #ef4444" } : {}),
+                      }}
+                      value={s.weight ?? ""}
+                      placeholder="—"
+                      onChange={e => setValue(ei, si, "weight", e.target.value)}
+                      disabled={it.done || !!s.done}
+                      data-noswipe="1"
+                    />
+                    <div style={dk.steppers}>
+                      <button style={dk.stepBtn} onClick={() => bump(ei, si, "weight", -weightStep)} disabled={it.done || !!s.done} data-noswipe="1">−{weightStep}</button>
+                      <button style={dk.stepBtn} onClick={() => bump(ei, si, "weight", +weightStep)} disabled={it.done || !!s.done} data-noswipe="1">+{weightStep}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {blockedSet?.ei === ei && blockedSet?.si === si && (
+                <div style={dk.errorHint}>Заполни повторы{requiresWeight ? " и вес" : ""}</div>
+              )}
+
+              {/* Done button */}
+              <button
+                type="button"
+                style={{
+                  ...dk.doneBtn,
+                  ...(s.done ? dk.doneBtnActive : {}),
+                }}
+                onClick={handleSetDone}
+                data-noswipe="1"
+              >
+                {s.done ? "✓ Выполнено" : "Готово"}
+              </button>
+
+              {/* Effort row — buttons */}
+              <div style={dk.effortWrap}>
+                <div style={dk.effortLabel}>Ощущение</div>
+                <div style={dk.effortBtns}>
+                  {effortOptions.map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      style={{
+                        ...dk.effortBtn,
+                        ...(it.effort === opt.key ? dk.effortBtnActive : {}),
+                      }}
+                      onClick={() => setEffort(ei, opt.key)}
+                      data-noswipe="1"
+                      title={opt.label}
+                    >
+                      {opt.icon}
+                    </button>
+                  ))}
+                </div>
+                {it.effort && (
+                  <div style={dk.effortDesc}>
+                    {effortOptions.find(o => o.key === it.effort)?.label}: {effortOptions.find(o => o.key === it.effort)?.desc}
+                  </div>
+                )}
+              </div>
+
+              {/* Set dots */}
+              <div style={dk.setDots}>
+                {it.sets.map((ss, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    style={{
+                      ...dk.setDot,
+                      ...(ss.done ? dk.setDotDone : {}),
+                      ...(idx === si ? dk.setDotActive : {}),
+                    }}
+                    onClick={() => setFocusSetIdx(idx)}
+                    data-noswipe="1"
+                    aria-label={`Сет ${idx + 1}`}
+                  />
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  style={btn.ghost}
-                  disabled={it.done}
-                  data-noswipe="1"
-                  onClick={() =>
-                    setItems((prev) => {
-                      const next = structuredClone(prev);
-                      const prevSets = next[ei].sets || [];
-                      const last = prevSets.length ? prevSets[prevSets.length - 1] : null;
-                      const lastWeight =
-                        typeof last?.weight === "number" && Number.isFinite(last.weight) && last.weight > 0
-                          ? last.weight
-                          : null;
-                      const targetWeight = parseWeightNumber(next[ei].targetWeight);
-                      const preset = lastWeight ?? (targetWeight != null && targetWeight > 0 ? targetWeight : null);
-                      next[ei].sets.push({ reps: last?.reps, weight: preset ?? undefined, done: false });
-                      return next;
-                    })
-                  }
-                >
-                  ➕ Добавить сет
+              {/* Quick actions */}
+              <div style={dk.quickActions}>
+                <button style={dk.qBtn} disabled={it.done} data-noswipe="1" onClick={() => {
+                  setItems(prev => {
+                    const next = structuredClone(prev);
+                    const last = next[ei].sets[next[ei].sets.length - 1];
+                    const targetWeight = parseWeightNumber(next[ei].targetWeight);
+                    const preset = (last?.weight && Number.isFinite(last.weight) && last.weight > 0) ? last.weight : (targetWeight != null && targetWeight > 0 ? targetWeight : undefined);
+                    next[ei].sets.push({ reps: last?.reps, weight: preset, done: false });
+                    return next;
+                  });
+                }}>+ Сет</button>
+                <button style={dk.qBtn} disabled={it.done || it.sets.length <= 1} data-noswipe="1" onClick={() => {
+                  setItems(prev => { const next = structuredClone(prev); next[ei].sets.pop(); return next; });
+                  if (focusSetIdx >= it.sets.length - 1) setFocusSetIdx(Math.max(0, it.sets.length - 2));
+                }}>− Сет</button>
+                <button style={dk.qBtn} data-noswipe="1" onClick={() => setRestEnabled(v => !v)}>
+                  {restEnabled ? "⏱ Авто" : "⏱ Выкл"}
                 </button>
-                <button
-                  type="button"
-                  style={btn.ghost}
-                  disabled={it.done || it.sets.length <= 1}
-                  data-noswipe="1"
-                  onClick={() =>
-                    setItems((prev) => {
-                      const next = structuredClone(prev);
-                      next[ei].sets.pop();
-                      return next;
-                    })
-                  }
-                >
-                  ➖ Удалить сет
-                </button>
-                <button
-                  type="button"
-                  style={btn.ghost}
-                  data-noswipe="1"
-                  onClick={() => setRestEnabled((v) => !v)}
-                >
-                  {restEnabled ? "Отдых: авто ✅" : "Отдых: авто ☐"}
+                <button style={dk.qBtn} data-noswipe="1" onClick={() => setMiniMap(true)}>
+                  ☰ Обзор
                 </button>
               </div>
 
-              <div style={effortRow.wrap}>
-                <span style={effortRow.label}>Ощущение от упражнения</span>
-                <div style={effortRow.value}>
-                  <div style={effortRow.valueTitle}>
-                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.icon || "🟡"}</span>
-                    <span>{effortOptions.find((opt) => opt.key === it.effort)?.label || effortOptions[1].label}</span>
-                  </div>
-                  <div style={effortRow.valueDesc}>
-                    {effortOptions.find((opt) => opt.key === it.effort)?.desc || effortOptions[1].desc}
-                  </div>
-                </div>
-                <div style={effortRow.sliderWrap}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={4}
-                    step={1}
-                    value={Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1)}
-                    onChange={(e) => {
-                      const idx = Number((e.target as HTMLInputElement).value);
-                      const opt = effortOptions[idx] || effortOptions[1];
-                      setEffort(ei, opt.key);
-                    }}
-                    style={{
-                      ...effortRow.slider,
-                      ...sliderFillStyle(
-                        Math.max(0, effortOptions.findIndex((opt) => opt.key === it.effort) ?? 1),
-                        0,
-                        effortOptions.length - 1,
-                        effortTicks
-                      ),
-                    }}
-                    className="effort-slider"
-                    data-noswipe="1"
-                  />
-                </div>
-              </div>
-            </section>
+              {/* Exercise done button */}
+              {blockedCheck === ei && <div style={dk.errorHint}>Заполни повторы, вес и отметь ощущение</div>}
+              {it.sets.every(ss => ss.done) && it.effort && !it.done && (
+                <button
+                  type="button"
+                  style={dk.exDoneBtn}
+                  onClick={() => toggleExerciseDone(ei, requiresWeight)}
+                  data-noswipe="1"
+                >
+                  ✓ Упражнение выполнено → далее
+                </button>
+              )}
+            </div>
           );
         })()}
       </main>
 
-      {exitConfirm ? (
-        <div style={modal.wrap} role="dialog" aria-modal="true">
-          <div style={{ ...modal.card, animation: "exitModalIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both" }}>
-            <div style={modal.topRow}>
-              <button style={modal.closeBtn} onClick={() => setExitConfirm(false)} type="button" aria-label="Закрыть">
-                ✕
-              </button>
+      {/* ====== MINI-MAP OVERLAY ====== */}
+      {miniMap && (
+        <div style={dk.miniMapOverlay} onClick={() => setMiniMap(false)}>
+          <div style={dk.miniMapCard} onClick={e => e.stopPropagation()}>
+            <div style={dk.miniMapHeader}>
+              <span>Обзор тренировки</span>
+              <button style={dk.miniMapClose} onClick={() => setMiniMap(false)}>✕</button>
             </div>
-            <div style={modal.title}>Выйти из тренировки?</div>
-            <div style={modal.text}>Сохранить прогресс (введённые веса и повторы) для продолжения позже?</div>
-            <div style={modal.actions}>
-              <button
-                type="button"
-                className="schedule-checkin-btn"
-                style={modal.primary}
-                onClick={() => {
-                  setExitConfirm(false);
-                  nav("/plan/one");
-                }}
-              >
-                Сохранить и выйти
-              </button>
-              <button
-                type="button"
-                style={modal.deleteBtn}
-                onClick={() => {
-                  setExitConfirm(false);
-                  if (plannedWorkoutId) {
-                    resetPlannedWorkout(plannedWorkoutId).catch(() => {});
-                  }
-                  clearActiveWorkout();
-                  nav("/plan/one");
-                }}
-              >
-                Выйти без сохранения
-              </button>
-            </div>
+            {items.map((it, idx) => {
+              const setsDone = it.sets.filter(ss => ss.done).length;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  style={{
+                    ...dk.miniMapRow,
+                    ...(idx === activeIndex ? dk.miniMapRowActive : {}),
+                    ...(it.done ? dk.miniMapRowDone : {}),
+                  }}
+                  onClick={() => { goToIndex(idx); setMiniMap(false); }}
+                >
+                  <span style={dk.miniMapIcon}>{it.done ? "✓" : it.skipped ? "⊘" : idx === activeIndex ? "▶" : "○"}</span>
+                  <span style={dk.miniMapName}>{it.name}</span>
+                  <span style={dk.miniMapSets}>{setsDone}/{it.sets.length}</span>
+                </button>
+              );
+            })}
           </div>
-          <style>{exitModalCss}</style>
         </div>
-      ) : null}
+      )}
 
-      {exerciseMenu ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            padding: 14,
-            zIndex: 60,
-          }}
-          onClick={closeExerciseMenu}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            style={{
-              width: "min(820px, 100%)",
-              background: "#fff",
-              borderRadius: 18,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-              padding: 14,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-              <div style={{ fontWeight: 900, fontSize: 14, color: "#0B1220" }}>
-                {items[exerciseMenu.index]?.name || "Упражнение"}
-              </div>
-              <button
-                type="button"
-                onClick={closeExerciseMenu}
-                style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, background: "#fff", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}
-              >
-                ✕
-              </button>
+      {/* ====== EXIT MODAL ====== */}
+      {exitConfirm && (
+        <div style={dk.modalOverlay} role="dialog" aria-modal="true">
+          <div style={dk.modalCard}>
+            <div style={dk.modalTitle}>Выйти из тренировки?</div>
+            <div style={dk.modalText}>Сохранить прогресс для продолжения позже?</div>
+            <button type="button" style={dk.modalPrimary} onClick={() => { setExitConfirm(false); nav("/plan/one"); }}>
+              Сохранить и выйти
+            </button>
+            <button type="button" style={dk.modalDanger} onClick={() => {
+              setExitConfirm(false);
+              if (plannedWorkoutId) { resetPlannedWorkout(plannedWorkoutId).catch(() => {}); }
+              clearActiveWorkout();
+              nav("/plan/one");
+            }}>
+              Выйти без сохранения
+            </button>
+            <button type="button" style={dk.modalCancel} onClick={() => setExitConfirm(false)}>Отмена</button>
+          </div>
+        </div>
+      )}
+
+      {/* ====== EXERCISE MENU BOTTOM SHEET ====== */}
+      {exerciseMenu && (
+        <div style={dk.modalOverlay} onClick={closeExerciseMenu} role="dialog" aria-modal="true">
+          <div style={dk.sheetCard} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>{items[exerciseMenu.index]?.name || "Упражнение"}</div>
+              <button type="button" style={dk.sheetClose} onClick={closeExerciseMenu}>✕</button>
             </div>
 
-            {altsError ? (
-              <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
-                {altsError}
-              </div>
-            ) : null}
+            {altsError && <div style={dk.sheetError}>{altsError}</div>}
 
-            {exerciseMenu.mode === "menu" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => void fetchAlternatives(exerciseMenu.index)}
-                >
-                  Заменить упражнение
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_skip" })}
-                >
-                  Пропустить
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_remove" })}
-                >
-                  Удалить из тренировки
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_ban" })}
-                >
-                  Больше не предлагать это упражнение
-                </button>
+            {exerciseMenu.mode === "menu" && (
+              <div style={{ display: "grid", gap: 6 }}>
+                <button style={dk.sheetBtn} disabled={altsLoading} onClick={() => void fetchAlternatives(exerciseMenu.index)}>Заменить упражнение</button>
+                <button style={dk.sheetBtn} disabled={altsLoading} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_skip" })}>Пропустить</button>
+                <button style={dk.sheetBtnDanger} disabled={altsLoading} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_remove" })}>Удалить из тренировки</button>
+                <button style={dk.sheetBtnDanger} disabled={altsLoading} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "confirm_ban" })}>Больше не предлагать</button>
               </div>
-            ) : null}
+            )}
 
-            {exerciseMenu.mode === "confirm_skip" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Отметить как пропущенное?</div>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => {
-                    markSkipped(exerciseMenu.index);
-                    closeExerciseMenu();
-                  }}
-                >
-                  Да, пропустить
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
-                >
-                  Назад
-                </button>
+            {exerciseMenu.mode === "confirm_skip" && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={dk.sheetHint}>Отметить как пропущенное?</div>
+                <button style={dk.sheetBtn} onClick={() => { markSkipped(exerciseMenu.index); closeExerciseMenu(); }}>Да, пропустить</button>
+                <button style={dk.sheetBtnBack} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>Назад</button>
               </div>
-            ) : null}
+            )}
 
-            {exerciseMenu.mode === "confirm_remove" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Удалить упражнение из этой тренировки?</div>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => {
-                    removeExercise(exerciseMenu.index);
-                    closeExerciseMenu();
-                  }}
-                >
-                  Да, удалить
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
-                >
-                  Назад
-                </button>
+            {exerciseMenu.mode === "confirm_remove" && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={dk.sheetHint}>Удалить упражнение?</div>
+                <button style={dk.sheetBtnDanger} onClick={() => { removeExercise(exerciseMenu.index); closeExerciseMenu(); }}>Да, удалить</button>
+                <button style={dk.sheetBtnBack} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>Назад</button>
               </div>
-            ) : null}
+            )}
 
-            {exerciseMenu.mode === "confirm_ban" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#475569", fontWeight: 800 }}>Убрать упражнение из будущих генераций?</div>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(239,68,68,.2)", background: "rgba(239,68,68,.08)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => void applyBan(exerciseMenu.index)}
-                >
-                  Да, больше не предлагать
-                </button>
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
-                >
-                  Назад
-                </button>
+            {exerciseMenu.mode === "confirm_ban" && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={dk.sheetHint}>Убрать из будущих генераций?</div>
+                <button style={dk.sheetBtnDanger} onClick={() => void applyBan(exerciseMenu.index)}>Да, больше не предлагать</button>
+                <button style={dk.sheetBtnBack} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>Назад</button>
               </div>
-            ) : null}
+            )}
 
-            {exerciseMenu.mode === "replace" ? (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#0B1220", fontWeight: 900 }}>Выбери замену</div>
-                {altsLoading ? <div style={{ fontSize: 12, color: "#475569" }}>Загружаю…</div> : null}
-                {alts.map((a) => (
-                  <button
-                    key={a.exerciseId}
-                    type="button"
-                    style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "rgba(15,23,42,0.03)", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                    disabled={altsLoading}
-                    onClick={() => {
-                      applyReplace(exerciseMenu.index, a);
-                      closeExerciseMenu();
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>{a.name}</div>
-                    {a.hint ? <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{a.hint}</div> : null}
+            {exerciseMenu.mode === "replace" && (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Выбери замену</div>
+                {altsLoading && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Загружаю…</div>}
+                {alts.map(a => (
+                  <button key={a.exerciseId} style={dk.sheetBtn} onClick={() => { applyReplace(exerciseMenu.index, a); closeExerciseMenu(); }}>
+                    <div style={{ fontWeight: 700 }}>{a.name}</div>
+                    {a.hint && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{a.hint}</div>}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  style={{ width: "100%", padding: "12px 12px", borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)", background: "#fff", fontWeight: 900, cursor: "pointer", textAlign: "left" }}
-                  disabled={altsLoading}
-                  onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}
-                >
-                  Назад
-                </button>
+                <button style={dk.sheetBtnBack} onClick={() => setExerciseMenu({ index: exerciseMenu.index, mode: "menu" })}>Назад</button>
               </div>
-            ) : null}
+            )}
           </div>
         </div>
-      ) : null}
+      )}
 
+      {/* ====== FINISH MODAL ====== */}
       {finishModal && (
-        <div style={modal.wrap}>
-          <div style={modal.card}>
-            <div style={modal.header}>
-              <div style={modal.title}>Фиксация тренировки</div>
-              <button style={modal.close} onClick={() => setFinishModal(false)}>✕</button>
+        <div style={dk.modalOverlay}>
+          <div style={dk.modalCard}>
+            <div style={dk.modalTitle}>Фиксация тренировки</div>
+            {saveError && <div style={dk.sheetError}>{saveError}</div>}
+
+            {/* Session RPE — moved here */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 600, marginBottom: 8 }}>Как прошло занятие?</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span>{sessionRpeOptions[sessionRpeIndex]?.icon}</span>
+                <span style={{ fontWeight: 700, color: "#fff", fontSize: 14 }}>{sessionRpeOptions[sessionRpeIndex]?.label}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 8, lineHeight: 1.3 }}>{sessionRpeOptions[sessionRpeIndex]?.desc}</div>
+              <input
+                type="range"
+                min={0}
+                max={sessionRpeOptions.length - 1}
+                step={1}
+                value={sessionRpeIndex}
+                onChange={e => {
+                  const idx = Math.max(0, Math.min(sessionRpeOptions.length - 1, Number(e.target.value)));
+                  setSessionRpeIndex(idx);
+                  setSessionRpe(sessionRpeOptions[idx].value);
+                }}
+                className="dk-slider"
+                style={{ width: "100%" }}
+              />
             </div>
-            <div style={modal.body}>
-              {saveError && (
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    background: "rgba(239,68,68,.12)",
-                    border: "1px solid rgba(239,68,68,.25)",
-                    color: "#7f1d1d",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  {saveError}
-                </div>
-              )}
-              <label style={modal.label}>
-                <span style={modal.labelText}>Время начала</span>
-                <input
-                  type="datetime-local"
-                  style={modal.input}
-                  value={finishStart}
-                  onChange={(e) => setFinishStart(e.target.value)}
-                />
-              </label>
-              <label style={modal.label}>
-                <span style={modal.labelText}>Длительность (мин)</span>
-                <input
-                  type="number"
-                  min={10}
-                  step={5}
-                  style={modal.input}
-                  value={finishDuration}
-                  onChange={(e) => setFinishDuration(e.target.value)}
-                />
-              </label>
-            </div>
-            <div style={modal.footer}>
-              <button style={modal.secondary} onClick={() => setFinishModal(false)} disabled={saving}>Отмена</button>
-              <button style={modal.primary} onClick={handleComplete} disabled={saving}>
-                {saving ? "Сохраняю..." : "Подтвердить"}
-              </button>
+
+            <label style={dk.finishLabel}>
+              <span style={dk.finishLabelText}>Время начала</span>
+              <input type="datetime-local" style={dk.finishInput} value={finishStart} onChange={e => setFinishStart(e.target.value)} />
+            </label>
+            <label style={dk.finishLabel}>
+              <span style={dk.finishLabelText}>Длительность (мин)</span>
+              <input type="number" min={10} step={5} style={dk.finishInput} value={finishDuration} onChange={e => setFinishDuration(e.target.value)} />
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
+              <button style={dk.modalCancel} onClick={() => setFinishModal(false)} disabled={saving}>Отмена</button>
+              <button style={dk.modalPrimary} onClick={handleComplete} disabled={saving}>{saving ? "Сохраняю..." : "Подтвердить"}</button>
             </div>
           </div>
         </div>
       )}
 
-      <section style={s.feedbackCard}>
-        <div style={s.feedbackHeader}>Как прошло занятие?</div>
-        <div style={s.feedbackInner}>
-            <div style={s.feedbackValue}>
-            <div style={s.feedbackValueTitle}>
-              <span>{sessionRpeOptions[sessionRpeIndex]?.icon}</span>
-              <span>{sessionRpeOptions[sessionRpeIndex]?.label}</span>
-            </div>
-            <div style={s.feedbackValueDesc}>{sessionRpeOptions[sessionRpeIndex]?.desc}</div>
-          </div>
-          <input
-            id="session-rpe"
-            type="range"
-            min={0}
-            max={sessionRpeOptions.length - 1}
-            step={1}
-            value={sessionRpeIndex}
-            onChange={(e) => {
-              const idx = Math.max(0, Math.min(sessionRpeOptions.length - 1, Number(e.target.value)));
-              setSessionRpeIndex(idx);
-              setSessionRpe(sessionRpeOptions[idx].value);
-            }}
-            style={{
-              ...s.feedbackSlider,
-              ...sliderFillStyle(sessionRpeIndex, 0, sessionRpeOptions.length - 1, sessionTicks),
-            }}
-            className="effort-slider"
-          />
-        </div>
-      </section>
-
-	      <div style={s.bottomSpacer} />
-	      </div>
-	    </div>
-	  );
-	}
+      {/* ====== STICKY FOOTER ====== */}
+      <div style={dk.footer}>
+        <button
+          type="button"
+          style={{
+            ...dk.footerBtn,
+            ...(exercisesDone === exercisesTotal ? dk.footerBtnReady : {}),
+          }}
+          onClick={handleComplete}
+        >
+          {exercisesDone === exercisesTotal
+            ? "Завершить тренировку ✓"
+            : `Завершить (${exercisesDone}/${exercisesTotal})`}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /* ---------- Мелкие компоненты ---------- */
 function NumInput({
