@@ -356,16 +356,17 @@ export function CheckInForm({
   };
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
-  const cardStyle = inline ? modal.inlineCard : modal.card;
   const isPainStep = step >= 4;
+  const shouldDockFooter = !isPainStep || (isPainStep && !hasPain);
+  const cardStyle = inline
+    ? {
+        ...modal.inlineCard,
+        ...(shouldDockFooter ? modal.inlineCardWithDockedFooter : null),
+      }
+    : modal.card;
   const footerStyle = inline
     ? {
-        ...modal.footerInlineBase,
-        ...(isPainStep
-          ? hasPain
-            ? modal.footerInlineFlowPainActive
-            : modal.footerInlineDockedPainStep
-          : modal.footerInlineDockedSteps),
+        ...(shouldDockFooter ? modal.footerInlineDockedFixed : modal.footerInlineFlowPainActive),
       }
     : modal.footer;
   const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
@@ -759,6 +760,9 @@ const modal: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
   },
+  inlineCardWithDockedFooter: {
+    paddingBottom: "calc(var(--layout-nav-height, 72px) + 132px)",
+  },
   header: {
     padding: "16px 18px 10px",
     display: "flex",
@@ -925,27 +929,19 @@ const modal: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 2,
   },
-  footerInlineBase: {
-    padding: "14px clamp(16px, 4vw, 20px) 0",
-    marginTop: 0,
+  footerInlineDockedFixed: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: "calc(var(--layout-nav-height, 72px) + clamp(8px, 1.4vh, 14px))",
+    padding: "14px clamp(16px, 4vw, 20px) calc(max(env(safe-area-inset-bottom, 0px), 0px) + 2px)",
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
-    width: "100%",
     background: "transparent",
     border: "none",
     boxShadow: "none",
     zIndex: 6,
-  },
-  footerInlineDockedSteps: {
-    marginTop: "auto",
-    paddingBottom:
-      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + clamp(4px, 0.9vh, 10px))",
-  },
-  footerInlineDockedPainStep: {
-    marginTop: "auto",
-    paddingBottom:
-      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + var(--layout-nav-height, 72px) + clamp(8px, 1.4vh, 14px))",
   },
   footerInlineFlowPainActive: {
     position: "relative",
