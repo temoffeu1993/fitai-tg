@@ -44,7 +44,8 @@ export default function CheckIn() {
   }, [nav, plannedWorkoutId]);
 
   useLayoutEffect(() => {
-    if (phase !== "intro") return;
+    const lockViewport = phase === "intro" || (phase === "form" && formStep === 0);
+    if (!lockViewport) return;
     const root = document.getElementById("root");
     const prevRootOverflow = root?.style.overflowY;
     const prevRootOverscroll = root?.style.overscrollBehaviorY;
@@ -76,7 +77,7 @@ export default function CheckIn() {
       document.body.style.overflowY = prevBodyOverflow || "";
       document.body.style.overscrollBehaviorY = prevBodyOverscroll || "";
     };
-  }, [phase]);
+  }, [phase, formStep]);
 
   useEffect(() => {
     if (!result) return;
@@ -247,7 +248,12 @@ export default function CheckIn() {
     ? "Секунду, адаптирую тренировку."
     : summary?.subtitle || "Готово. Тренировка адаптирована.";
 
-  const pageStyle = phase === "intro" ? { ...styles.page, ...styles.pageIntro } : styles.page;
+  const pageStyle =
+    phase === "intro"
+      ? { ...styles.page, ...styles.pageIntro }
+      : phase === "form" && formStep === 0
+      ? { ...styles.page, ...styles.pageFormLocked }
+      : styles.page;
   return (
     <div style={pageStyle}>
       <style>{screenCss + thinkingCss}</style>
@@ -285,7 +291,7 @@ export default function CheckIn() {
           <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
             <button
               type="button"
-              style={{ ...styles.introPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
+              style={{ ...styles.summaryPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
               className="intro-primary-btn"
               onClick={() => setPhase("form")}
               disabled={skipLoading || loading}
@@ -492,6 +498,11 @@ const styles: Record<string, React.CSSProperties> = {
     padding:
       "calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.8vh, 30px)) clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(96px, 12.4vh, 108px))",
     gap: "clamp(8px, 1.3vh, 12px)",
+  },
+  pageFormLocked: {
+    minHeight: "100dvh",
+    height: "100dvh",
+    overflow: "hidden",
   },
   mascotRow: {
     display: "grid",
@@ -711,6 +722,7 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   introPrimaryBtn: {
+    marginTop: 6,
     width: "100%",
     maxWidth: 420,
     borderRadius: 22,

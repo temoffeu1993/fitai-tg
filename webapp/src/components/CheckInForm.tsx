@@ -358,6 +358,13 @@ export function CheckInForm({
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const cardStyle = inline ? modal.inlineCard : modal.card;
   const footerStyle = inline ? modal.footerInline : modal.footer;
+  const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
+  const backBtnStyle = inline ? { ...modal.backTextBtn, ...modal.backTextBtnInline } : modal.backTextBtn;
+  const cardMiniStyle = inline ? { ...modal.cardMini, ...modal.cardMiniInline } : modal.cardMini;
+  const cardWideStyle = inline ? { ...modal.cardWide, ...modal.cardWideInline } : modal.cardWide;
+  const durationGridStyle = inline ? { ...modal.durationGrid, ...modal.durationGridInline } : modal.durationGrid;
+  const binaryRowStyle = inline ? { ...modal.binaryRow, ...modal.binaryRowInline } : modal.binaryRow;
+  const chipsStyle = inline ? { ...modal.chips, ...modal.chipsInline } : modal.chips;
 
   const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее";
   const shouldShowBackTextBtn = !(hideBackOnFirstStep && step === 0);
@@ -385,7 +392,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 0 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -424,7 +431,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 1 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Энергия</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -463,7 +470,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 2 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Стресс</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -502,9 +509,9 @@ export function CheckInForm({
           ) : null}
 
           {step === 3 ? (
-            <div ref={stepCardRef} style={modal.cardMini} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={durationGridStyle}>
                 {durationOptions.map((option) => (
                   <button
                     key={option.value}
@@ -529,10 +536,10 @@ export function CheckInForm({
           ) : null}
 
           {step >= 4 ? (
-            <div ref={stepCardRef} style={modal.cardWide} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardWideStyle} className="checkin-step-animate" key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.groupTitle}>Есть боль или дискомфорт?</div> : null}
 
-              <div style={modal.binaryRow}>
+              <div style={binaryRowStyle}>
                 <button
                   type="button"
                   className="checkin-tile-card"
@@ -572,7 +579,7 @@ export function CheckInForm({
 
               {hasPain && (
                 <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
-                  <div style={modal.chips}>
+                  <div style={chipsStyle}>
                     {PAIN_ZONES.map((z) => {
                       const active = painMap[z.key] != null;
                       const level = Number(painMap[z.key] ?? 5);
@@ -642,7 +649,7 @@ export function CheckInForm({
         <div style={footerStyle}>
           <button
             style={{
-              ...modal.save,
+              ...saveBtnStyle,
             }}
             onClick={handlePrimary}
             type="button"
@@ -653,7 +660,7 @@ export function CheckInForm({
           </button>
           {shouldShowBackTextBtn ? (
             <button
-              style={modal.backTextBtn}
+              style={backBtnStyle}
               onClick={handleBackClick}
               type="button"
               disabled={loading}
@@ -729,7 +736,7 @@ const modal: Record<string, React.CSSProperties> = {
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
     overflow: "visible",
-    padding: "16px 14px calc(env(safe-area-inset-bottom, 0px) + 154px)",
+    padding: "16px 0 calc(env(safe-area-inset-bottom, 0px) + 154px)",
   },
   header: {
     padding: "16px 18px 10px",
@@ -823,6 +830,9 @@ const modal: Record<string, React.CSSProperties> = {
     gap: 12,
     position: "relative",
   },
+  cardMiniInline: {
+    padding: 0,
+  },
   cardMiniTitle: {
     fontSize: 30,
     lineHeight: 1.06,
@@ -842,6 +852,18 @@ const modal: Record<string, React.CSSProperties> = {
     gap: 12,
     position: "relative",
   },
+  cardWideInline: {
+    padding: 0,
+  },
+  durationGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 10,
+    width: "100%",
+  },
+  durationGridInline: {
+    width: "100%",
+  },
   groupTitle: {
     fontSize: 30,
     lineHeight: 1.06,
@@ -852,7 +874,9 @@ const modal: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
   },
   binaryRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" },
+  binaryRowInline: { gridTemplateColumns: "1fr" },
   chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(162px, 1fr))" },
+  chipsInline: { gridTemplateColumns: "1fr" },
   painZoneCell: { display: "grid", gap: 10, alignItems: "start" },
   painInline: {
     background: "transparent",
@@ -882,13 +906,12 @@ const modal: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    padding: "14px clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + 14px)",
+    padding: "14px clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(24px, 3.2vh, 32px))",
     marginTop: 0,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
     maxWidth: "100%",
-    justifyItems: "center",
     background: "transparent",
     border: "none",
     boxShadow: "none",
@@ -924,11 +947,13 @@ const modal: Record<string, React.CSSProperties> = {
     WebkitAppearance: "none",
     outline: "none",
   },
+  saveInline: {
+    maxWidth: "100%",
+  },
   saveText: {
     fontSize: 18,
     fontWeight: 500,
     textAlign: "center",
-    lineHeight: 1,
   },
   backTextBtn: {
     width: "100%",
@@ -942,6 +967,9 @@ const modal: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center",
     WebkitTapHighlightColor: "transparent",
+  },
+  backTextBtnInline: {
+    maxWidth: "100%",
   },
   error: {
     color: "#b91c1c",
