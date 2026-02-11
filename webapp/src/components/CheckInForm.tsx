@@ -357,10 +357,12 @@ export function CheckInForm({
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const cardStyle = inline ? modal.inlineCard : modal.card;
+  const isPainStep = step >= 4;
+  const shouldDockFooter = !isPainStep || (isPainStep && !hasPain);
   const footerStyle = inline
     ? {
         ...modal.footerInlineBase,
-        ...(step <= 3 ? modal.footerInlineDocked : modal.footerInlineSticky),
+        ...(shouldDockFooter ? modal.footerInlineDocked : modal.footerInlineFlow),
       }
     : modal.footer;
   const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
@@ -921,7 +923,7 @@ const modal: Record<string, React.CSSProperties> = {
     zIndex: 2,
   },
   footerInlineBase: {
-    padding: "14px clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(24px, 3.2vh, 32px))",
+    padding: "14px clamp(16px, 4vw, 20px) 0",
     marginTop: 0,
     display: "grid",
     gridTemplateColumns: "1fr",
@@ -934,11 +936,14 @@ const modal: Record<string, React.CSSProperties> = {
   },
   footerInlineDocked: {
     marginTop: "auto",
+    paddingBottom:
+      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + var(--layout-nav-height, 72px) + clamp(8px, 1.4vh, 14px))",
   },
-  footerInlineSticky: {
-    position: "sticky",
-    bottom: 0,
+  footerInlineFlow: {
+    position: "relative",
     marginTop: 14,
+    paddingBottom:
+      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + var(--layout-nav-height, 72px) + clamp(8px, 1.4vh, 14px))",
   },
   ghostBtn: {
     borderRadius: 12,

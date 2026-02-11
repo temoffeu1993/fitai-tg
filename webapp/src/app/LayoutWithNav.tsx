@@ -166,6 +166,7 @@ export default function LayoutWithNav() {
         background: "transparent",
         paddingBottom: hideNav ? 0 : navHeight,
         position: "relative",
+        ["--layout-nav-height" as never]: hideNav ? "0px" : `${navHeight}px`,
       }}
     >
       {/* общий фиксированный фон */}
