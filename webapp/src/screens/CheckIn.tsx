@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload, type StartWorkoutResponse } from "@/api/plan";
-import { getScheduleOverview } from "@/api/schedule";
+import { getScheduleOverview, resetPlannedWorkout } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { buildCheckInSummaryViewModel } from "@/lib/checkinResultSummary";
@@ -22,9 +22,11 @@ export default function CheckIn() {
   const [loading, setLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckInResult | null>(null);
   const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
   const [formStep, setFormStep] = useState(0);
+  const [resettingAnswers, setResettingAnswers] = useState(false);
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
   const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
@@ -119,6 +121,7 @@ export default function CheckIn() {
   const handleSubmit = async (payload: CheckInPayload) => {
     setLoading(true);
     setError(null);
+    setResultError(null);
 
     try {
       // Вызываем API для адаптации тренировки
@@ -149,6 +152,7 @@ export default function CheckIn() {
     if (skipLoading || loading) return;
     setSkipLoading(true);
     setError(null);
+    setResultError(null);
     try {
       if (plannedWorkoutId) {
         const overview = await getScheduleOverview();
@@ -177,6 +181,33 @@ export default function CheckIn() {
       nav(returnTo || "/plan/one");
     } finally {
       setSkipLoading(false);
+    }
+  };
+
+  const handleChangeAnswers = async () => {
+    if (loading || resettingAnswers || skipLoading) return;
+    setResultError(null);
+    if (!plannedWorkoutId) {
+      setResult(null);
+      setError(null);
+      setPhase("form");
+      return;
+    }
+    setResettingAnswers(true);
+    try {
+      await resetPlannedWorkout(plannedWorkoutId);
+      try {
+        window.dispatchEvent(new Event("schedule_updated"));
+        window.dispatchEvent(new Event("planned_workouts_updated"));
+      } catch {}
+      setResult(null);
+      setError(null);
+      setPhase("form");
+    } catch (err) {
+      console.error("Reset planned workout before re-checkin failed:", err);
+      setResultError("Не удалось сбросить прошлую адаптацию. Попробуй ещё раз.");
+    } finally {
+      setResettingAnswers(false);
     }
   };
 
@@ -336,21 +367,18 @@ export default function CheckIn() {
 
           {summaryPhase === "ready" ? (
             <div style={styles.summaryFooter} className="onb-fade onb-fade-delay-3">
-              <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading}>
+              <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading || resettingAnswers}>
                 {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
               </button>
               <button
                 type="button"
                 style={styles.summaryBackBtn}
-                onClick={() => {
-                  setResult(null);
-                  setError(null);
-                  setPhase("form");
-                }}
-                disabled={loading}
+                onClick={handleChangeAnswers}
+                disabled={loading || resettingAnswers}
               >
-                Изменить ответы
+                {resettingAnswers ? "Сбрасываем..." : "Изменить ответы"}
               </button>
+              {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
             </div>
           ) : null}
         </>
@@ -782,6 +810,14 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center",
     WebkitTapHighlightColor: "transparent",
+  },
+  summaryError: {
+    marginTop: 2,
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 1.35,
+    color: "#b91c1c",
+    fontWeight: 500,
   },
   primaryDisabled: {
     opacity: 0.72,

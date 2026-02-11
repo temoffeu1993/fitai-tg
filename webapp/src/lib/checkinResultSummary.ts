@@ -58,6 +58,15 @@ function shorten(line: string, max = 170): string {
   return `${line.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function pluralRu(count: number, one: string, few: string, many: string): string {
+  const n = Math.abs(count) % 100;
+  const n1 = n % 10;
+  if (n > 10 && n < 20) return many;
+  if (n1 > 1 && n1 < 5) return few;
+  if (n1 === 1) return one;
+  return many;
+}
+
 function normalizeForCompare(line: string): string {
   return cleanLine(line)
     .toLowerCase()
@@ -132,6 +141,39 @@ function fallbackBullets(action: StartWorkoutResponse["action"], changed: boolea
   return [];
 }
 
+function buildFactualLine(facts: NonNullable<StartWorkoutResponse["summary"]>["facts"] | null): string {
+  if (!facts) return "";
+  const before = facts.adaptation.before;
+  const after = facts.adaptation.after;
+  const exercisesDelta = after.exercises - before.exercises;
+  const setsDelta = after.sets - before.sets;
+  const durationDelta =
+    before.duration != null && after.duration != null ? after.duration - before.duration : null;
+
+  const isSignificant =
+    Math.abs(exercisesDelta) >= 1 ||
+    Math.abs(setsDelta) >= 2 ||
+    (durationDelta != null && Math.abs(durationDelta) >= 5);
+  if (!isSignificant) return "";
+
+  const parts: string[] = [];
+  if (exercisesDelta !== 0) {
+    const sign = exercisesDelta > 0 ? "+" : "−";
+    const abs = Math.abs(exercisesDelta);
+    parts.push(`${sign}${abs} ${pluralRu(abs, "упражнение", "упражнения", "упражнений")}`);
+  }
+  if (setsDelta !== 0) {
+    const sign = setsDelta > 0 ? "+" : "−";
+    const abs = Math.abs(setsDelta);
+    parts.push(`${sign}${abs} ${pluralRu(abs, "подход", "подхода", "подходов")}`);
+  }
+  if (durationDelta != null && durationDelta !== 0) {
+    const abs = Math.abs(durationDelta);
+    parts.push(durationDelta < 0 ? `примерно на ${abs} мин короче` : `примерно на ${abs} мин дольше`);
+  }
+  return parts.length ? `Изменения: ${parts.join(", ")}.` : "";
+}
+
 export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): CheckInSummaryViewModel {
   const severity = pickSeverity(result);
   const signals = collectSignals(result);
@@ -174,27 +216,10 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
     subtitle = "Идём по плану, но работаем аккуратно: контроль и техника в приоритете.";
   }
 
-  const factualLine = (() => {
-    if (!facts) return "";
-    const before = facts.adaptation.before;
-    const after = facts.adaptation.after;
-    const hasDelta =
-      before.exercises !== after.exercises ||
-      before.sets !== after.sets ||
-      before.duration !== after.duration;
-    if (!hasDelta) return "";
-    const parts: string[] = [];
-    if (before.exercises !== after.exercises) parts.push(`${before.exercises}→${after.exercises} упражнений`);
-    if (before.sets !== after.sets) parts.push(`${before.sets}→${after.sets} подходов`);
-    if (before.duration != null && after.duration != null && before.duration !== after.duration) {
-      parts.push(`${before.duration}→${after.duration} минут`);
-    }
-    return parts.length ? `Фактически: ${parts.join(", ")}.` : "";
-  })();
+  const factualLine = buildFactualLine(facts);
 
   const canonicalBullets = dedupeLines([
     signals.canonical.why,
-    factualLine,
     signals.canonical.howToTrainToday,
   ])
     .map((line) => shorten(line))
@@ -203,7 +228,7 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
   const fallbackCandidateLines =
     result.action === "keep_day" && !changed
       ? [...signals.warnings, ...signals.infoNotes, ...signals.notes]
-      : [...signals.changeNotes, ...signals.warnings, ...signals.infoNotes, ...signals.notes];
+      : [...signals.changeNotes, ...signals.warnings, ...signals.infoNotes, ...signals.notes, factualLine];
 
   const fallbackBulletLines = dedupeLines(fallbackCandidateLines)
     .filter((line) => !(line && isGenericNeutral(line) && changed))
@@ -214,13 +239,16 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
     normalizeForCompare(title),
     normalizeForCompare(subtitle),
     normalizeForCompare(signals.canonical.whatChanged),
-    normalizeForCompare(signals.canonical.why),
   ]);
 
-  const bullets = (canonicalBullets.length > 0 ? canonicalBullets : fallbackBulletLines.slice(0, 2)).filter((line) => {
+  const compactNoChange = result.action === "keep_day" && !changed && signals.warnings.length === 0;
+
+  const sourceBullets = (canonicalBullets.length > 0 ? canonicalBullets : fallbackBulletLines.slice(0, 2)).filter((line) => {
     const key = normalizeForCompare(line);
     return key && !duplicatesGuard.has(key);
   });
+
+  const bullets = compactNoChange ? [] : sourceBullets;
 
   if (!bullets.length) {
     bullets.push(...fallbackBullets(result.action, changed));
