@@ -328,7 +328,7 @@ export default function CheckIn() {
       ) : null}
 
       {phase === "form" ? (
-        <div style={styles.formWrap} className="onb-fade-target onb-fade-soft onb-fade-delay-2">
+        <div style={styles.formWrap}>
           <CheckInForm
             onSubmit={handleSubmit}
             onBack={() => {

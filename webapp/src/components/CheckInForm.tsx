@@ -89,7 +89,21 @@ const sliderCss = `
   55% { opacity: 1; transform: translateY(0); }
   100% { opacity: 1; transform: translateY(0); }
 }
+.checkin-entry-target {
+  opacity: 0;
+}
+.checkin-entry-fade {
+  animation: checkinEntryIn 460ms cubic-bezier(.22,1,.36,1) both;
+  animation-delay: 180ms;
+  will-change: transform, opacity;
+}
+@keyframes checkinEntryIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 @media (prefers-reduced-motion: reduce) {
+  .checkin-entry-target { opacity: 1 !important; transform: none !important; }
+  .checkin-entry-fade { animation: none !important; }
   .checkin-step-animate { animation: none !important; }
 }
 
@@ -225,6 +239,7 @@ export function CheckInForm({
   const [painMap, setPainMap] = useState<Partial<Record<PainLocation, number>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
+  const [hasNavigatedSteps, setHasNavigatedSteps] = useState(false);
   const stepCardRef = useRef<HTMLDivElement | null>(null);
   const measureRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [descMinHeightByStep, setDescMinHeightByStep] = useState<Record<number, number>>({});
@@ -310,12 +325,14 @@ export function CheckInForm({
       void handleSubmit();
       return;
     }
+    setHasNavigatedSteps(true);
     setStep((s) => Math.max(0, Math.min(lastStep, s + 1)));
   };
 
   const handleBackClick = () => {
     if (loading) return;
     if (step > 0) {
+      setHasNavigatedSteps(true);
       setStep((s) => Math.max(0, s - 1));
       return;
     }
@@ -384,6 +401,7 @@ export function CheckInForm({
 
   const primaryLabel = isLastStep ? submitLabel || "Начать тренировку" : "Далее";
   const shouldShowBackTextBtn = !(hideBackOnFirstStep && step === 0);
+  const stepCardAnimClass = hasNavigatedSteps ? "checkin-step-animate" : undefined;
 
   return (
     <div style={wrapperStyle} role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : "true"}>
@@ -400,7 +418,7 @@ export function CheckInForm({
           </div>
         )}
 
-        <div style={modal.bodyInline}>
+        <div style={modal.bodyInline} className={inline ? "checkin-entry-target checkin-entry-fade" : undefined}>
           {!hideStepMeta ? (
             <div style={modal.stepMeta}>
               <span style={modal.stepText}>Шаг {step + 1} из {totalSteps}</span>
@@ -408,7 +426,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 0 ? (
-            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className={stepCardAnimClass} key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Как ты поспал?</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -447,7 +465,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 1 ? (
-            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className={stepCardAnimClass} key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Энергия</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -486,7 +504,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 2 ? (
-            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className={stepCardAnimClass} key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Стресс</div> : null}
               <div style={modal.value}>
                 <div style={modal.valueTitleRow}>
@@ -525,7 +543,7 @@ export function CheckInForm({
           ) : null}
 
           {step === 3 ? (
-            <div ref={stepCardRef} style={cardMiniStyle} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardMiniStyle} className={stepCardAnimClass} key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.cardMiniTitle}>Время на тренировку</div> : null}
               <div style={durationGridStyle}>
                 {durationOptions.map((option) => (
@@ -552,7 +570,7 @@ export function CheckInForm({
           ) : null}
 
           {step >= 4 ? (
-            <div ref={stepCardRef} style={cardWideStyle} className="checkin-step-animate" key={`step-${step}`}>
+            <div ref={stepCardRef} style={cardWideStyle} className={stepCardAnimClass} key={`step-${step}`}>
               {!hideStepTitle ? <div style={modal.groupTitle}>Есть боль или дискомфорт?</div> : null}
 
               <div style={binaryRowStyle}>
@@ -662,7 +680,7 @@ export function CheckInForm({
           {(error || formError) && <div style={modal.error}>{error || formError}</div>}
         </div>
 
-        <div style={footerStyle}>
+        <div style={footerStyle} className={inline ? "checkin-entry-target checkin-entry-fade" : undefined}>
           <button
             style={{
               ...saveBtnStyle,
