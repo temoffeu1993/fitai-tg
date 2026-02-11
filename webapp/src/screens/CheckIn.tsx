@@ -8,6 +8,7 @@ import { toSessionPlan } from "@/lib/toSessionPlan";
 import { buildCheckInSummaryViewModel } from "@/lib/checkinResultSummary";
 import mascotImg from "@/assets/robonew.webp";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
+import OnbAnalysisLoading from "@/screens/onb/OnbAnalysisLoading";
 
 const INTRO_BUBBLE_PREFIX = "Пару вопросов ";
 const INTRO_BUBBLE_STRONG = "о самочувствии";
@@ -18,13 +19,14 @@ type CheckInResult = StartWorkoutResponse;
 export default function CheckIn() {
   const nav = useNavigate();
   const location = useLocation();
-  const [phase, setPhase] = useState<"intro" | "form" | "result">("intro");
+  const [phase, setPhase] = useState<"intro" | "form" | "analyzing" | "result">("intro");
   const [loading, setLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckInResult | null>(null);
-  const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
+  const [pendingResult, setPendingResult] = useState<CheckInResult | null>(null);
+  const [analysisDone, setAnalysisDone] = useState(false);
   const [formStep, setFormStep] = useState(0);
   const [resettingAnswers, setResettingAnswers] = useState(false);
 
@@ -80,26 +82,23 @@ export default function CheckIn() {
   }, [phase, formStep]);
 
   useEffect(() => {
-    if (!result) return;
+    if (phase !== "analyzing" || !analysisDone || !pendingResult) return;
+    setResult(pendingResult);
+    setPendingResult(null);
+    setAnalysisDone(false);
     setPhase("result");
-    setSummaryPhase("thinking");
-    const t = window.setTimeout(() => setSummaryPhase("ready"), 1700);
-    return () => window.clearTimeout(t);
-  }, [result]);
+  }, [phase, analysisDone, pendingResult]);
 
   const summary = useMemo(() => (result ? buildCheckInSummaryViewModel(result) : null), [result]);
   const resultLines = useMemo(() => {
     if (!result || !summary) return [] as string[];
     const what = String(result.summary?.whatChanged || summary.subtitle || "").trim();
     const whyRaw = String(result.summary?.why || "").trim();
-    const howRaw = String(result.summary?.howToTrainToday || "").trim();
     const fallback = Array.isArray(summary.bullets) ? summary.bullets : [];
     const why = whyRaw || fallback[0] || "";
-    const how = howRaw || (fallback.find((line) => line !== why) || "");
     return [
       what ? `Что изменили: ${what}` : "",
       why ? `Почему: ${why}` : "",
-      how ? `Как сегодня: ${how}` : "",
       summary.factualLine || "",
     ].filter(Boolean);
   }, [result, summary]);
@@ -137,6 +136,9 @@ export default function CheckIn() {
     setLoading(true);
     setError(null);
     setResultError(null);
+    setPendingResult(null);
+    setAnalysisDone(false);
+    setPhase("analyzing");
 
     try {
       // Вызываем API для адаптации тренировки
@@ -150,7 +152,7 @@ export default function CheckIn() {
         throw new Error("Не удалось получить адаптированную тренировку");
       }
 
-      setResult({
+      setPendingResult({
         ...response,
         notes: Array.isArray(response.notes) ? response.notes : [],
         workout: response.workout ?? null,
@@ -158,6 +160,7 @@ export default function CheckIn() {
     } catch (err: any) {
       console.error("CheckIn error:", err);
       setError(err.message || "Не удалось обработать чек-ин. Попробуй ещё раз.");
+      setPhase("form");
     } finally {
       setLoading(false);
     }
@@ -226,6 +229,10 @@ export default function CheckIn() {
     }
   };
 
+  const handleAnalysisDone = () => {
+    setAnalysisDone(true);
+  };
+
   const formQuestions = [
     "Как ты поспал?",
     "Какой уровень энергии?",
@@ -237,8 +244,6 @@ export default function CheckIn() {
     ? formQuestions[Math.max(0, Math.min(formQuestions.length - 1, formStep))] || "Как ты сегодня?"
     : !result
     ? "Отметь самочувствие за 30 секунд."
-    : summaryPhase === "thinking"
-    ? "Секунду, адаптирую тренировку."
     : "Готово. Ниже коротко, что поменялось сегодня.";
   const introBubbleTyped = useTypewriterText(
     phase === "intro" ? INTRO_BUBBLE_TARGET : "",
@@ -277,6 +282,11 @@ export default function CheckIn() {
       : phase === "form" && formStep <= 3
       ? { ...styles.page, ...styles.pageFormLocked }
       : styles.page;
+
+  if (phase === "analyzing") {
+    return <OnbAnalysisLoading onDone={handleAnalysisDone} />;
+  }
+
   return (
     <div style={pageStyle}>
       <style>{screenCss + thinkingCss}</style>
@@ -354,48 +364,37 @@ export default function CheckIn() {
           <section style={styles.resultCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.resultBubble} className="speech-bubble-bottom">
               <div style={styles.resultBubbleKicker}>{summary?.kicker || "Результат чек-ина"}</div>
-              {summaryPhase === "thinking" ? (
-                <div style={styles.resultThinkingWrap} aria-live="polite">
-                  <div style={styles.resultThinkingLine}>
-                    Анализируем чек-ин<span className="thinking-dots" />
+              <div style={styles.resultBubbleTextWrap} className="onb-fade">
+                {resultLines.map((line, i) => (
+                  <div key={i} style={styles.resultBubbleLine}>
+                    {line}
                   </div>
-                  <div style={styles.resultThinkingSub}>Сверяем самочувствие и подстраиваем план на сегодня.</div>
-                </div>
-              ) : (
-                <div style={styles.resultBubbleTextWrap} className="onb-fade">
-                  {resultLines.map((line, i) => (
-                    <div key={i} style={styles.resultBubbleLine}>
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
             <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
 
-          {summaryPhase === "ready" ? (
-            <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
-              <button
-                type="button"
-                style={{ ...styles.summaryPrimaryBtn, ...(loading || resettingAnswers ? styles.primaryDisabled : null) }}
-                className="intro-primary-btn"
-                onClick={goToWorkout}
-                disabled={loading || resettingAnswers}
-              >
-                {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
-              </button>
-              <button
-                type="button"
-                style={{ ...styles.introSkipBtn, ...(loading || resettingAnswers ? styles.backDisabled : null) }}
-                onClick={handleChangeAnswers}
-                disabled={loading || resettingAnswers}
-              >
-                {resettingAnswers ? "Сбрасываем..." : "Пройти заново"}
-              </button>
-              {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
-            </section>
-          ) : null}
+          <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
+            <button
+              type="button"
+              style={{ ...styles.summaryPrimaryBtn, ...(loading || resettingAnswers ? styles.primaryDisabled : null) }}
+              className="intro-primary-btn"
+              onClick={goToWorkout}
+              disabled={loading || resettingAnswers}
+            >
+              {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.introSkipBtn, ...(loading || resettingAnswers ? styles.backDisabled : null) }}
+              onClick={handleChangeAnswers}
+              disabled={loading || resettingAnswers}
+            >
+              {resettingAnswers ? "Сбрасываем..." : "Пройти заново"}
+            </button>
+            {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
+          </section>
         </>
       ) : null}
     </div>
