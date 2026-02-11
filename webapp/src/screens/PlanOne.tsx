@@ -1119,8 +1119,8 @@ export default function PlanOne() {
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const isCompletedWorkout = status === "completed";
-              const primaryActionLabel = isCompletedWorkout ? "Результат" : "Начать";
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
+              const primaryActionLabel = isCompletedWorkout ? "Результат" : hasActiveProgress ? "Продолжить" : "Начать";
               const scheduledIso = w.scheduledFor ? toLocalDateInput(w.scheduledFor) : "";
               const isStaleSchedule = status !== "completed" && Boolean(scheduledIso) && scheduledIso < todayIso;
               const isUserScheduled = status === "scheduled" || status === "completed";
@@ -1192,7 +1192,6 @@ export default function PlanOne() {
                           <Dumbbell size={14} strokeWidth={2.1} />
                           <span style={pick.infoChipExercisesText}>{totalExercises} упражнений</span>
                         </span>
-                        {hasActiveProgress ? <span style={pick.infoChipSoft}>В процессе {activeProgress}%</span> : null}
                       </div>
 
                       <div style={pick.weekCardActions} onClick={(e) => e.stopPropagation()}>
@@ -1203,9 +1202,19 @@ export default function PlanOne() {
                           onClick={() => handleWorkoutPrimary(w)}
                         >
                           <span>{primaryActionLabel}</span>
-                          <span style={pick.weekActionPrimaryIconWrap}>
-                            <span style={pick.weekActionPrimaryArrow}>{isCompletedWorkout ? "✓" : "→"}</span>
-                          </span>
+                          {isCompletedWorkout || hasActiveProgress ? (
+                            <span
+                              style={
+                                hasActiveProgress
+                                  ? { ...pick.weekActionPrimaryIconWrap, ...pick.weekActionPrimaryProgressWrap }
+                                  : pick.weekActionPrimaryIconWrap
+                              }
+                            >
+                              <span style={hasActiveProgress ? pick.weekActionPrimaryProgressText : pick.weekActionPrimaryArrow}>
+                                {hasActiveProgress ? `${activeProgress}%` : "✓"}
+                              </span>
+                            </span>
+                          ) : null}
                         </button>
                         <div style={pick.detailsLinkHitbox}>
                           <button
@@ -4013,11 +4022,24 @@ const pick: Record<string, React.CSSProperties> = {
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
+  weekActionPrimaryProgressWrap: {
+    width: "auto",
+    minWidth: 44,
+    padding: "0 8px",
+  },
   weekActionPrimaryArrow: {
     fontSize: 18,
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
+  },
+  weekActionPrimaryProgressText: {
+    fontSize: 13,
+    lineHeight: 1,
+    color: "rgba(17,29,46,0.58)",
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(15,23,42,0.14)",
+    letterSpacing: -0.1,
   },
   detailsLinkHitbox: {
     justifySelf: "center",

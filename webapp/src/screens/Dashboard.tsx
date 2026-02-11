@@ -34,6 +34,7 @@ import {
   type Location,
   type SplitType,
 } from "@/utils/getSchemeDisplayData";
+import { readSessionDraft } from "@/lib/activeWorkout";
 import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import DateTimeWheelModal from "@/components/DateTimeWheelModal";
 
@@ -866,6 +867,13 @@ export default function Dashboard() {
 
   const selectedPlanned =
     activeForSelected || completedForSelected || plannedForSelected[0] || null;
+  const activeDraft = useMemo(() => readSessionDraft(), []);
+  const activeProgress = useMemo(() => {
+    const items = Array.isArray(activeDraft?.items) ? activeDraft.items : [];
+    if (!items.length) return null;
+    const done = items.filter((it: any) => Boolean(it?.done)).length;
+    return Math.max(0, Math.min(100, Math.round((done / items.length) * 100)));
+  }, [activeDraft]);
 
   const fallbackSchemeTitle = useMemo(() => {
     const firstLabel = selectedScheme?.dayLabels?.[0]?.label;
@@ -1176,11 +1184,18 @@ export default function Dashboard() {
   const showDayMeta =
     Boolean(dayDurationText || dayExercisesText) &&
     dayState !== "weekly";
+  const dayHasActiveProgress =
+    dayState === "planned" &&
+    Boolean(selectedPlanned?.id) &&
+    activeDraft?.plannedWorkoutId === selectedPlanned?.id &&
+    typeof activeProgress === "number";
   const dayButtonText =
     dayState === "completed"
       ? "Результат"
       : dayState === "planned"
-      ? "Начать"
+      ? dayHasActiveProgress
+        ? "Продолжить"
+        : "Начать"
       : "Выбрать тренировку";
   const isResultButton = dayState === "completed";
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
@@ -1589,9 +1604,11 @@ export default function Dashboard() {
               onClick={handleDayStart}
             >
               <span>{dayButtonText}</span>
-              <span style={s.dayBtnIconWrap}>
-                <span style={s.dayBtnArrow}>→</span>
-              </span>
+              {dayHasActiveProgress ? (
+                <span style={{ ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }}>
+                  <span style={s.dayBtnProgress}>{activeProgress}%</span>
+                </span>
+              ) : null}
             </button>
           ) : (
             <button
@@ -1601,13 +1618,23 @@ export default function Dashboard() {
               onClick={handleDayAction}
             >
               <span>{dayButtonText}</span>
-              <span style={s.dayBtnIconWrap}>
-                {isResultButton ? (
-                  <span style={s.dayBtnDoneMark}>✓</span>
-                ) : (
-                  <span style={s.dayBtnArrow}>→</span>
-                )}
-              </span>
+              {(isResultButton || dayState === "weekly" || dayHasActiveProgress) ? (
+                <span
+                  style={
+                    dayHasActiveProgress
+                      ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
+                      : s.dayBtnIconWrap
+                  }
+                >
+                  {dayHasActiveProgress ? (
+                    <span style={s.dayBtnProgress}>{activeProgress}%</span>
+                  ) : isResultButton ? (
+                    <span style={s.dayBtnDoneMark}>✓</span>
+                  ) : (
+                    <span style={s.dayBtnArrow}>→</span>
+                  )}
+                </span>
+              ) : null}
             </button>
           )}
         </div>
@@ -2245,11 +2272,24 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
+  dayBtnProgressWrap: {
+    width: "auto",
+    minWidth: 44,
+    padding: "0 8px",
+  },
   dayBtnArrow: {
     fontSize: 18,
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
+  },
+  dayBtnProgress: {
+    fontSize: 13,
+    lineHeight: 1,
+    color: "rgba(17,29,46,0.58)",
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(15,23,42,0.14)",
+    letterSpacing: -0.1,
   },
   dayBtnDoneMark: {
     fontSize: 18,
