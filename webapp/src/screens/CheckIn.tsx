@@ -44,7 +44,7 @@ export default function CheckIn() {
   }, [nav, plannedWorkoutId]);
 
   useLayoutEffect(() => {
-    const lockViewport = phase === "intro" || (phase === "form" && formStep === 0);
+    const lockViewport = phase === "intro" || (phase === "form" && formStep <= 3);
     if (!lockViewport) return;
     const root = document.getElementById("root");
     const prevRootOverflow = root?.style.overflowY;
@@ -251,7 +251,7 @@ export default function CheckIn() {
   const pageStyle =
     phase === "intro"
       ? { ...styles.page, ...styles.pageIntro }
-      : phase === "form" && formStep === 0
+      : phase === "form" && formStep <= 3
       ? { ...styles.page, ...styles.pageFormLocked }
       : styles.page;
   return (
@@ -312,7 +312,7 @@ export default function CheckIn() {
       ) : null}
 
       {phase === "form" ? (
-        <div style={styles.formWrap} className="onb-fade onb-fade-delay-3">
+        <div style={styles.formWrap}>
           <CheckInForm
             onSubmit={handleSubmit}
             onBack={() => {

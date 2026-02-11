@@ -360,7 +360,12 @@ export function CheckInForm({
   const footerStyle = inline ? modal.footerInline : modal.footer;
   const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
   const backBtnStyle = inline ? { ...modal.backTextBtn, ...modal.backTextBtnInline } : modal.backTextBtn;
-  const cardMiniStyle = inline ? { ...modal.cardMini, ...modal.cardMiniInline } : modal.cardMini;
+  const cardMiniStyle = inline
+    ? {
+        ...modal.cardMini,
+        ...(step <= 2 ? modal.cardMiniInlineNarrow : modal.cardMiniInline),
+      }
+    : modal.cardMini;
   const cardWideStyle = inline ? { ...modal.cardWide, ...modal.cardWideInline } : modal.cardWide;
   const durationGridStyle = inline ? { ...modal.durationGrid, ...modal.durationGridInline } : modal.durationGrid;
   const binaryRowStyle = inline ? { ...modal.binaryRow, ...modal.binaryRowInline } : modal.binaryRow;
@@ -832,6 +837,9 @@ const modal: Record<string, React.CSSProperties> = {
   },
   cardMiniInline: {
     padding: 0,
+  },
+  cardMiniInlineNarrow: {
+    padding: "0 14px",
   },
   cardMiniTitle: {
     fontSize: 30,
