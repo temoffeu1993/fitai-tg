@@ -920,7 +920,7 @@ const modal: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
   },
   binaryRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "stretch" },
-  binaryRowInline: { gridTemplateColumns: "1fr" },
+  binaryRowInline: { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
   chips: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(162px, 1fr))" },
   chipsInline: { gridTemplateColumns: "1fr" },
   painZoneCell: { display: "grid", gap: 10, alignItems: "start" },
