@@ -1202,19 +1202,17 @@ export default function PlanOne() {
                           onClick={() => handleWorkoutPrimary(w)}
                         >
                           <span>{primaryActionLabel}</span>
-                          {isCompletedWorkout || hasActiveProgress ? (
-                            <span
-                              style={
-                                hasActiveProgress
-                                  ? { ...pick.weekActionPrimaryIconWrap, ...pick.weekActionPrimaryProgressWrap }
-                                  : pick.weekActionPrimaryIconWrap
-                              }
-                            >
-                              <span style={hasActiveProgress ? pick.weekActionPrimaryProgressText : pick.weekActionPrimaryArrow}>
-                                {hasActiveProgress ? `${activeProgress}%` : "✓"}
-                              </span>
+                          <span
+                            style={
+                              hasActiveProgress
+                                ? { ...pick.weekActionPrimaryIconWrap, ...pick.weekActionPrimaryProgressWrap }
+                                : pick.weekActionPrimaryIconWrap
+                            }
+                          >
+                            <span style={hasActiveProgress ? pick.weekActionPrimaryProgressText : pick.weekActionPrimaryArrow}>
+                              {hasActiveProgress ? `${activeProgress}%` : isCompletedWorkout ? "✓" : "→"}
                             </span>
-                          ) : null}
+                          </span>
                         </button>
                         <div style={pick.detailsLinkHitbox}>
                           <button

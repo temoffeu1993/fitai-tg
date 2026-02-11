@@ -1604,11 +1604,17 @@ export default function Dashboard() {
               onClick={handleDayStart}
             >
               <span>{dayButtonText}</span>
-              {dayHasActiveProgress ? (
-                <span style={{ ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }}>
-                  <span style={s.dayBtnProgress}>{activeProgress}%</span>
+              <span
+                style={
+                  dayHasActiveProgress
+                    ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
+                    : s.dayBtnIconWrap
+                }
+              >
+                <span style={dayHasActiveProgress ? s.dayBtnProgress : s.dayBtnArrow}>
+                  {dayHasActiveProgress ? `${activeProgress}%` : "→"}
                 </span>
-              ) : null}
+              </span>
             </button>
           ) : (
             <button
@@ -1618,23 +1624,21 @@ export default function Dashboard() {
               onClick={handleDayAction}
             >
               <span>{dayButtonText}</span>
-              {(isResultButton || dayState === "weekly" || dayHasActiveProgress) ? (
-                <span
-                  style={
-                    dayHasActiveProgress
-                      ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
-                      : s.dayBtnIconWrap
-                  }
-                >
-                  {dayHasActiveProgress ? (
-                    <span style={s.dayBtnProgress}>{activeProgress}%</span>
-                  ) : isResultButton ? (
-                    <span style={s.dayBtnDoneMark}>✓</span>
-                  ) : (
-                    <span style={s.dayBtnArrow}>→</span>
-                  )}
-                </span>
-              ) : null}
+              <span
+                style={
+                  dayHasActiveProgress
+                    ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
+                    : s.dayBtnIconWrap
+                }
+              >
+                {dayHasActiveProgress ? (
+                  <span style={s.dayBtnProgress}>{activeProgress}%</span>
+                ) : isResultButton ? (
+                  <span style={s.dayBtnDoneMark}>✓</span>
+                ) : (
+                  <span style={s.dayBtnArrow}>→</span>
+                )}
+              </span>
             </button>
           )}
         </div>
