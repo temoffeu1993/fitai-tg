@@ -4,6 +4,7 @@ import healthRobotImg from "@/assets/heals.webp";
 
 type Props = {
   onDone: () => void;
+  lines?: string[];
 };
 
 const LINES = [
@@ -13,7 +14,8 @@ const LINES = [
   "Готово!",
 ];
 
-export default function OnbAnalysisLoading({ onDone }: Props) {
+export default function OnbAnalysisLoading({ onDone, lines: customLines }: Props) {
+  const lines = Array.isArray(customLines) && customLines.length > 0 ? customLines : LINES;
   const [step, setStep] = useState(0);
   const [isLeaving, setIsLeaving] = useState(false);
   const [ready, setReady] = useState(false);
@@ -89,7 +91,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
   useEffect(() => {
     const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (prefersReduced) {
-      setStep(LINES.length - 1);
+      setStep(lines.length - 1);
       const t = window.setTimeout(() => onDone(), 250);
       return () => window.clearTimeout(t);
     }
@@ -98,7 +100,7 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
     const doneDuration = 1200;
     const exitDuration = 260;
     const timers: number[] = [];
-    const totalDuration = stepDuration * (LINES.length - 1) + doneDuration;
+    const totalDuration = stepDuration * (lines.length - 1) + doneDuration;
     const hapticLevels: Array<"light" | "medium" | "heavy" | "rigid"> = [
       "light",
       "medium",
@@ -116,11 +118,11 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
       fireHaptic(hapticLevels[index]);
     }, 520);
 
-    for (let i = 1; i < LINES.length; i += 1) {
+    for (let i = 1; i < lines.length; i += 1) {
       timers.push(window.setTimeout(() => setStep(i), stepDuration * i));
     }
 
-    const doneAt = stepDuration * (LINES.length - 1) + doneDuration;
+    const doneAt = stepDuration * (lines.length - 1) + doneDuration;
     timers.push(window.setTimeout(() => setIsLeaving(true), doneAt));
     timers.push(window.setTimeout(() => onDone(), doneAt + exitDuration));
 
@@ -128,10 +130,10 @@ export default function OnbAnalysisLoading({ onDone }: Props) {
       timers.forEach((id) => window.clearTimeout(id));
       window.clearInterval(hapticTimer);
     };
-  }, [onDone]);
+  }, [onDone, lines]);
 
-  const text = LINES[Math.min(step, LINES.length - 1)];
-  const isDone = step === LINES.length - 1;
+  const text = lines[Math.min(step, lines.length - 1)];
+  const isDone = step === lines.length - 1;
 
   return (
     <div

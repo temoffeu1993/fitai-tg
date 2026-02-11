@@ -14,6 +14,12 @@ const INTRO_BUBBLE_PREFIX = "Пару вопросов ";
 const INTRO_BUBBLE_STRONG = "о самочувствии";
 const INTRO_BUBBLE_SUFFIX = ", чтобы подстроить тренировку";
 const INTRO_BUBBLE_TARGET = `${INTRO_BUBBLE_PREFIX}${INTRO_BUBBLE_STRONG}${INTRO_BUBBLE_SUFFIX}`;
+const CHECKIN_ANALYSIS_LINES = [
+  "Анализирую твое состояние",
+  "Сверяю нагрузку",
+  "Проверяю время",
+  "Готово!",
+];
 type CheckInResult = StartWorkoutResponse;
 
 export default function CheckIn() {
@@ -284,7 +290,7 @@ export default function CheckIn() {
       : styles.page;
 
   if (phase === "analyzing") {
-    return <OnbAnalysisLoading onDone={handleAnalysisDone} />;
+    return <OnbAnalysisLoading onDone={handleAnalysisDone} lines={CHECKIN_ANALYSIS_LINES} />;
   }
 
   return (
@@ -362,7 +368,8 @@ export default function CheckIn() {
       {phase === "result" && result ? (
         <>
           <section style={styles.resultCenter} className="onb-fade onb-fade-delay-1">
-            <div style={styles.resultBubble} className="speech-bubble-bottom">
+            <img src={mascotImg} alt="" style={styles.resultMascotImg} loading="eager" decoding="async" />
+            <div style={styles.resultBubble} className="speech-bubble-top">
               <div style={styles.resultBubbleKicker}>{summary?.kicker || "Результат чек-ина"}</div>
               <div style={styles.resultBubbleTextWrap} className="onb-fade">
                 {resultLines.map((line, i) => (
@@ -372,7 +379,6 @@ export default function CheckIn() {
                 ))}
               </div>
             </div>
-            <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
 
           <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
@@ -441,6 +447,19 @@ const screenCss = `
   border-right: 10px solid transparent;
   border-top: 10px solid rgba(255,255,255,0.9);
   filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
+}
+.speech-bubble-top:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(0 -1px 0 rgba(15, 23, 42, 0.08));
 }
 .intro-primary-btn {
   -webkit-tap-highlight-color: transparent;
@@ -662,11 +681,17 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
-    gap: "clamp(10px, 2.1vh, 18px)",
-    paddingTop: "clamp(12px, 1.8vh, 18px)",
-    marginTop: "clamp(12px, 1.8vh, 22px)",
+    gap: "clamp(8px, 1.6vh, 14px)",
+    paddingTop: "clamp(8px, 1.4vh, 14px)",
+    marginTop: "clamp(4px, 1vh, 10px)",
+  },
+  resultMascotImg: {
+    width: 132,
+    height: "auto",
+    objectFit: "contain",
+    alignSelf: "center",
   },
   resultBubble: {
     position: "relative",
