@@ -44,7 +44,7 @@ export default function CheckIn() {
   }, [nav, plannedWorkoutId]);
 
   useLayoutEffect(() => {
-    const lockViewport = phase === "intro" || (phase === "form" && formStep <= 3);
+    const lockViewport = phase === "intro" || phase === "result" || (phase === "form" && formStep <= 3);
     if (!lockViewport) return;
     const root = document.getElementById("root");
     const prevRootOverflow = root?.style.overflowY;
@@ -88,6 +88,21 @@ export default function CheckIn() {
   }, [result]);
 
   const summary = useMemo(() => (result ? buildCheckInSummaryViewModel(result) : null), [result]);
+  const resultLines = useMemo(() => {
+    if (!result || !summary) return [] as string[];
+    const what = String(result.summary?.whatChanged || summary.subtitle || "").trim();
+    const whyRaw = String(result.summary?.why || "").trim();
+    const howRaw = String(result.summary?.howToTrainToday || "").trim();
+    const fallback = Array.isArray(summary.bullets) ? summary.bullets : [];
+    const why = whyRaw || fallback[0] || "";
+    const how = howRaw || (fallback.find((line) => line !== why) || "");
+    return [
+      what ? `Что изменили: ${what}` : "",
+      why ? `Почему: ${why}` : "",
+      how ? `Как сегодня: ${how}` : "",
+      summary.factualLine || "",
+    ].filter(Boolean);
+  }, [result, summary]);
 
   const goToWorkout = () => {
     if (!result) return;
@@ -257,7 +272,7 @@ export default function CheckIn() {
   };
 
   const pageStyle =
-    phase === "intro"
+    phase === "intro" || phase === "result"
       ? { ...styles.page, ...styles.pageIntro }
       : phase === "form" && formStep <= 3
       ? { ...styles.page, ...styles.pageFormLocked }
@@ -300,10 +315,10 @@ export default function CheckIn() {
         </>
       ) : null}
 
-      {phase !== "intro" ? (
+      {phase === "form" ? (
         <section
           style={styles.mascotRow}
-          className={phase === "form" ? "onb-fade-target onb-fade onb-fade-delay-1" : "onb-fade onb-fade-delay-1"}
+          className="onb-fade-target onb-fade onb-fade-delay-1"
         >
           <img src={mascotImg} alt="" style={styles.mascotImg} loading="eager" decoding="async" />
           <div style={styles.bubble} className="speech-bubble">
@@ -336,51 +351,50 @@ export default function CheckIn() {
 
       {phase === "result" && result ? (
         <>
-          <section style={styles.summaryCard} className="onb-fade onb-fade-delay-2">
-            <div style={styles.summaryKicker}>{summary?.kicker || "Результат чек-ина"}</div>
-
-            {summaryPhase === "thinking" ? (
-              <div style={styles.thinkingRow} aria-live="polite">
-                <div style={styles.thinkingDot} />
-                <div style={styles.thinkingText}>
-                  Подстраиваем тренировку<span className="thinking-dots" />
-                </div>
-              </div>
-            ) : (
-              <div style={styles.summaryBody} className="onb-fade">
-                <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
-                {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
-
-                {summary?.bullets?.length ? (
-                  <div style={styles.notesList}>
-                    {summary.bullets.slice(0, 3).map((t, i) => (
-                      <div key={i} style={styles.noteItem}>
-                        • {t}
-                      </div>
-                    ))}
+          <section style={styles.resultCenter} className="onb-fade onb-fade-delay-1">
+            <div style={styles.resultBubble} className="speech-bubble-bottom">
+              <div style={styles.resultBubbleKicker}>{summary?.kicker || "Результат чек-ина"}</div>
+              {summaryPhase === "thinking" ? (
+                <div style={styles.resultThinkingWrap} aria-live="polite">
+                  <div style={styles.resultThinkingLine}>
+                    Анализируем чек-ин<span className="thinking-dots" />
                   </div>
-                ) : null}
-                {summary?.factualLine ? <div style={styles.summaryMetaLine}>{summary.factualLine}</div> : null}
-              </div>
-            )}
-
+                  <div style={styles.resultThinkingSub}>Сверяем самочувствие и подстраиваем план на сегодня.</div>
+                </div>
+              ) : (
+                <div style={styles.resultBubbleTextWrap} className="onb-fade">
+                  {resultLines.map((line, i) => (
+                    <div key={i} style={styles.resultBubbleLine}>
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
 
           {summaryPhase === "ready" ? (
-            <div style={styles.summaryFooter} className="onb-fade onb-fade-delay-3">
-              <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading || resettingAnswers}>
+            <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
+              <button
+                type="button"
+                style={{ ...styles.summaryPrimaryBtn, ...(loading || resettingAnswers ? styles.primaryDisabled : null) }}
+                className="intro-primary-btn"
+                onClick={goToWorkout}
+                disabled={loading || resettingAnswers}
+              >
                 {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
               </button>
               <button
                 type="button"
-                style={styles.summaryBackBtn}
+                style={{ ...styles.introSkipBtn, ...(loading || resettingAnswers ? styles.backDisabled : null) }}
                 onClick={handleChangeAnswers}
                 disabled={loading || resettingAnswers}
               >
-                {resettingAnswers ? "Сбрасываем..." : "Изменить ответы"}
+                {resettingAnswers ? "Сбрасываем..." : "Пройти заново"}
               </button>
               {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
-            </div>
+            </section>
           ) : null}
         </>
       ) : null}
@@ -643,6 +657,64 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "center",
     WebkitTapHighlightColor: "transparent",
+  },
+  resultCenter: {
+    minHeight: 0,
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "clamp(10px, 2.1vh, 18px)",
+    paddingTop: "clamp(12px, 1.8vh, 18px)",
+    marginTop: "clamp(12px, 1.8vh, 22px)",
+  },
+  resultBubble: {
+    position: "relative",
+    width: "min(92%, 410px)",
+    boxSizing: "border-box",
+    textAlign: "left",
+    padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
+    color: "#1e1f22",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    display: "grid",
+    gap: 10,
+  },
+  resultBubbleKicker: {
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: 0.25,
+    color: "rgba(30,31,34,0.62)",
+    textTransform: "uppercase",
+  },
+  resultThinkingWrap: {
+    display: "grid",
+    gap: 6,
+  },
+  resultThinkingLine: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.9)",
+    lineHeight: 1.35,
+  },
+  resultThinkingSub: {
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: "rgba(30,31,34,0.72)",
+  },
+  resultBubbleTextWrap: {
+    display: "grid",
+    gap: 8,
+  },
+  resultBubbleLine: {
+    fontSize: 15,
+    lineHeight: 1.42,
+    color: "rgba(30,31,34,0.84)",
   },
   introTopRow: {
     position: "absolute",
