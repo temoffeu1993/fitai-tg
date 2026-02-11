@@ -117,6 +117,158 @@ function toFinitePositiveNumberOrNull(value: any): number | null {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
+type WorkoutStartAction = "keep_day" | "swap_day" | "recovery" | "skip";
+
+type SummaryChangeMeta = {
+  volumeAdjusted?: boolean;
+  deload?: boolean;
+  shortenedForTime?: boolean;
+  trimmedForCaps?: boolean;
+  intentAdjusted?: boolean;
+  safetyAdjusted?: boolean;
+  corePolicyAdjusted?: boolean;
+};
+
+function normalizeSummaryLine(value: unknown): string {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function humanizeDayLabelForSummary(value: unknown): string {
+  const raw = normalizeSummaryLine(value);
+  if (!raw) return "";
+  const key = raw.toLowerCase();
+  const map: Record<string, string> = {
+    "push day": "Жимовой день",
+    "pull day": "Тяговой день",
+    "legs day": "Ноги",
+    "upper body": "Верх тела",
+    "lower body": "Низ тела",
+    "full body a": "Всё тело (A)",
+    "full body b": "Всё тело (B)",
+    "full body c": "Всё тело (C)",
+    "shoulders day": "Плечи",
+  };
+  if (map[key]) return map[key];
+  if (key.includes("push")) return "Жимовой день";
+  if (key.includes("pull")) return "Тяговой день";
+  if (key.includes("legs") || key.includes("lower")) return "Ноги";
+  if (key.includes("upper")) return "Верх тела";
+  if (key.includes("full")) return "Всё тело";
+  return raw;
+}
+
+function dedupeSummaryLines(lines: unknown[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of lines) {
+    const line = normalizeSummaryLine(raw);
+    if (!line) continue;
+    const key = line
+      .toLowerCase()
+      .replace(/[•\-–—]+/g, " ")
+      .replace(/[^\p{L}\p{N}\s]+/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(line);
+  }
+  return out;
+}
+
+function mergeUniqueNotes(...groups: unknown[]): string[] {
+  const raw: unknown[] = [];
+  for (const group of groups) {
+    if (!Array.isArray(group)) continue;
+    for (const item of group) raw.push(item);
+  }
+  return dedupeSummaryLines(raw);
+}
+
+function isGenericNeutralNote(line: string): boolean {
+  const text = line.toLowerCase();
+  return (
+    text.includes("без изменений") ||
+    text.includes("тренировка по плану") ||
+    text.includes("отличное самочувствие")
+  );
+}
+
+function pickFirstSpecificNote(lines: string[]): string | undefined {
+  for (const line of lines) {
+    if (!isGenericNeutralNote(line)) return line;
+  }
+  return lines[0];
+}
+
+function buildCoachSummaryBlocks(args: {
+  action: WorkoutStartAction;
+  changed: boolean;
+  changeMeta?: SummaryChangeMeta;
+  changeNotes?: string[];
+  infoNotes?: string[];
+  warnings?: string[];
+  swapInfo?: { from?: string; to?: string; reason?: string[] } | null;
+}): { whatChanged: string; why: string; howToTrainToday: string } {
+  const action = args.action;
+  const changed = Boolean(args.changed);
+  const meta = args.changeMeta || {};
+  const changeNotes = mergeUniqueNotes(args.changeNotes || []);
+  const infoNotes = mergeUniqueNotes(args.infoNotes || []);
+  const warnings = mergeUniqueNotes(args.warnings || []);
+
+  let whatChanged = "Оставили тренировку по плану.";
+  if (action === "skip") {
+    whatChanged = "Сегодня пауза: тренировку пропускаем.";
+  } else if (action === "recovery") {
+    whatChanged = "Перевели сессию в восстановительный режим.";
+  } else if (action === "swap_day") {
+    const from = humanizeDayLabelForSummary(args.swapInfo?.from);
+    const to = humanizeDayLabelForSummary(args.swapInfo?.to);
+    whatChanged = from && to ? `Переставили день: ${from} → ${to}.` : "Переставили тренировочный день внутри недели.";
+  } else if (meta.shortenedForTime || meta.trimmedForCaps) {
+    whatChanged = "Сократили объём под доступное время.";
+  } else if (meta.safetyAdjusted) {
+    whatChanged = "Убрали упражнения, которые могут раздражать проблемные зоны.";
+  } else if (meta.intentAdjusted || meta.deload || meta.volumeAdjusted) {
+    whatChanged = "Подснизили нагрузку под текущее самочувствие.";
+  } else if (changed) {
+    whatChanged = pickFirstSpecificNote(changeNotes) || "Тренировку подстроили под текущее состояние.";
+  }
+
+  const whyCandidates = mergeUniqueNotes(warnings, infoNotes, changeNotes);
+  let why = pickFirstSpecificNote(whyCandidates) || "";
+  if (!why) {
+    if (action === "skip") {
+      why = "Чек-ин показал, что телу сегодня нужен отдых.";
+    } else if (action === "recovery") {
+      why = "Есть признаки усталости или дискомфорта, поэтому фокус на восстановлении.";
+    } else if (changed) {
+      why = "Ответы чек-ина показали, что адаптация даст лучший результат сегодня.";
+    } else {
+      why = "Текущее состояние позволяет работать по обычному плану.";
+    }
+  }
+
+  const hasStrongWarning = warnings.some((line) => /🔴|critical|сильн|[7-9]\/10|10\/10/i.test(line));
+  let howToTrainToday = "Работай технично и оставляй 1–2 повтора в запасе.";
+  if (action === "skip") {
+    howToTrainToday = "Сделай 15–25 минут лёгкой активности и восстановись.";
+  } else if (hasStrongWarning) {
+    howToTrainToday = "Не работай через боль: при дискомфорте снижай вес и амплитуду.";
+  } else if (action === "recovery") {
+    howToTrainToday = "Держи спокойный темп, длиннее паузы, без работы до отказа.";
+  } else if (meta.shortenedForTime || meta.trimmedForCaps) {
+    howToTrainToday = "Фокус на главных подходах, без добиваний и лишнего объёма.";
+  } else if (meta.intentAdjusted || meta.deload) {
+    howToTrainToday = "Сегодня важнее контроль техники, чем попытки на рекорд.";
+  } else if (!changed) {
+    howToTrainToday = "Можно идти по обычному плану в рабочем ритме.";
+  }
+
+  return { whatChanged, why, howToTrainToday };
+}
+
 // ============================================================================
 // GET /exercises/:exerciseId/alternatives - deterministic alternatives from library
 // ============================================================================
@@ -1234,13 +1386,28 @@ workoutGeneration.post(
       // Skip workout - return recovery info
       console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
       console.log("=====================================================\n");
+      const summaryChangeNotes = mergeUniqueNotes(decision.notes || []);
+      const summaryWarnings = mergeUniqueNotes(readiness.warnings || []);
+      const summaryInfoNotes: string[] = [];
+      const summaryBlocks = buildCoachSummaryBlocks({
+        action: "skip",
+        changed: true,
+        changeNotes: summaryChangeNotes,
+        infoNotes: summaryInfoNotes,
+        warnings: summaryWarnings,
+      });
       return {
         action: "skip" as const,
-        notes: decision.notes,
+        notes: summaryChangeNotes.length > 0 ? summaryChangeNotes : undefined,
         summary: {
           changed: true,
-          changeNotes: decision.notes || [],
-          infoNotes: [],
+          changeNotes: summaryChangeNotes,
+          infoNotes: summaryInfoNotes,
+          warnings: summaryWarnings,
+          severity: readiness.severity,
+          whatChanged: summaryBlocks.whatChanged,
+          why: summaryBlocks.why,
+          howToTrainToday: summaryBlocks.howToTrainToday,
         },
         originalDay: basePlan.dayLabel,
       };
@@ -1305,16 +1472,38 @@ workoutGeneration.post(
 
       console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
       console.log("=====================================================\n");
+      const summaryChangeNotes = mergeUniqueNotes(
+        decision.notes || [],
+        (recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || []
+      );
+      const summaryInfoNotes = mergeUniqueNotes((recoveryWorkout as any)?.infoNotes || []);
+      const summaryWarnings = mergeUniqueNotes((recoveryWorkout as any)?.warnings || [], readiness.warnings || []);
+      const summaryBlocks = buildCoachSummaryBlocks({
+        action: "recovery",
+        changed: true,
+        changeMeta: (recoveryWorkout as any)?.changeMeta || {},
+        changeNotes: summaryChangeNotes,
+        infoNotes: summaryInfoNotes,
+        warnings: summaryWarnings,
+      });
+      const responseNotes = mergeUniqueNotes(
+        decision.notes || [],
+        (recoveryWorkout as any)?.adaptationNotes || [],
+        (recoveryWorkout as any)?.changeNotes || []
+      );
       return {
         action: "recovery" as const,
-        notes: decision.notes,
+        notes: responseNotes.length > 0 ? responseNotes : undefined,
         summary: {
           changed: true,
-          changeNotes: Array.from(
-            new Set([...(decision.notes || []), ...((recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || [])])
-          ),
-          infoNotes: (recoveryWorkout as any)?.infoNotes || [],
+          changeNotes: summaryChangeNotes,
+          infoNotes: summaryInfoNotes,
           changeMeta: (recoveryWorkout as any)?.changeMeta,
+          warnings: summaryWarnings,
+          severity: readiness.severity,
+          whatChanged: summaryBlocks.whatChanged,
+          why: summaryBlocks.why,
+          howToTrainToday: summaryBlocks.howToTrainToday,
         },
         workout: workoutData,
       };
@@ -1446,19 +1635,18 @@ workoutGeneration.post(
           weekPlanData,
         });
 
-        const combinedNotes = [
-          ...(decision.notes || []),
-          ...(adaptedWorkout.adaptationNotes || []),
-        ];
-        const changeNotes: string[] = Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : [];
-        const infoNotes: string[] = Array.from(
-          new Set([
-            ...((decision.notes || []) as string[]),
-            ...(Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []),
-          ])
+        const combinedNotes = mergeUniqueNotes(decision.notes || [], adaptedWorkout.adaptationNotes || []);
+        const changeNotes = mergeUniqueNotes(
+          Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : []
         );
+        const infoNotes = mergeUniqueNotes(
+          decision.notes || [],
+          Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []
+        );
+        const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
 
-	        workoutData = {
+        const adaptedChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
+        workoutData = {
           schemeId: scheme.id,
           schemeName: adaptedWorkout.schemeName,
           dayIndex: adaptedWorkout.dayIndex,
@@ -1485,8 +1673,13 @@ workoutGeneration.post(
           adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
           changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
           infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
-          changeMeta: (adaptedWorkout as any)?.changeMeta,
-          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
+          changeMeta: {
+            ...adaptedChangeMeta,
+            intentAdjusted: Boolean(adaptedChangeMeta.intentAdjusted ?? shouldAdaptForIntent),
+            safetyAdjusted: Boolean(hasBlockedExercises),
+            corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
+          },
+          warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
           meta: {
             adaptedAt: new Date().toISOString(),
             originalDayIndex,
@@ -1504,10 +1697,8 @@ workoutGeneration.post(
 	        console.log(`   ✅ KEEP_DAY: Using base plan exercises`);
       
         // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
-        const combinedNotes = [
-          ...(decision.notes || []),
-          ...(basePlan.adaptationNotes || []),
-        ];
+        const combinedNotes = mergeUniqueNotes(decision.notes || [], basePlan.adaptationNotes || []);
+        const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
 
 	        const enrichedExercises = enrichLoadInfoForStoredPlanExercises(
 	          Array.isArray(basePlan?.exercises) ? basePlan.exercises : []
@@ -1560,16 +1751,24 @@ workoutGeneration.post(
 	        } catch (e) {
 	          console.warn("   ⚠️  Failed to attach suggested weights for stored plan exercises:", e);
 	        }
-	        workoutData = {
-	          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
-	          exercises: exercisesWithWeights,
-	          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+        workoutData = {
+          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
+          exercises: exercisesWithWeights,
+          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
             changeNotes: [],
             infoNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-            changeMeta: { volumeAdjusted: false, deload: false, shortenedForTime: false, trimmedForCaps: false },
-	          warnings: readiness.warnings?.length > 0 ? readiness.warnings : undefined,
-	          // Обновляем метаданные
-	          meta: {
+            changeMeta: {
+              volumeAdjusted: false,
+              deload: false,
+              shortenedForTime: false,
+              trimmedForCaps: false,
+              intentAdjusted: false,
+              safetyAdjusted: false,
+              corePolicyAdjusted: false,
+            },
+          warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
+          // Обновляем метаданные
+          meta: {
             adaptedAt: new Date().toISOString(),
             originalDayIndex,
             finalDayIndex: originalDayIndex,
@@ -1621,12 +1820,17 @@ workoutGeneration.post(
         weekPlanData,
       });
 
-      const adaptedChangeNotes: string[] = Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : [];
-      const adaptedInfoNotes: string[] = Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : [];
-      const decisionNotes: string[] = Array.isArray(decision.notes) ? decision.notes : [];
-      const finalChangeNotes = Array.from(new Set([...decisionNotes, ...adaptedChangeNotes]));
+      const adaptedChangeNotes: string[] = mergeUniqueNotes(
+        Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : []
+      );
+      const adaptedInfoNotes: string[] = mergeUniqueNotes(
+        Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []
+      );
+      const decisionNotes: string[] = mergeUniqueNotes(Array.isArray(decision.notes) ? decision.notes : []);
+      const finalChangeNotes = mergeUniqueNotes(decisionNotes, adaptedChangeNotes);
       
-	      workoutData = {
+      const swapChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
+      workoutData = {
         schemeId: scheme.id,
         schemeName: adaptedWorkout.schemeName,
         dayIndex: adaptedWorkout.dayIndex,
@@ -1653,8 +1857,13 @@ workoutGeneration.post(
         adaptationNotes: adaptedWorkout.adaptationNotes,
         changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
         infoNotes: adaptedInfoNotes.length > 0 ? adaptedInfoNotes : undefined,
-        changeMeta: (adaptedWorkout as any)?.changeMeta,
-        warnings: adaptedWorkout.warnings,
+        changeMeta: {
+          ...swapChangeMeta,
+          intentAdjusted: Boolean(swapChangeMeta.intentAdjusted),
+          safetyAdjusted: Boolean(Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0),
+          corePolicyAdjusted: false,
+        },
+        warnings: mergeUniqueNotes(adaptedWorkout.warnings || [], readiness.warnings || []),
         // НОВОЕ: метаданные адаптации
         meta: {
           adaptedAt: new Date().toISOString(),
@@ -1727,26 +1936,50 @@ workoutGeneration.post(
     console.log("=====================================================\n");
     
     // 9. Return workout with combined notes
-    const combinedNotes = [
-      ...(decision.notes || []),
-      ...(workoutData.adaptationNotes || []),
-    ];
+    const combinedNotes = mergeUniqueNotes(decision.notes || [], workoutData.adaptationNotes || []);
+    const summaryChangeMeta = (workoutData as any)?.changeMeta || {};
+    const summaryChangeNotes = mergeUniqueNotes(
+      Array.isArray((workoutData as any)?.changeNotes) ? (workoutData as any).changeNotes : []
+    );
+    const summaryInfoNotes = mergeUniqueNotes(
+      Array.isArray((workoutData as any)?.infoNotes) ? (workoutData as any).infoNotes : []
+    );
+    const summaryWarnings = mergeUniqueNotes(
+      Array.isArray((workoutData as any)?.warnings) ? (workoutData as any).warnings : []
+    );
+    const summaryChanged =
+      decision.action !== "keep_day" ||
+      summaryChangeNotes.length > 0 ||
+      Boolean(summaryChangeMeta.intentAdjusted) ||
+      Boolean(summaryChangeMeta.volumeAdjusted) ||
+      Boolean(summaryChangeMeta.shortenedForTime) ||
+      Boolean(summaryChangeMeta.trimmedForCaps) ||
+      Boolean(summaryChangeMeta.deload) ||
+      Boolean(summaryChangeMeta.safetyAdjusted) ||
+      Boolean(summaryChangeMeta.corePolicyAdjusted);
+    const summaryBlocks = buildCoachSummaryBlocks({
+      action: decision.action as WorkoutStartAction,
+      changed: summaryChanged,
+      changeMeta: summaryChangeMeta,
+      changeNotes: summaryChangeNotes,
+      infoNotes: summaryInfoNotes,
+      warnings: summaryWarnings,
+      swapInfo: swapInfo || undefined,
+    });
 
     return {
       action: decision.action,
       notes: combinedNotes.length > 0 ? combinedNotes : undefined,
       summary: {
-        changed:
-          decision.action !== "keep_day" ||
-          (Array.isArray((workoutData as any)?.changeNotes) && (workoutData as any).changeNotes.length > 0) ||
-          Boolean((workoutData as any)?.changeMeta?.intentAdjusted) ||
-          Boolean((workoutData as any)?.changeMeta?.volumeAdjusted) ||
-          Boolean((workoutData as any)?.changeMeta?.shortenedForTime) ||
-          Boolean((workoutData as any)?.changeMeta?.trimmedForCaps) ||
-          Boolean((workoutData as any)?.changeMeta?.deload),
-        changeNotes: (workoutData as any)?.changeNotes || [],
-        infoNotes: (workoutData as any)?.infoNotes || [],
-        changeMeta: (workoutData as any)?.changeMeta,
+        changed: summaryChanged,
+        changeNotes: summaryChangeNotes,
+        infoNotes: summaryInfoNotes,
+        changeMeta: summaryChangeMeta,
+        warnings: summaryWarnings,
+        severity: readiness.severity,
+        whatChanged: summaryBlocks.whatChanged,
+        why: summaryBlocks.why,
+        howToTrainToday: summaryBlocks.howToTrainToday,
       },
       workout: workoutData,
       swapInfo,

@@ -96,6 +96,32 @@ export async function getLatestCheckIn() {
   return parseJson(res, "latest_check_in");
 }
 
+export type StartWorkoutResponse = {
+  action: "keep_day" | "swap_day" | "recovery" | "skip";
+  notes?: string[];
+  summary?: {
+    changed: boolean;
+    changeNotes: string[];
+    infoNotes: string[];
+    warnings?: string[];
+    severity?: "low" | "medium" | "high" | "critical";
+    whatChanged?: string;
+    why?: string;
+    howToTrainToday?: string;
+    changeMeta?: {
+      volumeAdjusted?: boolean;
+      deload?: boolean;
+      shortenedForTime?: boolean;
+      trimmedForCaps?: boolean;
+      intentAdjusted?: boolean;
+      safetyAdjusted?: boolean;
+      corePolicyAdjusted?: boolean;
+    };
+  };
+  workout?: any;
+  swapInfo?: { from: string; to: string; reason: string[] };
+};
+
 export async function startWorkout(payload: {
   date?: string;
   checkin?: CheckInPayload;
@@ -106,23 +132,7 @@ export async function startWorkout(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return parseJson<{
-    action: "keep_day" | "swap_day" | "recovery" | "skip";
-    notes?: string[];
-    summary?: {
-      changed: boolean;
-      changeNotes: string[];
-      infoNotes: string[];
-      changeMeta?: {
-        volumeAdjusted?: boolean;
-        deload?: boolean;
-        shortenedForTime?: boolean;
-        trimmedForCaps?: boolean;
-      };
-    };
-    workout?: any;
-    swapInfo?: { from: string; to: string; reason: string[] };
-  }>(res, "start_workout");
+  return parseJson<StartWorkoutResponse>(res, "start_workout");
 }
 
 export async function getMesocycleCurrent() {

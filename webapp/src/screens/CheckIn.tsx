@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
-import { startWorkout, type CheckInPayload } from "@/api/plan";
+import { startWorkout, type CheckInPayload, type StartWorkoutResponse } from "@/api/plan";
 import { getScheduleOverview } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
+import { buildCheckInSummaryViewModel } from "@/lib/checkinResultSummary";
 import mascotImg from "@/assets/robonew.webp";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
 
@@ -12,6 +13,7 @@ const INTRO_BUBBLE_PREFIX = "Пару вопросов ";
 const INTRO_BUBBLE_STRONG = "о самочувствии";
 const INTRO_BUBBLE_SUFFIX = ", чтобы подстроить тренировку";
 const INTRO_BUBBLE_TARGET = `${INTRO_BUBBLE_PREFIX}${INTRO_BUBBLE_STRONG}${INTRO_BUBBLE_SUFFIX}`;
+type CheckInResult = StartWorkoutResponse;
 
 export default function CheckIn() {
   const nav = useNavigate();
@@ -20,17 +22,7 @@ export default function CheckIn() {
   const [loading, setLoading] = useState(false);
   const [skipLoading, setSkipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<null | {
-    action: "keep_day" | "swap_day" | "recovery";
-    notes: string[];
-    summary?: {
-      changed: boolean;
-      changeNotes: string[];
-      infoNotes: string[];
-    };
-    workout: any;
-    swapInfo?: { from: string; to: string; reason: string[] };
-  }>(null);
+  const [result, setResult] = useState<CheckInResult | null>(null);
   const [summaryPhase, setSummaryPhase] = useState<"thinking" | "ready">("thinking");
   const [formStep, setFormStep] = useState(0);
 
@@ -93,46 +85,14 @@ export default function CheckIn() {
     return () => window.clearTimeout(t);
   }, [result]);
 
-  const summary = useMemo(() => {
-    if (!result) return null;
-    const notes = Array.isArray(result.summary?.changeNotes) ? result.summary!.changeNotes : [];
-    const changed = result.summary?.changed ?? (notes.length > 0);
-    const swap = result.swapInfo;
-
-    if (result.action === "recovery") {
-      return {
-        title: "Режим восстановления",
-        subtitle: "Мы сделали тренировку легче и безопаснее.",
-        notes: notes.length ? notes : ["Тренировка облегчена: меньше объёма и нагрузки, больше отдыха и контроля."],
-      };
-    }
-
-    if (result.action === "swap_day") {
-      const label = swap?.from && swap?.to ? `Сегодня: ${swap.from} → ${swap.to}` : "Мы немного переставили день тренировки.";
-      return {
-        title: "Тренировка адаптирована",
-        subtitle: label,
-        notes: notes.length ? notes : ["Тренировка переставлена внутри недели, чтобы лучше соответствовать самочувствию."],
-      };
-    }
-
-    if (!changed) {
-      return {
-        title: "Тренировка по плану",
-        subtitle: "Без изменений — можно начинать.",
-        notes: [],
-      };
-    }
-
-    return {
-      title: "Тренировка адаптирована",
-      subtitle: "Учли твой чек-ин и обновили план.",
-      notes,
-    };
-  }, [result]);
+  const summary = useMemo(() => (result ? buildCheckInSummaryViewModel(result) : null), [result]);
 
   const goToWorkout = () => {
     if (!result) return;
+    if (result.action === "skip" || !result.workout) {
+      nav(returnTo || "/plan/one");
+      return;
+    }
     try {
       localStorage.setItem(
         "current_plan",
@@ -168,21 +128,15 @@ export default function CheckIn() {
         checkin: payload,
       });
 
-      // Обрабатываем разные действия
-      if (response.action === "skip") {
-        // Пропустить тренировку
-        alert("💤 Сегодня лучше отдохнуть.\n\n" + (response.notes?.join("\n") || ""));
-        nav(returnTo || "/plan/one");
-        return;
+      if (response.action !== "skip" && !response.workout) {
+        throw new Error("Не удалось получить адаптированную тренировку");
       }
 
       setResult({
-        action: response.action,
+        ...response,
         notes: Array.isArray(response.notes) ? response.notes : [],
-        workout: response.workout,
-        swapInfo: response.swapInfo,
-        summary: response.summary,
-      });
+        workout: response.workout ?? null,
+      } as CheckInResult);
     } catch (err: any) {
       console.error("CheckIn error:", err);
       setError(err.message || "Не удалось обработать чек-ин. Попробуй ещё раз.");
@@ -352,7 +306,7 @@ export default function CheckIn() {
       {phase === "result" && result ? (
         <>
           <section style={styles.summaryCard} className="onb-fade onb-fade-delay-2">
-            <div style={styles.summaryKicker}>Адаптация тренировки</div>
+            <div style={styles.summaryKicker}>{summary?.kicker || "Результат чек-ина"}</div>
 
             {summaryPhase === "thinking" ? (
               <div style={styles.thinkingRow} aria-live="polite">
@@ -366,9 +320,9 @@ export default function CheckIn() {
                 <div style={styles.summaryTitle}>{summary?.title || "Готово"}</div>
                 {summary?.subtitle ? <div style={styles.summarySubtitle}>{summary.subtitle}</div> : null}
 
-                {summary?.notes?.length ? (
+                {summary?.bullets?.length ? (
                   <div style={styles.notesList}>
-                    {summary.notes.slice(0, 8).map((t, i) => (
+                    {summary.bullets.slice(0, 3).map((t, i) => (
                       <div key={i} style={styles.noteItem}>
                         • {t}
                       </div>
@@ -383,7 +337,7 @@ export default function CheckIn() {
           {summaryPhase === "ready" ? (
             <div style={styles.summaryFooter} className="onb-fade onb-fade-delay-3">
               <button type="button" style={styles.summaryPrimaryBtn} onClick={goToWorkout} disabled={loading}>
-                Начать тренировку
+                {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
               </button>
               <button
                 type="button"
