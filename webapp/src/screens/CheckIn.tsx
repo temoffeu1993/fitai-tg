@@ -360,6 +360,7 @@ export default function CheckIn() {
                     ))}
                   </div>
                 ) : null}
+                {summary?.factualLine ? <div style={styles.summaryMetaLine}>{summary.factualLine}</div> : null}
               </div>
             )}
 
@@ -748,6 +749,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.45,
     color: "rgba(30,31,34,0.72)",
+  },
+  summaryMetaLine: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: "rgba(30,31,34,0.62)",
   },
   notesList: {
     marginTop: 12,

@@ -7,6 +7,7 @@ export type CheckInSummaryViewModel = {
   title: string;
   subtitle: string;
   bullets: string[];
+  factualLine?: string;
   severity: CheckInSummarySeverity;
   changed: boolean;
 };
@@ -259,6 +260,7 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
     title,
     subtitle,
     bullets,
+    factualLine: factualLine || undefined,
     severity,
     changed,
   };
