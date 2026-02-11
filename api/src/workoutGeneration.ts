@@ -1258,6 +1258,11 @@ workoutGeneration.post(
         infoNotes: summaryInfoNotes,
         warnings: summaryWarnings,
         diff: summaryDiff,
+        checkin,
+        readiness,
+        onboardingMinutes: userProfile.timeBucket,
+        beforePlan: planBeforeStart,
+        afterPlan: planBeforeStart,
       });
       return {
         action: "skip" as const,
@@ -1347,6 +1352,11 @@ workoutGeneration.post(
         infoNotes: summaryInfoNotes,
         warnings: summaryWarnings,
         diff: summaryDiff,
+        checkin,
+        readiness,
+        onboardingMinutes: userProfile.timeBucket,
+        beforePlan: planBeforeStart,
+        afterPlan: workoutData,
       });
       const responseNotes = mergeUniqueNotes(
         decision.notes || [],
@@ -1829,6 +1839,11 @@ workoutGeneration.post(
       warnings: summaryWarnings,
       swapInfo: swapInfo || undefined,
       diff: summaryDiff,
+      checkin,
+      readiness,
+      onboardingMinutes: userProfile.timeBucket,
+      beforePlan: planBeforeStart,
+      afterPlan: workoutData,
     });
 
     return {

@@ -132,6 +132,50 @@ export type StartWorkoutResponse = {
       afterDuration?: number | null;
       structureChanged?: boolean;
     };
+    facts?: {
+      input: {
+        sleep?: "poor" | "fair" | "ok" | "good" | "excellent";
+        energy?: "low" | "medium" | "high";
+        stress?: "low" | "medium" | "high" | "very_high";
+        availableMinutes: number | null;
+        onboardingMinutes: number | null;
+        pain: Array<{ location: string; level: number }>;
+        maxPainLevel: number;
+      };
+      adaptation: {
+        action: "keep_day" | "swap_day" | "recovery" | "skip";
+        changed: boolean;
+        dayFrom?: string;
+        dayTo?: string;
+        before: { exercises: number; sets: number; duration: number | null };
+        after: { exercises: number; sets: number; duration: number | null };
+        diff?: {
+          setsDelta: number;
+          durationDelta: number | null;
+          addedCount: number;
+          removedCount: number;
+          replacedCount?: number;
+          volumeDeltaPct?: number | null;
+          durationDeltaPct?: number | null;
+          beforeSets?: number;
+          afterSets?: number;
+          beforeDuration?: number | null;
+          afterDuration?: number | null;
+          structureChanged?: boolean;
+        } | null;
+        drivers: Array<
+          | "skip_rest"
+          | "recovery_mode"
+          | "swap_day"
+          | "pain_safety"
+          | "time_limit"
+          | "low_recovery"
+          | "high_readiness"
+          | "exercise_swap"
+          | "no_change"
+        >;
+      };
+    };
   };
   workout?: any;
   swapInfo?: { from: string; to: string; reason: string[] };

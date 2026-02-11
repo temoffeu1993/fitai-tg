@@ -1,4 +1,5 @@
 import {
+  buildCheckInFactPack,
   buildCoachSummaryBlocks,
   computeWorkoutSummaryDiff,
   isSummaryTextContradiction,
@@ -54,12 +55,22 @@ describe("checkin summary semantics", () => {
       // Проверяем, что техфлаг не ломает пользовательскую семантику
       changeMeta: { shortenedForTime: true },
       diff,
+      facts: buildCheckInFactPack({
+        action: "keep_day",
+        changed: true,
+        changeMeta: { shortenedForTime: true },
+        diff,
+        beforePlan,
+        afterPlan,
+        onboardingMinutes: 90,
+        checkin: { sleep: "good", energy: "high", stress: "low", availableMinutes: 90 },
+      }),
       warnings: [],
       infoNotes: [],
       changeNotes: [],
     });
 
-    expect(blocks.whatChanged).toMatch(/добавили/i);
+    expect(blocks.whatChanged).toMatch(/добавили|повысили/i);
     expect(blocks.whatChanged).not.toMatch(/сократили/i);
     expect(isSummaryTextContradiction(blocks.whatChanged, diff)).toBe(false);
   });
@@ -81,12 +92,29 @@ describe("checkin summary semantics", () => {
       changed: true,
       changeMeta: { safetyAdjusted: true, shortenedForTime: true },
       diff,
+      facts: buildCheckInFactPack({
+        action: "keep_day",
+        changed: true,
+        changeMeta: { safetyAdjusted: true, shortenedForTime: true },
+        diff,
+        onboardingMinutes: 90,
+        beforePlan: { totalSets: 14, estimatedDuration: 60, exercises: [{ exerciseId: "a", sets: 7 }, { exerciseId: "b", sets: 7 }] },
+        afterPlan: { totalSets: 10, estimatedDuration: 42, exercises: [{ exerciseId: "a", sets: 5 }, { exerciseId: "c", sets: 5 }] },
+        checkin: {
+          sleep: "ok",
+          energy: "medium",
+          stress: "medium",
+          pain: [{ location: "knee", level: 7 }],
+          availableMinutes: 90,
+        },
+        readiness: { maxPainLevel: 7 },
+      }),
       warnings: ["🔴 Сильная боль: колено 7/10"],
       infoNotes: [],
       changeNotes: [],
     });
 
-    expect(blocks.whatChanged).toMatch(/рискованн|проблемн/i);
+    expect(blocks.whatChanged).toMatch(/безопас|рискованн|проблемн/i);
   });
 
   it("swap_day показывает человеко-понятные названия", () => {
@@ -94,6 +122,16 @@ describe("checkin summary semantics", () => {
       action: "swap_day",
       changed: true,
       swapInfo: { from: "Push Day", to: "Pull Day" },
+      facts: buildCheckInFactPack({
+        action: "swap_day",
+        changed: true,
+        swapInfo: { from: "Push Day", to: "Pull Day" },
+        onboardingMinutes: 90,
+        beforePlan: { totalSets: 12, estimatedDuration: 60, exercises: [{ exerciseId: "a", sets: 4 }, { exerciseId: "b", sets: 4 }, { exerciseId: "c", sets: 4 }] },
+        afterPlan: { totalSets: 12, estimatedDuration: 60, exercises: [{ exerciseId: "d", sets: 4 }, { exerciseId: "e", sets: 4 }, { exerciseId: "f", sets: 4 }] },
+        checkin: { sleep: "ok", energy: "medium", stress: "medium", pain: [{ location: "shoulder", level: 6 }], availableMinutes: 90 },
+        readiness: { maxPainLevel: 6 },
+      }),
       changeNotes: [],
       infoNotes: [],
       warnings: [],

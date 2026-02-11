@@ -193,7 +193,7 @@ export default function CheckIn() {
     ? "Отметь самочувствие за 30 секунд."
     : summaryPhase === "thinking"
     ? "Секунду, адаптирую тренировку."
-    : summary?.subtitle || "Готово. Тренировка адаптирована.";
+    : "Готово. Ниже коротко, что поменялось сегодня.";
   const introBubbleTyped = useTypewriterText(
     phase === "intro" ? INTRO_BUBBLE_TARGET : "",
     { charIntervalMs: 26, startDelayMs: 120 }

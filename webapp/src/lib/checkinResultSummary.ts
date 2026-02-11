@@ -58,6 +58,15 @@ function shorten(line: string, max = 170): string {
   return `${line.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function normalizeForCompare(line: string): string {
+  return cleanLine(line)
+    .toLowerCase()
+    .replace(/[•\-–—]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]+/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isGenericNeutral(line: string): boolean {
   return GENERIC_NEUTRAL_PATTERNS.some((p) => p.test(line));
 }
@@ -127,6 +136,7 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
   const severity = pickSeverity(result);
   const signals = collectSignals(result);
   const meta = result.summary?.changeMeta || {};
+  const facts = result.summary?.facts || null;
   const changed = Boolean(
     result.summary?.changed ||
       result.action !== "keep_day" ||
@@ -140,43 +150,55 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
       meta.corePolicyAdjusted
   );
 
-  let title = "План в силе";
-  let subtitle = "Самочувствие ок — работаем по программе.";
+  let title = "План без изменений";
+  let subtitle = "Идём по обычному плану.";
 
   if (result.action === "recovery") {
     title = "Восстановительный день";
-    subtitle =
-      severity === "critical"
-        ? "Сегодня без героизма: телу нужен аккуратный восстановительный режим."
-        : "Работаем мягко: восстановление сейчас важнее объёма.";
+    subtitle = signals.canonical.whatChanged || "Сегодня вместо силовой — восстановительная сессия.";
   } else if (result.action === "swap_day") {
     const from = humanizeDayLabel(result.swapInfo?.from);
     const to = humanizeDayLabel(result.swapInfo?.to);
-    title = "Переставили день";
+    title = "День переставлен";
     subtitle =
       from && to
-        ? `Сегодня: ${from} → ${to}. Так сейчас безопаснее и продуктивнее.`
-        : "Переставили день, чтобы не перегружать уставшие зоны.";
+        ? `Сегодня: ${from} → ${to}.`
+        : signals.canonical.whatChanged || "Переставили тренировочный день.";
   } else if (result.action === "skip") {
     title = "Пауза на сегодня";
-    subtitle = "Тело просит перезагрузку. Это нормально и поможет прогрессу.";
+    subtitle = signals.canonical.whatChanged || "Сегодня без силовой: нужен отдых и восстановление.";
   } else if (changed) {
-    title = "Тренировка подстроена";
-    subtitle =
-      severity === "high" || severity === "critical"
-        ? "Сегодня без геройства: убрали лишний риск и оставили рабочую нагрузку."
-        : "Подправили план под текущее самочувствие.";
+    title = "Тренировка адаптирована";
+    subtitle = cleanLine(signals.canonical.whatChanged) || "План подстроен под текущее состояние.";
   } else if (signals.warnings.length > 0) {
     subtitle = "Идём по плану, но работаем аккуратно: контроль и техника в приоритете.";
   }
 
+  const factualLine = (() => {
+    if (!facts) return "";
+    const before = facts.adaptation.before;
+    const after = facts.adaptation.after;
+    const hasDelta =
+      before.exercises !== after.exercises ||
+      before.sets !== after.sets ||
+      before.duration !== after.duration;
+    if (!hasDelta) return "";
+    const parts: string[] = [];
+    if (before.exercises !== after.exercises) parts.push(`${before.exercises}→${after.exercises} упражнений`);
+    if (before.sets !== after.sets) parts.push(`${before.sets}→${after.sets} подходов`);
+    if (before.duration != null && after.duration != null && before.duration !== after.duration) {
+      parts.push(`${before.duration}→${after.duration} минут`);
+    }
+    return parts.length ? `Фактически: ${parts.join(", ")}.` : "";
+  })();
+
   const canonicalBullets = dedupeLines([
-    signals.canonical.whatChanged,
     signals.canonical.why,
+    factualLine,
     signals.canonical.howToTrainToday,
   ])
     .map((line) => shorten(line))
-    .slice(0, 3);
+    .slice(0, 2);
 
   const fallbackCandidateLines =
     result.action === "keep_day" && !changed
@@ -188,7 +210,17 @@ export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): Chec
     .map((line) => shorten(line))
     .slice(0, 3);
 
-  const bullets = canonicalBullets.length > 0 ? canonicalBullets : fallbackBulletLines;
+  const duplicatesGuard = new Set<string>([
+    normalizeForCompare(title),
+    normalizeForCompare(subtitle),
+    normalizeForCompare(signals.canonical.whatChanged),
+    normalizeForCompare(signals.canonical.why),
+  ]);
+
+  const bullets = (canonicalBullets.length > 0 ? canonicalBullets : fallbackBulletLines.slice(0, 2)).filter((line) => {
+    const key = normalizeForCompare(line);
+    return key && !duplicatesGuard.has(key);
+  });
 
   if (!bullets.length) {
     bullets.push(...fallbackBullets(result.action, changed));
