@@ -933,7 +933,7 @@ const modal: Record<string, React.CSSProperties> = {
     position: "fixed",
     left: 0,
     right: 0,
-    bottom: "calc(var(--layout-nav-height, 72px) + clamp(8px, 1.4vh, 14px))",
+    bottom: "calc(var(--layout-nav-height, 72px) + clamp(4px, 0.9vh, 8px))",
     padding: "14px clamp(16px, 4vw, 20px) calc(max(env(safe-area-inset-bottom, 0px), 0px) + 2px)",
     display: "grid",
     gridTemplateColumns: "1fr",
@@ -947,7 +947,7 @@ const modal: Record<string, React.CSSProperties> = {
     position: "relative",
     marginTop: 14,
     paddingBottom:
-      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + clamp(6px, 1.1vh, 12px))",
+      "calc(max(env(safe-area-inset-bottom, 0px), 0px) + clamp(2px, 0.7vh, 6px))",
   },
   ghostBtn: {
     borderRadius: 12,
