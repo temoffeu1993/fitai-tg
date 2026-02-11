@@ -59,15 +59,6 @@ function shorten(line: string, max = 170): string {
   return `${line.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
-function pluralRu(count: number, one: string, few: string, many: string): string {
-  const n = Math.abs(count) % 100;
-  const n1 = n % 10;
-  if (n > 10 && n < 20) return many;
-  if (n1 > 1 && n1 < 5) return few;
-  if (n1 === 1) return one;
-  return many;
-}
-
 function normalizeForCompare(line: string): string {
   return cleanLine(line)
     .toLowerCase()
@@ -146,33 +137,27 @@ function buildFactualLine(facts: NonNullable<StartWorkoutResponse["summary"]>["f
   if (!facts) return "";
   const before = facts.adaptation.before;
   const after = facts.adaptation.after;
-  const exercisesDelta = after.exercises - before.exercises;
   const setsDelta = after.sets - before.sets;
   const durationDelta =
     before.duration != null && after.duration != null ? after.duration - before.duration : null;
 
   const isSignificant =
-    Math.abs(exercisesDelta) >= 1 ||
     Math.abs(setsDelta) >= 2 ||
     (durationDelta != null && Math.abs(durationDelta) >= 5);
   if (!isSignificant) return "";
 
   const parts: string[] = [];
-  if (exercisesDelta !== 0) {
-    const sign = exercisesDelta > 0 ? "+" : "−";
-    const abs = Math.abs(exercisesDelta);
-    parts.push(`${sign}${abs} ${pluralRu(abs, "упражнение", "упражнения", "упражнений")}`);
-  }
   if (setsDelta !== 0) {
     const sign = setsDelta > 0 ? "+" : "−";
     const abs = Math.abs(setsDelta);
-    parts.push(`${sign}${abs} ${pluralRu(abs, "подход", "подхода", "подходов")}`);
+    parts.push(`подходы ${before.sets} → ${after.sets} (${sign}${abs})`);
   }
   if (durationDelta != null && durationDelta !== 0) {
+    const sign = durationDelta > 0 ? "+" : "−";
     const abs = Math.abs(durationDelta);
-    parts.push(durationDelta < 0 ? `примерно на ${abs} мин короче` : `примерно на ${abs} мин дольше`);
+    parts.push(`время ${before.duration} → ${after.duration} мин (${sign}${abs})`);
   }
-  return parts.length ? `Изменения: ${parts.join(", ")}.` : "";
+  return parts.length ? `По факту: ${parts.join(", ")}.` : "";
 }
 
 export function buildCheckInSummaryViewModel(result: StartWorkoutResponse): CheckInSummaryViewModel {

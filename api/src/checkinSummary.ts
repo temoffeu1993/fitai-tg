@@ -577,6 +577,12 @@ export function buildCoachSummaryBlocks(args: {
   const diff = facts.adaptation.diff;
   const drivers = facts.adaptation.drivers;
   const hasDriver = (code: SummaryDriverCode) => drivers.includes(code);
+  const hasPainSafety = hasDriver("pain_safety");
+  const hasTimeLimit = hasDriver("time_limit");
+  const hasLowRecovery = hasDriver("low_recovery");
+  const hasExerciseSwap = hasDriver("exercise_swap");
+  const hasNoChange = hasDriver("no_change");
+  const diffSignals = getSummaryDiffSignals(diff);
   const durationPair = formatDurationDelta(diff);
   const setsPair = formatSetsDelta(diff);
   const topPain = facts.input.pain
@@ -595,7 +601,7 @@ export function buildCoachSummaryBlocks(args: {
     whatChanged = from && to
       ? `Переставили день: ${from} → ${to}.`
       : "Переставили тренировочный день внутри недели.";
-  } else if (hasDriver("pain_safety")) {
+  } else if (hasPainSafety) {
     if (facts.adaptation.before.exercises !== facts.adaptation.after.exercises || hasDriver("exercise_swap")) {
       whatChanged = "Заменили часть упражнений на более безопасные для текущего состояния.";
     } else if (setsPair || durationPair) {
@@ -603,10 +609,16 @@ export function buildCoachSummaryBlocks(args: {
     } else {
       whatChanged = "Сделали тренировку безопаснее под текущие ограничения.";
     }
-  } else if (hasDriver("time_limit")) {
+  } else if (hasTimeLimit && hasLowRecovery) {
+    whatChanged = diffSignals.meaningfulDelta
+      ? "Сжали тренировку под время и облегчили нагрузку под самочувствие."
+      : "Подстроили тренировку под время и текущее самочувствие.";
+  } else if (hasTimeLimit) {
     whatChanged = durationPair
       ? `Сократили тренировку под время (${durationPair}).`
       : "Сократили тренировку под доступное время.";
+  } else if (hasLowRecovery && diffSignals.meaningfulDelta) {
+    whatChanged = "Облегчили нагрузку под текущее самочувствие.";
   } else if (diff && (diff.setsDelta <= -2 || (diff.durationDelta != null && diff.durationDelta <= -8))) {
     whatChanged = setsPair
       ? `Сделали тренировку легче (${setsPair}).`
@@ -615,7 +627,7 @@ export function buildCoachSummaryBlocks(args: {
     whatChanged = setsPair
       ? `Немного повысили рабочую нагрузку (${setsPair}).`
       : "Немного повысили рабочую нагрузку на сегодня.";
-  } else if (hasDriver("exercise_swap")) {
+  } else if (hasExerciseSwap) {
     whatChanged = "Обновили состав упражнений без заметной смены объёма.";
   }
 
@@ -628,17 +640,34 @@ export function buildCoachSummaryBlocks(args: {
     why = painText
       ? `По чек-ину есть дискомфорт (${painText}), поэтому включили мягкий восстановительный режим.`
       : "По чек-ину сейчас лучше восстановительная работа вместо силовой.";
-  } else if (hasDriver("pain_safety")) {
+  } else if (hasPainSafety) {
     why = painText
       ? `Отметил боль (${painText}), поэтому убрали движения с лишним риском.`
       : "По чек-ину есть факторы риска, поэтому тренировку сделали безопаснее.";
-  } else if (hasDriver("time_limit")) {
+  } else if (hasTimeLimit && hasLowRecovery) {
+    const available = facts.input.availableMinutes;
+    const onboarding = facts.input.onboardingMinutes;
+    const timePart =
+      available != null && onboarding != null
+        ? `Указал ${available} мин вместо обычных ${onboarding}`
+        : "Времени на тренировку сегодня меньше обычного";
+
+    if (facts.input.sleep === "poor" && facts.input.energy === "low") {
+      why = `${timePart}. Плохой сон и низкая энергия — поэтому оставили щадящую нагрузку без перегруза.`;
+    } else if (facts.input.sleep === "poor") {
+      why = `${timePart}. Из-за плохого сна сделали нагрузку мягче.`;
+    } else if (facts.input.energy === "low") {
+      why = `${timePart}. Из-за низкой энергии снизили интенсивность на сегодня.`;
+    } else {
+      why = `${timePart}. По самочувствию сегодня работаем в более щадящем режиме.`;
+    }
+  } else if (hasTimeLimit) {
     const available = facts.input.availableMinutes;
     const onboarding = facts.input.onboardingMinutes;
     why = available != null && onboarding != null
       ? `Указал ${available} мин вместо обычных ${onboarding} — адаптировали объём под это время.`
       : "По чек-ину времени на тренировку меньше обычного, поэтому сократили объём.";
-  } else if (hasDriver("low_recovery")) {
+  } else if (hasLowRecovery) {
     if (facts.input.sleep === "poor" && facts.input.energy === "low") {
       why = "Плохой сон и низкая энергия — сделали сессию легче, чтобы не перегружать восстановление.";
     } else if (facts.input.sleep === "poor") {
@@ -650,7 +679,7 @@ export function buildCoachSummaryBlocks(args: {
     }
   } else if (hasDriver("high_readiness")) {
     why = "По чек-ину высокий ресурс, поэтому можно немного повысить рабочую нагрузку.";
-  } else if (hasDriver("no_change")) {
+  } else if (hasNoChange) {
     why = "По чек-ину состояние ровное — оставили план без изменений.";
   } else {
     const whyCandidates = mergeUniqueNotes(warnings, infoNotes, changeNotes);
