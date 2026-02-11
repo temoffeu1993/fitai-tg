@@ -100,6 +100,7 @@ export type StartWorkoutResponse = {
   action: "keep_day" | "swap_day" | "recovery" | "skip";
   notes?: string[];
   summary?: {
+    version?: number;
     changed: boolean;
     changeNotes: string[];
     infoNotes: string[];
@@ -116,6 +117,20 @@ export type StartWorkoutResponse = {
       intentAdjusted?: boolean;
       safetyAdjusted?: boolean;
       corePolicyAdjusted?: boolean;
+    };
+    diff?: {
+      setsDelta: number;
+      durationDelta: number | null;
+      addedCount: number;
+      removedCount: number;
+      replacedCount?: number;
+      volumeDeltaPct?: number | null;
+      durationDeltaPct?: number | null;
+      beforeSets?: number;
+      afterSets?: number;
+      beforeDuration?: number | null;
+      afterDuration?: number | null;
+      structureChanged?: boolean;
     };
   };
   workout?: any;

@@ -44,8 +44,16 @@ import {
   getCurrentWeekStart,
 } from "./mesocycleDb.js";
 import { estimateTotalMinutesFromStoredPlanExercises, estimateWarmupCooldownMinutes } from "./workoutTime.js";
+import {
+  buildSummaryPayload,
+  computeWorkoutSummaryDiff,
+  mergeUniqueNotes,
+  type SummarySeverity,
+  type WorkoutStartAction,
+} from "./checkinSummary.js";
 
 export const workoutGeneration = Router();
+const EXERCISE_BY_ID = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
 
 function getUid(req: any): string {
   if (req.user?.uid) return req.user.uid;
@@ -99,7 +107,7 @@ function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
   return exercises.map((ex: any) => {
     if (ex?.loadType && typeof ex?.requiresWeightInput === "boolean") return ex;
     const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
-    const lib = typeof id === "string" ? EXERCISE_LIBRARY.find((e) => e.id === id) : null;
+    const lib = typeof id === "string" ? EXERCISE_BY_ID.get(id) || null : null;
     const inferred = inferLoadInfoFromExercise(
       lib || { id, name: ex?.exerciseName || ex?.name, equipment: ex?.equipment || [] }
     );
@@ -115,158 +123,6 @@ function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
 function toFinitePositiveNumberOrNull(value: any): number | null {
   const num = typeof value === "number" ? value : Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
-}
-
-type WorkoutStartAction = "keep_day" | "swap_day" | "recovery" | "skip";
-
-type SummaryChangeMeta = {
-  volumeAdjusted?: boolean;
-  deload?: boolean;
-  shortenedForTime?: boolean;
-  trimmedForCaps?: boolean;
-  intentAdjusted?: boolean;
-  safetyAdjusted?: boolean;
-  corePolicyAdjusted?: boolean;
-};
-
-function normalizeSummaryLine(value: unknown): string {
-  return String(value || "").replace(/\s+/g, " ").trim();
-}
-
-function humanizeDayLabelForSummary(value: unknown): string {
-  const raw = normalizeSummaryLine(value);
-  if (!raw) return "";
-  const key = raw.toLowerCase();
-  const map: Record<string, string> = {
-    "push day": "Жимовой день",
-    "pull day": "Тяговой день",
-    "legs day": "Ноги",
-    "upper body": "Верх тела",
-    "lower body": "Низ тела",
-    "full body a": "Всё тело (A)",
-    "full body b": "Всё тело (B)",
-    "full body c": "Всё тело (C)",
-    "shoulders day": "Плечи",
-  };
-  if (map[key]) return map[key];
-  if (key.includes("push")) return "Жимовой день";
-  if (key.includes("pull")) return "Тяговой день";
-  if (key.includes("legs") || key.includes("lower")) return "Ноги";
-  if (key.includes("upper")) return "Верх тела";
-  if (key.includes("full")) return "Всё тело";
-  return raw;
-}
-
-function dedupeSummaryLines(lines: unknown[]): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of lines) {
-    const line = normalizeSummaryLine(raw);
-    if (!line) continue;
-    const key = line
-      .toLowerCase()
-      .replace(/[•\-–—]+/g, " ")
-      .replace(/[^\p{L}\p{N}\s]+/gu, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(line);
-  }
-  return out;
-}
-
-function mergeUniqueNotes(...groups: unknown[]): string[] {
-  const raw: unknown[] = [];
-  for (const group of groups) {
-    if (!Array.isArray(group)) continue;
-    for (const item of group) raw.push(item);
-  }
-  return dedupeSummaryLines(raw);
-}
-
-function isGenericNeutralNote(line: string): boolean {
-  const text = line.toLowerCase();
-  return (
-    text.includes("без изменений") ||
-    text.includes("тренировка по плану") ||
-    text.includes("отличное самочувствие")
-  );
-}
-
-function pickFirstSpecificNote(lines: string[]): string | undefined {
-  for (const line of lines) {
-    if (!isGenericNeutralNote(line)) return line;
-  }
-  return lines[0];
-}
-
-function buildCoachSummaryBlocks(args: {
-  action: WorkoutStartAction;
-  changed: boolean;
-  changeMeta?: SummaryChangeMeta;
-  changeNotes?: string[];
-  infoNotes?: string[];
-  warnings?: string[];
-  swapInfo?: { from?: string; to?: string; reason?: string[] } | null;
-}): { whatChanged: string; why: string; howToTrainToday: string } {
-  const action = args.action;
-  const changed = Boolean(args.changed);
-  const meta = args.changeMeta || {};
-  const changeNotes = mergeUniqueNotes(args.changeNotes || []);
-  const infoNotes = mergeUniqueNotes(args.infoNotes || []);
-  const warnings = mergeUniqueNotes(args.warnings || []);
-
-  let whatChanged = "Оставили тренировку по плану.";
-  if (action === "skip") {
-    whatChanged = "Сегодня пауза: тренировку пропускаем.";
-  } else if (action === "recovery") {
-    whatChanged = "Перевели сессию в восстановительный режим.";
-  } else if (action === "swap_day") {
-    const from = humanizeDayLabelForSummary(args.swapInfo?.from);
-    const to = humanizeDayLabelForSummary(args.swapInfo?.to);
-    whatChanged = from && to ? `Переставили день: ${from} → ${to}.` : "Переставили тренировочный день внутри недели.";
-  } else if (meta.shortenedForTime || meta.trimmedForCaps) {
-    whatChanged = "Сократили объём под доступное время.";
-  } else if (meta.safetyAdjusted) {
-    whatChanged = "Убрали упражнения, которые могут раздражать проблемные зоны.";
-  } else if (meta.intentAdjusted || meta.deload || meta.volumeAdjusted) {
-    whatChanged = "Подснизили нагрузку под текущее самочувствие.";
-  } else if (changed) {
-    whatChanged = pickFirstSpecificNote(changeNotes) || "Тренировку подстроили под текущее состояние.";
-  }
-
-  const whyCandidates = mergeUniqueNotes(warnings, infoNotes, changeNotes);
-  let why = pickFirstSpecificNote(whyCandidates) || "";
-  if (!why) {
-    if (action === "skip") {
-      why = "Чек-ин показал, что телу сегодня нужен отдых.";
-    } else if (action === "recovery") {
-      why = "Есть признаки усталости или дискомфорта, поэтому фокус на восстановлении.";
-    } else if (changed) {
-      why = "Ответы чек-ина показали, что адаптация даст лучший результат сегодня.";
-    } else {
-      why = "Текущее состояние позволяет работать по обычному плану.";
-    }
-  }
-
-  const hasStrongWarning = warnings.some((line) => /🔴|critical|сильн|[7-9]\/10|10\/10/i.test(line));
-  let howToTrainToday = "Работай технично и оставляй 1–2 повтора в запасе.";
-  if (action === "skip") {
-    howToTrainToday = "Сделай 15–25 минут лёгкой активности и восстановись.";
-  } else if (hasStrongWarning) {
-    howToTrainToday = "Не работай через боль: при дискомфорте снижай вес и амплитуду.";
-  } else if (action === "recovery") {
-    howToTrainToday = "Держи спокойный темп, длиннее паузы, без работы до отказа.";
-  } else if (meta.shortenedForTime || meta.trimmedForCaps) {
-    howToTrainToday = "Фокус на главных подходах, без добиваний и лишнего объёма.";
-  } else if (meta.intentAdjusted || meta.deload) {
-    howToTrainToday = "Сегодня важнее контроль техники, чем попытки на рекорд.";
-  } else if (!changed) {
-    howToTrainToday = "Можно идти по обычному плану в рабочем ритме.";
-  }
-
-  return { whatChanged, why, howToTrainToday };
 }
 
 // ============================================================================
@@ -1329,6 +1185,7 @@ workoutGeneration.post(
     const row = plannedRows[0];
     const rowId = row.id; // конкретный id записи — используем для UPDATE вместо workout_date
     const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
+    const planBeforeStart = (row.plan ?? row.data ?? basePlan) as any;
     const originalDayIndex = basePlan.dayIndex;
     const effectiveWorkoutDate =
       typeof row.workout_date === "string" && row.workout_date ? row.workout_date : workoutDate;
@@ -1389,26 +1246,23 @@ workoutGeneration.post(
       const summaryChangeNotes = mergeUniqueNotes(decision.notes || []);
       const summaryWarnings = mergeUniqueNotes(readiness.warnings || []);
       const summaryInfoNotes: string[] = [];
-      const summaryBlocks = buildCoachSummaryBlocks({
+      const summaryDiff = computeWorkoutSummaryDiff({
+        beforePlan: planBeforeStart,
+        afterPlan: planBeforeStart,
+        fallbackTimeBucket: userProfile.timeBucket,
+      });
+      const summary = buildSummaryPayload({
         action: "skip",
-        changed: true,
+        severity: readiness.severity as SummarySeverity,
         changeNotes: summaryChangeNotes,
         infoNotes: summaryInfoNotes,
         warnings: summaryWarnings,
+        diff: summaryDiff,
       });
       return {
         action: "skip" as const,
         notes: summaryChangeNotes.length > 0 ? summaryChangeNotes : undefined,
-        summary: {
-          changed: true,
-          changeNotes: summaryChangeNotes,
-          infoNotes: summaryInfoNotes,
-          warnings: summaryWarnings,
-          severity: readiness.severity,
-          whatChanged: summaryBlocks.whatChanged,
-          why: summaryBlocks.why,
-          howToTrainToday: summaryBlocks.howToTrainToday,
-        },
+        summary,
         originalDay: basePlan.dayLabel,
       };
     }
@@ -1422,6 +1276,8 @@ workoutGeneration.post(
 	        userProfile,
 	        painAreas,
 	        availableMinutes: readiness.effectiveMinutes ?? 30,
+          blockedPatterns: readiness.blockedPatterns,
+          avoidFlags: readiness.avoidFlags,
 	      });
       
       // Convert to workout format
@@ -1478,13 +1334,19 @@ workoutGeneration.post(
       );
       const summaryInfoNotes = mergeUniqueNotes((recoveryWorkout as any)?.infoNotes || []);
       const summaryWarnings = mergeUniqueNotes((recoveryWorkout as any)?.warnings || [], readiness.warnings || []);
-      const summaryBlocks = buildCoachSummaryBlocks({
+      const summaryDiff = computeWorkoutSummaryDiff({
+        beforePlan: planBeforeStart,
+        afterPlan: workoutData,
+        fallbackTimeBucket: userProfile.timeBucket,
+      });
+      const summary = buildSummaryPayload({
         action: "recovery",
-        changed: true,
+        severity: readiness.severity as SummarySeverity,
         changeMeta: (recoveryWorkout as any)?.changeMeta || {},
         changeNotes: summaryChangeNotes,
         infoNotes: summaryInfoNotes,
         warnings: summaryWarnings,
+        diff: summaryDiff,
       });
       const responseNotes = mergeUniqueNotes(
         decision.notes || [],
@@ -1494,17 +1356,7 @@ workoutGeneration.post(
       return {
         action: "recovery" as const,
         notes: responseNotes.length > 0 ? responseNotes : undefined,
-        summary: {
-          changed: true,
-          changeNotes: summaryChangeNotes,
-          infoNotes: summaryInfoNotes,
-          changeMeta: (recoveryWorkout as any)?.changeMeta,
-          warnings: summaryWarnings,
-          severity: readiness.severity,
-          whatChanged: summaryBlocks.whatChanged,
-          why: summaryBlocks.why,
-          howToTrainToday: summaryBlocks.howToTrainToday,
-        },
+        summary,
         workout: workoutData,
       };
     }
@@ -1567,17 +1419,31 @@ workoutGeneration.post(
 		        Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0
 		          ? new Set(readiness.blockedPatterns.map((p) => String(p).toLowerCase().trim()))
 		          : null;
+		      const avoidSet =
+		        Array.isArray(readiness.avoidFlags) && readiness.avoidFlags.length > 0
+		          ? new Set(readiness.avoidFlags.map((f) => String(f)))
+		          : null;
 		      const baseExercises = Array.isArray(basePlan?.exercises) ? basePlan.exercises : [];
 		      const hasBlockedExercises =
 		        blockedSet !== null &&
 		        baseExercises.some((ex: any) => {
 		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
 		          if (typeof id !== "string") return false;
-		          const lib = EXERCISE_LIBRARY.find((e) => e.id === id);
+		          const lib = EXERCISE_BY_ID.get(id);
 		          if (!lib) return false;
 		          return Array.isArray((lib as any).patterns)
 		            ? (lib as any).patterns.some((pat: any) => blockedSet.has(String(pat).toLowerCase()))
 		            : false;
+		        });
+		      const hasAvoidFlagExercises =
+		        avoidSet !== null &&
+		        baseExercises.some((ex: any) => {
+		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+		          if (typeof id !== "string") return false;
+		          const lib = EXERCISE_BY_ID.get(id);
+		          if (!lib) return false;
+		          const flags = Array.isArray((lib as any).jointFlags) ? (lib as any).jointFlags : [];
+		          return flags.some((flag: any) => avoidSet.has(String(flag)));
 		        });
 
 		      const hasCoreExercisesWhenOptional =
@@ -1585,7 +1451,7 @@ workoutGeneration.post(
 		        baseExercises.some((ex: any) => {
 		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
 		          if (typeof id !== "string") return false;
-		          const lib = EXERCISE_LIBRARY.find((e) => e.id === id);
+		          const lib = EXERCISE_BY_ID.get(id);
 		          if (!lib) return false;
 		          return Array.isArray((lib as any).patterns)
 		            ? (lib as any).patterns.some((pat: any) => String(pat).toLowerCase() === "core")
@@ -1597,6 +1463,7 @@ workoutGeneration.post(
             shouldAdaptForMoreTime ||
             shouldAdaptForIntent ||
             hasBlockedExercises ||
+            hasAvoidFlagExercises ||
             hasCoreExercisesWhenOptional;
 
 		      if (shouldRegenerate) {
@@ -1605,6 +1472,7 @@ workoutGeneration.post(
             if (shouldAdaptForMoreTime) reasons.push("time_up");
 		        if (shouldAdaptForIntent) reasons.push("intent");
 		        if (hasBlockedExercises) reasons.push("blocked_patterns");
+		        if (hasAvoidFlagExercises) reasons.push("avoid_flags");
 		        if (hasCoreExercisesWhenOptional) reasons.push("core_policy");
 
 		        console.log(
@@ -1673,12 +1541,12 @@ workoutGeneration.post(
           adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
           changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
           infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
-          changeMeta: {
-            ...adaptedChangeMeta,
-            intentAdjusted: Boolean(adaptedChangeMeta.intentAdjusted ?? shouldAdaptForIntent),
-            safetyAdjusted: Boolean(hasBlockedExercises),
-            corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
-          },
+	          changeMeta: {
+	            ...adaptedChangeMeta,
+	            intentAdjusted: Boolean(adaptedChangeMeta.intentAdjusted ?? shouldAdaptForIntent),
+	            safetyAdjusted: Boolean(hasBlockedExercises || hasAvoidFlagExercises),
+	            corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
+	          },
           warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
           meta: {
             adaptedAt: new Date().toISOString(),
@@ -1912,18 +1780,18 @@ workoutGeneration.post(
         const nextDate = nextRows[0].workout_date;
         const markedAt = new Date().toISOString();
 
-        await q(
-          `UPDATE planned_workouts
-           SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
-             'wasSwappedEarlier', true,
-             'swappedIntoDate', $3,
-             'swappedFromDayIndex', $4,
-             'swappedToDayIndex', $5,
-             'swappedMarkedAt', $6
-           ),
-           updated_at = NOW()
-           WHERE user_id = $1
-             AND id = $2::uuid`,
+	        await q(
+	          `UPDATE planned_workouts
+	           SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+	             'wasSwappedEarlier', true,
+	             'swappedIntoDate', $3::text,
+	             'swappedFromDayIndex', $4::int,
+	             'swappedToDayIndex', $5::int,
+	             'swappedMarkedAt', $6::text
+	           ),
+	           updated_at = NOW()
+	           WHERE user_id = $1
+	             AND id = $2::uuid`,
           [uid, nextRowId, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
         );
 
@@ -1947,40 +1815,26 @@ workoutGeneration.post(
     const summaryWarnings = mergeUniqueNotes(
       Array.isArray((workoutData as any)?.warnings) ? (workoutData as any).warnings : []
     );
-    const summaryChanged =
-      decision.action !== "keep_day" ||
-      summaryChangeNotes.length > 0 ||
-      Boolean(summaryChangeMeta.intentAdjusted) ||
-      Boolean(summaryChangeMeta.volumeAdjusted) ||
-      Boolean(summaryChangeMeta.shortenedForTime) ||
-      Boolean(summaryChangeMeta.trimmedForCaps) ||
-      Boolean(summaryChangeMeta.deload) ||
-      Boolean(summaryChangeMeta.safetyAdjusted) ||
-      Boolean(summaryChangeMeta.corePolicyAdjusted);
-    const summaryBlocks = buildCoachSummaryBlocks({
+    const summaryDiff = computeWorkoutSummaryDiff({
+      beforePlan: planBeforeStart,
+      afterPlan: workoutData,
+      fallbackTimeBucket: userProfile.timeBucket,
+    });
+    const summary = buildSummaryPayload({
       action: decision.action as WorkoutStartAction,
-      changed: summaryChanged,
+      severity: readiness.severity as SummarySeverity,
       changeMeta: summaryChangeMeta,
       changeNotes: summaryChangeNotes,
       infoNotes: summaryInfoNotes,
       warnings: summaryWarnings,
       swapInfo: swapInfo || undefined,
+      diff: summaryDiff,
     });
 
     return {
       action: decision.action,
       notes: combinedNotes.length > 0 ? combinedNotes : undefined,
-      summary: {
-        changed: summaryChanged,
-        changeNotes: summaryChangeNotes,
-        infoNotes: summaryInfoNotes,
-        changeMeta: summaryChangeMeta,
-        warnings: summaryWarnings,
-        severity: readiness.severity,
-        whatChanged: summaryBlocks.whatChanged,
-        why: summaryBlocks.why,
-        howToTrainToday: summaryBlocks.howToTrainToday,
-      },
+      summary,
       workout: workoutData,
       swapInfo,
     };
