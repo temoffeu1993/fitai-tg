@@ -93,13 +93,13 @@ const sliderCss = `
   opacity: 0;
 }
 .checkin-entry-fade {
-  animation: checkinEntryIn 460ms cubic-bezier(.22,1,.36,1) both;
-  animation-delay: 180ms;
-  will-change: transform, opacity;
+  animation: checkinEntryOpacityIn 520ms ease-out both;
+  animation-delay: 160ms;
+  will-change: opacity;
 }
-@keyframes checkinEntryIn {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
+@keyframes checkinEntryOpacityIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .checkin-entry-target { opacity: 1 !important; transform: none !important; }
