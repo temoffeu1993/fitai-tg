@@ -357,7 +357,12 @@ export function CheckInForm({
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const cardStyle = inline ? modal.inlineCard : modal.card;
-  const footerStyle = inline ? modal.footerInline : modal.footer;
+  const footerStyle = inline
+    ? {
+        ...modal.footerInlineBase,
+        ...(step <= 3 ? modal.footerInlineDocked : modal.footerInlineSticky),
+      }
+    : modal.footer;
   const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
   const backBtnStyle = inline ? { ...modal.backTextBtn, ...modal.backTextBtnInline } : modal.backTextBtn;
   const cardMiniStyle = inline
@@ -730,10 +735,14 @@ const modal: Record<string, React.CSSProperties> = {
   inlineWrap: {
     position: "relative",
     background: "transparent",
-    display: "block",
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    minHeight: "100%",
   },
   inlineCard: {
     width: "100%",
+    minHeight: "100%",
     borderRadius: 0,
     border: "none",
     background: "transparent",
@@ -741,7 +750,9 @@ const modal: Record<string, React.CSSProperties> = {
     backdropFilter: "none",
     WebkitBackdropFilter: "none",
     overflow: "visible",
-    padding: "16px 0 calc(env(safe-area-inset-bottom, 0px) + 154px)",
+    padding: "16px 0 0",
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
     padding: "16px 18px 10px",
@@ -909,21 +920,25 @@ const modal: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 2,
   },
-  footerInline: {
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
+  footerInlineBase: {
     padding: "14px clamp(16px, 4vw, 20px) calc(env(safe-area-inset-bottom, 0px) + clamp(24px, 3.2vh, 32px))",
     marginTop: 0,
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 10,
-    maxWidth: "100%",
+    width: "100%",
     background: "transparent",
     border: "none",
     boxShadow: "none",
     zIndex: 6,
+  },
+  footerInlineDocked: {
+    marginTop: "auto",
+  },
+  footerInlineSticky: {
+    position: "sticky",
+    bottom: 0,
+    marginTop: 14,
   },
   ghostBtn: {
     borderRadius: 12,

@@ -636,6 +636,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formWrap: {
     marginTop: 2,
+    width: "100%",
+    flex: 1,
+    minHeight: 0,
+    display: "flex",
   },
   summaryCard: {
     position: "relative",
