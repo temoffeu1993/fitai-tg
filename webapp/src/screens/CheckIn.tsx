@@ -284,7 +284,12 @@ export default function CheckIn() {
         <>
           <section style={styles.introCenter} className="onb-fade onb-fade-delay-1">
             <div style={styles.introBubble} className="speech-bubble-bottom">
-              <span style={styles.introBubbleText}>{renderIntroBubbleText()}</span>
+              <span aria-hidden="true" style={styles.introBubbleTextMeasure}>
+                {INTRO_BUBBLE_PREFIX}
+                <span style={styles.introBubbleTextStrong}>{INTRO_BUBBLE_STRONG}</span>
+                {INTRO_BUBBLE_SUFFIX}
+              </span>
+              <span style={styles.introBubbleTextLive}>{renderIntroBubbleText()}</span>
             </div>
             <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
@@ -323,7 +328,7 @@ export default function CheckIn() {
       ) : null}
 
       {phase === "form" ? (
-        <div style={styles.formWrap} className="onb-fade-target onb-fade onb-fade-delay-2">
+        <div style={styles.formWrap} className="onb-fade-target onb-fade-soft onb-fade-delay-2">
           <CheckInForm
             onSubmit={handleSubmit}
             onBack={() => {
@@ -405,8 +410,13 @@ const screenCss = `
   0% { opacity: 0; transform: translateY(14px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+@keyframes onbFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
 .onb-fade-target { opacity: 0; }
 .onb-fade { animation: onbFadeUp 520ms ease-out both; }
+.onb-fade-soft { animation: onbFadeIn 420ms ease-out both; }
 .onb-fade-delay-1 { animation-delay: 80ms; }
 .onb-fade-delay-2 { animation-delay: 160ms; }
 .onb-fade-delay-3 { animation-delay: 240ms; }
@@ -459,6 +469,7 @@ const screenCss = `
 @media (prefers-reduced-motion: reduce) {
   .onb-fade-target { opacity: 1 !important; transform: none !important; }
   .onb-fade,
+  .onb-fade-soft,
   .onb-fade-delay-1,
   .onb-fade-delay-2,
   .onb-fade-delay-3 { animation: none !important; }
@@ -570,6 +581,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
+    display: "grid",
   },
   introBubbleText: {
     fontSize: 18,
@@ -583,6 +595,36 @@ const styles: Record<string, React.CSSProperties> = {
     overflowWrap: "break-word",
     wordBreak: "normal",
     textWrap: "balance",
+  },
+  introBubbleTextMeasure: {
+    fontSize: 18,
+    lineHeight: 1.4,
+    fontWeight: 500,
+    color: "#1e1f22",
+    display: "block",
+    maxWidth: "30ch",
+    margin: "0 auto",
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+    wordBreak: "normal",
+    textWrap: "balance",
+    gridArea: "1 / 1",
+    visibility: "hidden",
+    pointerEvents: "none",
+  },
+  introBubbleTextLive: {
+    fontSize: 18,
+    lineHeight: 1.4,
+    fontWeight: 500,
+    color: "#1e1f22",
+    display: "block",
+    maxWidth: "30ch",
+    margin: "0 auto",
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+    wordBreak: "normal",
+    textWrap: "balance",
+    gridArea: "1 / 1",
   },
   introBubbleTextStrong: {
     fontWeight: 700,
