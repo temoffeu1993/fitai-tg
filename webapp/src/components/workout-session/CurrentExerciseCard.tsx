@@ -17,8 +17,10 @@ export default function CurrentExerciseCard(props: Props) {
 
   const summary = setsSummary(item);
   const totalSets = Math.max(1, summary.total);
-  const safeFocus = Math.min(Math.max(0, focusSetIndex), totalSets - 1);
-  const displaySet = summary.done >= totalSets ? totalSets : safeFocus + 1;
+  const displaySet =
+    summary.done >= totalSets
+      ? totalSets
+      : Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsLabel = formatRepsLabel(item.targetReps) || "—";
   const parsedWeight = parseWeightNumber(item.targetWeight);
   const weightLabel =
@@ -40,7 +42,6 @@ export default function CurrentExerciseCard(props: Props) {
                 style={{
                   ...s.groove,
                   ...(entry.done ? s.grooveDone : null),
-                  ...(idx === safeFocus ? s.grooveActive : null),
                 }}
               />
             ))}
@@ -88,7 +89,7 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
   },
   name: {
-    margin: "-6px 0 0",
+    margin: "-10px 0 0",
     minWidth: 0,
     fontSize: 32,
     lineHeight: 1.14,
@@ -172,14 +173,9 @@ const s: Record<string, CSSProperties> = {
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
   },
-  grooveActive: {
-    boxShadow:
-      "0 0 0 3px rgba(17,24,39,0.1), inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    transform: "scale(1.08)",
-  },
   grooveDone: {
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    background: "linear-gradient(180deg, #c4dc74 0%, #a5c856 58%, #6f8c37 100%)",
     boxShadow:
-      "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.42)",
+      "0 1px 2px rgba(64,84,26,0.24), inset 0 1px 1px rgba(255,255,255,0.36), inset 0 -1px 1px rgba(71,92,30,0.32)",
   },
 };
