@@ -15,8 +15,8 @@ type Props = {
   onToggleRestEnabled: () => void;
 };
 
-const WHEEL_ITEM_H = 72;
-const WHEEL_VISIBLE = 1;
+const WHEEL_ITEM_H = 56;
+const WHEEL_VISIBLE = 3;
 const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -85,7 +85,6 @@ function WheelField(props: {
 }) {
   const { label, values, value, onChange, formatValue, disabled = false } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
   const stopTimerRef = useRef<number | null>(null);
 
   const selectedIndex = useMemo(() => {
@@ -114,23 +113,19 @@ function WheelField(props: {
 
   useEffect(() => {
     return () => {
-      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
       if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
     };
   }, []);
 
   const handleScroll = () => {
     if (disabled) return;
-    if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
-    rafRef.current = window.requestAnimationFrame(() => {
-      const node = listRef.current;
-      if (!node || !values.length) return;
-      const idx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
-      const next = values[idx];
-      if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
-        onChange(next);
-      }
-    });
+    const node = listRef.current;
+    if (!node || !values.length) return;
+    const liveIdx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
+    const liveValue = values[liveIdx];
+    if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - liveValue) > 0.0001) {
+      onChange(liveValue);
+    }
 
     if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
     stopTimerRef.current = window.setTimeout(() => {
@@ -142,13 +137,17 @@ function WheelField(props: {
       if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
         onChange(next);
       }
-    }, 80);
+    }, 60);
   };
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
       <div style={s.wheelWrap}>
+        <div style={s.wheelIndicator} />
+        <div style={s.wheelFadeTop} />
+        <div style={s.wheelFadeBottom} />
         <div ref={listRef} style={s.wheelList} onScroll={handleScroll} aria-label={label} role="listbox">
+          <div style={s.wheelSpacer} />
           {values.map((entry, idx) => (
             <button
               key={`${label}-${entry}-${idx}`}
@@ -161,6 +160,7 @@ function WheelField(props: {
               {formatValue(entry)}
             </button>
           ))}
+          <div style={s.wheelSpacer} />
         </div>
       </div>
       <div style={s.valueLabel}>{label}</div>
@@ -183,13 +183,14 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 14,
     minWidth: 0,
-    paddingTop: 2,
+    paddingTop: 12,
   },
   inputsGrid: {
     display: "grid",
     gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
     gap: 12,
     minWidth: 0,
+    marginTop: 6,
   },
   wheelField: {
     border: "none",
@@ -217,18 +218,53 @@ const s: Record<string, CSSProperties> = {
     position: "relative",
     height: WHEEL_ITEM_H * WHEEL_VISIBLE,
     overflow: "hidden",
-    borderRadius: 16,
-    border: "none",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.68)",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
   },
+  wheelIndicator: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    top: "50%",
+    height: WHEEL_ITEM_H,
+    transform: "translateY(-50%)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.86)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.36) 100%)",
+    boxShadow:
+      "0 10px 22px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.2)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  wheelFadeTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: WHEEL_ITEM_H,
+    background: "linear-gradient(180deg, rgba(245,246,249,0.97) 0%, rgba(245,246,249,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 3,
+  },
+  wheelFadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: WHEEL_ITEM_H,
+    background: "linear-gradient(0deg, rgba(245,246,249,0.97) 0%, rgba(245,246,249,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 3,
+  },
   wheelList: {
     position: "relative",
-    zIndex: 1,
+    zIndex: 2,
     height: "100%",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y mandatory",
+    scrollSnapType: "y proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
@@ -236,14 +272,18 @@ const s: Record<string, CSSProperties> = {
     paddingBottom: 0,
     touchAction: "pan-y",
   },
+  wheelSpacer: {
+    height: WHEEL_ITEM_H,
+    flex: "0 0 auto",
+  },
   wheelItem: {
     width: "100%",
     height: WHEEL_ITEM_H,
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 46,
-    fontWeight: 700,
+    fontSize: 34,
+    fontWeight: 600,
     lineHeight: 1,
     scrollSnapAlign: "center",
     fontVariantNumeric: "tabular-nums",
@@ -254,8 +294,8 @@ const s: Record<string, CSSProperties> = {
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 52,
-    fontWeight: 800,
+    fontSize: 40,
+    fontWeight: 700,
   },
   error: {
     fontSize: 12,

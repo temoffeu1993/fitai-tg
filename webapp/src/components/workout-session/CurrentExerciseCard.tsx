@@ -36,10 +36,14 @@ export default function CurrentExerciseCard(props: Props) {
               key={idx}
               style={{
                 ...s.groove,
-                ...(entry.done ? s.grooveDone : null),
-                ...(!entry.done && idx === safeFocus ? s.grooveActive : null),
               }}
-            />
+            >
+              {entry.done ? (
+                <span style={s.grooveSphereDone} />
+              ) : idx === safeFocus ? (
+                <span style={s.grooveSphereActive} />
+              ) : null}
+            </span>
           ))}
         </div>
       </div>
@@ -95,9 +99,10 @@ const s: Record<string, CSSProperties> = {
   setRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     gap: 10,
     minWidth: 0,
+    flexWrap: "nowrap",
   },
   setText: {
     fontSize: 14,
@@ -109,27 +114,33 @@ const s: Record<string, CSSProperties> = {
   setGrooves: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     flexWrap: "nowrap",
-    minWidth: 0,
-    overflow: "hidden",
   },
   groove: {
-    width: 10,
-    height: 10,
+    width: 12,
+    height: 12,
     flex: "0 0 auto",
     borderRadius: 999,
-    background: "rgba(15,23,42,0.09)",
-    boxShadow: "inset 0 1px 1px rgba(15,23,42,0.1)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  grooveActive: {
-    background: "linear-gradient(180deg, rgba(99,102,108,0.92) 0%, rgba(55,57,62,0.95) 100%)",
+  grooveSphereActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
     boxShadow:
-      "0 0 0 3px rgba(17,24,39,0.1), inset 0 1px 1px rgba(255,255,255,0.18)",
-    transform: "scale(1.08)",
+      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
   },
-  grooveDone: {
-    background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+  grooveSphereDone: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow:
       "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.42)",
   },
