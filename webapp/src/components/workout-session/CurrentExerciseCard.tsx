@@ -104,6 +104,7 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
     minWidth: 0,
     flexWrap: "nowrap",
+    transform: "translateY(-6px)",
   },
   setText: {
     fontSize: 14,

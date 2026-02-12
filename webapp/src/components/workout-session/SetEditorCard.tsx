@@ -264,7 +264,7 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 14,
     minWidth: 0,
-    paddingTop: 2,
+    paddingTop: 16,
   },
   inputsGrid: {
     display: "grid",

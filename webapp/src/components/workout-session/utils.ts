@@ -43,6 +43,13 @@ export function defaultRepsFromTarget(targetReps: unknown): number | undefined {
     return Math.max(1, Math.round(targetReps));
   }
 
+  if (Array.isArray(targetReps) && targetReps.length > 0) {
+    const first = Number(targetReps[0]);
+    if (Number.isFinite(first) && first > 0) {
+      return Math.max(1, Math.round(first));
+    }
+  }
+
   if (typeof targetReps === "string" && targetReps.trim()) {
     const matches = targetReps.match(/\d+(?:[.,]\d+)?/g);
     if (!matches?.length) return undefined;

@@ -138,6 +138,18 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
       if (!raw || typeof raw !== "object") return null;
       const sets = Array.isArray(raw.sets) ? raw.sets : [];
       if (!sets.length) return null;
+      const defaultReps = defaultRepsFromTarget(raw.targetReps);
+      const normalizedSets = sets.map((set: any) => {
+        const rawReps = Number(set?.reps);
+        return {
+          reps: Number.isFinite(rawReps) && rawReps > 0 ? Math.round(rawReps) : undefined,
+          weight: Number.isFinite(Number(set?.weight)) ? Number(set.weight) : undefined,
+          done: Boolean(set?.done),
+        };
+      });
+      if (normalizedSets[0] && normalizedSets[0].reps == null && defaultReps != null) {
+        normalizedSets[0].reps = defaultReps;
+      }
       return {
         id: typeof raw.id === "string" ? raw.id : undefined,
         name: typeof raw.name === "string" ? raw.name : "Упражнение",
@@ -162,11 +174,7 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
           raw.effort === "max"
             ? raw.effort
             : null,
-        sets: sets.map((set: any) => ({
-          reps: Number.isFinite(Number(set?.reps)) ? Math.round(Number(set.reps)) : undefined,
-          weight: Number.isFinite(Number(set?.weight)) ? Number(set.weight) : undefined,
-          done: Boolean(set?.done),
-        })),
+        sets: normalizedSets,
       } satisfies SessionItem;
     })
     .filter(Boolean) as SessionItem[];
