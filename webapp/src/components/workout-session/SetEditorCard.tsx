@@ -15,8 +15,11 @@ type Props = {
   onToggleRestEnabled: () => void;
 };
 
-const WHEEL_ITEM_H = 56;
-const WHEEL_VISIBLE = 3;
+const WHEEL_ITEM_H = 72;
+const WHEEL_VISIBLE = 1;
+const WHEEL_CYCLES = 7;
+const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
+const EPS = 0.0001;
 const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -85,11 +88,19 @@ function WheelField(props: {
 }) {
   const { label, values, value, onChange, formatValue, disabled = false } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
   const stopTimerRef = useRef<number | null>(null);
+  const releaseTimerRef = useRef<number | null>(null);
+  const interactingRef = useRef(false);
 
-  const selectedIndex = useMemo(() => {
+  const selectedValue = useMemo(() => {
     if (!values.length) return 0;
-    const target = Number.isFinite(Number(value)) ? Number(value) : values[0];
+    return Number.isFinite(Number(value)) ? Number(value) : values[0];
+  }, [value, values]);
+
+  const selectedBaseIndex = useMemo(() => {
+    if (!values.length) return 0;
+    const target = selectedValue;
     let bestIdx = 0;
     let bestDiff = Number.POSITIVE_INFINITY;
     for (let i = 0; i < values.length; i += 1) {
@@ -100,67 +111,102 @@ function WheelField(props: {
       }
     }
     return bestIdx;
-  }, [value, values]);
+  }, [selectedValue, values]);
+
+  const wheelValues = useMemo(() => {
+    if (!values.length) return [] as number[];
+    return Array.from({ length: values.length * WHEEL_CYCLES }, (_, i) => values[i % values.length]);
+  }, [values]);
 
   useEffect(() => {
     const node = listRef.current;
-    if (!node) return;
-    const targetTop = selectedIndex * WHEEL_ITEM_H;
+    if (!node || !values.length) return;
+    if (interactingRef.current) return;
+    const targetIdx = values.length * WHEEL_MID + selectedBaseIndex;
+    const targetTop = targetIdx * WHEEL_ITEM_H;
     if (Math.abs(node.scrollTop - targetTop) > 1) {
       node.scrollTo({ top: targetTop, behavior: "auto" });
     }
-  }, [selectedIndex]);
+  }, [selectedBaseIndex, values.length]);
 
   useEffect(() => {
     return () => {
+      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
       if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
+      if (releaseTimerRef.current != null) window.clearTimeout(releaseTimerRef.current);
     };
   }, []);
 
+  const getScrollState = () => {
+    const node = listRef.current;
+    if (!node || !values.length || !wheelValues.length) return null;
+    const rawIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
+    const clamped = Math.max(0, Math.min(rawIdx, wheelValues.length - 1));
+    const baseIdx = ((clamped % values.length) + values.length) % values.length;
+    const next = values[baseIdx];
+    return { baseIdx, next };
+  };
+
   const handleScroll = () => {
     if (disabled) return;
-    const node = listRef.current;
-    if (!node || !values.length) return;
-    const liveIdx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
-    const liveValue = values[liveIdx];
-    if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - liveValue) > 0.0001) {
-      onChange(liveValue);
+    interactingRef.current = true;
+    if (releaseTimerRef.current != null) {
+      window.clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+
+    if (rafRef.current == null) {
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null;
+        const state = getScrollState();
+        if (!state) return;
+        if (Math.abs(selectedValue - state.next) > EPS) onChange(state.next);
+      });
     }
 
     if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
     stopTimerRef.current = window.setTimeout(() => {
       const node = listRef.current;
-      if (!node || !values.length) return;
-      const idx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
-      const next = values[idx];
-      node.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: "smooth" });
-      if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
-        onChange(next);
+      const state = getScrollState();
+      if (!node || !state || !values.length) return;
+      if (Math.abs(selectedValue - state.next) > EPS) {
+        onChange(state.next);
       }
-    }, 60);
+      const targetIdx = values.length * WHEEL_MID + state.baseIdx;
+      node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
+      releaseTimerRef.current = window.setTimeout(() => {
+        interactingRef.current = false;
+      }, 150);
+    }, 80);
+  };
+
+  const handleSelect = (baseIdx: number) => {
+    if (disabled || !values.length) return;
+    const next = values[baseIdx];
+    const node = listRef.current;
+    if (node) {
+      const targetIdx = values.length * WHEEL_MID + baseIdx;
+      node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
+    }
+    if (Math.abs(selectedValue - next) > EPS) onChange(next);
   };
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
       <div style={s.wheelWrap}>
-        <div style={s.wheelIndicator} />
-        <div style={s.wheelFadeTop} />
-        <div style={s.wheelFadeBottom} />
         <div ref={listRef} style={s.wheelList} onScroll={handleScroll} aria-label={label} role="listbox">
-          <div style={s.wheelSpacer} />
-          {values.map((entry, idx) => (
+          {wheelValues.map((entry, idx) => (
             <button
               key={`${label}-${entry}-${idx}`}
               type="button"
-              style={{ ...s.wheelItem, ...(idx === selectedIndex ? s.wheelItemActive : null) }}
-              onClick={() => onChange(entry)}
+              style={{ ...s.wheelItem, ...(Math.abs(entry - selectedValue) <= EPS ? s.wheelItemActive : null) }}
+              onClick={() => handleSelect(idx % values.length)}
               disabled={disabled}
-              aria-selected={idx === selectedIndex}
+              aria-selected={Math.abs(entry - selectedValue) <= EPS}
             >
               {formatValue(entry)}
             </button>
           ))}
-          <div style={s.wheelSpacer} />
         </div>
       </div>
       <div style={s.valueLabel}>{label}</div>
@@ -183,14 +229,13 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 14,
     minWidth: 0,
-    paddingTop: 12,
+    paddingTop: 2,
   },
   inputsGrid: {
     display: "grid",
     gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
     gap: 12,
     minWidth: 0,
-    marginTop: 6,
   },
   wheelField: {
     border: "none",
@@ -218,53 +263,18 @@ const s: Record<string, CSSProperties> = {
     position: "relative",
     height: WHEEL_ITEM_H * WHEEL_VISIBLE,
     overflow: "hidden",
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.68)",
+    borderRadius: 16,
+    border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
   },
-  wheelIndicator: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    top: "50%",
-    height: WHEEL_ITEM_H,
-    transform: "translateY(-50%)",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.86)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.36) 100%)",
-    boxShadow:
-      "0 10px 22px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.2)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  wheelFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: WHEEL_ITEM_H,
-    background: "linear-gradient(180deg, rgba(245,246,249,0.97) 0%, rgba(245,246,249,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
-  },
-  wheelFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: WHEEL_ITEM_H,
-    background: "linear-gradient(0deg, rgba(245,246,249,0.97) 0%, rgba(245,246,249,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 3,
-  },
   wheelList: {
     position: "relative",
-    zIndex: 2,
+    zIndex: 1,
     height: "100%",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y proximity",
+    scrollSnapType: "y mandatory",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
@@ -272,18 +282,14 @@ const s: Record<string, CSSProperties> = {
     paddingBottom: 0,
     touchAction: "pan-y",
   },
-  wheelSpacer: {
-    height: WHEEL_ITEM_H,
-    flex: "0 0 auto",
-  },
   wheelItem: {
     width: "100%",
     height: WHEEL_ITEM_H,
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 34,
-    fontWeight: 600,
+    fontSize: 46,
+    fontWeight: 700,
     lineHeight: 1,
     scrollSnapAlign: "center",
     fontVariantNumeric: "tabular-nums",
@@ -294,8 +300,8 @@ const s: Record<string, CSSProperties> = {
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 40,
-    fontWeight: 700,
+    fontSize: 52,
+    fontWeight: 800,
   },
   error: {
     fontSize: 12,
