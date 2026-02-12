@@ -93,14 +93,18 @@ const s: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
   setRow: {
-    display: "grid",
-    gap: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    minWidth: 0,
   },
   setText: {
     fontSize: 14,
-    lineHeight: 1.2,
-    fontWeight: 600,
-    color: workoutTheme.textSecondary,
+    lineHeight: 1.5,
+    fontWeight: 400,
+    color: "rgba(15, 23, 42, 0.6)",
+    whiteSpace: "nowrap",
   },
   setGrooves: {
     display: "flex",
@@ -111,16 +115,18 @@ const s: Record<string, CSSProperties> = {
     overflow: "hidden",
   },
   groove: {
-    height: 8,
-    flex: 1,
-    minWidth: 20,
+    width: 10,
+    height: 10,
+    flex: "0 0 auto",
     borderRadius: 999,
     background: "rgba(15,23,42,0.09)",
     boxShadow: "inset 0 1px 1px rgba(15,23,42,0.1)",
   },
   grooveActive: {
     background: "linear-gradient(180deg, rgba(99,102,108,0.92) 0%, rgba(55,57,62,0.95) 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18)",
+    boxShadow:
+      "0 0 0 3px rgba(17,24,39,0.1), inset 0 1px 1px rgba(255,255,255,0.18)",
+    transform: "scale(1.08)",
   },
   grooveDone: {
     background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",

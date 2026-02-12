@@ -86,6 +86,7 @@ function WheelField(props: {
   const { label, values, value, onChange, formatValue, disabled = false } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
+  const stopTimerRef = useRef<number | null>(null);
 
   const selectedIndex = useMemo(() => {
     if (!values.length) return 0;
@@ -114,6 +115,7 @@ function WheelField(props: {
   useEffect(() => {
     return () => {
       if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+      if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
     };
   }, []);
 
@@ -129,11 +131,22 @@ function WheelField(props: {
         onChange(next);
       }
     });
+
+    if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = window.setTimeout(() => {
+      const node = listRef.current;
+      if (!node || !values.length) return;
+      const idx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
+      const next = values[idx];
+      node.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: "smooth" });
+      if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
+        onChange(next);
+      }
+    }, 80);
   };
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
-      <div style={s.valueLabel}>{label}</div>
       <div style={s.wheelWrap}>
         <div ref={listRef} style={s.wheelList} onScroll={handleScroll} aria-label={label} role="listbox">
           {values.map((entry, idx) => (
@@ -150,6 +163,7 @@ function WheelField(props: {
           ))}
         </div>
       </div>
+      <div style={s.valueLabel}>{label}</div>
     </div>
   );
 }
@@ -192,11 +206,12 @@ const s: Record<string, CSSProperties> = {
   },
   valueLabel: {
     textAlign: "center",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     letterSpacing: 0.4,
     textTransform: "uppercase",
     color: workoutTheme.textMuted,
+    marginTop: 2,
   },
   wheelWrap: {
     position: "relative",
