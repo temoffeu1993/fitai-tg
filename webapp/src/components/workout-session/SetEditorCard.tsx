@@ -29,11 +29,9 @@ export default function SetEditorCard(props: Props) {
     item,
     focusSetIndex,
     blocked,
-    restEnabled,
     embedded = false,
     onChangeReps,
     onChangeWeight,
-    onToggleRestEnabled,
   } = props;
 
   if (!item) return null;
@@ -63,18 +61,6 @@ export default function SetEditorCard(props: Props) {
       </div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
-
-      <div style={s.restRow}>
-        <span style={s.restLabel}>Авто-таймер отдыха</span>
-        <button
-          type="button"
-          className={`ws-switch-btn ${restEnabled ? "ws-switch-btn-on" : ""}`}
-          style={{ ...s.switchBtn, ...(restEnabled ? s.switchBtnOn : null) }}
-          onClick={onToggleRestEnabled}
-        >
-          {restEnabled ? "Вкл" : "Выкл"}
-        </button>
-      </div>
     </section>
   );
 }
@@ -350,36 +336,5 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 600,
     color: workoutTheme.danger,
     textAlign: "center",
-  },
-  restRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    marginTop: 2,
-  },
-  restLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: workoutTheme.textSecondary,
-  },
-  switchBtn: {
-    minHeight: 32,
-    minWidth: 62,
-    borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "0 12px",
-    cursor: "pointer",
-  },
-  switchBtnOn: {
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
   },
 };

@@ -88,7 +88,7 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
   },
   name: {
-    margin: 0,
+    margin: "-6px 0 0",
     minWidth: 0,
     fontSize: 32,
     lineHeight: 1.14,
