@@ -226,7 +226,13 @@ function WheelField(props: {
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
       <div style={s.wheelWrap}>
-        <div ref={listRef} style={s.wheelList} onScroll={handleScroll} aria-label={label} role="listbox">
+        <div
+          ref={listRef}
+          style={{ ...s.wheelList, ...(disabled ? s.wheelListDisabled : null) }}
+          onScroll={disabled ? undefined : handleScroll}
+          aria-label={label}
+          role="listbox"
+        >
           {wheelValues.map((entry, idx) => (
             <button
               key={`${label}-${entry}-${idx}`}
@@ -313,6 +319,11 @@ const s: Record<string, CSSProperties> = {
     paddingTop: 0,
     paddingBottom: 0,
     touchAction: "pan-y",
+  },
+  wheelListDisabled: {
+    overflowY: "hidden",
+    touchAction: "none",
+    pointerEvents: "none",
   },
   wheelItem: {
     width: "100%",
