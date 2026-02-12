@@ -22,6 +22,7 @@ const WHEEL_VISIBLE = 1;
 const WHEEL_CYCLES = 7;
 const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
 const EPS = 0.0001;
+const FLASH_TINT_MS = 720;
 const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -65,7 +66,7 @@ export default function SetEditorCard(props: Props) {
     flashTimerRef.current = window.setTimeout(() => {
       setCommitFlash(false);
       flashTimerRef.current = null;
-    }, 620);
+    }, FLASH_TINT_MS);
   };
 
   return (
@@ -342,7 +343,7 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
-    transition: "background 420ms ease",
+    transition: `background ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
   },
   wheelWrapSuccess: {
     background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
@@ -397,7 +398,7 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background 420ms ease",
+    transition: `background ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
     cursor: "pointer",
   },
   commitBtnSuccess: {
