@@ -853,6 +853,22 @@ export default function WorkoutSession() {
           onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
         />
       </CurrentExerciseCard>
+
+      <div style={styles.restAutoRow}>
+        <span style={styles.restAutoLabel}>Автотаймер отдыха</span>
+        <button
+          type="button"
+          className={`ws-switch-btn ${restEnabled ? "ws-switch-btn-on" : ""}`}
+          style={{
+            ...styles.restAutoToggle,
+            ...(restEnabled ? styles.restAutoToggleOn : styles.restAutoToggleOff),
+          }}
+          onClick={() => setRestEnabled((prev) => !prev)}
+          aria-label={restEnabled ? "Выключить автотаймер отдыха" : "Включить автотаймер отдыха"}
+        >
+          <span style={styles.restAutoToggleText}>{restEnabled ? "Вкл" : "Выкл"}</span>
+        </button>
+      </div>
       </main>
 
       <BottomDock
@@ -965,6 +981,47 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     display: "grid",
     gap: 10,
+  },
+  restAutoRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "2px 2px 0",
+    background: "transparent",
+  },
+  restAutoLabel: {
+    fontSize: 14,
+    lineHeight: 1.45,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.6)",
+  },
+  restAutoToggle: {
+    minHeight: 36,
+    minWidth: 88,
+    padding: "0 14px",
+    borderRadius: 999,
+    border: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  restAutoToggleOff: {
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: "rgba(15,23,42,0.62)",
+  },
+  restAutoToggleOn: {
+    background: "linear-gradient(180deg, rgba(196,228,178,0.82) 0%, rgba(170,210,146,0.9) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(78,122,58,0.14), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "rgba(43,78,26,0.9)",
+  },
+  restAutoToggleText: {
+    fontSize: 14,
+    lineHeight: 1,
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.78), 0 -1px 0 rgba(15,23,42,0.14)",
   },
   infoCard: {
     padding: 16,

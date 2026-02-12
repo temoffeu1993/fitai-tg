@@ -48,6 +48,8 @@ export default function SetEditorCard(props: Props) {
   if (!item) return null;
   const set = item.sets[focusSetIndex];
   if (!set) return null;
+  const exerciseCompleted = item.sets.every((entry) => Boolean(entry.done));
+  const tintOn = commitFlash || exerciseCompleted;
   const needWeight = requiresWeightInput(item);
   const totalSets = Math.max(1, item.sets.length);
   const doneSets = item.sets.filter((entry) => Boolean(entry.done)).length;
@@ -85,7 +87,7 @@ export default function SetEditorCard(props: Props) {
           value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
           onChange={(value) => onChangeReps(focusSetIndex, value)}
           formatValue={(value) => String(Math.round(value))}
-          flashSuccess={commitFlash}
+          flashSuccess={tintOn}
         />
 
         <WheelField
@@ -96,7 +98,7 @@ export default function SetEditorCard(props: Props) {
           onChange={(value) => onChangeWeight(focusSetIndex, value)}
           formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
           disabled={!needWeight}
-          flashSuccess={commitFlash}
+          flashSuccess={tintOn}
         />
       </div>
 
@@ -110,7 +112,7 @@ export default function SetEditorCard(props: Props) {
           aria-hidden
           style={{
             ...s.commitTintOverlay,
-            ...(commitFlash ? s.commitTintOverlayOn : null),
+            ...(tintOn ? s.commitTintOverlayOn : null),
           }}
         />
         <span
