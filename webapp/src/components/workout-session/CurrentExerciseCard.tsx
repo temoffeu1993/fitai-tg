@@ -1,24 +1,23 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { formatRepsLabel, setsSummary } from "./utils";
-import { Dumbbell, Repeat2 } from "lucide-react";
+import { setsSummary } from "./utils";
 
 type Props = {
   item: SessionItem | null;
-  index: number;
-  total: number;
+  focusSetIndex: number;
   onOpenMenu: () => void;
+  children?: ReactNode;
 };
 
 export default function CurrentExerciseCard(props: Props) {
-  const { item, onOpenMenu } = props;
+  const { item, focusSetIndex, onOpenMenu, children } = props;
   if (!item) return null;
 
-  const repsLabel = formatRepsLabel(item.targetReps);
-  const targetWeight = item.targetWeight ? String(item.targetWeight) : null;
   const summary = setsSummary(item);
-  const localProgressPercent = item.sets.length ? Math.round((summary.done / item.sets.length) * 100) : 0;
+  const totalSets = Math.max(1, summary.total);
+  const safeFocus = Math.min(Math.max(0, focusSetIndex), totalSets - 1);
+  const displaySet = summary.done >= totalSets ? totalSets : safeFocus + 1;
 
   return (
     <section style={s.card}>
@@ -29,30 +28,23 @@ export default function CurrentExerciseCard(props: Props) {
         </button>
       </div>
 
-      <div style={s.chipsRow}>
-        <span style={s.metaChip}>
-          <Repeat2 size={14} strokeWidth={2.1} />
-          <span>{repsLabel ? `${repsLabel} повт.` : "Повторы —"}</span>
-        </span>
-        <span style={s.metaChip}>
-          <Dumbbell size={14} strokeWidth={2.1} />
-          <span>{targetWeight ? `${targetWeight} кг` : "Кг —"}</span>
-        </span>
+      <div style={s.setRow}>
+        <span style={s.setText}>Подход {displaySet} из {totalSets}</span>
+        <div style={s.setGrooves} aria-hidden>
+          {item.sets.map((entry, idx) => (
+            <span
+              key={idx}
+              style={{
+                ...s.groove,
+                ...(entry.done ? s.grooveDone : null),
+                ...(!entry.done && idx === safeFocus ? s.grooveActive : null),
+              }}
+            />
+          ))}
+        </div>
       </div>
 
-      <div style={s.progressLine}>
-        <div style={s.progressTrack}>
-          <div
-            style={{
-              ...s.progressFill,
-              width: `${localProgressPercent}%`,
-            }}
-          />
-        </div>
-        <span style={s.progressCaption}>
-          Выполнено {summary.done} из {summary.total} подходов
-        </span>
-      </div>
+      {children}
     </section>
   );
 }
@@ -65,15 +57,26 @@ const s: Record<string, CSSProperties> = {
     background: workoutTheme.cardBg,
     boxShadow: workoutTheme.cardShadow,
     display: "grid",
-    gap: 12,
+    gap: 14,
     minWidth: 0,
     overflow: "hidden",
   },
   topRow: {
     display: "grid",
     gridTemplateColumns: "minmax(0,1fr) auto",
-    alignItems: "flex-start",
+    alignItems: "start",
     gap: 10,
+  },
+  name: {
+    margin: 0,
+    minWidth: 0,
+    fontSize: 32,
+    lineHeight: 1.14,
+    fontWeight: 700,
+    letterSpacing: -0.6,
+    color: workoutTheme.textPrimary,
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
   },
   menuBtn: {
     border: "none",
@@ -89,60 +92,39 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 500,
     cursor: "pointer",
   },
-  name: {
-    margin: 0,
-    minWidth: 0,
-    fontSize: 32,
-    lineHeight: 1.14,
-    fontWeight: 700,
-    letterSpacing: -0.6,
-    color: workoutTheme.textPrimary,
-    whiteSpace: "normal",
-    overflowWrap: "anywhere",
-  },
-  chipsRow: {
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metaChip: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 7,
-    minHeight: 20,
-    padding: 0,
-    borderRadius: 0,
-    border: "none",
-    background: "transparent",
-    boxShadow: "none",
-    fontSize: 14,
-    lineHeight: 1.5,
-    color: workoutTheme.textSecondary,
-    fontWeight: 500,
-  },
-  progressLine: {
-    marginTop: 4,
+  setRow: {
     display: "grid",
     gap: 8,
   },
-  progressTrack: {
-    height: 8,
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.08)",
-    boxShadow: "inset 0 1px 2px rgba(15,23,42,0.12)",
+  setText: {
+    fontSize: 14,
+    lineHeight: 1.2,
+    fontWeight: 600,
+    color: workoutTheme.textSecondary,
+  },
+  setGrooves: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "nowrap",
+    minWidth: 0,
     overflow: "hidden",
   },
-  progressFill: {
-    height: "100%",
+  groove: {
+    height: 8,
+    flex: 1,
+    minWidth: 20,
     borderRadius: 999,
-    background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    transition: "width 200ms ease",
+    background: "rgba(15,23,42,0.09)",
+    boxShadow: "inset 0 1px 1px rgba(15,23,42,0.1)",
   },
-  progressCaption: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: workoutTheme.textMuted,
-    lineHeight: 1.3,
+  grooveActive: {
+    background: "linear-gradient(180deg, rgba(99,102,108,0.92) 0%, rgba(55,57,62,0.95) 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18)",
+  },
+  grooveDone: {
+    background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow:
+      "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.42)",
   },
 };

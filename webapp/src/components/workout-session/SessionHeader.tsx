@@ -1,14 +1,13 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { workoutTheme } from "./theme";
 import { formatClock } from "./utils";
-import { AlignJustify, ArrowLeft, Pause, Play } from "lucide-react";
+import { ArrowLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 type Props = {
-  title: string;
-  subtitle: string;
   elapsedSec: number;
   running: boolean;
   progressPercent: number;
+  exerciseProgressLabel: string;
   onBack: () => void;
   onToggleTimer: () => void;
   onOpenList: () => void;
@@ -16,68 +15,40 @@ type Props = {
 
 export default function SessionHeader(props: Props) {
   const {
-    title,
-    subtitle,
     elapsedSec,
     running,
     progressPercent,
+    exerciseProgressLabel,
     onBack,
     onToggleTimer,
     onOpenList,
   } = props;
-  const [compact, setCompact] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth <= 390 : false
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(max-width: 390px)");
-    const apply = () => setCompact(mq.matches);
-    apply();
-    if (typeof mq.addEventListener === "function") {
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
-    }
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
-  }, []);
 
   return (
     <>
       <div style={s.spacer} aria-hidden />
       <header style={s.wrap}>
         <div style={s.inner}>
-          <div style={{ ...s.row, ...(compact ? s.rowCompact : null) }}>
-            <button
-              type="button"
-              aria-label="Назад"
-              style={{ ...s.iconBtn, ...(compact ? s.iconBtnCompact : null) }}
-              onClick={onBack}
-            >
-              <ArrowLeft size={17} strokeWidth={2.1} style={s.iconGlyph} />
-              <span style={compact ? s.iconBtnLabelHidden : undefined}>Назад</span>
+          <div style={s.row}>
+            <button type="button" aria-label="Назад" style={s.iconBtn} onClick={onBack}>
+              <ArrowLeft size={20} strokeWidth={2.2} style={s.iconGlyph} />
             </button>
-            <div style={s.center}>
-              <div style={s.title}>{title}</div>
-              <div style={s.subtitle}>{subtitle}</div>
-            </div>
-            <button
-              type="button"
-              aria-label="Открыть список упражнений"
-              style={{ ...s.iconBtn, ...(compact ? s.iconBtnCompact : null) }}
-              onClick={onOpenList}
-            >
-              <AlignJustify size={17} strokeWidth={2.1} style={s.iconGlyph} />
-              <span style={compact ? s.iconBtnLabelHidden : undefined}>Список</span>
-            </button>
-          </div>
-          <div style={s.metaRow}>
+
             <button type="button" style={s.timerPill} onClick={onToggleTimer}>
+              {running ? (
+                <Pause size={14} strokeWidth={2.2} style={s.timerIcon} />
+              ) : (
+                <Play size={14} strokeWidth={2.2} style={s.timerIcon} />
+              )}
               <span>{formatClock(elapsedSec)}</span>
-              <span style={s.timerSep}>·</span>
-              {running ? <Pause size={13} strokeWidth={2.1} style={s.timerIcon} /> : <Play size={13} strokeWidth={2.1} style={s.timerIcon} />}
+            </button>
+
+            <button type="button" aria-label="Открыть список упражнений" style={s.listBtn} onClick={onOpenList}>
+              <span style={s.listText}>{exerciseProgressLabel}</span>
+              <ChevronRight size={16} strokeWidth={2.2} style={s.iconGlyph} />
             </button>
           </div>
+
           <div style={s.progressTrack}>
             <div style={{ ...s.progressFill, width: `${Math.max(0, Math.min(100, progressPercent))}%` }} />
           </div>
@@ -89,7 +60,7 @@ export default function SessionHeader(props: Props) {
 
 const s: Record<string, CSSProperties> = {
   spacer: {
-    height: "calc(env(safe-area-inset-top, 0px) + 114px)",
+    height: "calc(env(safe-area-inset-top, 0px) + 96px)",
   },
   wrap: {
     position: "fixed",
@@ -113,88 +84,67 @@ const s: Record<string, CSSProperties> = {
   },
   row: {
     display: "grid",
-    gridTemplateColumns: "auto minmax(0,1fr) auto",
+    gridTemplateColumns: "44px 1fr auto",
     alignItems: "center",
-    gap: 6,
-  },
-  rowCompact: {
-    gap: 2,
-  },
-  center: {
+    gap: 8,
     minWidth: 0,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 18,
-    lineHeight: 1.2,
-    fontWeight: 700,
-    color: workoutTheme.textPrimary,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  subtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    lineHeight: 1.2,
-    color: workoutTheme.textMuted,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
   },
   iconBtn: {
     border: "none",
     background: "transparent",
     borderRadius: 999,
     minHeight: 44,
-    padding: "0 6px",
-    color: "rgba(15,23,42,0.62)",
-    fontSize: 16,
-    fontWeight: 600,
+    minWidth: 44,
+    padding: 0,
+    color: "rgba(15,23,42,0.72)",
     cursor: "pointer",
-    whiteSpace: "nowrap",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    minWidth: 0,
   },
-  iconBtnCompact: {
-    padding: "0 2px",
-    minWidth: 36,
+  listBtn: {
+    border: "none",
+    background: "transparent",
+    borderRadius: 999,
+    minHeight: 44,
+    padding: "0 2px 0 6px",
+    color: "rgba(15,23,42,0.7)",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    whiteSpace: "nowrap",
   },
-  iconBtnLabelHidden: {
-    display: "none",
+  listText: {
+    fontSize: 16,
+    fontWeight: 600,
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
   },
   iconGlyph: {
-    opacity: 0.84,
     flex: "0 0 auto",
-  },
-  metaRow: {
-    marginTop: 7,
-    display: "flex",
-    justifyContent: "center",
   },
   timerPill: {
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
     borderRadius: 999,
-    padding: "8px 14px",
+    padding: "10px 16px",
     color: workoutTheme.textSecondary,
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 17,
+    fontWeight: 700,
     fontVariantNumeric: "tabular-nums",
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
-  },
-  timerSep: {
-    opacity: 0.66,
+    justifyContent: "center",
+    gap: 8,
+    justifySelf: "center",
+    minWidth: 146,
   },
   timerIcon: {
-    color: "rgba(15,23,42,0.68)",
+    color: "rgba(15,23,42,0.74)",
     flex: "0 0 auto",
   },
   progressTrack: {

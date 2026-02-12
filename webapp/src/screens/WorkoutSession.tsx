@@ -16,7 +16,6 @@ import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
 import TransitionToast from "@/components/workout-session/TransitionToast";
 import { workoutTheme } from "@/components/workout-session/theme";
-import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import type {
   ChangeEvent,
   EffortTag,
@@ -63,26 +62,6 @@ function toIsoLocalInput(date: Date): string {
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${d}T${hh}:${mm}`;
-}
-
-function humanizeWorkoutTitle(planLike: any): string {
-  const raw = String(
-    planLike?.dayLabel ||
-      planLike?.title ||
-      planLike?.name ||
-      planLike?.label ||
-      planLike?.scheme_label ||
-      ""
-  ).trim();
-  const idxRaw = Number(planLike?.dayIndex);
-  const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
-  const splitType = String(planLike?.splitType || planLike?.meta?.splitType || "").trim();
-  if (raw) {
-    const resolved = resolveDayCopy(raw, splitType, idx).title;
-    if (!/^День\s+\d+/i.test(resolved)) return resolved;
-    if (/[а-яё]/i.test(raw)) return raw;
-  }
-  return raw || "Тренировка";
 }
 
 function normalizeSessionPlan(raw: any): SessionPlan | null {
@@ -834,8 +813,7 @@ export default function WorkoutSession() {
   }
 
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
-  const workoutTitle = humanizeWorkoutTitle(plan);
-  const subtitle = `${doneExercises}/${Math.max(1, items.length)} упражнений`;
+  const exerciseProgressLabel = `${doneExercises}/${Math.max(1, items.length)}`;
   const isSheetOpen = listOpen || exerciseMenu != null;
   const isInteractionLocked =
     restSecLeft != null || isSheetOpen || effortPromptIndex != null || finishModal || saving;
@@ -856,11 +834,10 @@ export default function WorkoutSession() {
   return (
     <div style={styles.page} data-ui-state={uiState}>
       <SessionHeader
-        title={workoutTitle}
-        subtitle={subtitle}
         elapsedSec={elapsed}
         running={running}
         progressPercent={setProgress}
+        exerciseProgressLabel={exerciseProgressLabel}
         onBack={() => setExitConfirm(true)}
         onToggleTimer={() => setRunning((prev) => !prev)}
         onOpenList={() => setListOpen(true)}
@@ -869,21 +846,20 @@ export default function WorkoutSession() {
       <main style={styles.main}>
         <CurrentExerciseCard
           item={activeItem}
-          index={activeIndex}
-          total={Math.max(1, items.length)}
-          onOpenMenu={openExerciseMenu}
-        />
-
-        <SetEditorCard
-          item={activeItem}
           focusSetIndex={focusSetIndex}
-          blocked={Boolean(blockedCurrent)}
-          restEnabled={restEnabled}
-          onFocusSet={(index) => setFocusSetIndex(index)}
-          onChangeReps={handleRepsChange}
-          onChangeWeight={handleWeightChange}
-          onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
-        />
+          onOpenMenu={openExerciseMenu}
+        >
+          <SetEditorCard
+            embedded
+            item={activeItem}
+            focusSetIndex={focusSetIndex}
+            blocked={Boolean(blockedCurrent)}
+            restEnabled={restEnabled}
+            onChangeReps={handleRepsChange}
+            onChangeWeight={handleWeightChange}
+            onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
+          />
+        </CurrentExerciseCard>
       </main>
 
       <BottomDock
