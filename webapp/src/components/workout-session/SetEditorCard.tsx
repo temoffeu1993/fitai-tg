@@ -22,7 +22,7 @@ const WHEEL_VISIBLE = 1;
 const WHEEL_CYCLES = 7;
 const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
 const EPS = 0.0001;
-const FLASH_TINT_MS = 720;
+const FLASH_TINT_MS = 520;
 const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -103,12 +103,16 @@ export default function SetEditorCard(props: Props) {
       <button
         type="button"
         aria-label="Подход выполнен"
-        style={{
-          ...s.commitBtn,
-          ...(commitFlash ? s.commitBtnSuccess : null),
-        }}
+        style={s.commitBtn}
         onClick={handleCommit}
       >
+        <span
+          aria-hidden
+          style={{
+            ...s.commitTintOverlay,
+            ...(commitFlash ? s.commitTintOverlayOn : null),
+          }}
+        />
         <span
           aria-hidden
           style={s.commitCheck}
@@ -272,7 +276,14 @@ function WheelField(props: {
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
-      <div style={{ ...s.wheelWrap, ...(flashSuccess ? s.wheelWrapSuccess : null) }}>
+      <div style={s.wheelWrap}>
+        <div
+          aria-hidden
+          style={{
+            ...s.wheelTintOverlay,
+            ...(flashSuccess ? s.wheelTintOverlayOn : null),
+          }}
+        />
         <div
           ref={listRef}
           style={{ ...s.wheelList, ...(disabled ? s.wheelListDisabled : null) }}
@@ -351,14 +362,23 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
-    transition: `background ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
   },
-  wheelWrapSuccess: {
-    background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
+  wheelTintOverlay: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: 16,
+    pointerEvents: "none",
+    opacity: 0,
+    background: "linear-gradient(180deg, rgba(206,234,188,0.96) 0%, rgba(194,226,173,0.98) 100%)",
+    transition: `opacity ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
+    zIndex: 1,
+  },
+  wheelTintOverlayOn: {
+    opacity: 1,
   },
   wheelList: {
     position: "relative",
-    zIndex: 1,
+    zIndex: 2,
     height: "100%",
     overflowY: "auto",
     overflowX: "hidden",
@@ -406,13 +426,26 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: `background ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
+    position: "relative",
+    overflow: "hidden",
     cursor: "pointer",
   },
-  commitBtnSuccess: {
-    background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
+  commitTintOverlay: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: 16,
+    pointerEvents: "none",
+    opacity: 0,
+    background: "linear-gradient(180deg, rgba(206,234,188,0.96) 0%, rgba(194,226,173,0.98) 100%)",
+    transition: `opacity ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
+    zIndex: 1,
+  },
+  commitTintOverlayOn: {
+    opacity: 1,
   },
   commitCheck: {
+    position: "relative",
+    zIndex: 2,
     fontSize: 30,
     fontWeight: 700,
     lineHeight: 1,
