@@ -100,12 +100,14 @@ export default function CheckIn() {
     if (!result || !summary) return [] as string[];
     const what = String(result.summary?.whatChanged || summary.subtitle || "").trim();
     const whyRaw = String(result.summary?.why || "").trim();
+    const factualRaw = String(summary.factualLine || "").trim();
     const fallback = Array.isArray(summary.bullets) ? summary.bullets : [];
     const why = whyRaw || fallback[0] || "";
+    const factual = factualRaw.replace(/^По факту:\s*/i, "").trim();
     return [
-      what ? `Что изменили: ${what}` : "",
+      what || "",
       why ? `Почему: ${why}` : "",
-      summary.factualLine || "",
+      factual || "",
     ].filter(Boolean);
   }, [result, summary]);
 
@@ -373,7 +375,7 @@ export default function CheckIn() {
               <div style={styles.resultBubbleTextWrap} className="onb-fade">
                 {resultLines.map((line, i) => (
                   <div key={i} style={styles.resultBubbleLine}>
-                    {line}
+                    • {line}
                   </div>
                 ))}
               </div>
