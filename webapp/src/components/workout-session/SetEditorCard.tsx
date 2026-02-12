@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { requiresWeightInput } from "./utils";
+import { clampInt, requiresWeightInput } from "./utils";
 
 type Props = {
   item: SessionItem | null;
@@ -15,10 +14,11 @@ type Props = {
   onToggleRestEnabled: () => void;
 };
 
-const WHEEL_ITEM_H = 86;
-const WHEEL_VISIBLE = 1;
-const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
-const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
+const MAX_REPS = 60;
+const MIN_REPS = 0;
+const MIN_WEIGHT = 0;
+const MAX_WEIGHT = 300;
+const WEIGHT_STEP = 1;
 
 export default function SetEditorCard(props: Props) {
   const {
@@ -37,24 +37,27 @@ export default function SetEditorCard(props: Props) {
   if (!set) return null;
 
   const needWeight = requiresWeightInput(item);
+  const repsValue = Number.isFinite(Number(set.reps)) ? clampInt(Number(set.reps), MIN_REPS, MAX_REPS) : 0;
+  const weightValue = Number.isFinite(Number(set.weight))
+    ? Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, Math.round(Number(set.weight))))
+    : 0;
 
   return (
     <section style={s.card}>
       <div style={s.inputsGrid}>
-        <WheelField
+        <StepField
           label="Повторы"
-          values={REPS_VALUES}
-          value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
-          onChange={(value) => onChangeReps(focusSetIndex, value)}
-          formatValue={(value) => String(Math.round(value))}
+          value={repsValue}
+          onMinus={() => onChangeReps(focusSetIndex, Math.max(MIN_REPS, repsValue - 1))}
+          onPlus={() => onChangeReps(focusSetIndex, Math.min(MAX_REPS, repsValue + 1))}
         />
-        <WheelField
-          label={needWeight ? "КГ" : (item.weightLabel || "КГ")}
-          values={WEIGHT_VALUES}
-          value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
-          onChange={(value) => onChangeWeight(focusSetIndex, value)}
-          formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
+
+        <StepField
+          label="КГ"
+          value={weightValue}
           disabled={!needWeight}
+          onMinus={() => onChangeWeight(focusSetIndex, Math.max(MIN_WEIGHT, weightValue - WEIGHT_STEP))}
+          onPlus={() => onChangeWeight(focusSetIndex, Math.min(MAX_WEIGHT, weightValue + WEIGHT_STEP))}
         />
       </div>
 
@@ -80,6 +83,7 @@ export default function SetEditorCard(props: Props) {
         <span style={s.restLabel}>Авто-таймер отдыха</span>
         <button
           type="button"
+          className={`ws-switch-btn ${restEnabled ? "ws-switch-btn-on" : ""}`}
           style={{ ...s.switchBtn, ...(restEnabled ? s.switchBtnOn : null) }}
           onClick={onToggleRestEnabled}
         >
@@ -90,89 +94,40 @@ export default function SetEditorCard(props: Props) {
   );
 }
 
-function WheelField(props: {
+function StepField(props: {
   label: string;
-  values: number[];
-  value: number | undefined;
-  onChange: (value: number) => void;
-  formatValue: (value: number) => string;
+  value: number;
   disabled?: boolean;
+  onMinus: () => void;
+  onPlus: () => void;
 }) {
-  const { label, values, value, onChange, formatValue, disabled = false } = props;
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-
-  const selectedIndex = useMemo(() => {
-    if (!values.length) return 0;
-    const target = Number.isFinite(Number(value)) ? Number(value) : values[0];
-    let bestIdx = 0;
-    let bestDiff = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < values.length; i += 1) {
-      const diff = Math.abs(values[i] - target);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  }, [value, values]);
-
-  useEffect(() => {
-    const node = listRef.current;
-    if (!node) return;
-    const targetTop = selectedIndex * WHEEL_ITEM_H;
-    if (Math.abs(node.scrollTop - targetTop) > 1) {
-      node.scrollTo({ top: targetTop, behavior: "auto" });
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  const handleScroll = () => {
-    if (disabled) return;
-    if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
-    rafRef.current = window.requestAnimationFrame(() => {
-      const node = listRef.current;
-      if (!node || !values.length) return;
-      const idx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
-      const next = values[idx];
-      if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
-        onChange(next);
-      }
-    });
-  };
+  const { label, value, disabled = false, onMinus, onPlus } = props;
 
   return (
-    <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
+    <div style={{ ...s.stepField, ...(disabled ? s.stepFieldDisabled : null) }}>
       <div style={s.valueLabel}>{label}</div>
-      <div style={s.wheelWrap}>
-        <div
-          ref={listRef}
-          style={s.wheelList}
-          onScroll={handleScroll}
-          aria-label={label}
-          role="listbox"
+      <div style={s.valueGroove}>
+        <span style={s.valueText}>{value}</span>
+      </div>
+      <div style={s.stepActions}>
+        <button
+          type="button"
+          style={s.stepBtn}
+          onClick={onMinus}
+          disabled={disabled}
+          aria-label={`Уменьшить ${label}`}
         >
-          {values.map((entry, idx) => (
-            <button
-              key={`${label}-${entry}-${idx}`}
-              type="button"
-              style={{
-                ...s.wheelItem,
-                ...(idx === selectedIndex ? s.wheelItemActive : null),
-              }}
-              onClick={() => onChange(entry)}
-              disabled={disabled}
-              aria-selected={idx === selectedIndex}
-            >
-              {formatValue(entry)}
-            </button>
-          ))}
-        </div>
+          −
+        </button>
+        <button
+          type="button"
+          style={s.stepBtn}
+          onClick={onPlus}
+          disabled={disabled}
+          aria-label={`Увеличить ${label}`}
+        >
+          +
+        </button>
       </div>
     </div>
   );
@@ -187,6 +142,7 @@ const s: Record<string, CSSProperties> = {
     boxShadow: workoutTheme.cardShadow,
     display: "grid",
     gap: 14,
+    minWidth: 0,
   },
   inputsGrid: {
     display: "grid",
@@ -194,17 +150,12 @@ const s: Record<string, CSSProperties> = {
     gap: 12,
     minWidth: 0,
   },
-  wheelField: {
-    border: "none",
-    background: "transparent",
-    borderRadius: 0,
-    boxShadow: "none",
-    padding: 0,
+  stepField: {
     display: "grid",
-    gap: 6,
+    gap: 8,
     minWidth: 0,
   },
-  wheelFieldDisabled: {
+  stepFieldDisabled: {
     opacity: 0.52,
   },
   valueLabel: {
@@ -215,49 +166,40 @@ const s: Record<string, CSSProperties> = {
     textTransform: "uppercase",
     color: workoutTheme.textMuted,
   },
-  wheelWrap: {
-    position: "relative",
-    height: WHEEL_ITEM_H * WHEEL_VISIBLE,
+  valueGroove: {
+    minHeight: 88,
+    borderRadius: 18,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    display: "grid",
+    placeItems: "center",
     overflow: "hidden",
-    borderRadius: 0,
-    border: "none",
-    background: "transparent",
-    boxShadow: "none",
   },
-  wheelList: {
-    position: "relative",
-    zIndex: 1,
-    height: "100%",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y mandatory",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    paddingTop: 0,
-    paddingBottom: 0,
-    touchAction: "pan-y",
-  },
-  wheelItem: {
-    width: "100%",
-    height: WHEEL_ITEM_H,
-    border: "none",
-    background: "transparent",
-    color: workoutTheme.textSecondary,
-    fontSize: "clamp(48px, 15vw, 64px)",
-    fontWeight: 800,
+  valueText: {
+    fontSize: "clamp(44px, 13vw, 58px)",
     lineHeight: 1,
-    scrollSnapAlign: "center",
-    fontVariantNumeric: "tabular-nums",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "clip",
-  },
-  wheelItemActive: {
+    fontWeight: 800,
     color: workoutTheme.textPrimary,
-    fontSize: "clamp(54px, 16vw, 70px)",
-    fontWeight: 900,
+    fontVariantNumeric: "tabular-nums",
+    whiteSpace: "nowrap",
+  },
+  stepActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
+  stepBtn: {
+    minHeight: 44,
+    borderRadius: 14,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textPrimary,
+    fontSize: 24,
+    lineHeight: 1,
+    fontWeight: 700,
+    cursor: "pointer",
   },
   dotRow: {
     display: "flex",

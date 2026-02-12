@@ -18,9 +18,7 @@ export default function CurrentExerciseCard(props: Props) {
   const repsLabel = formatRepsLabel(item.targetReps);
   const targetWeight = item.targetWeight ? String(item.targetWeight) : null;
   const summary = setsSummary(item);
-  const localProgressPercent = item.sets.length
-    ? Math.round((summary.done / item.sets.length) * 100)
-    : 0;
+  const localProgressPercent = item.sets.length ? Math.round((summary.done / item.sets.length) * 100) : 0;
 
   return (
     <section style={s.card}>
@@ -29,12 +27,6 @@ export default function CurrentExerciseCard(props: Props) {
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
         </button>
-      </div>
-
-      <div style={s.exerciseMetaRow}>
-        <span style={s.progressPill}>
-          {summary.done}/{summary.total} подхода
-        </span>
       </div>
 
       <div style={s.chipsRow}>
@@ -57,6 +49,9 @@ export default function CurrentExerciseCard(props: Props) {
             }}
           />
         </div>
+        <span style={s.progressCaption}>
+          Выполнено {summary.done} из {summary.total} подходов
+        </span>
       </div>
     </section>
   );
@@ -98,35 +93,18 @@ const s: Record<string, CSSProperties> = {
     margin: 0,
     minWidth: 0,
     fontSize: 32,
-    lineHeight: 1.12,
+    lineHeight: 1.14,
     fontWeight: 700,
     letterSpacing: -0.6,
     color: workoutTheme.textPrimary,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
   },
   chipsRow: {
     display: "flex",
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
-  },
-  exerciseMetaRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-  progressPill: {
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    borderRadius: 999,
-    padding: "5px 11px",
-    fontSize: 12,
-    fontWeight: 700,
-    color: workoutTheme.textSecondary,
-    lineHeight: 1.2,
   },
   metaChip: {
     display: "inline-flex",
@@ -144,9 +122,9 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 500,
   },
   progressLine: {
-    marginTop: 2,
+    marginTop: 4,
     display: "grid",
-    gap: 0,
+    gap: 8,
   },
   progressTrack: {
     height: 8,
@@ -160,5 +138,11 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 999,
     background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     transition: "width 200ms ease",
+  },
+  progressCaption: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: workoutTheme.textMuted,
+    lineHeight: 1.3,
   },
 };

@@ -17,6 +17,7 @@ export default function BottomDock(props: Props) {
       <div style={s.inner}>
         <button
           type="button"
+          className="intro-primary-btn ws-primary-btn"
           disabled={!primaryEnabled}
           style={{
             ...s.primary,
