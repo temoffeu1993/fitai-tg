@@ -369,7 +369,9 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 16,
     pointerEvents: "none",
     opacity: 0,
-    background: "linear-gradient(180deg, rgba(206,234,188,0.96) 0%, rgba(194,226,173,0.98) 100%)",
+    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
     transition: `opacity ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
     zIndex: 1,
   },
@@ -436,7 +438,9 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 16,
     pointerEvents: "none",
     opacity: 0,
-    background: "linear-gradient(180deg, rgba(206,234,188,0.96) 0%, rgba(194,226,173,0.98) 100%)",
+    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
     transition: `opacity ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
     zIndex: 1,
   },
