@@ -21,13 +21,12 @@ export default function CurrentExerciseCard(props: Props) {
 
   return (
     <section style={s.card}>
-      <div style={s.menuRow}>
+      <div style={s.topRow}>
+        <h2 style={s.name}>{item.name}</h2>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
         </button>
       </div>
-
-      <h2 style={s.name}>{item.name}</h2>
 
       <div style={s.chipsRow}>
         <span style={s.metaChip}>
@@ -67,10 +66,11 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 12,
   },
-  menuRow: {
+  topRow: {
     display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
   },
   menuBtn: {
     border: "none",
@@ -88,11 +88,16 @@ const s: Record<string, CSSProperties> = {
   },
   name: {
     margin: 0,
+    minWidth: 0,
+    flex: 1,
     fontSize: 32,
     lineHeight: 1.12,
     fontWeight: 700,
     letterSpacing: -0.6,
     color: workoutTheme.textPrimary,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   chipsRow: {
     display: "flex",

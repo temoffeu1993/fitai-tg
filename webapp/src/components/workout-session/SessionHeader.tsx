@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { workoutTheme } from "./theme";
 import { formatClock } from "./utils";
-import { AlignJustify, ArrowLeft, Clock3, Pause, Play } from "lucide-react";
+import { AlignJustify, ArrowLeft, Pause, Play } from "lucide-react";
 
 type Props = {
   title: string;
@@ -47,7 +47,6 @@ export default function SessionHeader(props: Props) {
           </div>
           <div style={s.metaRow}>
             <button type="button" style={s.timerPill} onClick={onToggleTimer}>
-              <Clock3 size={13} strokeWidth={2.1} style={s.timerIcon} />
               <span>{formatClock(elapsedSec)}</span>
               <span style={s.timerSep}>·</span>
               {running ? <Pause size={13} strokeWidth={2.1} style={s.timerIcon} /> : <Play size={13} strokeWidth={2.1} style={s.timerIcon} />}
@@ -82,13 +81,13 @@ const s: Record<string, CSSProperties> = {
   inner: {
     width: "min(720px, 100%)",
     margin: "0 auto",
-    padding: "0 16px",
+    padding: "0 10px",
   },
   row: {
     display: "grid",
-    gridTemplateColumns: "128px 1fr 128px",
+    gridTemplateColumns: "auto minmax(0,1fr) auto",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   center: {
     minWidth: 0,
@@ -108,14 +107,16 @@ const s: Record<string, CSSProperties> = {
     fontSize: 13,
     lineHeight: 1.2,
     color: workoutTheme.textMuted,
-    whiteSpace: "normal",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   iconBtn: {
     border: "none",
     background: "transparent",
     borderRadius: 999,
     minHeight: 44,
-    padding: "0 10px",
+    padding: "0 6px",
     color: "rgba(15,23,42,0.62)",
     fontSize: 16,
     fontWeight: 600,
