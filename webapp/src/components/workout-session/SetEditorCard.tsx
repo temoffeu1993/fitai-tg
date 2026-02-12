@@ -49,6 +49,12 @@ export default function SetEditorCard(props: Props) {
   const set = item.sets[focusSetIndex];
   if (!set) return null;
   const needWeight = requiresWeightInput(item);
+  const totalSets = Math.max(1, item.sets.length);
+  const doneSets = item.sets.filter((entry) => Boolean(entry.done)).length;
+  const displaySet =
+    doneSets >= totalSets
+      ? totalSets
+      : Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsHintRaw = formatRepsLabel(item.targetReps);
   const repsHint = repsHintRaw ? `${repsHintRaw} повторов` : "—";
   const parsedWeight = parseWeightNumber(item.targetWeight);
@@ -110,6 +116,8 @@ export default function SetEditorCard(props: Props) {
           ✓
         </span>
       </button>
+
+      <div style={s.setIndexText}>Подход {displaySet} из {totalSets}</div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
     </section>
@@ -373,7 +381,7 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 46,
+    fontSize: 32,
     fontWeight: 700,
     lineHeight: 1,
     scrollSnapAlign: "center",
@@ -385,8 +393,8 @@ const s: Record<string, CSSProperties> = {
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 52,
-    fontWeight: 800,
+    fontSize: 32,
+    fontWeight: 700,
   },
   commitBtn: {
     width: "100%",
@@ -410,6 +418,14 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     color: "rgba(15,23,42,0.45)",
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+  setIndexText: {
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.62)",
+    marginTop: 2,
   },
   error: {
     fontSize: 12,

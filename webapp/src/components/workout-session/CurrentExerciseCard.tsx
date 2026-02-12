@@ -21,21 +21,6 @@ export default function CurrentExerciseCard(props: Props) {
         </button>
       </div>
 
-      <div style={s.setRow}>
-        <span style={s.setText}>Подход</span>
-        <div style={s.setGrooves} aria-hidden>
-          {item.sets.map((entry, idx) => (
-            <span
-              key={idx}
-              style={{
-                ...s.groove,
-                ...(entry.done ? s.grooveDone : null),
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
       {children}
     </section>
   );
@@ -87,41 +72,5 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     fontWeight: 500,
     cursor: "pointer",
-  },
-  setRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 10,
-    minWidth: 0,
-    flexWrap: "nowrap",
-    transform: "translateY(-2px)",
-  },
-  setText: {
-    fontSize: 14,
-    lineHeight: 1.5,
-    fontWeight: 400,
-    color: "rgba(15, 23, 42, 0.6)",
-    whiteSpace: "nowrap",
-  },
-  setGrooves: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    flexWrap: "nowrap",
-  },
-  groove: {
-    width: 12,
-    height: 12,
-    flex: "0 0 auto",
-    borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-  },
-  grooveDone: {
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow:
-      "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.42)",
   },
 };
