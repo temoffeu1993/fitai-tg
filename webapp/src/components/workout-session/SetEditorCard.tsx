@@ -204,6 +204,11 @@ function WheelField(props: {
     if (disabled || !values.length) return;
     const node = listRef.current;
     if (!node) return;
+    interactingRef.current = true;
+    if (releaseTimerRef.current != null) {
+      window.clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
     const curIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
     const curVal = ((curIdx % values.length) + values.length) % values.length;
     const nextBaseIdx = (selectedBaseIndex + 1) % values.length;
@@ -213,6 +218,9 @@ function WheelField(props: {
     node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
     if (Math.abs(selectedValue - next) > EPS) onChange(next);
     if (!suppressHapticsRef.current) fireHapticImpact("light");
+    releaseTimerRef.current = window.setTimeout(() => {
+      interactingRef.current = false;
+    }, 260);
   };
 
   return (
