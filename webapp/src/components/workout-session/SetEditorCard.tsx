@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { requiresWeightInput } from "./utils";
+import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
   item: SessionItem | null;
@@ -92,6 +93,8 @@ function WheelField(props: {
   const stopTimerRef = useRef<number | null>(null);
   const releaseTimerRef = useRef<number | null>(null);
   const interactingRef = useRef(false);
+  const suppressHapticsRef = useRef(true);
+  const lastTickRef = useRef<number | null>(null);
 
   const selectedValue = useMemo(() => {
     if (!values.length) return 0;
@@ -127,7 +130,15 @@ function WheelField(props: {
     if (Math.abs(node.scrollTop - targetTop) > 1) {
       node.scrollTo({ top: targetTop, behavior: "auto" });
     }
+    lastTickRef.current = targetIdx;
   }, [selectedBaseIndex, values.length]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      suppressHapticsRef.current = false;
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -158,7 +169,15 @@ function WheelField(props: {
     if (rafRef.current == null) {
       rafRef.current = window.requestAnimationFrame(() => {
         rafRef.current = null;
+        const node = listRef.current;
         const state = getScrollState();
+        if (!node || !state || !values.length || !wheelValues.length) return;
+        const rawIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
+        const clamped = Math.max(0, Math.min(rawIdx, wheelValues.length - 1));
+        if (lastTickRef.current !== clamped) {
+          lastTickRef.current = clamped;
+          if (!suppressHapticsRef.current) fireHapticImpact("light");
+        }
         if (!state) return;
         if (Math.abs(selectedValue - state.next) > EPS) onChange(state.next);
       });
@@ -174,21 +193,26 @@ function WheelField(props: {
       }
       const targetIdx = values.length * WHEEL_MID + state.baseIdx;
       node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
+      if (!suppressHapticsRef.current) fireHapticImpact("light");
       releaseTimerRef.current = window.setTimeout(() => {
         interactingRef.current = false;
       }, 150);
     }, 80);
   };
 
-  const handleSelect = (baseIdx: number) => {
+  const handleSelect = () => {
     if (disabled || !values.length) return;
-    const next = values[baseIdx];
     const node = listRef.current;
-    if (node) {
-      const targetIdx = values.length * WHEEL_MID + baseIdx;
-      node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
-    }
+    if (!node) return;
+    const curIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
+    const curVal = ((curIdx % values.length) + values.length) % values.length;
+    const nextBaseIdx = (selectedBaseIndex + 1) % values.length;
+    let targetIdx = curIdx - curVal + nextBaseIdx;
+    if (nextBaseIdx <= curVal) targetIdx += values.length;
+    const next = values[nextBaseIdx];
+    node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
     if (Math.abs(selectedValue - next) > EPS) onChange(next);
+    if (!suppressHapticsRef.current) fireHapticImpact("light");
   };
 
   return (
@@ -200,7 +224,7 @@ function WheelField(props: {
               key={`${label}-${entry}-${idx}`}
               type="button"
               style={{ ...s.wheelItem, ...(Math.abs(entry - selectedValue) <= EPS ? s.wheelItemActive : null) }}
-              onClick={() => handleSelect(idx % values.length)}
+              onClick={handleSelect}
               disabled={disabled}
               aria-selected={Math.abs(entry - selectedValue) <= EPS}
             >
@@ -274,7 +298,7 @@ const s: Record<string, CSSProperties> = {
     height: "100%",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y mandatory",
+    scrollSnapType: "y proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
