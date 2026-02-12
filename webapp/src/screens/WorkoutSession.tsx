@@ -413,17 +413,19 @@ export default function WorkoutSession() {
 
   const toggleSetDone = (setIdx: number) => {
     const item = activeItem;
-    if (!item) return;
+    if (!item) return false;
     const set = item.sets[setIdx];
-    if (!set) return;
+    if (!set) return false;
     const needWeight = requiresWeightInput(item);
     const allowed = canMarkSetDone(set, needWeight);
     const willCompleteExercise =
       !set.done && item.sets.every((entry, idx) => idx === setIdx || Boolean(entry.done));
 
+    if (set.done) return false;
+
     if (!allowed && !set.done) {
       markBlockedSet(activeIndex, setIdx);
-      return;
+      return false;
     }
 
     setItems((prev) => {
@@ -431,14 +433,12 @@ export default function WorkoutSession() {
       const currentItem = next[activeIndex];
       const currentSet = currentItem?.sets?.[setIdx];
       if (!currentItem || !currentSet) return prev;
-      const nextDone = !currentSet.done;
-      currentSet.done = nextDone;
-      if (nextDone) {
-        const nextSet = currentItem.sets[setIdx + 1];
-        if (nextSet) {
-          if (nextSet.reps == null && currentSet.reps != null) nextSet.reps = currentSet.reps;
-          if (nextSet.weight == null && currentSet.weight != null) nextSet.weight = currentSet.weight;
-        }
+      if (currentSet.done) return prev;
+      currentSet.done = true;
+      const nextSet = currentItem.sets[setIdx + 1];
+      if (nextSet) {
+        if (nextSet.reps == null && currentSet.reps != null) nextSet.reps = currentSet.reps;
+        if (nextSet.weight == null && currentSet.weight != null) nextSet.weight = currentSet.weight;
       }
       if (!currentItem.skipped) {
         currentItem.done = currentItem.sets.every((entry) => Boolean(entry.done));
@@ -446,19 +446,23 @@ export default function WorkoutSession() {
       return next;
     });
 
-    if (!set.done) {
-      fireHapticImpact("medium");
-      showTransitionToast("Подход сохранен");
-      if (willCompleteExercise) {
-        setEffortPromptIndex(activeIndex);
-      } else {
-        startRest(item.restSec);
-        const nextSet = item.sets[setIdx + 1];
-        if (nextSet) setFocusSetIndex(setIdx + 1);
-      }
+    fireHapticImpact("medium");
+    showTransitionToast("Подход сохранен");
+    if (willCompleteExercise) {
+      setEffortPromptIndex(activeIndex);
     } else {
-      fireHapticImpact("light");
+      startRest(item.restSec);
+      const nextSet = item.sets[setIdx + 1];
+      if (nextSet) setFocusSetIndex(setIdx + 1);
     }
+    return true;
+  };
+
+  const commitCurrentSetFromEditor = () => {
+    if (!activeItem) return false;
+    const set = activeItem.sets[focusSetIndex];
+    if (!set) return false;
+    return toggleSetDone(focusSetIndex);
   };
 
   const setExerciseEffort = (exerciseIndex: number, value: Exclude<EffortTag, null>) => {
@@ -788,28 +792,6 @@ export default function WorkoutSession() {
     nav("/workout/result", { replace: true, state: { result: storedResult } });
   };
 
-  const primaryActionState = useMemo(() => {
-    if (!activeItem) {
-      return { label: "Завершить тренировку", onClick: openFinishModal };
-    }
-    const currentSet = activeItem.sets[focusSetIndex];
-    if (!currentSet) {
-      if (activeIndex < items.length - 1) return { label: "Следующее упражнение", onClick: goNextExercise };
-      return { label: "Завершить тренировку", onClick: openFinishModal };
-    }
-    if (!currentSet.done) {
-      return { label: "Подход выполнен", onClick: () => toggleSetDone(focusSetIndex) };
-    }
-    const nextSetIndex = activeItem.sets.findIndex((set, idx) => idx > focusSetIndex && !set.done);
-    if (nextSetIndex >= 0) {
-      return { label: "Следующий подход", onClick: () => setFocusSetIndex(nextSetIndex) };
-    }
-    if (activeIndex < items.length - 1) {
-      return { label: "Следующее упражнение", onClick: goNextExercise };
-    }
-    return { label: "Завершить тренировку", onClick: openFinishModal };
-  }, [activeItem, focusSetIndex, activeIndex, items.length]);
-
   if (!plan) {
     return (
       <div style={styles.fallbackWrap}>
@@ -826,8 +808,8 @@ export default function WorkoutSession() {
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
   const exerciseProgressLabel = `${doneExercises}/${Math.max(1, items.length)}`;
   const isSheetOpen = listOpen || exerciseMenu != null;
-  const isInteractionLocked =
-    restSecLeft != null || isSheetOpen || effortPromptIndex != null || finishModal || saving;
+  const canGoNextExercise =
+    Boolean(activeItem) && activeIndex < items.length - 1 && activeItem.sets.every((set) => Boolean(set.done));
   const uiState: SessionUiState = (() => {
     if (restSecLeft != null) return "rest_running";
     if (isSheetOpen) return "sheet_open";
@@ -857,7 +839,6 @@ export default function WorkoutSession() {
       <main style={styles.main}>
         <CurrentExerciseCard
           item={activeItem}
-          focusSetIndex={focusSetIndex}
           onOpenMenu={openExerciseMenu}
         >
           <SetEditorCard
@@ -866,19 +847,23 @@ export default function WorkoutSession() {
             focusSetIndex={focusSetIndex}
             blocked={Boolean(blockedCurrent)}
             restEnabled={restEnabled}
-            onChangeReps={handleRepsChange}
-            onChangeWeight={handleWeightChange}
-            onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
-          />
-        </CurrentExerciseCard>
+          onChangeReps={handleRepsChange}
+          onChangeWeight={handleWeightChange}
+          onCommitSet={commitCurrentSetFromEditor}
+          onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
+        />
+      </CurrentExerciseCard>
       </main>
 
       <BottomDock
-        primaryLabel={primaryActionState.label}
-        onPrimary={primaryActionState.onClick}
+        primaryLabel="Следующее упражнение"
+        primaryVariant="compactArrow"
+        onPrimary={() => {
+          if (!canGoNextExercise) return;
+          goNextExercise();
+        }}
         secondaryLabel="Завершить тренировку"
         onSecondary={openFinishModal}
-        primaryEnabled={!isInteractionLocked}
       />
 
       <TransitionToast message={transitionToast} />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
@@ -13,6 +13,7 @@ type Props = {
   embedded?: boolean;
   onChangeReps: (setIdx: number, value: number) => void;
   onChangeWeight: (setIdx: number, value: number) => void;
+  onCommitSet: () => boolean;
   onToggleRestEnabled: () => void;
 };
 
@@ -32,7 +33,10 @@ export default function SetEditorCard(props: Props) {
     embedded = false,
     onChangeReps,
     onChangeWeight,
+    onCommitSet,
   } = props;
+  const [commitFlash, setCommitFlash] = useState(false);
+  const flashTimerRef = useRef<number | null>(null);
 
   if (!item) return null;
   const set = item.sets[focusSetIndex];
@@ -43,9 +47,26 @@ export default function SetEditorCard(props: Props) {
   const parsedWeight = parseWeightNumber(item.targetWeight);
   const weightHint = parsedWeight != null
     ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} кг`
-    : typeof item.targetWeight === "string" && item.targetWeight.trim()
+      : typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : "";
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
+    };
+  }, []);
+
+  const handleCommit = () => {
+    const committed = onCommitSet();
+    if (!committed) return;
+    if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
+    setCommitFlash(true);
+    flashTimerRef.current = window.setTimeout(() => {
+      setCommitFlash(false);
+      flashTimerRef.current = null;
+    }, 360);
+  };
 
   return (
     <section style={{ ...(embedded ? s.embedRoot : s.card) }}>
@@ -57,6 +78,7 @@ export default function SetEditorCard(props: Props) {
           value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
           onChange={(value) => onChangeReps(focusSetIndex, value)}
           formatValue={(value) => String(Math.round(value))}
+          flashSuccess={commitFlash}
         />
 
         <WheelField
@@ -67,8 +89,30 @@ export default function SetEditorCard(props: Props) {
           onChange={(value) => onChangeWeight(focusSetIndex, value)}
           formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
           disabled={!needWeight}
+          flashSuccess={commitFlash}
         />
       </div>
+
+      <button
+        type="button"
+        aria-label="Подход выполнен"
+        className="tap-primary"
+        style={{
+          ...s.commitBtn,
+          ...(commitFlash ? s.commitBtnSuccess : null),
+        }}
+        onClick={handleCommit}
+      >
+        <span
+          aria-hidden
+          style={{
+            ...s.commitCheck,
+            ...(commitFlash ? s.commitCheckSuccess : null),
+          }}
+        >
+          ✓
+        </span>
+      </button>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
     </section>
@@ -83,8 +127,9 @@ function WheelField(props: {
   onChange: (value: number) => void;
   formatValue: (value: number) => string;
   disabled?: boolean;
+  flashSuccess?: boolean;
 }) {
-  const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false } = props;
+  const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false, flashSuccess = false } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const stopTimerRef = useRef<number | null>(null);
@@ -222,7 +267,7 @@ function WheelField(props: {
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
-      <div style={s.wheelWrap}>
+      <div style={{ ...s.wheelWrap, ...(flashSuccess ? s.wheelWrapSuccess : null) }}>
         <div
           ref={listRef}
           style={{ ...s.wheelList, ...(disabled ? s.wheelListDisabled : null) }}
@@ -301,6 +346,12 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
+    transition: "background 260ms ease, box-shadow 260ms ease",
+  },
+  wheelWrapSuccess: {
+    background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(34,94,28,0.16), inset 0 -1px 0 rgba(255,255,255,0.86)",
   },
   wheelList: {
     position: "relative",
@@ -341,6 +392,36 @@ const s: Record<string, CSSProperties> = {
     color: workoutTheme.textPrimary,
     fontSize: 52,
     fontWeight: 800,
+  },
+  commitBtn: {
+    width: "100%",
+    minHeight: 56,
+    borderRadius: 16,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "background 260ms ease, box-shadow 260ms ease",
+    cursor: "pointer",
+  },
+  commitBtnSuccess: {
+    background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(34,94,28,0.16), inset 0 -1px 0 rgba(255,255,255,0.86)",
+  },
+  commitCheck: {
+    fontSize: 30,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: "rgba(15,23,42,0.45)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+    transition: "color 260ms ease, text-shadow 260ms ease",
+  },
+  commitCheckSuccess: {
+    color: "rgba(34,94,28,0.72)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(22,68,26,0.2)",
   },
   error: {
     fontSize: 12,

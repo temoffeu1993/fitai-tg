@@ -1,25 +1,16 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { setsSummary } from "./utils";
 
 type Props = {
   item: SessionItem | null;
-  focusSetIndex: number;
   onOpenMenu: () => void;
   children?: ReactNode;
 };
 
 export default function CurrentExerciseCard(props: Props) {
-  const { item, focusSetIndex, onOpenMenu, children } = props;
+  const { item, onOpenMenu, children } = props;
   if (!item) return null;
-
-  const summary = setsSummary(item);
-  const totalSets = Math.max(1, summary.total);
-  const displaySet =
-    summary.done >= totalSets
-      ? totalSets
-      : Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
 
   return (
     <section style={s.card}>
@@ -31,7 +22,7 @@ export default function CurrentExerciseCard(props: Props) {
       </div>
 
       <div style={s.setRow}>
-        <span style={s.setText}>Подход {displaySet} из {totalSets}</span>
+        <span style={s.setText}>Подход</span>
         <div style={s.setGrooves} aria-hidden>
           {item.sets.map((entry, idx) => (
             <span
