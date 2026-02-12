@@ -174,8 +174,9 @@ const s: Record<string, CSSProperties> = {
     boxShadow: workoutTheme.pillShadow,
   },
   grooveDone: {
-    background: "linear-gradient(180deg, #c4dc74 0%, #a5c856 58%, #6f8c37 100%)",
+    background:
+      "linear-gradient(180deg, #eef1ea 0%, #d1d9bd 24%, #9fb083 54%, #8a96a4 76%, #626d7b 100%)",
     boxShadow:
-      "0 1px 2px rgba(64,84,26,0.24), inset 0 1px 1px rgba(255,255,255,0.36), inset 0 -1px 1px rgba(71,92,30,0.32)",
+      "0 1px 2px rgba(50,58,70,0.24), inset 0 1px 1px rgba(255,255,255,0.46), inset 0 -1px 1px rgba(67,76,90,0.34)",
   },
 };

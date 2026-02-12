@@ -158,9 +158,10 @@ const s: Record<string, CSSProperties> = {
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    background: "linear-gradient(90deg, #c7de78 0%, #a8ca5b 52%, #718f3a 100%)",
+    background:
+      "linear-gradient(90deg, #f3f5ef 0%, #d7ddb9 16%, #a4b48b 36%, #d9ddd1 56%, #929eac 76%, #646f7e 100%)",
     boxShadow:
-      "0 1px 2px rgba(64,84,26,0.22), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(71,92,30,0.28)",
+      "0 1px 2px rgba(50,58,70,0.24), inset 0 1px 0 rgba(255,255,255,0.52), inset 0 -1px 0 rgba(67,76,90,0.32)",
     transition: "width 220ms ease",
   },
 };
