@@ -858,15 +858,24 @@ export default function WorkoutSession() {
         <span style={styles.restAutoLabel}>Автотаймер отдыха</span>
         <button
           type="button"
-          className={`ws-switch-btn ${restEnabled ? "ws-switch-btn-on" : ""}`}
-          style={{
-            ...styles.restAutoToggle,
-            ...(restEnabled ? styles.restAutoToggleOn : styles.restAutoToggleOff),
-          }}
+          style={styles.restAutoToggle}
           onClick={() => setRestEnabled((prev) => !prev)}
           aria-label={restEnabled ? "Выключить автотаймер отдыха" : "Включить автотаймер отдыха"}
         >
-          <span style={styles.restAutoToggleText}>{restEnabled ? "Вкл" : "Выкл"}</span>
+          <span
+            aria-hidden
+            style={{
+              ...styles.restAutoToggleTint,
+              ...(restEnabled ? styles.restAutoToggleTintOn : null),
+            }}
+          />
+          <span
+            style={{
+              ...styles.restAutoToggleText,
+            }}
+          >
+            {restEnabled ? "Вкл" : "Выкл"}
+          </span>
         </button>
       </div>
       </main>
@@ -977,7 +986,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     maxWidth: 720,
     margin: "0 auto",
-    padding: "18px 16px 0",
+    padding: "8px 16px 0",
     boxSizing: "border-box",
     display: "grid",
     gap: 10,
@@ -985,8 +994,8 @@ const styles: Record<string, React.CSSProperties> = {
   restAutoRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    justifyContent: "flex-end",
+    gap: 10,
     padding: "2px 2px 0",
     background: "transparent",
   },
@@ -1002,25 +1011,42 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0 14px",
     borderRadius: 999,
     border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+    overflow: "hidden",
     cursor: "pointer",
+    transition: "none",
+    transform: "none",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+    appearance: "none",
   },
-  restAutoToggleOff: {
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: "rgba(15,23,42,0.62)",
+  restAutoToggleTint: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: 999,
+    pointerEvents: "none",
+    opacity: 0,
+    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+    transition: "opacity 520ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    zIndex: 1,
   },
-  restAutoToggleOn: {
-    background: "linear-gradient(180deg, rgba(196,228,178,0.82) 0%, rgba(170,210,146,0.9) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(78,122,58,0.14), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "rgba(43,78,26,0.9)",
+  restAutoToggleTintOn: {
+    opacity: 0.86,
   },
   restAutoToggleText: {
+    position: "relative",
+    zIndex: 2,
     fontSize: 14,
     lineHeight: 1,
     fontWeight: 700,
+    color: "rgba(15,23,42,0.62)",
     textShadow: "0 1px 0 rgba(255,255,255,0.78), 0 -1px 0 rgba(15,23,42,0.14)",
   },
   infoCard: {

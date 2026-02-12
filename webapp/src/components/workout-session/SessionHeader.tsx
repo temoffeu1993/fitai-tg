@@ -60,7 +60,7 @@ export default function SessionHeader(props: Props) {
 
 const s: Record<string, CSSProperties> = {
   spacer: {
-    height: "calc(env(safe-area-inset-top, 0px) + 84px)",
+    height: "calc(env(safe-area-inset-top, 0px) + 78px)",
   },
   wrap: {
     position: "fixed",
