@@ -583,6 +583,15 @@ export function buildCoachSummaryBlocks(args: {
   const hasExerciseSwap = hasDriver("exercise_swap");
   const hasNoChange = hasDriver("no_change");
   const diffSignals = getSummaryDiffSignals(diff);
+  const changeMeta = args.changeMeta || {};
+  const recoveryAdjusted =
+    Boolean(changeMeta.intentAdjusted) ||
+    Boolean(changeMeta.volumeAdjusted) ||
+    Boolean(changeMeta.deload) ||
+    Boolean(changeMeta.shortenedForTime) ||
+    Boolean(changeMeta.trimmedForCaps) ||
+    (diff?.setsDelta != null && diff.setsDelta < 0) ||
+    (diff?.durationDelta != null && diff.durationDelta < 0);
   const durationPair = formatDurationDelta(diff);
   const setsPair = formatSetsDelta(diff);
   const topPain = facts.input.pain
@@ -610,15 +619,15 @@ export function buildCoachSummaryBlocks(args: {
       whatChanged = "Сделали тренировку безопаснее под текущие ограничения.";
     }
   } else if (hasTimeLimit && hasLowRecovery) {
-    whatChanged = diffSignals.meaningfulDelta
+    whatChanged = diffSignals.meaningfulDelta || recoveryAdjusted
       ? "Сжали тренировку под время и облегчили нагрузку под самочувствие."
       : "Подстроили тренировку под время и текущее самочувствие.";
   } else if (hasTimeLimit) {
     whatChanged = durationPair
       ? `Сократили тренировку под время (${durationPair}).`
       : "Сократили тренировку под доступное время.";
-  } else if (hasLowRecovery && diffSignals.meaningfulDelta) {
-    whatChanged = "Облегчили нагрузку под текущее самочувствие.";
+  } else if (hasLowRecovery && (diffSignals.meaningfulDelta || recoveryAdjusted)) {
+    whatChanged = "Снизили нагрузку под текущее самочувствие.";
   } else if (diff && (diff.setsDelta <= -2 || (diff.durationDelta != null && diff.durationDelta <= -8))) {
     whatChanged = setsPair
       ? `Сделали тренировку легче (${setsPair}).`
@@ -652,12 +661,14 @@ export function buildCoachSummaryBlocks(args: {
         ? `Указал ${available} мин вместо обычных ${onboarding}`
         : "Времени на тренировку сегодня меньше обычного";
 
-    if (facts.input.sleep === "poor" && facts.input.energy === "low") {
+    if (facts.input.sleep === "poor" && facts.input.energy === "low" && recoveryAdjusted) {
       why = `${timePart}. Плохой сон и низкая энергия — поэтому оставили щадящую нагрузку без перегруза.`;
-    } else if (facts.input.sleep === "poor") {
+    } else if (facts.input.sleep === "poor" && recoveryAdjusted) {
       why = `${timePart}. Из-за плохого сна сделали нагрузку мягче.`;
-    } else if (facts.input.energy === "low") {
+    } else if (facts.input.energy === "low" && recoveryAdjusted) {
       why = `${timePart}. Из-за низкой энергии снизили интенсивность на сегодня.`;
+    } else if (facts.input.sleep === "poor" || facts.input.energy === "low") {
+      why = `${timePart}. Сон и энергию учли, но дополнительного снижения нагрузки не потребовалось.`;
     } else {
       why = `${timePart}. По самочувствию сегодня работаем в более щадящем режиме.`;
     }
@@ -668,12 +679,16 @@ export function buildCoachSummaryBlocks(args: {
       ? `Указал ${available} мин вместо обычных ${onboarding} — адаптировали объём под это время.`
       : "По чек-ину времени на тренировку меньше обычного, поэтому сократили объём.";
   } else if (hasLowRecovery) {
-    if (facts.input.sleep === "poor" && facts.input.energy === "low") {
+    if (facts.input.sleep === "poor" && facts.input.energy === "low" && recoveryAdjusted) {
       why = "Плохой сон и низкая энергия — сделали сессию легче, чтобы не перегружать восстановление.";
-    } else if (facts.input.sleep === "poor") {
+    } else if (facts.input.sleep === "poor" && recoveryAdjusted) {
       why = "Плохой сон снижает восстановление, поэтому нагрузку сделали мягче.";
-    } else if (facts.input.energy === "low") {
+    } else if (facts.input.energy === "low" && recoveryAdjusted) {
       why = "Низкая энергия по чек-ину, поэтому снизили интенсивность на сегодня.";
+    } else if (facts.input.sleep === "poor") {
+      why = "Плохой сон учли, но критичных ограничений не было — план оставили без изменений.";
+    } else if (facts.input.energy === "low") {
+      why = "Низкую энергию учли, но критичных ограничений не было — план оставили без изменений.";
     } else {
       why = "По чек-ину ресурс ниже обычного, поэтому тренировку сделали легче.";
     }
