@@ -857,6 +857,7 @@ export default function WorkoutSession() {
       <main style={styles.main}>
         <CurrentExerciseCard
           item={activeItem}
+          focusSetIndex={focusSetIndex}
           onOpenMenu={openExerciseMenu}
         >
           <SetEditorCard
