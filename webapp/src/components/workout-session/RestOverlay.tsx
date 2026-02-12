@@ -14,14 +14,14 @@ export default function RestOverlay(props: Props) {
 
   return (
     <div style={s.overlay}>
-      <div style={s.card}>
+      <div style={s.inner}>
         <div style={s.kicker}>Отдых</div>
         <div style={s.clock}>{formatClock(secondsLeft)}</div>
-        <div style={s.row}>
-          <button type="button" style={s.secondary} onClick={onAdd15}>
+        <div style={s.actions}>
+          <button type="button" style={s.actionSoft} onClick={onAdd15}>
             +15 сек
           </button>
-          <button type="button" style={s.secondary} onClick={onSkip}>
+          <button type="button" style={s.actionSoft} onClick={onSkip}>
             Пропустить
           </button>
         </div>
@@ -35,54 +35,52 @@ const s: Record<string, CSSProperties> = {
     position: "fixed",
     inset: 0,
     zIndex: 60,
-    display: "grid",
-    placeItems: "center",
-    padding: 20,
-    background: workoutTheme.overlayStrong,
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px 18px calc(env(safe-area-inset-bottom, 0px) + 20px)",
+    background: "linear-gradient(180deg, rgba(7,10,18,0.6) 0%, rgba(7,10,18,0.72) 100%)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
   },
-  card: {
-    width: "min(90vw, 380px)",
-    borderRadius: 26,
-    border: workoutTheme.cardBorder,
-    background: workoutTheme.cardBg,
-    color: workoutTheme.textPrimary,
-    boxShadow: workoutTheme.cardShadow,
-    padding: "22px 20px",
+  inner: {
+    width: "min(100%, 460px)",
+    margin: "0 auto",
     display: "grid",
-    gap: 14,
+    gap: 18,
     textAlign: "center",
   },
   kicker: {
-    fontSize: 13,
-    letterSpacing: 1.2,
+    fontSize: 14,
+    letterSpacing: 0.9,
     textTransform: "uppercase",
-    color: workoutTheme.textMuted,
+    color: "rgba(255,255,255,0.72)",
     fontWeight: 700,
   },
   clock: {
-    fontSize: 72,
+    fontSize: 96,
     lineHeight: 1,
-    fontWeight: 700,
-    letterSpacing: -2,
+    fontWeight: 800,
+    letterSpacing: -2.4,
     fontVariantNumeric: "tabular-nums",
-    color: workoutTheme.textPrimary,
+    color: "#fff",
+    textShadow: "0 14px 28px rgba(0,0,0,0.35)",
   },
-  row: {
+  actions: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: 8,
+    gap: 10,
   },
-  secondary: {
-    minHeight: 46,
+  actionSoft: {
+    minHeight: 50,
     borderRadius: 999,
     border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-    fontSize: 14,
-    fontWeight: 500,
+    background: "rgba(255,255,255,0.18)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.32), 0 10px 20px rgba(0,0,0,0.2)",
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: 600,
     cursor: "pointer",
   },
 };

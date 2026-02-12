@@ -17,7 +17,12 @@ export default function BottomDock(props: Props) {
       <div style={s.inner}>
         <button
           type="button"
-          style={{ ...s.primary, ...(primaryEnabled ? s.primaryActive : null) }}
+          disabled={!primaryEnabled}
+          style={{
+            ...s.primary,
+            ...(primaryEnabled ? s.primaryActive : null),
+            ...(!primaryEnabled ? s.primaryDisabled : null),
+          }}
           onClick={onPrimary}
         >
           {primaryLabel}
@@ -43,10 +48,12 @@ const s: Record<string, CSSProperties> = {
     background: workoutTheme.dockFade,
   },
   inner: {
-    width: "min(720px, 100%)",
+    width: "100%",
+    maxWidth: 720,
     margin: "0 auto",
     display: "grid",
     gap: 8,
+    boxSizing: "border-box",
   },
   primary: {
     width: "100%",
@@ -65,6 +72,10 @@ const s: Record<string, CSSProperties> = {
     background: "#1e1f22",
     color: "#fff",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+  },
+  primaryDisabled: {
+    cursor: "default",
+    opacity: 0.55,
   },
   secondary: {
     width: "100%",

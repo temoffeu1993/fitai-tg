@@ -14,6 +14,7 @@ import FinishWorkoutModal from "@/components/workout-session/FinishWorkoutModal"
 import RestOverlay from "@/components/workout-session/RestOverlay";
 import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
+import TransitionToast from "@/components/workout-session/TransitionToast";
 import { workoutTheme } from "@/components/workout-session/theme";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import type {
@@ -37,6 +38,15 @@ const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const REST_PREF_KEY = "workout_rest_enabled_v2";
+
+type SessionUiState =
+  | "lift_ready"
+  | "lift_blocked"
+  | "rest_running"
+  | "transition_next"
+  | "exercise_completed"
+  | "finish_confirm"
+  | "sheet_open";
 
 function cloneItems(items: SessionItem[]): SessionItem[] {
   try {
@@ -229,7 +239,9 @@ export default function WorkoutSession() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
   const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
+  const [transitionToast, setTransitionToast] = useState<string | null>(null);
   const blockTimerRef = useRef<number | null>(null);
+  const transitionToastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const prevBody = document.body.style.background;
@@ -346,6 +358,7 @@ export default function WorkoutSession() {
   useEffect(() => {
     return () => {
       if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
+      if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
     };
   }, []);
 
@@ -400,6 +413,15 @@ export default function WorkoutSession() {
     setRestSecLeft(safe);
   };
 
+  const showTransitionToast = (message: string, durationMs = 460) => {
+    setTransitionToast(message);
+    if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
+    transitionToastTimerRef.current = window.setTimeout(() => {
+      setTransitionToast(null);
+      transitionToastTimerRef.current = null;
+    }, durationMs);
+  };
+
   const toggleSetDone = (setIdx: number) => {
     const item = activeItem;
     if (!item) return;
@@ -437,6 +459,7 @@ export default function WorkoutSession() {
 
     if (!set.done) {
       fireHapticImpact("medium");
+      showTransitionToast("Подход сохранен");
       if (willCompleteExercise) {
         setEffortPromptIndex(activeIndex);
       } else {
@@ -781,25 +804,15 @@ export default function WorkoutSession() {
     }
     const currentSet = activeItem.sets[focusSetIndex];
     if (!currentSet) {
-      return { label: "Следующее упражнение", onClick: goNextExercise };
+      if (activeIndex < items.length - 1) return { label: "Следующее упражнение", onClick: goNextExercise };
+      return { label: "Завершить тренировку", onClick: openFinishModal };
     }
     if (!currentSet.done) {
       return { label: "Подход выполнен", onClick: () => toggleSetDone(focusSetIndex) };
     }
     const nextSetIndex = activeItem.sets.findIndex((set, idx) => idx > focusSetIndex && !set.done);
     if (nextSetIndex >= 0) {
-      return { label: "К следующему подходу", onClick: () => setFocusSetIndex(nextSetIndex) };
-    }
-    if (!activeItem.done && !activeItem.skipped) {
-      return {
-        label: "Упражнение завершено",
-        onClick: () =>
-          setItems((prev) => {
-            const next = cloneItems(prev);
-            if (next[activeIndex]) next[activeIndex].done = true;
-            return next;
-          }),
-      };
+      return { label: "Следующий подход", onClick: () => setFocusSetIndex(nextSetIndex) };
     }
     if (activeIndex < items.length - 1) {
       return { label: "Следующее упражнение", onClick: goNextExercise };
@@ -823,9 +836,25 @@ export default function WorkoutSession() {
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
   const workoutTitle = humanizeWorkoutTitle(plan);
   const subtitle = `${doneExercises}/${Math.max(1, items.length)} упражнений`;
+  const isSheetOpen = listOpen || exerciseMenu != null;
+  const isInteractionLocked =
+    restSecLeft != null || isSheetOpen || effortPromptIndex != null || finishModal || saving;
+  const uiState: SessionUiState = (() => {
+    if (restSecLeft != null) return "rest_running";
+    if (isSheetOpen) return "sheet_open";
+    if (effortPromptIndex != null) return "exercise_completed";
+    if (finishModal) return "finish_confirm";
+    if (transitionToast) return "transition_next";
+    if (!activeItem) return "lift_ready";
+    const set = activeItem.sets[focusSetIndex];
+    if (!set) return "lift_ready";
+    return canMarkSetDone(set, requiresWeightInput(activeItem)) || Boolean(set.done)
+      ? "lift_ready"
+      : "lift_blocked";
+  })();
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} data-ui-state={uiState}>
       <SessionHeader
         title={workoutTitle}
         subtitle={subtitle}
@@ -862,8 +891,10 @@ export default function WorkoutSession() {
         onPrimary={primaryActionState.onClick}
         secondaryLabel="Завершить тренировку"
         onSecondary={openFinishModal}
-        primaryEnabled
+        primaryEnabled={!isInteractionLocked}
       />
+
+      <TransitionToast message={transitionToast} />
 
       <RestOverlay
         secondsLeft={restSecLeft}
