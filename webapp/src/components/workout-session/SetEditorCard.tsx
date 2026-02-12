@@ -49,7 +49,7 @@ export default function SetEditorCard(props: Props) {
           formatValue={(value) => String(Math.round(value))}
         />
         <WheelField
-          label={item.weightLabel || "Килограммы"}
+          label={needWeight ? "КГ" : (item.weightLabel || "КГ")}
           values={WEIGHT_VALUES}
           value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
           onChange={(value) => onChangeWeight(focusSetIndex, value)}
@@ -190,7 +190,7 @@ const s: Record<string, CSSProperties> = {
   },
   inputsGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
     gap: 12,
     minWidth: 0,
   },
@@ -244,7 +244,7 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 64,
+    fontSize: "clamp(48px, 15vw, 64px)",
     fontWeight: 800,
     lineHeight: 1,
     scrollSnapAlign: "center",
@@ -256,7 +256,7 @@ const s: Record<string, CSSProperties> = {
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 70,
+    fontSize: "clamp(54px, 16vw, 70px)",
     fontWeight: 900,
   },
   dotRow: {

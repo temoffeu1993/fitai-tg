@@ -983,6 +983,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: workoutTheme.textPrimary,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 112px)",
+    overflowX: "clip",
   },
   main: {
     width: "100%",
