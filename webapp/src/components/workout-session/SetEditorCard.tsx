@@ -53,7 +53,7 @@ export default function SetEditorCard(props: Props) {
         />
 
         <WheelField
-          label="КГ"
+          label="Килограммы"
           values={WEIGHT_VALUES}
           value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
           onChange={(value) => onChangeWeight(focusSetIndex, value)}
@@ -290,11 +290,10 @@ const s: Record<string, CSSProperties> = {
   },
   valueLabel: {
     textAlign: "center",
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: workoutTheme.textMuted,
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.5,
+    color: "rgba(15, 23, 42, 0.6)",
     marginTop: 2,
   },
   wheelWrap: {
