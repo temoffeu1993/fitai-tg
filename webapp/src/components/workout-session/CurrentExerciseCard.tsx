@@ -8,12 +8,11 @@ type Props = {
   item: SessionItem | null;
   index: number;
   total: number;
-  focusSetIndex: number;
   onOpenMenu: () => void;
 };
 
 export default function CurrentExerciseCard(props: Props) {
-  const { item, focusSetIndex, onOpenMenu } = props;
+  const { item, onOpenMenu } = props;
   if (!item) return null;
 
   const repsLabel = formatRepsLabel(item.targetReps);
@@ -22,8 +21,7 @@ export default function CurrentExerciseCard(props: Props) {
 
   return (
     <section style={s.card}>
-      <div style={s.topRow}>
-        <div style={s.stepPill}>Подход {Math.max(1, focusSetIndex + 1)} из {item.sets.length}</div>
+      <div style={s.menuRow}>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
         </button>
@@ -61,7 +59,7 @@ export default function CurrentExerciseCard(props: Props) {
 
 const s: Record<string, CSSProperties> = {
   card: {
-    padding: "20px 18px",
+    padding: "18px 18px 20px",
     borderRadius: 24,
     border: workoutTheme.cardBorder,
     background: workoutTheme.cardBg,
@@ -69,20 +67,10 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 12,
   },
-  topRow: {
+  menuRow: {
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
-  },
-  stepPill: {
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    borderRadius: 999,
-    padding: "6px 12px",
-    fontSize: 12,
-    fontWeight: 700,
-    color: workoutTheme.textSecondary,
   },
   menuBtn: {
     border: "none",
@@ -115,17 +103,17 @@ const s: Record<string, CSSProperties> = {
   metaChip: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
-    minHeight: 26,
-    padding: "0 10px",
-    borderRadius: 999,
+    gap: 7,
+    minHeight: 20,
+    padding: 0,
+    borderRadius: 0,
     border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    background: "transparent",
+    boxShadow: "none",
     fontSize: 14,
-    lineHeight: 1,
+    lineHeight: 1.5,
     color: workoutTheme.textSecondary,
-    fontWeight: 600,
+    fontWeight: 500,
   },
   progressLine: {
     marginTop: 4,

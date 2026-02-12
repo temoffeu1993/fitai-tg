@@ -15,8 +15,8 @@ type Props = {
   onToggleRestEnabled: () => void;
 };
 
-const WHEEL_ITEM_H = 56;
-const WHEEL_VISIBLE = 5;
+const WHEEL_ITEM_H = 86;
+const WHEEL_VISIBLE = 1;
 const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -150,9 +150,6 @@ function WheelField(props: {
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
       <div style={s.valueLabel}>{label}</div>
       <div style={s.wheelWrap}>
-        <div style={s.wheelIndicator} />
-        <div style={s.wheelFadeTop} />
-        <div style={s.wheelFadeBottom} />
         <div
           ref={listRef}
           style={s.wheelList}
@@ -197,11 +194,11 @@ const s: Record<string, CSSProperties> = {
     gap: 12,
   },
   wheelField: {
-    border: "1px solid rgba(255,255,255,0.72)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.75) 100%)",
-    borderRadius: 16,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 10px rgba(15,23,42,0.06)",
-    padding: "10px 10px 9px",
+    border: "none",
+    background: "transparent",
+    borderRadius: 0,
+    boxShadow: "none",
+    padding: 0,
     display: "grid",
     gap: 6,
   },
@@ -209,7 +206,8 @@ const s: Record<string, CSSProperties> = {
     opacity: 0.52,
   },
   valueLabel: {
-    fontSize: 11,
+    textAlign: "center",
+    fontSize: 12,
     fontWeight: 700,
     letterSpacing: 0.4,
     textTransform: "uppercase",
@@ -219,56 +217,24 @@ const s: Record<string, CSSProperties> = {
     position: "relative",
     height: WHEEL_ITEM_H * WHEEL_VISIBLE,
     overflow: "hidden",
-    borderRadius: 14,
-    border: "1px solid rgba(15,23,42,0.08)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,250,252,0.94) 100%)",
-    boxShadow: "inset 0 1px 2px rgba(15,23,42,0.08)",
-  },
-  wheelIndicator: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    top: "50%",
-    transform: "translateY(-50%)",
-    height: WHEEL_ITEM_H,
-    borderRadius: 12,
-    background: "linear-gradient(180deg, rgba(229,231,235,0.9) 0%, rgba(243,244,246,0.96) 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  wheelFadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 56,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 2,
-  },
-  wheelFadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 56,
-    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 2,
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
   },
   wheelList: {
     position: "relative",
-    zIndex: 3,
+    zIndex: 1,
     height: "100%",
     overflowY: "auto",
     overflowX: "hidden",
-    scrollSnapType: "y proximity",
+    scrollSnapType: "y mandatory",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    paddingTop: ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H,
-    paddingBottom: ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H,
+    msOverflowStyle: "none",
+    paddingTop: 0,
+    paddingBottom: 0,
+    touchAction: "pan-y",
   },
   wheelItem: {
     width: "100%",
@@ -276,8 +242,8 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 34,
-    fontWeight: 600,
+    fontSize: 76,
+    fontWeight: 800,
     lineHeight: 1,
     scrollSnapAlign: "center",
     fontVariantNumeric: "tabular-nums",
@@ -285,8 +251,8 @@ const s: Record<string, CSSProperties> = {
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 38,
-    fontWeight: 700,
+    fontSize: 82,
+    fontWeight: 900,
   },
   dotRow: {
     display: "flex",
@@ -351,4 +317,3 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
   },
 };
-

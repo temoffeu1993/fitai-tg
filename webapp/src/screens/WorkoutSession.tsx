@@ -822,7 +822,7 @@ export default function WorkoutSession() {
 
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
   const workoutTitle = humanizeWorkoutTitle(plan);
-  const subtitle = `${doneExercises} из ${Math.max(1, items.length)} упражнений · ${setProgress}%`;
+  const subtitle = `${doneExercises}/${Math.max(1, items.length)} упражнений`;
 
   return (
     <div style={styles.page}>
@@ -842,7 +842,6 @@ export default function WorkoutSession() {
           item={activeItem}
           index={activeIndex}
           total={Math.max(1, items.length)}
-          focusSetIndex={focusSetIndex}
           onOpenMenu={openExerciseMenu}
         />
 
