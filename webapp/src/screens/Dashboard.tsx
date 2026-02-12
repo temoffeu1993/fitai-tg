@@ -2196,9 +2196,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 8,
     height: 8,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+      "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   dayDistributionWrap: {
     display: "grid",
@@ -2287,9 +2287,9 @@ const s: Record<string, React.CSSProperties> = {
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
   dayBtnIconWrapDone: {
-    background: "linear-gradient(180deg, rgba(196,228,178,0.9) 0%, rgba(170,210,146,0.96) 100%)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
-      "inset 0 2px 3px rgba(78,122,58,0.16), inset 0 -1px 0 rgba(255,255,255,0.82)",
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
   dayBtnProgressWrap: {
     width: "auto",
@@ -2313,10 +2313,10 @@ const s: Record<string, React.CSSProperties> = {
   dayBtnDoneMark: {
     fontSize: 18,
     lineHeight: 1,
-    color: "rgba(15,23,42,0.45)",
+    color: "rgba(92,143,66,0.92)",
     fontWeight: 700,
     textShadow:
-      "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+      "0 1px 0 rgba(255,255,255,0.76), 0 -1px 0 rgba(58,95,40,0.28)",
   },
   // ===== BLOCK 4-5: Weekly Goal + Progress CTA =====
   goalProgressRow: {

@@ -345,6 +345,32 @@ export default function WorkoutSession() {
   }, [activeIndex, items]);
 
   useEffect(() => {
+    const item = items[activeIndex];
+    if (!item || item.skipped) return;
+    const set = item.sets[focusSetIndex];
+    if (!set || Boolean(set.done)) return;
+    const currentReps = Number(set.reps);
+    if (Number.isFinite(currentReps) && currentReps > 0) return;
+
+    const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
+    const prevReps = Number.isFinite(prevRepsRaw) && prevRepsRaw > 0 ? Math.round(prevRepsRaw) : undefined;
+    const targetDefault = defaultRepsFromTarget(item.targetReps);
+    const fallbackReps = prevReps ?? targetDefault;
+    if (!fallbackReps || fallbackReps <= 0) return;
+
+    setItems((prev) => {
+      const next = cloneItems(prev);
+      const nextItem = next[activeIndex];
+      const nextSet = nextItem?.sets?.[focusSetIndex];
+      if (!nextItem || !nextSet || Boolean(nextSet.done)) return prev;
+      const nextCurrent = Number(nextSet.reps);
+      if (Number.isFinite(nextCurrent) && nextCurrent > 0) return prev;
+      nextSet.reps = fallbackReps;
+      return next;
+    });
+  }, [activeIndex, focusSetIndex, items]);
+
+  useEffect(() => {
     return () => {
       if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
       if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
@@ -375,7 +401,7 @@ export default function WorkoutSession() {
       const set = item?.sets?.[setIdx];
       if (!item || !set) return prev;
       if (field === "reps") {
-        set.reps = value == null ? undefined : clampInt(value, 0, 500);
+        set.reps = value == null ? undefined : clampInt(value, 1, 500);
       } else {
         set.weight = value == null ? undefined : Math.max(0, value);
       }
@@ -387,7 +413,7 @@ export default function WorkoutSession() {
   };
 
   const handleRepsChange = (setIdx: number, value: number) => {
-    updateSetValue(setIdx, "reps", clampInt(value, 0, 500));
+    updateSetValue(setIdx, "reps", clampInt(value, 1, 500));
   };
 
   const handleWeightChange = (setIdx: number, value: number) => {
@@ -1007,8 +1033,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   restAutoToggle: {
     minHeight: 36,
-    minWidth: 88,
-    padding: "0 14px",
+    width: 56,
+    padding: "0 10px",
     borderRadius: 999,
     border: "none",
     background: workoutTheme.pillBg,

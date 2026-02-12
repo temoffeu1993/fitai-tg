@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
+import { defaultRepsFromTarget, formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -23,7 +23,7 @@ const WHEEL_CYCLES = 7;
 const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
 const EPS = 0.0001;
 const FLASH_TINT_MS = 520;
-const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
+const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
 export default function SetEditorCard(props: Props) {
@@ -65,6 +65,15 @@ export default function SetEditorCard(props: Props) {
       : typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : "";
+  const explicitReps = Number(set.reps);
+  const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
+  const prevReps =
+    Number.isFinite(prevRepsRaw) && prevRepsRaw > 0 ? Math.round(prevRepsRaw) : undefined;
+  const targetDefaultReps = defaultRepsFromTarget(item.targetReps);
+  const repsDisplayValue =
+    Number.isFinite(explicitReps) && explicitReps > 0
+      ? Math.round(explicitReps)
+      : prevReps ?? targetDefaultReps;
 
   const handleCommit = () => {
     const committed = onCommitSet();
@@ -84,7 +93,7 @@ export default function SetEditorCard(props: Props) {
           ariaLabel="Повторы"
           hintLabel={repsHint}
           values={REPS_VALUES}
-          value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
+          value={repsDisplayValue}
           onChange={(value) => onChangeReps(focusSetIndex, value)}
           formatValue={(value) => String(Math.round(value))}
           flashSuccess={tintOn}

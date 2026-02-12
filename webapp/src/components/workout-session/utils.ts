@@ -67,7 +67,8 @@ export function requiresWeightInput(item: SessionItem): boolean {
 }
 
 export function canMarkSetDone(set: SetEntry, weightRequired: boolean): boolean {
-  const hasReps = set.reps != null && Number.isFinite(Number(set.reps));
+  const repsValue = Number(set.reps);
+  const hasReps = set.reps != null && Number.isFinite(repsValue) && repsValue > 0;
   const hasWeight = !weightRequired || (set.weight != null && Number.isFinite(Number(set.weight)));
   return hasReps && hasWeight;
 }
