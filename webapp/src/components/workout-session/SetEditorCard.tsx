@@ -192,6 +192,7 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: 12,
+    minWidth: 0,
   },
   wheelField: {
     border: "none",
@@ -201,6 +202,7 @@ const s: Record<string, CSSProperties> = {
     padding: 0,
     display: "grid",
     gap: 6,
+    minWidth: 0,
   },
   wheelFieldDisabled: {
     opacity: 0.52,
@@ -242,16 +244,19 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
     color: workoutTheme.textSecondary,
-    fontSize: 76,
+    fontSize: 64,
     fontWeight: 800,
     lineHeight: 1,
     scrollSnapAlign: "center",
     fontVariantNumeric: "tabular-nums",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "clip",
   },
   wheelItemActive: {
     color: workoutTheme.textPrimary,
-    fontSize: 82,
+    fontSize: 70,
     fontWeight: 900,
   },
   dotRow: {

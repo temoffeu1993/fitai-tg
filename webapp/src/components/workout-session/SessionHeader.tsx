@@ -79,9 +79,11 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
   },
   inner: {
-    width: "min(720px, 100%)",
+    width: "100%",
+    maxWidth: 720,
     margin: "0 auto",
     padding: "0 10px",
+    boxSizing: "border-box",
   },
   row: {
     display: "grid",

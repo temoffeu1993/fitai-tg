@@ -954,9 +954,11 @@ const styles: Record<string, React.CSSProperties> = {
     paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 112px)",
   },
   main: {
-    width: "min(720px, 100%)",
+    width: "100%",
+    maxWidth: 720,
     margin: "0 auto",
     padding: "12px 16px 0",
+    boxSizing: "border-box",
     display: "grid",
     gap: 10,
   },
