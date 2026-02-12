@@ -1,37 +1,35 @@
+import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
-import type { EffortTag, SessionItem } from "./types";
+import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { canMarkSetDone, requiresWeightInput } from "./utils";
+import { requiresWeightInput } from "./utils";
 
 type Props = {
   item: SessionItem | null;
   focusSetIndex: number;
   blocked: boolean;
+  restEnabled: boolean;
   onFocusSet: (index: number) => void;
-  onAdjust: (setIdx: number, field: "reps" | "weight", delta: number) => void;
-  onValue: (setIdx: number, field: "reps" | "weight", raw: string) => void;
-  onToggleSetDone: (setIdx: number) => void;
-  onSetEffort: (value: EffortTag) => void;
+  onChangeReps: (setIdx: number, value: number) => void;
+  onChangeWeight: (setIdx: number, value: number) => void;
+  onToggleRestEnabled: () => void;
 };
 
-const EFFORT_OPTIONS: Array<{ value: Exclude<EffortTag, null>; emoji: string; label: string }> = [
-  { value: "easy", emoji: "🙂", label: "Легко" },
-  { value: "working", emoji: "💪", label: "Рабоче" },
-  { value: "quite_hard", emoji: "😮‍💨", label: "Тяжеловато" },
-  { value: "hard", emoji: "😵", label: "Тяжело" },
-  { value: "max", emoji: "🥵", label: "Предел" },
-];
+const WHEEL_ITEM_H = 56;
+const WHEEL_VISIBLE = 5;
+const REPS_VALUES = Array.from({ length: 61 }, (_, i) => i);
+const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
 export default function SetEditorCard(props: Props) {
   const {
     item,
     focusSetIndex,
     blocked,
+    restEnabled,
     onFocusSet,
-    onAdjust,
-    onValue,
-    onToggleSetDone,
-    onSetEffort,
+    onChangeReps,
+    onChangeWeight,
+    onToggleRestEnabled,
   } = props;
 
   if (!item) return null;
@@ -39,22 +37,23 @@ export default function SetEditorCard(props: Props) {
   if (!set) return null;
 
   const needWeight = requiresWeightInput(item);
-  const ready = canMarkSetDone(set, needWeight);
 
   return (
     <section style={s.card}>
       <div style={s.inputsGrid}>
-        <ValueControl
+        <WheelField
           label="Повторы"
-          value={set.reps}
-          onAdjust={(delta) => onAdjust(focusSetIndex, "reps", delta)}
-          onChange={(raw) => onValue(focusSetIndex, "reps", raw)}
+          values={REPS_VALUES}
+          value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
+          onChange={(value) => onChangeReps(focusSetIndex, value)}
+          formatValue={(value) => String(Math.round(value))}
         />
-        <ValueControl
-          label={item.weightLabel || "Вес"}
-          value={set.weight}
-          onAdjust={(delta) => onAdjust(focusSetIndex, "weight", delta)}
-          onChange={(raw) => onValue(focusSetIndex, "weight", raw)}
+        <WheelField
+          label={item.weightLabel || "Килограммы"}
+          values={WEIGHT_VALUES}
+          value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
+          onChange={(value) => onChangeWeight(focusSetIndex, value)}
+          formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
           disabled={!needWeight}
         />
       </div>
@@ -75,65 +74,108 @@ export default function SetEditorCard(props: Props) {
         ))}
       </div>
 
-      {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и вес" : ""}, затем отметь подход.</div> : null}
+      {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
 
-      <button
-        type="button"
-        style={{ ...s.primary, ...(ready ? s.primaryActive : null), ...(set.done ? s.primaryDone : null) }}
-        onClick={() => onToggleSetDone(focusSetIndex)}
-      >
-        {set.done ? "Подход отмечен" : "Подход выполнен"}
-      </button>
-
-      <div style={s.effortWrap}>
-        <div style={s.effortLabel}>Насколько тяжело упражнение сейчас?</div>
-        <div style={s.effortRow}>
-          {EFFORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              style={{
-                ...s.effortBtn,
-                ...(item.effort === option.value ? s.effortBtnActive : null),
-              }}
-              onClick={() => onSetEffort(option.value)}
-            >
-              <span>{option.emoji}</span>
-              <span style={s.effortText}>{option.label}</span>
-            </button>
-          ))}
-        </div>
+      <div style={s.restRow}>
+        <span style={s.restLabel}>Авто-таймер отдыха</span>
+        <button
+          type="button"
+          style={{ ...s.switchBtn, ...(restEnabled ? s.switchBtnOn : null) }}
+          onClick={onToggleRestEnabled}
+        >
+          {restEnabled ? "Вкл" : "Выкл"}
+        </button>
       </div>
     </section>
   );
 }
 
-function ValueControl(props: {
+function WheelField(props: {
   label: string;
+  values: number[];
   value: number | undefined;
-  onAdjust: (delta: number) => void;
-  onChange: (raw: string) => void;
+  onChange: (value: number) => void;
+  formatValue: (value: number) => string;
   disabled?: boolean;
 }) {
-  const { label, value, onAdjust, onChange, disabled } = props;
+  const { label, values, value, onChange, formatValue, disabled = false } = props;
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const selectedIndex = useMemo(() => {
+    if (!values.length) return 0;
+    const target = Number.isFinite(Number(value)) ? Number(value) : values[0];
+    let bestIdx = 0;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < values.length; i += 1) {
+      const diff = Math.abs(values[i] - target);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [value, values]);
+
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    const targetTop = selectedIndex * WHEEL_ITEM_H;
+    if (Math.abs(node.scrollTop - targetTop) > 1) {
+      node.scrollTo({ top: targetTop, behavior: "auto" });
+    }
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const handleScroll = () => {
+    if (disabled) return;
+    if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    rafRef.current = window.requestAnimationFrame(() => {
+      const node = listRef.current;
+      if (!node || !values.length) return;
+      const idx = Math.max(0, Math.min(values.length - 1, Math.round(node.scrollTop / WHEEL_ITEM_H)));
+      const next = values[idx];
+      if (!Number.isFinite(Number(value)) || Math.abs(Number(value) - next) > 0.0001) {
+        onChange(next);
+      }
+    });
+  };
+
   return (
-    <div style={{ ...s.valueBox, ...(disabled ? s.valueBoxDisabled : null) }}>
+    <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
       <div style={s.valueLabel}>{label}</div>
-      <input
-        inputMode="decimal"
-        pattern="[0-9]*"
-        style={s.valueInput}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-      />
-      <div style={s.adjustRow}>
-        <button type="button" style={s.adjustBtn} onClick={() => onAdjust(-1)} disabled={disabled}>
-          −1
-        </button>
-        <button type="button" style={s.adjustBtn} onClick={() => onAdjust(1)} disabled={disabled}>
-          +1
-        </button>
+      <div style={s.wheelWrap}>
+        <div style={s.wheelIndicator} />
+        <div style={s.wheelFadeTop} />
+        <div style={s.wheelFadeBottom} />
+        <div
+          ref={listRef}
+          style={s.wheelList}
+          onScroll={handleScroll}
+          aria-label={label}
+          role="listbox"
+        >
+          {values.map((entry, idx) => (
+            <button
+              key={`${label}-${entry}-${idx}`}
+              type="button"
+              style={{
+                ...s.wheelItem,
+                ...(idx === selectedIndex ? s.wheelItemActive : null),
+              }}
+              onClick={() => onChange(entry)}
+              disabled={disabled}
+              aria-selected={idx === selectedIndex}
+            >
+              {formatValue(entry)}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -154,7 +196,7 @@ const s: Record<string, CSSProperties> = {
     gridTemplateColumns: "1fr 1fr",
     gap: 12,
   },
-  valueBox: {
+  wheelField: {
     border: "1px solid rgba(255,255,255,0.72)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.75) 100%)",
     borderRadius: 16,
@@ -163,8 +205,8 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 6,
   },
-  valueBoxDisabled: {
-    opacity: 0.5,
+  wheelFieldDisabled: {
+    opacity: 0.52,
   },
   valueLabel: {
     fontSize: 11,
@@ -173,37 +215,78 @@ const s: Record<string, CSSProperties> = {
     textTransform: "uppercase",
     color: workoutTheme.textMuted,
   },
-  valueInput: {
-    width: "100%",
-    height: 56,
+  wheelWrap: {
+    position: "relative",
+    height: WHEEL_ITEM_H * WHEEL_VISIBLE,
+    overflow: "hidden",
     borderRadius: 14,
     border: "1px solid rgba(15,23,42,0.08)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,250,252,0.94) 100%)",
-    fontSize: 30,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: workoutTheme.textPrimary,
-    textAlign: "center",
-    padding: "0 8px",
-    outline: "none",
-    fontVariantNumeric: "tabular-nums",
     boxShadow: "inset 0 1px 2px rgba(15,23,42,0.08)",
   },
-  adjustRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 7,
+  wheelIndicator: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    top: "50%",
+    transform: "translateY(-50%)",
+    height: WHEEL_ITEM_H,
+    borderRadius: 12,
+    background: "linear-gradient(180deg, rgba(229,231,235,0.9) 0%, rgba(243,244,246,0.96) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    pointerEvents: "none",
+    zIndex: 1,
   },
-  adjustBtn: {
-    height: 34,
-    borderRadius: 999,
+  wheelFadeTop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 56,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  wheelFadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
+    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  wheelList: {
+    position: "relative",
+    zIndex: 3,
+    height: "100%",
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollSnapType: "y proximity",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    paddingTop: ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H,
+    paddingBottom: ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H,
+  },
+  wheelItem: {
+    width: "100%",
+    height: WHEEL_ITEM_H,
     border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    background: "transparent",
     color: workoutTheme.textSecondary,
-    fontWeight: 700,
-    fontSize: 13,
+    fontSize: 34,
+    fontWeight: 600,
+    lineHeight: 1,
+    scrollSnapAlign: "center",
+    fontVariantNumeric: "tabular-nums",
     cursor: "pointer",
+  },
+  wheelItemActive: {
+    color: workoutTheme.textPrimary,
+    fontSize: 38,
+    fontWeight: 700,
   },
   dotRow: {
     display: "flex",
@@ -236,70 +319,36 @@ const s: Record<string, CSSProperties> = {
     color: workoutTheme.danger,
     textAlign: "center",
   },
-  primary: {
-    width: "100%",
-    minHeight: 58,
+  restRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 2,
+  },
+  restLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: workoutTheme.textSecondary,
+  },
+  switchBtn: {
+    minHeight: 32,
+    minWidth: 62,
     borderRadius: 999,
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
     color: workoutTheme.textSecondary,
-    fontSize: 18,
-    fontWeight: 500,
-    cursor: "pointer",
-  },
-  primaryActive: {
-    background: workoutTheme.accent,
-    color: workoutTheme.accentText,
-    border: "1px solid #1e1f22",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-  },
-  primaryDone: {
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
-    color: "rgba(17,56,6,0.82)",
-    border: "none",
-    boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
-  },
-  effortWrap: {
-    display: "grid",
-    gap: 8,
-  },
-  effortLabel: {
     fontSize: 12,
-    color: workoutTheme.textMuted,
-    fontWeight: 500,
-    textAlign: "center",
-  },
-  effortRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    gap: 8,
-  },
-  effortBtn: {
-    minHeight: 54,
-    borderRadius: 14,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
+    fontWeight: 700,
+    padding: "0 12px",
     cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-    gap: 2,
-    fontSize: 16,
-    lineHeight: 1,
-    padding: "6px 2px",
   },
-  effortBtnActive: {
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+  switchBtnOn: {
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    boxShadow:
-      "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 -1px 1px rgba(2,6,23,0.55)",
-  },
-  effortText: {
-    fontSize: 10,
-    fontWeight: 600,
-    lineHeight: 1.1,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
   },
 };
+

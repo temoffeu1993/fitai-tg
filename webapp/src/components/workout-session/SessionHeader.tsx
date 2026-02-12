@@ -29,19 +29,21 @@ export default function SessionHeader(props: Props) {
     <header style={s.wrap}>
       <div style={s.row}>
         <button type="button" aria-label="Назад" style={s.iconBtn} onClick={onBack}>
-          Назад
+          <span style={s.iconGlyph}>←</span>
+          <span>Назад</span>
         </button>
         <div style={s.center}>
           <div style={s.title}>{title}</div>
           <div style={s.subtitle}>{subtitle}</div>
         </div>
         <button type="button" aria-label="Открыть список упражнений" style={s.iconBtn} onClick={onOpenList}>
-          Список
+          <span style={s.iconGlyph}>≡</span>
+          <span>Список</span>
         </button>
       </div>
       <div style={s.metaRow}>
         <button type="button" style={s.timerPill} onClick={onToggleTimer}>
-          {formatClock(elapsedSec)} · {running ? "Пауза" : "Старт"}
+          {formatClock(elapsedSec)} · {running ? "⏸" : "▶"}
         </button>
       </div>
       <div style={s.progressTrack}>
@@ -56,7 +58,7 @@ const s: Record<string, CSSProperties> = {
     position: "sticky",
     top: 0,
     zIndex: 20,
-    padding: "calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px",
+    padding: "calc(env(safe-area-inset-top, 0px) + 4px) 16px 10px",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     background: workoutTheme.headerBg,
@@ -64,7 +66,7 @@ const s: Record<string, CSSProperties> = {
   },
   row: {
     display: "grid",
-    gridTemplateColumns: "90px 1fr 90px",
+    gridTemplateColumns: "106px 1fr 106px",
     alignItems: "center",
     gap: 8,
   },
@@ -101,6 +103,16 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 500,
     cursor: "pointer",
     whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  iconGlyph: {
+    fontSize: 14,
+    lineHeight: 1,
+    fontWeight: 500,
+    opacity: 0.88,
   },
   metaRow: {
     marginTop: 8,

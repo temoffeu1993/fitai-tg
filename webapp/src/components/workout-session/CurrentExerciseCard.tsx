@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { formatRepsLabel, setsSummary } from "./utils";
+import { Dumbbell, Repeat2 } from "lucide-react";
 
 type Props = {
   item: SessionItem | null;
@@ -12,7 +13,7 @@ type Props = {
 };
 
 export default function CurrentExerciseCard(props: Props) {
-  const { item, index, total, focusSetIndex, onOpenMenu } = props;
+  const { item, focusSetIndex, onOpenMenu } = props;
   if (!item) return null;
 
   const repsLabel = formatRepsLabel(item.targetReps);
@@ -22,18 +23,22 @@ export default function CurrentExerciseCard(props: Props) {
   return (
     <section style={s.card}>
       <div style={s.topRow}>
-        <div style={s.stepPill}>Упражнение {index + 1} из {total}</div>
+        <div style={s.stepPill}>Подход {Math.max(1, focusSetIndex + 1)} из {item.sets.length}</div>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
-          •••
+          ⋯
         </button>
       </div>
 
       <h2 style={s.name}>{item.name}</h2>
-      <div style={s.goal}>
-        <span style={s.goalMain}>Подход {Math.max(1, focusSetIndex + 1)} / {item.sets.length}</span>
-        <span style={s.goalMeta}>
-          {repsLabel || "повторы по плану"}
-          {targetWeight ? ` · ${targetWeight}` : ""}
+
+      <div style={s.chipsRow}>
+        <span style={s.metaChip}>
+          <Repeat2 size={14} strokeWidth={2.1} />
+          <span>{repsLabel ? `${repsLabel} повт.` : "Повторы —"}</span>
+        </span>
+        <span style={s.metaChip}>
+          <Dumbbell size={14} strokeWidth={2.1} />
+          <span>{targetWeight ? `${targetWeight} кг` : "Кг —"}</span>
         </span>
       </div>
 
@@ -46,8 +51,8 @@ export default function CurrentExerciseCard(props: Props) {
             }}
           />
         </div>
-        <span style={s.progressText}>
-          {summary.done}/{summary.total}
+        <span style={s.progressCaption}>
+          Выполнено {summary.done} из {summary.total} подходов
         </span>
       </div>
     </section>
@@ -81,17 +86,17 @@ const s: Record<string, CSSProperties> = {
   },
   menuBtn: {
     border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    background: "transparent",
+    boxShadow: "none",
     borderRadius: 999,
-    height: 34,
-    minWidth: 34,
+    height: 40,
+    minWidth: 40,
     padding: 0,
     color: workoutTheme.textSecondary,
-    fontSize: 15,
-    fontWeight: 800,
+    fontSize: 28,
+    lineHeight: 1,
+    fontWeight: 500,
     cursor: "pointer",
-    letterSpacing: 1,
   },
   name: {
     margin: 0,
@@ -101,28 +106,31 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: -0.6,
     color: workoutTheme.textPrimary,
   },
-  goal: {
-    display: "grid",
-    gap: 2,
+  chipsRow: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  goalMain: {
-    fontSize: 26,
-    lineHeight: 1.1,
-    fontWeight: 700,
-    color: workoutTheme.textPrimary,
-  },
-  goalMeta: {
+  metaChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 26,
+    padding: "0 10px",
+    borderRadius: 999,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
     fontSize: 14,
-    lineHeight: 1.3,
+    lineHeight: 1,
     color: workoutTheme.textSecondary,
     fontWeight: 600,
   },
   progressLine: {
-    marginTop: 2,
+    marginTop: 4,
     display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   progressTrack: {
     height: 8,
@@ -137,11 +145,10 @@ const s: Record<string, CSSProperties> = {
     background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     transition: "width 200ms ease",
   },
-  progressText: {
-    fontSize: 13,
-    fontWeight: 700,
+  progressCaption: {
+    fontSize: 12,
+    fontWeight: 500,
     color: workoutTheme.textMuted,
-    minWidth: 34,
-    textAlign: "right",
+    lineHeight: 1.3,
   },
 };

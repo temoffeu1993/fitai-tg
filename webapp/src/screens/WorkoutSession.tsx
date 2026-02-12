@@ -7,6 +7,7 @@ import { toSessionPlan } from "@/lib/toSessionPlan";
 import { fireHapticImpact } from "@/utils/haptics";
 import BottomDock from "@/components/workout-session/BottomDock";
 import CurrentExerciseCard from "@/components/workout-session/CurrentExerciseCard";
+import ExerciseEffortModal from "@/components/workout-session/ExerciseEffortModal";
 import ExerciseActionsSheet from "@/components/workout-session/ExerciseActionsSheet";
 import ExerciseListSheet from "@/components/workout-session/ExerciseListSheet";
 import FinishWorkoutModal from "@/components/workout-session/FinishWorkoutModal";
@@ -14,8 +15,10 @@ import RestOverlay from "@/components/workout-session/RestOverlay";
 import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
 import { workoutTheme } from "@/components/workout-session/theme";
+import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import type {
   ChangeEvent,
+  EffortTag,
   ExerciseMenuState,
   SessionItem,
   SessionPlan,
@@ -27,7 +30,7 @@ import {
   nextUndoneSetIndex,
   normalizeRepsForPayload,
   parseWeightNumber,
-  requiresWeightInput,
+  requiresWeightInput
 } from "@/components/workout-session/utils";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
@@ -43,14 +46,6 @@ function cloneItems(items: SessionItem[]): SessionItem[] {
   }
 }
 
-function parseNumber(raw: string, round = false): number | undefined {
-  const normalized = String(raw || "").replace(",", ".").replace(/[^\d.-]/g, "");
-  if (!normalized) return undefined;
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) return undefined;
-  return round ? Math.round(parsed) : Math.round(parsed * 100) / 100;
-}
-
 function toIsoLocalInput(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -58,6 +53,26 @@ function toIsoLocalInput(date: Date): string {
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+function humanizeWorkoutTitle(planLike: any): string {
+  const raw = String(
+    planLike?.dayLabel ||
+      planLike?.title ||
+      planLike?.name ||
+      planLike?.label ||
+      planLike?.scheme_label ||
+      ""
+  ).trim();
+  const idxRaw = Number(planLike?.dayIndex);
+  const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
+  const splitType = String(planLike?.splitType || planLike?.meta?.splitType || "").trim();
+  if (raw) {
+    const resolved = resolveDayCopy(raw, splitType, idx).title;
+    if (!/^День\s+\d+/i.test(resolved)) return resolved;
+    if (/[а-яё]/i.test(raw)) return raw;
+  }
+  return raw || "Тренировка";
 }
 
 function normalizeSessionPlan(raw: any): SessionPlan | null {
@@ -212,6 +227,8 @@ export default function WorkoutSession() {
   const [sessionRpe, setSessionRpe] = useState(7);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
+  const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
   const blockTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -275,17 +292,24 @@ export default function WorkoutSession() {
     return () => window.clearInterval(id);
   }, [running]);
 
+  const advanceIfPending = () => {
+    if (pendingAdvanceExercise == null) return;
+    setActiveIndex(clampInt(pendingAdvanceExercise, 0, Math.max(0, items.length - 1)));
+    setPendingAdvanceExercise(null);
+  };
+
   useEffect(() => {
     if (restSecLeft == null) return;
     if (restSecLeft <= 0) {
       fireHapticImpact("heavy");
       setTimeout(() => fireHapticImpact("medium"), 130);
       setRestSecLeft(null);
+      advanceIfPending();
       return;
     }
     const id = window.setInterval(() => setRestSecLeft((prev) => (prev == null ? null : prev - 1)), 1000);
     return () => window.clearInterval(id);
-  }, [restSecLeft]);
+  }, [restSecLeft, pendingAdvanceExercise, items.length]);
 
   useEffect(() => {
     if (!plan) return;
@@ -329,7 +353,6 @@ export default function WorkoutSession() {
   const totalSets = items.reduce((sum, item) => sum + item.sets.length, 0);
   const doneSets = items.reduce((sum, item) => sum + item.sets.filter((set) => set.done).length, 0);
   const doneExercises = items.filter((item) => item.done || item.skipped).length;
-  const exerciseProgress = items.length ? Math.round((doneExercises / items.length) * 100) : 0;
   const setProgress = totalSets ? Math.round((doneSets / totalSets) * 100) : 0;
 
   const pushChange = (event: Omit<ChangeEvent, "at">) => {
@@ -361,18 +384,13 @@ export default function WorkoutSession() {
     });
   };
 
-  const adjustSetValue = (setIdx: number, field: "reps" | "weight", delta: number) => {
-    const item = activeItem;
-    if (!item) return;
-    const current = item.sets[setIdx]?.[field];
-    const base = Number.isFinite(Number(current)) ? Number(current) : 0;
-    const nextValue = field === "reps" ? clampInt(base + delta, 0, 500) : Math.max(0, Math.round((base + delta) * 100) / 100);
-    updateSetValue(setIdx, field, nextValue);
+  const handleRepsChange = (setIdx: number, value: number) => {
+    updateSetValue(setIdx, "reps", clampInt(value, 0, 500));
   };
 
-  const handleInputValue = (setIdx: number, field: "reps" | "weight", raw: string) => {
-    const parsed = parseNumber(raw, field === "reps");
-    updateSetValue(setIdx, field, parsed);
+  const handleWeightChange = (setIdx: number, value: number) => {
+    const rounded = Math.max(0, Math.round(value * 10) / 10);
+    updateSetValue(setIdx, "weight", rounded);
   };
 
   const startRest = (seconds: number | undefined) => {
@@ -389,6 +407,8 @@ export default function WorkoutSession() {
     if (!set) return;
     const needWeight = requiresWeightInput(item);
     const allowed = canMarkSetDone(set, needWeight);
+    const willCompleteExercise =
+      !set.done && item.sets.every((entry, idx) => idx === setIdx || Boolean(entry.done));
 
     if (!allowed && !set.done) {
       markBlockedSet(activeIndex, setIdx);
@@ -417,20 +437,38 @@ export default function WorkoutSession() {
 
     if (!set.done) {
       fireHapticImpact("medium");
-      startRest(item.restSec);
-      const nextSet = item.sets[setIdx + 1];
-      if (nextSet) setFocusSetIndex(setIdx + 1);
+      if (willCompleteExercise) {
+        setEffortPromptIndex(activeIndex);
+      } else {
+        startRest(item.restSec);
+        const nextSet = item.sets[setIdx + 1];
+        if (nextSet) setFocusSetIndex(setIdx + 1);
+      }
     } else {
       fireHapticImpact("light");
     }
   };
 
-  const setExerciseEffort = (value: SessionItem["effort"]) => {
+  const setExerciseEffort = (exerciseIndex: number, value: Exclude<EffortTag, null>) => {
     setItems((prev) => {
       const next = cloneItems(prev);
-      if (next[activeIndex]) next[activeIndex].effort = value;
+      if (next[exerciseIndex]) next[exerciseIndex].effort = value;
       return next;
     });
+  };
+
+  const handleEffortSelected = (value: Exclude<EffortTag, null>) => {
+    if (effortPromptIndex == null) return;
+    const completedExerciseIndex = effortPromptIndex;
+    const completed = items[completedExerciseIndex];
+    setExerciseEffort(completedExerciseIndex, value);
+    setEffortPromptIndex(null);
+
+    const nextExerciseIndex = completedExerciseIndex < items.length - 1 ? completedExerciseIndex + 1 : null;
+    if (nextExerciseIndex == null) return;
+
+    setPendingAdvanceExercise(nextExerciseIndex);
+    startRest(completed?.restSec);
   };
 
   const goToExercise = (index: number) => {
@@ -783,17 +821,17 @@ export default function WorkoutSession() {
   }
 
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
-  const subtitle = `${doneSets}/${totalSets} подходов · ${setProgress}%`;
-  const nextItem = items[activeIndex + 1];
+  const workoutTitle = humanizeWorkoutTitle(plan);
+  const subtitle = `${doneExercises} из ${Math.max(1, items.length)} упражнений · ${setProgress}%`;
 
   return (
     <div style={styles.page}>
       <SessionHeader
-        title={plan.title}
+        title={workoutTitle}
         subtitle={subtitle}
         elapsedSec={elapsed}
         running={running}
-        progressPercent={exerciseProgress}
+        progressPercent={setProgress}
         onBack={() => setExitConfirm(true)}
         onToggleTimer={() => setRunning((prev) => !prev)}
         onOpenList={() => setListOpen(true)}
@@ -812,36 +850,12 @@ export default function WorkoutSession() {
           item={activeItem}
           focusSetIndex={focusSetIndex}
           blocked={Boolean(blockedCurrent)}
+          restEnabled={restEnabled}
           onFocusSet={(index) => setFocusSetIndex(index)}
-          onAdjust={adjustSetValue}
-          onValue={handleInputValue}
-          onToggleSetDone={toggleSetDone}
-          onSetEffort={setExerciseEffort}
+          onChangeReps={handleRepsChange}
+          onChangeWeight={handleWeightChange}
+          onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
         />
-
-        <section style={styles.infoCard}>
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Авто-таймер отдыха</span>
-            <button
-              type="button"
-              style={{ ...styles.switchBtn, ...(restEnabled ? styles.switchBtnOn : null) }}
-              onClick={() => setRestEnabled((prev) => !prev)}
-            >
-              {restEnabled ? "Вкл" : "Выкл"}
-            </button>
-          </div>
-          {nextItem ? (
-            <div style={styles.nextWrap}>
-              <div style={styles.nextLabel}>Дальше:</div>
-              <div style={styles.nextName}>{nextItem.name}</div>
-            </div>
-          ) : (
-            <div style={styles.nextWrap}>
-              <div style={styles.nextLabel}>Финиш</div>
-              <div style={styles.nextName}>После этого упражнения можно завершать тренировку.</div>
-            </div>
-          )}
-        </section>
       </main>
 
       <BottomDock
@@ -854,8 +868,17 @@ export default function WorkoutSession() {
 
       <RestOverlay
         secondsLeft={restSecLeft}
-        onSkip={() => setRestSecLeft(null)}
+        onSkip={() => {
+          setRestSecLeft(null);
+          advanceIfPending();
+        }}
         onAdd15={() => setRestSecLeft((prev) => Math.max(10, (prev || 0) + 15))}
+      />
+
+      <ExerciseEffortModal
+        open={effortPromptIndex != null}
+        exerciseName={effortPromptIndex != null && items[effortPromptIndex] ? items[effortPromptIndex].name : "Упражнение"}
+        onSelect={handleEffortSelected}
       />
 
       <ExerciseListSheet

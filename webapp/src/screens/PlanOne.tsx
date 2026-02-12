@@ -231,8 +231,16 @@ export default function PlanOne() {
     const d = activeDraft;
     const items = Array.isArray(d?.items) ? d!.items : [];
     if (!items.length) return null;
-    const done = items.filter((it: any) => Boolean(it?.done)).length;
-    return Math.max(0, Math.min(100, Math.round((done / items.length) * 100)));
+    const totalSets = items.reduce((sum: number, it: any) => {
+      const sets = Array.isArray(it?.sets) ? it.sets.length : 0;
+      return sum + sets;
+    }, 0);
+    if (!totalSets) return null;
+    const doneSets = items.reduce((sum: number, it: any) => {
+      const sets = Array.isArray(it?.sets) ? it.sets : [];
+      return sum + sets.filter((set: any) => Boolean(set?.done)).length;
+    }, 0);
+    return Math.max(0, Math.min(100, Math.round((doneSets / totalSets) * 100)));
   }, [activeDraft]);
 
   const isAdmin = useMemo(() => {
