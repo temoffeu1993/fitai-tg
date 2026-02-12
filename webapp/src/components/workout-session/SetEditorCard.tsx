@@ -65,7 +65,7 @@ export default function SetEditorCard(props: Props) {
     flashTimerRef.current = window.setTimeout(() => {
       setCommitFlash(false);
       flashTimerRef.current = null;
-    }, 360);
+    }, 620);
   };
 
   return (
@@ -96,7 +96,6 @@ export default function SetEditorCard(props: Props) {
       <button
         type="button"
         aria-label="Подход выполнен"
-        className="tap-primary"
         style={{
           ...s.commitBtn,
           ...(commitFlash ? s.commitBtnSuccess : null),
@@ -105,10 +104,7 @@ export default function SetEditorCard(props: Props) {
       >
         <span
           aria-hidden
-          style={{
-            ...s.commitCheck,
-            ...(commitFlash ? s.commitCheckSuccess : null),
-          }}
+          style={s.commitCheck}
         >
           ✓
         </span>
@@ -346,12 +342,10 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
-    transition: "background 260ms ease, box-shadow 260ms ease",
+    transition: "background 420ms ease",
   },
   wheelWrapSuccess: {
     background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(34,94,28,0.16), inset 0 -1px 0 rgba(255,255,255,0.86)",
   },
   wheelList: {
     position: "relative",
@@ -403,13 +397,11 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background 260ms ease, box-shadow 260ms ease",
+    transition: "background 420ms ease",
     cursor: "pointer",
   },
   commitBtnSuccess: {
     background: "linear-gradient(180deg, #dcecd4 0%, #cce6bf 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(34,94,28,0.16), inset 0 -1px 0 rgba(255,255,255,0.86)",
   },
   commitCheck: {
     fontSize: 30,
@@ -417,11 +409,6 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     color: "rgba(15,23,42,0.45)",
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
-    transition: "color 260ms ease, text-shadow 260ms ease",
-  },
-  commitCheckSuccess: {
-    color: "rgba(34,94,28,0.72)",
-    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(22,68,26,0.2)",
   },
   error: {
     fontSize: 12,
