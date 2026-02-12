@@ -56,13 +56,13 @@ export default function CurrentExerciseCard(props: Props) {
 
 const s: Record<string, CSSProperties> = {
   card: {
-    padding: 18,
-    borderRadius: 22,
+    padding: "20px 18px",
+    borderRadius: 24,
     border: workoutTheme.cardBorder,
     background: workoutTheme.cardBg,
     boxShadow: workoutTheme.cardShadow,
     display: "grid",
-    gap: 10,
+    gap: 12,
   },
   topRow: {
     display: "flex",
@@ -70,8 +70,9 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
   },
   stepPill: {
-    border: workoutTheme.pillBorder,
+    border: "none",
     background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
     borderRadius: 999,
     padding: "6px 12px",
     fontSize: 12,
@@ -79,12 +80,13 @@ const s: Record<string, CSSProperties> = {
     color: workoutTheme.textSecondary,
   },
   menuBtn: {
-    border: workoutTheme.pillBorder,
+    border: "none",
     background: workoutTheme.pillBg,
-    borderRadius: 12,
-    height: 36,
-    minWidth: 44,
-    padding: "0 10px",
+    boxShadow: workoutTheme.pillShadow,
+    borderRadius: 999,
+    height: 34,
+    minWidth: 34,
+    padding: 0,
     color: workoutTheme.textSecondary,
     fontSize: 15,
     fontWeight: 800,
@@ -93,9 +95,9 @@ const s: Record<string, CSSProperties> = {
   },
   name: {
     margin: 0,
-    fontSize: 28,
+    fontSize: 32,
     lineHeight: 1.12,
-    fontWeight: 800,
+    fontWeight: 700,
     letterSpacing: -0.6,
     color: workoutTheme.textPrimary,
   },
@@ -104,9 +106,9 @@ const s: Record<string, CSSProperties> = {
     gap: 2,
   },
   goalMain: {
-    fontSize: 22,
+    fontSize: 26,
     lineHeight: 1.1,
-    fontWeight: 800,
+    fontWeight: 700,
     color: workoutTheme.textPrimary,
   },
   goalMeta: {
@@ -123,23 +125,23 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
   },
   progressTrack: {
-    height: 6,
+    height: 8,
     borderRadius: 999,
-    background: "rgba(17,24,39,0.09)",
+    background: "rgba(15,23,42,0.08)",
+    boxShadow: "inset 0 1px 2px rgba(15,23,42,0.12)",
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    background: "linear-gradient(90deg, #111827 0%, #0b1220 100%)",
+    background: "linear-gradient(90deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     transition: "width 200ms ease",
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 700,
     color: workoutTheme.textMuted,
     minWidth: 34,
     textAlign: "right",
   },
 };
-

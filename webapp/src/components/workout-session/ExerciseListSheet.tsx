@@ -48,15 +48,19 @@ const s: Record<string, CSSProperties> = {
     zIndex: 65,
     display: "grid",
     alignItems: "end",
-    background: "rgba(10,16,28,0.34)",
-    backdropFilter: "blur(4px)",
-    WebkitBackdropFilter: "blur(4px)",
+    background: workoutTheme.overlay,
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
   },
   sheet: {
     borderRadius: "22px 22px 0 0",
-    borderTop: "1px solid rgba(255,255,255,0.45)",
-    background: workoutTheme.cardBg,
-    boxShadow: "0 -12px 26px rgba(10,16,28,0.2)",
+    borderTop: "1px solid rgba(255,255,255,0.75)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
+    boxShadow:
+      "0 -12px 26px rgba(10,16,28,0.2), inset 0 1px 0 rgba(255,255,255,0.88)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
     padding: "10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px)",
     display: "grid",
     gap: 8,
@@ -66,7 +70,7 @@ const s: Record<string, CSSProperties> = {
     width: 46,
     height: 5,
     borderRadius: 999,
-    background: "rgba(17,24,39,0.2)",
+    background: "rgba(15,23,42,0.16)",
     justifySelf: "center",
     marginTop: 4,
   },
@@ -83,10 +87,13 @@ const s: Record<string, CSSProperties> = {
     paddingBottom: 2,
   },
   row: {
-    minHeight: 44,
-    borderRadius: 12,
-    border: workoutTheme.pillBorder,
-    background: "rgba(255,255,255,0.75)",
+    minHeight: 48,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.78)",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.72) 100%)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.88), 0 2px 6px rgba(15,23,42,0.08)",
     display: "grid",
     gridTemplateColumns: "1fr auto",
     alignItems: "center",
@@ -97,8 +104,9 @@ const s: Record<string, CSSProperties> = {
     textAlign: "left",
   },
   rowActive: {
-    border: "1px solid rgba(17,24,39,0.2)",
-    background: "rgba(17,24,39,0.08)",
+    border: "1px solid rgba(30,31,34,0.72)",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    color: "#fff",
   },
   rowDone: {
     opacity: 0.62,
@@ -111,7 +119,7 @@ const s: Record<string, CSSProperties> = {
   rowMeta: {
     fontSize: 12,
     fontWeight: 700,
-    color: workoutTheme.textMuted,
+    color: "currentColor",
+    opacity: 0.66,
   },
 };
-
