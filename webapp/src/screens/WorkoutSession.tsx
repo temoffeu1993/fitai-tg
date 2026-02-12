@@ -6,6 +6,7 @@ import { clearActiveWorkout } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { fireHapticImpact } from "@/utils/haptics";
 import BottomDock from "@/components/workout-session/BottomDock";
+import CurrentExerciseCard from "@/components/workout-session/CurrentExerciseCard";
 import ExerciseEffortModal from "@/components/workout-session/ExerciseEffortModal";
 import ExerciseActionsSheet from "@/components/workout-session/ExerciseActionsSheet";
 import ExerciseListSheet from "@/components/workout-session/ExerciseListSheet";
@@ -364,6 +365,7 @@ export default function WorkoutSession() {
   const activeItem = items[activeIndex] || null;
   const totalSets = items.reduce((sum, item) => sum + item.sets.length, 0);
   const doneSets = items.reduce((sum, item) => sum + item.sets.filter((set) => set.done).length, 0);
+  const doneExercises = items.filter((item) => item.done || item.skipped).length;
   const setProgress = totalSets ? Math.round((doneSets / totalSets) * 100) : 0;
 
   const pushChange = (event: Omit<ChangeEvent, "at">) => {
@@ -832,6 +834,8 @@ export default function WorkoutSession() {
   }
 
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
+  const workoutTitle = humanizeWorkoutTitle(plan);
+  const subtitle = `${doneExercises}/${Math.max(1, items.length)} упражнений`;
   const isSheetOpen = listOpen || exerciseMenu != null;
   const isInteractionLocked =
     restSecLeft != null || isSheetOpen || effortPromptIndex != null || finishModal || saving;
@@ -852,32 +856,39 @@ export default function WorkoutSession() {
   return (
     <div style={styles.page} data-ui-state={uiState}>
       <SessionHeader
+        title={workoutTitle}
+        subtitle={subtitle}
         elapsedSec={elapsed}
         running={running}
         progressPercent={setProgress}
-        doneSets={doneSets}
-        totalSets={totalSets}
         onBack={() => setExitConfirm(true)}
         onToggleTimer={() => setRunning((prev) => !prev)}
         onOpenList={() => setListOpen(true)}
       />
 
       <main style={styles.main}>
+        <CurrentExerciseCard
+          item={activeItem}
+          index={activeIndex}
+          total={Math.max(1, items.length)}
+          onOpenMenu={openExerciseMenu}
+        />
+
         <SetEditorCard
           item={activeItem}
           focusSetIndex={focusSetIndex}
           blocked={Boolean(blockedCurrent)}
+          restEnabled={restEnabled}
           onFocusSet={(index) => setFocusSetIndex(index)}
           onChangeReps={handleRepsChange}
           onChangeWeight={handleWeightChange}
-          onOpenMenu={openExerciseMenu}
+          onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
         />
       </main>
 
       <BottomDock
         primaryLabel={primaryActionState.label}
         onPrimary={primaryActionState.onClick}
-        showSecondary={doneSets > 0}
         secondaryLabel="Завершить тренировку"
         onSecondary={openFinishModal}
         primaryEnabled={!isInteractionLocked}
@@ -917,7 +928,6 @@ export default function WorkoutSession() {
         alts={alts}
         loading={altsLoading}
         error={altsError}
-        restEnabled={restEnabled}
         onClose={closeExerciseMenu}
         onLoadAlternatives={loadAlternatives}
         onReplace={replaceExercise}
@@ -928,7 +938,6 @@ export default function WorkoutSession() {
         onRemove={removeExercise}
         onBan={banExercise}
         onBackMenu={() => setExerciseMenu({ index: activeIndex, mode: "menu" })}
-        onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
       />
 
       <FinishWorkoutModal
@@ -973,17 +982,72 @@ const styles: Record<string, React.CSSProperties> = {
     background: workoutTheme.pageGradient,
     color: workoutTheme.textPrimary,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 120px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 112px)",
     overflowX: "clip",
   },
   main: {
     width: "100%",
     maxWidth: 720,
     margin: "0 auto",
-    padding: "12px 16px 0",
+    padding: "18px 16px 0",
     boxSizing: "border-box",
     display: "grid",
     gap: 10,
+  },
+  infoCard: {
+    padding: 16,
+    borderRadius: 24,
+    border: workoutTheme.cardBorder,
+    background: workoutTheme.cardBg,
+    boxShadow: workoutTheme.cardShadow,
+    display: "grid",
+    gap: 10,
+  },
+  infoRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: workoutTheme.textSecondary,
+  },
+  switchBtn: {
+    minHeight: 32,
+    minWidth: 62,
+    borderRadius: 999,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textSecondary,
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "0 12px",
+    cursor: "pointer",
+  },
+  switchBtnOn: {
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
+  },
+  nextWrap: {
+    display: "grid",
+    gap: 2,
+  },
+  nextLabel: {
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    fontWeight: 700,
+    color: workoutTheme.textMuted,
+  },
+  nextName: {
+    fontSize: 14,
+    lineHeight: 1.35,
+    color: workoutTheme.textSecondary,
+    fontWeight: 500,
   },
   exitOverlay: {
     position: "fixed",

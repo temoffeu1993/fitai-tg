@@ -191,8 +191,4 @@ button { cursor:pointer; }
   will-change: transform;
 }
 
-/* Scroll wheel: hide scrollbar */
-.ws-scroll-wheel::-webkit-scrollbar { display: none; }
-.ws-scroll-wheel { scrollbar-width: none; -ms-overflow-style: none; }
-
 /* v3.1 gradient refresh */
