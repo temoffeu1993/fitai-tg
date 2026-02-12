@@ -24,26 +24,26 @@ export default function CurrentExerciseCard(props: Props) {
   return (
     <section style={s.card}>
       <div style={s.topRow}>
-        <div style={s.setRow}>
-          <span style={s.setText}>Подход {displaySet} из {totalSets}</span>
-          <div style={s.setGrooves} aria-hidden>
-            {item.sets.map((entry, idx) => (
-              <span
-                key={idx}
-                style={{
-                  ...s.groove,
-                  ...(entry.done ? s.grooveDone : null),
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        <h2 style={s.name}>{item.name}</h2>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
         </button>
       </div>
 
-      <h2 style={s.name}>{item.name}</h2>
+      <div style={s.setRow}>
+        <span style={s.setText}>Подход {displaySet} из {totalSets}</span>
+        <div style={s.setGrooves} aria-hidden>
+          {item.sets.map((entry, idx) => (
+            <span
+              key={idx}
+              style={{
+                ...s.groove,
+                ...(entry.done ? s.grooveDone : null),
+              }}
+            />
+          ))}
+        </div>
+      </div>
 
       {children}
     </section>
@@ -65,11 +65,12 @@ const s: Record<string, CSSProperties> = {
   topRow: {
     display: "grid",
     gridTemplateColumns: "minmax(0,1fr) auto",
-    alignItems: "center",
+    alignItems: "start",
     gap: 10,
+    minWidth: 0,
   },
   name: {
-    margin: "-10px 0 0",
+    margin: 0,
     minWidth: 0,
     fontSize: 32,
     lineHeight: 1.14,

@@ -26,6 +26,7 @@ import type {
 import {
   canMarkSetDone,
   clampInt,
+  defaultRepsFromTarget,
   estimateSessionDurationMin,
   nextUndoneSetIndex,
   normalizeRepsForPayload,
@@ -107,6 +108,7 @@ function initItemsFromPlan(plan: SessionPlan): SessionItem[] {
   return (plan.exercises || []).map((exercise) => {
     const totalSets = Math.max(1, Number(exercise.sets) || 1);
     const defaultWeight = parseWeightNumber(exercise.weight);
+    const defaultReps = defaultRepsFromTarget(exercise.reps);
     return {
       id: exercise.exerciseId || undefined,
       name: exercise.name,
@@ -120,8 +122,8 @@ function initItemsFromPlan(plan: SessionPlan): SessionItem[] {
       done: false,
       skipped: false,
       effort: null,
-      sets: Array.from({ length: totalSets }, () => ({
-        reps: undefined,
+      sets: Array.from({ length: totalSets }, (_, setIdx) => ({
+        reps: setIdx === 0 ? defaultReps : undefined,
         weight: defaultWeight ?? undefined,
         done: false,
       })),
@@ -535,6 +537,7 @@ export default function WorkoutSession() {
       const next = cloneItems(prev);
       const current = next[activeIndex];
       if (!current) return prev;
+      const defaultReps = defaultRepsFromTarget(current.targetReps);
 
       if (performedSets <= 0) {
         current.id = toId;
@@ -546,8 +549,8 @@ export default function WorkoutSession() {
         current.done = false;
         current.skipped = false;
         current.effort = null;
-        current.sets = Array.from({ length: totalSetsForItem }, () => ({
-          reps: undefined,
+        current.sets = Array.from({ length: totalSetsForItem }, (_, setIdx) => ({
+          reps: setIdx === 0 ? defaultReps : undefined,
           weight: suggested,
           done: false,
         }));
@@ -572,8 +575,8 @@ export default function WorkoutSession() {
         done: false,
         skipped: false,
         effort: null,
-        sets: Array.from({ length: remainingSets }, () => ({
-          reps: undefined,
+        sets: Array.from({ length: remainingSets }, (_, setIdx) => ({
+          reps: setIdx === 0 ? defaultReps : undefined,
           weight: suggested,
           done: false,
         })),

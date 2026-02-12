@@ -38,6 +38,22 @@ export function normalizeRepsForPayload(reps: unknown): string | number | undefi
   return undefined;
 }
 
+export function defaultRepsFromTarget(targetReps: unknown): number | undefined {
+  if (typeof targetReps === "number" && Number.isFinite(targetReps) && targetReps > 0) {
+    return Math.max(1, Math.round(targetReps));
+  }
+
+  if (typeof targetReps === "string" && targetReps.trim()) {
+    const matches = targetReps.match(/\d+(?:[.,]\d+)?/g);
+    if (!matches?.length) return undefined;
+    const parsed = Number(matches[0].replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+    return Math.max(1, Math.round(parsed));
+  }
+
+  return undefined;
+}
+
 export function requiresWeightInput(item: SessionItem): boolean {
   if (typeof item.requiresWeightInput === "boolean") return item.requiresWeightInput;
   return item.loadType === "external";
@@ -65,4 +81,3 @@ export function estimateSessionDurationMin(items: SessionItem[], fallbackMin: nu
   const estimated = Math.ceil(sets * 3.25);
   return Math.max(20, Math.max(fallbackMin, estimated));
 }
-
