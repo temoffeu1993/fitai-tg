@@ -370,7 +370,6 @@ export default function CheckIn() {
           <section style={styles.resultCenter} className="onb-fade onb-fade-delay-1">
             <img src={mascotImg} alt="" style={styles.resultMascotImg} loading="eager" decoding="async" />
             <div style={styles.resultBubble} className="speech-bubble-top">
-              <div style={styles.resultBubbleKicker}>{summary?.kicker || "Результат чек-ина"}</div>
               <div style={styles.resultBubbleTextWrap} className="onb-fade">
                 {resultLines.map((line, i) => (
                   <div key={i} style={styles.resultBubbleLine}>
