@@ -39,6 +39,12 @@ export default function SetEditorCard(props: Props) {
   const [commitFlash, setCommitFlash] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
+    };
+  }, []);
+
   if (!item) return null;
   const set = item.sets[focusSetIndex];
   if (!set) return null;
@@ -51,12 +57,6 @@ export default function SetEditorCard(props: Props) {
       : typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : "";
-
-  useEffect(() => {
-    return () => {
-      if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
-    };
-  }, []);
 
   const handleCommit = () => {
     const committed = onCommitSet();
