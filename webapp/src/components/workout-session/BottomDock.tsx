@@ -113,19 +113,19 @@ const s: Record<string, CSSProperties> = {
     color: "#fff",
   },
   primaryCompactArrowWrap: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -8,
+    marginRight: -6,
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
   primaryCompactArrow: {
-    fontSize: 18,
+    fontSize: 20,
     lineHeight: 1,
     color: "#0f172a",
     fontWeight: 700,
