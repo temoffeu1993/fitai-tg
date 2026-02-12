@@ -1636,7 +1636,9 @@ export default function Dashboard() {
                 style={
                   dayHasActiveProgress
                     ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
-                    : s.dayBtnIconWrap
+                    : isResultButton
+                      ? { ...s.dayBtnIconWrap, ...s.dayBtnIconWrapDone }
+                      : s.dayBtnIconWrap
                 }
               >
                 {dayHasActiveProgress ? (
@@ -2038,9 +2040,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 8,
     height: 8,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #d7ff52 0%, #8bff1a 62%, #61d700 100%)",
+    background: "linear-gradient(180deg, #c4e4b2 0%, #aad292 62%, #97c27c 100%)",
     boxShadow:
-      "0 1px 2px rgba(86, 190, 0, 0.45), inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(56, 135, 0, 0.45)",
+      "0 1px 2px rgba(78,122,58,0.28), inset 0 1px 1px rgba(255,255,255,0.58), inset 0 -1px 1px rgba(70,112,52,0.32)",
   } as React.CSSProperties,
 
   // ===== BLOCK 3: Next Action CTA =====
@@ -2284,6 +2286,11 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
+  dayBtnIconWrapDone: {
+    background: "linear-gradient(180deg, rgba(196,228,178,0.9) 0%, rgba(170,210,146,0.96) 100%)",
+    boxShadow:
+      "inset 0 2px 3px rgba(78,122,58,0.16), inset 0 -1px 0 rgba(255,255,255,0.82)",
+  },
   dayBtnProgressWrap: {
     width: "auto",
     minWidth: 44,
@@ -2306,10 +2313,10 @@ const s: Record<string, React.CSSProperties> = {
   dayBtnDoneMark: {
     fontSize: 18,
     lineHeight: 1,
-    color: "#8bff1a",
-    fontWeight: 800,
+    color: "rgba(15,23,42,0.45)",
+    fontWeight: 700,
     textShadow:
-      "0 1px 2px rgba(86,190,0,0.45), 0 0 1px rgba(56,135,0,0.45)",
+      "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
   // ===== BLOCK 4-5: Weekly Goal + Progress CTA =====
   goalProgressRow: {
