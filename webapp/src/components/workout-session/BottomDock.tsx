@@ -95,8 +95,8 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 12,
-    height: 50,
-    minHeight: 50,
+    height: 56,
+    minHeight: 56,
     padding: "0 14px",
   },
   primaryActive: {
