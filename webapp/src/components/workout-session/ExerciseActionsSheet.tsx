@@ -9,6 +9,7 @@ type Props = {
   alts: ExerciseAlternative[];
   loading: boolean;
   error: string | null;
+  restEnabled: boolean;
   onClose: () => void;
   onLoadAlternatives: () => void;
   onReplace: (alt: ExerciseAlternative) => void;
@@ -19,6 +20,7 @@ type Props = {
   onRemove: () => void;
   onBan: () => void;
   onBackMenu: () => void;
+  onToggleRestEnabled: () => void;
 };
 
 export default function ExerciseActionsSheet(props: Props) {
@@ -28,6 +30,7 @@ export default function ExerciseActionsSheet(props: Props) {
     alts,
     loading,
     error,
+    restEnabled,
     onClose,
     onLoadAlternatives,
     onReplace,
@@ -38,6 +41,7 @@ export default function ExerciseActionsSheet(props: Props) {
     onRemove,
     onBan,
     onBackMenu,
+    onToggleRestEnabled,
   } = props;
 
   if (!state || !item) return null;
@@ -46,6 +50,16 @@ export default function ExerciseActionsSheet(props: Props) {
     if (state.mode === "menu") {
       return (
         <>
+          <div style={s.restRow}>
+            <span style={s.restLabel}>Авто-таймер отдыха</span>
+            <button
+              type="button"
+              style={{ ...s.restToggle, ...(restEnabled ? s.restToggleOn : null) }}
+              onClick={onToggleRestEnabled}
+            >
+              {restEnabled ? "Вкл" : "Выкл"}
+            </button>
+          </div>
           <button type="button" style={s.action} onClick={onLoadAlternatives}>
             Заменить упражнение
           </button>
@@ -254,5 +268,36 @@ const s: Record<string, CSSProperties> = {
     fontSize: 12,
     fontWeight: 500,
     color: workoutTheme.textMuted,
+  },
+  restRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: "6px 2px",
+  },
+  restLabel: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: workoutTheme.textSecondary,
+  },
+  restToggle: {
+    minHeight: 32,
+    minWidth: 58,
+    borderRadius: 999,
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textSecondary,
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "0 12px",
+    cursor: "pointer",
+  },
+  restToggleOn: {
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
   },
 };

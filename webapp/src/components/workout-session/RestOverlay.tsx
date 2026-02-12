@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { workoutTheme } from "./theme";
 import { formatClock } from "./utils";
 
 type Props = {
@@ -14,14 +13,14 @@ export default function RestOverlay(props: Props) {
 
   return (
     <div style={s.overlay}>
-      <div style={s.inner}>
+      <div style={s.content}>
         <div style={s.kicker}>Отдых</div>
         <div style={s.clock}>{formatClock(secondsLeft)}</div>
         <div style={s.actions}>
-          <button type="button" style={s.actionSoft} onClick={onAdd15}>
+          <button type="button" style={s.actionBtn} onClick={onAdd15}>
             +15 сек
           </button>
-          <button type="button" style={s.actionSoft} onClick={onSkip}>
+          <button type="button" style={s.skipBtn} onClick={onSkip}>
             Пропустить
           </button>
         </div>
@@ -36,51 +35,66 @@ const s: Record<string, CSSProperties> = {
     inset: 0,
     zIndex: 60,
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "20px 18px calc(env(safe-area-inset-bottom, 0px) + 20px)",
-    background: "linear-gradient(180deg, rgba(7,10,18,0.6) 0%, rgba(7,10,18,0.72) 100%)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+    padding: "20px 18px calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    background: "linear-gradient(180deg, rgba(7,10,18,0.7) 0%, rgba(7,10,18,0.82) 100%)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
   },
-  inner: {
-    width: "min(100%, 460px)",
-    margin: "0 auto",
+  content: {
+    width: "min(100%, 400px)",
     display: "grid",
-    gap: 18,
+    gap: 20,
     textAlign: "center",
   },
   kicker: {
-    fontSize: 14,
-    letterSpacing: 0.9,
+    fontSize: 13,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: "rgba(255,255,255,0.72)",
-    fontWeight: 700,
+    color: "rgba(255,255,255,0.5)",
+    fontWeight: 600,
   },
   clock: {
-    fontSize: 96,
+    fontSize: 88,
     lineHeight: 1,
     fontWeight: 800,
-    letterSpacing: -2.4,
+    letterSpacing: -3,
     fontVariantNumeric: "tabular-nums",
     color: "#fff",
-    textShadow: "0 14px 28px rgba(0,0,0,0.35)",
+    textShadow: "0 8px 24px rgba(0,0,0,0.3)",
   },
   actions: {
+    marginTop: 8,
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: 10,
   },
-  actionSoft: {
+  actionBtn: {
     minHeight: 50,
     borderRadius: 999,
-    border: "none",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.1)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: "pointer",
+    letterSpacing: -0.1,
+  },
+  skipBtn: {
+    minHeight: 50,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.2)",
     background: "rgba(255,255,255,0.18)",
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.32), 0 10px 20px rgba(0,0,0,0.2)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     color: "#fff",
     fontSize: 15,
     fontWeight: 600,
     cursor: "pointer",
+    letterSpacing: -0.1,
   },
 };

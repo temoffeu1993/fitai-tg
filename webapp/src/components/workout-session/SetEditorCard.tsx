@@ -1,35 +1,37 @@
-import type { CSSProperties } from "react";
+import { useRef, useEffect, useCallback, type CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { clampInt, requiresWeightInput } from "./utils";
+import { clampInt, formatRepsLabel, requiresWeightInput, setsSummary } from "./utils";
+import { MoreHorizontal } from "lucide-react";
 
 type Props = {
   item: SessionItem | null;
   focusSetIndex: number;
   blocked: boolean;
-  restEnabled: boolean;
   onFocusSet: (index: number) => void;
   onChangeReps: (setIdx: number, value: number) => void;
   onChangeWeight: (setIdx: number, value: number) => void;
-  onToggleRestEnabled: () => void;
+  onOpenMenu: () => void;
 };
 
 const MAX_REPS = 60;
 const MIN_REPS = 0;
 const MIN_WEIGHT = 0;
 const MAX_WEIGHT = 300;
-const WEIGHT_STEP = 1;
+const WEIGHT_STEP = 2.5;
+
+const ITEM_H = 44;
+const VISIBLE_ITEMS = 3;
 
 export default function SetEditorCard(props: Props) {
   const {
     item,
     focusSetIndex,
     blocked,
-    restEnabled,
     onFocusSet,
     onChangeReps,
     onChangeWeight,
-    onToggleRestEnabled,
+    onOpenMenu,
   } = props;
 
   if (!item) return null;
@@ -39,28 +41,34 @@ export default function SetEditorCard(props: Props) {
   const needWeight = requiresWeightInput(item);
   const repsValue = Number.isFinite(Number(set.reps)) ? clampInt(Number(set.reps), MIN_REPS, MAX_REPS) : 0;
   const weightValue = Number.isFinite(Number(set.weight))
-    ? Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, Math.round(Number(set.weight))))
+    ? Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, Number(set.weight)))
     : 0;
+
+  const summary = setsSummary(item);
+  const targetReps = formatRepsLabel(item.targetReps);
+  const targetWeight = item.targetWeight ? String(item.targetWeight) : null;
 
   return (
     <section style={s.card}>
-      <div style={s.inputsGrid}>
-        <StepField
-          label="Повторы"
-          value={repsValue}
-          onMinus={() => onChangeReps(focusSetIndex, Math.max(MIN_REPS, repsValue - 1))}
-          onPlus={() => onChangeReps(focusSetIndex, Math.min(MAX_REPS, repsValue + 1))}
-        />
-
-        <StepField
-          label="КГ"
-          value={weightValue}
-          disabled={!needWeight}
-          onMinus={() => onChangeWeight(focusSetIndex, Math.max(MIN_WEIGHT, weightValue - WEIGHT_STEP))}
-          onPlus={() => onChangeWeight(focusSetIndex, Math.min(MAX_WEIGHT, weightValue + WEIGHT_STEP))}
-        />
+      {/* Exercise name + menu */}
+      <div style={s.nameRow}>
+        <h2 style={s.name}>{item.name}</h2>
+        <button
+          type="button"
+          aria-label="Меню упражнения"
+          style={s.menuBtn}
+          onClick={onOpenMenu}
+        >
+          <MoreHorizontal size={20} strokeWidth={2} />
+        </button>
       </div>
 
+      {/* Set indicator */}
+      <div style={s.setInfo}>
+        Подход {focusSetIndex + 1} из {item.sets.length}
+      </div>
+
+      {/* Set dots */}
       <div style={s.dotRow}>
         {item.sets.map((entry, idx) => (
           <button
@@ -71,196 +79,342 @@ export default function SetEditorCard(props: Props) {
             style={{
               ...s.dot,
               ...(entry.done ? s.dotDone : null),
-              ...(idx === focusSetIndex ? s.dotActive : null),
+              ...(idx === focusSetIndex && !entry.done ? s.dotActive : null),
+              ...(idx === focusSetIndex && entry.done ? s.dotDoneActive : null),
             }}
-          />
+          >
+            {entry.done ? (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <span style={s.dotNum}>{idx + 1}</span>
+            )}
+          </button>
         ))}
       </div>
 
-      {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
+      {/* Scroll wheels */}
+      <div style={s.wheelsRow}>
+        <div style={s.wheelCol}>
+          <ScrollWheel
+            value={repsValue}
+            min={MIN_REPS}
+            max={MAX_REPS}
+            step={1}
+            onChange={(v) => onChangeReps(focusSetIndex, v)}
+            disabled={false}
+          />
+          <div style={s.wheelLabel}>повт.</div>
+          {targetReps ? <div style={s.wheelHint}>цель: {targetReps}</div> : null}
+        </div>
 
-      <div style={s.restRow}>
-        <span style={s.restLabel}>Авто-таймер отдыха</span>
-        <button
-          type="button"
-          className={`ws-switch-btn ${restEnabled ? "ws-switch-btn-on" : ""}`}
-          style={{ ...s.switchBtn, ...(restEnabled ? s.switchBtnOn : null) }}
-          onClick={onToggleRestEnabled}
-        >
-          {restEnabled ? "Вкл" : "Выкл"}
-        </button>
+        <div style={{ ...s.wheelCol, ...(needWeight ? null : s.wheelColDisabled) }}>
+          <ScrollWheel
+            value={weightValue}
+            min={MIN_WEIGHT}
+            max={MAX_WEIGHT}
+            step={WEIGHT_STEP}
+            onChange={(v) => onChangeWeight(focusSetIndex, v)}
+            disabled={!needWeight}
+          />
+          <div style={s.wheelLabel}>кг</div>
+          {targetWeight ? <div style={s.wheelHint}>цель: {targetWeight}</div> : null}
+        </div>
       </div>
+
+      {/* Error */}
+      {blocked ? (
+        <div style={s.error}>
+          Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function StepField(props: {
-  label: string;
+/* ─── Scroll Wheel (drum picker) ──────────────────────────────── */
+
+function ScrollWheel(props: {
   value: number;
-  disabled?: boolean;
-  onMinus: () => void;
-  onPlus: () => void;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+  disabled: boolean;
 }) {
-  const { label, value, disabled = false, onMinus, onPlus } = props;
+  const { value, min, max, step, onChange, disabled } = props;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
+  const scrollTimerRef = useRef<number | null>(null);
+  const lastReportedRef = useRef(value);
+
+  const steps: number[] = [];
+  for (let v = min; v <= max; v += step) {
+    steps.push(Math.round(v * 100) / 100);
+  }
+
+  const valueIndex = steps.indexOf(
+    steps.reduce((prev, curr) =>
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+    , steps[0])
+  );
+
+  // Scroll to value on mount and when value changes externally
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || isScrollingRef.current) return;
+    const targetTop = valueIndex * ITEM_H;
+    el.scrollTop = targetTop;
+    lastReportedRef.current = value;
+  }, [valueIndex, value]);
+
+  const handleScroll = useCallback(() => {
+    if (disabled) return;
+    isScrollingRef.current = true;
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+
+    scrollTimerRef.current = window.setTimeout(() => {
+      isScrollingRef.current = false;
+      const el = containerRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollTop / ITEM_H);
+      const clamped = Math.max(0, Math.min(steps.length - 1, idx));
+      const snapped = clamped * ITEM_H;
+      el.scrollTo({ top: snapped, behavior: "smooth" });
+      const newVal = steps[clamped];
+      if (newVal !== lastReportedRef.current) {
+        lastReportedRef.current = newVal;
+        onChange(newVal);
+      }
+    }, 80);
+  }, [disabled, onChange, steps]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, []);
+
+  const wheelHeight = VISIBLE_ITEMS * ITEM_H;
+  const padItems = Math.floor(VISIBLE_ITEMS / 2);
 
   return (
-    <div style={{ ...s.stepField, ...(disabled ? s.stepFieldDisabled : null) }}>
-      <div style={s.valueLabel}>{label}</div>
-      <div style={s.valueGroove}>
-        <span style={s.valueText}>{value}</span>
-      </div>
-      <div style={s.stepActions}>
-        <button
-          type="button"
-          style={s.stepBtn}
-          onClick={onMinus}
-          disabled={disabled}
-          aria-label={`Уменьшить ${label}`}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          style={s.stepBtn}
-          onClick={onPlus}
-          disabled={disabled}
-          aria-label={`Увеличить ${label}`}
-        >
-          +
-        </button>
+    <div style={{ ...sw.outer, height: wheelHeight, ...(disabled ? sw.outerDisabled : null) }}>
+      {/* Selection highlight band */}
+      <div style={sw.highlight} aria-hidden />
+      <div
+        ref={containerRef}
+        className="ws-scroll-wheel"
+        style={sw.scroll}
+        onScroll={handleScroll}
+      >
+        {/* Top padding */}
+        {Array.from({ length: padItems }).map((_, i) => (
+          <div key={`pad-top-${i}`} style={sw.item} aria-hidden />
+        ))}
+        {steps.map((v, i) => {
+          const isCurrent = i === valueIndex;
+          return (
+            <div
+              key={v}
+              style={{
+                ...sw.item,
+                ...(isCurrent ? sw.itemActive : sw.itemInactive),
+              }}
+            >
+              {step < 1 ? v.toFixed(1) : v}
+            </div>
+          );
+        })}
+        {/* Bottom padding */}
+        {Array.from({ length: padItems }).map((_, i) => (
+          <div key={`pad-bot-${i}`} style={sw.item} aria-hidden />
+        ))}
       </div>
     </div>
   );
 }
 
+const sw: Record<string, CSSProperties> = {
+  outer: {
+    position: "relative",
+    borderRadius: 16,
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    overflow: "hidden",
+    width: "100%",
+  },
+  outerDisabled: {
+    opacity: 0.4,
+    pointerEvents: "none",
+  },
+  highlight: {
+    position: "absolute",
+    left: 6,
+    right: 6,
+    top: "50%",
+    transform: "translateY(-50%)",
+    height: ITEM_H,
+    borderRadius: 12,
+    background: "rgba(15,23,42,0.06)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  scroll: {
+    height: "100%",
+    overflowY: "auto",
+    scrollSnapType: "y mandatory",
+    WebkitOverflowScrolling: "touch",
+    position: "relative",
+    zIndex: 2,
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+  },
+  item: {
+    height: ITEM_H,
+    display: "grid",
+    placeItems: "center",
+    fontSize: 28,
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    scrollSnapAlign: "start",
+    userSelect: "none",
+    color: "rgba(15,23,42,0.2)",
+    letterSpacing: -0.5,
+    lineHeight: 1,
+  },
+  itemActive: {
+    color: workoutTheme.textPrimary,
+    fontSize: 32,
+    fontWeight: 800,
+  },
+  itemInactive: {
+    color: "rgba(15,23,42,0.18)",
+  },
+};
+
 const s: Record<string, CSSProperties> = {
   card: {
-    padding: 18,
+    padding: "20px 18px 18px",
     borderRadius: 24,
     border: workoutTheme.cardBorder,
     background: workoutTheme.cardBg,
     boxShadow: workoutTheme.cardShadow,
     display: "grid",
-    gap: 14,
+    gap: 16,
     minWidth: 0,
-  },
-  inputsGrid: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
-    gap: 12,
-    minWidth: 0,
-  },
-  stepField: {
-    display: "grid",
-    gap: 8,
-    minWidth: 0,
-  },
-  stepFieldDisabled: {
-    opacity: 0.52,
-  },
-  valueLabel: {
-    textAlign: "center",
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: workoutTheme.textMuted,
-  },
-  valueGroove: {
-    minHeight: 88,
-    borderRadius: 18,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    display: "grid",
-    placeItems: "center",
     overflow: "hidden",
   },
-  valueText: {
-    fontSize: "clamp(44px, 13vw, 58px)",
-    lineHeight: 1,
-    fontWeight: 800,
-    color: workoutTheme.textPrimary,
-    fontVariantNumeric: "tabular-nums",
-    whiteSpace: "nowrap",
+  nameRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    minWidth: 0,
   },
-  stepActions: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-  },
-  stepBtn: {
-    minHeight: 44,
-    borderRadius: 14,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textPrimary,
-    fontSize: 24,
-    lineHeight: 1,
+  name: {
+    margin: 0,
+    minWidth: 0,
+    fontSize: 26,
+    lineHeight: 1.15,
     fontWeight: 700,
+    letterSpacing: -0.5,
+    color: workoutTheme.textPrimary,
+    overflowWrap: "anywhere",
+  },
+  menuBtn: {
+    border: "none",
+    background: "transparent",
+    borderRadius: 999,
+    width: 36,
+    height: 36,
+    padding: 0,
+    color: workoutTheme.textMuted,
     cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  },
+  setInfo: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: workoutTheme.textSecondary,
+    letterSpacing: -0.1,
   },
   dotRow: {
     display: "flex",
-    justifyContent: "center",
-    gap: 10,
+    gap: 8,
+    flexWrap: "wrap",
   },
   dot: {
-    width: 12,
-    height: 12,
+    width: 28,
+    height: 28,
     borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    border: "1.5px solid rgba(15,23,42,0.12)",
+    background: "rgba(255,255,255,0.8)",
     cursor: "pointer",
     padding: 0,
+    display: "grid",
+    placeItems: "center",
+    transition: "all 200ms ease",
   },
   dotDone: {
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow:
-      "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    border: "1.5px solid rgba(30,31,34,0.8)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
   },
   dotActive: {
-    boxShadow:
-      "0 0 0 3px rgba(17,24,39,0.1), inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    transform: "scale(1.08)",
+    border: "2px solid #1e1f22",
+    boxShadow: "0 0 0 3px rgba(30,31,34,0.12)",
+    transform: "scale(1.1)",
+  },
+  dotDoneActive: {
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    border: "2px solid #1e1f22",
+    boxShadow: "0 0 0 3px rgba(30,31,34,0.12), 0 1px 3px rgba(0,0,0,0.3)",
+    transform: "scale(1.1)",
+  },
+  dotNum: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: workoutTheme.textMuted,
+  },
+  wheelsRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    minWidth: 0,
+  },
+  wheelCol: {
+    display: "grid",
+    gap: 6,
+    justifyItems: "center",
+  },
+  wheelColDisabled: {
+    opacity: 0.45,
+  },
+  wheelLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    color: workoutTheme.textMuted,
+    textAlign: "center",
+  },
+  wheelHint: {
+    fontSize: 11,
+    fontWeight: 500,
+    color: workoutTheme.textMuted,
+    opacity: 0.7,
+    textAlign: "center",
   },
   error: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 600,
     color: workoutTheme.danger,
     textAlign: "center",
-  },
-  restRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    marginTop: 2,
-  },
-  restLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: workoutTheme.textSecondary,
-  },
-  switchBtn: {
-    minHeight: 32,
-    minWidth: 62,
-    borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "0 12px",
-    cursor: "pointer",
-  },
-  switchBtnOn: {
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
+    padding: "2px 0",
   },
 };
