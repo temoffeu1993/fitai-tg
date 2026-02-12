@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { requiresWeightInput } from "./utils";
+import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -38,12 +38,21 @@ export default function SetEditorCard(props: Props) {
   const set = item.sets[focusSetIndex];
   if (!set) return null;
   const needWeight = requiresWeightInput(item);
+  const repsHintRaw = formatRepsLabel(item.targetReps);
+  const repsHint = repsHintRaw ? `${repsHintRaw} повторов` : "—";
+  const parsedWeight = parseWeightNumber(item.targetWeight);
+  const weightHint = parsedWeight != null
+    ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} кг`
+    : typeof item.targetWeight === "string" && item.targetWeight.trim()
+      ? item.targetWeight.trim()
+      : "";
 
   return (
     <section style={{ ...(embedded ? s.embedRoot : s.card) }}>
       <div style={s.inputsGrid}>
         <WheelField
-          label="Повторы"
+          ariaLabel="Повторы"
+          hintLabel={repsHint}
           values={REPS_VALUES}
           value={Number.isFinite(Number(set.reps)) ? Number(set.reps) : undefined}
           onChange={(value) => onChangeReps(focusSetIndex, value)}
@@ -51,7 +60,8 @@ export default function SetEditorCard(props: Props) {
         />
 
         <WheelField
-          label="Килограммы"
+          ariaLabel="Килограммы"
+          hintLabel={needWeight ? weightHint : null}
           values={WEIGHT_VALUES}
           value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
           onChange={(value) => onChangeWeight(focusSetIndex, value)}
@@ -66,14 +76,15 @@ export default function SetEditorCard(props: Props) {
 }
 
 function WheelField(props: {
-  label: string;
+  ariaLabel: string;
+  hintLabel?: string | null;
   values: number[];
   value: number | undefined;
   onChange: (value: number) => void;
   formatValue: (value: number) => string;
   disabled?: boolean;
 }) {
-  const { label, values, value, onChange, formatValue, disabled = false } = props;
+  const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const stopTimerRef = useRef<number | null>(null);
@@ -216,12 +227,12 @@ function WheelField(props: {
           ref={listRef}
           style={{ ...s.wheelList, ...(disabled ? s.wheelListDisabled : null) }}
           onScroll={disabled ? undefined : handleScroll}
-          aria-label={label}
+          aria-label={ariaLabel}
           role="listbox"
         >
           {wheelValues.map((entry, idx) => (
             <button
-              key={`${label}-${entry}-${idx}`}
+              key={`${ariaLabel}-${entry}-${idx}`}
               type="button"
               style={{ ...s.wheelItem, ...(Math.abs(entry - selectedValue) <= EPS ? s.wheelItemActive : null) }}
               onClick={handleSelect}
@@ -233,7 +244,7 @@ function WheelField(props: {
           ))}
         </div>
       </div>
-      <div style={s.valueLabel}>{label}</div>
+      {hintLabel ? <div style={s.valueLabel}>{hintLabel}</div> : null}
     </div>
   );
 }
