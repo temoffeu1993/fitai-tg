@@ -71,10 +71,12 @@ const s: Record<string, CSSProperties> = {
     boxShadow: workoutTheme.cardShadow,
     display: "grid",
     gap: 12,
+    minWidth: 0,
+    overflow: "hidden",
   },
   topRow: {
-    display: "flex",
-    justifyContent: "space-between",
+    display: "grid",
+    gridTemplateColumns: "minmax(0,1fr) auto",
     alignItems: "flex-start",
     gap: 10,
   },
@@ -95,7 +97,6 @@ const s: Record<string, CSSProperties> = {
   name: {
     margin: 0,
     minWidth: 0,
-    flex: 1,
     fontSize: 32,
     lineHeight: 1.12,
     fontWeight: 700,

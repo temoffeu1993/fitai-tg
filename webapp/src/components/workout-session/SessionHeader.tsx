@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { workoutTheme } from "./theme";
 import { formatClock } from "./utils";
 import { AlignJustify, ArrowLeft, Pause, Play } from "lucide-react";
@@ -25,24 +25,50 @@ export default function SessionHeader(props: Props) {
     onToggleTimer,
     onOpenList,
   } = props;
+  const [compact, setCompact] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 390 : false
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 390px)");
+    const apply = () => setCompact(mq.matches);
+    apply();
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
+  }, []);
 
   return (
     <>
       <div style={s.spacer} aria-hidden />
       <header style={s.wrap}>
         <div style={s.inner}>
-          <div style={s.row}>
-            <button type="button" aria-label="Назад" style={s.iconBtn} onClick={onBack}>
+          <div style={{ ...s.row, ...(compact ? s.rowCompact : null) }}>
+            <button
+              type="button"
+              aria-label="Назад"
+              style={{ ...s.iconBtn, ...(compact ? s.iconBtnCompact : null) }}
+              onClick={onBack}
+            >
               <ArrowLeft size={17} strokeWidth={2.1} style={s.iconGlyph} />
-              <span>Назад</span>
+              <span style={compact ? s.iconBtnLabelHidden : undefined}>Назад</span>
             </button>
             <div style={s.center}>
               <div style={s.title}>{title}</div>
               <div style={s.subtitle}>{subtitle}</div>
             </div>
-            <button type="button" aria-label="Открыть список упражнений" style={s.iconBtn} onClick={onOpenList}>
+            <button
+              type="button"
+              aria-label="Открыть список упражнений"
+              style={{ ...s.iconBtn, ...(compact ? s.iconBtnCompact : null) }}
+              onClick={onOpenList}
+            >
               <AlignJustify size={17} strokeWidth={2.1} style={s.iconGlyph} />
-              <span>Список</span>
+              <span style={compact ? s.iconBtnLabelHidden : undefined}>Список</span>
             </button>
           </div>
           <div style={s.metaRow}>
@@ -91,6 +117,9 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 6,
   },
+  rowCompact: {
+    gap: 2,
+  },
   center: {
     minWidth: 0,
     textAlign: "center",
@@ -128,6 +157,14 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    minWidth: 0,
+  },
+  iconBtnCompact: {
+    padding: "0 2px",
+    minWidth: 36,
+  },
+  iconBtnLabelHidden: {
+    display: "none",
   },
   iconGlyph: {
     opacity: 0.84,
