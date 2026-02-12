@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CheckInForm } from "@/components/CheckInForm";
 import { startWorkout, type CheckInPayload, type StartWorkoutResponse } from "@/api/plan";
-import { getScheduleOverview, resetPlannedWorkout } from "@/api/schedule";
+import { getScheduleOverview } from "@/api/schedule";
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { buildCheckInSummaryViewModel } from "@/lib/checkinResultSummary";
@@ -34,7 +34,7 @@ export default function CheckIn() {
   const [pendingResult, setPendingResult] = useState<CheckInResult | null>(null);
   const [analysisDone, setAnalysisDone] = useState(false);
   const [formStep, setFormStep] = useState(0);
-  const [resettingAnswers, setResettingAnswers] = useState(false);
+  const [submittedCheckin, setSubmittedCheckin] = useState<CheckInPayload | null>(null);
 
   // Получаем параметры из navigation state (если пришли из PlanOne)
   const { workoutDate, returnTo, plannedWorkoutId } = (location.state || {}) as {
@@ -111,33 +111,66 @@ export default function CheckIn() {
     ].filter(Boolean);
   }, [result, summary]);
 
-  const goToWorkout = () => {
+  const goToWorkout = async () => {
     if (!result) return;
     if (result.action === "skip" || !result.workout) {
       nav(returnTo || "/plan/one");
+      return;
+    }
+    setLoading(true);
+    setResultError(null);
+    let finalResult = result;
+    try {
+      if (plannedWorkoutId && submittedCheckin) {
+        const committed = await startWorkout({
+          date: workoutDate,
+          plannedWorkoutId,
+          checkin: submittedCheckin,
+          commit: true,
+        });
+        if (committed.action !== "skip" && !committed.workout) {
+          throw new Error("Не удалось подтвердить адаптацию перед стартом тренировки");
+        }
+        finalResult = {
+          ...committed,
+          notes: Array.isArray(committed.notes) ? committed.notes : [],
+          workout: committed.workout ?? null,
+        } as CheckInResult;
+        setResult(finalResult);
+      }
+      if (finalResult.action === "skip" || !finalResult.workout) {
+        nav(returnTo || "/plan/one");
+        setLoading(false);
+        return;
+      }
+    } catch (err: any) {
+      console.error("Commit check-in before workout start failed:", err);
+      setResultError(err?.message || "Не удалось применить чек-ин перед стартом. Попробуй ещё раз.");
+      setLoading(false);
       return;
     }
     try {
       localStorage.setItem(
         "current_plan",
         JSON.stringify({
-          plan: toSessionPlan(result.workout),
+          plan: toSessionPlan(finalResult.workout),
           plannedWorkoutId: plannedWorkoutId || null,
-          checkinSummary: result.summary || null,
+          checkinSummary: finalResult.summary || null,
           updatedAt: new Date().toISOString(),
         })
       );
     } catch {}
     nav("/workout/session", {
       state: {
-        plan: toSessionPlan(result.workout),
+        plan: toSessionPlan(finalResult.workout),
         plannedWorkoutId,
-        isRecovery: result.action === "recovery",
-        swapInfo: result.action === "swap_day" ? result.swapInfo : undefined,
-        notes: result.notes,
-        checkinSummary: result.summary || null,
+        isRecovery: finalResult.action === "recovery",
+        swapInfo: finalResult.action === "swap_day" ? finalResult.swapInfo : undefined,
+        notes: finalResult.notes,
+        checkinSummary: finalResult.summary || null,
       },
     });
+    setLoading(false);
   };
 
   const handleSubmit = async (payload: CheckInPayload) => {
@@ -146,14 +179,16 @@ export default function CheckIn() {
     setResultError(null);
     setPendingResult(null);
     setAnalysisDone(false);
+    setSubmittedCheckin(payload);
     setPhase("analyzing");
 
     try {
-      // Вызываем API для адаптации тренировки
+      // Preview адаптации без записи в БД
       const response = await startWorkout({
         date: workoutDate,
         plannedWorkoutId,
         checkin: payload,
+        commit: false,
       });
 
       if (response.action !== "skip" && !response.workout) {
@@ -210,31 +245,14 @@ export default function CheckIn() {
     }
   };
 
-  const handleChangeAnswers = async () => {
-    if (loading || resettingAnswers || skipLoading) return;
+  const handleChangeAnswers = () => {
+    if (loading || skipLoading) return;
     setResultError(null);
-    if (!plannedWorkoutId) {
-      setResult(null);
-      setError(null);
-      setPhase("form");
-      return;
-    }
-    setResettingAnswers(true);
-    try {
-      await resetPlannedWorkout(plannedWorkoutId);
-      try {
-        window.dispatchEvent(new Event("schedule_updated"));
-        window.dispatchEvent(new Event("planned_workouts_updated"));
-      } catch {}
-      setResult(null);
-      setError(null);
-      setPhase("form");
-    } catch (err) {
-      console.error("Reset planned workout before re-checkin failed:", err);
-      setResultError("Не удалось сбросить прошлую адаптацию. Попробуй ещё раз.");
-    } finally {
-      setResettingAnswers(false);
-    }
+    setPendingResult(null);
+    setResult(null);
+    setError(null);
+    setSubmittedCheckin(null);
+    setPhase("form");
   };
 
   const handleAnalysisDone = () => {
@@ -385,20 +403,20 @@ export default function CheckIn() {
           <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
             <button
               type="button"
-              style={{ ...styles.summaryPrimaryBtn, ...(loading || resettingAnswers ? styles.primaryDisabled : null) }}
+              style={{ ...styles.summaryPrimaryBtn, ...(loading ? styles.primaryDisabled : null) }}
               className="intro-primary-btn"
               onClick={goToWorkout}
-              disabled={loading || resettingAnswers}
+              disabled={loading}
             >
               {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
             </button>
             <button
               type="button"
-              style={{ ...styles.introSkipBtn, ...(loading || resettingAnswers ? styles.backDisabled : null) }}
+              style={{ ...styles.introSkipBtn, ...(loading ? styles.backDisabled : null) }}
               onClick={handleChangeAnswers}
-              disabled={loading || resettingAnswers}
+              disabled={loading}
             >
-              {resettingAnswers ? "Сбрасываем..." : "Пройти заново"}
+              Пройти заново
             </button>
             {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
           </section>

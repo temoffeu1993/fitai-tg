@@ -185,6 +185,7 @@ export async function startWorkout(payload: {
   date?: string;
   checkin?: CheckInPayload;
   plannedWorkoutId?: string;
+  commit?: boolean;
 }) {
   const res = await apiFetch("/plan/workout/start", {
     method: "POST",

@@ -1144,13 +1144,15 @@ workoutGeneration.post(
   "/workout/start",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    const { date, checkin: checkinFromBody, plannedWorkoutId: plannedWorkoutIdRaw } = req.body;
+    const { date, checkin: checkinFromBody, plannedWorkoutId: plannedWorkoutIdRaw, commit: commitRaw } = req.body;
+    const commit = commitRaw !== false;
     
     const workoutDate = date || new Date().toISOString().split('T')[0];
     const plannedWorkoutId = isUUID(plannedWorkoutIdRaw) ? String(plannedWorkoutIdRaw) : null;
     
     console.log(`\n🏁 [START WORKOUT] ===================================`);
     console.log(`   User: ${uid} | Date: ${workoutDate}`);
+    console.log(`   Mode: ${commit ? "commit" : "preview"}`);
     if (plannedWorkoutId) console.log(`   PlannedWorkoutId: ${plannedWorkoutId}`);
     
     // Wrap entire read-modify-write in a transaction to prevent race conditions
@@ -1169,12 +1171,12 @@ workoutGeneration.post(
         ? `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND id = $2::uuid
            LIMIT 1
-           FOR UPDATE`
+           ${commit ? "FOR UPDATE" : ""}`
         : `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND workout_date = $2
            ORDER BY scheduled_for DESC NULLS LAST, updated_at DESC NULLS LAST
            LIMIT 1
-           FOR UPDATE`,
+           ${commit ? "FOR UPDATE" : ""}`,
       plannedWorkoutId ? [uid, plannedWorkoutId] : [uid, workoutDate]
     );
     
@@ -1319,19 +1321,21 @@ workoutGeneration.post(
         },
       };
       
-      // Save recovery workout to DB
-      // Обновляем по конкретному rowId (как и основная ветка)
-      await q(
-        `UPDATE planned_workouts
-         SET base_plan = COALESCE(base_plan, plan),
-             data = $2::jsonb,
-             plan = $2::jsonb,
-             updated_at = NOW()
-         WHERE user_id = $1 AND id = $3::uuid`,
-        [uid, workoutData, rowId]
-      );
-
-      console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+      if (commit) {
+        // Save recovery workout to DB
+        await q(
+          `UPDATE planned_workouts
+           SET base_plan = COALESCE(base_plan, plan),
+               data = $2::jsonb,
+               plan = $2::jsonb,
+               updated_at = NOW()
+           WHERE user_id = $1 AND id = $3::uuid`,
+          [uid, workoutData, rowId]
+        );
+        console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+      } else {
+        console.log(`   👀 Preview recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+      }
       console.log("=====================================================\n");
       const summaryChangeNotes = mergeUniqueNotes(
         decision.notes || [],
@@ -1755,24 +1759,28 @@ workoutGeneration.post(
       };
     }
     
-    // Update planned_workouts
-    // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
-    // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
-    // Meta info preserves the swap history for tracking and future adjustments.
-    // Всегда обновляем по конкретному id строки (rowId из SELECT ... FOR UPDATE)
-    // Это гарантирует, что обновится ровно 1 запись, даже если на дату попало несколько
-    await q(
-      `UPDATE planned_workouts
-       SET base_plan = COALESCE(base_plan, plan),
-           data = $2::jsonb,
-           plan = $2::jsonb,
-           updated_at = NOW()
-       WHERE user_id = $1 AND id = $3::uuid`,
-      [uid, workoutData, rowId]
-    );
+    if (commit) {
+      // Update planned_workouts
+      // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
+      // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
+      // Meta info preserves the swap history for tracking and future adjustments.
+      // Всегда обновляем по конкретному id строки (rowId из SELECT ... FOR UPDATE)
+      // Это гарантирует, что обновится ровно 1 запись, даже если на дату попало несколько
+      await q(
+        `UPDATE planned_workouts
+         SET base_plan = COALESCE(base_plan, plan),
+             data = $2::jsonb,
+             plan = $2::jsonb,
+             updated_at = NOW()
+         WHERE user_id = $1 AND id = $3::uuid`,
+        [uid, workoutData, rowId]
+      );
+    } else {
+      console.log("   👀 Preview mode: DB update skipped");
+    }
     
     // If swapped, mark future occurrence of finalDayIndex as "already done today"
-    if (decision.action === "swap_day") {
+    if (commit && decision.action === "swap_day") {
       // Find the next planned workout that corresponds to finalDayIndex and mark it as already done.
       const nextRows = await q<{ id: string; workout_date: string }>(
         `SELECT id, workout_date
