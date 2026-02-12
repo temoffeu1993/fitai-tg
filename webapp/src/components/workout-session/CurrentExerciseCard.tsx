@@ -36,14 +36,10 @@ export default function CurrentExerciseCard(props: Props) {
               key={idx}
               style={{
                 ...s.groove,
+                ...(entry.done ? s.grooveDone : null),
+                ...(idx === safeFocus ? s.grooveActive : null),
               }}
-            >
-              {entry.done ? (
-                <span style={s.grooveSphereDone} />
-              ) : idx === safeFocus ? (
-                <span style={s.grooveSphereActive} />
-              ) : null}
-            </span>
+            />
           ))}
         </div>
       </div>
@@ -122,24 +118,16 @@ const s: Record<string, CSSProperties> = {
     height: 12,
     flex: "0 0 auto",
     borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
+    border: "none",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
   },
-  grooveSphereActive: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #eef1f5 0%, #bcc3ce 62%, #8a92a0 100%)",
+  grooveActive: {
     boxShadow:
-      "0 1px 2px rgba(55,65,81,0.35), inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(75,85,99,0.5)",
+      "0 0 0 3px rgba(17,24,39,0.1), inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    transform: "scale(1.08)",
   },
-  grooveSphereDone: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
+  grooveDone: {
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow:
       "0 1px 2px rgba(2,6,23,0.35), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.42)",
