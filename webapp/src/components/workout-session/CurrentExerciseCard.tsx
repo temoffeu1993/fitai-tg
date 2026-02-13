@@ -15,10 +15,7 @@ export default function CurrentExerciseCard(props: Props) {
   return (
     <section style={s.card}>
       <div style={s.topRow}>
-        <div style={s.nameWrap}>
-          <h2 style={s.name}>{item.name}</h2>
-          {item.tagline ? <div style={s.tagline}>{item.tagline}</div> : null}
-        </div>
+        <h2 style={s.name}>{item.name}</h2>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
         </button>
@@ -48,11 +45,6 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
     minWidth: 0,
   },
-  nameWrap: {
-    display: "grid",
-    gap: 4,
-    minWidth: 0,
-  },
   name: {
     margin: 0,
     minWidth: 0,
@@ -66,13 +58,6 @@ const s: Record<string, CSSProperties> = {
     overflowWrap: "break-word",
     wordBreak: "normal",
     hyphens: "auto",
-  },
-  tagline: {
-    fontSize: 13,
-    fontWeight: 400,
-    lineHeight: 1.35,
-    color: workoutTheme.textSecondary,
-    margin: 0,
   },
   menuBtn: {
     border: "none",
