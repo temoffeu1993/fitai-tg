@@ -15,6 +15,7 @@ import RestOverlay from "@/components/workout-session/RestOverlay";
 import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
 import TechniqueAccordion from "@/components/workout-session/TechniqueAccordion";
+import { getExerciseIllustration } from "@/components/workout-session/exerciseIllustrations";
 import TransitionToast from "@/components/workout-session/TransitionToast";
 import { workoutTheme } from "@/components/workout-session/theme";
 import type {
@@ -935,6 +936,7 @@ export default function WorkoutSession() {
         <TechniqueAccordion
           technique={activeItem?.technique}
           proTip={activeItem?.proTip}
+          illustration={getExerciseIllustration(activeItem?.id)}
           resetKey={activeIndex}
         />
       </main>
