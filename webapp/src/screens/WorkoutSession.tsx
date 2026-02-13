@@ -967,12 +967,14 @@ export default function WorkoutSession() {
       <RestOverlay
         secondsLeft={restSecLeft}
         onSkip={() => {
+          fireHapticImpact("medium");
           clearPendingRestStart();
           setRestSecLeft(null);
           setRestEndAt(null);
           advanceIfPending();
         }}
         onAdd15={() => {
+          fireHapticImpact("light");
           setRestEndAt((prev) => {
             if (prev == null) return prev;
             const base = Math.max(Date.now(), prev);

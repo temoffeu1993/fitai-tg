@@ -14,10 +14,13 @@ export default function RestOverlay(props: Props) {
   if (secondsLeft == null) return null;
 
   return (
-    <div style={s.overlay}>
+    <div style={s.overlay} className="ws-rest-overlay-in">
       <style>{`
+        .ws-rest-overlay-in {
+          animation: wsRestOverlayFadeIn 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+        }
         .ws-rest-in {
-          animation: wsRestFadeIn 300ms ease-out both;
+          animation: wsRestFadeIn 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
         }
         .ws-rest-aura {
           animation: wsRestAuraPulse 2800ms ease-in-out infinite;
@@ -25,9 +28,13 @@ export default function RestOverlay(props: Props) {
         .ws-rest-mascot {
           animation: wsRestFloat 3600ms ease-in-out infinite;
         }
+        @keyframes wsRestOverlayFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
         @keyframes wsRestFadeIn {
-          0% { opacity: 0; transform: translateY(10px); }
-          100% { opacity: 1; transform: translateY(0); }
+          0% { opacity: 0; transform: translateY(14px) scale(0.985); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes wsRestAuraPulse {
           0% { opacity: 0.56; transform: scale(0.95); }
@@ -41,6 +48,7 @@ export default function RestOverlay(props: Props) {
         }
         @media (prefers-reduced-motion: reduce) {
           .ws-rest-in,
+          .ws-rest-overlay-in,
           .ws-rest-aura,
           .ws-rest-mascot {
             animation: none !important;
@@ -82,7 +90,7 @@ const s: Record<string, CSSProperties> = {
     width: "min(100%, 520px)",
     margin: "0 auto",
     display: "grid",
-    gap: 14,
+    gap: 18,
     textAlign: "center",
     placeItems: "center",
   },
@@ -117,7 +125,7 @@ const s: Record<string, CSSProperties> = {
     zIndex: 2,
   },
   clock: {
-    marginTop: -12,
+    marginTop: 10,
     fontSize: 88,
     lineHeight: 1,
     fontWeight: 700,
@@ -131,7 +139,7 @@ const s: Record<string, CSSProperties> = {
     gridTemplateColumns: "1fr 1fr",
     gap: 10,
     width: "min(100%, 520px)",
-    marginTop: 6,
+    marginTop: 14,
   },
   actionSoft: {
     minHeight: 56,
