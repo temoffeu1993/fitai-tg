@@ -38,6 +38,7 @@ const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const REST_PREF_KEY = "workout_rest_enabled_v2";
+const REST_OVERLAY_ENTER_DELAY_MS = 340;
 
 type SessionUiState =
   | "lift_ready"
@@ -213,6 +214,7 @@ export default function WorkoutSession() {
     }
   });
   const [restSecLeft, setRestSecLeft] = useState<number | null>(null);
+  const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [blockedSet, setBlockedSet] = useState<{ ei: number; si: number } | null>(null);
   const [exerciseMenu, setExerciseMenu] = useState<ExerciseMenuState | null>(null);
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
@@ -231,6 +233,7 @@ export default function WorkoutSession() {
   const [transitionToast, setTransitionToast] = useState<string | null>(null);
   const blockTimerRef = useRef<number | null>(null);
   const transitionToastTimerRef = useRef<number | null>(null);
+  const restStartTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const prevBody = document.body.style.background;
@@ -300,17 +303,45 @@ export default function WorkoutSession() {
   };
 
   useEffect(() => {
-    if (restSecLeft == null) return;
-    if (restSecLeft <= 0) {
+    if (restEndAt == null) return;
+    let finished = false;
+
+    const finishRest = () => {
+      if (finished) return;
+      finished = true;
       fireHapticImpact("heavy");
       setTimeout(() => fireHapticImpact("medium"), 130);
       setRestSecLeft(null);
+      setRestEndAt(null);
       advanceIfPending();
-      return;
-    }
-    const id = window.setInterval(() => setRestSecLeft((prev) => (prev == null ? null : prev - 1)), 1000);
-    return () => window.clearInterval(id);
-  }, [restSecLeft, pendingAdvanceExercise, items.length]);
+    };
+
+    const syncRestState = () => {
+      if (finished) return;
+      const sec = Math.max(0, Math.ceil((restEndAt - Date.now()) / 1000));
+      if (sec <= 0) {
+        finishRest();
+        return;
+      }
+      setRestSecLeft((prev) => (prev === sec ? prev : sec));
+    };
+
+    syncRestState();
+    const intervalId = window.setInterval(syncRestState, 300);
+    const onVisibility = () => syncRestState();
+    const onFocus = () => syncRestState();
+    const onPageShow = () => syncRestState();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [restEndAt, pendingAdvanceExercise, items.length]);
 
   useEffect(() => {
     if (!plan) return;
@@ -374,6 +405,7 @@ export default function WorkoutSession() {
     return () => {
       if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
       if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
+      if (restStartTimerRef.current) window.clearTimeout(restStartTimerRef.current);
     };
   }, []);
 
@@ -421,11 +453,24 @@ export default function WorkoutSession() {
     updateSetValue(setIdx, "weight", rounded);
   };
 
+  const clearPendingRestStart = () => {
+    if (restStartTimerRef.current != null) {
+      window.clearTimeout(restStartTimerRef.current);
+      restStartTimerRef.current = null;
+    }
+  };
+
   const startRest = (seconds: number | undefined) => {
     if (!restEnabled) return;
     const safe = Math.max(10, Math.min(600, Math.floor(Number(seconds) || 0)));
     if (!safe) return;
-    setRestSecLeft(safe);
+    clearPendingRestStart();
+    restStartTimerRef.current = window.setTimeout(() => {
+      restStartTimerRef.current = null;
+      const now = Date.now();
+      setRestEndAt(now + safe * 1000);
+      setRestSecLeft(safe);
+    }, REST_OVERLAY_ENTER_DELAY_MS);
   };
 
   const showTransitionToast = (message: string, durationMs = 460) => {
@@ -922,10 +967,18 @@ export default function WorkoutSession() {
       <RestOverlay
         secondsLeft={restSecLeft}
         onSkip={() => {
+          clearPendingRestStart();
           setRestSecLeft(null);
+          setRestEndAt(null);
           advanceIfPending();
         }}
-        onAdd15={() => setRestSecLeft((prev) => Math.max(10, (prev || 0) + 15))}
+        onAdd15={() => {
+          setRestEndAt((prev) => {
+            if (prev == null) return prev;
+            const base = Math.max(Date.now(), prev);
+            return base + 15_000;
+          });
+        }}
       />
 
       <ExerciseEffortModal
