@@ -239,6 +239,9 @@ workoutGeneration.get(
           kind: a.kind,
           hint: a.hint,
           suggestedWeight: suggestedById.get(a.exerciseId) ?? null,
+          tagline: (lib as any)?.tagline ?? null,
+          technique: lib?.technique ?? null,
+          proTip: (lib as any)?.proTip ?? null,
           ...(lib ? inferLoadInfoFromExercise(lib) : inferLoadInfoFromExercise({ id: a.exerciseId, name: a.name, equipment: a.equipment })),
         };
       }),

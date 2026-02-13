@@ -637,6 +637,9 @@ export default function WorkoutSession() {
         current.requiresWeightInput = alternative.requiresWeightInput;
         current.weightLabel = alternative.weightLabel;
         current.targetWeight = suggested != null ? String(suggested) : null;
+        current.tagline = alternative.tagline;
+        current.technique = alternative.technique;
+        current.proTip = alternative.proTip;
         current.done = false;
         current.skipped = false;
         current.effort = null;
@@ -663,6 +666,9 @@ export default function WorkoutSession() {
         loadType: alternative.loadType,
         requiresWeightInput: alternative.requiresWeightInput,
         weightLabel: alternative.weightLabel,
+        tagline: alternative.tagline,
+        technique: alternative.technique,
+        proTip: alternative.proTip,
         done: false,
         skipped: false,
         effort: null,

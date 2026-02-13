@@ -12,6 +12,13 @@ export type ExerciseAlternative = {
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  tagline?: string;
+  technique?: {
+    setup: string;
+    execution: string;
+    commonMistakes: string[];
+  };
+  proTip?: string;
 };
 
 export async function getExerciseAlternatives(args: {
