@@ -144,23 +144,23 @@ workoutGeneration.get(
 
     const avoidEquipment = avoidEquipmentRaw
       ? avoidEquipmentRaw
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
       : [];
     const requireEquipment = requireEquipmentRaw
       ? requireEquipmentRaw
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
       : [];
     const allowedPatternsRaw =
       typeof req.query?.allowedPatterns === "string" ? String(req.query.allowedPatterns) : "";
     const allowedPatterns = allowedPatternsRaw
       ? allowedPatternsRaw
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
       : null;
 
     if (!allowedPatterns) {
@@ -308,32 +308,32 @@ workoutGeneration.post(
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
     const data = req.body || {};
-    
+
     console.log(`💾 CHECK-IN for user ${uid}:`, data);
-    
+
     // Validation
     const validSleep = ["poor", "fair", "ok", "good", "excellent"];
     if (data.sleepQuality && !validSleep.includes(data.sleepQuality)) {
       throw new AppError(`sleepQuality must be one of: ${validSleep.join(", ")}`, 400);
     }
-    
+
     if (data.availableMinutes != null) {
       const av = Number(data.availableMinutes);
       if (!Number.isFinite(av) || av < 10 || av > 240) {
         throw new AppError("availableMinutes must be between 10 and 240", 400);
       }
     }
-    
+
     const validEnergy = ["low", "medium", "high"];
     if (data.energyLevel && !validEnergy.includes(data.energyLevel)) {
       throw new AppError(`energyLevel must be one of: ${validEnergy.join(", ")}`, 400);
     }
-    
+
     const validStress = ["low", "medium", "high", "very_high"];
     if (data.stressLevel && !validStress.includes(data.stressLevel)) {
       throw new AppError(`stressLevel must be one of: ${validStress.join(", ")}`, 400);
     }
-    
+
     // Validate pain (structured format)
     const PAIN_LOCATIONS = ["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"];
     let pain = null;
@@ -346,19 +346,19 @@ workoutGeneration.post(
         if (!p || typeof p !== "object") continue;
         const location = String(p.location || "").trim();
         const level = Number(p.level);
-        
+
         if (!PAIN_LOCATIONS.includes(location)) {
           throw new AppError(`Invalid pain location: ${location}. Must be one of: ${PAIN_LOCATIONS.join(", ")}`, 400);
         }
         if (!Number.isFinite(level) || level < 1 || level > 10) {
           throw new AppError("pain.level must be 1-10", 400);
         }
-        
+
         validatedPain.push({ location, level });
       }
       pain = validatedPain.length > 0 ? validatedPain : null;
     }
-    
+
     // Save to DB (упрощенная схема - только нужные поля)
     const result = await q(
       `INSERT INTO daily_check_ins (
@@ -390,9 +390,9 @@ workoutGeneration.post(
         data.availableMinutes ?? null,
       ]
     );
-    
+
     console.log(`✅ Check-in saved: ${result[0].id}`);
-    
+
     res.json({
       success: true,
       checkInId: result[0].id,
@@ -409,13 +409,13 @@ workoutGeneration.get(
   "/check-in/latest",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     const checkin = await getLatestCheckIn(uid);
-    
+
     if (!checkin) {
       return res.json({ checkIn: null });
     }
-    
+
     res.json({
       checkIn: checkin,
     });
@@ -431,29 +431,29 @@ workoutGeneration.post(
   "/generate",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     console.log(`🔄 /generate called for user ${uid} (legacy endpoint → deterministic system)`);
-    
+
     // Get user profile
     const userProfile = await buildUserProfile(uid);
-    
+
     // Get selected scheme
     const schemeRows = await q<{ scheme_id: string }>(
       `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
       [uid]
     );
-    
+
     if (!schemeRows.length) {
       throw new AppError("No scheme selected", 404);
     }
-    
+
     const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
     if (!scheme) {
       throw new AppError("Scheme not found", 404);
     }
-    
+
     console.log(`📋 Selected scheme: ${scheme.russianName} (${scheme.id})`);
-    
+
     // Get or create mesocycle
     let mesocycle = await getMesocycle(uid);
     if (!mesocycle || shouldStartNewMesocycle(mesocycle)) {
@@ -461,7 +461,7 @@ workoutGeneration.post(
       await saveMesocycle(uid, mesocycle);
       console.log(`🆕 Created new mesocycle: week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
-    
+
     // Check if we need to advance week
     const weekStart = await getCurrentWeekStart();
     const existingPlan = await getWeeklyPlan(uid, weekStart);
@@ -470,7 +470,7 @@ workoutGeneration.post(
       await saveMesocycle(uid, mesocycle);
       console.log(`⏩ Advanced to week ${mesocycle.currentWeek}/${mesocycle.totalWeeks}`);
     }
-    
+
     // Get history
     const history = await getWorkoutHistory(uid);
 
@@ -483,9 +483,9 @@ workoutGeneration.post(
       history,
       // НЕ передаём checkins - неделя генерируется как базовый план
     });
-    
+
     console.log(`✅ Generated week plan: ${weekPlan.length} days (meso week ${mesocycle.currentWeek})`);
-    
+
     // Save weekly plan
     console.log(`💾 Saving weekly plan to DB...`);
     await saveWeeklyPlan({
@@ -496,12 +496,12 @@ workoutGeneration.post(
       workouts: weekPlan,
     });
     console.log(`✅ Weekly plan saved`);
-    
+
     // Save all workouts to planned_workouts
     console.log(`💾 Saving ${weekPlan.length} workouts to planned_workouts...`);
     for (let i = 0; i < weekPlan.length; i++) {
       const workout = weekPlan[i];
-      
+
       const workoutData = {
         _origin: "generator",
         schemeId: scheme.id,
@@ -510,24 +510,27 @@ workoutGeneration.post(
         dayLabel: workout.dayLabel,
         dayFocus: workout.dayFocus,
         intent: workout.intent,
-	        exercises: workout.exercises.map(ex => ({
-	          exerciseId: ex.exercise.id,
-	          exerciseName: ex.exercise.name,
-	          pattern: ex.exercise.patterns?.[0] ?? null,
-	          sets: ex.sets,
-	          repsRange: ex.repsRange,
-	          restSec: ex.restSec,
-	          weight: ex.suggestedWeight ?? null,
-	          notes: ex.notes,
-	          targetMuscles: ex.exercise.primaryMuscles,
-	          loadType: (ex as any).loadType,
-	          requiresWeightInput: (ex as any).requiresWeightInput,
-	          weightLabel: (ex as any).weightLabel,
-	        })),
-	        totalExercises: workout.totalExercises,
-	        totalSets: workout.totalSets,
-	        estimatedDuration: workout.estimatedDuration,
-	        adaptationNotes: workout.adaptationNotes,
+        exercises: workout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          exerciseName: ex.exercise.name,
+          pattern: ex.exercise.patterns?.[0] ?? null,
+          sets: ex.sets,
+          repsRange: ex.repsRange,
+          restSec: ex.restSec,
+          weight: ex.suggestedWeight ?? null,
+          notes: ex.notes,
+          targetMuscles: ex.exercise.primaryMuscles,
+          loadType: (ex as any).loadType,
+          requiresWeightInput: (ex as any).requiresWeightInput,
+          weightLabel: (ex as any).weightLabel,
+          tagline: (ex.exercise as any).tagline ?? null,
+          technique: (ex.exercise as any).technique ?? null,
+          proTip: (ex.exercise as any).proTip ?? null,
+        })),
+        totalExercises: workout.totalExercises,
+        totalSets: workout.totalSets,
+        estimatedDuration: workout.estimatedDuration,
+        adaptationNotes: workout.adaptationNotes,
         warnings: workout.warnings,
       };
 
@@ -575,35 +578,37 @@ workoutGeneration.post(
           AND NOT EXISTS (SELECT 1 FROM keep_dates k WHERE k.d = pw.workout_date)`,
       [uid, weekPlan.length]
     );
-    
+
     // Return TODAY's workout (day 0) for compatibility with old frontend
     const todayWorkout = weekPlan[0];
-    
+
     console.log(`📤 Sending response to client...`);
-    
+
     // Format response for old frontend (WorkoutPlanResponse)
     return res.json({
       plan: {
         id: `week_${Date.now()}`,
         warmup: todayWorkout.warmup,
-	        exercises: todayWorkout.exercises.map(ex => ({
-	          exerciseId: ex.exercise.id,
-	          name: ex.exercise.name,
-	          sets: ex.sets,
-	          reps: ex.repsRange,
-	          restSec: ex.restSec,
-	          weight: ex.suggestedWeight ?? null,
-	          targetMuscles: ex.exercise.primaryMuscles,
-	          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
-	          // NEW: Detailed fields
-	          technique: ex.exercise.technique,
-	          equipment: ex.exercise.equipment,
-	          difficulty: ex.exercise.difficulty,
-	          unilateral: ex.exercise.unilateral,
-	          loadType: (ex as any).loadType,
-	          requiresWeightInput: (ex as any).requiresWeightInput,
-	          weightLabel: (ex as any).weightLabel,
-	        })),
+        exercises: todayWorkout.exercises.map(ex => ({
+          exerciseId: ex.exercise.id,
+          name: ex.exercise.name,
+          sets: ex.sets,
+          reps: ex.repsRange,
+          restSec: ex.restSec,
+          weight: ex.suggestedWeight ?? null,
+          targetMuscles: ex.exercise.primaryMuscles,
+          cues: [ex.progressionNote, ex.notes].filter(Boolean).join(" • "),
+          // NEW: Detailed fields
+          tagline: (ex.exercise as any).tagline ?? null,
+          technique: ex.exercise.technique,
+          proTip: (ex.exercise as any).proTip ?? null,
+          equipment: ex.exercise.equipment,
+          difficulty: ex.exercise.difficulty,
+          unilateral: ex.exercise.unilateral,
+          loadType: (ex as any).loadType,
+          requiresWeightInput: (ex as any).requiresWeightInput,
+          weightLabel: (ex as any).weightLabel,
+        })),
         cooldown: todayWorkout.cooldown,
         dayLabel: todayWorkout.dayLabel,
         focus: todayWorkout.dayFocus,
@@ -652,9 +657,9 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
      LIMIT 5`,
     [uid]
   );
-  
+
   const recentExerciseIds: string[] = [];
-  
+
   for (const row of rows) {
     if (Array.isArray(row.exercises)) {
       for (const ex of row.exercises) {
@@ -667,7 +672,7 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
       }
     }
   }
-  
+
   return {
     recentExerciseIds: recentExerciseIds.slice(0, 20), // Last 20 exercises
   };
@@ -678,7 +683,7 @@ async function getWorkoutHistory(uid: string): Promise<WorkoutHistory> {
 // ============================================================================
 
 async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
-  const rows = await q<{ 
+  const rows = await q<{
     energy_level: "low" | "medium" | "high" | null,
     sleep_quality: "poor" | "fair" | "ok" | "good" | "excellent" | null,
     stress_level: "low" | "medium" | "high" | "very_high" | null,
@@ -692,20 +697,20 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
      LIMIT 1`,
     [uid]
   );
-  
+
   if (!rows.length) {
     return undefined;
   }
-  
+
   const row = rows[0];
-  
+
   // Parse pain from JSONB to PainEntry[] с валидацией
   const PAIN_LOCATIONS = new Set(["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"]);
   const painArray: import("./workoutDayGenerator.js").PainEntry[] = [];
-  
+
   if (row.pain) {
     let painData = row.pain;
-    
+
     // Если пришло как строка JSON, парсим
     if (typeof painData === 'string') {
       try {
@@ -714,32 +719,32 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
         painData = [];
       }
     }
-    
+
     if (Array.isArray(painData)) {
       for (const p of painData) {
         if (!p || typeof p !== 'object') continue;
-        
+
         const location = String(p.location || '');
         const lvl = Number(p.level);
-        
+
         // Валидация: только известные локации и корректный level
         if (!PAIN_LOCATIONS.has(location)) continue;
         if (!Number.isFinite(lvl)) continue;
-        
+
         // Клампинг 1-10
         const level = Math.max(1, Math.min(10, Math.round(lvl)));
-        
+
         painArray.push({ location, level });
       }
     }
   }
-  
+
   // Map sleep_quality (5 вариантов) напрямую
   const sleep = row.sleep_quality || "ok";
-  
+
   // Нормализация stress
   const stress = mapStress(row.stress_level);
-  
+
   return {
     energy: row.energy_level ?? "medium",
     sleep,
@@ -759,7 +764,7 @@ function mapStress(v: any): "high" | "medium" | "low" | "very_high" {
 // Helper: маппер CheckInPayload (из фронта) → CheckInData (для генератора)
 function mapPayloadToCheckInData(payload: any): CheckInData | undefined {
   if (!payload) return undefined;
-  
+
   const rawSleep = payload.sleepQuality ?? payload.sleep;
   const rawEnergy = payload.energyLevel ?? payload.energy;
   const rawStress = payload.stressLevel ?? payload.stress;
@@ -819,42 +824,42 @@ workoutGeneration.post(
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
     const { dayIndex } = req.body; // 0-based index
-    
+
     if (typeof dayIndex !== "number" || dayIndex < 0) {
       throw new AppError("Invalid dayIndex. Must be a non-negative number.", 400);
     }
-    
+
     console.log(`🏋️ Generating workout for user ${uid}, day ${dayIndex}`);
-    
+
     // Get user profile
     const userProfile = await buildUserProfile(uid);
-    
+
     // Get selected scheme
     const schemeRows = await q<{ scheme_id: string }>(
       `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
       [uid]
     );
-    
+
     const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
     if (!scheme) {
       throw new AppError("Scheme not found", 404);
     }
-    
+
     // Validate dayIndex
     if (dayIndex >= scheme.daysPerWeek) {
       throw new AppError(`Invalid dayIndex ${dayIndex}. Scheme has ${scheme.daysPerWeek} days.`, 400);
     }
-    
+
     // Get check-in
     const checkin = await getLatestCheckIn(uid);
-    
+
     // Get history
     const history = await getWorkoutHistory(uid);
-    
+
     console.log(`   User profile:`, userProfile);
     console.log(`   Check-in:`, checkin || 'none');
     console.log(`   History: ${history.recentExerciseIds.length} recent exercises`);
-    
+
     // Generate workout
     const { computeReadiness } = await import("./readiness.js");
     const readiness = computeReadiness({
@@ -869,9 +874,9 @@ workoutGeneration.post(
       readiness,
       history,
     });
-    
+
     console.log(`✅ Generated workout: ${workout.totalExercises} exercises, ${workout.totalSets} sets`);
-    
+
     // Save to database
     const workoutData = {
       schemeId: scheme.id,
@@ -880,20 +885,23 @@ workoutGeneration.post(
       dayLabel: workout.dayLabel,
       dayFocus: workout.dayFocus,
       intent: workout.intent,
-	        exercises: workout.exercises.map(ex => ({
-	          exerciseId: ex.exercise.id,
-	          exerciseName: ex.exercise.name,
-	          pattern: ex.exercise.patterns?.[0] ?? null,
-	          sets: ex.sets,
-	          repsRange: ex.repsRange,
-	          restSec: ex.restSec,
-	          weight: ex.suggestedWeight ?? null,
-	          notes: ex.notes,
-	          targetMuscles: ex.exercise.primaryMuscles,
-	          loadType: (ex as any).loadType,
-	          requiresWeightInput: (ex as any).requiresWeightInput,
-	          weightLabel: (ex as any).weightLabel,
-	        })),
+      exercises: workout.exercises.map(ex => ({
+        exerciseId: ex.exercise.id,
+        exerciseName: ex.exercise.name,
+        pattern: ex.exercise.patterns?.[0] ?? null,
+        sets: ex.sets,
+        repsRange: ex.repsRange,
+        restSec: ex.restSec,
+        weight: ex.suggestedWeight ?? null,
+        notes: ex.notes,
+        targetMuscles: ex.exercise.primaryMuscles,
+        loadType: (ex as any).loadType,
+        requiresWeightInput: (ex as any).requiresWeightInput,
+        weightLabel: (ex as any).weightLabel,
+        tagline: (ex.exercise as any).tagline ?? null,
+        technique: (ex.exercise as any).technique ?? null,
+        proTip: (ex.exercise as any).proTip ?? null,
+      })),
       totalExercises: workout.totalExercises,
       totalSets: workout.totalSets,
       estimatedDuration: workout.estimatedDuration,
@@ -913,7 +921,7 @@ workoutGeneration.post(
          updated_at = now()`,
       [uid, workoutData]
     );
-    
+
     res.json({
       ok: true,
       workout: workoutData,
@@ -929,25 +937,25 @@ workoutGeneration.post(
   "/workout/generate-week",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     console.log(`\n🗓️  [GENERATE WEEK] ===================================`);
     console.log(`   User: ${uid}`);
-    
+
     // Get user profile
     const userProfile = await buildUserProfile(uid);
     console.log(`   Profile: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w | ${userProfile.timeBucket}min`);
-    
+
     // Get selected scheme
     const schemeRows = await q<{ scheme_id: string }>(
       `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
       [uid]
     );
-    
+
     const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
     if (!scheme) {
       throw new AppError("Scheme not found", 404);
     }
-    
+
     // Get history
     const history = await getWorkoutHistory(uid);
 
@@ -982,13 +990,13 @@ workoutGeneration.post(
       mesocycle, // НОВОЕ: передаём мезоцикл
       history,
     });
-    
+
     console.log(`   ✅ Generated ${weekPlan.length} workouts:`);
     weekPlan.forEach((w, i) => {
       console.log(`      Day ${i + 1}: ${w.dayLabel} (${w.totalExercises} ex, ${w.totalSets} sets, ${w.estimatedDuration}min, intent: ${w.intent})`);
     });
     console.log("=====================================================\n");
-    
+
     // НОВОЕ: Save weekly plan
     await saveWeeklyPlan({
       userId: uid,
@@ -997,11 +1005,11 @@ workoutGeneration.post(
       schemeId: scheme.id,
       workouts: weekPlan,
     });
-    
+
     // Save all workouts
     for (let i = 0; i < weekPlan.length; i++) {
       const workout = weekPlan[i];
-      
+
       const workoutData = {
         _origin: "generator",
         schemeId: scheme.id,
@@ -1026,7 +1034,7 @@ workoutGeneration.post(
         adaptationNotes: workout.adaptationNotes,
         warnings: workout.warnings,
       };
-      
+
       // Use different dates for each workout
       await q(
         `INSERT INTO planned_workouts 
@@ -1068,7 +1076,7 @@ workoutGeneration.post(
           AND NOT EXISTS (SELECT 1 FROM keep_dates k WHERE k.d = pw.workout_date)`,
       [uid, weekPlan.length]
     );
-    
+
     res.json({
       ok: true,
       weekPlan: weekPlan.map((w, i) => ({
@@ -1090,23 +1098,23 @@ workoutGeneration.get(
   "/workout/week",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     const weekStart = await getCurrentWeekStart();
     let existingPlan = await getWeeklyPlan(uid, weekStart);
-    
+
     if (existingPlan) {
       return res.json({ success: true, weekPlan: existingPlan.workouts, mesoWeek: existingPlan.mesoWeek, cached: true });
     }
-    
+
     const userProfile = await buildUserProfile(uid);
     const schemeRows = await q<{ scheme_id: string }>(
       `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
       [uid]
     );
-    
+
     const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
     if (!scheme) throw new AppError("Scheme not found", 404);
-    
+
     let mesocycle = await getMesocycle(uid);
     if (!mesocycle || shouldStartNewMesocycle(mesocycle)) {
       mesocycle = createMesocycle({ userId: uid, goal: userProfile.goal });
@@ -1116,14 +1124,14 @@ workoutGeneration.get(
     const history = await getWorkoutHistory(uid);
 
     // НОВОЕ: Generate week plan БЕЗ чек-ина (базовая структура недели)
-    const weekPlan = await generateWeekPlan({ 
-      scheme, 
-      userProfile, 
-      mesocycle, 
+    const weekPlan = await generateWeekPlan({
+      scheme,
+      userProfile,
+      mesocycle,
       history,
       // НЕ передаём checkins - неделя генерируется как базовый план
     });
-    
+
     await saveWeeklyPlan({
       userId: uid,
       weekStartDate: weekStart,
@@ -1131,7 +1139,7 @@ workoutGeneration.get(
       schemeId: scheme.id,
       workouts: weekPlan,
     });
-    
+
     return res.json({ success: true, weekPlan, mesoWeek: mesocycle.currentWeek, cached: false });
   })
 );
@@ -1146,355 +1154,540 @@ workoutGeneration.post(
     const uid = getUid(req);
     const { date, checkin: checkinFromBody, plannedWorkoutId: plannedWorkoutIdRaw, commit: commitRaw } = req.body;
     const commit = commitRaw !== false;
-    
+
     const workoutDate = date || new Date().toISOString().split('T')[0];
     const plannedWorkoutId = isUUID(plannedWorkoutIdRaw) ? String(plannedWorkoutIdRaw) : null;
-    
+
     console.log(`\n🏁 [START WORKOUT] ===================================`);
     console.log(`   User: ${uid} | Date: ${workoutDate}`);
     console.log(`   Mode: ${commit ? "commit" : "preview"}`);
     if (plannedWorkoutId) console.log(`   PlannedWorkoutId: ${plannedWorkoutId}`);
-    
+
     // Wrap entire read-modify-write in a transaction to prevent race conditions
     const txResult = await withTransaction(async () => {
 
-    // 1. Get base planned workout for this date (with row lock to prevent race conditions)
-    const plannedRows = await q<{
-      id: string,
-      data: any,
-      plan: any,
-      base_plan: any,
-      status: string,
-      workout_date: string,
-    }>(
-      plannedWorkoutId
-        ? `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
+      // 1. Get base planned workout for this date (with row lock to prevent race conditions)
+      const plannedRows = await q<{
+        id: string,
+        data: any,
+        plan: any,
+        base_plan: any,
+        status: string,
+        workout_date: string,
+      }>(
+        plannedWorkoutId
+          ? `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND id = $2::uuid
            LIMIT 1
            ${commit ? "FOR UPDATE" : ""}`
-        : `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
+          : `SELECT id, data, plan, base_plan, status, workout_date FROM planned_workouts
            WHERE user_id = $1 AND workout_date = $2
            ORDER BY scheduled_for DESC NULLS LAST, updated_at DESC NULLS LAST
            LIMIT 1
            ${commit ? "FOR UPDATE" : ""}`,
-      plannedWorkoutId ? [uid, plannedWorkoutId] : [uid, workoutDate]
-    );
-    
-    if (!plannedRows.length) {
-      throw new AppError("No planned workout found for this date. Please generate a week plan first.", 404);
-    }
-    
-    const row = plannedRows[0];
-    const rowId = row.id; // конкретный id записи — используем для UPDATE вместо workout_date
-    const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
-    const planBeforeStart = (row.plan ?? row.data ?? basePlan) as any;
-    const originalDayIndex = basePlan.dayIndex;
-    const effectiveWorkoutDate =
-      typeof row.workout_date === "string" && row.workout_date ? row.workout_date : workoutDate;
-
-    if (plannedWorkoutId && workoutDate !== effectiveWorkoutDate) {
-      console.warn(
-        `[START WORKOUT] date mismatch for plannedWorkoutId=${plannedWorkoutId}: request=${workoutDate}, db=${effectiveWorkoutDate}; using db date`
+        plannedWorkoutId ? [uid, plannedWorkoutId] : [uid, workoutDate]
       );
-    }
-    
-    console.log(`   Base plan: Day ${originalDayIndex} - ${basePlan.dayLabel}`);
-    
-    // 2. Get or use check-in
-    let checkin: CheckInData | undefined;
-    if (checkinFromBody) {
-      // Map frontend payload to CheckInData format
-      checkin = mapPayloadToCheckInData(checkinFromBody);
-      console.log(`   Check-in: from request`);
-    } else {
-      // Get latest check-in from DB
-      checkin = await getLatestCheckIn(uid);
-      console.log(`   Check-in: from DB`);
-    }
-    
-    // 3. Get user profile and scheme
-    const userProfile = await buildUserProfile(uid);
-    const schemeRows = await q<{ scheme_id: string }>(
-      `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
-      [uid]
-    );
-    const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
-    if (!scheme) {
-      throw new AppError("Scheme not found", 404);
-    }
-    
-    // 4. ВАЖНО: Вычисляем readiness ОДИН РАЗ (используется и в policy, и в generator)
-    const { computeReadiness } = await import("./readiness.js");
-    const readiness = computeReadiness({
-      checkin,
-      fallbackTimeBucket: userProfile.timeBucket,
-    });
-    
-    // 5. Decide action using policy
-    const { decideStartAction } = await import("./checkinPolicy.js");
-    const decision = decideStartAction({
-      scheme,
-      dayIndex: originalDayIndex,
-      readiness,
-    });
-    
-    console.log(`   📋 Decision: ${decision.action}`);
-    
-    // 6. Handle decision
-    if (decision.action === "skip") {
-      // Skip workout - return recovery info
-      console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
-      console.log("=====================================================\n");
-      const summaryChangeNotes = mergeUniqueNotes(decision.notes || []);
-      const summaryWarnings = mergeUniqueNotes(readiness.warnings || []);
-      const summaryInfoNotes: string[] = [];
-      const summaryDiff = computeWorkoutSummaryDiff({
-        beforePlan: planBeforeStart,
-        afterPlan: planBeforeStart,
+
+      if (!plannedRows.length) {
+        throw new AppError("No planned workout found for this date. Please generate a week plan first.", 404);
+      }
+
+      const row = plannedRows[0];
+      const rowId = row.id; // конкретный id записи — используем для UPDATE вместо workout_date
+      const basePlan = (row.base_plan ?? row.plan ?? row.data) as any;
+      const planBeforeStart = (row.plan ?? row.data ?? basePlan) as any;
+      const originalDayIndex = basePlan.dayIndex;
+      const effectiveWorkoutDate =
+        typeof row.workout_date === "string" && row.workout_date ? row.workout_date : workoutDate;
+
+      if (plannedWorkoutId && workoutDate !== effectiveWorkoutDate) {
+        console.warn(
+          `[START WORKOUT] date mismatch for plannedWorkoutId=${plannedWorkoutId}: request=${workoutDate}, db=${effectiveWorkoutDate}; using db date`
+        );
+      }
+
+      console.log(`   Base plan: Day ${originalDayIndex} - ${basePlan.dayLabel}`);
+
+      // 2. Get or use check-in
+      let checkin: CheckInData | undefined;
+      if (checkinFromBody) {
+        // Map frontend payload to CheckInData format
+        checkin = mapPayloadToCheckInData(checkinFromBody);
+        console.log(`   Check-in: from request`);
+      } else {
+        // Get latest check-in from DB
+        checkin = await getLatestCheckIn(uid);
+        console.log(`   Check-in: from DB`);
+      }
+
+      // 3. Get user profile and scheme
+      const userProfile = await buildUserProfile(uid);
+      const schemeRows = await q<{ scheme_id: string }>(
+        `SELECT scheme_id FROM user_workout_schemes WHERE user_id = $1`,
+        [uid]
+      );
+      const scheme = NORMALIZED_SCHEMES.find(s => s.id === schemeRows[0].scheme_id);
+      if (!scheme) {
+        throw new AppError("Scheme not found", 404);
+      }
+
+      // 4. ВАЖНО: Вычисляем readiness ОДИН РАЗ (используется и в policy, и в generator)
+      const { computeReadiness } = await import("./readiness.js");
+      const readiness = computeReadiness({
+        checkin,
         fallbackTimeBucket: userProfile.timeBucket,
       });
-      const summary = buildSummaryPayload({
-        action: "skip",
-        severity: readiness.severity as SummarySeverity,
-        changeNotes: summaryChangeNotes,
-        infoNotes: summaryInfoNotes,
-        warnings: summaryWarnings,
-        diff: summaryDiff,
-        checkin,
+
+      // 5. Decide action using policy
+      const { decideStartAction } = await import("./checkinPolicy.js");
+      const decision = decideStartAction({
+        scheme,
+        dayIndex: originalDayIndex,
         readiness,
-        onboardingMinutes: userProfile.timeBucket,
-        beforePlan: planBeforeStart,
-        afterPlan: planBeforeStart,
       });
-      return {
-        action: "skip" as const,
-        notes: summaryChangeNotes.length > 0 ? summaryChangeNotes : undefined,
-        summary,
-        originalDay: basePlan.dayLabel,
-      };
-    }
-    
-	    if (decision.action === "recovery") {
-      console.log(`   🧘 RECOVERY: Replacing ${basePlan.dayLabel}`);
-      // Generate recovery session
-	      const { generateRecoverySession } = await import("./workoutDayGenerator.js");
-	      const painAreas = checkin?.pain?.map(p => p.location) || [];
-	      const recoveryWorkout = generateRecoverySession({
-	        userProfile,
-	        painAreas,
-	        availableMinutes: readiness.effectiveMinutes ?? 30,
+
+      console.log(`   📋 Decision: ${decision.action}`);
+
+      // 6. Handle decision
+      if (decision.action === "skip") {
+        // Skip workout - return recovery info
+        console.log(`   ❌ SKIP: ${basePlan.dayLabel}`);
+        console.log("=====================================================\n");
+        const summaryChangeNotes = mergeUniqueNotes(decision.notes || []);
+        const summaryWarnings = mergeUniqueNotes(readiness.warnings || []);
+        const summaryInfoNotes: string[] = [];
+        const summaryDiff = computeWorkoutSummaryDiff({
+          beforePlan: planBeforeStart,
+          afterPlan: planBeforeStart,
+          fallbackTimeBucket: userProfile.timeBucket,
+        });
+        const summary = buildSummaryPayload({
+          action: "skip",
+          severity: readiness.severity as SummarySeverity,
+          changeNotes: summaryChangeNotes,
+          infoNotes: summaryInfoNotes,
+          warnings: summaryWarnings,
+          diff: summaryDiff,
+          checkin,
+          readiness,
+          onboardingMinutes: userProfile.timeBucket,
+          beforePlan: planBeforeStart,
+          afterPlan: planBeforeStart,
+        });
+        return {
+          action: "skip" as const,
+          notes: summaryChangeNotes.length > 0 ? summaryChangeNotes : undefined,
+          summary,
+          originalDay: basePlan.dayLabel,
+        };
+      }
+
+      if (decision.action === "recovery") {
+        console.log(`   🧘 RECOVERY: Replacing ${basePlan.dayLabel}`);
+        // Generate recovery session
+        const { generateRecoverySession } = await import("./workoutDayGenerator.js");
+        const painAreas = checkin?.pain?.map(p => p.location) || [];
+        const recoveryWorkout = generateRecoverySession({
+          userProfile,
+          painAreas,
+          availableMinutes: readiness.effectiveMinutes ?? 30,
           blockedPatterns: readiness.blockedPatterns,
           avoidFlags: readiness.avoidFlags,
-	      });
-      
-      // Convert to workout format
-      const workoutData = {
-        schemeId: "recovery",
-        schemeName: "Восстановительная сессия",
-        dayIndex: 0,
-        dayLabel: "Recovery",
-        dayFocus: "Мобильность и растяжка",
-        intent: "light",
-	        exercises: recoveryWorkout.exercises.map(ex => ({
-	          exerciseId: ex.exercise.id,
-	          exerciseName: ex.exercise.name,
-	          pattern: ex.exercise.patterns?.[0] ?? null,
-	          sets: ex.sets,
-	          repsRange: ex.repsRange,
-	          restSec: ex.restSec,
-	          notes: ex.notes,
-	          targetMuscles: ex.exercise.primaryMuscles,
-	          loadType: (ex as any).loadType,
-	          requiresWeightInput: (ex as any).requiresWeightInput,
-	          weightLabel: (ex as any).weightLabel,
-	        })),
-        totalExercises: recoveryWorkout.totalExercises,
-        totalSets: recoveryWorkout.totalSets,
-        estimatedDuration: recoveryWorkout.estimatedDuration,
-        adaptationNotes: recoveryWorkout.adaptationNotes,
-        warnings: recoveryWorkout.warnings,
-        meta: {
-          adaptedAt: new Date().toISOString(),
-          originalDayIndex,
-          action: "recovery",
-          checkinApplied: !!checkin,
-        },
-      };
-      
-      if (commit) {
-        // Save recovery workout to DB
-        await q(
-          `UPDATE planned_workouts
+        });
+
+        // Convert to workout format
+        const workoutData = {
+          schemeId: "recovery",
+          schemeName: "Восстановительная сессия",
+          dayIndex: 0,
+          dayLabel: "Recovery",
+          dayFocus: "Мобильность и растяжка",
+          intent: "light",
+          exercises: recoveryWorkout.exercises.map(ex => ({
+            exerciseId: ex.exercise.id,
+            exerciseName: ex.exercise.name,
+            pattern: ex.exercise.patterns?.[0] ?? null,
+            sets: ex.sets,
+            repsRange: ex.repsRange,
+            restSec: ex.restSec,
+            notes: ex.notes,
+            targetMuscles: ex.exercise.primaryMuscles,
+            loadType: (ex as any).loadType,
+            requiresWeightInput: (ex as any).requiresWeightInput,
+            weightLabel: (ex as any).weightLabel,
+          })),
+          totalExercises: recoveryWorkout.totalExercises,
+          totalSets: recoveryWorkout.totalSets,
+          estimatedDuration: recoveryWorkout.estimatedDuration,
+          adaptationNotes: recoveryWorkout.adaptationNotes,
+          warnings: recoveryWorkout.warnings,
+          meta: {
+            adaptedAt: new Date().toISOString(),
+            originalDayIndex,
+            action: "recovery",
+            checkinApplied: !!checkin,
+          },
+        };
+
+        if (commit) {
+          // Save recovery workout to DB
+          await q(
+            `UPDATE planned_workouts
            SET base_plan = COALESCE(base_plan, plan),
                data = $2::jsonb,
                plan = $2::jsonb,
                updated_at = NOW()
            WHERE user_id = $1 AND id = $3::uuid`,
-          [uid, workoutData, rowId]
+            [uid, workoutData, rowId]
+          );
+          console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+        } else {
+          console.log(`   👀 Preview recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+        }
+        console.log("=====================================================\n");
+        const summaryChangeNotes = mergeUniqueNotes(
+          decision.notes || [],
+          (recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || []
         );
-        console.log(`   ✅ Saved recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
-      } else {
-        console.log(`   👀 Preview recovery session (${recoveryWorkout.totalExercises} ex, ${recoveryWorkout.estimatedDuration}min)`);
+        const summaryInfoNotes = mergeUniqueNotes((recoveryWorkout as any)?.infoNotes || []);
+        const summaryWarnings = mergeUniqueNotes((recoveryWorkout as any)?.warnings || [], readiness.warnings || []);
+        const summaryDiff = computeWorkoutSummaryDiff({
+          beforePlan: planBeforeStart,
+          afterPlan: workoutData,
+          fallbackTimeBucket: userProfile.timeBucket,
+        });
+        const summary = buildSummaryPayload({
+          action: "recovery",
+          severity: readiness.severity as SummarySeverity,
+          changeMeta: (recoveryWorkout as any)?.changeMeta || {},
+          changeNotes: summaryChangeNotes,
+          infoNotes: summaryInfoNotes,
+          warnings: summaryWarnings,
+          diff: summaryDiff,
+          checkin,
+          readiness,
+          onboardingMinutes: userProfile.timeBucket,
+          beforePlan: planBeforeStart,
+          afterPlan: workoutData,
+        });
+        const responseNotes = mergeUniqueNotes(
+          decision.notes || [],
+          (recoveryWorkout as any)?.adaptationNotes || [],
+          (recoveryWorkout as any)?.changeNotes || []
+        );
+        return {
+          action: "recovery" as const,
+          notes: responseNotes.length > 0 ? responseNotes : undefined,
+          summary,
+          workout: workoutData,
+        };
       }
-      console.log("=====================================================\n");
-      const summaryChangeNotes = mergeUniqueNotes(
-        decision.notes || [],
-        (recoveryWorkout as any)?.changeNotes || (recoveryWorkout as any)?.adaptationNotes || []
-      );
-      const summaryInfoNotes = mergeUniqueNotes((recoveryWorkout as any)?.infoNotes || []);
-      const summaryWarnings = mergeUniqueNotes((recoveryWorkout as any)?.warnings || [], readiness.warnings || []);
-      const summaryDiff = computeWorkoutSummaryDiff({
-        beforePlan: planBeforeStart,
-        afterPlan: workoutData,
-        fallbackTimeBucket: userProfile.timeBucket,
-      });
-      const summary = buildSummaryPayload({
-        action: "recovery",
-        severity: readiness.severity as SummarySeverity,
-        changeMeta: (recoveryWorkout as any)?.changeMeta || {},
-        changeNotes: summaryChangeNotes,
-        infoNotes: summaryInfoNotes,
-        warnings: summaryWarnings,
-        diff: summaryDiff,
-        checkin,
-        readiness,
-        onboardingMinutes: userProfile.timeBucket,
-        beforePlan: planBeforeStart,
-        afterPlan: workoutData,
-      });
-      const responseNotes = mergeUniqueNotes(
-        decision.notes || [],
-        (recoveryWorkout as any)?.adaptationNotes || [],
-        (recoveryWorkout as any)?.changeNotes || []
-      );
-      return {
-        action: "recovery" as const,
-        notes: responseNotes.length > 0 ? responseNotes : undefined,
-        summary,
-        workout: workoutData,
-      };
-    }
-    
-    let finalDayIndex = originalDayIndex;
-    let swapInfo = null;
-    let workoutData: any;
-    
-		    // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
-		    if (decision.action === "keep_day") {
-		      const availableMinutes = readiness.effectiveMinutes;
-          const baseWasCheckinApplied = Boolean(basePlan?.meta?.checkinApplied);
-		      const estimateBasePlanMinutes = (plan: any): number | null => {
-            const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(userProfile.timeBucket);
-            const fromExercises = estimateTotalMinutesFromStoredPlanExercises(plan?.exercises, { warmupMin, cooldownMin });
-            if (typeof fromExercises === "number" && Number.isFinite(fromExercises) && fromExercises > 0) return fromExercises;
-            const totalSetsRaw = Number(plan?.totalSets);
-            if (Number.isFinite(totalSetsRaw) && totalSetsRaw > 0) return Math.ceil(totalSetsRaw * 3.25) + warmupMin + cooldownMin;
-            const totalExRaw = Number(plan?.totalExercises);
-            if (Number.isFinite(totalExRaw) && totalExRaw > 0) return Math.ceil(totalExRaw * 9.0) + warmupMin + cooldownMin;
-            return null;
-	      };
 
-		      const estimatedRaw = Number(basePlan?.estimatedDuration);
-          const computedEstimated = estimateBasePlanMinutes(basePlan);
-		      const baseEstimated =
-            typeof computedEstimated === "number" && Number.isFinite(computedEstimated) && computedEstimated > 0
-              ? computedEstimated
-              : Number.isFinite(estimatedRaw) && estimatedRaw > 0
+      let finalDayIndex = originalDayIndex;
+      let swapInfo = null;
+      let workoutData: any;
+
+      // 7. ВАЖНО: При "keep_day" используем сохранённые упражнения из БД!
+      if (decision.action === "keep_day") {
+        const availableMinutes = readiness.effectiveMinutes;
+        const baseWasCheckinApplied = Boolean(basePlan?.meta?.checkinApplied);
+        const estimateBasePlanMinutes = (plan: any): number | null => {
+          const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(userProfile.timeBucket);
+          const fromExercises = estimateTotalMinutesFromStoredPlanExercises(plan?.exercises, { warmupMin, cooldownMin });
+          if (typeof fromExercises === "number" && Number.isFinite(fromExercises) && fromExercises > 0) return fromExercises;
+          const totalSetsRaw = Number(plan?.totalSets);
+          if (Number.isFinite(totalSetsRaw) && totalSetsRaw > 0) return Math.ceil(totalSetsRaw * 3.25) + warmupMin + cooldownMin;
+          const totalExRaw = Number(plan?.totalExercises);
+          if (Number.isFinite(totalExRaw) && totalExRaw > 0) return Math.ceil(totalExRaw * 9.0) + warmupMin + cooldownMin;
+          return null;
+        };
+
+        const estimatedRaw = Number(basePlan?.estimatedDuration);
+        const computedEstimated = estimateBasePlanMinutes(basePlan);
+        const baseEstimated =
+          typeof computedEstimated === "number" && Number.isFinite(computedEstimated) && computedEstimated > 0
+            ? computedEstimated
+            : Number.isFinite(estimatedRaw) && estimatedRaw > 0
               ? estimatedRaw
               : null;
 
-		      const bufferMin =
-		        typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
-		          ? Math.ceil(availableMinutes * 0.08)
-		          : 0;
+        const bufferMin =
+          typeof availableMinutes === "number" && Number.isFinite(availableMinutes)
+            ? Math.ceil(availableMinutes * 0.08)
+            : 0;
 
-		      const shouldAdaptForTime =
-		        typeof availableMinutes === "number" &&
-		        Number.isFinite(availableMinutes) &&
-		        typeof baseEstimated === "number" &&
-		        Number.isFinite(baseEstimated) &&
-		        baseEstimated > availableMinutes + bufferMin;
+        const shouldAdaptForTime =
+          typeof availableMinutes === "number" &&
+          Number.isFinite(availableMinutes) &&
+          typeof baseEstimated === "number" &&
+          Number.isFinite(baseEstimated) &&
+          baseEstimated > availableMinutes + bufferMin;
 
-          // If this workout was previously adapted for shorter time (check-in applied),
-          // allow re-generation when the user now has significantly MORE time.
-          const shouldAdaptForMoreTime =
-            baseWasCheckinApplied &&
-            typeof availableMinutes === "number" &&
-            Number.isFinite(availableMinutes) &&
-            typeof baseEstimated === "number" &&
-            Number.isFinite(baseEstimated) &&
-            availableMinutes >= 60 &&
-            baseEstimated + 15 < availableMinutes;
+        // If this workout was previously adapted for shorter time (check-in applied),
+        // allow re-generation when the user now has significantly MORE time.
+        const shouldAdaptForMoreTime =
+          baseWasCheckinApplied &&
+          typeof availableMinutes === "number" &&
+          Number.isFinite(availableMinutes) &&
+          typeof baseEstimated === "number" &&
+          Number.isFinite(baseEstimated) &&
+          availableMinutes >= 60 &&
+          baseEstimated + 15 < availableMinutes;
 
-		      const baseIntent = typeof basePlan?.intent === "string" ? String(basePlan.intent) : null;
-		      const shouldAdaptForIntent = baseIntent !== null && baseIntent !== readiness.intent;
+        const baseIntent = typeof basePlan?.intent === "string" ? String(basePlan.intent) : null;
+        const shouldAdaptForIntent = baseIntent !== null && baseIntent !== readiness.intent;
 
-		      const blockedSet =
-		        Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0
-		          ? new Set(readiness.blockedPatterns.map((p) => String(p).toLowerCase().trim()))
-		          : null;
-		      const avoidSet =
-		        Array.isArray(readiness.avoidFlags) && readiness.avoidFlags.length > 0
-		          ? new Set(readiness.avoidFlags.map((f) => String(f)))
-		          : null;
-		      const baseExercises = Array.isArray(basePlan?.exercises) ? basePlan.exercises : [];
-		      const hasBlockedExercises =
-		        blockedSet !== null &&
-		        baseExercises.some((ex: any) => {
-		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
-		          if (typeof id !== "string") return false;
-		          const lib = EXERCISE_BY_ID.get(id);
-		          if (!lib) return false;
-		          return Array.isArray((lib as any).patterns)
-		            ? (lib as any).patterns.some((pat: any) => blockedSet.has(String(pat).toLowerCase()))
-		            : false;
-		        });
-		      const hasAvoidFlagExercises =
-		        avoidSet !== null &&
-		        baseExercises.some((ex: any) => {
-		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
-		          if (typeof id !== "string") return false;
-		          const lib = EXERCISE_BY_ID.get(id);
-		          if (!lib) return false;
-		          const flags = Array.isArray((lib as any).jointFlags) ? (lib as any).jointFlags : [];
-		          return flags.some((flag: any) => avoidSet.has(String(flag)));
-		        });
+        const blockedSet =
+          Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0
+            ? new Set(readiness.blockedPatterns.map((p) => String(p).toLowerCase().trim()))
+            : null;
+        const avoidSet =
+          Array.isArray(readiness.avoidFlags) && readiness.avoidFlags.length > 0
+            ? new Set(readiness.avoidFlags.map((f) => String(f)))
+            : null;
+        const baseExercises = Array.isArray(basePlan?.exercises) ? basePlan.exercises : [];
+        const hasBlockedExercises =
+          blockedSet !== null &&
+          baseExercises.some((ex: any) => {
+            const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+            if (typeof id !== "string") return false;
+            const lib = EXERCISE_BY_ID.get(id);
+            if (!lib) return false;
+            return Array.isArray((lib as any).patterns)
+              ? (lib as any).patterns.some((pat: any) => blockedSet.has(String(pat).toLowerCase()))
+              : false;
+          });
+        const hasAvoidFlagExercises =
+          avoidSet !== null &&
+          baseExercises.some((ex: any) => {
+            const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+            if (typeof id !== "string") return false;
+            const lib = EXERCISE_BY_ID.get(id);
+            if (!lib) return false;
+            const flags = Array.isArray((lib as any).jointFlags) ? (lib as any).jointFlags : [];
+            return flags.some((flag: any) => avoidSet.has(String(flag)));
+          });
 
-		      const hasCoreExercisesWhenOptional =
-		        readiness.corePolicy === "optional" &&
-		        baseExercises.some((ex: any) => {
-		          const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
-		          if (typeof id !== "string") return false;
-		          const lib = EXERCISE_BY_ID.get(id);
-		          if (!lib) return false;
-		          return Array.isArray((lib as any).patterns)
-		            ? (lib as any).patterns.some((pat: any) => String(pat).toLowerCase() === "core")
-		            : false;
-		        });
+        const hasCoreExercisesWhenOptional =
+          readiness.corePolicy === "optional" &&
+          baseExercises.some((ex: any) => {
+            const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+            if (typeof id !== "string") return false;
+            const lib = EXERCISE_BY_ID.get(id);
+            if (!lib) return false;
+            return Array.isArray((lib as any).patterns)
+              ? (lib as any).patterns.some((pat: any) => String(pat).toLowerCase() === "core")
+              : false;
+          });
 
-		      const shouldRegenerate =
-            shouldAdaptForTime ||
-            shouldAdaptForMoreTime ||
-            shouldAdaptForIntent ||
-            hasBlockedExercises ||
-            hasAvoidFlagExercises ||
-            hasCoreExercisesWhenOptional;
+        const shouldRegenerate =
+          shouldAdaptForTime ||
+          shouldAdaptForMoreTime ||
+          shouldAdaptForIntent ||
+          hasBlockedExercises ||
+          hasAvoidFlagExercises ||
+          hasCoreExercisesWhenOptional;
 
-		      if (shouldRegenerate) {
-		        const reasons: string[] = [];
-		        if (shouldAdaptForTime) reasons.push("time");
-            if (shouldAdaptForMoreTime) reasons.push("time_up");
-		        if (shouldAdaptForIntent) reasons.push("intent");
-		        if (hasBlockedExercises) reasons.push("blocked_patterns");
-		        if (hasAvoidFlagExercises) reasons.push("avoid_flags");
-		        if (hasCoreExercisesWhenOptional) reasons.push("core_policy");
+        if (shouldRegenerate) {
+          const reasons: string[] = [];
+          if (shouldAdaptForTime) reasons.push("time");
+          if (shouldAdaptForMoreTime) reasons.push("time_up");
+          if (shouldAdaptForIntent) reasons.push("intent");
+          if (hasBlockedExercises) reasons.push("blocked_patterns");
+          if (hasAvoidFlagExercises) reasons.push("avoid_flags");
+          if (hasCoreExercisesWhenOptional) reasons.push("core_policy");
 
-		        console.log(
-	          `   ✅ KEEP_DAY: Day stays the same, but workout needs adaptation (${reasons.join(", ")}) → regenerating with timeBucket=${readiness.timeBucket}`
-	        );
+          console.log(
+            `   ✅ KEEP_DAY: Day stays the same, but workout needs adaptation (${reasons.join(", ")}) → regenerating with timeBucket=${readiness.timeBucket}`
+          );
 
-	        const history = await getWorkoutHistory(uid);
-	        const mesocycle = await getMesocycle(uid);
+          const history = await getWorkoutHistory(uid);
+          const mesocycle = await getMesocycle(uid);
+
+          // Get week plan data for periodization
+          let weekPlanData = null;
+          if (mesocycle) {
+            const { getWeekPlan } = await import("./mesocycleEngine.js");
+            weekPlanData = getWeekPlan({
+              mesocycle,
+              weekNumber: mesocycle.currentWeek,
+              daysPerWeek: scheme.daysPerWeek,
+            });
+          }
+
+          const adaptedWorkout = await generateWorkoutDay({
+            scheme,
+            dayIndex: originalDayIndex,
+            userProfile,
+            readiness,
+            history,
+            dupIntensity: weekPlanData?.dupPattern?.[originalDayIndex],
+            weekPlanData,
+          });
+
+          const combinedNotes = mergeUniqueNotes(decision.notes || [], adaptedWorkout.adaptationNotes || []);
+          const changeNotes = mergeUniqueNotes(
+            Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : []
+          );
+          const infoNotes = mergeUniqueNotes(
+            decision.notes || [],
+            Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []
+          );
+          const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
+
+          const adaptedChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
+          workoutData = {
+            schemeId: scheme.id,
+            schemeName: adaptedWorkout.schemeName,
+            dayIndex: adaptedWorkout.dayIndex,
+            dayLabel: adaptedWorkout.dayLabel,
+            dayFocus: adaptedWorkout.dayFocus,
+            intent: adaptedWorkout.intent,
+            exercises: adaptedWorkout.exercises.map((ex) => ({
+              exerciseId: ex.exercise.id,
+              exerciseName: ex.exercise.name,
+              pattern: ex.exercise.patterns?.[0] ?? null,
+              sets: ex.sets,
+              repsRange: ex.repsRange,
+              restSec: ex.restSec,
+              weight: ex.suggestedWeight ?? null,
+              notes: ex.notes,
+              targetMuscles: ex.exercise.primaryMuscles,
+              loadType: (ex as any).loadType,
+              requiresWeightInput: (ex as any).requiresWeightInput,
+              weightLabel: (ex as any).weightLabel,
+            })),
+            totalExercises: adaptedWorkout.totalExercises,
+            totalSets: adaptedWorkout.totalSets,
+            estimatedDuration: adaptedWorkout.estimatedDuration,
+            adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+            changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
+            infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
+            changeMeta: {
+              ...adaptedChangeMeta,
+              intentAdjusted: Boolean(adaptedChangeMeta.intentAdjusted ?? shouldAdaptForIntent),
+              safetyAdjusted: Boolean(hasBlockedExercises || hasAvoidFlagExercises),
+              corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
+            },
+            warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
+            meta: {
+              adaptedAt: new Date().toISOString(),
+              originalDayIndex,
+              finalDayIndex: originalDayIndex,
+              action: "keep_day",
+              wasSwapped: false,
+              checkinApplied: !!checkin,
+            },
+          };
+
+          console.log(
+            `   ✅ KEEP_DAY: Regenerated workout (${workoutData.totalExercises} ex, ${workoutData.totalSets} sets, ${workoutData.estimatedDuration}min)`
+          );
+        } else {
+          console.log(`   ✅ KEEP_DAY: Using base plan exercises`);
+
+          // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
+          const combinedNotes = mergeUniqueNotes(decision.notes || [], basePlan.adaptationNotes || []);
+          const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
+
+          const enrichedExercises = enrichLoadInfoForStoredPlanExercises(
+            Array.isArray(basePlan?.exercises) ? basePlan.exercises : []
+          );
+
+          // planned_workouts may not store weights; attach suggested weights from progression for UI.
+          let exercisesWithWeights = enrichedExercises;
+          try {
+            const needsWeights = enrichedExercises.some((ex: any) => {
+              const hasWeight = toFinitePositiveNumberOrNull(ex?.weight) != null;
+              const lt = String(ex?.loadType || "").toLowerCase();
+              const isBodyweight = lt === "bodyweight";
+              return !hasWeight && !isBodyweight;
+            });
+
+            if (needsWeights) {
+              const ids = enrichedExercises
+                .map((ex: any) => ex?.exerciseId || ex?.id || ex?.exercise?.id || null)
+                .filter((id: any) => typeof id === "string") as string[];
+              const uniqueIds = Array.from(new Set(ids));
+              const libById = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
+              const libExercises = uniqueIds.map((id) => libById.get(id)).filter(Boolean) as any[];
+
+              if (libExercises.length > 0) {
+                const recs = await getNextWorkoutRecommendations({
+                  userId: uid,
+                  exercises: libExercises,
+                  goal: userProfile.goal,
+                  experience: userProfile.experience,
+                });
+
+                exercisesWithWeights = enrichedExercises.map((ex: any) => {
+                  const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
+                  const rec = typeof id === "string" ? recs.get(id) : undefined;
+                  const suggested = rec?.newWeight;
+                  let suggestedWeight = toFinitePositiveNumberOrNull(suggested);
+                  // Adjust weight for current intent (light = −15% for external loads)
+                  if (suggestedWeight && suggestedWeight > 0) {
+                    const lt = (ex?.loadType as "bodyweight" | "external" | "assisted") || "external";
+                    suggestedWeight = adjustWeightForIntent(suggestedWeight, readiness.intent, lt);
+                  }
+                  return {
+                    ...ex,
+                    // Keep stored weight if present; otherwise attach suggested (null for BW).
+                    weight: toFinitePositiveNumberOrNull(ex?.weight) ?? suggestedWeight,
+                  };
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("   ⚠️  Failed to attach suggested weights for stored plan exercises:", e);
+          }
+          workoutData = {
+            ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
+            exercises: exercisesWithWeights,
+            adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+            changeNotes: [],
+            infoNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
+            changeMeta: {
+              volumeAdjusted: false,
+              deload: false,
+              shortenedForTime: false,
+              trimmedForCaps: false,
+              intentAdjusted: false,
+              safetyAdjusted: false,
+              corePolicyAdjusted: false,
+            },
+            warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
+            // Обновляем метаданные
+            meta: {
+              adaptedAt: new Date().toISOString(),
+              originalDayIndex,
+              finalDayIndex: originalDayIndex,
+              action: "keep_day",
+              wasSwapped: false,
+              checkinApplied: !!checkin,
+            },
+          };
+
+          console.log(
+            `   ✅ Kept original workout (${basePlan.totalExercises} ex, ${basePlan.totalSets} sets, ${basePlan.estimatedDuration}min)`
+          );
+        }
+
+      } else {
+        // 8. Для SWAP или других действий — РЕГЕНЕРИРУЕМ тренировку
+
+        if (decision.action === "swap_day") {
+          console.log(`   🔄 SWAP: ${basePlan.dayLabel} → ${decision.targetDayLabel}`);
+          finalDayIndex = decision.targetDayIndex;
+          swapInfo = {
+            from: basePlan.dayLabel,
+            to: decision.targetDayLabel,
+            reason: decision.notes,
+          };
+        }
+
+        const history = await getWorkoutHistory(uid);
+        const mesocycle = await getMesocycle(uid);
 
         // Get week plan data for periodization
         let weekPlanData = null;
@@ -1509,25 +1702,24 @@ workoutGeneration.post(
 
         const adaptedWorkout = await generateWorkoutDay({
           scheme,
-          dayIndex: originalDayIndex,
+          dayIndex: finalDayIndex,
           userProfile,
-          readiness,
+          readiness, // ВАЖНО: передаём уже вычисленный readiness
           history,
-          dupIntensity: weekPlanData?.dupPattern?.[originalDayIndex],
+          dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
           weekPlanData,
         });
 
-        const combinedNotes = mergeUniqueNotes(decision.notes || [], adaptedWorkout.adaptationNotes || []);
-        const changeNotes = mergeUniqueNotes(
+        const adaptedChangeNotes: string[] = mergeUniqueNotes(
           Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : []
         );
-        const infoNotes = mergeUniqueNotes(
-          decision.notes || [],
+        const adaptedInfoNotes: string[] = mergeUniqueNotes(
           Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []
         );
-        const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
+        const decisionNotes: string[] = mergeUniqueNotes(Array.isArray(decision.notes) ? decision.notes : []);
+        const finalChangeNotes = mergeUniqueNotes(decisionNotes, adaptedChangeNotes);
 
-        const adaptedChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
+        const swapChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
         workoutData = {
           schemeId: scheme.id,
           schemeName: adaptedWorkout.schemeName,
@@ -1535,271 +1727,87 @@ workoutGeneration.post(
           dayLabel: adaptedWorkout.dayLabel,
           dayFocus: adaptedWorkout.dayFocus,
           intent: adaptedWorkout.intent,
-	          exercises: adaptedWorkout.exercises.map((ex) => ({
-	            exerciseId: ex.exercise.id,
-	            exerciseName: ex.exercise.name,
-	            pattern: ex.exercise.patterns?.[0] ?? null,
-	            sets: ex.sets,
-	            repsRange: ex.repsRange,
-	            restSec: ex.restSec,
-	            weight: ex.suggestedWeight ?? null,
-	            notes: ex.notes,
-	            targetMuscles: ex.exercise.primaryMuscles,
-	            loadType: (ex as any).loadType,
-	            requiresWeightInput: (ex as any).requiresWeightInput,
-	            weightLabel: (ex as any).weightLabel,
-	          })),
+          exercises: adaptedWorkout.exercises.map(ex => ({
+            exerciseId: ex.exercise.id,
+            exerciseName: ex.exercise.name,
+            pattern: ex.exercise.patterns?.[0] ?? null,
+            sets: ex.sets,
+            repsRange: ex.repsRange,
+            restSec: ex.restSec,
+            weight: ex.suggestedWeight ?? null,
+            notes: ex.notes,
+            targetMuscles: ex.exercise.primaryMuscles,
+            loadType: (ex as any).loadType,
+            requiresWeightInput: (ex as any).requiresWeightInput,
+            weightLabel: (ex as any).weightLabel,
+          })),
           totalExercises: adaptedWorkout.totalExercises,
           totalSets: adaptedWorkout.totalSets,
           estimatedDuration: adaptedWorkout.estimatedDuration,
-          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-          changeNotes: changeNotes.length > 0 ? changeNotes : undefined,
-          infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
-	          changeMeta: {
-	            ...adaptedChangeMeta,
-	            intentAdjusted: Boolean(adaptedChangeMeta.intentAdjusted ?? shouldAdaptForIntent),
-	            safetyAdjusted: Boolean(hasBlockedExercises || hasAvoidFlagExercises),
-	            corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
-	          },
-          warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
+          adaptationNotes: adaptedWorkout.adaptationNotes,
+          changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
+          infoNotes: adaptedInfoNotes.length > 0 ? adaptedInfoNotes : undefined,
+          changeMeta: {
+            ...swapChangeMeta,
+            intentAdjusted: Boolean(swapChangeMeta.intentAdjusted),
+            safetyAdjusted: Boolean(Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0),
+            corePolicyAdjusted: false,
+          },
+          warnings: mergeUniqueNotes(adaptedWorkout.warnings || [], readiness.warnings || []),
+          // НОВОЕ: метаданные адаптации
           meta: {
             adaptedAt: new Date().toISOString(),
             originalDayIndex,
-            finalDayIndex: originalDayIndex,
-            action: "keep_day",
-            wasSwapped: false,
+            finalDayIndex,
+            action: decision.action,
+            wasSwapped: decision.action === "swap_day",
+            swapInfo: swapInfo || undefined,
             checkinApplied: !!checkin,
           },
         };
-
-        console.log(
-          `   ✅ KEEP_DAY: Regenerated workout (${workoutData.totalExercises} ex, ${workoutData.totalSets} sets, ${workoutData.estimatedDuration}min)`
-        );
-	      } else {
-	        console.log(`   ✅ KEEP_DAY: Using base plan exercises`);
-      
-        // Берём упражнения из basePlan (из БД), только добавляем notes/warnings
-        const combinedNotes = mergeUniqueNotes(decision.notes || [], basePlan.adaptationNotes || []);
-        const readinessWarnings = mergeUniqueNotes(readiness.warnings || []);
-
-	        const enrichedExercises = enrichLoadInfoForStoredPlanExercises(
-	          Array.isArray(basePlan?.exercises) ? basePlan.exercises : []
-	        );
-
-	        // planned_workouts may not store weights; attach suggested weights from progression for UI.
-	        let exercisesWithWeights = enrichedExercises;
-	        try {
-	          const needsWeights = enrichedExercises.some((ex: any) => {
-	            const hasWeight = toFinitePositiveNumberOrNull(ex?.weight) != null;
-	            const lt = String(ex?.loadType || "").toLowerCase();
-	            const isBodyweight = lt === "bodyweight";
-	            return !hasWeight && !isBodyweight;
-	          });
-
-	          if (needsWeights) {
-	            const ids = enrichedExercises
-	              .map((ex: any) => ex?.exerciseId || ex?.id || ex?.exercise?.id || null)
-	              .filter((id: any) => typeof id === "string") as string[];
-	            const uniqueIds = Array.from(new Set(ids));
-	            const libById = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
-	            const libExercises = uniqueIds.map((id) => libById.get(id)).filter(Boolean) as any[];
-
-	            if (libExercises.length > 0) {
-	              const recs = await getNextWorkoutRecommendations({
-	                userId: uid,
-	                exercises: libExercises,
-	                goal: userProfile.goal,
-	                experience: userProfile.experience,
-	              });
-
-	              exercisesWithWeights = enrichedExercises.map((ex: any) => {
-	                const id = ex?.exerciseId || ex?.id || ex?.exercise?.id || null;
-	                const rec = typeof id === "string" ? recs.get(id) : undefined;
-	                const suggested = rec?.newWeight;
-	                let suggestedWeight = toFinitePositiveNumberOrNull(suggested);
-	                // Adjust weight for current intent (light = −15% for external loads)
-	                if (suggestedWeight && suggestedWeight > 0) {
-	                  const lt = (ex?.loadType as "bodyweight" | "external" | "assisted") || "external";
-	                  suggestedWeight = adjustWeightForIntent(suggestedWeight, readiness.intent, lt);
-	                }
-	                return {
-	                  ...ex,
-	                  // Keep stored weight if present; otherwise attach suggested (null for BW).
-	                  weight: toFinitePositiveNumberOrNull(ex?.weight) ?? suggestedWeight,
-	                };
-	              });
-	            }
-	          }
-	        } catch (e) {
-	          console.warn("   ⚠️  Failed to attach suggested weights for stored plan exercises:", e);
-	        }
-        workoutData = {
-          ...basePlan, // Сохраняем ВСЕ данные из базового плана (упражнения, sets, reps)
-          exercises: exercisesWithWeights,
-          adaptationNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-            changeNotes: [],
-            infoNotes: combinedNotes.length > 0 ? combinedNotes : undefined,
-            changeMeta: {
-              volumeAdjusted: false,
-              deload: false,
-              shortenedForTime: false,
-              trimmedForCaps: false,
-              intentAdjusted: false,
-              safetyAdjusted: false,
-              corePolicyAdjusted: false,
-            },
-          warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
-          // Обновляем метаданные
-          meta: {
-            adaptedAt: new Date().toISOString(),
-            originalDayIndex,
-            finalDayIndex: originalDayIndex,
-            action: "keep_day",
-            wasSwapped: false,
-            checkinApplied: !!checkin,
-          },
-        };
-
-        console.log(
-          `   ✅ Kept original workout (${basePlan.totalExercises} ex, ${basePlan.totalSets} sets, ${basePlan.estimatedDuration}min)`
-        );
       }
-      
-    } else {
-      // 8. Для SWAP или других действий — РЕГЕНЕРИРУЕМ тренировку
-      
-      if (decision.action === "swap_day") {
-        console.log(`   🔄 SWAP: ${basePlan.dayLabel} → ${decision.targetDayLabel}`);
-        finalDayIndex = decision.targetDayIndex;
-        swapInfo = {
-          from: basePlan.dayLabel,
-          to: decision.targetDayLabel,
-          reason: decision.notes,
-        };
-      }
-      
-      const history = await getWorkoutHistory(uid);
-      const mesocycle = await getMesocycle(uid);
-      
-      // Get week plan data for periodization
-      let weekPlanData = null;
-      if (mesocycle) {
-        const { getWeekPlan } = await import("./mesocycleEngine.js");
-        weekPlanData = getWeekPlan({
-          mesocycle,
-          weekNumber: mesocycle.currentWeek,
-          daysPerWeek: scheme.daysPerWeek,
-        });
-      }
-      
-      const adaptedWorkout = await generateWorkoutDay({
-        scheme,
-        dayIndex: finalDayIndex,
-        userProfile,
-        readiness, // ВАЖНО: передаём уже вычисленный readiness
-        history,
-        dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
-        weekPlanData,
-      });
 
-      const adaptedChangeNotes: string[] = mergeUniqueNotes(
-        Array.isArray((adaptedWorkout as any)?.changeNotes) ? (adaptedWorkout as any).changeNotes : []
-      );
-      const adaptedInfoNotes: string[] = mergeUniqueNotes(
-        Array.isArray((adaptedWorkout as any)?.infoNotes) ? (adaptedWorkout as any).infoNotes : []
-      );
-      const decisionNotes: string[] = mergeUniqueNotes(Array.isArray(decision.notes) ? decision.notes : []);
-      const finalChangeNotes = mergeUniqueNotes(decisionNotes, adaptedChangeNotes);
-      
-      const swapChangeMeta = (adaptedWorkout as any)?.changeMeta || {};
-      workoutData = {
-        schemeId: scheme.id,
-        schemeName: adaptedWorkout.schemeName,
-        dayIndex: adaptedWorkout.dayIndex,
-        dayLabel: adaptedWorkout.dayLabel,
-        dayFocus: adaptedWorkout.dayFocus,
-        intent: adaptedWorkout.intent,
-	        exercises: adaptedWorkout.exercises.map(ex => ({
-	          exerciseId: ex.exercise.id,
-	          exerciseName: ex.exercise.name,
-	          pattern: ex.exercise.patterns?.[0] ?? null,
-	          sets: ex.sets,
-	          repsRange: ex.repsRange,
-	          restSec: ex.restSec,
-	          weight: ex.suggestedWeight ?? null,
-	          notes: ex.notes,
-	          targetMuscles: ex.exercise.primaryMuscles,
-	          loadType: (ex as any).loadType,
-	          requiresWeightInput: (ex as any).requiresWeightInput,
-	          weightLabel: (ex as any).weightLabel,
-	        })),
-        totalExercises: adaptedWorkout.totalExercises,
-        totalSets: adaptedWorkout.totalSets,
-        estimatedDuration: adaptedWorkout.estimatedDuration,
-        adaptationNotes: adaptedWorkout.adaptationNotes,
-        changeNotes: finalChangeNotes.length > 0 ? finalChangeNotes : undefined,
-        infoNotes: adaptedInfoNotes.length > 0 ? adaptedInfoNotes : undefined,
-        changeMeta: {
-          ...swapChangeMeta,
-          intentAdjusted: Boolean(swapChangeMeta.intentAdjusted),
-          safetyAdjusted: Boolean(Array.isArray(readiness.blockedPatterns) && readiness.blockedPatterns.length > 0),
-          corePolicyAdjusted: false,
-        },
-        warnings: mergeUniqueNotes(adaptedWorkout.warnings || [], readiness.warnings || []),
-        // НОВОЕ: метаданные адаптации
-        meta: {
-          adaptedAt: new Date().toISOString(),
-          originalDayIndex,
-          finalDayIndex,
-          action: decision.action,
-          wasSwapped: decision.action === "swap_day",
-          swapInfo: swapInfo || undefined,
-          checkinApplied: !!checkin,
-        },
-      };
-    }
-    
-    if (commit) {
-      // Update planned_workouts
-      // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
-      // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
-      // Meta info preserves the swap history for tracking and future adjustments.
-      // Всегда обновляем по конкретному id строки (rowId из SELECT ... FOR UPDATE)
-      // Это гарантирует, что обновится ровно 1 запись, даже если на дату попало несколько
-      await q(
-        `UPDATE planned_workouts
+      if (commit) {
+        // Update planned_workouts
+        // NOTE: For swap_day, we save the swapped workout (finalDayIndex) for today's date.
+        // The original day (originalDayIndex) will be skipped/replaced in the week rotation.
+        // Meta info preserves the swap history for tracking and future adjustments.
+        // Всегда обновляем по конкретному id строки (rowId из SELECT ... FOR UPDATE)
+        // Это гарантирует, что обновится ровно 1 запись, даже если на дату попало несколько
+        await q(
+          `UPDATE planned_workouts
          SET base_plan = COALESCE(base_plan, plan),
              data = $2::jsonb,
              plan = $2::jsonb,
              updated_at = NOW()
          WHERE user_id = $1 AND id = $3::uuid`,
-        [uid, workoutData, rowId]
-      );
-    } else {
-      console.log("   👀 Preview mode: DB update skipped");
-    }
-    
-    // If swapped, mark future occurrence of finalDayIndex as "already done today"
-    if (commit && decision.action === "swap_day") {
-      // Find the next planned workout that corresponds to finalDayIndex and mark it as already done.
-      const nextRows = await q<{ id: string; workout_date: string }>(
-        `SELECT id, workout_date
+          [uid, workoutData, rowId]
+        );
+      } else {
+        console.log("   👀 Preview mode: DB update skipped");
+      }
+
+      // If swapped, mark future occurrence of finalDayIndex as "already done today"
+      if (commit && decision.action === "swap_day") {
+        // Find the next planned workout that corresponds to finalDayIndex and mark it as already done.
+        const nextRows = await q<{ id: string; workout_date: string }>(
+          `SELECT id, workout_date
          FROM planned_workouts
          WHERE user_id = $1
            AND workout_date > $2
            AND (data->>'dayIndex')::int = $3
          ORDER BY workout_date ASC
          LIMIT 1`,
-        [uid, effectiveWorkoutDate, finalDayIndex]
-      );
+          [uid, effectiveWorkoutDate, finalDayIndex]
+        );
 
-      if (nextRows.length) {
-        const nextRowId = nextRows[0].id;
-        const nextDate = nextRows[0].workout_date;
-        const markedAt = new Date().toISOString();
+        if (nextRows.length) {
+          const nextRowId = nextRows[0].id;
+          const nextDate = nextRows[0].workout_date;
+          const markedAt = new Date().toISOString();
 
-	        await q(
-	          `UPDATE planned_workouts
+          await q(
+            `UPDATE planned_workouts
 	           SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
 	             'wasSwappedEarlier', true,
 	             'swappedIntoDate', $3::text,
@@ -1810,57 +1818,57 @@ workoutGeneration.post(
 	           updated_at = NOW()
 	           WHERE user_id = $1
 	             AND id = $2::uuid`,
-          [uid, nextRowId, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
-        );
+            [uid, nextRowId, effectiveWorkoutDate, originalDayIndex, finalDayIndex, markedAt]
+          );
 
-        console.log(`      Marked future dayIndex=${finalDayIndex} on ${nextDate} as swapped`);
-      } else {
-        console.log(`      No future planned workout found for dayIndex=${finalDayIndex} to mark as swapped`);
+          console.log(`      Marked future dayIndex=${finalDayIndex} on ${nextDate} as swapped`);
+        } else {
+          console.log(`      No future planned workout found for dayIndex=${finalDayIndex} to mark as swapped`);
+        }
       }
-    }
-    
-    console.log("=====================================================\n");
-    
-    // 9. Return workout with combined notes
-    const combinedNotes = mergeUniqueNotes(decision.notes || [], workoutData.adaptationNotes || []);
-    const summaryChangeMeta = (workoutData as any)?.changeMeta || {};
-    const summaryChangeNotes = mergeUniqueNotes(
-      Array.isArray((workoutData as any)?.changeNotes) ? (workoutData as any).changeNotes : []
-    );
-    const summaryInfoNotes = mergeUniqueNotes(
-      Array.isArray((workoutData as any)?.infoNotes) ? (workoutData as any).infoNotes : []
-    );
-    const summaryWarnings = mergeUniqueNotes(
-      Array.isArray((workoutData as any)?.warnings) ? (workoutData as any).warnings : []
-    );
-    const summaryDiff = computeWorkoutSummaryDiff({
-      beforePlan: planBeforeStart,
-      afterPlan: workoutData,
-      fallbackTimeBucket: userProfile.timeBucket,
-    });
-    const summary = buildSummaryPayload({
-      action: decision.action as WorkoutStartAction,
-      severity: readiness.severity as SummarySeverity,
-      changeMeta: summaryChangeMeta,
-      changeNotes: summaryChangeNotes,
-      infoNotes: summaryInfoNotes,
-      warnings: summaryWarnings,
-      swapInfo: swapInfo || undefined,
-      diff: summaryDiff,
-      checkin,
-      readiness,
-      onboardingMinutes: userProfile.timeBucket,
-      beforePlan: planBeforeStart,
-      afterPlan: workoutData,
-    });
 
-    return {
-      action: decision.action,
-      notes: combinedNotes.length > 0 ? combinedNotes : undefined,
-      summary,
-      workout: workoutData,
-      swapInfo,
-    };
+      console.log("=====================================================\n");
+
+      // 9. Return workout with combined notes
+      const combinedNotes = mergeUniqueNotes(decision.notes || [], workoutData.adaptationNotes || []);
+      const summaryChangeMeta = (workoutData as any)?.changeMeta || {};
+      const summaryChangeNotes = mergeUniqueNotes(
+        Array.isArray((workoutData as any)?.changeNotes) ? (workoutData as any).changeNotes : []
+      );
+      const summaryInfoNotes = mergeUniqueNotes(
+        Array.isArray((workoutData as any)?.infoNotes) ? (workoutData as any).infoNotes : []
+      );
+      const summaryWarnings = mergeUniqueNotes(
+        Array.isArray((workoutData as any)?.warnings) ? (workoutData as any).warnings : []
+      );
+      const summaryDiff = computeWorkoutSummaryDiff({
+        beforePlan: planBeforeStart,
+        afterPlan: workoutData,
+        fallbackTimeBucket: userProfile.timeBucket,
+      });
+      const summary = buildSummaryPayload({
+        action: decision.action as WorkoutStartAction,
+        severity: readiness.severity as SummarySeverity,
+        changeMeta: summaryChangeMeta,
+        changeNotes: summaryChangeNotes,
+        infoNotes: summaryInfoNotes,
+        warnings: summaryWarnings,
+        swapInfo: swapInfo || undefined,
+        diff: summaryDiff,
+        checkin,
+        readiness,
+        onboardingMinutes: userProfile.timeBucket,
+        beforePlan: planBeforeStart,
+        afterPlan: workoutData,
+      });
+
+      return {
+        action: decision.action,
+        notes: combinedNotes.length > 0 ? combinedNotes : undefined,
+        summary,
+        workout: workoutData,
+        swapInfo,
+      };
 
     }); // end withTransaction
 
@@ -1908,16 +1916,16 @@ workoutGeneration.post(
       const exCount = Array.isArray(payload?.exercises) ? payload.exercises.length : 0;
       const exSummary = Array.isArray(payload?.exercises)
         ? payload.exercises.slice(0, 30).map((e: any) => ({
-            id: e?.id,
-            name: e?.name,
-            repsTarget: e?.reps,
-            sets: Array.isArray(e?.sets) ? e.sets.length : 0,
-            repsFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.reps ?? 0) > 0).length : 0,
-            weightFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.weight ?? 0) > 0).length : 0,
-            repsSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.reps ?? null) : [],
-            weightSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.weight ?? null) : [],
-            effort: e?.effort,
-          }))
+          id: e?.id,
+          name: e?.name,
+          repsTarget: e?.reps,
+          sets: Array.isArray(e?.sets) ? e.sets.length : 0,
+          repsFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.reps ?? 0) > 0).length : 0,
+          weightFilled: Array.isArray(e?.sets) ? e.sets.filter((s: any) => (s?.weight ?? 0) > 0).length : 0,
+          repsSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.reps ?? null) : [],
+          weightSample: Array.isArray(e?.sets) ? e.sets.slice(0, 6).map((s: any) => s?.weight ?? null) : [],
+          effort: e?.effort,
+        }))
         : [];
       console.log("[save-session][debug] request", {
         userId: String(uid).slice(0, 8),
@@ -1946,15 +1954,15 @@ workoutGeneration.post(
       }))
       .filter((c: any) => c.action && ["replace", "remove", "skip", "exclude", "include"].includes(c.action));
 
-	    let progression: any = null;
-	    let progressionJobId: string | null = null;
-	    let progressionJobStatus: string | null = null;
-	    let coachJobId: string | null = null;
-	    let coachJobStatus: string | null = null;
-	    let weeklyCoachJobId: string | null = null;
+    let progression: any = null;
+    let progressionJobId: string | null = null;
+    let progressionJobStatus: string | null = null;
+    let coachJobId: string | null = null;
+    let coachJobStatus: string | null = null;
+    let weeklyCoachJobId: string | null = null;
 
-		    const { sessionId, jobId, coachJobId: cjId } = await withTransaction(async () => {
-	      const result = await q<{ id: string }>(
+    const { sessionId, jobId, coachJobId: cjId } = await withTransaction(async () => {
+      const result = await q<{ id: string }>(
         `INSERT INTO workout_sessions (user_id, payload, finished_at)
          VALUES ($1, $2::jsonb, $3)
          RETURNING id`,
@@ -1970,9 +1978,9 @@ workoutGeneration.post(
         [uid, payload, payload, finishedAt.toISOString(), startedAt.toISOString(), finishedAt.toISOString()]
       );
 
-	      if (plannedWorkoutId) {
-	        await q(
-	          `UPDATE planned_workouts
+      if (plannedWorkoutId) {
+        await q(
+          `UPDATE planned_workouts
 	              SET scheduled_for = CASE WHEN status = 'pending' THEN $4 ELSE scheduled_for END,
 	                  status = 'completed',
 	                  result_session_id = $3,
@@ -1981,9 +1989,9 @@ workoutGeneration.post(
 	                  data = $5::jsonb,
 	                  updated_at = NOW()
 	            WHERE id = $1 AND user_id = $2`,
-	          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString(), JSON.stringify(payload)]
-	        );
-	      } else {
+          [plannedWorkoutId, uid, sessionId, finishedAt.toISOString(), JSON.stringify(payload)]
+        );
+      } else {
         await q(
           `INSERT INTO planned_workouts (user_id, plan, scheduled_for, status, result_session_id, workout_date, data, completed_at)
            VALUES ($1, $2::jsonb, $3, 'completed', $4, $5, $2::jsonb, $3)`,
@@ -2008,53 +2016,53 @@ workoutGeneration.post(
       }
 
       // NEW: Outbox job for progression (eventual consistency)
-	      const { jobId } = await enqueueProgressionJob({
-	        userId: uid,
-	        sessionId,
-	        plannedWorkoutId,
-	        workoutDate: finishedAt.toISOString().slice(0, 10),
-	      });
+      const { jobId } = await enqueueProgressionJob({
+        userId: uid,
+        sessionId,
+        plannedWorkoutId,
+        workoutDate: finishedAt.toISOString().slice(0, 10),
+      });
 
-		      const { jobId: cj } = await enqueueCoachJob({
-		        userId: uid,
-		        kind: "session",
-		        sessionId,
-		      });
+      const { jobId: cj } = await enqueueCoachJob({
+        userId: uid,
+        kind: "session",
+        sessionId,
+      });
 
-		      return { sessionId, jobId, coachJobId: cj };
-		    });
+      return { sessionId, jobId, coachJobId: cj };
+    });
 
-		    progressionJobId = jobId;
-		    coachJobId = cjId || null;
+    progressionJobId = jobId;
+    coachJobId = cjId || null;
 
-	    // Best-effort immediate processing (does not affect workout save)
-	    try {
-	      const r = await processProgressionJob({ jobId });
-	      progressionJobStatus = r.status;
-	      progression = r.progression;
-	    } catch (e) {
-	      console.error("[save-session] progression job process failed:", (e as any)?.message || e);
-	      progressionJobStatus = "pending";
-	      progression = null;
-	    }
+    // Best-effort immediate processing (does not affect workout save)
+    try {
+      const r = await processProgressionJob({ jobId });
+      progressionJobStatus = r.status;
+      progression = r.progression;
+    } catch (e) {
+      console.error("[save-session] progression job process failed:", (e as any)?.message || e);
+      progressionJobStatus = "pending";
+      progression = null;
+    }
 
-	    // Coach feedback: do not block saving the workout (OpenAI call can be slow).
-	    coachJobStatus = coachJobId ? "pending" : null;
-	    if (coachJobId) {
-	      setTimeout(() => {
-	        processCoachJob({ jobId: coachJobId })
-	          .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
-	      }, 0);
-	    }
+    // Coach feedback: do not block saving the workout (OpenAI call can be slow).
+    coachJobStatus = coachJobId ? "pending" : null;
+    if (coachJobId) {
+      setTimeout(() => {
+        processCoachJob({ jobId: coachJobId })
+          .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
+      }, 0);
+    }
 
-	    // Weekly: best-effort enqueue (throttled inside helper)
-	    try {
-	      const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
-	      weeklyCoachJobId = w?.jobId || null;
-	    } catch (e) {
-	      console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
-	      weeklyCoachJobId = null;
-	    }
+    // Weekly: best-effort enqueue (throttled inside helper)
+    try {
+      const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
+      weeklyCoachJobId = w?.jobId || null;
+    } catch (e) {
+      console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
+      weeklyCoachJobId = null;
+    }
 
     if (debugProgression) {
       console.log("[save-session][debug] response", {
@@ -2064,27 +2072,27 @@ workoutGeneration.post(
         progressionJobStatus,
         progressionSummary: progression
           ? {
-              totalExercises: progression.totalExercises,
-              progressedCount: progression.progressedCount,
-              maintainedCount: progression.maintainedCount,
-              deloadCount: progression.deloadCount,
-            }
+            totalExercises: progression.totalExercises,
+            progressedCount: progression.progressedCount,
+            maintainedCount: progression.maintainedCount,
+            deloadCount: progression.deloadCount,
+          }
           : null,
       });
     }
 
-	    res.json({
-	      ok: true,
-	      sessionId,
-	      progression,
-	      progressionJobId,
-	      progressionJobStatus,
-	      coachJobId,
-	      coachJobStatus,
-	      weeklyCoachJobId,
-	    });
-	  })
-	);
+    res.json({
+      ok: true,
+      sessionId,
+      progression,
+      progressionJobId,
+      progressionJobStatus,
+      coachJobId,
+      coachJobStatus,
+      weeklyCoachJobId,
+    });
+  })
+);
 
 // ============================================================================
 // GET /progression/jobs/:id - Poll progression job status/result
@@ -2258,18 +2266,18 @@ workoutGeneration.get(
   "/workout/today",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     const rows = await q<{ data: any, status: string }>(
       `SELECT data, status FROM planned_workouts 
        WHERE user_id = $1 AND workout_date = CURRENT_DATE
        LIMIT 1`,
       [uid]
     );
-    
+
     if (!rows.length) {
       return res.json({ workout: null });
     }
-    
+
     res.json({
       workout: rows[0].data,
       status: rows[0].status,
@@ -2285,15 +2293,15 @@ workoutGeneration.get(
   "/mesocycle/current",
   asyncHandler(async (req: any, res: Response) => {
     const uid = getUid(req);
-    
+
     let mesocycle = await getMesocycle(uid);
-    
+
     if (!mesocycle) {
       const userProfile = await buildUserProfile(uid);
       mesocycle = createMesocycle({ userId: uid, goal: userProfile.goal });
       await saveMesocycle(uid, mesocycle);
     }
-    
+
     return res.json({ success: true, mesocycle });
   })
 );

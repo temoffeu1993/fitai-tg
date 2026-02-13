@@ -14,6 +14,7 @@ import FinishWorkoutModal from "@/components/workout-session/FinishWorkoutModal"
 import RestOverlay from "@/components/workout-session/RestOverlay";
 import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
+import TechniqueAccordion from "@/components/workout-session/TechniqueAccordion";
 import TransitionToast from "@/components/workout-session/TransitionToast";
 import { workoutTheme } from "@/components/workout-session/theme";
 import type {
@@ -88,19 +89,19 @@ function loadPlanFromStorage(state: any): SessionPlan | null {
     const current = JSON.parse(localStorage.getItem("current_plan") || "null");
     const currentPlan = normalizeSessionPlan(current?.plan || current);
     if (currentPlan) return currentPlan;
-  } catch {}
+  } catch { }
 
   try {
     const draft = JSON.parse(localStorage.getItem("session_draft") || "null");
     const draftPlan = normalizeSessionPlan(draft?.plan);
     if (draftPlan) return draftPlan;
-  } catch {}
+  } catch { }
 
   try {
     const cache = JSON.parse(localStorage.getItem(PLAN_CACHE_KEY) || "null");
     const cachePlan = normalizeSessionPlan(cache?.plan || cache);
     if (cachePlan) return cachePlan;
-  } catch {}
+  } catch { }
 
   return null;
 }
@@ -120,6 +121,9 @@ function initItemsFromPlan(plan: SessionPlan): SessionItem[] {
       loadType: exercise.loadType,
       requiresWeightInput: exercise.requiresWeightInput,
       weightLabel: exercise.weightLabel,
+      tagline: exercise.tagline,
+      technique: exercise.technique,
+      proTip: exercise.proTip,
       done: false,
       skipped: false,
       effort: null,
@@ -169,10 +173,10 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
         skipped: Boolean(raw.skipped),
         effort:
           raw.effort === "easy" ||
-          raw.effort === "working" ||
-          raw.effort === "quite_hard" ||
-          raw.effort === "hard" ||
-          raw.effort === "max"
+            raw.effort === "working" ||
+            raw.effort === "quite_hard" ||
+            raw.effort === "hard" ||
+            raw.effort === "max"
             ? raw.effort
             : null,
         sets: normalizedSets,
@@ -250,7 +254,7 @@ export default function WorkoutSession() {
     if (plannedWorkoutId) {
       try {
         localStorage.setItem("planned_workout_id", plannedWorkoutId);
-      } catch {}
+      } catch { }
     }
   }, [plannedWorkoutId]);
 
@@ -273,7 +277,7 @@ export default function WorkoutSession() {
         setSessionRpe(clampInt(Number(draft?.sessionRpe) || 7, 1, 10));
         return;
       }
-    } catch {}
+    } catch { }
 
     setItems(fallbackItems);
     setActiveIndex(0);
@@ -287,7 +291,7 @@ export default function WorkoutSession() {
   useEffect(() => {
     try {
       localStorage.setItem(REST_PREF_KEY, restEnabled ? "1" : "0");
-    } catch {}
+    } catch { }
   }, [restEnabled]);
 
   useEffect(() => {
@@ -361,7 +365,7 @@ export default function WorkoutSession() {
     };
     try {
       localStorage.setItem("session_draft", JSON.stringify(payload));
-    } catch {}
+    } catch { }
   }, [plan, items, activeIndex, focusSetIndex, changes, elapsed, running, plannedWorkoutId, sessionRpe, checkinSummary]);
 
   useEffect(() => {
@@ -819,24 +823,24 @@ export default function WorkoutSession() {
       progression: saveResponse?.progression ?? null,
       progressionJob: saveResponse?.progressionJobId
         ? {
-            id: String(saveResponse.progressionJobId),
-            status: String(saveResponse.progressionJobStatus || "pending"),
-            lastError: null,
-          }
+          id: String(saveResponse.progressionJobId),
+          status: String(saveResponse.progressionJobStatus || "pending"),
+          lastError: null,
+        }
         : null,
       coachJob: saveResponse?.coachJobId
         ? {
-            id: String(saveResponse.coachJobId),
-            status: String(saveResponse.coachJobStatus || "pending"),
-            lastError: null,
-          }
+          id: String(saveResponse.coachJobId),
+          status: String(saveResponse.coachJobStatus || "pending"),
+          lastError: null,
+        }
         : null,
       weeklyCoachJobId: saveResponse?.weeklyCoachJobId ? String(saveResponse.weeklyCoachJobId) : null,
     };
 
     try {
       localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(storedResult));
-    } catch {}
+    } catch { }
 
     try {
       const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
@@ -847,16 +851,16 @@ export default function WorkoutSession() {
       };
       const nextHistory = Array.isArray(history) ? [record, ...history].slice(0, 500) : [record];
       localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-    } catch {}
+    } catch { }
 
     clearActiveWorkout();
     try {
       localStorage.removeItem(PLAN_CACHE_KEY);
-    } catch {}
+    } catch { }
     try {
       window.dispatchEvent(new CustomEvent("plan_completed"));
       window.dispatchEvent(new CustomEvent("schedule_updated"));
-    } catch {}
+    } catch { }
 
     setSaving(false);
     setFinishModal(false);
@@ -918,37 +922,18 @@ export default function WorkoutSession() {
             focusSetIndex={focusSetIndex}
             blocked={Boolean(blockedCurrent)}
             restEnabled={restEnabled}
-          onChangeReps={handleRepsChange}
-          onChangeWeight={handleWeightChange}
-          onCommitSet={commitCurrentSetFromEditor}
-          onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
-        />
-      </CurrentExerciseCard>
-
-      <div style={styles.restAutoRow}>
-        <span style={styles.restAutoLabel}>Автотаймер отдыха</span>
-        <button
-          type="button"
-          style={styles.restAutoToggle}
-          onClick={() => setRestEnabled((prev) => !prev)}
-          aria-label={restEnabled ? "Выключить автотаймер отдыха" : "Включить автотаймер отдыха"}
-        >
-          <span
-            aria-hidden
-            style={{
-              ...styles.restAutoToggleTint,
-              ...(restEnabled ? styles.restAutoToggleTintOn : null),
-            }}
+            onChangeReps={handleRepsChange}
+            onChangeWeight={handleWeightChange}
+            onCommitSet={commitCurrentSetFromEditor}
+            onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
           />
-          <span
-            style={{
-              ...styles.restAutoToggleText,
-            }}
-          >
-            {restEnabled ? "Вкл" : "Выкл"}
-          </span>
-        </button>
-      </div>
+        </CurrentExerciseCard>
+
+        <TechniqueAccordion
+          technique={activeItem?.technique}
+          proTip={activeItem?.proTip}
+          resetKey={activeIndex}
+        />
       </main>
 
       <BottomDock
@@ -1072,64 +1057,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 10,
   },
-  restAutoRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
-    padding: "2px 2px 0",
-    background: "transparent",
-  },
-  restAutoLabel: {
-    fontSize: 14,
-    lineHeight: 1.45,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.6)",
-  },
-  restAutoToggle: {
-    minHeight: 36,
-    width: 56,
-    padding: "0 10px",
-    borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-    cursor: "pointer",
-    transition: "none",
-    transform: "none",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
-    appearance: "none",
-  },
-  restAutoToggleTint: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: 999,
-    pointerEvents: "none",
-    opacity: 0,
-    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
-    transition: "opacity 520ms cubic-bezier(0.22, 0.61, 0.36, 1)",
-    zIndex: 1,
-  },
-  restAutoToggleTintOn: {
-    opacity: 0.86,
-  },
-  restAutoToggleText: {
-    position: "relative",
-    zIndex: 2,
-    fontSize: 14,
-    lineHeight: 1,
-    fontWeight: 700,
-    color: "rgba(15,23,42,0.62)",
-    textShadow: "0 1px 0 rgba(255,255,255,0.78), 0 -1px 0 rgba(15,23,42,0.14)",
-  },
+  /* restAutoRow styles removed — replaced by TechniqueAccordion */
   infoCard: {
     padding: 16,
     borderRadius: 24,

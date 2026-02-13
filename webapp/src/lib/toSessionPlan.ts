@@ -9,6 +9,13 @@ export type SessionPlanExercise = {
   loadType?: any;
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  tagline?: string;
+  technique?: {
+    setup: string;
+    execution: string;
+    commonMistakes: string[];
+  };
+  proTip?: string;
 };
 
 export type SessionPlan = {
@@ -41,6 +48,9 @@ export function toSessionPlan(workout: any): SessionPlan {
       loadType: ex?.loadType,
       requiresWeightInput: ex?.requiresWeightInput,
       weightLabel: ex?.weightLabel,
+      tagline: ex?.tagline || undefined,
+      technique: ex?.technique || undefined,
+      proTip: ex?.proTip || undefined,
     })),
   };
 }

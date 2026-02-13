@@ -9,6 +9,13 @@ export type PlanExercise = {
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  tagline?: string;
+  technique?: {
+    setup: string;
+    execution: string;
+    commonMistakes: string[];
+  };
+  proTip?: string;
 };
 
 export type SessionPlan = {
@@ -41,6 +48,13 @@ export type SessionItem = {
   done?: boolean;
   skipped?: boolean;
   effort?: EffortTag;
+  tagline?: string;
+  technique?: {
+    setup: string;
+    execution: string;
+    commonMistakes: string[];
+  };
+  proTip?: string;
 };
 
 export type ChangeEvent = {
