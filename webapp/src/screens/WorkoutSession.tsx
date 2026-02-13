@@ -169,6 +169,9 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
             : undefined,
         requiresWeightInput: typeof raw.requiresWeightInput === "boolean" ? raw.requiresWeightInput : undefined,
         weightLabel: typeof raw.weightLabel === "string" ? raw.weightLabel : undefined,
+        tagline: typeof raw.tagline === "string" ? raw.tagline : undefined,
+        technique: raw.technique && typeof raw.technique === "object" ? raw.technique : undefined,
+        proTip: typeof raw.proTip === "string" ? raw.proTip : undefined,
         done: Boolean(raw.done),
         skipped: Boolean(raw.skipped),
         effort:
