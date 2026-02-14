@@ -147,7 +147,7 @@ function readPlannedCache(): PlannedWorkout[] {
 
 export type Exercise = {
   name: string; sets: number;
-  reps?: number|string; restSec?: number; cues?: string;
+  reps?: number | string; restSec?: number; cues?: string;
   pattern?: string; targetMuscles?: string[]; tempo?: string; guideUrl?: string; weight?: string;
   // NEW: detailed fields
   technique?: {
@@ -283,7 +283,7 @@ export default function PlanOne() {
       setPlannedWorkouts(next);
       try {
         localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next.length));
-      } catch {}
+      } catch { }
       try {
         window.dispatchEvent(new CustomEvent("planned_workouts_updated", { detail: { count: next.length } }));
       } catch {
@@ -299,8 +299,8 @@ export default function PlanOne() {
   }, []);
 
   useEffect(() => {
-    loadPlanned({ silent: hasInitialPlannedCache }).catch(() => {});
-    const onScheduleUpdated = () => loadPlanned({ silent: true }).catch(() => {});
+    loadPlanned({ silent: hasInitialPlannedCache }).catch(() => { });
+    const onScheduleUpdated = () => loadPlanned({ silent: true }).catch(() => { });
     window.addEventListener("schedule_updated" as any, onScheduleUpdated);
     window.addEventListener("plan_completed" as any, onScheduleUpdated);
     return () => {
@@ -315,7 +315,7 @@ export default function PlanOne() {
         const w = Number((r as any)?.mesocycle?.currentWeek);
         setMesoWeek(Number.isFinite(w) ? w : null);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const remainingPlanned = useMemo(() => {
@@ -339,13 +339,13 @@ export default function PlanOne() {
         const at = a.scheduledFor
           ? new Date(a.scheduledFor).getTime()
           : a.createdAt
-          ? new Date(a.createdAt).getTime()
-          : Number.POSITIVE_INFINITY;
+            ? new Date(a.createdAt).getTime()
+            : Number.POSITIVE_INFINITY;
         const bt = b.scheduledFor
           ? new Date(b.scheduledFor).getTime()
           : b.createdAt
-          ? new Date(b.createdAt).getTime()
-          : Number.POSITIVE_INFINITY;
+            ? new Date(b.createdAt).getTime()
+            : Number.POSITIVE_INFINITY;
         return at - bt;
       })[0].id;
   }, [remainingPlanned]);
@@ -419,14 +419,14 @@ export default function PlanOne() {
     remainingPlanned.length === 0 &&
     !sub.locked &&
     !initialWeekRequested;
-  
+
   // Формируем понятное название тренировки на русском
   const planTitle = useMemo(() => {
     if (!effectivePlan) return "Тренировка дня";
-    
+
     const label = effectivePlan.dayLabel || "";
     const focus = effectivePlan.dayFocus || "";
-    
+
     // Если есть dayLabel, используем его как базу
     if (label.toLowerCase().includes("push")) {
       return "Грудь, плечи и трицепс";
@@ -446,19 +446,19 @@ export default function PlanOne() {
     if (label.toLowerCase().includes("full body")) {
       return "Всё тело";
     }
-    
+
     // Если в dayLabel есть русское название - используем его
     if (label && /[а-яА-Я]/.test(label)) {
       return label;
     }
-    
+
     // Иначе пытаемся вытащить из focus
     if (focus && /[а-яА-Я]/.test(focus)) {
       // Берем первое предложение до точки/запятой
       const firstPart = focus.split(/[.,:—]/)[0].trim();
       if (firstPart.length < 50) return firstPart;
     }
-    
+
     // Fallback на старое поведение
     return effectivePlan.title?.trim() || "Тренировка дня";
   }, [effectivePlan]);
@@ -485,7 +485,7 @@ export default function PlanOne() {
     kickProgress();
     refresh({ force: true })
       .then(() => loadPlanned({ silent: true }))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setWeekGenerating(false));
   }, [plannedFetchedOnce, plannedLoading, remainingPlanned.length, weekGenerating, sub.locked, initialWeekRequested, kickProgress, refresh, loadPlanned]);
 
@@ -495,7 +495,7 @@ export default function PlanOne() {
         localStorage.removeItem("current_plan");
         localStorage.removeItem("session_draft");
         localStorage.removeItem("plan_cache_v2");
-      } catch {}
+      } catch { }
       setNeedsCheckIn(true);
       setInitialPlanRequested(false);
       setRegenPending(false);
@@ -507,7 +507,7 @@ export default function PlanOne() {
 
   useEffect(() => {
     const onOnbUpdated = () => {
-      refresh({ force: true }).catch(() => {});
+      refresh({ force: true }).catch(() => { });
     };
     window.addEventListener("onb_updated" as any, onOnbUpdated);
     return () => window.removeEventListener("onb_updated" as any, onOnbUpdated);
@@ -518,7 +518,7 @@ export default function PlanOne() {
     try {
       localStorage.removeItem("current_plan");
       localStorage.removeItem("session_draft");
-    } catch {}
+    } catch { }
     setShowNotes(false);
     setRegenInlineError(null);
     setRegenNotice(null);
@@ -585,7 +585,7 @@ export default function PlanOne() {
       setShowScheduleModal(false);
       try {
         window.dispatchEvent(new CustomEvent("schedule_updated"));
-      } catch {}
+      } catch { }
       nav("/", { replace: true });
     } catch (err) {
       console.error("createPlannedWorkout failed", err);
@@ -722,11 +722,11 @@ export default function PlanOne() {
   const dayLabelRU = (planLike: any) => {
     const raw = String(
       planLike?.dayLabel ||
-        planLike?.title ||
-        planLike?.name ||
-        planLike?.label ||
-        planLike?.scheme_label ||
-        ""
+      planLike?.title ||
+      planLike?.name ||
+      planLike?.label ||
+      planLike?.scheme_label ||
+      ""
     ).trim();
     const idxRaw = Number(planLike?.dayIndex);
     const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
@@ -766,7 +766,7 @@ export default function PlanOne() {
       sets: Number(ex?.sets) || 1,
       reps: ex?.reps || ex?.repsRange || "",
       restSec: ex?.restSec != null ? Number(ex.restSec) : undefined,
-      cues: String(ex?.notes || ex?.cues || "").trim() || undefined,
+      cues: String(ex?.tagline || ex?.notes || ex?.cues || "").trim() || undefined,
     }));
 
   const selectedDayLabel = (() => {
@@ -882,7 +882,7 @@ export default function PlanOne() {
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
-      } catch {}
+      } catch { }
     } catch (err) {
       console.error("inline schedule save failed", err);
       const code = extractApiErrorCode(err);
@@ -927,7 +927,7 @@ export default function PlanOne() {
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
-      } catch {}
+      } catch { }
     } catch (err) {
       console.error("inline schedule delete failed", err);
       setInlineScheduleError("Не удалось удалить дату и время. Попробуй ещё раз.");
@@ -1003,8 +1003,8 @@ export default function PlanOne() {
     weekWorkouts.length === 0
       ? null
       : selectedPlannedId && weekWorkouts.some((w) => w.id === selectedPlannedId)
-      ? selectedPlannedId
-      : weekWorkouts[0].id;
+        ? selectedPlannedId
+        : weekWorkouts[0].id;
   const activeStackIndex = activeStackId ? weekWorkouts.findIndex((w) => w.id === activeStackId) : -1;
   const stackOrder = (() => {
     if (!weekWorkouts.length) return [];
@@ -1367,12 +1367,12 @@ export default function PlanOne() {
             type="button"
             style={s.secondaryBtn}
             onClick={handleScheduleOpen}
-        >
-          📅 Запланировать
-        </button>
-      </div>
+          >
+            📅 Запланировать
+          </button>
+        </div>
 
-      {/* regenerate button removed by request */}
+        {/* regenerate button removed by request */}
       </section>
 
       {/* Чипы в фирменном стиле под верхним блоком */}
@@ -1521,8 +1521,8 @@ function humanizePlanError(err: any): string {
     const weeklyTarget = Number(err?.body?.details?.weeklyTarget) || null;
     const targetText = weeklyTarget
       ? `Вы достигли недельного лимита тренировок. Программа строится под выбранный вами ритм — сейчас это ${weeklyTarget} ${pluralizeTrainings(
-          weeklyTarget
-        )} в неделю.`
+        weeklyTarget
+      )} в неделю.`
       : "Вы достигли недельного лимита тренировок.";
     const tail = " Если хотите увеличить нагрузку, обновите настройки в анкете.";
     return `${targetText}${tail}`;
@@ -1918,7 +1918,7 @@ function ExercisesList({
   isOpen: boolean;
 }) {
   const [expandedTechnique, setExpandedTechnique] = useState<Set<number>>(new Set());
-  
+
   if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
   const isMain = variant === "main";
 
@@ -2091,7 +2091,7 @@ function ExercisesList({
         const restSec = !isString ? item.restSec : null;
 
         return (
-          <div 
+          <div
             key={`${variant}-${i}-${name ?? "step"}`}
             style={{
               ...dayItem,
@@ -2108,7 +2108,7 @@ function ExercisesList({
               </div>
               {cues && <div style={dayFocus}>{cues}</div>}
             </div>
-            
+
             {/* Правая часть: чипы */}
             {typeof sets === 'number' && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
@@ -2170,7 +2170,7 @@ function PlannedExercisesEditor({
       try {
         const el = menuBtnRefs.current[idx];
         if (el) setAnchorRect(el.getBoundingClientRect());
-      } catch {}
+      } catch { }
     },
     []
   );
@@ -2272,7 +2272,7 @@ function PlannedExercisesEditor({
       close();
       try {
         window.dispatchEvent(new Event("schedule_updated" as any));
-      } catch {}
+      } catch { }
     } catch (e) {
       console.error(e);
       setErr("Не удалось заменить упражнение. Попробуй ещё раз.");
@@ -2296,7 +2296,7 @@ function PlannedExercisesEditor({
       close();
       try {
         window.dispatchEvent(new Event("schedule_updated" as any));
-      } catch {}
+      } catch { }
     } catch (e) {
       console.error(e);
       setErr("Не удалось удалить упражнение. Попробуй ещё раз.");
@@ -2606,134 +2606,134 @@ function PlannedExercisesEditor({
       {menuIndex != null ? (
         typeof document !== "undefined"
           ? createPortal(
-              <>
-                <div
-                  style={overlay}
-                  role="presentation"
-                  onPointerDown={(e) => {
-                    if (e.target === e.currentTarget) close();
-                  }}
-                />
-                <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-                  {err ? (
-                    <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
-                      {err}
+            <>
+              <div
+                style={overlay}
+                role="presentation"
+                onPointerDown={(e) => {
+                  if (e.target === e.currentTarget) close();
+                }}
+              />
+              <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                {err ? (
+                  <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
+                    {err}
+                  </div>
+                ) : null}
+
+                <div style={panelStyle}>
+                  {mode === "menu" ? (
+                    <div style={{ display: "grid", gap: 0 }}>
+                      <button
+                        type="button"
+                        className="exercise-menu-option"
+                        style={actionBtn}
+                        disabled={loading || !currentId}
+                        onClick={() => void fetchAlternatives()}
+                      >
+                        Заменить
+                      </button>
+                      <button
+                        type="button"
+                        className="exercise-menu-option exercise-menu-option-danger"
+                        style={{ ...dangerBtn, ...actionBtnTopBorder }}
+                        disabled={loading}
+                        onClick={() => goMode("confirm_remove")}
+                      >
+                        Удалить
+                      </button>
+                      <button
+                        type="button"
+                        className="exercise-menu-option"
+                        style={{ ...softBtn, ...actionBtnTopBorder }}
+                        disabled={loading || !currentId}
+                        onClick={() => goMode("confirm_ban")}
+                      >
+                        Заблокировать
+                      </button>
                     </div>
                   ) : null}
 
-                  <div style={panelStyle}>
-                    {mode === "menu" ? (
-                      <div style={{ display: "grid", gap: 0 }}>
-                        <button
-                          type="button"
-                          className="exercise-menu-option"
-                          style={actionBtn}
-                          disabled={loading || !currentId}
-                          onClick={() => void fetchAlternatives()}
-                        >
-                          Заменить
-                        </button>
-                        <button
-                          type="button"
-                          className="exercise-menu-option exercise-menu-option-danger"
-                          style={{ ...dangerBtn, ...actionBtnTopBorder }}
-                          disabled={loading}
-                          onClick={() => goMode("confirm_remove")}
-                        >
-                          Удалить
-                        </button>
-                        <button
-                          type="button"
-                          className="exercise-menu-option"
-                          style={{ ...softBtn, ...actionBtnTopBorder }}
-                          disabled={loading || !currentId}
-                          onClick={() => goMode("confirm_ban")}
-                        >
-                          Заблокировать
-                        </button>
-                      </div>
-                    ) : null}
+                  {mode === "confirm_remove" ? (
+                    <div style={{ display: "grid", gap: 0 }}>
+                      <div style={subText}>Удалить упражнение из этого плана?</div>
+                      <button
+                        type="button"
+                        className="exercise-menu-option exercise-menu-option-danger is-active"
+                        style={{ ...dangerBtn, ...actionBtnActive }}
+                        disabled={loading}
+                        onClick={() => void applyRemove()}
+                      >
+                        Да, удалить
+                      </button>
+                      <button
+                        type="button"
+                        className="exercise-menu-option"
+                        style={{ ...actionBtn, ...actionBtnTopBorder }}
+                        disabled={loading}
+                        onClick={() => goMode("menu")}
+                      >
+                        ← Назад
+                      </button>
+                    </div>
+                  ) : null}
 
-                    {mode === "confirm_remove" ? (
-                      <div style={{ display: "grid", gap: 0 }}>
-                        <div style={subText}>Удалить упражнение из этого плана?</div>
-                        <button
-                          type="button"
-                          className="exercise-menu-option exercise-menu-option-danger is-active"
-                          style={{ ...dangerBtn, ...actionBtnActive }}
-                          disabled={loading}
-                          onClick={() => void applyRemove()}
-                        >
-                          Да, удалить
-                        </button>
-                        <button
-                          type="button"
-                          className="exercise-menu-option"
-                          style={{ ...actionBtn, ...actionBtnTopBorder }}
-                          disabled={loading}
-                          onClick={() => goMode("menu")}
-                        >
-                          ← Назад
-                        </button>
-                      </div>
-                    ) : null}
+                  {mode === "confirm_ban" ? (
+                    <div style={{ display: "grid", gap: 0 }}>
+                      <div style={subText}>Убрать упражнение из будущих генераций?</div>
+                      <button
+                        type="button"
+                        className="exercise-menu-option exercise-menu-option-danger is-active"
+                        style={{ ...dangerBtn, ...actionBtnActive }}
+                        disabled={loading}
+                        onClick={() => void applyBan()}
+                      >
+                        Да, больше не предлагать
+                      </button>
+                      <button
+                        type="button"
+                        className="exercise-menu-option"
+                        style={{ ...actionBtn, ...actionBtnTopBorder }}
+                        disabled={loading}
+                        onClick={() => goMode("menu")}
+                      >
+                        ← Назад
+                      </button>
+                    </div>
+                  ) : null}
 
-                    {mode === "confirm_ban" ? (
-                      <div style={{ display: "grid", gap: 0 }}>
-                        <div style={subText}>Убрать упражнение из будущих генераций?</div>
+                  {mode === "replace" ? (
+                    <div style={{ display: "grid", gap: 0, maxHeight: replaceMaxHeight, overflow: "auto" }}>
+                      <div style={subTitle}>Выбери замену</div>
+                      {loading ? <div style={{ ...subText, borderBottom: "none" }}>Загружаю…</div> : null}
+                      {alts.map((a, idx) => (
                         <button
-                          type="button"
-                          className="exercise-menu-option exercise-menu-option-danger is-active"
-                          style={{ ...dangerBtn, ...actionBtnActive }}
-                          disabled={loading}
-                          onClick={() => void applyBan()}
-                        >
-                          Да, больше не предлагать
-                        </button>
-                        <button
+                          key={a.exerciseId}
                           type="button"
                           className="exercise-menu-option"
-                          style={{ ...actionBtn, ...actionBtnTopBorder }}
+                          style={idx > 0 ? { ...actionBtnWrap, ...actionBtnTopBorder } : actionBtnWrap}
                           disabled={loading}
-                          onClick={() => goMode("menu")}
+                          onClick={() => void applyReplace(a.exerciseId)}
                         >
-                          ← Назад
+                          <div style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22" }}>{a.name}</div>
                         </button>
-                      </div>
-                    ) : null}
-
-                    {mode === "replace" ? (
-                      <div style={{ display: "grid", gap: 0, maxHeight: replaceMaxHeight, overflow: "auto" }}>
-                        <div style={subTitle}>Выбери замену</div>
-                        {loading ? <div style={{ ...subText, borderBottom: "none" }}>Загружаю…</div> : null}
-                        {alts.map((a, idx) => (
-                          <button
-                            key={a.exerciseId}
-                            type="button"
-                            className="exercise-menu-option"
-                            style={idx > 0 ? { ...actionBtnWrap, ...actionBtnTopBorder } : actionBtnWrap}
-                            disabled={loading}
-                            onClick={() => void applyReplace(a.exerciseId)}
-                          >
-                            <div style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22" }}>{a.name}</div>
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="exercise-menu-option"
-                          style={{ ...actionBtn, ...actionBtnTopBorder }}
-                          disabled={loading}
-                          onClick={() => goMode("menu")}
-                        >
-                          ← Назад
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="exercise-menu-option"
+                        style={{ ...actionBtn, ...actionBtnTopBorder }}
+                        disabled={loading}
+                        onClick={() => goMode("menu")}
+                      >
+                        ← Назад
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              </>,
-              document.body
-            )
+              </div>
+            </>,
+            document.body
+          )
           : null
       ) : null}
     </div>
@@ -2909,7 +2909,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: "16px",
     fontFamily: "system-ui, -apple-system, 'Inter', 'Roboto', Segoe UI",
     background:
-"transparent",
+      "transparent",
     minHeight: "100vh",
   },
 
@@ -3384,7 +3384,7 @@ const row: Record<string, React.CSSProperties> = {
     gap: 8,
     flex: 1,
   },
-  name: { 
+  name: {
     fontSize: 20,
     fontWeight: 800,
     color: "#0f172a",
@@ -3393,7 +3393,7 @@ const row: Record<string, React.CSSProperties> = {
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
   },
-  cues: { 
+  cues: {
     fontSize: 14,
     color: "#475569",
     lineHeight: 1.6,
