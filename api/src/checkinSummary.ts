@@ -378,7 +378,7 @@ function deriveSummaryDrivers(args: {
   if (timeWasTight && args.action === "keep_day") drivers.push("time_limit");
 
   if (args.action === "keep_day" && hasLowRecoveryInput(args.checkin)) drivers.push("low_recovery");
-  if (args.action === "keep_day" && hasHighReadinessInput(args.checkin) && diffSignals.increasedSignificant) {
+  if (args.action === "keep_day" && hasHighReadinessInput(args.checkin)) {
     drivers.push("high_readiness");
   }
 
@@ -656,10 +656,10 @@ export function buildCoachSummaryBlocks(args: {
   } else if (hasTimeLimit && hasLowRecovery) {
     const available = facts.input.availableMinutes;
     const onboarding = facts.input.onboardingMinutes;
-    const timePart =
-      available != null && onboarding != null
-        ? `Указал ${available} мин вместо обычных ${onboarding}`
-        : "Времени на тренировку сегодня меньше обычного";
+    const hasTimeDiff = available != null && onboarding != null && available < onboarding;
+    const timePart = hasTimeDiff
+      ? `Указал ${available} мин вместо обычных ${onboarding}`
+      : "Адаптировали объём тренировки";
 
     if (facts.input.sleep === "poor" && facts.input.energy === "low" && recoveryAdjusted) {
       why = `${timePart}. Плохой сон и низкая энергия — поэтому оставили щадящую нагрузку без перегруза.`;
@@ -675,9 +675,10 @@ export function buildCoachSummaryBlocks(args: {
   } else if (hasTimeLimit) {
     const available = facts.input.availableMinutes;
     const onboarding = facts.input.onboardingMinutes;
-    why = available != null && onboarding != null
+    const hasTimeDiff = available != null && onboarding != null && available < onboarding;
+    why = hasTimeDiff
       ? `Указал ${available} мин вместо обычных ${onboarding} — адаптировали объём под это время.`
-      : "По чек-ину времени на тренировку меньше обычного, поэтому сократили объём.";
+      : "Адаптировали объём тренировки под доступное время.";
   } else if (hasLowRecovery) {
     if (facts.input.sleep === "poor" && facts.input.energy === "low" && recoveryAdjusted) {
       why = "Плохой сон и низкая энергия — сделали сессию легче, чтобы не перегружать восстановление.";
@@ -693,7 +694,10 @@ export function buildCoachSummaryBlocks(args: {
       why = "По чек-ину ресурс ниже обычного, поэтому тренировку сделали легче.";
     }
   } else if (hasDriver("high_readiness")) {
-    why = "По чек-ину высокий ресурс, поэтому можно немного повысить рабочую нагрузку.";
+    const didIncrease = diff && (diff.setsDelta > 0 || (diff.durationDelta != null && diff.durationDelta > 0));
+    why = didIncrease
+      ? "По чек-ину высокий ресурс — немного повысили рабочую нагрузку."
+      : "По чек-ину отличное состояние — работай уверенно по плану.";
   } else if (hasNoChange) {
     why = "По чек-ину состояние ровное — оставили план без изменений.";
   } else {
@@ -748,15 +752,15 @@ export function buildSummaryPayload(args: {
     typeof args.forcedChanged === "boolean"
       ? args.forcedChanged
       : args.action !== "keep_day" ||
-        changeNotes.length > 0 ||
-        Boolean(changeMeta.intentAdjusted) ||
-        Boolean(changeMeta.volumeAdjusted) ||
-        Boolean(changeMeta.shortenedForTime) ||
-        Boolean(changeMeta.trimmedForCaps) ||
-        Boolean(changeMeta.deload) ||
-        Boolean(changeMeta.safetyAdjusted) ||
-        Boolean(changeMeta.corePolicyAdjusted) ||
-        diffSignals.meaningfulDelta;
+      changeNotes.length > 0 ||
+      Boolean(changeMeta.intentAdjusted) ||
+      Boolean(changeMeta.volumeAdjusted) ||
+      Boolean(changeMeta.shortenedForTime) ||
+      Boolean(changeMeta.trimmedForCaps) ||
+      Boolean(changeMeta.deload) ||
+      Boolean(changeMeta.safetyAdjusted) ||
+      Boolean(changeMeta.corePolicyAdjusted) ||
+      diffSignals.meaningfulDelta;
 
   const facts = buildCheckInFactPack({
     action: args.action,

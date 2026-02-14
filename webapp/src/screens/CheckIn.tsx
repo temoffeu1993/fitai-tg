@@ -98,16 +98,20 @@ export default function CheckIn() {
   const summary = useMemo(() => (result ? buildCheckInSummaryViewModel(result) : null), [result]);
   const resultLines = useMemo(() => {
     if (!result || !summary) return [] as string[];
-    const what = String(result.summary?.whatChanged || summary.subtitle || "").trim();
-    const whyRaw = String(result.summary?.why || "").trim();
-    const factualRaw = String(summary.factualLine || "").trim();
-    const fallback = Array.isArray(summary.bullets) ? summary.bullets : [];
-    const why = whyRaw || fallback[0] || "";
-    const factual = factualRaw.replace(/^По факту:\s*/i, "").trim();
+    // Primary: backend-generated text; fallback: view-model fields
+    const what = String(result.summary?.whatChanged || summary.title || "").trim();
+    const whyRaw = String(result.summary?.why || summary.subtitle || "").trim();
+    const howRaw = String(result.summary?.howToTrainToday || "").trim();
+    const factualRaw = String(summary.factualLine || "").trim().replace(/^По факту:\s*/i, "").trim();
+
+    // Suppress factual when title already contains numeric delta (→)
+    const showFactual = Boolean(factualRaw && !what.includes("→"));
+
     return [
       what || "",
-      why ? `Почему: ${why}` : "",
-      factual || "",
+      whyRaw || "",
+      howRaw || "",
+      showFactual ? factualRaw : "",
     ].filter(Boolean);
   }, [result, summary]);
 
@@ -159,7 +163,7 @@ export default function CheckIn() {
           updatedAt: new Date().toISOString(),
         })
       );
-    } catch {}
+    } catch { }
     nav("/workout/session", {
       state: {
         plan: toSessionPlan(finalResult.workout),
@@ -269,8 +273,8 @@ export default function CheckIn() {
   const bubbleText = phase === "form"
     ? formQuestions[Math.max(0, Math.min(formQuestions.length - 1, formStep))] || "Как ты сегодня?"
     : !result
-    ? "Отметь самочувствие за 30 секунд."
-    : "Готово. Ниже коротко, что поменялось сегодня.";
+      ? "Отметь самочувствие за 30 секунд."
+      : "Готово. Ниже коротко, что поменялось сегодня.";
   const introBubbleTyped = useTypewriterText(
     phase === "intro" ? INTRO_BUBBLE_TARGET : "",
     { charIntervalMs: 26, startDelayMs: 120 }
@@ -306,8 +310,8 @@ export default function CheckIn() {
     phase === "intro" || phase === "result"
       ? { ...styles.page, ...styles.pageIntro }
       : phase === "form" && formStep <= 3
-      ? { ...styles.page, ...styles.pageFormLocked }
-      : styles.page;
+        ? { ...styles.page, ...styles.pageFormLocked }
+        : styles.page;
 
   if (phase === "analyzing") {
     return <OnbAnalysisLoading onDone={handleAnalysisDone} lines={CHECKIN_ANALYSIS_LINES} />;
