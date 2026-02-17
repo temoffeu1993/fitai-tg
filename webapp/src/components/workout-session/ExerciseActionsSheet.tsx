@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -167,10 +167,28 @@ export default function ExerciseActionsSheet(props: Props) {
       case "menu":
         return (
           <div style={s.menuList}>
-            <MenuBtn label="Заменить упражнение" onClick={onLoadAlternatives} />
-            <MenuBtn label="Пропустить упражнение" onClick={onAskSkip} />
-            <MenuBtn label="Удалить из тренировки" onClick={onAskRemove} danger />
-            <MenuBtn label="Исключить из будущих тренировок" onClick={onAskBan} danger />
+            <MenuBtn
+              icon={<RefreshCw size={16} strokeWidth={2.2} />}
+              label="Заменить упражнение"
+              onClick={onLoadAlternatives}
+            />
+            <MenuBtn
+              icon={<SkipForward size={16} strokeWidth={2.2} />}
+              label="Пропустить упражнение"
+              onClick={onAskSkip}
+            />
+            <MenuBtn
+              icon={<Trash2 size={16} strokeWidth={2.2} />}
+              label="Удалить из тренировки"
+              onClick={onAskRemove}
+              danger
+            />
+            <MenuBtn
+              icon={<Ban size={16} strokeWidth={2.2} />}
+              label="Исключить из будущих тренировок"
+              onClick={onAskBan}
+              danger
+            />
           </div>
         );
 
@@ -357,7 +375,8 @@ export default function ExerciseActionsSheet(props: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
-function MenuBtn({ label, onClick, danger = false }: {
+function MenuBtn({ icon, label, onClick, danger = false }: {
+  icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
@@ -373,7 +392,8 @@ function MenuBtn({ label, onClick, danger = false }: {
       }}
       onClick={onClick}
     >
-      {label}
+      <span style={s.menuBtnIconWrap}>{icon}</span>
+      <span style={s.menuBtnLabel}>{label}</span>
     </button>
   );
 }
@@ -649,14 +669,34 @@ const s: Record<string, CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.4)",
     background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
     boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    padding: "14px 16px",
+    padding: "12px 14px",
     fontSize: 18,
     fontWeight: 500,
     textAlign: "left" as const,
     cursor: "pointer",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  menuBtnIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    display: "inline-flex",
+    alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+    color: "inherit",
+  },
+  menuBtnLabel: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 500,
+    color: "inherit",
+    lineHeight: 1.25,
   },
 
   // ── Menu mode ─────────────────────────────────────────────────────────
@@ -679,6 +719,8 @@ const s: Record<string, CSSProperties> = {
   altRowInner: {
     animation: "eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
     color: workoutTheme.accent,
+    flexDirection: "column" as const,
+    alignItems: "flex-start",
   },
   altName: {
     fontSize: 18,
