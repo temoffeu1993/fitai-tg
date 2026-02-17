@@ -36,8 +36,8 @@ export default function TechniqueAccordion({ technique, proTip, illustration, re
             >
                 <span style={s.triggerLabel}>Техника выполнения</span>
                 <ChevronRight
-                    size={16}
-                    strokeWidth={2.2}
+                    size={14}
+                    strokeWidth={1.9}
                     style={{
                         ...s.chevron,
                         transform: open ? "rotate(-90deg)" : "rotate(90deg)",
@@ -101,17 +101,15 @@ const s: Record<string, CSSProperties> = {
     },
     trigger: {
         width: "100%",
-        marginLeft: "auto",
         display: "inline-flex",
         alignItems: "center",
-        justifyContent: "flex-end",
-        gap: 2,
-        padding: "0 2px 0 6px",
+        justifyContent: "space-between",
+        gap: 8,
+        padding: "6px 0",
         border: "none",
         background: "transparent",
-        color: "rgba(15,23,42,0.7)",
-        borderRadius: 999,
-        minHeight: 44,
+        color: "rgba(15, 23, 42, 0.62)",
+        borderRadius: 0,
         cursor: "pointer",
         WebkitTapHighlightColor: "transparent",
         touchAction: "manipulation",
@@ -122,9 +120,9 @@ const s: Record<string, CSSProperties> = {
         transition: "transform 160ms ease",
     },
     triggerLabel: {
-        fontSize: 16,
-        fontWeight: 600,
-        lineHeight: 1,
+        fontSize: 14,
+        fontWeight: 400,
+        lineHeight: 1.45,
     },
     content: {
         display: "grid",
