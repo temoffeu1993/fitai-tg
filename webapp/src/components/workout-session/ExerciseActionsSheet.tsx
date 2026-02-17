@@ -41,18 +41,6 @@ function getSlideDirection(prev: MenuMode, next: MenuMode): SlideDirection {
   return "forward";
 }
 
-function getTitleForMode(mode: MenuMode, item: SessionItem | null): string {
-  if (!item) return "";
-  switch (mode) {
-    case "menu": return item.name;
-    case "replace": return "Замена";
-    case "confirm_skip": return "Пропустить?";
-    case "confirm_remove": return "Удалить?";
-    case "confirm_ban": return "Исключить?";
-    default: return "";
-  }
-}
-
 // Skeleton for loading state — iOS-style shimmer
 function AlternativeSkeleton() {
   return (
@@ -84,19 +72,15 @@ export default function ExerciseActionsSheet(props: Props) {
   const [prevMode, setPrevMode] = useState<MenuMode | null>(null);
   const [slideDirection, setSlideDirection] = useState<SlideDirection>("forward");
   const [contentAnimating, setContentAnimating] = useState(false);
-  const [titleAnimating, setTitleAnimating] = useState(false);
-  const [titleText, setTitleText] = useState(() => getTitleForMode(state?.mode ?? "menu", item));
-  const [nextTitleText, setNextTitleText] = useState("");
 
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
   const contentTimerRef = useRef<number | null>(null);
-  const titleTimerRef = useRef<number | null>(null);
 
   // Cleanup all timers on unmount
   useEffect(() => {
     return () => {
-      [closeTimerRef, openTimerRef, contentTimerRef, titleTimerRef].forEach((r) => {
+      [closeTimerRef, openTimerRef, contentTimerRef].forEach((r) => {
         if (r.current != null) window.clearTimeout(r.current);
       });
     };
@@ -143,7 +127,6 @@ export default function ExerciseActionsSheet(props: Props) {
       setCurrentMode(null);
       setPrevMode(null);
       setContentAnimating(false);
-      setTitleAnimating(false);
       closeTimerRef.current = null;
     }, SHEET_EXIT_MS + 20);
   }, [propOpen, renderOpen]);
@@ -155,37 +138,26 @@ export default function ExerciseActionsSheet(props: Props) {
 
     if (currentMode == null) {
       setCurrentMode(nextMode);
-      setTitleText(getTitleForMode(nextMode, displayItem));
       return;
     }
 
     if (nextMode === currentMode) return;
 
     const dir = getSlideDirection(currentMode, nextMode);
-    const newTitle = getTitleForMode(nextMode, displayItem);
 
     if (contentTimerRef.current != null) window.clearTimeout(contentTimerRef.current);
-    if (titleTimerRef.current != null) window.clearTimeout(titleTimerRef.current);
 
     setPrevMode(currentMode);
     setCurrentMode(nextMode);
     setSlideDirection(dir);
     setContentAnimating(true);
-    setTitleAnimating(true);
-    setNextTitleText(newTitle);
 
     contentTimerRef.current = window.setTimeout(() => {
       setPrevMode(null);
       setContentAnimating(false);
       contentTimerRef.current = null;
     }, CONTENT_ANIM_MS + 20);
-
-    titleTimerRef.current = window.setTimeout(() => {
-      setTitleText(newTitle);
-      setTitleAnimating(false);
-      titleTimerRef.current = null;
-    }, CONTENT_ANIM_MS / 2);
-  }, [state?.mode, currentMode, displayItem]);
+  }, [state?.mode, currentMode]);
 
   // ── Content renderer ──────────────────────────────────────────────────
   const renderContent = (mode: MenuMode) => {
@@ -346,51 +318,23 @@ export default function ExerciseActionsSheet(props: Props) {
             aria-label="Назад"
             className="eas-icon-btn"
             style={{
-              ...s.headerBtn,
+              ...s.iconBtn,
               opacity: canGoBack ? 1 : 0,
               pointerEvents: canGoBack ? "auto" : "none",
             }}
             onClick={onBackMenu}
             tabIndex={canGoBack ? 0 : -1}
           >
-            <ArrowLeft size={16} strokeWidth={2.5} />
-            <span style={s.backLabel}>Назад</span>
+            <ArrowLeft size={15} strokeWidth={2.5} />
           </button>
 
-          {/* Animated title */}
-          <div style={s.titleWrap} aria-live="polite">
-            {titleAnimating ? (
-              <>
-                <span
-                  key={`out-${titleText}`}
-                  style={{
-                    ...s.title,
-                    ...(slideDirection === "forward" ? s.titleOutLeft : s.titleOutRight),
-                  }}
-                  aria-hidden
-                >
-                  {titleText}
-                </span>
-                <span
-                  key={`in-${nextTitleText}`}
-                  style={{
-                    ...s.title,
-                    ...(slideDirection === "forward" ? s.titleInRight : s.titleInLeft),
-                  }}
-                >
-                  {nextTitleText}
-                </span>
-              </>
-            ) : (
-              <span style={{ ...s.title, ...s.titleStatic }}>{titleText}</span>
-            )}
-          </div>
+          <div style={s.headerSpacer} />
 
           <button
             type="button"
             aria-label="Закрыть"
             className="eas-icon-btn"
-            style={{ ...s.headerBtn, ...s.headerBtnClose }}
+            style={s.iconBtn}
             onClick={onClose}
           >
             <X size={15} strokeWidth={2.5} />
@@ -561,24 +505,6 @@ const globalCss = `
     to   { opacity: 0; transform: translate3d(44px, 0, 0); }
   }
 
-  /* Title transitions */
-  @keyframes eas-title-in-right {
-    from { opacity: 0; transform: translate3d(20px, 0, 0); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0); }
-  }
-  @keyframes eas-title-in-left {
-    from { opacity: 0; transform: translate3d(-20px, 0, 0); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0); }
-  }
-  @keyframes eas-title-out-left {
-    from { opacity: 1; transform: translate3d(0, 0, 0); }
-    to   { opacity: 0; transform: translate3d(-20px, 0, 0); }
-  }
-  @keyframes eas-title-out-right {
-    from { opacity: 1; transform: translate3d(0, 0, 0); }
-    to   { opacity: 0; transform: translate3d(20px, 0, 0); }
-  }
-
   /* Alt rows stagger in */
   @keyframes eas-alt-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -713,8 +639,8 @@ const s: Record<string, CSSProperties> = {
   grabberRow: {
     display: "flex",
     justifyContent: "center",
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingTop: 8,
+    paddingBottom: 2,
     flexShrink: 0,
   },
   grabber: {
@@ -726,75 +652,27 @@ const s: Record<string, CSSProperties> = {
 
   // Header
   header: {
-    display: "grid",
-    gridTemplateColumns: "auto 1fr auto",
-    alignItems: "center",
-    gap: 4,
-    padding: "6px 8px 8px",
-    flexShrink: 0,
-  },
-  headerBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 3,
-    padding: "6px 8px",
-    border: "none",
-    background: "transparent",
-    borderRadius: 10,
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: 400,
-    cursor: "pointer",
-    minWidth: 60,
-    whiteSpace: "nowrap",
-    transition: "opacity 150ms ease",
-  },
-  headerBtnClose: {
-    justifyContent: "flex-end",
-    minWidth: 32,
-    padding: "6px 8px",
-    color: "rgba(60,60,67,0.6)",
-  },
-  backLabel: {
-    fontSize: 16,
-    fontWeight: 400,
-    color: "#007AFF",
-  },
-
-  // Title
-  titleWrap: {
-    position: "relative",
-    height: 22,
     display: "flex",
     alignItems: "center",
+    padding: "2px 8px 4px",
+    flexShrink: 0,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    display: "inline-flex",
+    alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
-  },
-  title: {
-    position: "absolute",
-    fontSize: 16,
-    fontWeight: 600,
-    color: "rgba(0,0,0,0.88)",
-    textAlign: "center",
-    whiteSpace: "nowrap",
-    letterSpacing: "-0.3px",
-  },
-  titleStatic: {
-    position: "relative",
-  },
-  titleInRight: {
-    animation: `eas-title-in-right 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
-  },
-  titleInLeft: {
-    animation: `eas-title-in-left 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
-  },
-  titleOutLeft: {
-    animation: `eas-title-out-left 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
-    pointerEvents: "none",
-  },
-  titleOutRight: {
-    animation: `eas-title-out-right 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
-    pointerEvents: "none",
+    border: "none",
+    background: "transparent",
+    borderRadius: 999,
+    color: "rgba(60,60,67,0.6)",
+    cursor: "pointer",
+    padding: 0,
+    flexShrink: 0,
   },
 
   // Content viewport (slide transitions)
