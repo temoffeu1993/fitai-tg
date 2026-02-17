@@ -23,6 +23,7 @@ const WHEEL_CYCLES = 7;
 const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
 const EPS = 0.0001;
 const FLASH_TINT_MS = 520;
+const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
@@ -37,11 +38,14 @@ export default function SetEditorCard(props: Props) {
     onCommitSet,
   } = props;
   const [commitFlash, setCommitFlash] = useState(false);
+  const [showSavedLabel, setShowSavedLabel] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
+  const savedLabelTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
+      if (savedLabelTimerRef.current != null) window.clearTimeout(savedLabelTimerRef.current);
     };
   }, []);
 
@@ -84,6 +88,13 @@ export default function SetEditorCard(props: Props) {
       setCommitFlash(false);
       flashTimerRef.current = null;
     }, FLASH_TINT_MS);
+
+    if (savedLabelTimerRef.current != null) window.clearTimeout(savedLabelTimerRef.current);
+    setShowSavedLabel(true);
+    savedLabelTimerRef.current = window.setTimeout(() => {
+      setShowSavedLabel(false);
+      savedLabelTimerRef.current = null;
+    }, SAVED_LABEL_MS);
   };
 
   return (
@@ -132,7 +143,26 @@ export default function SetEditorCard(props: Props) {
         </span>
       </button>
 
-      <div style={s.setIndexText}>Подход {displaySet} из {totalSets}</div>
+      <div style={s.setIndexText} aria-live="polite">
+        <span
+          aria-hidden={showSavedLabel}
+          style={{
+            ...s.setIndexTextLayer,
+            ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
+          }}
+        >
+          Подход {displaySet} из {totalSets}
+        </span>
+        <span
+          aria-hidden={!showSavedLabel}
+          style={{
+            ...s.setIndexTextLayer,
+            ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
+          }}
+        >
+          Подход сохранен
+        </span>
+      </div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
     </section>
@@ -468,12 +498,39 @@ const s: Record<string, CSSProperties> = {
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
   setIndexText: {
+    position: "relative",
+    minHeight: 21,
+    marginTop: 2,
+  },
+  setIndexTextLayer: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     textAlign: "center",
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.62)",
-    marginTop: 2,
+    transition: "opacity 220ms ease, transform 220ms ease",
+    willChange: "opacity, transform",
+  },
+  setIndexTextLayerVisible: {
+    opacity: 1,
+    transform: "translateY(0)",
+  },
+  setIndexTextLayerHidden: {
+    opacity: 0,
+    transform: "translateY(-4px)",
+  },
+  savedTextHidden: {
+    opacity: 0,
+    transform: "translateY(4px)",
+  },
+  savedTextVisible: {
+    opacity: 1,
+    transform: "translateY(0)",
   },
   error: {
     fontSize: 12,
