@@ -4,7 +4,7 @@ import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { defaultRepsFromTarget, formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
 import { fireHapticImpact } from "@/utils/haptics";
-import { ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Props = {
   item: SessionItem | null;
@@ -42,7 +42,6 @@ export default function SetEditorCard(props: Props) {
   } = props;
   const [commitFlash, setCommitFlash] = useState(false);
   const [showSavedLabel, setShowSavedLabel] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const savedLabelTimerRef = useRef<number | null>(null);
 
@@ -52,11 +51,6 @@ export default function SetEditorCard(props: Props) {
       if (savedLabelTimerRef.current != null) window.clearTimeout(savedLabelTimerRef.current);
     };
   }, []);
-
-  // Collapse history when focus moves to a different set
-  useEffect(() => {
-    setHistoryOpen(false);
-  }, [focusSetIndex]);
 
   if (!item) return null;
   const set = item.sets[focusSetIndex];
@@ -88,15 +82,8 @@ export default function SetEditorCard(props: Props) {
       ? Math.round(explicitReps)
       : prevReps ?? targetDefaultReps;
 
-  const formatSetChip = (entry: typeof item.sets[number], idx: number) => {
-    if (!entry.done) return `${idx + 1}`;
-    const r = entry.reps != null ? Math.round(entry.reps) : "—";
-    if (!needWeight) return `✓ ${r}`;
-    const w = entry.weight != null
-      ? (Number.isInteger(entry.weight) ? entry.weight : Number(entry.weight).toFixed(1))
-      : "—";
-    return `✓ ${r}×${w}`;
-  };
+  const canGoPrev = focusSetIndex > 0;
+  const canGoNext = focusSetIndex < totalSets - 1;
 
   const handleCommit = () => {
     const committed = onCommitSet();
@@ -163,79 +150,71 @@ export default function SetEditorCard(props: Props) {
         </span>
       </button>
 
-      <div>
-        {/* Tappable counter row */}
+      {/* Set navigation row */}
+      <div style={s.setNavRow}>
+        {/* Left arrow — go to previous set */}
         <button
           type="button"
-          className="sec-counter-btn"
-          style={s.setCounterBtn}
-          onClick={() => setHistoryOpen((v) => !v)}
-          aria-expanded={historyOpen}
+          className="sec-nav-btn"
+          style={{
+            ...s.navBtn,
+            opacity: canGoPrev ? 1 : 0,
+            pointerEvents: canGoPrev ? "auto" : "none",
+          }}
+          aria-label="Предыдущий подход"
+          tabIndex={canGoPrev ? 0 : -1}
+          onClick={() => {
+            if (canGoPrev && onFocusSet) {
+              onFocusSet(focusSetIndex - 1);
+              fireHapticImpact("light");
+            }
+          }}
         >
-          <div style={s.setIndexText} aria-live="polite">
-            <span
-              aria-hidden={showSavedLabel}
-              style={{
-                ...s.setIndexTextLayer,
-                ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
-              }}
-            >
-              Подход {displaySet} из {totalSets}
-            </span>
-            <span
-              aria-hidden={!showSavedLabel}
-              style={{
-                ...s.setIndexTextLayer,
-                ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
-              }}
-            >
-              Подход сохранен
-            </span>
-          </div>
-          <ChevronDown
-            size={14}
-            strokeWidth={2.2}
-            style={{
-              ...s.chevron,
-              transform: historyOpen ? "rotate(180deg)" : "rotate(0deg)",
-            }}
-          />
+          <ChevronLeft size={16} strokeWidth={2.2} />
         </button>
 
-        {/* Expandable chip list */}
-        <div
-          style={{
-            ...s.chipsWrap,
-            maxHeight: historyOpen ? `${item.sets.length * 48}px` : "0px",
-            opacity: historyOpen ? 1 : 0,
-          }}
-          aria-hidden={!historyOpen}
-        >
-          <div style={s.chipsList}>
-            {item.sets.map((entry, idx) => {
-              const isFocused = idx === focusSetIndex;
-              const isDone = Boolean(entry.done);
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  className="sec-chip"
-                  style={{
-                    ...s.chip,
-                    ...(isDone ? s.chipDone : s.chipPending),
-                    ...(isFocused ? s.chipFocused : null),
-                  }}
-                  onClick={() => {
-                    if (onFocusSet) onFocusSet(idx);
-                    setHistoryOpen(false);
-                  }}
-                >
-                  {formatSetChip(entry, idx)}
-                </button>
-              );
-            })}
-          </div>
+        {/* Counter text */}
+        <div style={s.setIndexText} aria-live="polite">
+          <span
+            aria-hidden={showSavedLabel}
+            style={{
+              ...s.setIndexTextLayer,
+              ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
+            }}
+          >
+            Подход {displaySet} из {totalSets}
+          </span>
+          <span
+            aria-hidden={!showSavedLabel}
+            style={{
+              ...s.setIndexTextLayer,
+              ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
+            }}
+          >
+            Подход сохранен
+          </span>
         </div>
+
+        {/* Right arrow — go to next set */}
+        <button
+          type="button"
+          className="sec-nav-btn"
+          style={{
+            ...s.navBtn,
+            opacity: canGoNext ? 1 : 0,
+            pointerEvents: canGoNext ? "auto" : "none",
+          }}
+          aria-label="Следующий подход"
+          tabIndex={canGoNext ? 0 : -1}
+          onClick={() => {
+            if (canGoNext && onFocusSet) {
+              onFocusSet(focusSetIndex + 1);
+              fireHapticImpact("light");
+            }
+          }}
+        >
+          <ChevronRight size={16} strokeWidth={2.2} />
+        </button>
       </div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
@@ -426,26 +405,18 @@ function WheelField(props: {
 }
 
 const secCss = `
-  .sec-chip {
+  .sec-nav-btn {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: transform 130ms ease, opacity 130ms ease, box-shadow 130ms ease;
+    transition: opacity 140ms ease, transform 130ms ease;
     will-change: transform;
   }
-  .sec-chip:active {
-    transform: scale(0.88);
-    opacity: 0.65;
-  }
-  .sec-counter-btn {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition: opacity 120ms ease;
-  }
-  .sec-counter-btn:active {
-    opacity: 0.55;
+  .sec-nav-btn:active {
+    transform: scale(0.82);
+    opacity: 0.5;
   }
   @media (prefers-reduced-motion: reduce) {
-    .sec-chip, .sec-counter-btn { transition: none !important; }
+    .sec-nav-btn { transition: none !important; }
   }
 `;
 
@@ -598,7 +569,8 @@ const s: Record<string, CSSProperties> = {
   setIndexText: {
     position: "relative",
     minHeight: 21,
-    whiteSpace: "nowrap",
+    flex: 1,
+    minWidth: 0,
   },
   setIndexTextLayer: {
     position: "absolute",
@@ -638,61 +610,26 @@ const s: Record<string, CSSProperties> = {
     textAlign: "center",
   },
 
-  // Set counter button
-  setCounterBtn: {
-    width: "100%",
+  // Set navigation row
+  setNavRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  navBtn: {
+    flexShrink: 0,
+    width: 32,
+    height: 32,
+    border: "none",
+    background: "transparent",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    border: "none",
-    background: "transparent",
-    padding: "2px 0",
+    borderRadius: 8,
     cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-  },
-  chevron: {
-    color: "rgba(15,23,42,0.38)",
-    flexShrink: 0,
-    transition: "transform 200ms ease",
-  },
-
-  // Expandable chip list
-  chipsWrap: {
-    overflow: "hidden",
-    transition: "max-height 220ms cubic-bezier(0.36, 0.66, 0.04, 1), opacity 180ms ease",
-  },
-  chipsList: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 6,
-    justifyContent: "center",
-    padding: "8px 0 2px",
-  },
-  chip: {
-    border: "none",
-    borderRadius: 999,
-    padding: "5px 11px",
-    fontSize: 13,
-    fontWeight: 600,
-    lineHeight: 1,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    fontVariantNumeric: "tabular-nums",
-    transition: "transform 120ms ease, opacity 120ms ease",
-  },
-  chipDone: {
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-  },
-  chipPending: {
-    background: "rgba(15,23,42,0.06)",
-    boxShadow: "none",
-    color: "rgba(15,23,42,0.38)",
-  },
-  chipFocused: {
-    outline: "2px solid rgba(15,23,42,0.22)",
-    outlineOffset: 1,
+    color: "rgba(15,23,42,0.45)",
+    padding: 0,
+    transition: "opacity 140ms ease",
   },
 };
