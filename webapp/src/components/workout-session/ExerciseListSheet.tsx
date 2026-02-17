@@ -145,7 +145,10 @@ export default function ExerciseListSheet(props: Props) {
                 onClick={() => onPick(idx)}
               >
                 <span style={s.rowName}>{item.name}</span>
-                <span style={s.rowMeta}>
+                <span style={{
+                  ...s.rowMeta,
+                  ...(isActive ? s.rowMetaActive : null),
+                }}>
                   {isSkipped ? "—" : `${doneSets}/${item.sets.length}`}
                 </span>
               </button>
@@ -322,10 +325,25 @@ const s: Record<string, CSSProperties> = {
     color: "inherit",
   },
   rowMeta: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "currentColor",
-    opacity: 0.74,
+    minWidth: 42,
+    height: 30,
+    borderRadius: 999,
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 10px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: workoutTheme.textSecondary,
     fontVariantNumeric: "tabular-nums",
+    flexShrink: 0,
+    letterSpacing: "0.2px",
+  },
+  rowMetaActive: {
+    background: "rgba(255,255,255,0.14)",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.12)",
+    color: "rgba(255,255,255,0.82)",
   },
 };
