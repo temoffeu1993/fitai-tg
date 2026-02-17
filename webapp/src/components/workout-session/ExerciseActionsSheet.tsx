@@ -407,6 +407,7 @@ function MenuBtn({ icon, label, onClick, danger = false, small = false }: {
         ...(small ? s.sheetBtnSmall : null),
         color: danger ? workoutTheme.danger : workoutTheme.accent,
         ["--eas-btn-color" as never]: danger ? workoutTheme.danger : workoutTheme.accent,
+        opacity: danger ? 0.72 : 1,
       }}
       onClick={onClick}
     >
@@ -463,6 +464,7 @@ function ConfirmView({
           ...s.sheetBtn,
           color: workoutTheme.danger,
           ["--eas-btn-color" as never]: workoutTheme.danger,
+          opacity: 0.72,
         }}
         onClick={onConfirm}
         disabled={disabled}
@@ -735,7 +737,6 @@ const s: Record<string, CSSProperties> = {
   sheetBtnSmall: {
     minHeight: 46,
     padding: "10px 12px",
-    opacity: 0.72,
   },
   menuBtnIconWrapSmall: {
     width: 28,

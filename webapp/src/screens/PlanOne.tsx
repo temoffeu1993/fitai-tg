@@ -2190,7 +2190,7 @@ function PeeMenuBtn({ icon, label, onClick, danger = false, small = false, disab
         padding: small ? "10px 12px" : "12px 14px",
         fontSize: small ? 15 : 18,
         fontWeight: small ? 400 : 500,
-        opacity: small ? 0.72 : 1,
+        opacity: danger ? 0.72 : 1,
         textAlign: "left" as const,
         cursor: "pointer",
         display: "flex",
