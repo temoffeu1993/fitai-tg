@@ -23,6 +23,7 @@ export default function WorkoutCountdown() {
   const hasPayload = Boolean(routeState && ("nextPath" in routeState || "nextState" in routeState));
   const [stepIndex, setStepIndex] = useState(0);
   const [pulseTick, setPulseTick] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
   const reducedMotion = useMemo(resolvePrefersReducedMotion, []);
 
   const nextPath = typeof routeState?.nextPath === "string" && routeState.nextPath.trim()
@@ -67,6 +68,12 @@ export default function WorkoutCountdown() {
 
     const stepDurationMs = reducedMotion ? 360 : 860;
     const settleMs = reducedMotion ? 120 : 300;
+    const exitDurationMs = reducedMotion ? 90 : 220;
+    const finalStepAtMs = COUNTDOWN_STEPS.length * stepDurationMs + settleMs;
+    const mergedState =
+      nextState && typeof nextState === "object" && !Array.isArray(nextState)
+        ? { ...(nextState as Record<string, unknown>), __fromCountdown: true }
+        : { __fromCountdown: true };
     const timers: number[] = [];
 
     for (let i = 1; i < COUNTDOWN_STEPS.length; i += 1) {
@@ -77,8 +84,14 @@ export default function WorkoutCountdown() {
 
     timers.push(
       window.setTimeout(() => {
-        nav(nextPath, { replace: true, state: nextState });
-      }, COUNTDOWN_STEPS.length * stepDurationMs + settleMs)
+        setIsExiting(true);
+      }, finalStepAtMs)
+    );
+
+    timers.push(
+      window.setTimeout(() => {
+        nav(nextPath, { replace: true, state: mergedState });
+      }, finalStepAtMs + exitDurationMs)
     );
 
     return () => {
@@ -96,9 +109,10 @@ export default function WorkoutCountdown() {
   const isStart = value === "Старт";
 
   return (
-    <section style={styles.page}>
+    <section style={styles.page} className={isExiting ? "wc-page wc-page-exit" : "wc-page"}>
       <style>{css}</style>
       <div style={styles.backdrop} />
+      <div className={isExiting ? "wc-exit-scrim wc-exit-scrim-on" : "wc-exit-scrim"} aria-hidden="true" />
       <div key={pulseTick} className="wc-pulse-wrap" aria-hidden="true">
         <span className="wc-ring wc-ring-1" />
         <span className="wc-ring wc-ring-2" />
@@ -140,12 +154,31 @@ const css = `
   50% { transform: translate3d(2%, -2%, 0) scale(1.04); opacity: 1; }
   100% { transform: translate3d(-2%, 0, 0) scale(1); opacity: 0.84; }
 }
+@keyframes wcSceneExit {
+  0% { opacity: 1; filter: blur(0); transform: scale(1); }
+  100% { opacity: 0; filter: blur(6px); transform: scale(1.018); }
+}
+.wc-page-exit {
+  animation: wcSceneExit 220ms ease-in forwards;
+}
 .wc-pulse-wrap {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   pointer-events: none;
+}
+.wc-exit-scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(110% 90% at 50% 45%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 55%, rgba(255,255,255,0) 100%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 2;
+}
+.wc-exit-scrim-on {
+  opacity: 1;
 }
 .wc-ring {
   position: absolute;
@@ -166,6 +199,8 @@ const css = `
 @media (prefers-reduced-motion: reduce) {
   .wc-ring { animation-duration: 280ms !important; }
   .wc-value { animation: wcValueStart 280ms ease-out both !important; }
+  .wc-page-exit { animation-duration: 90ms !important; }
+  .wc-exit-scrim { transition-duration: 90ms !important; }
 }
 `;
 
