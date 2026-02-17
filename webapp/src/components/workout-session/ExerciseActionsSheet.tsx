@@ -167,27 +167,33 @@ export default function ExerciseActionsSheet(props: Props) {
       case "menu":
         return (
           <div style={s.menuList}>
+            {/* Primary actions — side by side */}
+            <div style={s.menuRow}>
+              <MenuBtn
+                icon={<RefreshCw size={16} strokeWidth={2.2} />}
+                label="Заменить"
+                onClick={onLoadAlternatives}
+              />
+              <MenuBtn
+                icon={<SkipForward size={16} strokeWidth={2.2} />}
+                label="Пропустить"
+                onClick={onAskSkip}
+              />
+            </div>
+            {/* Destructive actions — smaller, muted */}
             <MenuBtn
-              icon={<RefreshCw size={16} strokeWidth={2.2} />}
-              label="Заменить упражнение"
-              onClick={onLoadAlternatives}
-            />
-            <MenuBtn
-              icon={<SkipForward size={16} strokeWidth={2.2} />}
-              label="Пропустить упражнение"
-              onClick={onAskSkip}
-            />
-            <MenuBtn
-              icon={<Trash2 size={16} strokeWidth={2.2} />}
+              icon={<Trash2 size={15} strokeWidth={2.2} />}
               label="Удалить из тренировки"
               onClick={onAskRemove}
               danger
+              small
             />
             <MenuBtn
-              icon={<Ban size={16} strokeWidth={2.2} />}
+              icon={<Ban size={15} strokeWidth={2.2} />}
               label="Исключить из будущих тренировок"
               onClick={onAskBan}
               danger
+              small
             />
           </div>
         );
@@ -375,11 +381,12 @@ export default function ExerciseActionsSheet(props: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
-function MenuBtn({ icon, label, onClick, danger = false }: {
+function MenuBtn({ icon, label, onClick, danger = false, small = false }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  small?: boolean;
 }) {
   return (
     <button
@@ -387,13 +394,18 @@ function MenuBtn({ icon, label, onClick, danger = false }: {
       className="eas-sheet-btn"
       style={{
         ...s.sheetBtn,
+        ...(small ? s.sheetBtnSmall : null),
         color: danger ? workoutTheme.danger : workoutTheme.accent,
         ["--eas-btn-color" as never]: danger ? workoutTheme.danger : workoutTheme.accent,
       }}
       onClick={onClick}
     >
-      <span style={s.menuBtnIconWrap}>{icon}</span>
-      <span style={s.menuBtnLabel}>{label}</span>
+      <span style={{ ...s.menuBtnIconWrap, ...(small ? s.menuBtnIconWrapSmall : null) }}>
+        {icon}
+      </span>
+      <span style={{ ...s.menuBtnLabel, ...(small ? s.menuBtnLabelSmall : null) }}>
+        {label}
+      </span>
     </button>
   );
 }
@@ -704,6 +716,24 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     gap: 6,
     padding: "4px 16px 8px",
+  },
+  menuRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 6,
+  },
+  sheetBtnSmall: {
+    minHeight: 46,
+    padding: "10px 12px",
+    opacity: 0.72,
+  },
+  menuBtnIconWrapSmall: {
+    width: 28,
+    height: 28,
+  },
+  menuBtnLabelSmall: {
+    fontSize: 15,
+    fontWeight: 400,
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
