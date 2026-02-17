@@ -533,10 +533,34 @@ export default function WorkoutSession() {
     return true;
   };
 
+  const overwriteSetValues = (setIdx: number) => {
+    if (!activeItem) return false;
+    const set = activeItem.sets[setIdx];
+    if (!set || !set.done) return false;
+    const needWeight = requiresWeightInput(activeItem);
+    if (!canMarkSetDone(set, needWeight)) {
+      markBlockedSet(activeIndex, setIdx);
+      return false;
+    }
+    setItems((prev) => {
+      const next = cloneItems(prev);
+      const currentItem = next[activeIndex];
+      const currentSet = currentItem?.sets?.[setIdx];
+      if (!currentItem || !currentSet) return prev;
+      // Keep done:true, just update reps/weight with current wheel values
+      currentSet.reps = set.reps;
+      currentSet.weight = set.weight;
+      return next;
+    });
+    fireHapticImpact("medium");
+    return true;
+  };
+
   const commitCurrentSetFromEditor = () => {
     if (!activeItem) return false;
     const set = activeItem.sets[focusSetIndex];
     if (!set) return false;
+    if (set.done) return overwriteSetValues(focusSetIndex);
     return toggleSetDone(focusSetIndex);
   };
 
@@ -932,6 +956,7 @@ export default function WorkoutSession() {
             onChangeWeight={handleWeightChange}
             onCommitSet={commitCurrentSetFromEditor}
             onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
+            onFocusSet={setFocusSetIndex}
           />
         </CurrentExerciseCard>
 

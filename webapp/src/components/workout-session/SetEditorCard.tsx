@@ -4,6 +4,7 @@ import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { defaultRepsFromTarget, formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
 import { fireHapticImpact } from "@/utils/haptics";
+import { ChevronDown } from "lucide-react";
 
 type Props = {
   item: SessionItem | null;
@@ -15,6 +16,7 @@ type Props = {
   onChangeWeight: (setIdx: number, value: number) => void;
   onCommitSet: () => boolean;
   onToggleRestEnabled: () => void;
+  onFocusSet?: (setIdx: number) => void;
 };
 
 const WHEEL_ITEM_H = 72;
@@ -36,9 +38,11 @@ export default function SetEditorCard(props: Props) {
     onChangeReps,
     onChangeWeight,
     onCommitSet,
+    onFocusSet,
   } = props;
   const [commitFlash, setCommitFlash] = useState(false);
   const [showSavedLabel, setShowSavedLabel] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const savedLabelTimerRef = useRef<number | null>(null);
 
@@ -48,6 +52,11 @@ export default function SetEditorCard(props: Props) {
       if (savedLabelTimerRef.current != null) window.clearTimeout(savedLabelTimerRef.current);
     };
   }, []);
+
+  // Collapse history when focus moves to a different set
+  useEffect(() => {
+    setHistoryOpen(false);
+  }, [focusSetIndex]);
 
   if (!item) return null;
   const set = item.sets[focusSetIndex];
@@ -78,6 +87,16 @@ export default function SetEditorCard(props: Props) {
     Number.isFinite(explicitReps) && explicitReps > 0
       ? Math.round(explicitReps)
       : prevReps ?? targetDefaultReps;
+
+  const formatSetChip = (entry: typeof item.sets[number], idx: number) => {
+    if (!entry.done) return `${idx + 1}`;
+    const r = entry.reps != null ? Math.round(entry.reps) : "—";
+    if (!needWeight) return `✓ ${r}`;
+    const w = entry.weight != null
+      ? (Number.isInteger(entry.weight) ? entry.weight : Number(entry.weight).toFixed(1))
+      : "—";
+    return `✓ ${r}×${w}`;
+  };
 
   const handleCommit = () => {
     const committed = onCommitSet();
@@ -143,25 +162,77 @@ export default function SetEditorCard(props: Props) {
         </span>
       </button>
 
-      <div style={s.setIndexText} aria-live="polite">
-        <span
-          aria-hidden={showSavedLabel}
-          style={{
-            ...s.setIndexTextLayer,
-            ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
-          }}
+      <div>
+        {/* Tappable counter row */}
+        <button
+          type="button"
+          style={s.setCounterBtn}
+          onClick={() => setHistoryOpen((v) => !v)}
+          aria-expanded={historyOpen}
         >
-          Подход {displaySet} из {totalSets}
-        </span>
-        <span
-          aria-hidden={!showSavedLabel}
+          <div style={s.setIndexText} aria-live="polite">
+            <span
+              aria-hidden={showSavedLabel}
+              style={{
+                ...s.setIndexTextLayer,
+                ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
+              }}
+            >
+              Подход {displaySet} из {totalSets}
+            </span>
+            <span
+              aria-hidden={!showSavedLabel}
+              style={{
+                ...s.setIndexTextLayer,
+                ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
+              }}
+            >
+              Подход сохранен
+            </span>
+          </div>
+          <ChevronDown
+            size={14}
+            strokeWidth={2.2}
+            style={{
+              ...s.chevron,
+              transform: historyOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          />
+        </button>
+
+        {/* Expandable chip list */}
+        <div
           style={{
-            ...s.setIndexTextLayer,
-            ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
+            ...s.chipsWrap,
+            maxHeight: historyOpen ? `${item.sets.length * 48}px` : "0px",
+            opacity: historyOpen ? 1 : 0,
           }}
+          aria-hidden={!historyOpen}
         >
-          Подход сохранен
-        </span>
+          <div style={s.chipsList}>
+            {item.sets.map((entry, idx) => {
+              const isFocused = idx === focusSetIndex;
+              const isDone = Boolean(entry.done);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  style={{
+                    ...s.chip,
+                    ...(isDone ? s.chipDone : s.chipPending),
+                    ...(isFocused ? s.chipFocused : null),
+                  }}
+                  onClick={() => {
+                    if (onFocusSet) onFocusSet(idx);
+                    setHistoryOpen(false);
+                  }}
+                >
+                  {formatSetChip(entry, idx)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
@@ -500,7 +571,6 @@ const s: Record<string, CSSProperties> = {
   setIndexText: {
     position: "relative",
     minHeight: 21,
-    marginTop: 2,
   },
   setIndexTextLayer: {
     position: "absolute",
@@ -537,5 +607,63 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 600,
     color: workoutTheme.danger,
     textAlign: "center",
+  },
+
+  // Set counter button
+  setCounterBtn: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    border: "none",
+    background: "transparent",
+    padding: "2px 0",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  },
+  chevron: {
+    color: "rgba(15,23,42,0.38)",
+    flexShrink: 0,
+    transition: "transform 200ms ease",
+  },
+
+  // Expandable chip list
+  chipsWrap: {
+    overflow: "hidden",
+    transition: "max-height 220ms cubic-bezier(0.36, 0.66, 0.04, 1), opacity 180ms ease",
+  },
+  chipsList: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    padding: "8px 0 2px",
+  },
+  chip: {
+    border: "none",
+    borderRadius: 999,
+    padding: "5px 11px",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    fontVariantNumeric: "tabular-nums",
+    transition: "transform 120ms ease, opacity 120ms ease",
+  },
+  chipDone: {
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textSecondary,
+  },
+  chipPending: {
+    background: "rgba(15,23,42,0.06)",
+    boxShadow: "none",
+    color: "rgba(15,23,42,0.38)",
+  },
+  chipFocused: {
+    outline: "2px solid rgba(15,23,42,0.22)",
+    outlineOffset: 1,
   },
 };
