@@ -22,7 +22,8 @@ import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModa
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
-import { Clock3, Dumbbell, Pencil } from "lucide-react";
+import { ArrowLeft, Ban, Clock3, Dumbbell, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { workoutTheme } from "@/components/workout-session/theme";
 import mascotImg from "@/assets/robonew.webp";
 import tyagaImg from "@/assets/tyaga.webp";
 import zhimImg from "@/assets/zhim.webp";
@@ -2129,6 +2130,121 @@ function ExercisesList({
   );
 }
 
+// ── Spring constants (matches ExerciseActionsSheet) ───────────────────
+const PEE_SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const PEE_SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const PEE_SPRING_CONTENT = "cubic-bezier(0.36, 0.66, 0.04, 1)";
+const PEE_SHEET_ENTER_MS = 380;
+const PEE_SHEET_EXIT_MS = 260;
+const PEE_CONTENT_ANIM_MS = 280;
+const PEE_OVERLAY_ENTER_MS = 320;
+const PEE_OPEN_TICK_MS = 12;
+
+type PeeMode = "menu" | "replace" | "confirm_remove" | "confirm_ban";
+type PeeSlide = "forward" | "backward";
+
+function peeSlideDir(prev: PeeMode, next: PeeMode): PeeSlide {
+  if (next === "menu" && prev !== "menu") return "backward";
+  return "forward";
+}
+
+function PeeSkeleton() {
+  return (
+    <div style={{ display: "grid", gap: 6 }} aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            minHeight: 58,
+            padding: "14px 16px",
+            borderRadius: 18,
+            border: "1px solid rgba(255,255,255,0.4)",
+            background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+            boxShadow: "0 10px 22px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.7)",
+            animationDelay: `${i * 60}ms`,
+          }}
+          className="pee-skeleton-row"
+        >
+          <div style={{ height: 14, borderRadius: 8, width: `${55 + (i % 3) * 15}%` }} className="pee-shimmer" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PeeMenuBtn({ icon, label, onClick, danger = false, small = false, disabled = false }: {
+  icon: React.ReactNode; label: string; onClick: () => void;
+  danger?: boolean; small?: boolean; disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className="pee-sheet-btn"
+      style={{
+        width: "100%",
+        minHeight: small ? 46 : 58,
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.4)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+        boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+        padding: small ? "10px 12px" : "12px 14px",
+        fontSize: small ? 15 : 18,
+        fontWeight: small ? 400 : 500,
+        opacity: small ? 0.72 : 1,
+        textAlign: "left" as const,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "row" as const,
+        alignItems: "center",
+        gap: 12,
+        color: danger ? workoutTheme.danger : workoutTheme.accent,
+      }}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span style={{
+        width: small ? 28 : 34, height: small ? 28 : 34, borderRadius: 999,
+        background: workoutTheme.pillBg, boxShadow: workoutTheme.pillShadow,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, color: "inherit",
+      }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1, color: "inherit", lineHeight: 1.25 }}>{label}</span>
+    </button>
+  );
+}
+
+function PeeAltRow({ alt, onClick, index }: { alt: ExerciseAlternative; onClick: () => void; index: number }) {
+  return (
+    <button
+      type="button"
+      className="pee-sheet-btn"
+      style={{
+        width: "100%",
+        minHeight: 58,
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.4)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+        boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+        padding: "14px 16px",
+        textAlign: "left" as const,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column" as const,
+        alignItems: "flex-start",
+        color: workoutTheme.accent,
+        animation: "pee-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
+        animationDelay: `${index * 30}ms`,
+      }}
+      onClick={onClick}
+    >
+      <div style={{ fontSize: 18, fontWeight: 500, color: "inherit", lineHeight: 1.3 }}>{alt.name}</div>
+      {alt.hint ? <div style={{ fontSize: 13, fontWeight: 500, color: workoutTheme.textMuted, marginTop: 3, lineHeight: 1.3 }}>{alt.hint}</div> : null}
+    </button>
+  );
+}
+
 function PlannedExercisesEditor({
   plannedWorkout,
   displayItems,
@@ -2141,113 +2257,108 @@ function PlannedExercisesEditor({
   const plan: any = plannedWorkout?.plan || {};
   const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
-  const [mode, setMode] = useState<"menu" | "replace" | "confirm_remove" | "confirm_ban">("menu");
-  const menuBtnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  const [popoverPhase, setPopoverPhase] = useState<"closed" | "opening" | "open" | "closing">("closed");
-  const [panelPhase, setPanelPhase] = useState<"idle" | "leaving" | "entering">("idle");
+  const [mode, setMode] = useState<PeeMode>("menu");
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const goMode = useCallback(
-    (next: "menu" | "replace" | "confirm_remove" | "confirm_ban") => {
-      if (next === mode) return;
-      // Avoid "lag": switch immediately, animate only the entering state.
-      setMode(next);
-      setPanelPhase("entering");
-      window.requestAnimationFrame(() => setPanelPhase("idle"));
-    },
-    [mode]
-  );
+  // Sheet open/close animation state
+  const [renderOpen, setRenderOpen] = useState(false);
+  const [entered, setEntered] = useState(false);
 
-  const recomputeAnchorRect = useCallback(
-    (idx: number | null) => {
-      if (idx == null) {
-        setAnchorRect(null);
+  // Content slide transition state
+  const [currentMode, setCurrentMode] = useState<PeeMode>("menu");
+  const [prevMode, setPrevMode] = useState<PeeMode | null>(null);
+  const [slideDir, setSlideDir] = useState<PeeSlide>("forward");
+  const [contentAnimating, setContentAnimating] = useState(false);
+
+  const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
+  const contentTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      [closeTimerRef, openTimerRef, contentTimerRef].forEach((r) => {
+        if (r.current != null) window.clearTimeout(r.current);
+      });
+    };
+  }, []);
+
+  const isSheetOpen = menuIndex != null;
+
+  // Sheet open/close lifecycle
+  useEffect(() => {
+    if (isSheetOpen) {
+      if (closeTimerRef.current != null) { window.clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
+      if (!renderOpen) {
+        setRenderOpen(true);
+        setEntered(false);
+        if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
+        openTimerRef.current = window.setTimeout(() => { setEntered(true); openTimerRef.current = null; }, PEE_OPEN_TICK_MS);
         return;
       }
-      try {
-        const el = menuBtnRefs.current[idx];
-        if (el) setAnchorRect(el.getBoundingClientRect());
-      } catch { }
-    },
-    []
-  );
+      setEntered(true);
+      return;
+    }
+    if (!renderOpen) return;
+    if (openTimerRef.current != null) { window.clearTimeout(openTimerRef.current); openTimerRef.current = null; }
+    setEntered(false);
+    if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => {
+      setRenderOpen(false);
+      setCurrentMode("menu");
+      setPrevMode(null);
+      setContentAnimating(false);
+      closeTimerRef.current = null;
+    }, PEE_SHEET_EXIT_MS + 20);
+  }, [isSheetOpen, renderOpen]);
+
+  // Content slide on mode change
+  const goMode = useCallback((next: PeeMode) => {
+    if (next === mode) return;
+    const dir = peeSlideDir(mode, next);
+    if (contentTimerRef.current != null) window.clearTimeout(contentTimerRef.current);
+    setPrevMode(mode);
+    setCurrentMode(next);
+    setSlideDir(dir);
+    setContentAnimating(true);
+    contentTimerRef.current = window.setTimeout(() => {
+      setPrevMode(null);
+      setContentAnimating(false);
+      contentTimerRef.current = null;
+    }, PEE_CONTENT_ANIM_MS + 20);
+    setMode(next);
+  }, [mode]);
 
   const openMenu = (idx: number) => {
     setErr(null);
     setMode("menu");
-    setPanelPhase("idle");
+    setCurrentMode("menu");
+    setPrevMode(null);
+    setContentAnimating(false);
     setMenuIndex(idx);
-    recomputeAnchorRect(idx);
   };
 
-  const closeImmediate = () => {
-    setPopoverPhase("closed");
+  const current = menuIndex != null ? displayItems[menuIndex] : null;
+  const currentId = current?.exerciseId || null;
+
+  const close = () => {
     setMenuIndex(null);
-    setMode("menu");
-    setAnchorRect(null);
     setAlts([]);
     setLoading(false);
     setErr(null);
   };
 
-  const close = () => {
-    setPopoverPhase("closing");
-    window.setTimeout(() => closeImmediate(), 160);
-  };
-
-  useEffect(() => {
-    if (menuIndex == null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    const update = () => {
-      recomputeAnchorRect(menuIndex);
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
-  }, [menuIndex, recomputeAnchorRect]);
-
-  useLayoutEffect(() => {
-    if (menuIndex == null) {
-      setAnchorRect(null);
-      return;
-    }
-    recomputeAnchorRect(menuIndex);
-  }, [menuIndex, mode, recomputeAnchorRect]);
-
-  useEffect(() => {
-    if (menuIndex == null) {
-      setPopoverPhase("closed");
-      return;
-    }
-    setPopoverPhase("opening");
-    const raf = window.requestAnimationFrame(() => setPopoverPhase("open"));
-    return () => window.cancelAnimationFrame(raf);
-  }, [menuIndex]);
-
-  const current = menuIndex != null ? displayItems[menuIndex] : null;
-  const currentId = current?.exerciseId || null;
-
   const fetchAlternatives = async () => {
     if (!currentId || menuIndex == null) return;
     setLoading(true);
     setErr(null);
+    goMode("replace");
     try {
-      // Collect all unique patterns from current workout to restrict alternatives to same day type
       const dayPatterns = [...new Set(exercisesRaw.map((ex: any) => ex.pattern).filter(Boolean))].join(",");
       const res = await getExerciseAlternatives({ exerciseId: currentId, reason: "preference", limit: 3, allowedPatterns: dayPatterns || undefined });
       const list = Array.isArray(res?.alternatives) ? res.alternatives : [];
       setAlts(list.slice(0, 3));
-      goMode("replace");
     } catch (e) {
       console.error(e);
       setErr("Не удалось загрузить варианты замены. Попробуй ещё раз.");
@@ -2270,9 +2381,7 @@ function PlannedExercisesEditor({
       });
       onUpdated(pw);
       close();
-      try {
-        window.dispatchEvent(new Event("schedule_updated" as any));
-      } catch { }
+      try { window.dispatchEvent(new Event("schedule_updated" as any)); } catch { }
     } catch (e) {
       console.error(e);
       setErr("Не удалось заменить упражнение. Попробуй ещё раз.");
@@ -2294,9 +2403,7 @@ function PlannedExercisesEditor({
       });
       onUpdated(pw);
       close();
-      try {
-        window.dispatchEvent(new Event("schedule_updated" as any));
-      } catch { }
+      try { window.dispatchEvent(new Event("schedule_updated" as any)); } catch { }
     } catch (e) {
       console.error(e);
       setErr("Не удалось удалить упражнение. Попробуй ещё раз.");
@@ -2320,14 +2427,99 @@ function PlannedExercisesEditor({
     }
   };
 
+  // ── Render content by mode ─────────────────────────────────────────────
+  const renderPeeContent = (m: PeeMode) => {
+    switch (m) {
+      case "menu":
+        return (
+          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              <PeeMenuBtn
+                icon={<RefreshCw size={16} strokeWidth={2.2} />}
+                label="Заменить"
+                onClick={() => void fetchAlternatives()}
+                disabled={loading || !currentId}
+              />
+              <PeeMenuBtn
+                icon={<Trash2 size={16} strokeWidth={2.2} />}
+                label="Удалить"
+                onClick={() => goMode("confirm_remove")}
+                danger
+              />
+            </div>
+            <PeeMenuBtn
+              icon={<Ban size={15} strokeWidth={2.2} />}
+              label="Заблокировать в будущих планах"
+              onClick={() => goMode("confirm_ban")}
+              danger
+              small
+              disabled={loading || !currentId}
+            />
+          </div>
+        );
+      case "replace":
+        return (
+          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
+            {loading ? (
+              <PeeSkeleton />
+            ) : err ? (
+              <div style={{ padding: "16px", textAlign: "center", color: workoutTheme.danger, fontSize: 14, fontWeight: 500 }}>
+                {err}
+                <br />
+                <button
+                  type="button"
+                  className="pee-sheet-btn"
+                  style={{ marginTop: 10, width: "100%", minHeight: 48, borderRadius: 18, border: "1px solid rgba(255,255,255,0.4)", background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)", boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7)", padding: "10px 14px", fontSize: 16, fontWeight: 500, color: workoutTheme.accent, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onClick={() => void fetchAlternatives()}
+                >
+                  Попробовать снова
+                </button>
+              </div>
+            ) : alts.length === 0 ? (
+              <div style={{ padding: "24px 16px", textAlign: "center", color: workoutTheme.textSecondary, fontSize: 15, fontWeight: 500 }}>
+                Замен не найдено
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {alts.map((a, idx) => (
+                  <PeeAltRow key={a.exerciseId} alt={a} onClick={() => void applyReplace(a.exerciseId)} index={idx} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      case "confirm_remove":
+        return (
+          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
+            <p style={{ fontSize: 15, color: workoutTheme.textSecondary, lineHeight: 1.45, textAlign: "center", padding: "8px 4px", margin: 0 }}>
+              Удалить упражнение из этого плана?
+            </p>
+            <PeeMenuBtn icon={<Trash2 size={16} strokeWidth={2.2} />} label={loading ? "Удаляем..." : "Да, удалить"} onClick={() => void applyRemove()} danger disabled={loading} />
+            <PeeMenuBtn icon={<ArrowLeft size={16} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+          </div>
+        );
+      case "confirm_ban":
+        return (
+          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
+            <p style={{ fontSize: 15, color: workoutTheme.textSecondary, lineHeight: 1.45, textAlign: "center", padding: "8px 4px", margin: 0 }}>
+              Убрать упражнение из будущих генераций?
+            </p>
+            <PeeMenuBtn icon={<Ban size={16} strokeWidth={2.2} />} label={loading ? "Сохраняем..." : "Да, заблокировать"} onClick={() => void applyBan()} danger disabled={loading} />
+            <PeeMenuBtn icon={<ArrowLeft size={16} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Styles for exercise rows
   const rowStyle: React.CSSProperties = {
     padding: "20px 18px",
     borderRadius: 24,
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     border: "1px solid rgba(255,255,255,0.75)",
-    boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     overflow: "hidden",
@@ -2336,409 +2528,256 @@ function PlannedExercisesEditor({
     alignItems: "flex-start",
     justifyContent: "space-between",
   };
-  const menuBtn: React.CSSProperties = {
-    border: "none",
-    background: "transparent",
-    boxShadow: "none",
-    padding: 0,
-    margin: 0,
-    width: 20,
-    height: 10,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    color: "#0f172a",
-  };
-  const menuTouchWrap: React.CSSProperties = {
-    width: 20,
-    height: 10,
-    position: "relative",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: "0 0 auto",
-  };
-  const menuBtnHitTarget: React.CSSProperties = {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    transform: "translate(-50%, -50%)",
-    width: 44,
-    height: 34,
-    minWidth: 44,
-    minHeight: 34,
-    padding: 0,
-    margin: 0,
-    border: "none",
-    borderRadius: 12,
-    background: "transparent",
-    boxShadow: "none",
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    touchAction: "manipulation",
-  };
-  const exerciseTitle: React.CSSProperties = {
-    fontSize: 18,
-    fontWeight: 700,
-    lineHeight: 1.2,
-    color: "#0f172a",
-  };
-  const exerciseCues: React.CSSProperties = {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(15, 23, 42, 0.6)",
-  };
-  const volumeChip: React.CSSProperties = {
-    background: "transparent",
-    border: "none",
-    boxShadow: "none",
-    padding: 0,
-    borderRadius: 0,
-    fontSize: 14,
-    fontWeight: 400,
-    color: "rgba(15, 23, 42, 0.6)",
-    whiteSpace: "nowrap",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 7,
-    lineHeight: 1.5,
-  };
-  const volumeChipIcon: React.CSSProperties = {
-    transform: "translateY(0.2px)",
-    flex: "0 0 auto",
-  };
-  const overlay: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    background: "transparent",
-    zIndex: 80,
-  };
-  const pad = 12;
-  const estimatedHeight = mode === "replace" ? 260 : mode === "menu" ? 168 : 200;
-  const replaceMaxHeight = (() => {
-    if (typeof window === "undefined" || !anchorRect) return 260;
-    const below = window.innerHeight - pad - (anchorRect.top + anchorRect.height + 2);
-    const above = anchorRect.top - pad - 2;
-    const target = 260;
-    if (below >= 180) return Math.min(target, below);
-    if (above >= 180) return Math.min(target, above);
-    return Math.max(160, Math.min(target, Math.max(below, above)));
-  })();
-  const openUpward = (() => {
-    if (typeof window === "undefined" || !anchorRect) return false;
-    const below = window.innerHeight - pad - (anchorRect.top + anchorRect.height + 2);
-    const above = anchorRect.top - pad - 2;
-    if (mode === "replace") {
-      if (below >= 180) return false;
-      if (above >= 180) return true;
-      return above > below;
-    }
-    return anchorRect.top + anchorRect.height + 2 + estimatedHeight > window.innerHeight - pad && above > 120;
-  })();
-  const baseTranslate = openUpward ? "translate(-100%, -100%)" : "translateX(-100%)";
-  const isOpen = popoverPhase === "open";
-  const isOpening = popoverPhase === "opening";
-  const isClosing = popoverPhase === "closing";
-  const sheetTransform = (() => {
-    if (isOpen || isClosing) return `${baseTranslate} scaleY(1)`;
-    if (isOpening) return `${baseTranslate} scaleY(0)`;
-    return `${baseTranslate} scaleY(0)`;
-  })();
-  const sheetOpacity = isOpen ? 1 : 0;
-  const popover: React.CSSProperties = (() => {
-    if (typeof window === "undefined") return { position: "fixed", left: pad, top: 120 };
-    const r = anchorRect;
-    const rightEdge = r ? r.left + r.width : pad;
-    const preferredWidth =
-      mode === "replace"
-        ? Math.min(280, window.innerWidth - pad * 2)
-        : Math.min(236, window.innerWidth - pad * 2);
-    // Keep the menu fully within the viewport even when the dots button is near the left edge.
-    const minLeft = pad + (preferredWidth ?? 0);
-    const left = Math.max(minLeft, Math.min(window.innerWidth - pad, rightEdge));
-    const top = r
-      ? openUpward
-        ? r.top - 2
-        : r.top + r.height + 2
-      : 120;
-    return {
-      position: "fixed",
-      left,
-      top,
-      width: preferredWidth ?? "max-content",
-      maxWidth: `calc(100vw - ${pad * 2}px)`,
-    };
-  })();
-  const sheet: React.CSSProperties = {
-    ...popover,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.65)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    boxShadow:
-      "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
-    padding: 0,
-    transformOrigin: openUpward ? "bottom right" : "top right",
-    transform: sheetTransform,
-    opacity: sheetOpacity,
-    transition: isClosing
-      ? "opacity 160ms ease"
-      : "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
-    overflow: "hidden",
-    zIndex: 81,
-  };
-  const panelStyle: React.CSSProperties = {
-    opacity: panelPhase === "idle" ? 1 : 0,
-    transform: panelPhase === "idle" ? "translateY(0)" : panelPhase === "entering" ? "translateY(6px)" : "translateY(-6px)",
-    transition: "opacity 160ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1)",
-    willChange: "opacity, transform",
-  };
-  const actionBtn: React.CSSProperties = {
-    width: "100%",
-    padding: "12px 16px",
-    border: "none",
-    borderRadius: 0,
-    background: "transparent",
-    color: "#1e1f22",
-    fontSize: 16,
-    fontWeight: 500,
-    cursor: "pointer",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-  };
-  const actionBtnTopBorder: React.CSSProperties = {
-    borderTop: "1px solid rgba(30,31,34,0.08)",
-  };
-  const actionBtnActive: React.CSSProperties = {
-    background: "rgba(30,31,34,0.06)",
-    fontWeight: 600,
-  };
-  const actionBtnWrap: React.CSSProperties = {
-    ...actionBtn,
-    whiteSpace: "normal",
-    wordBreak: "break-word",
-  };
-  const dangerBtn: React.CSSProperties = {
-    ...actionBtn,
-    color: "#b42318",
-  };
-  const softBtn: React.CSSProperties = {
-    ...actionBtn,
-  };
-  const subTitle: React.CSSProperties = {
-    padding: "10px 16px",
-    fontSize: 12,
-    fontWeight: 700,
-    color: "rgba(30,31,34,0.62)",
-    borderBottom: "1px solid rgba(30,31,34,0.08)",
-  };
-  const subText: React.CSSProperties = {
-    padding: "10px 16px",
-    fontSize: 13,
-    color: "rgba(30,31,34,0.7)",
-    fontWeight: 500,
-    lineHeight: 1.4,
-    borderBottom: "1px solid rgba(30,31,34,0.08)",
-  };
+  const exerciseTitle: React.CSSProperties = { fontSize: 18, fontWeight: 700, lineHeight: 1.2, color: "#0f172a" };
+  const exerciseCues: React.CSSProperties = { marginTop: 8, fontSize: 14, fontWeight: 400, lineHeight: 1.5, color: "rgba(15, 23, 42, 0.6)" };
+  const volumeChip: React.CSSProperties = { background: "transparent", border: "none", boxShadow: "none", padding: 0, borderRadius: 0, fontSize: 14, fontWeight: 400, color: "rgba(15, 23, 42, 0.6)", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7, lineHeight: 1.5 };
+  const volumeChipIcon: React.CSSProperties = { transform: "translateY(0.2px)", flex: "0 0 auto" };
+  const menuDotBtn: React.CSSProperties = { border: "none", background: "transparent", boxShadow: "none", padding: 0, margin: 0, width: 20, height: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#0f172a" };
+  const menuDotWrap: React.CSSProperties = { width: 20, height: 10, position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" };
+  const menuDotHit: React.CSSProperties = { position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 44, height: 34, minWidth: 44, minHeight: 34, padding: 0, margin: 0, border: "none", borderRadius: 12, background: "transparent", boxShadow: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" };
+
+  const canGoBack = currentMode !== "menu";
 
   return (
-    <div style={{ marginTop: 2, padding: "2px 0 4px", display: "grid", gap: 8, overflow: "visible" }}>
-      {displayItems.map((it, i) => {
-        const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
-        const isOpen = menuIndex === i;
-        return (
-          <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={exerciseTitle}>
-                {it.name || `Упражнение ${i + 1}`}{" "}
-                {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
+    <>
+      <style>{peeCss}</style>
+      <div style={{ marginTop: 2, padding: "2px 0 4px", display: "grid", gap: 8, overflow: "visible" }}>
+        {displayItems.map((it, i) => {
+          const isSkipped = Boolean((exercisesRaw[i] as any)?.skipped);
+          const isThisOpen = menuIndex === i;
+          return (
+            <div key={`planned-ex-${i}-${it.name}`} style={rowStyle} className="exercise-card-enter">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={exerciseTitle}>
+                  {it.name || `Упражнение ${i + 1}`}{" "}
+                  {isSkipped ? <span style={{ opacity: 0.6 }}>(пропуск)</span> : null}
+                </div>
+                <div style={{ marginTop: 2 }}>
+                  <span style={volumeChip}>
+                    <Dumbbell size={14} strokeWidth={2.1} style={volumeChipIcon} />
+                    <span>{it.sets}×{formatReps(it.reps)}</span>
+                  </span>
+                </div>
+                {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
               </div>
-              <div style={{ marginTop: 2 }}>
-                <span style={volumeChip}>
-                  <Dumbbell size={14} strokeWidth={2.1} style={volumeChipIcon} />
-                  <span>{it.sets}×{formatReps(it.reps)}</span>
-                </span>
+              <div style={{ display: "flex", alignItems: "flex-start" }}>
+                <div style={menuDotWrap}>
+                  <button
+                    type="button"
+                    style={menuDotBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isThisOpen) close();
+                      else openMenu(i);
+                    }}
+                    aria-label="Опции"
+                  >
+                    <svg viewBox="0 0 20 6" width="20" height="6" aria-hidden style={{ color: "#0f172a" }}>
+                      <circle cx="3" cy="3" r="1.45" fill="currentColor" />
+                      <circle cx="10" cy="3" r="1.45" fill="currentColor" />
+                      <circle cx="17" cy="3" r="1.45" fill="currentColor" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    style={menuDotHit}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isThisOpen) close();
+                      else openMenu(i);
+                    }}
+                  />
+                </div>
               </div>
-              {it.cues ? <div style={exerciseCues}>{it.cues}</div> : null}
             </div>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-              <div style={menuTouchWrap}>
-                <button
-                  type="button"
-                  style={menuBtn}
-                  ref={(el) => {
-                    menuBtnRefs.current[i] = el;
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isOpen) close();
-                    else openMenu(i);
-                  }}
-                  aria-label="Опции"
-                >
-                  <svg viewBox="0 0 20 6" width="20" height="6" aria-hidden style={{ color: "#0f172a" }}>
-                    <circle cx="3" cy="3" r="1.45" fill="currentColor" />
-                    <circle cx="10" cy="3" r="1.45" fill="currentColor" />
-                    <circle cx="17" cy="3" r="1.45" fill="currentColor" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  style={menuBtnHitTarget}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isOpen) close();
-                    else openMenu(i);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      {menuIndex != null ? (
-        typeof document !== "undefined"
+      {/* Bottom sheet — portalled to body */}
+      {renderOpen
+        ? typeof document !== "undefined"
           ? createPortal(
             <>
+              {/* Backdrop */}
               <div
-                style={overlay}
-                role="presentation"
-                onPointerDown={(e) => {
-                  if (e.target === e.currentTarget) close();
+                style={{
+                  position: "fixed", inset: 0, zIndex: 75,
+                  background: workoutTheme.overlayStrong,
+                  opacity: entered ? 1 : 0,
+                  transition: `opacity ${entered ? PEE_OVERLAY_ENTER_MS : PEE_SHEET_EXIT_MS}ms ease`,
                 }}
+                onClick={close}
               />
-              <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-                {err ? (
-                  <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "rgba(239,68,68,.10)", border: "1px solid rgba(239,68,68,.2)", color: "#7f1d1d", fontWeight: 700, fontSize: 12 }}>
-                    {err}
-                  </div>
-                ) : null}
-
-                <div style={panelStyle}>
-                  {mode === "menu" ? (
-                    <div style={{ display: "grid", gap: 0 }}>
-                      <button
-                        type="button"
-                        className="exercise-menu-option"
-                        style={actionBtn}
-                        disabled={loading || !currentId}
-                        onClick={() => void fetchAlternatives()}
-                      >
-                        Заменить
-                      </button>
-                      <button
-                        type="button"
-                        className="exercise-menu-option exercise-menu-option-danger"
-                        style={{ ...dangerBtn, ...actionBtnTopBorder }}
-                        disabled={loading}
-                        onClick={() => goMode("confirm_remove")}
-                      >
-                        Удалить
-                      </button>
-                      <button
-                        type="button"
-                        className="exercise-menu-option"
-                        style={{ ...softBtn, ...actionBtnTopBorder }}
-                        disabled={loading || !currentId}
-                        onClick={() => goMode("confirm_ban")}
-                      >
-                        Заблокировать
-                      </button>
+              {/* Sheet */}
+              <div
+                style={{
+                  position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 76,
+                  borderRadius: "24px 24px 0 0",
+                  border: workoutTheme.cardBorder,
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
+                  boxShadow: workoutTheme.cardShadow,
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+                  maxHeight: "80vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  willChange: "transform, opacity",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  transform: entered ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
+                  opacity: entered ? 1 : 0,
+                  transition: entered
+                    ? `transform ${PEE_SHEET_ENTER_MS}ms ${PEE_SPRING_OPEN}, opacity ${Math.round(PEE_SHEET_ENTER_MS * 0.6)}ms ease`
+                    : `transform ${PEE_SHEET_EXIT_MS}ms ${PEE_SPRING_CLOSE}, opacity ${PEE_SHEET_EXIT_MS}ms ease`,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Grabber */}
+                <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 2, flexShrink: 0 }} aria-hidden>
+                  <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.16)" }} />
+                </div>
+                {/* Header */}
+                <div style={{ display: "flex", alignItems: "center", padding: "2px 8px 6px", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    aria-label="Назад"
+                    className="pee-icon-btn"
+                    style={{
+                      width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      border: "none", background: "transparent", borderRadius: 999, color: workoutTheme.textSecondary,
+                      cursor: "pointer", padding: 0, flexShrink: 0,
+                      opacity: canGoBack ? 1 : 0, pointerEvents: canGoBack ? "auto" : "none",
+                    }}
+                    onClick={() => goMode("menu")}
+                    tabIndex={canGoBack ? 0 : -1}
+                  >
+                    <ArrowLeft size={15} strokeWidth={2.5} />
+                  </button>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    type="button"
+                    aria-label="Закрыть"
+                    className="pee-icon-btn"
+                    style={{
+                      width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      border: "none", background: "transparent", borderRadius: 999, color: workoutTheme.textSecondary,
+                      cursor: "pointer", padding: 0, flexShrink: 0,
+                    }}
+                    onClick={close}
+                  >
+                    <X size={15} strokeWidth={2.5} />
+                  </button>
+                </div>
+                {/* Content with slide transitions */}
+                <div style={{ display: "grid", flex: 1, minHeight: 0, overflow: contentAnimating ? "hidden" : "visible" }}>
+                  {contentAnimating && prevMode ? (
+                    <>
+                      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", animation: `${slideDir === "forward" ? "pee-out-left" : "pee-out-right"} ${PEE_CONTENT_ANIM_MS}ms ${PEE_SPRING_CONTENT} both`, pointerEvents: "none" }}>
+                        {renderPeeContent(prevMode)}
+                      </div>
+                      <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column", animation: `${slideDir === "forward" ? "pee-in-right" : "pee-in-left"} ${PEE_CONTENT_ANIM_MS}ms ${PEE_SPRING_CONTENT} both` }}>
+                        {renderPeeContent(currentMode)}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column" }}>
+                      {renderPeeContent(currentMode)}
                     </div>
-                  ) : null}
-
-                  {mode === "confirm_remove" ? (
-                    <div style={{ display: "grid", gap: 0 }}>
-                      <div style={subText}>Удалить упражнение из этого плана?</div>
-                      <button
-                        type="button"
-                        className="exercise-menu-option exercise-menu-option-danger is-active"
-                        style={{ ...dangerBtn, ...actionBtnActive }}
-                        disabled={loading}
-                        onClick={() => void applyRemove()}
-                      >
-                        Да, удалить
-                      </button>
-                      <button
-                        type="button"
-                        className="exercise-menu-option"
-                        style={{ ...actionBtn, ...actionBtnTopBorder }}
-                        disabled={loading}
-                        onClick={() => goMode("menu")}
-                      >
-                        ← Назад
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {mode === "confirm_ban" ? (
-                    <div style={{ display: "grid", gap: 0 }}>
-                      <div style={subText}>Убрать упражнение из будущих генераций?</div>
-                      <button
-                        type="button"
-                        className="exercise-menu-option exercise-menu-option-danger is-active"
-                        style={{ ...dangerBtn, ...actionBtnActive }}
-                        disabled={loading}
-                        onClick={() => void applyBan()}
-                      >
-                        Да, больше не предлагать
-                      </button>
-                      <button
-                        type="button"
-                        className="exercise-menu-option"
-                        style={{ ...actionBtn, ...actionBtnTopBorder }}
-                        disabled={loading}
-                        onClick={() => goMode("menu")}
-                      >
-                        ← Назад
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {mode === "replace" ? (
-                    <div style={{ display: "grid", gap: 0, maxHeight: replaceMaxHeight, overflow: "auto" }}>
-                      <div style={subTitle}>Выбери замену</div>
-                      {loading ? <div style={{ ...subText, borderBottom: "none" }}>Загружаю…</div> : null}
-                      {alts.map((a, idx) => (
-                        <button
-                          key={a.exerciseId}
-                          type="button"
-                          className="exercise-menu-option"
-                          style={idx > 0 ? { ...actionBtnWrap, ...actionBtnTopBorder } : actionBtnWrap}
-                          disabled={loading}
-                          onClick={() => void applyReplace(a.exerciseId)}
-                        >
-                          <div style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22" }}>{a.name}</div>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="exercise-menu-option"
-                        style={{ ...actionBtn, ...actionBtnTopBorder }}
-                        disabled={loading}
-                        onClick={() => goMode("menu")}
-                      >
-                        ← Назад
-                      </button>
-                    </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </>,
             document.body
           )
           : null
-      ) : null}
-    </div>
+        : null}
+    </>
   );
 }
+
+// ── PlanOne exercise menu CSS ──────────────────────────────────────────
+const peeCss = `
+  @keyframes pee-in-right {
+    from { opacity: 0; transform: translate3d(44px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes pee-in-left {
+    from { opacity: 0; transform: translate3d(-44px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes pee-out-left {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(-44px, 0, 0); }
+  }
+  @keyframes pee-out-right {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(44px, 0, 0); }
+  }
+  @keyframes pee-alt-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes pee-skeleton-fade {
+    from { opacity: 0; transform: translate3d(0, 6px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes pee-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+  .pee-skeleton-row {
+    animation: pee-skeleton-fade 0.4s ease both;
+  }
+  .pee-shimmer {
+    background: linear-gradient(90deg,
+      rgba(15,23,42,0.07) 0%,
+      rgba(15,23,42,0.12) 30%,
+      rgba(15,23,42,0.07) 60%
+    ) !important;
+    background-size: 200% 100% !important;
+    animation: pee-shimmer 1.4s ease infinite !important;
+  }
+  .pee-sheet-btn {
+    appearance: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    transition:
+      background 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      transform 160ms ease,
+      box-shadow 220ms ease;
+    will-change: transform, background, border-color, box-shadow;
+  }
+  .pee-sheet-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
+  }
+  .pee-sheet-btn:disabled {
+    opacity: 0.72;
+    cursor: default;
+  }
+  .pee-icon-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    transition: opacity 120ms ease, transform 120ms ease;
+    will-change: transform;
+  }
+  .pee-icon-btn:active {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pee-sheet-btn, .pee-icon-btn, .pee-shimmer, .pee-skeleton-row {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+`;
 
 /* ----------------- Мелкие элементы ----------------- */
 

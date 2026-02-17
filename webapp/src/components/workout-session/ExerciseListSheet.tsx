@@ -229,7 +229,6 @@ const s: Record<string, CSSProperties> = {
     border: workoutTheme.cardBorder,
     background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
     boxShadow: workoutTheme.cardShadow,
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
     maxHeight: "74vh",
     display: "flex",
     flexDirection: "column",
@@ -292,7 +291,8 @@ const s: Record<string, CSSProperties> = {
     overflowY: "auto",
     display: "grid",
     gap: 6,
-    padding: "4px 16px 8px",
+    padding: "4px 16px",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
   },
 
   // Row
@@ -304,7 +304,7 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "var(--els-shadow, 0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
     display: "grid",
     gridTemplateColumns: "1fr auto",
-    alignItems: "center",
+    alignItems: "start",
     gap: 10,
     padding: "14px 14px",
     color: "var(--els-color, #1e1f22)",
