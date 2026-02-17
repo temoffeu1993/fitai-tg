@@ -1,4 +1,5 @@
 import { useState, useEffect, type CSSProperties } from "react";
+import { ChevronRight } from "lucide-react";
 import { workoutTheme } from "./theme";
 
 type Props = {
@@ -31,8 +32,15 @@ export default function TechniqueAccordion({ technique, proTip, resetKey }: Prop
                 aria-expanded={open}
                 aria-label="Техника выполнения"
             >
-                <span style={s.chevron}>{open ? "▾" : "▸"}</span>
                 <span style={s.triggerLabel}>Техника выполнения</span>
+                <ChevronRight
+                    size={16}
+                    strokeWidth={2.2}
+                    style={{
+                        ...s.chevron,
+                        transform: open ? "rotate(-90deg)" : "rotate(90deg)",
+                    }}
+                />
             </button>
 
             {open ? (
@@ -79,35 +87,36 @@ const s: Record<string, CSSProperties> = {
         padding: "0 2px",
     },
     trigger: {
-        display: "flex",
+        width: "100%",
+        marginLeft: "auto",
+        display: "inline-flex",
         alignItems: "center",
-        gap: 6,
-        padding: "6px 0",
+        justifyContent: "flex-end",
+        gap: 2,
+        padding: "0 2px 0 6px",
         border: "none",
         background: "transparent",
+        color: "rgba(15,23,42,0.7)",
+        borderRadius: 999,
+        minHeight: 44,
         cursor: "pointer",
         WebkitTapHighlightColor: "transparent",
         touchAction: "manipulation",
         appearance: "none",
     },
     chevron: {
-        fontSize: 14,
-        lineHeight: 1,
-        color: workoutTheme.textSecondary,
-        flexShrink: 0,
-        width: 16,
-        textAlign: "center",
+        flex: "0 0 auto",
+        transition: "transform 160ms ease",
     },
     triggerLabel: {
-        fontSize: 14,
-        fontWeight: 500,
-        lineHeight: 1.4,
-        color: workoutTheme.textSecondary,
+        fontSize: 16,
+        fontWeight: 600,
+        lineHeight: 1,
     },
     content: {
         display: "grid",
         gap: 10,
-        padding: "2px 0 4px 22px",
+        padding: "2px 0 4px",
     },
     section: {
         display: "grid",
