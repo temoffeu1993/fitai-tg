@@ -960,11 +960,13 @@ export default function WorkoutSession() {
           />
         </CurrentExerciseCard>
 
-        <TechniqueAccordion
-          technique={activeItem?.technique}
-          proTip={activeItem?.proTip}
-          resetKey={activeIndex}
-        />
+        <div style={{ padding: "0 18px" }}>
+          <TechniqueAccordion
+            technique={activeItem?.technique}
+            proTip={activeItem?.proTip}
+            resetKey={activeIndex}
+          />
+        </div>
       </main>
 
       <BottomDock

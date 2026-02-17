@@ -84,7 +84,6 @@ export default function TechniqueAccordion({ technique, proTip, resetKey }: Prop
 
 const s: Record<string, CSSProperties> = {
     root: {
-        padding: "0 2px",
     },
     trigger: {
         width: "100%",
