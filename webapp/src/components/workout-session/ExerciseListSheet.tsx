@@ -35,6 +35,16 @@ export default function ExerciseListSheet(props: Props) {
     };
   }, []);
 
+  // Lock body scroll while sheet is visible
+  useEffect(() => {
+    if (!renderOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [renderOpen]);
+
   useEffect(() => {
     if (open) {
       if (closeTimerRef.current != null) {

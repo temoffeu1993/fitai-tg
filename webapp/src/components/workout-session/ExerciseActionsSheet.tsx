@@ -86,6 +86,16 @@ export default function ExerciseActionsSheet(props: Props) {
     };
   }, []);
 
+  // Lock body scroll while sheet is visible
+  useEffect(() => {
+    if (!renderOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [renderOpen]);
+
   // Keep display data fresh while open
   useEffect(() => {
     if (state) setDisplayState(state);

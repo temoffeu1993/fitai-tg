@@ -2284,6 +2284,16 @@ function PlannedExercisesEditor({
     };
   }, []);
 
+  // Lock body scroll while sheet is visible
+  useEffect(() => {
+    if (!renderOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [renderOpen]);
+
   const isSheetOpen = menuIndex != null;
 
   // Sheet open/close lifecycle
