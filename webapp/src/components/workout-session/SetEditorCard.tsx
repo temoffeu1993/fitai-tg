@@ -56,7 +56,7 @@ export default function SetEditorCard(props: Props) {
   const set = item.sets[focusSetIndex];
   if (!set) return null;
   const exerciseCompleted = item.sets.every((entry) => Boolean(entry.done));
-  const tintOn = commitFlash || exerciseCompleted;
+  const tintOn = commitFlash || exerciseCompleted || Boolean(set.done);
   const needWeight = requiresWeightInput(item);
   const totalSets = Math.max(1, item.sets.length);
   const doneSets = item.sets.filter((entry) => Boolean(entry.done)).length;
