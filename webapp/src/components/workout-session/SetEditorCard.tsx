@@ -118,6 +118,7 @@ export default function SetEditorCard(props: Props) {
 
   return (
     <section style={{ ...(embedded ? s.embedRoot : s.card) }}>
+      <style>{secCss}</style>
       <div style={s.inputsGrid}>
         <WheelField
           ariaLabel="Повторы"
@@ -166,6 +167,7 @@ export default function SetEditorCard(props: Props) {
         {/* Tappable counter row */}
         <button
           type="button"
+          className="sec-counter-btn"
           style={s.setCounterBtn}
           onClick={() => setHistoryOpen((v) => !v)}
           aria-expanded={historyOpen}
@@ -217,6 +219,7 @@ export default function SetEditorCard(props: Props) {
                 <button
                   key={idx}
                   type="button"
+                  className="sec-chip"
                   style={{
                     ...s.chip,
                     ...(isDone ? s.chipDone : s.chipPending),
@@ -422,6 +425,30 @@ function WheelField(props: {
   );
 }
 
+const secCss = `
+  .sec-chip {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 130ms ease, opacity 130ms ease, box-shadow 130ms ease;
+    will-change: transform;
+  }
+  .sec-chip:active {
+    transform: scale(0.88);
+    opacity: 0.65;
+  }
+  .sec-counter-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: opacity 120ms ease;
+  }
+  .sec-counter-btn:active {
+    opacity: 0.55;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sec-chip, .sec-counter-btn { transition: none !important; }
+  }
+`;
+
 const s: Record<string, CSSProperties> = {
   card: {
     padding: 18,
@@ -571,6 +598,7 @@ const s: Record<string, CSSProperties> = {
   setIndexText: {
     position: "relative",
     minHeight: 21,
+    whiteSpace: "nowrap",
   },
   setIndexTextLayer: {
     position: "absolute",
@@ -585,6 +613,7 @@ const s: Record<string, CSSProperties> = {
     color: "rgba(15, 23, 42, 0.62)",
     transition: "opacity 220ms ease, transform 220ms ease",
     willChange: "opacity, transform",
+    whiteSpace: "nowrap",
   },
   setIndexTextLayerVisible: {
     opacity: 1,
