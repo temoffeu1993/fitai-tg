@@ -16,7 +16,6 @@ import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
 import TechniqueAccordion from "@/components/workout-session/TechniqueAccordion";
 import { getExerciseIllustration } from "@/components/workout-session/exerciseIllustrations";
-import TransitionToast from "@/components/workout-session/TransitionToast";
 import { workoutTheme } from "@/components/workout-session/theme";
 import type {
   ChangeEvent,
@@ -46,7 +45,6 @@ type SessionUiState =
   | "lift_ready"
   | "lift_blocked"
   | "rest_running"
-  | "transition_next"
   | "exercise_completed"
   | "finish_confirm"
   | "sheet_open";
@@ -240,9 +238,7 @@ export default function WorkoutSession() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
   const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
-  const [transitionToast, setTransitionToast] = useState<string | null>(null);
   const blockTimerRef = useRef<number | null>(null);
-  const transitionToastTimerRef = useRef<number | null>(null);
   const restStartTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -424,7 +420,6 @@ export default function WorkoutSession() {
   useEffect(() => {
     return () => {
       if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
-      if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
       if (restStartTimerRef.current) window.clearTimeout(restStartTimerRef.current);
     };
   }, []);
@@ -493,15 +488,6 @@ export default function WorkoutSession() {
     }, REST_OVERLAY_ENTER_DELAY_MS);
   };
 
-  const showTransitionToast = (message: string, durationMs = 460) => {
-    setTransitionToast(message);
-    if (transitionToastTimerRef.current) window.clearTimeout(transitionToastTimerRef.current);
-    transitionToastTimerRef.current = window.setTimeout(() => {
-      setTransitionToast(null);
-      transitionToastTimerRef.current = null;
-    }, durationMs);
-  };
-
   const toggleSetDone = (setIdx: number) => {
     const item = activeItem;
     if (!item) return false;
@@ -538,7 +524,6 @@ export default function WorkoutSession() {
     });
 
     fireHapticImpact("medium");
-    showTransitionToast("Подход сохранен");
     if (willCompleteExercise) {
       setEffortPromptIndex(activeIndex);
     } else {
@@ -912,7 +897,6 @@ export default function WorkoutSession() {
     if (isSheetOpen) return "sheet_open";
     if (effortPromptIndex != null) return "exercise_completed";
     if (finishModal) return "finish_confirm";
-    if (transitionToast) return "transition_next";
     if (!activeItem) return "lift_ready";
     const set = activeItem.sets[focusSetIndex];
     if (!set) return "lift_ready";
@@ -970,8 +954,6 @@ export default function WorkoutSession() {
         secondaryLabel="Завершить тренировку"
         onSecondary={openFinishModal}
       />
-
-      <TransitionToast message={transitionToast} />
 
       <RestOverlay
         secondsLeft={restSecLeft}

@@ -143,7 +143,7 @@ const s: Record<string, CSSProperties> = {
     topSplit: {
         display: "grid",
         gridTemplateColumns: "minmax(0,1fr) auto",
-        alignItems: "start",
+        alignItems: "center",
         gap: 10,
     },
     topSplitSingle: {
@@ -152,7 +152,7 @@ const s: Record<string, CSSProperties> = {
     illustrationWrap: {
         display: "flex",
         justifyContent: "center",
-        alignItems: "flex-start",
+        alignItems: "center",
     },
     illustration: {
         maxWidth: 200,
