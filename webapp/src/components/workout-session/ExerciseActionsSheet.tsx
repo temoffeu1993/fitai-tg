@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, ChevronRight } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -167,37 +167,10 @@ export default function ExerciseActionsSheet(props: Props) {
       case "menu":
         return (
           <div style={s.menuList}>
-            <ActionRow
-              icon={<RefreshCw size={17} strokeWidth={2.2} />}
-              label="Заменить упражнение"
-              onClick={onLoadAlternatives}
-              iconColor="#007AFF"
-              iconBg="rgba(0,122,255,0.10)"
-            />
-            <ActionRow
-              icon={<SkipForward size={17} strokeWidth={2.2} />}
-              label="Пропустить упражнение"
-              onClick={onAskSkip}
-              iconColor="#FF9500"
-              iconBg="rgba(255,149,0,0.10)"
-            />
-            <div style={s.menuDivider} />
-            <ActionRow
-              icon={<Trash2 size={17} strokeWidth={2.2} />}
-              label="Удалить из тренировки"
-              onClick={onAskRemove}
-              iconColor="#FF3B30"
-              iconBg="rgba(255,59,48,0.10)"
-              danger
-            />
-            <ActionRow
-              icon={<Ban size={16} strokeWidth={2.2} />}
-              label="Исключить из будущих тренировок"
-              onClick={onAskBan}
-              iconColor="#FF3B30"
-              iconBg="rgba(255,59,48,0.10)"
-              danger
-            />
+            <MenuBtn label="Заменить упражнение" onClick={onLoadAlternatives} />
+            <MenuBtn label="Пропустить упражнение" onClick={onAskSkip} />
+            <MenuBtn label="Удалить из тренировки" onClick={onAskRemove} danger />
+            <MenuBtn label="Исключить из будущих тренировок" onClick={onAskBan} danger />
           </div>
         );
 
@@ -212,8 +185,13 @@ export default function ExerciseActionsSheet(props: Props) {
                 <div style={s.errorBody}>{error}</div>
                 <button
                   type="button"
-                  className="eas-btn"
-                  style={s.retryBtn}
+                  className="eas-sheet-btn"
+                  style={{
+                    ...s.sheetBtn,
+                    color: workoutTheme.accent,
+                    ["--eas-btn-color" as never]: workoutTheme.accent,
+                    marginTop: 8,
+                  }}
                   onClick={onLoadAlternatives}
                 >
                   Попробовать снова
@@ -379,28 +357,23 @@ export default function ExerciseActionsSheet(props: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
-function ActionRow({
-  icon, label, onClick, iconColor, iconBg, danger = false,
-}: {
-  icon: React.ReactNode;
+function MenuBtn({ label, onClick, danger = false }: {
   label: string;
   onClick: () => void;
-  iconColor: string;
-  iconBg: string;
   danger?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="eas-action-row"
-      style={{ ...s.actionRow, color: danger ? "#FF3B30" : "rgba(0,0,0,0.88)" }}
+      className="eas-sheet-btn"
+      style={{
+        ...s.sheetBtn,
+        color: danger ? workoutTheme.danger : workoutTheme.accent,
+        ["--eas-btn-color" as never]: danger ? workoutTheme.danger : workoutTheme.accent,
+      }}
       onClick={onClick}
     >
-      <span style={{ ...s.actionIcon, background: iconBg, color: iconColor }}>
-        {icon}
-      </span>
-      <span style={s.actionLabel}>{label}</span>
-      <ChevronRight size={15} strokeWidth={2} style={{ color: "rgba(0,0,0,0.22)", flexShrink: 0 }} />
+      {label}
     </button>
   );
 }
@@ -415,18 +388,16 @@ function AltRow({
   return (
     <button
       type="button"
-      className="eas-alt-row"
+      className="eas-sheet-btn"
       style={{
-        ...s.altRow,
+        ...s.sheetBtn,
+        ...s.altRowInner,
         animationDelay: `${index * 30}ms`,
       }}
       onClick={() => onReplace(alt)}
     >
-      <div style={s.altContent}>
-        <div style={s.altName}>{alt.name}</div>
-        {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
-      </div>
-      <ChevronRight size={14} strokeWidth={2} style={{ color: "rgba(0,0,0,0.2)", flexShrink: 0 }} />
+      <div style={s.altName}>{alt.name}</div>
+      {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
     </button>
   );
 }
@@ -445,8 +416,12 @@ function ConfirmView({
       <p style={s.confirmBody}>{body}</p>
       <button
         type="button"
-        className="eas-btn eas-btn-danger"
-        style={s.confirmBtn}
+        className="eas-sheet-btn"
+        style={{
+          ...s.sheetBtn,
+          color: workoutTheme.danger,
+          ["--eas-btn-color" as never]: workoutTheme.danger,
+        }}
         onClick={onConfirm}
         disabled={disabled}
       >
@@ -454,8 +429,12 @@ function ConfirmView({
       </button>
       <button
         type="button"
-        className="eas-btn"
-        style={s.cancelBtn}
+        className="eas-sheet-btn"
+        style={{
+          ...s.sheetBtn,
+          color: workoutTheme.accent,
+          ["--eas-btn-color" as never]: workoutTheme.accent,
+        }}
         onClick={onCancel}
       >
         Отмена
@@ -468,20 +447,25 @@ function ConfirmView({
 const sk: Record<string, CSSProperties> = {
   wrap: {
     display: "grid",
-    gap: 4,
-    padding: "4px 0",
+    gap: 6,
   },
   row: {
+    minHeight: 58,
     padding: "14px 16px",
-    borderRadius: 14,
-    background: "rgba(0,0,0,0.035)",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.7)",
     animation: "eas-skeleton-fade 0.4s ease both",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 6,
   },
   bar: {
-    height: 15,
+    height: 14,
     borderRadius: 8,
-    background: "linear-gradient(90deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 50%, rgba(0,0,0,0.08) 100%)",
-    backgroundSize: "200% 100%",
+    background: "rgba(15,23,42,0.08)",
   },
 };
 
@@ -523,55 +507,34 @@ const globalCss = `
 
   .eas-shimmer {
     background: linear-gradient(90deg,
-      rgba(0,0,0,0.07) 0%,
-      rgba(0,0,0,0.12) 30%,
-      rgba(0,0,0,0.07) 60%
+      rgba(15,23,42,0.07) 0%,
+      rgba(15,23,42,0.12) 30%,
+      rgba(15,23,42,0.07) 60%
     ) !important;
     background-size: 200% 100% !important;
     animation: eas-shimmer 1.4s ease infinite !important;
   }
 
-  /* Action row */
-  .eas-action-row {
+  /* Sheet button — matches ExerciseListSheet row style */
+  .eas-sheet-btn {
+    appearance: none;
+    outline: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     cursor: pointer;
-    transition: background 120ms ease, transform 100ms ease;
-    will-change: transform;
+    transition:
+      background 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      transform 160ms ease,
+      box-shadow 220ms ease;
+    will-change: transform, background, border-color, box-shadow;
   }
-  .eas-action-row:active {
-    background: rgba(0,0,0,0.06) !important;
-    transform: scale(0.985);
+  .eas-sheet-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
   }
-
-  /* Alt row */
-  .eas-alt-row {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    cursor: pointer;
-    animation: eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both;
-    transition: background 120ms ease, transform 100ms ease;
-    will-change: transform, opacity;
-  }
-  .eas-alt-row:active {
-    background: rgba(0,0,0,0.06) !important;
-    transform: scale(0.985);
-  }
-
-  /* Generic button */
-  .eas-btn {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    cursor: pointer;
-    transition: opacity 120ms ease, transform 100ms ease;
-    will-change: transform;
-  }
-  .eas-btn:active:not(:disabled) {
-    opacity: 0.75;
-    transform: scale(0.97);
-  }
-  .eas-btn:disabled {
-    opacity: 0.5;
+  .eas-sheet-btn:disabled {
+    opacity: 0.72;
     cursor: default;
   }
 
@@ -580,22 +543,16 @@ const globalCss = `
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     cursor: pointer;
-    transition: opacity 120ms ease, transform 100ms ease;
+    transition: opacity 120ms ease, transform 120ms ease;
     will-change: transform;
   }
   .eas-icon-btn:active {
-    opacity: 0.6;
-    transform: scale(0.92);
-  }
-
-  /* Remove top border from first alt row to avoid double border with container */
-  .eas-alt-row:first-child {
-    border-top: none !important;
+    opacity: 0.55;
+    transform: scale(0.9);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .eas-action-row, .eas-alt-row, .eas-btn, .eas-icon-btn,
-    .eas-shimmer {
+    .eas-sheet-btn, .eas-icon-btn, .eas-shimmer {
       transition: none !important;
       animation: none !important;
     }
@@ -604,30 +561,27 @@ const globalCss = `
 
 // ── Styles ─────────────────────────────────────────────────────────────
 const s: Record<string, CSSProperties> = {
-  // Backdrop
+  // Backdrop — matches workoutTheme.overlayStrong used elsewhere
   overlay: {
     position: "fixed",
     inset: 0,
     zIndex: 70,
-    background: "rgba(0,0,0,0.45)",
-    backdropFilter: "blur(2px)",
-    WebkitBackdropFilter: "blur(2px)",
+    background: workoutTheme.overlayStrong,
   },
 
-  // Sheet container
+  // Sheet container — matches ExerciseListSheet exactly
   sheetWrap: {
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 71,
-    borderRadius: "20px 20px 0 0",
-    background: "rgba(242,242,247,0.97)",
-    backdropFilter: "blur(40px) saturate(180%)",
-    WebkitBackdropFilter: "blur(40px) saturate(180%)",
-    boxShadow: "0 -1px 0 rgba(0,0,0,0.1), 0 -20px 60px rgba(0,0,0,0.18)",
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
-    maxHeight: "82vh",
+    borderRadius: "24px 24px 0 0",
+    border: workoutTheme.cardBorder,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
+    boxShadow: workoutTheme.cardShadow,
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    maxHeight: "80vh",
     display: "flex",
     flexDirection: "column",
     willChange: "transform, opacity",
@@ -635,26 +589,26 @@ const s: Record<string, CSSProperties> = {
     overflowX: "hidden",
   },
 
-  // Grabber
+  // Grabber — matches ExerciseListSheet grabber exactly
   grabberRow: {
     display: "flex",
     justifyContent: "center",
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 2,
     flexShrink: 0,
   },
   grabber: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    background: "rgba(60,60,67,0.3)",
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.16)",
   },
 
   // Header
   header: {
     display: "flex",
     alignItems: "center",
-    padding: "2px 8px 4px",
+    padding: "2px 8px 6px",
     flexShrink: 0,
   },
   headerSpacer: {
@@ -669,7 +623,7 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     background: "transparent",
     borderRadius: 999,
-    color: "rgba(60,60,67,0.6)",
+    color: workoutTheme.textSecondary,
     cursor: "pointer",
     padding: 0,
     flexShrink: 0,
@@ -687,90 +641,56 @@ const s: Record<string, CSSProperties> = {
     flexDirection: "column",
   },
 
-  // ── Menu mode ─────────────────────────────────────────────────────────
-  menuList: {
+  // ── Shared button — matches ExerciseListSheet row style ───────────────
+  sheetBtn: {
+    width: "100%",
+    minHeight: 58,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    padding: "14px 16px",
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left" as const,
+    cursor: "pointer",
     display: "flex",
     flexDirection: "column",
-    margin: "4px 16px 8px",
-    borderRadius: 14,
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.8)",
-    boxShadow: "0 1px 0 rgba(0,0,0,0.08), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
-  },
-  menuDivider: {
-    height: 0.5,
-    background: "rgba(0,0,0,0.1)",
-    marginLeft: 56,
-  },
-  actionRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    padding: "13px 16px",
-    border: "none",
-    background: "transparent",
-    textAlign: "left",
-    cursor: "pointer",
-    width: "100%",
-  },
-  actionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    display: "inline-flex",
-    alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
-  actionLabel: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: 400,
-    color: "inherit",
-    letterSpacing: "-0.2px",
+
+  // ── Menu mode ─────────────────────────────────────────────────────────
+  menuList: {
+    display: "grid",
+    gap: 6,
+    padding: "4px 16px 8px",
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
   replaceWrap: {
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gap: 6,
     padding: "4px 16px 8px",
   },
   altList: {
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 14,
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.8)",
-    boxShadow: "0 1px 0 rgba(0,0,0,0.08), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
+    display: "grid",
+    gap: 6,
   },
-  altRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "13px 16px",
-    border: "none",
-    borderTop: "0.5px solid rgba(0,0,0,0.07)",
-    background: "transparent",
-    textAlign: "left" as const,
-    cursor: "pointer",
-    width: "100%",
-  },
-  altContent: {
-    flex: 1,
-    minWidth: 0,
+  altRowInner: {
+    animation: "eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
+    color: workoutTheme.accent,
   },
   altName: {
-    fontSize: 16,
-    fontWeight: 400,
-    color: "rgba(0,0,0,0.88)",
-    letterSpacing: "-0.2px",
+    fontSize: 18,
+    fontWeight: 500,
+    color: "inherit",
     lineHeight: 1.3,
   },
   altHint: {
     fontSize: 13,
-    color: "rgba(0,0,0,0.44)",
-    marginTop: 2,
+    fontWeight: 500,
+    color: workoutTheme.textMuted,
+    marginTop: 3,
     lineHeight: 1.3,
   },
 
@@ -781,30 +701,20 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 8,
     padding: "24px 16px",
-    borderRadius: 14,
-    background: "rgba(255,59,48,0.06)",
+    borderRadius: 18,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
     textAlign: "center",
   },
   errorTitle: {
     fontSize: 16,
     fontWeight: 600,
-    color: "#FF3B30",
+    color: workoutTheme.danger,
   },
   errorBody: {
     fontSize: 14,
-    color: "rgba(0,0,0,0.55)",
+    color: workoutTheme.textSecondary,
     lineHeight: 1.4,
-  },
-  retryBtn: {
-    marginTop: 8,
-    padding: "9px 20px",
-    borderRadius: 12,
-    border: "none",
-    background: "#007AFF",
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
   },
   emptyState: {
     display: "flex",
@@ -821,53 +731,27 @@ const s: Record<string, CSSProperties> = {
   emptyTitle: {
     fontSize: 16,
     fontWeight: 600,
-    color: "rgba(0,0,0,0.7)",
+    color: workoutTheme.textSecondary,
   },
   emptyBody: {
     fontSize: 14,
-    color: "rgba(0,0,0,0.44)",
+    color: workoutTheme.textMuted,
     lineHeight: 1.4,
     maxWidth: 240,
   },
 
   // ── Confirm mode ──────────────────────────────────────────────────────
   confirmWrap: {
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gap: 6,
     padding: "4px 16px 8px",
-    gap: 10,
   },
   confirmBody: {
     fontSize: 15,
-    color: "rgba(0,0,0,0.55)",
+    color: workoutTheme.textSecondary,
     lineHeight: 1.45,
     textAlign: "center",
     padding: "8px 4px",
     margin: 0,
-  },
-  confirmBtn: {
-    width: "100%",
-    padding: "16px",
-    borderRadius: 14,
-    border: "none",
-    background: "rgba(255,59,48,0.88)",
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: 600,
-    letterSpacing: "-0.2px",
-    cursor: "pointer",
-  },
-  cancelBtn: {
-    width: "100%",
-    padding: "16px",
-    borderRadius: 14,
-    border: "none",
-    background: "rgba(255,255,255,0.85)",
-    boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.1)",
-    color: "#007AFF",
-    fontSize: 17,
-    fontWeight: 600,
-    letterSpacing: "-0.2px",
-    cursor: "pointer",
   },
 };
