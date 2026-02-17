@@ -82,8 +82,8 @@ export default function SetEditorCard(props: Props) {
       ? Math.round(explicitReps)
       : prevReps ?? targetDefaultReps;
 
-  const canGoPrev = focusSetIndex > 0;
-  const canGoNext = focusSetIndex < totalSets - 1;
+  const canGoPrev = focusSetIndex > 0 && Boolean(item.sets[focusSetIndex - 1]?.done);
+  const canGoNext = focusSetIndex < totalSets - 1 && Boolean(item.sets[focusSetIndex + 1]?.done);
 
   const handleCommit = () => {
     const committed = onCommitSet();
