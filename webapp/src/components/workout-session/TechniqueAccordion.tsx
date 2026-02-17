@@ -9,13 +9,11 @@ type Props = {
         commonMistakes: string[];
     };
     proTip?: string;
-    /** Mascot illustration URL (transparent PNG) */
-    illustration?: string;
     /** Reset accordion when this key changes (e.g. exercise index) */
     resetKey?: string | number;
 };
 
-export default function TechniqueAccordion({ technique, proTip, illustration, resetKey }: Props) {
+export default function TechniqueAccordion({ technique, proTip, resetKey }: Props) {
     const [open, setOpen] = useState(false);
 
     // Collapse when exercise changes
@@ -47,35 +45,13 @@ export default function TechniqueAccordion({ technique, proTip, illustration, re
 
             {open ? (
                 <div style={s.content}>
-                    {technique?.setup || illustration ? (
-                        <div
-                            style={{
-                                ...s.topSplit,
-                                ...(technique?.setup && illustration ? null : s.topSplitSingle),
-                            }}
-                        >
-                            {technique?.setup ? (
-                                <div style={s.section}>
-                                    <div style={s.sectionTitle}>Подготовка</div>
-                                    <div style={s.text}>{technique.setup}</div>
-                                </div>
-                            ) : null}
-
-                            {illustration ? (
-                                <div style={s.illustrationWrap}>
-                                    <img
-                                        src={illustration}
-                                        alt="Иллюстрация техники"
-                                        style={s.illustration}
-                                        draggable={false}
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : null}
-
                     {technique ? (
                         <>
+                            <div style={s.section}>
+                                <div style={s.sectionTitle}>Подготовка</div>
+                                <div style={s.text}>{technique.setup}</div>
+                            </div>
+
                             <div style={s.section}>
                                 <div style={s.sectionTitle}>Выполнение</div>
                                 <div style={s.text}>{technique.execution}</div>
@@ -139,29 +115,6 @@ const s: Record<string, CSSProperties> = {
         display: "grid",
         gap: 10,
         padding: "2px 0 4px",
-    },
-    topSplit: {
-        display: "grid",
-        gridTemplateColumns: "minmax(0,1fr) auto",
-        alignItems: "center",
-        gap: 10,
-    },
-    topSplitSingle: {
-        gridTemplateColumns: "minmax(0,1fr)",
-    },
-    illustrationWrap: {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    illustration: {
-        maxWidth: 200,
-        maxHeight: 200,
-        width: "auto",
-        height: "auto",
-        objectFit: "contain",
-        userSelect: "none",
-        pointerEvents: "none",
     },
     section: {
         display: "grid",
