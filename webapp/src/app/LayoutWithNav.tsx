@@ -19,6 +19,7 @@ function shouldHideNav(_pathname: string) {
   const pathname = _pathname || "";
   if (pathname.startsWith("/onb")) return true;
   if (pathname.startsWith("/coach")) return true;
+  if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
   if (pathname.startsWith("/workout/result")) return true;
   return false;

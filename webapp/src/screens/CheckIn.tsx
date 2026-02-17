@@ -115,6 +115,17 @@ export default function CheckIn() {
     ].filter(Boolean);
   }, [result, summary]);
 
+  const openWorkoutCountdown = (nextState: Record<string, unknown>) => {
+    nav("/workout/countdown", {
+      replace: true,
+      state: {
+        nextPath: "/workout/session",
+        nextState,
+        fallbackPath: returnTo || "/plan/one",
+      },
+    });
+  };
+
   const goToWorkout = async () => {
     if (!result) return;
     if (result.action === "skip" || !result.workout) {
@@ -164,15 +175,13 @@ export default function CheckIn() {
         })
       );
     } catch { }
-    nav("/workout/session", {
-      state: {
-        plan: toSessionPlan(finalResult.workout),
-        plannedWorkoutId,
-        isRecovery: finalResult.action === "recovery",
-        swapInfo: finalResult.action === "swap_day" ? finalResult.swapInfo : undefined,
-        notes: finalResult.notes,
-        checkinSummary: finalResult.summary || null,
-      },
+    openWorkoutCountdown({
+      plan: toSessionPlan(finalResult.workout),
+      plannedWorkoutId,
+      isRecovery: finalResult.action === "recovery",
+      swapInfo: finalResult.action === "swap_day" ? finalResult.swapInfo : undefined,
+      notes: finalResult.notes,
+      checkinSummary: finalResult.summary || null,
     });
     setLoading(false);
   };
@@ -224,23 +233,21 @@ export default function CheckIn() {
         const target = (overview.plannedWorkouts || []).find((w) => w.id === plannedWorkoutId) || null;
         if (target?.plan) {
           const sessionPlan = toSessionPlan(target.plan);
-          nav("/workout/session", {
-            state: {
-              plan: sessionPlan,
-              plannedWorkoutId: target.id,
-              checkinSummary: null,
-            },
+          openWorkoutCountdown({
+            plan: sessionPlan,
+            plannedWorkoutId: target.id,
+            checkinSummary: null,
           });
           return;
         }
-        nav("/workout/session", { state: { plannedWorkoutId } });
+        openWorkoutCountdown({ plannedWorkoutId });
         return;
       }
       nav(returnTo || "/plan/one");
     } catch (err) {
       console.error("Skip check-in failed:", err);
       if (plannedWorkoutId) {
-        nav("/workout/session", { state: { plannedWorkoutId } });
+        openWorkoutCountdown({ plannedWorkoutId });
         return;
       }
       nav(returnTo || "/plan/one");
