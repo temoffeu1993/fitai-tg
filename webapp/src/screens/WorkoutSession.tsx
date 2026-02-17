@@ -924,6 +924,7 @@ export default function WorkoutSession() {
       <main style={styles.main}>
         <CurrentExerciseCard
           item={activeItem}
+          illustration={getExerciseIllustration(activeItem?.id)}
           onOpenMenu={openExerciseMenu}
         >
           <SetEditorCard
@@ -942,7 +943,6 @@ export default function WorkoutSession() {
         <TechniqueAccordion
           technique={activeItem?.technique}
           proTip={activeItem?.proTip}
-          illustration={getExerciseIllustration(activeItem?.id)}
           resetKey={activeIndex}
         />
       </main>

@@ -8,13 +8,11 @@ type Props = {
         commonMistakes: string[];
     };
     proTip?: string;
-    /** Mascot illustration URL (transparent PNG) */
-    illustration?: string;
     /** Reset accordion when this key changes (e.g. exercise index) */
     resetKey?: string | number;
 };
 
-export default function TechniqueAccordion({ technique, proTip, illustration, resetKey }: Props) {
+export default function TechniqueAccordion({ technique, proTip, resetKey }: Props) {
     const [open, setOpen] = useState(false);
 
     // Collapse when exercise changes
@@ -39,17 +37,6 @@ export default function TechniqueAccordion({ technique, proTip, illustration, re
 
             {open ? (
                 <div style={s.content}>
-                    {illustration ? (
-                        <div style={s.illustrationWrap}>
-                            <img
-                                src={illustration}
-                                alt="Иллюстрация техники"
-                                style={s.illustration}
-                                draggable={false}
-                            />
-                        </div>
-                    ) : null}
-
                     {technique ? (
                         <>
                             <div style={s.section}>
@@ -121,20 +108,6 @@ const s: Record<string, CSSProperties> = {
         display: "grid",
         gap: 10,
         padding: "2px 0 4px 22px",
-    },
-    illustrationWrap: {
-        display: "flex",
-        justifyContent: "center",
-        padding: "4px 0 8px",
-    },
-    illustration: {
-        maxWidth: 180,
-        maxHeight: 180,
-        width: "auto",
-        height: "auto",
-        objectFit: "contain",
-        userSelect: "none",
-        pointerEvents: "none",
     },
     section: {
         display: "grid",
