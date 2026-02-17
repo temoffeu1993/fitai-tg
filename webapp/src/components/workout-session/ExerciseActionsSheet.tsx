@@ -25,8 +25,10 @@ type Props = {
 type MenuMode = ExerciseMenuState["mode"];
 type SlideDirection = "forward" | "backward";
 
-const SHEET_ANIM_MS = 240;
-const CONTENT_ANIM_MS = 220;
+const SHEET_ENTER_MS = 320;
+const SHEET_EXIT_MS = 220;
+const CONTENT_ANIM_MS = 240;
+const OPEN_TICK_MS = 16;
 
 function getSlideDirection(prev: MenuMode, next: MenuMode): SlideDirection {
   if (next === "menu" && prev !== "menu") return "backward";
@@ -62,11 +64,13 @@ export default function ExerciseActionsSheet(props: Props) {
   const [slideDirection, setSlideDirection] = useState<SlideDirection>("forward");
   const [contentAnimating, setContentAnimating] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
   const contentTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
+      if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
       if (contentTimerRef.current != null) window.clearTimeout(contentTimerRef.current);
     };
   }, []);
@@ -86,8 +90,12 @@ export default function ExerciseActionsSheet(props: Props) {
       if (!renderOpen) {
         setRenderOpen(true);
         setEntered(false);
-        const raf = window.requestAnimationFrame(() => setEntered(true));
-        return () => window.cancelAnimationFrame(raf);
+        if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
+        openTimerRef.current = window.setTimeout(() => {
+          setEntered(true);
+          openTimerRef.current = null;
+        }, OPEN_TICK_MS);
+        return;
       }
 
       setEntered(true);
@@ -96,6 +104,10 @@ export default function ExerciseActionsSheet(props: Props) {
 
     if (!renderOpen) return;
 
+    if (openTimerRef.current != null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
     setEntered(false);
     if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
@@ -106,7 +118,7 @@ export default function ExerciseActionsSheet(props: Props) {
       setPrevMode(null);
       setContentAnimating(false);
       closeTimerRef.current = null;
-    }, SHEET_ANIM_MS);
+    }, SHEET_EXIT_MS);
   }, [propOpen, renderOpen]);
 
   useEffect(() => {
@@ -264,14 +276,19 @@ export default function ExerciseActionsSheet(props: Props) {
               type="button"
               aria-label="Закрыть меню"
               className="ws-sheet-icon-btn"
-              style={s.iconBtn}
+              style={{ ...s.iconBtn, ...s.iconBtnRight }}
               onClick={onClose}
             >
               <X size={18} strokeWidth={2.2} />
             </button>
           </div>
 
-          <div style={s.contentViewport}>
+          <div
+            style={{
+              ...s.contentViewport,
+              overflow: contentAnimating ? "hidden" : "visible",
+            }}
+          >
             {contentAnimating && prevMode ? (
               <>
                 <div
@@ -339,20 +356,20 @@ const sheetButtonCss = `
 
 const sheetMotionCss = `
   @keyframes ws-sheet-content-in-right {
-    from { opacity: 0; transform: translateX(26px); }
+    from { opacity: 0.01; transform: translate3d(100%, 0, 0); }
     to { opacity: 1; transform: translateX(0); }
   }
   @keyframes ws-sheet-content-in-left {
-    from { opacity: 0; transform: translateX(-26px); }
+    from { opacity: 0.7; transform: translate3d(-28%, 0, 0); }
     to { opacity: 1; transform: translateX(0); }
   }
   @keyframes ws-sheet-content-out-left {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(-22px); }
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to { opacity: 0.72; transform: translate3d(-28%, 0, 0); }
   }
   @keyframes ws-sheet-content-out-right {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(22px); }
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to { opacity: 0.01; transform: translate3d(100%, 0, 0); }
   }
 `;
 
@@ -364,7 +381,7 @@ const s: Record<string, CSSProperties> = {
     display: "grid",
     alignItems: "end",
     background: "transparent",
-    transition: `opacity ${SHEET_ANIM_MS}ms ease`,
+    transition: `opacity ${SHEET_ENTER_MS}ms ease`,
   },
   overlayOpen: {
     opacity: 1,
@@ -383,17 +400,19 @@ const s: Record<string, CSSProperties> = {
     gap: 10,
     maxHeight: "74vh",
     overflowY: "auto",
-    transition: `transform ${SHEET_ANIM_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity ${SHEET_ANIM_MS}ms ease`,
-    transform: "translateY(0)",
+    transition: `transform ${SHEET_ENTER_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${SHEET_ENTER_MS}ms ease`,
+    transform: "translate3d(0, 0, 0)",
     opacity: 1,
+    willChange: "transform, opacity",
   },
   sheetOpen: {
-    transform: "translateY(0)",
+    transform: "translate3d(0, 0, 0)",
     opacity: 1,
   },
   sheetClosed: {
-    transform: "translateY(26px)",
+    transform: "translate3d(0, 100%, 0)",
     opacity: 0,
+    transitionDuration: `${SHEET_EXIT_MS}ms`,
   },
   topRow: {
     display: "grid",
@@ -417,6 +436,9 @@ const s: Record<string, CSSProperties> = {
     padding: 0,
     justifySelf: "start",
   },
+  iconBtnRight: {
+    justifySelf: "end",
+  },
   iconGhost: {
     width: 36,
     height: 36,
@@ -431,12 +453,14 @@ const s: Record<string, CSSProperties> = {
   },
   contentViewport: {
     display: "grid",
-    overflow: "hidden",
+    position: "relative",
   },
   contentPane: {
     gridArea: "1 / 1",
     display: "grid",
     gap: 8,
+    padding: "2px 8px 8px",
+    margin: "0 -8px",
   },
   contentPaneStatic: {
     position: "relative",

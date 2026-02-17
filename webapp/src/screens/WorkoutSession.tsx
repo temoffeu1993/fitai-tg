@@ -586,9 +586,10 @@ export default function WorkoutSession() {
 
   const loadAlternatives = async () => {
     const item = items[activeIndex];
+    // Open replace step immediately (iOS-like feel), then fetch options in-place.
+    setExerciseMenu({ index: activeIndex, mode: "replace" });
     if (!item?.id) {
       setAltsError("Для этого упражнения недоступна автоматическая замена.");
-      setExerciseMenu({ index: activeIndex, mode: "replace" });
       return;
     }
     setAltsLoading(true);
@@ -607,7 +608,6 @@ export default function WorkoutSession() {
       setAltsError("Не удалось загрузить замены. Проверь интернет и попробуй снова.");
     } finally {
       setAltsLoading(false);
-      setExerciseMenu({ index: activeIndex, mode: "replace" });
     }
   };
 

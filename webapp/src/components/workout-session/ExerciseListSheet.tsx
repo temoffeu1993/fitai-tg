@@ -120,7 +120,8 @@ const s: Record<string, CSSProperties> = {
     overflowY: "auto",
     display: "grid",
     gap: 6,
-    paddingBottom: 2,
+    padding: "2px 8px 8px",
+    margin: "0 -8px",
   },
   row: {
     minHeight: 58,
