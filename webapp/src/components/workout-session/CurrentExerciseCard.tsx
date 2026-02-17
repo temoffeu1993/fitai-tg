@@ -5,12 +5,11 @@ import { workoutTheme } from "./theme";
 type Props = {
   item: SessionItem | null;
   onOpenMenu: () => void;
-  illustration?: string;
   children?: ReactNode;
 };
 
 export default function CurrentExerciseCard(props: Props) {
-  const { item, onOpenMenu, illustration, children } = props;
+  const { item, onOpenMenu, children } = props;
   if (!item) return null;
 
   return (
@@ -21,17 +20,6 @@ export default function CurrentExerciseCard(props: Props) {
           ⋯
         </button>
       </div>
-
-      {illustration ? (
-        <div style={s.illustrationWrap}>
-          <img
-            src={illustration}
-            alt={`Иллюстрация упражнения: ${item.name}`}
-            style={s.illustration}
-            draggable={false}
-          />
-        </div>
-      ) : null}
 
       {children}
     </section>
@@ -84,20 +72,5 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     fontWeight: 500,
     cursor: "pointer",
-  },
-  illustrationWrap: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "2px 0 0",
-  },
-  illustration: {
-    maxWidth: 190,
-    maxHeight: 190,
-    width: "auto",
-    height: "auto",
-    objectFit: "contain",
-    userSelect: "none",
-    pointerEvents: "none",
   },
 };

@@ -192,6 +192,8 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
 export default function WorkoutSession() {
   const nav = useNavigate();
   const location = useLocation();
+  const cameFromCountdown = Boolean((location.state as any)?.__fromCountdown);
+  const [entryAnimActive, setEntryAnimActive] = useState(cameFromCountdown);
 
   const plannedWorkoutId = useMemo(() => {
     const fromState = (location.state as any)?.plannedWorkoutId;
@@ -261,6 +263,16 @@ export default function WorkoutSession() {
       } catch { }
     }
   }, [plannedWorkoutId]);
+
+  useEffect(() => {
+    if (!entryAnimActive) return;
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const timeoutMs = prefersReduced ? 130 : 440;
+    const timer = window.setTimeout(() => setEntryAnimActive(false), timeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [entryAnimActive]);
 
   useEffect(() => {
     if (!plan) return;
@@ -910,7 +922,8 @@ export default function WorkoutSession() {
   })();
 
   return (
-    <div style={styles.page} data-ui-state={uiState}>
+    <div style={styles.page} data-ui-state={uiState} className={entryAnimActive ? "ws-entry-in" : undefined}>
+      <style>{entryTransitionCss}</style>
       <SessionHeader
         elapsedSec={elapsed}
         running={running}
@@ -924,7 +937,6 @@ export default function WorkoutSession() {
       <main style={styles.main}>
         <CurrentExerciseCard
           item={activeItem}
-          illustration={getExerciseIllustration(activeItem?.id)}
           onOpenMenu={openExerciseMenu}
         >
           <SetEditorCard
@@ -943,6 +955,7 @@ export default function WorkoutSession() {
         <TechniqueAccordion
           technique={activeItem?.technique}
           proTip={activeItem?.proTip}
+          illustration={getExerciseIllustration(activeItem?.id)}
           resetKey={activeIndex}
         />
       </main>
@@ -1050,6 +1063,34 @@ export default function WorkoutSession() {
   );
 }
 
+const entryTransitionCss = `
+@keyframes wsEntryIn {
+  0% { opacity: 0; transform: translateY(10px) scale(0.995); filter: blur(5px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes wsEntryScrim {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.ws-entry-in {
+  animation: wsEntryIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ws-entry-in::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    radial-gradient(120% 95% at 50% 45%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 38%, rgba(255,255,255,0) 100%);
+  animation: wsEntryScrim 420ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-entry-in { animation-duration: 120ms !important; }
+  .ws-entry-in::before { animation-duration: 120ms !important; }
+}
+`;
+
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
@@ -1058,6 +1099,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 112px)",
     overflowX: "clip",
+    position: "relative",
+    isolation: "isolate",
   },
   main: {
     width: "100%",
