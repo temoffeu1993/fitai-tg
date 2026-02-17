@@ -94,11 +94,8 @@ const s: Record<string, CSSProperties> = {
   sheet: {
     borderRadius: "24px 24px 0 0",
     border: workoutTheme.cardBorder,
-    backgroundColor: "#f5f6fb",
-    backgroundImage: "var(--app-gradient)",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
     boxShadow: workoutTheme.cardShadow,
     padding: "10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px)",
     display: "grid",
