@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, ChevronRight } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -25,33 +25,54 @@ type Props = {
 type MenuMode = ExerciseMenuState["mode"];
 type SlideDirection = "forward" | "backward";
 
-const SHEET_ENTER_MS = 320;
-const SHEET_EXIT_MS = 220;
-const CONTENT_ANIM_MS = 240;
-const OPEN_TICK_MS = 16;
+// iOS spring: fast attack, gentle settle — matches UIKit default spring
+const SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const SPRING_CONTENT = "cubic-bezier(0.36, 0.66, 0.04, 1)";
+
+const SHEET_ENTER_MS = 380;
+const SHEET_EXIT_MS = 260;
+const CONTENT_ANIM_MS = 280;
+const OVERLAY_ENTER_MS = 320;
+const OPEN_TICK_MS = 12;
 
 function getSlideDirection(prev: MenuMode, next: MenuMode): SlideDirection {
   if (next === "menu" && prev !== "menu") return "backward";
   return "forward";
 }
 
+function getTitleForMode(mode: MenuMode, item: SessionItem | null): string {
+  if (!item) return "";
+  switch (mode) {
+    case "menu": return item.name;
+    case "replace": return "Замена";
+    case "confirm_skip": return "Пропустить?";
+    case "confirm_remove": return "Удалить?";
+    case "confirm_ban": return "Исключить?";
+    default: return "";
+  }
+}
+
+// Skeleton for loading state — iOS-style shimmer
+function AlternativeSkeleton() {
+  return (
+    <div style={sk.wrap} aria-hidden>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} style={{ ...sk.row, animationDelay: `${i * 60}ms` }} className="eas-skeleton-row">
+          <div style={{ ...sk.bar, width: `${55 + (i % 3) * 15}%` }} className="eas-shimmer" />
+          {i % 2 === 0 && <div style={{ ...sk.bar, width: "38%", height: 11, marginTop: 5, opacity: 0.6 }} className="eas-shimmer" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ExerciseActionsSheet(props: Props) {
   const {
-    state,
-    item,
-    alts,
-    loading,
-    error,
-    onClose,
-    onLoadAlternatives,
-    onReplace,
-    onAskSkip,
-    onAskRemove,
-    onAskBan,
-    onSkip,
-    onRemove,
-    onBan,
-    onBackMenu,
+    state, item, alts, loading, error,
+    onClose, onLoadAlternatives, onReplace,
+    onAskSkip, onAskRemove, onAskBan,
+    onSkip, onRemove, onBan, onBackMenu,
   } = props;
 
   const propOpen = Boolean(state && item);
@@ -63,30 +84,37 @@ export default function ExerciseActionsSheet(props: Props) {
   const [prevMode, setPrevMode] = useState<MenuMode | null>(null);
   const [slideDirection, setSlideDirection] = useState<SlideDirection>("forward");
   const [contentAnimating, setContentAnimating] = useState(false);
+  const [titleAnimating, setTitleAnimating] = useState(false);
+  const [titleText, setTitleText] = useState(() => getTitleForMode(state?.mode ?? "menu", item));
+  const [nextTitleText, setNextTitleText] = useState("");
+
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
   const contentTimerRef = useRef<number | null>(null);
+  const titleTimerRef = useRef<number | null>(null);
 
+  // Cleanup all timers on unmount
   useEffect(() => {
     return () => {
-      if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
-      if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
-      if (contentTimerRef.current != null) window.clearTimeout(contentTimerRef.current);
+      [closeTimerRef, openTimerRef, contentTimerRef, titleTimerRef].forEach((r) => {
+        if (r.current != null) window.clearTimeout(r.current);
+      });
     };
   }, []);
 
+  // Keep display data fresh while open
   useEffect(() => {
     if (state) setDisplayState(state);
     if (item) setDisplayItem(item);
   }, [state, item]);
 
+  // Sheet open/close lifecycle
   useEffect(() => {
     if (propOpen) {
       if (closeTimerRef.current != null) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
-
       if (!renderOpen) {
         setRenderOpen(true);
         setEntered(false);
@@ -97,13 +125,11 @@ export default function ExerciseActionsSheet(props: Props) {
         }, OPEN_TICK_MS);
         return;
       }
-
       setEntered(true);
       return;
     }
 
     if (!renderOpen) return;
-
     if (openTimerRef.current != null) {
       window.clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
@@ -117,120 +143,165 @@ export default function ExerciseActionsSheet(props: Props) {
       setCurrentMode(null);
       setPrevMode(null);
       setContentAnimating(false);
+      setTitleAnimating(false);
       closeTimerRef.current = null;
-    }, SHEET_EXIT_MS);
+    }, SHEET_EXIT_MS + 20);
   }, [propOpen, renderOpen]);
 
+  // Content transition on mode change
   useEffect(() => {
     const nextMode = state?.mode ?? null;
     if (!nextMode) return;
 
     if (currentMode == null) {
       setCurrentMode(nextMode);
+      setTitleText(getTitleForMode(nextMode, displayItem));
       return;
     }
 
     if (nextMode === currentMode) return;
 
+    const dir = getSlideDirection(currentMode, nextMode);
+    const newTitle = getTitleForMode(nextMode, displayItem);
+
     if (contentTimerRef.current != null) window.clearTimeout(contentTimerRef.current);
+    if (titleTimerRef.current != null) window.clearTimeout(titleTimerRef.current);
+
     setPrevMode(currentMode);
     setCurrentMode(nextMode);
-    setSlideDirection(getSlideDirection(currentMode, nextMode));
+    setSlideDirection(dir);
     setContentAnimating(true);
+    setTitleAnimating(true);
+    setNextTitleText(newTitle);
 
     contentTimerRef.current = window.setTimeout(() => {
       setPrevMode(null);
       setContentAnimating(false);
       contentTimerRef.current = null;
-    }, CONTENT_ANIM_MS);
-  }, [state?.mode, currentMode]);
+    }, CONTENT_ANIM_MS + 20);
 
+    titleTimerRef.current = window.setTimeout(() => {
+      setTitleText(newTitle);
+      setTitleAnimating(false);
+      titleTimerRef.current = null;
+    }, CONTENT_ANIM_MS / 2);
+  }, [state?.mode, currentMode, displayItem]);
+
+  // ── Content renderer ──────────────────────────────────────────────────
   const renderContent = (mode: MenuMode) => {
     if (!displayItem) return null;
 
-    if (mode === "menu") {
-      return (
-        <>
-          <button type="button" className="ws-sheet-btn" style={s.action} onClick={onLoadAlternatives}>
-            Заменить упражнение
-          </button>
-          <button type="button" className="ws-sheet-btn" style={s.action} onClick={onAskSkip}>
-            Пропустить упражнение
-          </button>
-          <button type="button" className="ws-sheet-btn" style={s.action} onClick={onAskRemove}>
-            Удалить упражнение
-          </button>
-          <button type="button" className="ws-sheet-btn" style={s.actionDanger} onClick={onAskBan}>
-            Исключить из будущих тренировок
-          </button>
-        </>
-      );
-    }
+    switch (mode) {
+      case "menu":
+        return (
+          <div style={s.menuList}>
+            <ActionRow
+              icon={<RefreshCw size={17} strokeWidth={2.2} />}
+              label="Заменить упражнение"
+              onClick={onLoadAlternatives}
+              iconColor="#007AFF"
+              iconBg="rgba(0,122,255,0.10)"
+            />
+            <ActionRow
+              icon={<SkipForward size={17} strokeWidth={2.2} />}
+              label="Пропустить упражнение"
+              onClick={onAskSkip}
+              iconColor="#FF9500"
+              iconBg="rgba(255,149,0,0.10)"
+            />
+            <div style={s.menuDivider} />
+            <ActionRow
+              icon={<Trash2 size={17} strokeWidth={2.2} />}
+              label="Удалить из тренировки"
+              onClick={onAskRemove}
+              iconColor="#FF3B30"
+              iconBg="rgba(255,59,48,0.10)"
+              danger
+            />
+            <ActionRow
+              icon={<Ban size={16} strokeWidth={2.2} />}
+              label="Исключить из будущих тренировок"
+              onClick={onAskBan}
+              iconColor="#FF3B30"
+              iconBg="rgba(255,59,48,0.10)"
+              danger
+            />
+          </div>
+        );
 
-    if (mode === "replace") {
-      return (
-        <>
-          {loading ? <div style={s.hint}>Подбираю альтернативы...</div> : null}
-          {error ? <div style={s.error}>{error}</div> : null}
-          {!loading && !error && alts.length === 0 ? (
-            <div style={s.hint}>Подходящих замен не найдено.</div>
-          ) : null}
-          {!loading && alts.length > 0 ? (
-            <div style={s.list}>
-              {alts.map((alt) => (
-                <button key={alt.exerciseId} type="button" className="ws-sheet-btn" style={s.action} onClick={() => onReplace(alt)}>
-                  <div style={s.altTitle}>{alt.name}</div>
-                  {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
+      case "replace":
+        return (
+          <div style={s.replaceWrap}>
+            {loading ? (
+              <AlternativeSkeleton />
+            ) : error ? (
+              <div style={s.errorCard}>
+                <div style={s.errorTitle}>Не удалось загрузить</div>
+                <div style={s.errorBody}>{error}</div>
+                <button
+                  type="button"
+                  className="eas-btn"
+                  style={s.retryBtn}
+                  onClick={onLoadAlternatives}
+                >
+                  Попробовать снова
                 </button>
-              ))}
-            </div>
-          ) : null}
-          <button type="button" className="ws-sheet-btn" style={s.back} onClick={onBackMenu}>
-            Назад
-          </button>
-        </>
-      );
-    }
+              </div>
+            ) : alts.length === 0 ? (
+              <div style={s.emptyState}>
+                <div style={s.emptyIcon}>🔍</div>
+                <div style={s.emptyTitle}>Замены не найдены</div>
+                <div style={s.emptyBody}>Для этого упражнения подходящих альтернатив нет</div>
+              </div>
+            ) : (
+              <div style={s.altList}>
+                {alts.map((alt, i) => (
+                  <AltRow
+                    key={alt.exerciseId}
+                    alt={alt}
+                    onReplace={onReplace}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
 
-    if (mode === "confirm_skip") {
-      return (
-        <>
-          <div style={s.hint}>Пропустить «{displayItem.name}» в этой тренировке?</div>
-          <button type="button" className="ws-sheet-btn" style={s.actionDanger} onClick={onSkip}>
-            Да, пропустить
-          </button>
-          <button type="button" className="ws-sheet-btn" style={s.back} onClick={onBackMenu}>
-            Отмена
-          </button>
-        </>
-      );
-    }
+      case "confirm_skip":
+        return (
+          <ConfirmView
+            body={`Упражнение «${displayItem.name}» будет пропущено в этой тренировке`}
+            confirmLabel="Пропустить"
+            onConfirm={onSkip}
+            onCancel={onBackMenu}
+          />
+        );
 
-    if (mode === "confirm_remove") {
-      return (
-        <>
-          <div style={s.hint}>Удалить «{displayItem.name}» из этой тренировки?</div>
-          <button type="button" className="ws-sheet-btn" style={s.actionDanger} onClick={onRemove}>
-            Да, удалить
-          </button>
-          <button type="button" className="ws-sheet-btn" style={s.back} onClick={onBackMenu}>
-            Отмена
-          </button>
-        </>
-      );
-    }
+      case "confirm_remove":
+        return (
+          <ConfirmView
+            body={`«${displayItem.name}» будет удалено из этой тренировки`}
+            confirmLabel="Удалить"
+            onConfirm={onRemove}
+            onCancel={onBackMenu}
+          />
+        );
 
-    return (
-      <>
-        <div style={s.hint}>Исключить «{displayItem.name}» из будущих планов?</div>
-        <button type="button" className="ws-sheet-btn" style={s.actionDanger} onClick={onBan} disabled={loading}>
-          {loading ? "Сохраняем..." : "Исключить"}
-        </button>
-        <button type="button" className="ws-sheet-btn" style={s.back} onClick={onBackMenu}>
-          Отмена
-        </button>
-      </>
-    );
+      case "confirm_ban":
+        return (
+          <ConfirmView
+            body={`«${displayItem.name}» больше не будет включаться в твои планы`}
+            confirmLabel={loading ? "Сохраняем..." : "Исключить"}
+            onConfirm={onBan}
+            onCancel={onBackMenu}
+            disabled={loading}
+          />
+        );
+
+      default:
+        return null;
+    }
   };
 
   if (!renderOpen || !displayState || !displayItem || !currentMode) return null;
@@ -239,338 +310,686 @@ export default function ExerciseActionsSheet(props: Props) {
 
   return (
     <>
-      <style>{sheetButtonCss}</style>
-      <style>{sheetMotionCss}</style>
+      <style>{globalCss}</style>
+
+      {/* Backdrop */}
       <div
         style={{
           ...s.overlay,
-          ...(entered ? s.overlayOpen : s.overlayClosed),
+          opacity: entered ? 1 : 0,
+          transition: `opacity ${entered ? OVERLAY_ENTER_MS : SHEET_EXIT_MS}ms ease`,
         }}
         onClick={onClose}
+      />
+
+      {/* Sheet */}
+      <div
+        style={{
+          ...s.sheetWrap,
+          transform: entered ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
+          opacity: entered ? 1 : 0,
+          transition: entered
+            ? `transform ${SHEET_ENTER_MS}ms ${SPRING_OPEN}, opacity ${SHEET_ENTER_MS * 0.6}ms ease`
+            : `transform ${SHEET_EXIT_MS}ms ${SPRING_CLOSE}, opacity ${SHEET_EXIT_MS}ms ease`,
+        }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div
-          style={{
-            ...s.sheet,
-            ...(entered ? s.sheetOpen : s.sheetClosed),
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={s.topRow}>
-            {canGoBack ? (
-              <button
-                type="button"
-                aria-label="Назад"
-                className="ws-sheet-icon-btn"
-                style={s.iconBtn}
-                onClick={onBackMenu}
-              >
-                <ArrowLeft size={18} strokeWidth={2.2} />
-              </button>
-            ) : (
-              <span style={s.iconGhost} aria-hidden />
-            )}
+        {/* Grabber */}
+        <div style={s.grabberRow} aria-hidden>
+          <div style={s.grabber} />
+        </div>
 
-            <div style={s.grabber} />
-
-            <button
-              type="button"
-              aria-label="Закрыть меню"
-              className="ws-sheet-icon-btn"
-              style={{ ...s.iconBtn, ...s.iconBtnRight }}
-              onClick={onClose}
-            >
-              <X size={18} strokeWidth={2.2} />
-            </button>
-          </div>
-
-          <div
+        {/* Header */}
+        <div style={s.header}>
+          <button
+            type="button"
+            aria-label="Назад"
+            className="eas-icon-btn"
             style={{
-              ...s.contentViewport,
-              overflow: contentAnimating ? "hidden" : "visible",
+              ...s.headerBtn,
+              opacity: canGoBack ? 1 : 0,
+              pointerEvents: canGoBack ? "auto" : "none",
             }}
+            onClick={onBackMenu}
+            tabIndex={canGoBack ? 0 : -1}
           >
-            {contentAnimating && prevMode ? (
+            <ArrowLeft size={16} strokeWidth={2.5} />
+            <span style={s.backLabel}>Назад</span>
+          </button>
+
+          {/* Animated title */}
+          <div style={s.titleWrap} aria-live="polite">
+            {titleAnimating ? (
               <>
-                <div
+                <span
+                  key={`out-${titleText}`}
                   style={{
-                    ...s.contentPane,
-                    ...(slideDirection === "forward" ? s.contentPaneOutLeft : s.contentPaneOutRight),
+                    ...s.title,
+                    ...(slideDirection === "forward" ? s.titleOutLeft : s.titleOutRight),
+                  }}
+                  aria-hidden
+                >
+                  {titleText}
+                </span>
+                <span
+                  key={`in-${nextTitleText}`}
+                  style={{
+                    ...s.title,
+                    ...(slideDirection === "forward" ? s.titleInRight : s.titleInLeft),
                   }}
                 >
-                  {renderContent(prevMode)}
-                </div>
-                <div
-                  style={{
-                    ...s.contentPane,
-                    ...(slideDirection === "forward" ? s.contentPaneInRight : s.contentPaneInLeft),
-                  }}
-                >
-                  {renderContent(currentMode)}
-                </div>
+                  {nextTitleText}
+                </span>
               </>
             ) : (
-              <div style={{ ...s.contentPane, ...s.contentPaneStatic }}>{renderContent(currentMode)}</div>
+              <span style={{ ...s.title, ...s.titleStatic }}>{titleText}</span>
             )}
           </div>
+
+          <button
+            type="button"
+            aria-label="Закрыть"
+            className="eas-icon-btn"
+            style={{ ...s.headerBtn, ...s.headerBtnClose }}
+            onClick={onClose}
+          >
+            <X size={15} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Content area with slide transition */}
+        <div
+          style={{
+            ...s.contentViewport,
+            overflow: contentAnimating ? "hidden" : "visible",
+          }}
+        >
+          {contentAnimating && prevMode ? (
+            <>
+              <div
+                style={{
+                  ...s.contentPane,
+                  animation: `${slideDirection === "forward" ? "eas-out-left" : "eas-out-right"} ${CONTENT_ANIM_MS}ms ${SPRING_CONTENT} both`,
+                  pointerEvents: "none",
+                }}
+              >
+                {renderContent(prevMode)}
+              </div>
+              <div
+                style={{
+                  ...s.contentPane,
+                  animation: `${slideDirection === "forward" ? "eas-in-right" : "eas-in-left"} ${CONTENT_ANIM_MS}ms ${SPRING_CONTENT} both`,
+                }}
+              >
+                {renderContent(currentMode)}
+              </div>
+            </>
+          ) : (
+            <div style={{ ...s.contentPane }}>{renderContent(currentMode)}</div>
+          )}
         </div>
       </div>
     </>
   );
 }
 
-const sheetButtonCss = `
-  .ws-sheet-btn {
-    appearance: none;
-    outline: none;
-    transition: background 220ms ease, border-color 220ms ease, color 220ms ease, transform 160ms ease, box-shadow 220ms ease;
-    will-change: transform, background, border-color, box-shadow;
+// ── Sub-components ─────────────────────────────────────────────────────
+
+function ActionRow({
+  icon, label, onClick, iconColor, iconBg, danger = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  iconColor: string;
+  iconBg: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className="eas-action-row"
+      style={{ ...s.actionRow, color: danger ? "#FF3B30" : "rgba(0,0,0,0.88)" }}
+      onClick={onClick}
+    >
+      <span style={{ ...s.actionIcon, background: iconBg, color: iconColor }}>
+        {icon}
+      </span>
+      <span style={s.actionLabel}>{label}</span>
+      <ChevronRight size={15} strokeWidth={2} style={{ color: "rgba(0,0,0,0.22)", flexShrink: 0 }} />
+    </button>
+  );
+}
+
+function AltRow({
+  alt, onReplace, index,
+}: {
+  alt: ExerciseAlternative;
+  onReplace: (a: ExerciseAlternative) => void;
+  index: number;
+}) {
+  return (
+    <button
+      type="button"
+      className="eas-alt-row"
+      style={{
+        ...s.altRow,
+        animationDelay: `${index * 30}ms`,
+      }}
+      onClick={() => onReplace(alt)}
+    >
+      <div style={s.altContent}>
+        <div style={s.altName}>{alt.name}</div>
+        {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
+      </div>
+      <ChevronRight size={14} strokeWidth={2} style={{ color: "rgba(0,0,0,0.2)", flexShrink: 0 }} />
+    </button>
+  );
+}
+
+function ConfirmView({
+  body, confirmLabel, onConfirm, onCancel, disabled = false,
+}: {
+  body: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={s.confirmWrap}>
+      <p style={s.confirmBody}>{body}</p>
+      <button
+        type="button"
+        className="eas-btn eas-btn-danger"
+        style={s.confirmBtn}
+        onClick={onConfirm}
+        disabled={disabled}
+      >
+        {confirmLabel}
+      </button>
+      <button
+        type="button"
+        className="eas-btn"
+        style={s.cancelBtn}
+        onClick={onCancel}
+      >
+        Отмена
+      </button>
+    </div>
+  );
+}
+
+// ── Skeleton styles ────────────────────────────────────────────────────
+const sk: Record<string, CSSProperties> = {
+  wrap: {
+    display: "grid",
+    gap: 4,
+    padding: "4px 0",
+  },
+  row: {
+    padding: "14px 16px",
+    borderRadius: 14,
+    background: "rgba(0,0,0,0.035)",
+    animation: "eas-skeleton-fade 0.4s ease both",
+  },
+  bar: {
+    height: 15,
+    borderRadius: 8,
+    background: "linear-gradient(90deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 50%, rgba(0,0,0,0.08) 100%)",
+    backgroundSize: "200% 100%",
+  },
+};
+
+// ── Global CSS (keyframes + interactive states) ───────────────────────
+const globalCss = `
+  /* Sheet content transitions */
+  @keyframes eas-in-right {
+    from { opacity: 0; transform: translate3d(44px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes eas-in-left {
+    from { opacity: 0; transform: translate3d(-44px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes eas-out-left {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(-44px, 0, 0); }
+  }
+  @keyframes eas-out-right {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(44px, 0, 0); }
+  }
+
+  /* Title transitions */
+  @keyframes eas-title-in-right {
+    from { opacity: 0; transform: translate3d(20px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes eas-title-in-left {
+    from { opacity: 0; transform: translate3d(-20px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes eas-title-out-left {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(-20px, 0, 0); }
+  }
+  @keyframes eas-title-out-right {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0; transform: translate3d(20px, 0, 0); }
+  }
+
+  /* Alt rows stagger in */
+  @keyframes eas-alt-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  /* Skeleton loading */
+  @keyframes eas-skeleton-fade {
+    from { opacity: 0; transform: translate3d(0, 6px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes eas-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+
+  .eas-shimmer {
+    background: linear-gradient(90deg,
+      rgba(0,0,0,0.07) 0%,
+      rgba(0,0,0,0.12) 30%,
+      rgba(0,0,0,0.07) 60%
+    ) !important;
+    background-size: 200% 100% !important;
+    animation: eas-shimmer 1.4s ease infinite !important;
+  }
+
+  /* Action row */
+  .eas-action-row {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    cursor: pointer;
+    transition: background 120ms ease, transform 100ms ease;
+    will-change: transform;
   }
-  .ws-sheet-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.99);
-    background: var(--sheet-btn-bg) !important;
-    border-color: var(--sheet-btn-border) !important;
-    color: var(--sheet-btn-color) !important;
-    box-shadow: var(--sheet-btn-shadow) !important;
+  .eas-action-row:active {
+    background: rgba(0,0,0,0.06) !important;
+    transform: scale(0.985);
   }
-  .ws-sheet-btn:disabled {
-    opacity: 0.72;
+
+  /* Alt row */
+  .eas-alt-row {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    animation: eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both;
+    transition: background 120ms ease, transform 100ms ease;
+    will-change: transform, opacity;
+  }
+  .eas-alt-row:active {
+    background: rgba(0,0,0,0.06) !important;
+    transform: scale(0.985);
+  }
+
+  /* Generic button */
+  .eas-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    transition: opacity 120ms ease, transform 100ms ease;
+    will-change: transform;
+  }
+  .eas-btn:active:not(:disabled) {
+    opacity: 0.75;
+    transform: scale(0.97);
+  }
+  .eas-btn:disabled {
+    opacity: 0.5;
     cursor: default;
   }
-  .ws-sheet-icon-btn {
-    appearance: none;
-    outline: none;
+
+  /* Icon button */
+  .eas-icon-btn {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: transform 160ms ease;
+    cursor: pointer;
+    transition: opacity 120ms ease, transform 100ms ease;
+    will-change: transform;
   }
-  .ws-sheet-icon-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
+  .eas-icon-btn:active {
+    opacity: 0.6;
+    transform: scale(0.92);
   }
+
+  /* Remove top border from first alt row to avoid double border with container */
+  .eas-alt-row:first-child {
+    border-top: none !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .ws-sheet-btn,
-    .ws-sheet-icon-btn { transition: none !important; }
+    .eas-action-row, .eas-alt-row, .eas-btn, .eas-icon-btn,
+    .eas-shimmer {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 `;
 
-const sheetMotionCss = `
-  @keyframes ws-sheet-content-in-right {
-    from { opacity: 0.01; transform: translate3d(100%, 0, 0); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes ws-sheet-content-in-left {
-    from { opacity: 0.7; transform: translate3d(-28%, 0, 0); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes ws-sheet-content-out-left {
-    from { opacity: 1; transform: translate3d(0, 0, 0); }
-    to { opacity: 0.72; transform: translate3d(-28%, 0, 0); }
-  }
-  @keyframes ws-sheet-content-out-right {
-    from { opacity: 1; transform: translate3d(0, 0, 0); }
-    to { opacity: 0.01; transform: translate3d(100%, 0, 0); }
-  }
-`;
-
+// ── Styles ─────────────────────────────────────────────────────────────
 const s: Record<string, CSSProperties> = {
+  // Backdrop
   overlay: {
     position: "fixed",
     inset: 0,
     zIndex: 70,
-    display: "grid",
-    alignItems: "end",
-    background: "transparent",
-    transition: `opacity ${SHEET_ENTER_MS}ms ease`,
+    background: "rgba(0,0,0,0.45)",
+    backdropFilter: "blur(2px)",
+    WebkitBackdropFilter: "blur(2px)",
   },
-  overlayOpen: {
-    opacity: 1,
-  },
-  overlayClosed: {
-    opacity: 0,
-  },
-  sheet: {
-    borderRadius: "24px 24px 0 0",
-    border: workoutTheme.cardBorder,
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
-    boxShadow: workoutTheme.cardShadow,
-    padding: "10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px)",
-    display: "grid",
-    gap: 10,
-    maxHeight: "74vh",
-    overflowY: "auto",
-    transition: `transform ${SHEET_ENTER_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${SHEET_ENTER_MS}ms ease`,
-    transform: "translate3d(0, 0, 0)",
-    opacity: 1,
+
+  // Sheet container
+  sheetWrap: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 71,
+    borderRadius: "20px 20px 0 0",
+    background: "rgba(242,242,247,0.97)",
+    backdropFilter: "blur(40px) saturate(180%)",
+    WebkitBackdropFilter: "blur(40px) saturate(180%)",
+    boxShadow: "0 -1px 0 rgba(0,0,0,0.1), 0 -20px 60px rgba(0,0,0,0.18)",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+    maxHeight: "82vh",
+    display: "flex",
+    flexDirection: "column",
     willChange: "transform, opacity",
+    overflowY: "auto",
+    overflowX: "hidden",
   },
-  sheetOpen: {
-    transform: "translate3d(0, 0, 0)",
-    opacity: 1,
-  },
-  sheetClosed: {
-    transform: "translate3d(0, 100%, 0)",
-    opacity: 0,
-    transitionDuration: `${SHEET_EXIT_MS}ms`,
-  },
-  topRow: {
-    display: "grid",
-    gridTemplateColumns: "40px 1fr 40px",
-    alignItems: "center",
-    gap: 8,
-    minHeight: 36,
-    marginTop: 2,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    border: "none",
-    background: "transparent",
-    borderRadius: 999,
-    display: "inline-flex",
-    alignItems: "center",
+
+  // Grabber
+  grabberRow: {
+    display: "flex",
     justifyContent: "center",
-    color: "rgba(15,23,42,0.72)",
-    cursor: "pointer",
-    padding: 0,
-    justifySelf: "start",
-  },
-  iconBtnRight: {
-    justifySelf: "end",
-  },
-  iconGhost: {
-    width: 36,
-    height: 36,
-    display: "block",
+    paddingTop: 10,
+    paddingBottom: 4,
+    flexShrink: 0,
   },
   grabber: {
-    width: 46,
-    height: 5,
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.16)",
-    justifySelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    background: "rgba(60,60,67,0.3)",
   },
+
+  // Header
+  header: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr auto",
+    alignItems: "center",
+    gap: 4,
+    padding: "6px 8px 8px",
+    flexShrink: 0,
+  },
+  headerBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
+    padding: "6px 8px",
+    border: "none",
+    background: "transparent",
+    borderRadius: 10,
+    color: "#007AFF",
+    fontSize: 16,
+    fontWeight: 400,
+    cursor: "pointer",
+    minWidth: 60,
+    whiteSpace: "nowrap",
+    transition: "opacity 150ms ease",
+  },
+  headerBtnClose: {
+    justifyContent: "flex-end",
+    minWidth: 32,
+    padding: "6px 8px",
+    color: "rgba(60,60,67,0.6)",
+  },
+  backLabel: {
+    fontSize: 16,
+    fontWeight: 400,
+    color: "#007AFF",
+  },
+
+  // Title
+  titleWrap: {
+    position: "relative",
+    height: 22,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  title: {
+    position: "absolute",
+    fontSize: 16,
+    fontWeight: 600,
+    color: "rgba(0,0,0,0.88)",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    letterSpacing: "-0.3px",
+  },
+  titleStatic: {
+    position: "relative",
+  },
+  titleInRight: {
+    animation: `eas-title-in-right 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
+  },
+  titleInLeft: {
+    animation: `eas-title-in-left 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
+  },
+  titleOutLeft: {
+    animation: `eas-title-out-left 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
+    pointerEvents: "none",
+  },
+  titleOutRight: {
+    animation: `eas-title-out-right 240ms cubic-bezier(0.36, 0.66, 0.04, 1) both`,
+    pointerEvents: "none",
+  },
+
+  // Content viewport (slide transitions)
   contentViewport: {
     display: "grid",
-    position: "relative",
+    flex: 1,
+    minHeight: 0,
   },
   contentPane: {
     gridArea: "1 / 1",
-    display: "grid",
-    gap: 8,
-    padding: "2px 8px 8px",
-    margin: "0 -8px",
+    display: "flex",
+    flexDirection: "column",
   },
-  contentPaneStatic: {
-    position: "relative",
+
+  // ── Menu mode ─────────────────────────────────────────────────────────
+  menuList: {
+    display: "flex",
+    flexDirection: "column",
+    margin: "4px 16px 8px",
+    borderRadius: 14,
+    overflow: "hidden",
+    background: "rgba(255,255,255,0.8)",
+    boxShadow: "0 1px 0 rgba(0,0,0,0.08), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
   },
-  contentPaneInRight: {
-    animation: `ws-sheet-content-in-right ${CONTENT_ANIM_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1) both`,
+  menuDivider: {
+    height: 0.5,
+    background: "rgba(0,0,0,0.1)",
+    marginLeft: 56,
   },
-  contentPaneInLeft: {
-    animation: `ws-sheet-content-in-left ${CONTENT_ANIM_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1) both`,
-  },
-  contentPaneOutLeft: {
-    animation: `ws-sheet-content-out-left ${CONTENT_ANIM_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1) both`,
-    pointerEvents: "none",
-  },
-  contentPaneOutRight: {
-    animation: `ws-sheet-content-out-right ${CONTENT_ANIM_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1) both`,
-    pointerEvents: "none",
-  },
-  list: {
-    display: "grid",
-    gap: 8,
-  },
-  action: {
-    width: "100%",
+  actionRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "13px 16px",
+    border: "none",
+    background: "transparent",
     textAlign: "left",
-    borderRadius: 18,
-    border: "1px solid var(--sheet-btn-border, rgba(255,255,255,0.4))",
-    background:
-      "var(--sheet-btn-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
-    boxShadow:
-      "var(--sheet-btn-shadow, 0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
-    color: "var(--sheet-btn-color, #1e1f22)",
-    minHeight: 58,
-    padding: "16px 14px",
-    fontSize: 18,
-    fontWeight: 500,
     cursor: "pointer",
-    ["--sheet-btn-bg" as never]:
-      "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    ["--sheet-btn-border" as never]: "rgba(255,255,255,0.4)",
-    ["--sheet-btn-color" as never]: "#1e1f22",
-    ["--sheet-btn-shadow" as never]:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-  },
-  actionDanger: {
     width: "100%",
-    textAlign: "left",
-    borderRadius: 18,
-    border: "1px solid var(--sheet-btn-border, rgba(255,255,255,0.4))",
-    background:
-      "var(--sheet-btn-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
-    boxShadow:
-      "var(--sheet-btn-shadow, 0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
-    color: "var(--sheet-btn-color, rgba(180,35,24,0.95))",
-    minHeight: 58,
-    padding: "16px 14px",
-    fontSize: 18,
-    fontWeight: 500,
-    cursor: "pointer",
-    ["--sheet-btn-bg" as never]:
-      "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    ["--sheet-btn-border" as never]: "rgba(255,255,255,0.4)",
-    ["--sheet-btn-color" as never]: "rgba(180,35,24,0.95)",
-    ["--sheet-btn-shadow" as never]:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
   },
-  back: {
+  actionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  actionLabel: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: 400,
+    color: "inherit",
+    letterSpacing: "-0.2px",
+  },
+
+  // ── Replace mode ──────────────────────────────────────────────────────
+  replaceWrap: {
+    display: "flex",
+    flexDirection: "column",
+    padding: "4px 16px 8px",
+  },
+  altList: {
+    display: "flex",
+    flexDirection: "column",
+    borderRadius: 14,
+    overflow: "hidden",
+    background: "rgba(255,255,255,0.8)",
+    boxShadow: "0 1px 0 rgba(0,0,0,0.08), inset 0 0 0 0.5px rgba(0,0,0,0.08)",
+  },
+  altRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "13px 16px",
+    border: "none",
+    borderTop: "0.5px solid rgba(0,0,0,0.07)",
+    background: "transparent",
+    textAlign: "left" as const,
+    cursor: "pointer",
     width: "100%",
-    textAlign: "center",
-    borderRadius: 18,
-    border: "1px solid var(--sheet-btn-border, rgba(255,255,255,0.4))",
-    background:
-      "var(--sheet-btn-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
-    boxShadow:
-      "var(--sheet-btn-shadow, 0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
-    color: "var(--sheet-btn-color, #1e1f22)",
-    minHeight: 58,
-    padding: "16px 14px",
-    fontSize: 18,
-    fontWeight: 500,
-    cursor: "pointer",
-    ["--sheet-btn-bg" as never]:
-      "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    ["--sheet-btn-border" as never]: "rgba(255,255,255,0.4)",
-    ["--sheet-btn-color" as never]: "#1e1f22",
-    ["--sheet-btn-shadow" as never]:
-      "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
   },
-  hint: {
-    fontSize: 14,
-    lineHeight: 1.35,
-    color: workoutTheme.textSecondary,
-    padding: "2px 2px 6px",
+  altContent: {
+    flex: 1,
+    minWidth: 0,
   },
-  error: {
-    fontSize: 13,
-    lineHeight: 1.35,
-    color: workoutTheme.danger,
-    padding: "4px 2px",
-  },
-  altTitle: {
-    fontSize: 18,
-    fontWeight: 500,
-    color: "currentColor",
-    lineHeight: 1.25,
+  altName: {
+    fontSize: 16,
+    fontWeight: 400,
+    color: "rgba(0,0,0,0.88)",
+    letterSpacing: "-0.2px",
+    lineHeight: 1.3,
   },
   altHint: {
-    marginTop: 4,
     fontSize: 13,
-    fontWeight: 500,
-    color: workoutTheme.textMuted,
+    color: "rgba(0,0,0,0.44)",
+    marginTop: 2,
+    lineHeight: 1.3,
+  },
+
+  // Error / empty state
+  errorCard: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
+    padding: "24px 16px",
+    borderRadius: 14,
+    background: "rgba(255,59,48,0.06)",
+    textAlign: "center",
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#FF3B30",
+  },
+  errorBody: {
+    fontSize: 14,
+    color: "rgba(0,0,0,0.55)",
+    lineHeight: 1.4,
+  },
+  retryBtn: {
+    marginTop: 8,
+    padding: "9px 20px",
+    borderRadius: 12,
+    border: "none",
+    background: "#007AFF",
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+    padding: "32px 16px",
+    textAlign: "center",
+  },
+  emptyIcon: {
+    fontSize: 36,
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "rgba(0,0,0,0.7)",
+  },
+  emptyBody: {
+    fontSize: 14,
+    color: "rgba(0,0,0,0.44)",
+    lineHeight: 1.4,
+    maxWidth: 240,
+  },
+
+  // ── Confirm mode ──────────────────────────────────────────────────────
+  confirmWrap: {
+    display: "flex",
+    flexDirection: "column",
+    padding: "4px 16px 8px",
+    gap: 10,
+  },
+  confirmBody: {
+    fontSize: 15,
+    color: "rgba(0,0,0,0.55)",
+    lineHeight: 1.45,
+    textAlign: "center",
+    padding: "8px 4px",
+    margin: 0,
+  },
+  confirmBtn: {
+    width: "100%",
+    padding: "16px",
+    borderRadius: 14,
+    border: "none",
+    background: "rgba(255,59,48,0.88)",
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: 600,
+    letterSpacing: "-0.2px",
+    cursor: "pointer",
+  },
+  cancelBtn: {
+    width: "100%",
+    padding: "16px",
+    borderRadius: 14,
+    border: "none",
+    background: "rgba(255,255,255,0.85)",
+    boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.1)",
+    color: "#007AFF",
+    fontSize: 17,
+    fontWeight: 600,
+    letterSpacing: "-0.2px",
+    cursor: "pointer",
   },
 };
