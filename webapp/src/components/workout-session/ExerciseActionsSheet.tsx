@@ -476,7 +476,6 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
         background: workoutTheme.pillBg,
         boxShadow: workoutTheme.pillShadow,
         color: workoutTheme.textSecondary,
-        overflow: "hidden",
       }}>
         {/* green tint overlay — fades in when enabled */}
         <span style={{
@@ -485,8 +484,7 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
           borderRadius: 999,
           pointerEvents: "none",
           opacity: enabled ? 1 : 0,
-          background: "rgba(196,228,178,0.38)",
-          boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
+          background: "rgba(196,228,178,0.28)",
           transition: "opacity 220ms cubic-bezier(0.22, 0.61, 0.36, 1)",
         }} />
         <span style={{ position: "relative", zIndex: 1 }}>
