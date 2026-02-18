@@ -2,6 +2,18 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X } from "lucide-react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
+import { requiresWeightInput } from "./utils";
+
+function formatDoneChip(set: SessionItem["sets"][number], needWeight: boolean): string {
+  const r = set.reps != null ? Math.round(Number(set.reps)) : null;
+  const rStr = r != null && r > 0 ? String(r) : "—";
+  if (!needWeight) return rStr;
+  const w = set.weight != null ? Number(set.weight) : null;
+  const wStr = w != null && w > 0
+    ? (Number.isInteger(w) ? String(w) : w.toFixed(1))
+    : "—";
+  return `${rStr} × ${wStr} кг`;
+}
 
 type Props = {
   open: boolean;
@@ -132,8 +144,7 @@ export default function ExerciseListSheet(props: Props) {
             const isActive = idx === activeIndex;
             const isDone = item.done;
             const isSkipped = item.skipped;
-            const doneSetsCount = item.sets.filter((s) => s.done).length;
-            const totalSets = item.sets.length;
+            const needWeight = requiresWeightInput(item);
             return (
               <button
                 key={`${item.id || item.name}-${idx}`}
@@ -157,16 +168,39 @@ export default function ExerciseListSheet(props: Props) {
               >
                 <div style={s.rowBody}>
                   <span style={s.rowName}>{item.name}</span>
+                  {!isSkipped && item.sets.some((s) => s.done) && (
+                    <div style={s.chipsRow}>
+                      {item.sets.map((set, si) =>
+                        set.done ? (
+                          <span
+                            key={si}
+                            style={{
+                              ...s.setChip,
+                              ...(isActive ? s.setChipActive : null),
+                            }}
+                          >
+                            {formatDoneChip(set, needWeight)}
+                          </span>
+                        ) : (
+                          <span
+                            key={si}
+                            style={{
+                              ...s.setChip,
+                              ...(isActive ? s.setChipPendingActive : s.setChipPending),
+                            }}
+                          >
+                            {si + 1}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
+                  {isSkipped && (
+                    <span style={{ ...s.skipLabel, ...(isActive ? s.skipLabelActive : null) }}>
+                      пропущено
+                    </span>
+                  )}
                 </div>
-                {isSkipped ? (
-                  <span style={{ ...s.skipLabel, ...(isActive ? s.skipLabelActive : null) }}>
-                    пропущено
-                  </span>
-                ) : (
-                  <span style={{ ...s.setsCounter, ...(isActive ? s.setsCounterActive : null) }}>
-                    {doneSetsCount}/{totalSets}
-                  </span>
-                )}
               </button>
             );
           })}
@@ -319,7 +353,7 @@ const s: Record<string, CSSProperties> = {
     background: "var(--els-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
     boxShadow: "var(--els-shadow, 0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
     display: "flex",
-    alignItems: "center",
+    alignItems: "stretch",
     padding: "12px 14px",
     color: "var(--els-color, #1e1f22)",
     cursor: "pointer",
@@ -346,19 +380,40 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1.3,
     color: "inherit",
   },
-  setsCounter: {
-    flexShrink: 0,
-    fontSize: 16,
-    fontWeight: 600,
-    lineHeight: 1,
-    fontVariantNumeric: "tabular-nums",
-    color: "rgba(15,23,42,0.45)",
+  chipsRow: {
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
   },
-  setsCounterActive: {
-    color: "rgba(255,255,255,0.55)",
+  setChip: {
+    borderRadius: 999,
+    padding: "2px 7px",
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1.4,
+    fontVariantNumeric: "tabular-nums",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textSecondary,
+    flexShrink: 0,
+  },
+  setChipActive: {
+    background: "rgba(255,255,255,0.16)",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.15), inset 0 -1px 0 rgba(255,255,255,0.1)",
+    color: "rgba(255,255,255,0.85)",
+  },
+  setChipPending: {
+    background: "rgba(15,23,42,0.07)",
+    boxShadow: "none",
+    color: "rgba(15,23,42,0.3)",
+  },
+  setChipPendingActive: {
+    background: "rgba(255,255,255,0.1)",
+    boxShadow: "none",
+    color: "rgba(255,255,255,0.35)",
   },
   skipLabel: {
-    flexShrink: 0,
     fontSize: 12,
     fontWeight: 500,
     color: "rgba(15,23,42,0.38)",
