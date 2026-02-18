@@ -1,5 +1,5 @@
 import { useState, useEffect, type CSSProperties } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, BookOpen } from "lucide-react";
 import { workoutTheme } from "./theme";
 
 type Props = {
@@ -32,6 +32,7 @@ export default function TechniqueAccordion({ technique, proTip, resetKey }: Prop
                 aria-expanded={open}
                 aria-label="Техника выполнения"
             >
+                <BookOpen size={14} strokeWidth={1.9} style={s.triggerIcon} />
                 <span style={s.triggerLabel}>Техника выполнения</span>
                 <ChevronRight
                     size={14}
@@ -105,7 +106,12 @@ const s: Record<string, CSSProperties> = {
         flex: "0 0 auto",
         transition: "transform 160ms ease",
     },
+    triggerIcon: {
+        flex: "0 0 auto",
+        color: "rgba(15,23,42,0.45)",
+    },
     triggerLabel: {
+        flex: 1,
         fontSize: 14,
         fontWeight: 400,
         lineHeight: 1.45,

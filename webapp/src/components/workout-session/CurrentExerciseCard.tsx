@@ -14,10 +14,8 @@ function buildGoalLabel(item: SessionItem): string | null {
       ? item.targetWeight.trim()
       : null;
 
-  const repsStr = repsRaw ? `${repsRaw} повт` : null;
-
-  if (repsStr && weightStr && needWeight) return `${repsStr} · ${weightStr}`;
-  if (repsStr) return repsStr;
+  if (repsRaw && weightStr && needWeight) return `${repsRaw} × ${weightStr}`;
+  if (repsRaw) return repsRaw;
   if (weightStr && needWeight) return weightStr;
   return null;
 }

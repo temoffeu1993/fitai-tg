@@ -206,7 +206,6 @@ export default function SetEditorCard(props: Props) {
                 <button
                   key={idx}
                   type="button"
-                  className="sec-nav-btn"
                   style={{
                     ...s.doneChip,
                     ...(idx === focusSetIndex ? s.doneChipFocused : null),
