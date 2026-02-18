@@ -129,7 +129,6 @@ export default function ExerciseListSheet(props: Props) {
         {/* List */}
         <div style={s.list}>
           {items.map((item, idx) => {
-            const doneSets = item.sets.filter((set) => set.done).length;
             const isActive = idx === activeIndex;
             const isDone = item.done;
             const isSkipped = item.skipped;
@@ -154,13 +153,29 @@ export default function ExerciseListSheet(props: Props) {
                 }}
                 onClick={() => onPick(idx)}
               >
-                <span style={s.rowName}>{item.name}</span>
-                <span style={{
-                  ...s.rowMeta,
-                  ...(isActive ? s.rowMetaActive : null),
-                }}>
-                  {isSkipped ? "—" : `${doneSets}/${item.sets.length}`}
-                </span>
+                <div style={s.rowBody}>
+                  <span style={s.rowName}>{item.name}</span>
+                  {!isSkipped && item.sets.length > 0 && (
+                    <div style={s.dotsRow}>
+                      {item.sets.map((set, si) => (
+                        <span
+                          key={si}
+                          style={{
+                            ...s.dot,
+                            ...(set.done
+                              ? (isActive ? s.dotDoneActive : s.dotDone)
+                              : (isActive ? s.dotPendingActive : s.dotPending)),
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {isSkipped && (
+                    <span style={{ ...s.skipLabel, ...(isActive ? s.skipLabelActive : null) }}>
+                      пропущено
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -313,10 +328,8 @@ const s: Record<string, CSSProperties> = {
     background: "var(--els-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
     boxShadow: "var(--els-shadow, 0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
     display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 14px",
+    alignItems: "stretch",
+    padding: "12px 14px",
     color: "var(--els-color, #1e1f22)",
     cursor: "pointer",
     textAlign: "left",
@@ -328,34 +341,55 @@ const s: Record<string, CSSProperties> = {
   rowDone: {
     opacity: 0.52,
   },
-  rowName: {
+  rowBody: {
     flex: 1,
     minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 6,
+  },
+  rowName: {
     fontSize: 18,
     fontWeight: 500,
     lineHeight: 1.3,
     color: "inherit",
   },
-  rowMeta: {
-    minWidth: 42,
-    height: 30,
-    borderRadius: 999,
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 10px",
-    fontSize: 13,
-    fontWeight: 600,
-    color: workoutTheme.textSecondary,
-    fontVariantNumeric: "tabular-nums",
-    flexShrink: 0,
-    letterSpacing: "0.2px",
+  dotsRow: {
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
   },
-  rowMetaActive: {
-    background: "rgba(255,255,255,0.14)",
-    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.12)",
-    color: "rgba(255,255,255,0.82)",
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  dotDone: {
+    background: "rgba(100,178,68,0.82)",
+    boxShadow: "0 0 0 1.5px rgba(100,178,68,0.25)",
+  },
+  dotDoneActive: {
+    background: "rgba(180,230,150,0.9)",
+    boxShadow: "0 0 0 1.5px rgba(180,230,150,0.3)",
+  },
+  dotPending: {
+    background: "rgba(15,23,42,0.13)",
+    boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.12)",
+  },
+  dotPendingActive: {
+    background: "rgba(255,255,255,0.18)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.28)",
+  },
+  skipLabel: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.38)",
+    letterSpacing: "0.1px",
+  },
+  skipLabelActive: {
+    color: "rgba(255,255,255,0.45)",
   },
 };
