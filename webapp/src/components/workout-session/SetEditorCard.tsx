@@ -2,7 +2,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
-import { defaultRepsFromTarget, formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
+import { defaultRepsFromTarget, requiresWeightInput } from "./utils";
+
+function formatDoneChip(set: { reps?: number | null; weight?: number | null }, needWeight: boolean): string {
+  const r = set.reps != null ? Math.round(Number(set.reps)) : null;
+  const rStr = r != null && r > 0 ? String(r) : "—";
+  if (!needWeight) return rStr;
+  const w = set.weight != null ? Number(set.weight) : null;
+  const wStr = w != null && w > 0
+    ? (Number.isInteger(w) ? String(w) : w.toFixed(1))
+    : "—";
+  return `${rStr}×${wStr}`;
+}
 import { fireHapticImpact } from "@/utils/haptics";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -59,16 +70,9 @@ export default function SetEditorCard(props: Props) {
   const tintOn = commitFlash || exerciseCompleted || Boolean(set.done);
   const needWeight = requiresWeightInput(item);
   const totalSets = Math.max(1, item.sets.length);
-  const doneSets = item.sets.filter((entry) => Boolean(entry.done)).length;
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
-  const repsHintRaw = formatRepsLabel(item.targetReps);
-  const repsHint = repsHintRaw ? `${repsHintRaw} повторов` : "—";
-  const parsedWeight = parseWeightNumber(item.targetWeight);
-  const weightHint = parsedWeight != null
-    ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} кг`
-      : typeof item.targetWeight === "string" && item.targetWeight.trim()
-      ? item.targetWeight.trim()
-      : "";
+  const repsHint = "повторы";
+  const weightHint = needWeight ? "кг" : null;
   const explicitReps = Number(set.reps);
   const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
   const prevReps =
@@ -146,6 +150,33 @@ export default function SetEditorCard(props: Props) {
           ✓
         </span>
       </button>
+
+      {/* Done sets chips */}
+      {item.sets.some((entry) => entry.done) && (
+        <div style={s.doneChipsRow}>
+          {item.sets.map((entry, idx) =>
+            entry.done ? (
+              <button
+                key={idx}
+                type="button"
+                className="sec-nav-btn"
+                style={{
+                  ...s.doneChip,
+                  ...(idx === focusSetIndex ? s.doneChipFocused : null),
+                }}
+                onClick={() => {
+                  if (onFocusSet) {
+                    onFocusSet(idx);
+                    fireHapticImpact("light");
+                  }
+                }}
+              >
+                {formatDoneChip(entry, needWeight)}
+              </button>
+            ) : null
+          )}
+        </div>
+      )}
 
       {/* Set navigation row */}
       <div style={s.setNavRow}>
@@ -605,6 +636,33 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 600,
     color: workoutTheme.danger,
     textAlign: "center",
+  },
+
+  // Done set chips
+  doneChipsRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 5,
+    justifyContent: "center",
+  },
+  doneChip: {
+    border: "none",
+    borderRadius: 999,
+    padding: "4px 10px",
+    fontSize: 12,
+    fontWeight: 600,
+    lineHeight: 1.3,
+    fontVariantNumeric: "tabular-nums",
+    background: workoutTheme.pillBg,
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textSecondary,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  },
+  doneChipFocused: {
+    background: "rgba(100,178,68,0.14)",
+    boxShadow: "inset 0 0 0 1.5px rgba(100,178,68,0.4)",
+    color: "rgba(60,130,30,0.9)",
   },
 
   // Set navigation row
