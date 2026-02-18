@@ -1020,7 +1020,6 @@ export default function WorkoutSession() {
 
       <ExerciseEffortModal
         open={effortPromptIndex != null}
-        exerciseName={effortPromptIndex != null && items[effortPromptIndex] ? items[effortPromptIndex].name : "Упражнение"}
         onSelect={handleEffortSelected}
       />
 

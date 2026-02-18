@@ -10,20 +10,19 @@ const OVERLAY_ENTER_MS = 320;
 const OPEN_TICK_MS = 12;
 
 const EFFORT_OPTIONS: Array<{ value: Exclude<EffortTag, null>; emoji: string; label: string; sub: string }> = [
-  { value: "easy",       emoji: "🙂",   label: "Легко",      sub: "Мог бы ещё 5+ повторений" },
-  { value: "working",    emoji: "💪",   label: "Рабочий",    sub: "2–4 повторения в запасе" },
-  { value: "quite_hard", emoji: "😮‍💨", label: "Тяжеловато", sub: "1–2 повторения в запасе" },
-  { value: "hard",       emoji: "😵",   label: "Тяжело",     sub: "До отказа 1 повторение" },
-  { value: "max",        emoji: "🥵",   label: "Предел",     sub: "Отказ / не мог продолжать" },
+  { value: "easy",       emoji: "🙂",   label: "Слишком легко",  sub: "Мог бы ещё столько же" },
+  { value: "working",    emoji: "💪",   label: "В самый раз",    sub: "Тяжело, но контролируемо" },
+  { value: "quite_hard", emoji: "😤",   label: "Тяжеловато",     sub: "Последние повторы дались с трудом" },
+  { value: "hard",       emoji: "😵",   label: "Очень тяжело",   sub: "Ещё одно — и всё, край" },
+  { value: "max",        emoji: "🥵",   label: "На пределе",     sub: "Полный отказ, не мог продолжить" },
 ];
 
 type Props = {
   open: boolean;
-  exerciseName: string;
   onSelect: (value: Exclude<EffortTag, null>) => void;
 };
 
-export default function ExerciseEffortModal({ open, exerciseName, onSelect }: Props) {
+export default function ExerciseEffortModal({ open, onSelect }: Props) {
   const [renderOpen, setRenderOpen] = useState(open);
   const [entered, setEntered] = useState(open);
   const enteredRef = useRef(open);
@@ -115,7 +114,7 @@ export default function ExerciseEffortModal({ open, exerciseName, onSelect }: Pr
         </div>
 
         {/* Header */}
-        <div style={{ padding: "8px 16px 4px", display: "grid", gap: 2 }}>
+        <div style={{ padding: "8px 16px 4px", display: "grid", gap: 3 }}>
           <div style={{
             fontSize: 18,
             fontWeight: 700,
@@ -123,16 +122,16 @@ export default function ExerciseEffortModal({ open, exerciseName, onSelect }: Pr
             color: workoutTheme.textPrimary,
             textAlign: "center",
           }}>
-            Насколько тяжело?
+            Как ощущалась нагрузка?
           </div>
           <div style={{
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 500,
-            lineHeight: 1.3,
+            lineHeight: 1.35,
             color: workoutTheme.textSecondary,
             textAlign: "center",
           }}>
-            {exerciseName}
+            Подберём вес точнее на следующей тренировке
           </div>
         </div>
 
