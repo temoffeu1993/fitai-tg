@@ -12,7 +12,7 @@ function formatDoneChip(set: { reps?: number | null; weight?: number | null }, n
   const wStr = w != null && w > 0
     ? (Number.isInteger(w) ? String(w) : w.toFixed(1))
     : "—";
-  return `${rStr} · ${wStr} кг`;
+  return `${rStr} × ${wStr} кг`;
 }
 import { fireHapticImpact } from "@/utils/haptics";
 import { ChevronDown } from "lucide-react";
@@ -145,7 +145,10 @@ export default function SetEditorCard(props: Props) {
         />
         <span
           aria-hidden
-          style={s.commitCheck}
+          style={{
+            ...s.commitCheck,
+            ...(Boolean(set.done) ? s.commitCheckDone : null),
+          }}
         >
           ✓
         </span>
@@ -573,6 +576,10 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     color: "rgba(15,23,42,0.45)",
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+    transition: "color 200ms ease",
+  },
+  commitCheckDone: {
+    color: workoutTheme.textPrimary,
   },
   setIndexText: {
     display: "grid",
@@ -665,6 +672,5 @@ const s: Record<string, CSSProperties> = {
   doneChipFocused: {
     background: "rgba(196,228,178,0.38)",
     boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
-    color: "rgba(50,110,20,0.88)",
   },
 };

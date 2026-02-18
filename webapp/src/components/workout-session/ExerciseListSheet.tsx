@@ -12,7 +12,7 @@ function formatDoneChip(set: SessionItem["sets"][number], needWeight: boolean): 
   const wStr = w != null && w > 0
     ? (Number.isInteger(w) ? String(w) : w.toFixed(1))
     : "—";
-  return `${rStr} · ${wStr} кг`;
+  return `${rStr} × ${wStr} кг`;
 }
 
 type Props = {
