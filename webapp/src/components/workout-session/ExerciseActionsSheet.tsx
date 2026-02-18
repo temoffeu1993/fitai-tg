@@ -288,7 +288,7 @@ export default function ExerciseActionsSheet(props: Props) {
     }
   };
 
-  if (!renderOpen || !displayState || !displayItem || !currentMode) return null;
+  if (!renderOpen) return null;
 
   const canGoBack = currentMode !== "menu";
 
@@ -377,11 +377,11 @@ export default function ExerciseActionsSheet(props: Props) {
                   animation: `${slideDirection === "forward" ? "eas-in-right" : "eas-in-left"} ${CONTENT_ANIM_MS}ms ${SPRING_CONTENT} both`,
                 }}
               >
-                {renderContent(currentMode)}
+                {currentMode ? renderContent(currentMode) : null}
               </div>
             </>
           ) : (
-            <div style={{ ...s.contentPane }}>{renderContent(currentMode)}</div>
+            <div style={{ ...s.contentPane }}>{currentMode ? renderContent(currentMode) : null}</div>
           )}
         </div>
       </div>
