@@ -460,27 +460,38 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
       <span style={{ ...s.menuBtnLabel, ...s.menuBtnLabelSmall }}>
         Авто-таймер отдыха
       </span>
-      {/* Toggle pill */}
+      {/* Toggle pill — fixed size, color animates via overlay */}
       <span style={{
+        position: "relative",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "0 10px",
+        minWidth: 44,
         height: 24,
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 600,
         lineHeight: 1.3,
         flexShrink: 0,
-        background: enabled
-          ? "rgba(196,228,178,0.38)"
-          : workoutTheme.pillBg,
-        boxShadow: enabled
-          ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-          : workoutTheme.pillShadow,
+        background: workoutTheme.pillBg,
+        boxShadow: workoutTheme.pillShadow,
         color: workoutTheme.textSecondary,
+        overflow: "hidden",
       }}>
-        {enabled ? "Вкл" : "Выкл"}
+        {/* green tint overlay — fades in when enabled */}
+        <span style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: 999,
+          pointerEvents: "none",
+          opacity: enabled ? 1 : 0,
+          background: "rgba(196,228,178,0.38)",
+          boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
+          transition: "opacity 220ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+        }} />
+        <span style={{ position: "relative", zIndex: 1 }}>
+          {enabled ? "Вкл" : "Выкл"}
+        </span>
       </span>
     </button>
   );
