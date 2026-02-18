@@ -137,9 +137,11 @@ export default function ExerciseListSheet(props: Props) {
         <div style={s.list}>
           {items.map((item, idx) => {
             const doneSets = item.sets.filter((set) => set.done).length;
+            const totalSets = item.sets.length;
             const isActive = idx === activeIndex;
             const isDone = item.done;
             const isSkipped = item.skipped;
+            const isCompleted = !isSkipped && totalSets > 0 && doneSets >= totalSets;
             return (
               <button
                 key={`${item.id || item.name}-${idx}`}
@@ -165,8 +167,9 @@ export default function ExerciseListSheet(props: Props) {
                 <span style={{
                   ...s.rowMeta,
                   ...(isActive ? s.rowMetaActive : null),
+                  ...(isCompleted ? s.rowMetaDone : null),
                 }}>
-                  {isSkipped ? "—" : `${doneSets}/${item.sets.length}`}
+                  {isSkipped ? "—" : `${doneSets}/${totalSets}`}
                 </span>
               </button>
             );
@@ -363,5 +366,10 @@ const s: Record<string, CSSProperties> = {
     background: "rgba(255,255,255,0.14)",
     boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.12)",
     color: "rgba(255,255,255,0.82)",
+  },
+  rowMetaDone: {
+    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+    color: workoutTheme.textPrimary,
   },
 };

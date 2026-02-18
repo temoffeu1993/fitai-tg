@@ -1156,6 +1156,22 @@ export async function generateWorkoutDay(args: {
   }
 
   // -------------------------------------------------------------------------
+  // STEP 2.6: Unified deload policy
+  // If any exercise has a stall-driven deload recommendation AND we are NOT
+  // already in a scheduled deload week → force intent to "light" so volume
+  // engine applies the same 40% volume reduction as a scheduled deload week.
+  // -------------------------------------------------------------------------
+  const stallDeloadExercises = selectedExercises
+    .map((s) => ({ ex: s.ex, rec: progressionRecommendations.get(s.ex.id) }))
+    .filter(({ rec }) => rec?.action === "deload");
+
+  if (stallDeloadExercises.length > 0 && !weekPlanData?.isDeloadWeek) {
+    intent = "light";
+    const names = stallDeloadExercises.map(({ ex }) => ex.name).join(", ");
+    console.log(`  → Intent forced to 'light' (stall-driven deload for: ${names})`);
+  }
+
+  // -------------------------------------------------------------------------
   // STEP 3: Assign sets/reps/rest to each exercise using Volume Engine
   // -------------------------------------------------------------------------
   
@@ -1331,6 +1347,9 @@ export async function generateWorkoutDay(args: {
 
   if (weekPlanData?.isDeloadWeek) {
     changeNotes.push("🛌 DELOAD НЕДЕЛЯ: объём снижен на 40% для восстановления.");
+  } else if (stallDeloadExercises.length > 0) {
+    const names = stallDeloadExercises.map(({ ex }) => ex.name).join(", ");
+    changeNotes.push(`🛌 DELOAD: застой по прогрессии (${names}). Снижаем объём на 40% для восстановления.`);
   }
 
   if (intentAdjusted) {
@@ -1411,7 +1430,7 @@ export async function generateWorkoutDay(args: {
     infoNotes: infoNotes.length > 0 ? infoNotes : undefined,
     changeMeta: {
       volumeAdjusted: originalSetCount > totalSets || selectedExercises.length > totalExercises,
-      deload: Boolean(weekPlanData?.isDeloadWeek),
+      deload: Boolean(weekPlanData?.isDeloadWeek) || stallDeloadExercises.length > 0,
       shortenedForTime: Boolean(wasReducedForTime),
       trimmedForCaps: fitResult.reasons.capsSets || fitResult.reasons.capsExercises,
       intentAdjusted,

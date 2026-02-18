@@ -126,6 +126,13 @@ export type Exercise = {
   // 2 = Moderate (dumbbell compounds) - moderate neural demand
   // 3 = High (heavy barbell compounds) - significant neural fatigue
   cnsLoad?: 1 | 2 | 3;
+
+  /**
+   * Assisted/inverted weight: more kg on the machine = less resistance.
+   * True for gravitron (assisted pull-up), dip assist, etc.
+   * Progression: decrease weight = harder = progress.
+   */
+  weightInverted?: boolean;
 };
 
 function lvRank(lv: Experience) {
@@ -2048,6 +2055,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     plane: "sagittal",
     cues: ["Лопатки вниз", "Полная амплитуда", "Грудь к турнику"],
     cnsLoad: 2,
+    weightInverted: true, // Больше кг на стеке = меньше сопротивления; прогресс = уменьшение веса
   },
   {
     id: "ve_pull_up",

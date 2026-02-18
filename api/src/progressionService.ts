@@ -61,6 +61,8 @@ export type FrontendEffort = "easy" | "working" | "quite_hard" | "hard" | "max";
 export type FrontendSet = {
   reps?: number;
   weight?: number;
+  /** True when user explicitly marked this set as done (tapped checkmark). Absent in legacy payloads. */
+  done?: boolean;
 };
 
 /**
@@ -379,9 +381,13 @@ export async function applyProgressionFromSession(args: {
     details: [],
   };
   
+  // Determine if the payload uses the done flag (newer frontend sends done on exercises).
+  // Legacy payloads (done is undefined on all exercises) → treat all as done to avoid regression.
+  const anyHasDone = payload.exercises.some((ex) => typeof ex.done === "boolean");
+
   let processedCount = 0;
   let skippedCount = 0;
-  
+
   const effortRank: Record<FrontendEffort, number> = {
     easy: 1,
     working: 2,
@@ -409,13 +415,26 @@ export async function applyProgressionFromSession(args: {
       setsCount: Array.isArray(input.sets) ? input.sets.length : 0,
     });
 
+    // Skip exercises that were not completed (only when payload uses done flag).
+    // Legacy payloads (done undefined on all) treat every exercise as done.
+    if (anyHasDone && input.done === false) {
+      console.log(`  ⏭️  Skipping "${input.name}" (done=false — exercise not completed)`);
+      skippedCount++;
+      continue;
+    }
+
     if (!input.sets || input.sets.length === 0) {
       console.log(`  ⏭️  Skipping "${input.name}" (no sets recorded)`);
       skippedCount++;
       continue;
     }
 
-    const repsSets = input.sets.filter((s) => (s.reps ?? 0) > 0);
+    // Filter sets: if any set carries a done flag (newer frontend), exclude done=false sets.
+    // Legacy payloads (done absent on all sets) → keep all sets with reps.
+    const setsHaveDone = input.sets.some((s) => typeof s.done === "boolean");
+    const repsSets = input.sets.filter((s) =>
+      (s.reps ?? 0) > 0 && (!setsHaveDone || s.done !== false)
+    );
     if (repsSets.length === 0) {
       console.log(`  ⏭️  Skipping "${input.name}" (no reps recorded)`);
       skippedCount++;
@@ -496,9 +515,11 @@ export async function applyProgressionFromSession(args: {
       };
 
       // Working sets are a derivation rule (single source of truth in engine).
-      const workingHistory = deriveWorkingHistory(fullHistory);
+      // For weightInverted (assisted) exercises, "working" = lightest sets (most resistance).
+      const weightInverted = Boolean((exercise as any).weightInverted);
+      const workingHistory = deriveWorkingHistory(fullHistory, weightInverted);
       progLog(
-        `  [ProgressionService][debug] workingSets=${workingHistory.sets.length}/${fullHistory.sets.length}`,
+        `  [ProgressionService][debug] workingSets=${workingHistory.sets.length}/${fullHistory.sets.length} weightInverted=${weightInverted}`,
         workingHistory.sets.map((s) => ({ reps: s.actualReps, weight: s.weight }))
       );
 
@@ -511,14 +532,18 @@ export async function applyProgressionFromSession(args: {
         `  [ProgressionService][debug] equipment=${exercise.equipment.join(",")} requiresLoad=${requiresExternalLoad(exercise.equipment)} hasAnyWeight=${hasAnyRecordedWeight} missingWeightData=${missingWeightData}`
       );
 
-      // Sync effective currentWeight with what user actually performed (use median of working weights).
+      // Sync effective currentWeight with what user actually performed.
+      // For normal exercises: use median of working weights (middle of working range).
+      // For inverted (assisted): use MINIMUM weight (= most resistance = actual working weight).
       const workingWeights = workingHistory.sets
         .map((s) => s.weight)
         .filter((w) => typeof w === "number" && w > 0)
         .sort((a, b) => a - b);
       const effectiveCurrentWeight =
         workingWeights.length > 0
-          ? workingWeights[Math.floor(workingWeights.length / 2)]
+          ? weightInverted
+            ? workingWeights[0] // min = hardest for assisted
+            : workingWeights[Math.floor(workingWeights.length / 2)] // median for normal
           : progressionData.currentWeight;
       progLog(
         `  [ProgressionService][debug] currentWeight(db)=${progressionData.currentWeight} effectiveCurrentWeight=${effectiveCurrentWeight} workingWeights=${workingWeights}`
@@ -547,14 +572,38 @@ export async function applyProgressionFromSession(args: {
         exerciseData.effort === "hard" ||
         exerciseData.effort === "max";
 
+      // Check if this muscle group was trained too recently (< 48 h = insufficient recovery).
+      // workoutDate may be a date-only string (YYYY-MM-DD) — treat same-day as 0 h → still too soon.
+      // Uses the last entry in progressionData.history.
+      const MIN_RECOVERY_HOURS = 48;
+      let tooSoonReason: string | undefined;
+      if (progressionData.history.length > 0) {
+        const lastEntry = progressionData.history[progressionData.history.length - 1];
+        if (lastEntry?.workoutDate) {
+          const lastMs = new Date(lastEntry.workoutDate).getTime();
+          const nowMs = new Date(workoutDate).getTime();
+          const diffH = (nowMs - lastMs) / (1000 * 60 * 60);
+          // diffH >= 0: same day (0 h) is still "too soon".
+          // diffH < 0: clock skew / duplicate job — skip to avoid false positives.
+          if (Number.isFinite(diffH) && diffH >= 0 && diffH < MIN_RECOVERY_HOURS) {
+            const diffLabel = diffH < 1 ? "< 1" : String(Math.round(diffH));
+            tooSoonReason = `слишком короткий интервал между тренировками (${diffLabel}ч < ${MIN_RECOVERY_HOURS}ч)`;
+            progLog(
+              `  [ProgressionService][debug] tooSoon=${tooSoonReason} lastWorkout=${lastEntry.workoutDate} current=${workoutDate}`
+            );
+          }
+        }
+      }
+
       const doNotPenalize =
         plannedIntent === "light" ||
         Boolean(recoveryReason) ||
+        Boolean(tooSoonReason) ||
         missingWeightData ||
         shortened ||
         workingHistory.sets.length < 2;
       progLog(
-        `  [ProgressionService][debug] plannedIntent=${plannedIntent ?? "n/a"} recoveryReason=${recoveryReason ?? "n/a"} doNotPenalize=${doNotPenalize} antiOverreach=${antiOverreach}`
+        `  [ProgressionService][debug] plannedIntent=${plannedIntent ?? "n/a"} recoveryReason=${recoveryReason ?? "n/a"} tooSoonReason=${tooSoonReason ?? "n/a"} doNotPenalize=${doNotPenalize} antiOverreach=${antiOverreach}`
       );
 
       const doNotPenalizeReason =
@@ -562,13 +611,15 @@ export async function applyProgressionFromSession(args: {
           ? "лёгкий день по плану"
           : recoveryReason
             ? `чек-ин: ${recoveryReason}`
-            : missingWeightData
-              ? "не указан вес в подходах (для прогрессии нужен вес хотя бы в рабочих подходах)"
-              : shortened && plannedSets
-                ? `сокращённая тренировка (${performedSets}/${plannedSets} подходов)`
-                : workingHistory.sets.length < 2
-                  ? "недостаточно рабочих подходов"
-                  : undefined;
+            : tooSoonReason
+              ? tooSoonReason
+              : missingWeightData
+                ? "не указан вес в подходах (для прогрессии нужен вес хотя бы в рабочих подходах)"
+                : shortened && plannedSets
+                  ? `сокращённая тренировка (${performedSets}/${plannedSets} подходов)`
+                  : workingHistory.sets.length < 2
+                    ? "недостаточно рабочих подходов"
+                    : undefined;
 
       const context: ProgressionContext = {
         sessionRpe,
@@ -740,12 +791,20 @@ export async function getNextWorkoutRecommendations(args: {
       // - if deload is due: suggest deload weight
       const rules = PROGRESSION_RULES_BY_GOAL[goal];
       const needsDeload = progressionData.stallCount >= rules.deloadThreshold;
+      const weightInvertedNext = Boolean((exercise as any).weightInverted);
+      // For assisted (inverted) exercises, deload = MORE assistance (higher machine weight = easier).
+      const deloadWeight = weightInvertedNext
+        ? Math.round(progressionData.currentWeight * (1 + rules.deloadPercentage) * 4) / 4
+        : Math.round(Math.max(progressionData.currentWeight * (1 - rules.deloadPercentage), 0) * 4) / 4;
+      const deloadReason = weightInvertedNext
+        ? `Deload: ${progressionData.stallCount} тренировок без прогресса → увеличиваем противовес на ${rules.deloadPercentage * 100}% для восстановления.`
+        : `Deload: ${progressionData.stallCount} тренировок без прогресса → снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`;
       const recommendation: ProgressionRecommendation = needsDeload
         ? {
             exerciseId: exercise.id,
             action: "deload",
-            newWeight: Math.round(Math.max(progressionData.currentWeight * (1 - rules.deloadPercentage), 0) * 4) / 4,
-            reason: `Deload: ${progressionData.stallCount} тренировок без прогресса → снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
+            newWeight: deloadWeight,
+            reason: deloadReason,
             failedLowerBound: false,
           }
         : {

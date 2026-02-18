@@ -9,12 +9,12 @@ const SHEET_EXIT_MS = 260;
 const OVERLAY_ENTER_MS = 320;
 const OPEN_TICK_MS = 12;
 
-const EFFORT_OPTIONS: Array<{ value: Exclude<EffortTag, null>; emoji: string; label: string }> = [
-  { value: "easy", emoji: "🙂", label: "Легко" },
-  { value: "working", emoji: "💪", label: "Рабоче" },
-  { value: "quite_hard", emoji: "😮‍💨", label: "Тяжеловато" },
-  { value: "hard", emoji: "😵", label: "Тяжело" },
-  { value: "max", emoji: "🥵", label: "Предел" },
+const EFFORT_OPTIONS: Array<{ value: Exclude<EffortTag, null>; emoji: string; label: string; sub: string }> = [
+  { value: "easy",       emoji: "🙂",   label: "Легко",      sub: "Мог бы ещё 5+ повторений" },
+  { value: "working",    emoji: "💪",   label: "Рабочий",    sub: "2–4 повторения в запасе" },
+  { value: "quite_hard", emoji: "😮‍💨", label: "Тяжеловато", sub: "1–2 повторения в запасе" },
+  { value: "hard",       emoji: "😵",   label: "Тяжело",     sub: "До отказа 1 повторение" },
+  { value: "max",        emoji: "🥵",   label: "Предел",     sub: "Отказ / не мог продолжать" },
 ];
 
 type Props = {
@@ -177,13 +177,27 @@ export default function ExerciseEffortModal({ open, exerciseName, onSelect }: Pr
               </span>
               <span style={{
                 flex: 1,
-                fontSize: 18,
-                fontWeight: 500,
-                color: workoutTheme.textPrimary,
-                lineHeight: 1.25,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
                 textAlign: "left",
               }}>
-                {option.label}
+                <span style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: workoutTheme.textPrimary,
+                  lineHeight: 1.2,
+                }}>
+                  {option.label}
+                </span>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: workoutTheme.textSecondary,
+                  lineHeight: 1.25,
+                }}>
+                  {option.sub}
+                </span>
               </span>
             </button>
           ))}

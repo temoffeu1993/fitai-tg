@@ -235,7 +235,7 @@ export default function WorkoutSession() {
   const [finishModal, setFinishModal] = useState(false);
   const [finishDuration, setFinishDuration] = useState("45");
   const [finishStart, setFinishStart] = useState(toIsoLocalInput(new Date()));
-  const [sessionRpe, setSessionRpe] = useState(7);
+  const [sessionRpe, setSessionRpe] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
@@ -288,7 +288,9 @@ export default function WorkoutSession() {
         setChanges(Array.isArray(draft?.changes) ? draft.changes : []);
         setElapsed(Math.max(0, Number(draft?.elapsed) || 0));
         setRunning(draft?.running !== false);
-        setSessionRpe(clampInt(Number(draft?.sessionRpe) || 7, 1, 10));
+        // Restore sessionRpe from draft only if it was explicitly set (not null/undefined).
+        const draftRpe = draft?.sessionRpe;
+        setSessionRpe(typeof draftRpe === "number" && Number.isFinite(draftRpe) ? clampInt(draftRpe, 1, 10) : null);
         return;
       }
     } catch { }
@@ -299,7 +301,7 @@ export default function WorkoutSession() {
     setChanges([]);
     setElapsed(0);
     setRunning(true);
-    setSessionRpe(7);
+    setSessionRpe(null); // No default — user must pick explicitly in finish modal
   }, [plan, plannedWorkoutId]);
 
   useEffect(() => {
@@ -809,6 +811,7 @@ export default function WorkoutSession() {
     setFinishDuration(String(estimatedMin));
     setFinishStart(toIsoLocalInput(start));
     setSaveError(null);
+    setSessionRpe(null); // Reset so user must explicitly pick RPE each time
     setFinishModal(true);
   };
 
@@ -833,12 +836,10 @@ export default function WorkoutSession() {
         effort: item.effort ?? undefined,
         sets: item.sets
           .filter((set) => set.reps != null || set.weight != null)
-          .map((set) => ({ reps: set.reps, weight: set.weight })),
+          .map((set) => ({ reps: set.reps, weight: set.weight, done: Boolean(set.done) })),
       })),
       changes,
-      feedback: {
-        sessionRpe,
-      },
+      feedback: sessionRpe != null ? { sessionRpe } : {},
     };
 
     let savedSessionId: string | null = null;
@@ -1058,10 +1059,12 @@ export default function WorkoutSession() {
         open={finishModal}
         durationMin={finishDuration}
         startedAt={finishStart}
+        sessionRpe={sessionRpe}
         saving={saving}
         error={saveError}
         onChangeDuration={setFinishDuration}
         onChangeStartedAt={setFinishStart}
+        onChangeSessionRpe={setSessionRpe}
         onCancel={() => {
           if (saving) return;
           setFinishModal(false);

@@ -210,7 +210,7 @@ function analyzePerformance(
   };
 }
 
-export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
+export function deriveWorkingHistory(full: ExerciseHistory, weightInverted?: boolean): ExerciseHistory {
   const allSets = full.sets ?? [];
   const sets = allSets.filter((s) => Boolean(s.completed) && (s.actualReps ?? 0) > 0);
   if (sets.length === 0) return { ...full, sets };
@@ -222,6 +222,21 @@ export function deriveWorkingHistory(full: ExerciseHistory): ExerciseHistory {
 
   // Bodyweight (or no weight recorded) → treat all performed sets as working
   if (weights.length === 0) return { ...full, sets };
+
+  if (weightInverted) {
+    // Assisted exercises: lower machine weight = more resistance = harder = "working" sets.
+    // Working sets are those at the MINIMUM weight (most resistance), within 15% of min.
+    const minW = weights[0] ?? 0;
+    if (minW <= 0) return { ...full, sets };
+    const working = sets.filter((s) => (s.weight ?? 0) > 0 && (s.weight ?? 0) <= minW * 1.15);
+    if (working.length > 0) return { ...full, sets: working };
+    // Fallback: take the lightest 2 performed sets
+    const bottom2 = [...sets]
+      .filter((s) => (s.weight ?? 0) > 0)
+      .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0))
+      .slice(0, 2);
+    return bottom2.length > 0 ? { ...full, sets: bottom2 } : { ...full, sets };
+  }
 
   const maxW = weights[weights.length - 1] ?? 0;
   if (maxW <= 0) return { ...full, sets };
@@ -315,6 +330,7 @@ export function calculateProgression(args: {
   context?: ProgressionContext;
 }): ProgressionRecommendation {
   const { exercise, progressionData, goal, targetRepsRange, currentIntent, workoutHistory, context } = args;
+  const weightInverted = Boolean((exercise as any).weightInverted);
 
   const rules = PROGRESSION_RULES_BY_GOAL[goal];
 
@@ -339,7 +355,8 @@ export function calculateProgression(args: {
   }
   // IMPORTANT: Engine always analyzes WORKING sets derived from the last workout,
   // so stored history may keep warmups/ramps without affecting decisions.
-  const workoutToAnalyze = deriveWorkingHistory(workoutToAnalyzeFull);
+  // For weightInverted (assisted) exercises, "working" = lightest sets (most resistance).
+  const workoutToAnalyze = deriveWorkingHistory(workoutToAnalyzeFull, weightInverted);
   const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
   const [minReps, maxReps] = targetRepsRange;
   const totalWorkingSets = performance.totalSets;
@@ -378,16 +395,22 @@ export function calculateProgression(args: {
   // CASE 1: Deload needed (too many stalls)
   // Do not rely only on stored status (can be stale); compute directly from stallCount.
   if (progressionData.stallCount >= rules.deloadThreshold) {
-    const deloadWeight = Math.max(
-      progressionData.currentWeight * (1 - rules.deloadPercentage),
-      0
-    );
+    let deloadWeight: number;
+    let deloadReason: string;
+    if (weightInverted) {
+      // Assisted: deload = more assistance (higher machine weight = easier)
+      deloadWeight = progressionData.currentWeight * (1 + rules.deloadPercentage);
+      deloadReason = `Deload: ${progressionData.stallCount} тренировок без прогресса. Увеличиваем противовес на ${rules.deloadPercentage * 100}% для восстановления.`;
+    } else {
+      deloadWeight = Math.max(progressionData.currentWeight * (1 - rules.deloadPercentage), 0);
+      deloadReason = `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`;
+    }
 
     return {
       exerciseId: exercise.id,
       action: "deload",
       newWeight: Math.round(deloadWeight * 4) / 4, // Round to 0.25 kg
-      reason: `Deload: ${progressionData.stallCount} тренировок без прогресса. Снижаем вес на ${rules.deloadPercentage * 100}% для восстановления.`,
+      reason: deloadReason,
       failedLowerBound: false,
       explain: explainBase,
     };
@@ -455,7 +478,25 @@ export function calculateProgression(args: {
     }
 
     const equipment = getLoadableEquipment(exercise.equipment);
-    const increment = getWeightIncrementForExercise(equipment);
+    const baseIncrement = getWeightIncrementForExercise(equipment);
+    // Progressive slowdown: reduce increment for experienced athletes with long history.
+    // Beginner (< 12 workouts): full increment
+    // Intermediate (12–36 workouts): 75% of increment
+    // Advanced (> 36 workouts): 50% of increment
+    // Round to the nearest equipment step (0.25 kg minimum).
+    const workoutCount = progressionData.history.length;
+    const slowdownFactor =
+      args.experience === "beginner"
+        ? 1.0
+        : workoutCount < 12
+          ? 1.0
+          : workoutCount < 36
+            ? 0.75
+            : 0.5;
+    const increment = Math.max(
+      baseIncrement > 0 ? 0.25 : 0, // minimum 0.25 kg if equipment supports weight
+      Math.round(baseIncrement * slowdownFactor * 4) / 4
+    );
     explainBase.equipment = equipment;
     explainBase.increment = increment;
 
@@ -485,6 +526,19 @@ export function calculateProgression(args: {
       };
     }
 
+    if (weightInverted) {
+      // Assisted exercise: progress = reducing machine weight (less assistance = harder).
+      const newWeight = Math.max(0, progressionData.currentWeight - increment);
+      return {
+        exerciseId: exercise.id,
+        action: "increase_weight", // Semantically "progress" — less assistance
+        newWeight: Math.round(newWeight * 4) / 4,
+        reason: `Прогресс! Закрыл диапазон (${minReps}-${maxReps}). Уменьшаем противовес на ${increment} кг (меньше помощи = сложнее).`,
+        failedLowerBound: false,
+        explain: explainBase,
+      };
+    }
+
     const newWeight = progressionData.currentWeight + increment;
     return {
       exerciseId: exercise.id,
@@ -502,6 +556,19 @@ export function calculateProgression(args: {
 
     // If already stalling for a while → suggest decrease
     if (newStallCount >= rules.stallThreshold) {
+      if (weightInverted) {
+        // Assisted: reduce stall by increasing machine weight (more assistance = easier)
+        const decreaseWeight = progressionData.currentWeight * 1.1; // +10% (more assistance)
+        return {
+          exerciseId: exercise.id,
+          action: "decrease_weight", // Semantically "step back" — more assistance
+          newWeight: Math.round(decreaseWeight * 4) / 4,
+          reason: `Не добил минимум ${minReps} (${newStallCount} раз подряд). Увеличиваем противовес на 10% для восстановления техники.`,
+          failedLowerBound: true,
+          explain: explainBase,
+        };
+      }
+
       const decreaseWeight = progressionData.currentWeight * 0.9; // -10%
 
       return {
@@ -694,8 +761,9 @@ export function updateProgressionData(args: {
     newStallCount = 0;
     lastProgressDate = workoutHistory.workoutDate;
   } else if (recommendation.action === "decrease_weight") {
-    // Weight correction is a "reset attempt": do not keep accumulating stalls.
-    newStallCount = 0;
+    // Weight correction does NOT reset stall counter — athlete still failed.
+    // Stall pressure keeps building toward deload threshold.
+    newStallCount++;
   } else if (recommendation.action === "deload") {
     newStallCount = 0;
     newDeloadCount++;
