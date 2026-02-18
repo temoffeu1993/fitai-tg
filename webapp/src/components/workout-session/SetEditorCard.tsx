@@ -60,10 +60,7 @@ export default function SetEditorCard(props: Props) {
   const needWeight = requiresWeightInput(item);
   const totalSets = Math.max(1, item.sets.length);
   const doneSets = item.sets.filter((entry) => Boolean(entry.done)).length;
-  const displaySet =
-    doneSets >= totalSets
-      ? totalSets
-      : Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
+  const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsHintRaw = formatRepsLabel(item.targetReps);
   const repsHint = repsHintRaw ? `${repsHintRaw} повторов` : "—";
   const parsedWeight = parseWeightNumber(item.targetWeight);
