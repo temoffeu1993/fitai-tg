@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
-import { Crosshair } from "lucide-react";
+import { Target } from "lucide-react";
 
 function buildGoalLabel(item: SessionItem): string | null {
   const repsRaw = formatRepsLabel(item.targetReps);
@@ -41,7 +41,7 @@ export default function CurrentExerciseCard(props: Props) {
           <h2 style={s.name}>{item.name}</h2>
           {goalLabel && (
             <p style={s.goal}>
-              <Crosshair size={13} strokeWidth={2} style={s.goalIcon} />
+              <Target size={13} strokeWidth={2} style={s.goalIcon} />
               <span>Цель: {goalLabel}</span>
             </p>
           )}
@@ -78,7 +78,7 @@ const s: Record<string, CSSProperties> = {
   titleBlock: {
     display: "flex",
     flexDirection: "column",
-    gap: 3,
+    gap: 8,
     minWidth: 0,
   },
   name: {

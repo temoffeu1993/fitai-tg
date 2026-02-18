@@ -12,7 +12,7 @@ function formatDoneChip(set: { reps?: number | null; weight?: number | null }, n
   const wStr = w != null && w > 0
     ? (Number.isInteger(w) ? String(w) : w.toFixed(1))
     : "—";
-  return `${rStr}×${wStr}`;
+  return `${rStr} · ${wStr} кг`;
 }
 import { fireHapticImpact } from "@/utils/haptics";
 import { ChevronDown } from "lucide-react";
@@ -155,7 +155,6 @@ export default function SetEditorCard(props: Props) {
       <div>
         <button
           type="button"
-          className="sec-nav-btn"
           style={s.setCounterBtn}
           onClick={() => hasDoneSets && setHistoryOpen((v) => !v)}
           aria-expanded={historyOpen}
@@ -217,7 +216,6 @@ export default function SetEditorCard(props: Props) {
                       onFocusSet(idx);
                       fireHapticImpact("light");
                     }
-                    setHistoryOpen(false);
                   }}
                 >
                   {formatDoneChip(entry, needWeight)}
@@ -578,14 +576,11 @@ const s: Record<string, CSSProperties> = {
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
   setIndexText: {
-    position: "relative",
-    minHeight: 21,
-    flex: 1,
-    minWidth: 0,
+    display: "grid",
+    whiteSpace: "nowrap",
   },
   setIndexTextLayer: {
-    position: "absolute",
-    inset: 0,
+    gridArea: "1 / 1",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
