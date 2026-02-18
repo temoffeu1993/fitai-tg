@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban } from "lucide-react";
+import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, Timer } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -10,6 +10,7 @@ type Props = {
   alts: ExerciseAlternative[];
   loading: boolean;
   error: string | null;
+  restEnabled: boolean;
   onClose: () => void;
   onLoadAlternatives: () => void;
   onReplace: (alt: ExerciseAlternative) => void;
@@ -19,6 +20,7 @@ type Props = {
   onSkip: () => void;
   onRemove: () => void;
   onBan: () => void;
+  onToggleRestEnabled: () => void;
   onBackMenu: () => void;
 };
 
@@ -57,10 +59,10 @@ function AlternativeSkeleton() {
 
 export default function ExerciseActionsSheet(props: Props) {
   const {
-    state, item, alts, loading, error,
+    state, item, alts, loading, error, restEnabled,
     onClose, onLoadAlternatives, onReplace,
     onAskSkip, onAskRemove, onAskBan,
-    onSkip, onRemove, onBan, onBackMenu,
+    onSkip, onRemove, onBan, onToggleRestEnabled, onBackMenu,
   } = props;
 
   const propOpen = Boolean(state && item);
@@ -199,6 +201,8 @@ export default function ExerciseActionsSheet(props: Props) {
                 onClick={onAskSkip}
               />
             </div>
+            {/* Rest timer toggle */}
+            <RestToggleBtn enabled={restEnabled} onToggle={onToggleRestEnabled} />
             {/* Destructive actions — smaller, muted */}
             <MenuBtn
               icon={<Trash2 size={15} strokeWidth={2.2} />}
@@ -425,6 +429,62 @@ function MenuBtn({ icon, label, onClick, danger = false, small = false }: {
       </span>
       <span style={{ ...s.menuBtnLabel, ...(small ? s.menuBtnLabelSmall : null) }}>
         {label}
+      </span>
+    </button>
+  );
+}
+
+function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  const GREEN = "#61d700";
+  return (
+    <button
+      type="button"
+      className="eas-sheet-btn"
+      style={{
+        ...s.sheetBtn,
+        ...s.sheetBtnSmall,
+        color: workoutTheme.accent,
+        ["--eas-btn-color" as never]: workoutTheme.accent,
+      }}
+      onClick={onToggle}
+    >
+      <span style={{
+        ...s.menuBtnIconWrap,
+        ...s.menuBtnIconWrapSmall,
+        background: enabled
+          ? `linear-gradient(180deg, rgba(97,215,0,0.18) 0%, rgba(97,215,0,0.10) 100%)`
+          : workoutTheme.pillBg,
+        boxShadow: enabled
+          ? `inset 0 2px 3px rgba(78,140,0,0.14), inset 0 -1px 0 rgba(255,255,255,0.7)`
+          : workoutTheme.pillShadow,
+        color: enabled ? GREEN : workoutTheme.textSecondary,
+      }}>
+        <Timer size={15} strokeWidth={2.2} />
+      </span>
+      <span style={{ ...s.menuBtnLabel, ...s.menuBtnLabelSmall }}>
+        Авто-таймер отдыха
+      </span>
+      {/* Toggle pill */}
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 44,
+        height: 24,
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        flexShrink: 0,
+        background: enabled
+          ? `linear-gradient(180deg, rgba(97,215,0,0.22) 0%, rgba(97,215,0,0.12) 100%)`
+          : workoutTheme.pillBg,
+        boxShadow: enabled
+          ? `inset 0 2px 3px rgba(78,140,0,0.12), inset 0 -1px 0 rgba(255,255,255,0.6)`
+          : workoutTheme.pillShadow,
+        color: enabled ? GREEN : workoutTheme.textSecondary,
+      }}>
+        {enabled ? "ВКЛ" : "ВЫКЛ"}
       </span>
     </button>
   );

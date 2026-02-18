@@ -1040,6 +1040,7 @@ export default function WorkoutSession() {
         alts={alts}
         loading={altsLoading}
         error={altsError}
+        restEnabled={restEnabled}
         onClose={closeExerciseMenu}
         onLoadAlternatives={loadAlternatives}
         onReplace={replaceExercise}
@@ -1049,6 +1050,7 @@ export default function WorkoutSession() {
         onSkip={skipExercise}
         onRemove={removeExercise}
         onBan={banExercise}
+        onToggleRestEnabled={() => setRestEnabled((prev) => !prev)}
         onBackMenu={() => setExerciseMenu({ index: activeIndex, mode: "menu" })}
       />
 
