@@ -229,6 +229,7 @@ export default function WorkoutSession() {
   const [altsError, setAltsError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [exitConfirm, setExitConfirm] = useState(false);
+  const [exitEntered, setExitEntered] = useState(false);
   const [finishModal, setFinishModal] = useState(false);
   const [finishDuration, setFinishDuration] = useState("45");
   const [finishStart, setFinishStart] = useState(toIsoLocalInput(new Date()));
@@ -389,6 +390,16 @@ export default function WorkoutSession() {
     if (!item) return;
     setFocusSetIndex(nextUndoneSetIndex(item));
   }, [activeIndex, items]);
+
+  // Exit sheet animation
+  useEffect(() => {
+    if (exitConfirm) {
+      const t = setTimeout(() => setExitEntered(true), 12);
+      return () => clearTimeout(t);
+    } else {
+      setExitEntered(false);
+    }
+  }, [exitConfirm]);
 
   useEffect(() => {
     const item = items[activeIndex];
@@ -1051,20 +1062,59 @@ export default function WorkoutSession() {
       />
 
       {exitConfirm ? (
-        <div style={styles.exitOverlay}>
-          <div style={styles.exitCard}>
-            <div style={styles.exitTitle}>Выйти из тренировки?</div>
-            <div style={styles.exitText}>Прогресс сохранится как черновик. Можно вернуться и продолжить.</div>
-            <div style={styles.exitRow}>
-              <button type="button" style={styles.exitSecondary} onClick={() => setExitConfirm(false)}>
-                Остаться
-              </button>
-              <button type="button" style={styles.exitPrimary} onClick={() => nav("/plan/one")}>
-                Выйти
+        <>
+          {/* Backdrop */}
+          <div
+            style={{
+              ...styles.exitOverlay,
+              opacity: exitEntered ? 1 : 0,
+              transition: `opacity ${exitEntered ? 320 : 260}ms ease`,
+            }}
+            onClick={() => setExitConfirm(false)}
+          />
+          {/* Bottom sheet */}
+          <div
+            style={{
+              ...styles.exitSheet,
+              transform: exitEntered ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
+              opacity: exitEntered ? 1 : 0,
+              transition: exitEntered
+                ? `transform 380ms cubic-bezier(0.32,0.72,0,1), opacity ${380 * 0.6}ms ease`
+                : `transform 260ms cubic-bezier(0.55,0,1,0.45), opacity 260ms ease`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Grabber */}
+            <div style={styles.exitGrabberRow} aria-hidden>
+              <div style={styles.exitGrabber} />
+            </div>
+            {/* Header */}
+            <div style={styles.exitSheetHeader}>
+              <div style={styles.exitTitle}>Выйти из тренировки?</div>
+              <button
+                type="button"
+                aria-label="Закрыть"
+                style={styles.exitCloseBtn}
+                onClick={() => setExitConfirm(false)}
+              >
+                ✕
               </button>
             </div>
+            <div style={styles.exitSheetBody}>
+              <p style={styles.exitText}>Прогресс сохранится как черновик. Можно вернуться и продолжить.</p>
+              <div style={styles.exitList}>
+                <button type="button" style={styles.exitSheetBtn} onClick={() => setExitConfirm(false)}>
+                  <span style={styles.exitBtnIconWrap}>🏠</span>
+                  <span style={styles.exitBtnLabel}>Остаться</span>
+                </button>
+                <button type="button" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={() => nav("/plan/one")}>
+                  <span style={styles.exitBtnIconWrap}>🚪</span>
+                  <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Выйти</span>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
@@ -1178,60 +1228,118 @@ const styles: Record<string, React.CSSProperties> = {
     position: "fixed",
     inset: 0,
     zIndex: 90,
-    display: "grid",
-    placeItems: "center",
-    padding: 20,
     background: workoutTheme.overlayStrong,
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
   },
-  exitCard: {
-    width: "min(92vw, 390px)",
-    borderRadius: 24,
+  exitSheet: {
+    position: "fixed",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 91,
+    borderRadius: "24px 24px 0 0",
     border: workoutTheme.cardBorder,
-    background: workoutTheme.cardBg,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
     boxShadow: workoutTheme.cardShadow,
-    padding: 18,
-    display: "grid",
-    gap: 10,
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    willChange: "transform, opacity",
+  },
+  exitGrabberRow: {
+    display: "flex",
+    justifyContent: "center",
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  exitGrabber: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.16)",
+  },
+  exitSheetHeader: {
+    display: "flex",
+    alignItems: "center",
+    padding: "6px 8px 4px 16px",
   },
   exitTitle: {
-    fontSize: 20,
-    lineHeight: 1.2,
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 1.25,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
   },
-  exitText: {
-    fontSize: 14,
-    lineHeight: 1.4,
-    color: workoutTheme.textSecondary,
-  },
-  exitRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-  },
-  exitSecondary: {
-    minHeight: 46,
-    borderRadius: 999,
+  exitCloseBtn: {
+    width: 32,
+    height: 32,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     border: "none",
+    background: "transparent",
+    borderRadius: 999,
+    color: workoutTheme.textSecondary,
+    fontSize: 14,
+    cursor: "pointer",
+    padding: 0,
+    flexShrink: 0,
+    WebkitTapHighlightColor: "transparent",
+  },
+  exitSheetBody: {
+    padding: "4px 16px 8px",
+    display: "grid",
+    gap: 6,
+  },
+  exitText: {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: workoutTheme.textSecondary,
+    textAlign: "center" as const,
+    padding: "4px 4px 6px",
+  },
+  exitList: {
+    display: "grid",
+    gap: 6,
+  },
+  exitSheetBtn: {
+    width: "100%",
+    minHeight: 58,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    padding: "12px 14px",
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left" as const,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    gap: 12,
+    color: workoutTheme.textPrimary,
+    WebkitTapHighlightColor: "transparent",
+  },
+  exitSheetBtnDanger: {
+    opacity: 0.9,
+  },
+  exitBtnIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    fontSize: 16,
   },
-  exitPrimary: {
-    minHeight: 46,
-    borderRadius: 999,
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 14,
+  exitBtnLabel: {
+    flex: 1,
+    fontSize: 18,
     fontWeight: 500,
-    cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
+    color: workoutTheme.textPrimary,
+    lineHeight: 1.25,
   },
   fallbackWrap: {
     minHeight: "100vh",
