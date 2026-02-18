@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { X, LogOut, Dumbbell } from "lucide-react";
 import { saveSession } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
@@ -229,6 +230,7 @@ export default function WorkoutSession() {
   const [altsError, setAltsError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [exitConfirm, setExitConfirm] = useState(false);
+  const [exitVisible, setExitVisible] = useState(false);
   const [exitEntered, setExitEntered] = useState(false);
   const [finishModal, setFinishModal] = useState(false);
   const [finishDuration, setFinishDuration] = useState("45");
@@ -391,13 +393,16 @@ export default function WorkoutSession() {
     setFocusSetIndex(nextUndoneSetIndex(item));
   }, [activeIndex, items]);
 
-  // Exit sheet animation
+  // Exit sheet animation — open: mount then enter; close: exit then unmount
   useEffect(() => {
     if (exitConfirm) {
+      setExitVisible(true);
       const t = setTimeout(() => setExitEntered(true), 12);
       return () => clearTimeout(t);
     } else {
       setExitEntered(false);
+      const t = setTimeout(() => setExitVisible(false), 280);
+      return () => clearTimeout(t);
     }
   }, [exitConfirm]);
 
@@ -611,6 +616,8 @@ export default function WorkoutSession() {
     setAltsLoading(false);
     setExerciseMenu({ index: activeIndex, mode: "menu" });
   };
+
+  const closeExit = () => setExitConfirm(false);
 
   const closeExerciseMenu = () => {
     setExerciseMenu(null);
@@ -1061,7 +1068,7 @@ export default function WorkoutSession() {
         onSubmit={completeWorkout}
       />
 
-      {exitConfirm ? (
+      {exitVisible ? (
         <>
           {/* Backdrop */}
           <div
@@ -1070,7 +1077,7 @@ export default function WorkoutSession() {
               opacity: exitEntered ? 1 : 0,
               transition: `opacity ${exitEntered ? 320 : 260}ms ease`,
             }}
-            onClick={() => setExitConfirm(false)}
+            onClick={closeExit}
           />
           {/* Bottom sheet */}
           <div
@@ -1090,25 +1097,30 @@ export default function WorkoutSession() {
             </div>
             {/* Header */}
             <div style={styles.exitSheetHeader}>
+              <div style={styles.exitCloseSpacerL} aria-hidden />
               <div style={styles.exitTitle}>Выйти из тренировки?</div>
               <button
                 type="button"
                 aria-label="Закрыть"
                 style={styles.exitCloseBtn}
-                onClick={() => setExitConfirm(false)}
+                onClick={closeExit}
               >
-                ✕
+                <X size={15} strokeWidth={2.5} />
               </button>
             </div>
             <div style={styles.exitSheetBody}>
               <p style={styles.exitText}>Прогресс сохранится как черновик. Можно вернуться и продолжить.</p>
               <div style={styles.exitList}>
-                <button type="button" style={styles.exitSheetBtn} onClick={() => setExitConfirm(false)}>
-                  <span style={styles.exitBtnIconWrap}>🏠</span>
+                <button type="button" style={styles.exitSheetBtn} onClick={closeExit}>
+                  <span style={styles.exitBtnIconWrap}>
+                    <Dumbbell size={16} strokeWidth={2} />
+                  </span>
                   <span style={styles.exitBtnLabel}>Остаться</span>
                 </button>
                 <button type="button" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={() => nav("/plan/one")}>
-                  <span style={styles.exitBtnIconWrap}>🚪</span>
+                  <span style={{ ...styles.exitBtnIconWrap, ...styles.exitBtnIconWrapDanger }}>
+                    <LogOut size={16} strokeWidth={2} />
+                  </span>
                   <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Выйти</span>
                 </button>
               </div>
@@ -1258,7 +1270,12 @@ const styles: Record<string, React.CSSProperties> = {
   exitSheetHeader: {
     display: "flex",
     alignItems: "center",
-    padding: "6px 8px 4px 16px",
+    padding: "6px 8px 4px 8px",
+    gap: 4,
+  },
+  exitCloseSpacerL: {
+    width: 32,
+    flexShrink: 0,
   },
   exitTitle: {
     flex: 1,
@@ -1266,6 +1283,7 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.25,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
+    textAlign: "center" as const,
   },
   exitCloseBtn: {
     width: 32,
@@ -1277,7 +1295,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: "transparent",
     borderRadius: 999,
     color: workoutTheme.textSecondary,
-    fontSize: 14,
     cursor: "pointer",
     padding: 0,
     flexShrink: 0,
@@ -1332,7 +1349,10 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    fontSize: 16,
+    color: workoutTheme.textSecondary,
+  },
+  exitBtnIconWrapDanger: {
+    color: workoutTheme.danger,
   },
   exitBtnLabel: {
     flex: 1,
