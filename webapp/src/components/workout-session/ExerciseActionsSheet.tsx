@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, AlarmClock } from "lucide-react";
+import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, Clock } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -450,12 +450,9 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
       <span style={{
         ...s.menuBtnIconWrap,
         ...s.menuBtnIconWrapSmall,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
         color: workoutTheme.textSecondary,
       }}>
-        <AlarmClock size={15} strokeWidth={2.2} />
+        <Clock size={15} strokeWidth={2.2} />
       </span>
       <span style={{ ...s.menuBtnLabel, ...s.menuBtnLabelSmall }}>
         Авто-таймер отдыха
