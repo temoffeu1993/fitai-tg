@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, Timer } from "lucide-react";
+import { ArrowLeft, X, RefreshCw, SkipForward, Trash2, Ban, AlarmClock } from "lucide-react";
 import type { ExerciseAlternative } from "@/api/exercises";
 import { workoutTheme } from "./theme";
 import type { ExerciseMenuState, SessionItem } from "./types";
@@ -435,7 +435,6 @@ function MenuBtn({ icon, label, onClick, danger = false, small = false }: {
 }
 
 function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
-  const GREEN = "#61d700";
   return (
     <button
       type="button"
@@ -451,15 +450,12 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
       <span style={{
         ...s.menuBtnIconWrap,
         ...s.menuBtnIconWrapSmall,
-        background: enabled
-          ? `linear-gradient(180deg, rgba(97,215,0,0.18) 0%, rgba(97,215,0,0.10) 100%)`
-          : workoutTheme.pillBg,
-        boxShadow: enabled
-          ? `inset 0 2px 3px rgba(78,140,0,0.14), inset 0 -1px 0 rgba(255,255,255,0.7)`
-          : workoutTheme.pillShadow,
-        color: enabled ? GREEN : workoutTheme.textSecondary,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: workoutTheme.textSecondary,
       }}>
-        <Timer size={15} strokeWidth={2.2} />
+        <AlarmClock size={15} strokeWidth={2.2} />
       </span>
       <span style={{ ...s.menuBtnLabel, ...s.menuBtnLabelSmall }}>
         Авто-таймер отдыха
@@ -469,22 +465,22 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 44,
+        padding: "0 10px",
         height: 24,
         borderRadius: 999,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
-        letterSpacing: 0.3,
+        lineHeight: 1.3,
         flexShrink: 0,
         background: enabled
-          ? `linear-gradient(180deg, rgba(97,215,0,0.22) 0%, rgba(97,215,0,0.12) 100%)`
+          ? "rgba(196,228,178,0.38)"
           : workoutTheme.pillBg,
         boxShadow: enabled
-          ? `inset 0 2px 3px rgba(78,140,0,0.12), inset 0 -1px 0 rgba(255,255,255,0.6)`
+          ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
           : workoutTheme.pillShadow,
-        color: enabled ? GREEN : workoutTheme.textSecondary,
+        color: workoutTheme.textSecondary,
       }}>
-        {enabled ? "ВКЛ" : "ВЫКЛ"}
+        {enabled ? "Вкл" : "Выкл"}
       </span>
     </button>
   );
