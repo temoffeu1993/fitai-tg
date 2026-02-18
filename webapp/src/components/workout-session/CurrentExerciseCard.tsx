@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
+import { Target } from "lucide-react";
 
 function buildGoalLabel(item: SessionItem): string | null {
   const repsRaw = formatRepsLabel(item.targetReps);
@@ -38,7 +39,12 @@ export default function CurrentExerciseCard(props: Props) {
       <div style={s.topRow}>
         <div style={s.titleBlock}>
           <h2 style={s.name}>{item.name}</h2>
-          {goalLabel && <p style={s.goal}>{goalLabel}</p>}
+          {goalLabel && (
+            <p style={s.goal}>
+              <Target size={13} strokeWidth={2} style={s.goalIcon} />
+              <span>Цель: {goalLabel}</span>
+            </p>
+          )}
         </div>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
           ⋯
@@ -91,11 +97,18 @@ const s: Record<string, CSSProperties> = {
   },
   goal: {
     margin: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
     fontSize: 14,
     fontWeight: 500,
     lineHeight: 1.4,
     color: workoutTheme.textSecondary,
     letterSpacing: "0.1px",
+  },
+  goalIcon: {
+    flexShrink: 0,
+    opacity: 0.7,
   },
   menuBtn: {
     border: "none",

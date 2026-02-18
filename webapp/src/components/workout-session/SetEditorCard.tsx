@@ -15,7 +15,7 @@ function formatDoneChip(set: { reps?: number | null; weight?: number | null }, n
   return `${rStr}×${wStr}`;
 }
 import { fireHapticImpact } from "@/utils/haptics";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 type Props = {
   item: SessionItem | null;
@@ -53,6 +53,7 @@ export default function SetEditorCard(props: Props) {
   } = props;
   const [commitFlash, setCommitFlash] = useState(false);
   const [showSavedLabel, setShowSavedLabel] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const savedLabelTimerRef = useRef<number | null>(null);
 
@@ -83,8 +84,7 @@ export default function SetEditorCard(props: Props) {
       ? Math.round(explicitReps)
       : prevReps ?? targetDefaultReps;
 
-  const canGoPrev = focusSetIndex > 0 && Boolean(item.sets[focusSetIndex - 1]?.done);
-  const canGoNext = focusSetIndex < totalSets - 1 && Boolean(set.done);
+  const hasDoneSets = item.sets.some((entry) => entry.done);
 
   const handleCommit = () => {
     const committed = onCommitSet();
@@ -151,98 +151,81 @@ export default function SetEditorCard(props: Props) {
         </span>
       </button>
 
-      {/* Done sets chips */}
-      {item.sets.some((entry) => entry.done) && (
-        <div style={s.doneChipsRow}>
-          {item.sets.map((entry, idx) =>
-            entry.done ? (
-              <button
-                key={idx}
-                type="button"
-                className="sec-nav-btn"
-                style={{
-                  ...s.doneChip,
-                  ...(idx === focusSetIndex ? s.doneChipFocused : null),
-                }}
-                onClick={() => {
-                  if (onFocusSet) {
-                    onFocusSet(idx);
-                    fireHapticImpact("light");
-                  }
-                }}
-              >
-                {formatDoneChip(entry, needWeight)}
-              </button>
-            ) : null
+      {/* Set counter + expandable history */}
+      <div>
+        <button
+          type="button"
+          className="sec-nav-btn"
+          style={s.setCounterBtn}
+          onClick={() => hasDoneSets && setHistoryOpen((v) => !v)}
+          aria-expanded={historyOpen}
+        >
+          <div style={s.setIndexText} aria-live="polite">
+            <span
+              aria-hidden={showSavedLabel}
+              style={{
+                ...s.setIndexTextLayer,
+                ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
+              }}
+            >
+              Подход {displaySet} из {totalSets}
+            </span>
+            <span
+              aria-hidden={!showSavedLabel}
+              style={{
+                ...s.setIndexTextLayer,
+                ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
+              }}
+            >
+              Подход сохранен
+            </span>
+          </div>
+          {hasDoneSets && (
+            <ChevronDown
+              size={14}
+              strokeWidth={2.2}
+              style={{
+                ...s.counterChevron,
+                transform: historyOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            />
           )}
-        </div>
-      )}
-
-      {/* Set navigation row */}
-      <div style={s.setNavRow}>
-        {/* Left arrow — go to previous set */}
-        <button
-          type="button"
-          className="sec-nav-btn"
-          style={{
-            ...s.navBtn,
-            opacity: canGoPrev ? 1 : 0,
-            pointerEvents: canGoPrev ? "auto" : "none",
-          }}
-          aria-label="Предыдущий подход"
-          tabIndex={canGoPrev ? 0 : -1}
-          onClick={() => {
-            if (canGoPrev && onFocusSet) {
-              onFocusSet(focusSetIndex - 1);
-              fireHapticImpact("light");
-            }
-          }}
-        >
-          <ChevronLeft size={16} strokeWidth={2.2} />
         </button>
 
-        {/* Counter text */}
-        <div style={s.setIndexText} aria-live="polite">
-          <span
-            aria-hidden={showSavedLabel}
-            style={{
-              ...s.setIndexTextLayer,
-              ...(showSavedLabel ? s.setIndexTextLayerHidden : s.setIndexTextLayerVisible),
-            }}
-          >
-            Подход {displaySet} из {totalSets}
-          </span>
-          <span
-            aria-hidden={!showSavedLabel}
-            style={{
-              ...s.setIndexTextLayer,
-              ...(showSavedLabel ? s.savedTextVisible : s.savedTextHidden),
-            }}
-          >
-            Подход сохранен
-          </span>
-        </div>
-
-        {/* Right arrow — go to next set */}
-        <button
-          type="button"
-          className="sec-nav-btn"
+        {/* Expandable chips */}
+        <div
           style={{
-            ...s.navBtn,
-            opacity: canGoNext ? 1 : 0,
-            pointerEvents: canGoNext ? "auto" : "none",
+            ...s.chipsWrap,
+            maxHeight: historyOpen ? `${item.sets.length * 44}px` : "0px",
+            opacity: historyOpen ? 1 : 0,
           }}
-          aria-label="Следующий подход"
-          tabIndex={canGoNext ? 0 : -1}
-          onClick={() => {
-            if (canGoNext && onFocusSet) {
-              onFocusSet(focusSetIndex + 1);
-              fireHapticImpact("light");
-            }
-          }}
+          aria-hidden={!historyOpen}
         >
-          <ChevronRight size={16} strokeWidth={2.2} />
-        </button>
+          <div style={s.doneChipsRow}>
+            {item.sets.map((entry, idx) =>
+              entry.done ? (
+                <button
+                  key={idx}
+                  type="button"
+                  className="sec-nav-btn"
+                  style={{
+                    ...s.doneChip,
+                    ...(idx === focusSetIndex ? s.doneChipFocused : null),
+                  }}
+                  onClick={() => {
+                    if (onFocusSet) {
+                      onFocusSet(idx);
+                      fireHapticImpact("light");
+                    }
+                    setHistoryOpen(false);
+                  }}
+                >
+                  {formatDoneChip(entry, needWeight)}
+                </button>
+              ) : null
+            )}
+          </div>
+        </div>
       </div>
 
       {blocked ? <div style={s.error}>Введи повторы{needWeight ? " и кг" : ""}, затем отметь подход.</div> : null}
@@ -638,12 +621,38 @@ const s: Record<string, CSSProperties> = {
     textAlign: "center",
   },
 
+  // Set counter button
+  setCounterBtn: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    border: "none",
+    background: "transparent",
+    padding: "2px 0",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  },
+  counterChevron: {
+    color: "rgba(15,23,42,0.38)",
+    flexShrink: 0,
+    transition: "transform 200ms ease",
+  },
+
+  // Expandable chips accordion
+  chipsWrap: {
+    overflow: "hidden",
+    transition: "max-height 220ms cubic-bezier(0.36, 0.66, 0.04, 1), opacity 180ms ease",
+  },
+
   // Done set chips
   doneChipsRow: {
     display: "flex",
     flexWrap: "wrap",
     gap: 5,
     justifyContent: "center",
+    padding: "8px 0 2px",
   },
   doneChip: {
     border: "none",
@@ -660,31 +669,8 @@ const s: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   doneChipFocused: {
-    background: "rgba(100,178,68,0.14)",
-    boxShadow: "inset 0 0 0 1.5px rgba(100,178,68,0.4)",
-    color: "rgba(60,130,30,0.9)",
-  },
-
-  // Set navigation row
-  setNavRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 4,
-  },
-  navBtn: {
-    flexShrink: 0,
-    width: 32,
-    height: 32,
-    border: "none",
-    background: "transparent",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    cursor: "pointer",
-    color: "rgba(15,23,42,0.45)",
-    padding: 0,
-    transition: "opacity 140ms ease",
+    background: "rgba(196,228,178,0.38)",
+    boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
+    color: "rgba(50,110,20,0.88)",
   },
 };
