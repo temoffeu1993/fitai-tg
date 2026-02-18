@@ -2257,6 +2257,7 @@ function PlannedExercisesEditor({
   const plan: any = plannedWorkout?.plan || {};
   const exercisesRaw: any[] = Array.isArray(plan?.exercises) ? plan.exercises : [];
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
+  const [displayIndex, setDisplayIndex] = useState<number | null>(null);
   const [mode, setMode] = useState<PeeMode>("menu");
   const [alts, setAlts] = useState<ExerciseAlternative[]>([]);
   const [loading, setLoading] = useState(false);
@@ -2319,6 +2320,7 @@ function PlannedExercisesEditor({
       setCurrentMode("menu");
       setPrevMode(null);
       setContentAnimating(false);
+      setDisplayIndex(null);
       closeTimerRef.current = null;
     }, PEE_SHEET_EXIT_MS + 20);
   }, [isSheetOpen, renderOpen]);
@@ -2347,9 +2349,10 @@ function PlannedExercisesEditor({
     setPrevMode(null);
     setContentAnimating(false);
     setMenuIndex(idx);
+    setDisplayIndex(idx);
   };
 
-  const current = menuIndex != null ? displayItems[menuIndex] : null;
+  const current = displayIndex != null ? displayItems[displayIndex] : null;
   const currentId = current?.exerciseId || null;
 
   const close = () => {
