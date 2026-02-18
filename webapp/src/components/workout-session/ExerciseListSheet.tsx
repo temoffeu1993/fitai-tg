@@ -24,9 +24,15 @@ export default function ExerciseListSheet(props: Props) {
 
   const [renderOpen, setRenderOpen] = useState(open);
   const [entered, setEntered] = useState(open);
+  const enteredRef = useRef(open);
 
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
+
+  const applyEntered = (v: boolean) => {
+    enteredRef.current = v;
+    setEntered(v);
+  };
 
   useEffect(() => {
     return () => {
@@ -51,17 +57,18 @@ export default function ExerciseListSheet(props: Props) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
-      if (!renderOpen) {
+      // Always go through the 12ms tick if not fully entered yet
+      if (!renderOpen || !enteredRef.current) {
         setRenderOpen(true);
-        setEntered(false);
+        applyEntered(false);
         if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
         openTimerRef.current = window.setTimeout(() => {
-          setEntered(true);
+          applyEntered(true);
           openTimerRef.current = null;
         }, OPEN_TICK_MS);
         return;
       }
-      setEntered(true);
+      applyEntered(true);
       return;
     }
 
@@ -70,7 +77,7 @@ export default function ExerciseListSheet(props: Props) {
       window.clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
     }
-    setEntered(false);
+    applyEntered(false);
     if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
       setRenderOpen(false);

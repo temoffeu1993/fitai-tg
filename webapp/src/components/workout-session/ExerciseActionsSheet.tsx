@@ -66,6 +66,7 @@ export default function ExerciseActionsSheet(props: Props) {
   const propOpen = Boolean(state && item);
   const [renderOpen, setRenderOpen] = useState(propOpen);
   const [entered, setEntered] = useState(propOpen);
+  const enteredRef = useRef(propOpen);
   const [displayState, setDisplayState] = useState<ExerciseMenuState | null>(state);
   const [displayItem, setDisplayItem] = useState<SessionItem | null>(item);
   const [currentMode, setCurrentMode] = useState<MenuMode | null>(state?.mode ?? null);
@@ -76,6 +77,12 @@ export default function ExerciseActionsSheet(props: Props) {
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
   const contentTimerRef = useRef<number | null>(null);
+
+  // Helper: set entered state and keep ref in sync
+  const applyEntered = (v: boolean) => {
+    enteredRef.current = v;
+    setEntered(v);
+  };
 
   // Cleanup all timers on unmount
   useEffect(() => {
@@ -109,17 +116,19 @@ export default function ExerciseActionsSheet(props: Props) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
-      if (!renderOpen) {
+      // Always go through the 12ms tick if not fully entered yet —
+      // this ensures the browser paints entered=false before we flip to true
+      if (!renderOpen || !enteredRef.current) {
         setRenderOpen(true);
-        setEntered(false);
+        applyEntered(false);
         if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
         openTimerRef.current = window.setTimeout(() => {
-          setEntered(true);
+          applyEntered(true);
           openTimerRef.current = null;
         }, OPEN_TICK_MS);
         return;
       }
-      setEntered(true);
+      applyEntered(true);
       return;
     }
 
@@ -128,7 +137,7 @@ export default function ExerciseActionsSheet(props: Props) {
       window.clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
     }
-    setEntered(false);
+    applyEntered(false);
     if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
       setRenderOpen(false);

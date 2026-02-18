@@ -2266,6 +2266,9 @@ function PlannedExercisesEditor({
   // Sheet open/close animation state
   const [renderOpen, setRenderOpen] = useState(false);
   const [entered, setEntered] = useState(false);
+  const enteredRef = useRef(false);
+
+  const applyPeeEntered = (v: boolean) => { enteredRef.current = v; setEntered(v); };
 
   // Content slide transition state
   const [currentMode, setCurrentMode] = useState<PeeMode>("menu");
@@ -2301,19 +2304,20 @@ function PlannedExercisesEditor({
   useEffect(() => {
     if (isSheetOpen) {
       if (closeTimerRef.current != null) { window.clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
-      if (!renderOpen) {
+      // Always go through the 12ms tick if not fully entered yet
+      if (!renderOpen || !enteredRef.current) {
         setRenderOpen(true);
-        setEntered(false);
+        applyPeeEntered(false);
         if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
-        openTimerRef.current = window.setTimeout(() => { setEntered(true); openTimerRef.current = null; }, PEE_OPEN_TICK_MS);
+        openTimerRef.current = window.setTimeout(() => { applyPeeEntered(true); openTimerRef.current = null; }, PEE_OPEN_TICK_MS);
         return;
       }
-      setEntered(true);
+      applyPeeEntered(true);
       return;
     }
     if (!renderOpen) return;
     if (openTimerRef.current != null) { window.clearTimeout(openTimerRef.current); openTimerRef.current = null; }
-    setEntered(false);
+    applyPeeEntered(false);
     if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => {
       setRenderOpen(false);
