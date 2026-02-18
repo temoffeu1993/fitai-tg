@@ -90,7 +90,6 @@ const s: Record<string, CSSProperties> = {
         width: "100%",
         display: "inline-flex",
         alignItems: "center",
-        justifyContent: "space-between",
         gap: 8,
         padding: "6px 0",
         border: "none",
@@ -104,6 +103,7 @@ const s: Record<string, CSSProperties> = {
     },
     chevron: {
         flex: "0 0 auto",
+        marginLeft: "auto",
         transition: "transform 160ms ease",
     },
     triggerIcon: {
@@ -111,7 +111,6 @@ const s: Record<string, CSSProperties> = {
         color: "rgba(15,23,42,0.45)",
     },
     triggerLabel: {
-        flex: 1,
         fontSize: 14,
         fontWeight: 400,
         lineHeight: 1.45,
