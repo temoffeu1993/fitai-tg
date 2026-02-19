@@ -206,7 +206,7 @@ export default function WorkoutResult() {
   );
 
   const pollOnce = async (): Promise<{ status?: string; result?: any | null } | null> => {
-    if (!jobId) return;
+    if (!jobId) return null;
     const res = await getProgressionJob(jobId);
     const j = res?.job;
     if (j?.status) setJob({ id: jobId, status: String(j.status), lastError: j.lastError ?? null });
@@ -215,7 +215,7 @@ export default function WorkoutResult() {
   };
 
   const pollCoachOnce = async (): Promise<{ status?: string; result?: any | null } | null> => {
-    if (!coachJobId) return;
+    if (!coachJobId) return null;
     const res = await getCoachJob(coachJobId);
     const j = res?.job;
     if (j?.status) setCoachJob({ id: coachJobId, status: String(j.status), lastError: j.lastError ?? null });
