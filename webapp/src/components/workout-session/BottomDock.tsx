@@ -118,13 +118,13 @@ const s: Record<string, CSSProperties> = {
     width: 40,
     height: 40,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    background: workoutTheme.pillBg,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     marginRight: -6,
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    boxShadow: workoutTheme.pillShadow,
+    color: workoutTheme.textPrimary,
   },
   primaryCompactArrow: {
     fontSize: 20,
