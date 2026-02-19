@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, LogOut, Dumbbell, Flag } from "lucide-react";
+import { X, LogOut, Dumbbell, Flag, CheckCheck } from "lucide-react";
 import { saveSession, deleteTodayCheckin } from "@/api/plan";
 import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
@@ -1006,7 +1006,7 @@ export default function WorkoutSession() {
       <BottomDock
         primaryLabel={allDone ? "Завершить тренировку" : "Следующее упражнение"}
         primaryVariant={allDone ? "compactArrow" : "compactArrow"}
-        primaryIcon={allDone ? <Flag size={18} strokeWidth={2} /> : undefined}
+        primaryIcon={allDone ? <CheckCheck size={16} strokeWidth={2.2} /> : undefined}
         onPrimary={() => {
           if (allDone) {
             completeWorkout();
