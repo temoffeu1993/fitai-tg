@@ -596,69 +596,6 @@ export default function PlanOne() {
     }
   };
 
-  if (showInitialPlannedLoader || weekGenerating || showLoader || shouldAutoGenerateWeek) {
-    return <WorkoutLoader />;
-  }
-
-  if (paywall || sub.locked) {
-    return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <TypingDotsStyles />
-        <section style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span style={s.pill}>Доступ</span>
-            <span style={s.credits}>Premium</span>
-          </div>
-          <div style={s.heroTitle}>Оформите подписку</div>
-          <div style={s.heroSubtitle}>
-            Генерация тренировок и питания доступна по подписке. Первый план/тренировка — бесплатно.
-          </div>
-          <div style={{ marginTop: 16, fontSize: 13, opacity: 0.9 }}>
-            {sub.reason || "Оформите подписку, чтобы продолжить."}
-          </div>
-          <button
-            className="soft-glow"
-            style={{ ...s.primaryBtn, marginTop: 18 }}
-            onClick={() => setPaywall(false)}
-          >
-            Ок
-          </button>
-        </section>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <TypingDotsStyles />
-        <section style={s.blockWhite}>
-          <h3 style={{ marginTop: 0 }}>{error}</h3>
-          <p style={{ marginTop: 6, color: "#555" }}>Проверь подключение и повтори попытку.</p>
-          <button style={s.rowBtn} onClick={() => window.location.reload()}>Повторить</button>
-        </section>
-      </div>
-    );
-  }
-
-  if (plannedError) {
-    return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <TypingDotsStyles />
-        <section style={s.blockWhite}>
-          <h3 style={{ marginTop: 0 }}>{plannedError}</h3>
-          <p style={{ marginTop: 6, color: "#555" }}>Попробуй обновить список тренировок.</p>
-          <button style={s.rowBtn} onClick={() => loadPlanned()}>
-            Обновить
-          </button>
-        </section>
-      </div>
-    );
-  }
-
   // New UI: show all generated workouts (remaining ones) as selectable cards
   const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
   const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
@@ -1087,6 +1024,69 @@ export default function PlanOne() {
       },
     });
   };
+
+  if (showInitialPlannedLoader || weekGenerating || showLoader || shouldAutoGenerateWeek) {
+    return <WorkoutLoader />;
+  }
+
+  if (paywall || sub.locked) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.heroCard}>
+          <div style={s.heroHeader}>
+            <span style={s.pill}>Доступ</span>
+            <span style={s.credits}>Premium</span>
+          </div>
+          <div style={s.heroTitle}>Оформите подписку</div>
+          <div style={s.heroSubtitle}>
+            Генерация тренировок и питания доступна по подписке. Первый план/тренировка — бесплатно.
+          </div>
+          <div style={{ marginTop: 16, fontSize: 13, opacity: 0.9 }}>
+            {sub.reason || "Оформите подписку, чтобы продолжить."}
+          </div>
+          <button
+            className="soft-glow"
+            style={{ ...s.primaryBtn, marginTop: 18 }}
+            onClick={() => setPaywall(false)}
+          >
+            Ок
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.blockWhite}>
+          <h3 style={{ marginTop: 0 }}>{error}</h3>
+          <p style={{ marginTop: 6, color: "#555" }}>Проверь подключение и повтори попытку.</p>
+          <button style={s.rowBtn} onClick={() => window.location.reload()}>Повторить</button>
+        </section>
+      </div>
+    );
+  }
+
+  if (plannedError) {
+    return (
+      <div style={s.page}>
+        <SoftGlowStyles />
+        <TypingDotsStyles />
+        <section style={s.blockWhite}>
+          <h3 style={{ marginTop: 0 }}>{plannedError}</h3>
+          <p style={{ marginTop: 6, color: "#555" }}>Попробуй обновить список тренировок.</p>
+          <button style={s.rowBtn} onClick={() => loadPlanned()}>
+            Обновить
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div style={s.page}>
