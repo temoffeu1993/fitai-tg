@@ -418,7 +418,7 @@ export default function WorkoutResult() {
     return (fromRec != null ? Math.round(fromRec) : null) ?? parseUpperReps(ex?.reps) ?? 12;
   };
 
-  const prior = useMemo(() => {
+  const prior = (() => {
     const history = readHistory().slice();
     history.sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
     const sessionId = result.sessionId ? String(result.sessionId) : null;
@@ -438,8 +438,7 @@ export default function WorkoutResult() {
     }
     const prev = history[currentIndex + 1] || null;
     return prev;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result.createdAt, result.sessionId]);
+  })();
 
   const priorExercises = Array.isArray(prior?.exercises)
     ? prior?.exercises
@@ -448,7 +447,7 @@ export default function WorkoutResult() {
   const priorDurationMin = toNumber(prior?.durationMin);
   const hasCompare = Boolean(prior && (priorDurationMin != null || priorExerciseCount > 0));
 
-  const compareSummary = useMemo(() => {
+  const compareSummary = (() => {
     if (!hasCompare) return null;
     const curM = durationMin ?? null;
     const prevM = priorDurationMin ?? null;
@@ -458,7 +457,7 @@ export default function WorkoutResult() {
     }
     if (deltas.length === 0) return "Похоже на прошлый раз — это хорошо: стабильность даёт результат.";
     return deltas.join(", ") + ".";
-  }, [durationMin, hasCompare, priorDurationMin, priorExerciseCount]);
+  })();
 
   return (
     <ResultContent
