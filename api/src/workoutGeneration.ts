@@ -1994,21 +1994,26 @@ workoutGeneration.post(
     let sessionNumber: number = 1;
 
     const { sessionId, jobId, coachJobId: cjId } = await withTransaction(async () => {
+      // Atomically increment per-user counter (row-level lock prevents duplicates)
+      const counterRows = await q<{ session_number: number }>(
+        `INSERT INTO user_session_counters (user_id, session_count)
+         VALUES ($1, 1)
+         ON CONFLICT (user_id)
+         DO UPDATE SET session_count = user_session_counters.session_count + 1
+         RETURNING session_count AS session_number`,
+        [uid]
+      );
+      sessionNumber = counterRows[0]?.session_number ?? 1;
+
       const result = await q<{ id: string }>(
-        `INSERT INTO workout_sessions (user_id, payload, finished_at)
-         VALUES ($1, $2::jsonb, $3)
+        `INSERT INTO workout_sessions (user_id, payload, finished_at, session_number)
+         VALUES ($1, $2::jsonb, $3, $4)
          RETURNING id`,
-        [uid, payload, finishedAt.toISOString()]
+        [uid, payload, finishedAt.toISOString(), sessionNumber]
       );
 
       const sessionId = result[0]?.id;
       if (!sessionId) throw new AppError("Failed to save session", 500);
-
-      const countResult = await q<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM workout_sessions WHERE user_id = $1`,
-        [uid]
-      );
-      sessionNumber = parseInt(countResult[0]?.count ?? "1", 10) || 1;
 
       await q(
         `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
