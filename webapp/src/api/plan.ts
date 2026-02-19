@@ -96,6 +96,10 @@ export async function getLatestCheckIn() {
   return parseJson(res, "latest_check_in");
 }
 
+export async function deleteTodayCheckin(): Promise<void> {
+  await apiFetch("/plan/check-in/today", { method: "DELETE" });
+}
+
 export type StartWorkoutResponse = {
   action: "keep_day" | "swap_day" | "recovery" | "skip";
   notes?: string[];

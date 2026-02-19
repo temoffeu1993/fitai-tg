@@ -1975,6 +1975,7 @@ workoutGeneration.post(
     let coachJobId: string | null = null;
     let coachJobStatus: string | null = null;
     let weeklyCoachJobId: string | null = null;
+    let sessionNumber: number = 1;
 
     const { sessionId, jobId, coachJobId: cjId } = await withTransaction(async () => {
       const result = await q<{ id: string }>(
@@ -1986,6 +1987,12 @@ workoutGeneration.post(
 
       const sessionId = result[0]?.id;
       if (!sessionId) throw new AppError("Failed to save session", 500);
+
+      const countResult = await q<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM workout_sessions WHERE user_id = $1`,
+        [uid]
+      );
+      sessionNumber = parseInt(countResult[0]?.count ?? "1", 10) || 1;
 
       await q(
         `INSERT INTO workouts (user_id, plan, result, created_at, started_at, completed_at, unlock_used)
@@ -2099,6 +2106,7 @@ workoutGeneration.post(
     res.json({
       ok: true,
       sessionId,
+      sessionNumber,
       progression,
       progressionJobId,
       progressionJobStatus,

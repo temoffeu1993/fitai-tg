@@ -1,10 +1,11 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { workoutTheme } from "./theme";
 
 type Props = {
   primaryLabel: string;
   primaryEnabled?: boolean;
   primaryVariant?: "default" | "compactArrow";
+  primaryIcon?: ReactNode;
   secondaryLabel?: string;
   onPrimary: () => void;
   onSecondary?: () => void;
@@ -15,6 +16,7 @@ export default function BottomDock(props: Props) {
     primaryLabel,
     primaryEnabled = true,
     primaryVariant = "default",
+    primaryIcon,
     secondaryLabel,
     onPrimary,
     onSecondary,
@@ -41,7 +43,7 @@ export default function BottomDock(props: Props) {
             <>
               <span style={s.primaryCompactText}>{primaryLabel}</span>
               <span style={s.primaryCompactArrowWrap} aria-hidden>
-                <span style={s.primaryCompactArrow}>→</span>
+                {primaryIcon ?? <span style={s.primaryCompactArrow}>→</span>}
               </span>
             </>
           ) : (

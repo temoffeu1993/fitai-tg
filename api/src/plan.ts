@@ -3333,6 +3333,18 @@ plan.get(
   })
 );
 
+plan.delete(
+  "/check-in/today",
+  asyncHandler(async (req: any, res: Response) => {
+    const userId = ensureUser(req);
+    await q(
+      `DELETE FROM daily_check_ins WHERE user_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') = CURRENT_DATE`,
+      [userId]
+    );
+    res.json({ ok: true });
+  })
+);
+
 type WorkoutGenerationJob = { planId: string; userId: string; tz: string };
 
 function queueWorkoutPlanGeneration(job: WorkoutGenerationJob) {

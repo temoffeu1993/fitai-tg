@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCoachJob, getProgressionJob, getWorkoutSessionById } from "@/api/plan";
+import mascotImg from "@/assets/robonew.webp";
 
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const HISTORY_KEY = "history_sessions_v1";
@@ -12,6 +13,7 @@ type StoredWorkoutResult = {
   createdAt: string;
   sessionId: string | null;
   plannedWorkoutId: string | null;
+  sessionNumber?: number | null;
   payload: any;
   progression: any | null;
   progressionJob: ProgressionJob;
@@ -327,6 +329,8 @@ export default function WorkoutResult() {
 
   const missingProgression = !summary && job && job.status !== "done";
 
+  const sessionNumber = typeof result.sessionNumber === "number" && result.sessionNumber > 0 ? result.sessionNumber : null;
+
   const durationMin: number | null = toNumber(result.payload?.durationMin);
   const exerciseCount = payloadExercises.length;
   const doneExercises = payloadExercises.filter((ex) => ex?.done === true).length;
@@ -454,6 +458,18 @@ export default function WorkoutResult() {
     <div style={page.outer}>
       <div style={page.inner}>
         <div style={s.sheet}>
+          <div style={s.mascotRow}>
+            <div style={s.mascotCircle}>
+              <img src={mascotImg} alt="Моро" style={s.mascotImg} loading="eager" draggable={false} />
+            </div>
+            <div style={s.mascotText}>
+              <div style={s.mascotHey}>Ееее! 🎉</div>
+              {sessionNumber != null && (
+                <div style={s.mascotSub}>Ты выполнил {sessionNumber}-ю тренировку</div>
+              )}
+            </div>
+          </div>
+
           <section style={s.hero}>
             <div style={s.heroTitle}>{heroHeadline}</div>
             <div style={s.heroSubtitle}>
@@ -800,6 +816,49 @@ const s = {
     background: "#FFFFFF",
     border: "1px solid rgba(17, 24, 39, 0.06)",
     boxShadow: "0 18px 60px rgba(17, 24, 39, 0.10)",
+  } as CSSProperties,
+  mascotRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+    padding: "4px 4px 0",
+  } as CSSProperties,
+  mascotCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    overflow: "hidden",
+    flexShrink: 0,
+    background: "rgba(17,24,39,0.06)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  } as CSSProperties,
+  mascotImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover" as const,
+    objectPosition: "center 10%",
+    borderRadius: 999,
+  } as CSSProperties,
+  mascotText: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 2,
+  } as CSSProperties,
+  mascotHey: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: "#111827",
+    lineHeight: 1.2,
+  } as CSSProperties,
+  mascotSub: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(17,24,39,0.55)",
+    lineHeight: 1.3,
   } as CSSProperties,
   hero: {
     padding: 4,

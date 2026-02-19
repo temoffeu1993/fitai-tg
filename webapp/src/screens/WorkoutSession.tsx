@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, LogOut, Dumbbell } from "lucide-react";
-import { saveSession } from "@/api/plan";
+import { X, LogOut, Dumbbell, Flag } from "lucide-react";
+import { saveSession, deleteTodayCheckin } from "@/api/plan";
+import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
 import { toSessionPlan } from "@/lib/toSessionPlan";
@@ -11,7 +12,6 @@ import CurrentExerciseCard from "@/components/workout-session/CurrentExerciseCar
 import ExerciseEffortModal from "@/components/workout-session/ExerciseEffortModal";
 import ExerciseActionsSheet from "@/components/workout-session/ExerciseActionsSheet";
 import ExerciseListSheet from "@/components/workout-session/ExerciseListSheet";
-import FinishWorkoutModal from "@/components/workout-session/FinishWorkoutModal";
 import RestOverlay from "@/components/workout-session/RestOverlay";
 import SessionHeader from "@/components/workout-session/SessionHeader";
 import SetEditorCard from "@/components/workout-session/SetEditorCard";
@@ -232,9 +232,9 @@ export default function WorkoutSession() {
   const [exitConfirm, setExitConfirm] = useState(false);
   const [exitVisible, setExitVisible] = useState(false);
   const [exitEntered, setExitEntered] = useState(false);
-  const [finishModal, setFinishModal] = useState(false);
-  const [finishDuration, setFinishDuration] = useState("45");
-  const [finishStart, setFinishStart] = useState(toIsoLocalInput(new Date()));
+  const [discardSheet, setDiscardSheet] = useState(false);
+  const [discardVisible, setDiscardVisible] = useState(false);
+  const [discardEntered, setDiscardEntered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
@@ -402,6 +402,19 @@ export default function WorkoutSession() {
     }
   }, [exitConfirm]);
 
+  // Discard sheet animation
+  useEffect(() => {
+    if (discardSheet) {
+      setDiscardVisible(true);
+      const t = setTimeout(() => setDiscardEntered(true), 12);
+      return () => clearTimeout(t);
+    } else {
+      setDiscardEntered(false);
+      const t = setTimeout(() => setDiscardVisible(false), 280);
+      return () => clearTimeout(t);
+    }
+  }, [discardSheet]);
+
   useEffect(() => {
     const item = items[activeIndex];
     if (!item || item.skipped) return;
@@ -440,6 +453,7 @@ export default function WorkoutSession() {
   const doneSets = items.reduce((sum, item) => sum + item.sets.filter((set) => set.done).length, 0);
   const doneExercises = items.filter((item) => item.done || item.skipped).length;
   const setProgress = totalSets ? Math.round((doneSets / totalSets) * 100) : 0;
+  const allDone = items.length > 0 && doneExercises === items.length;
 
   const pushChange = (event: Omit<ChangeEvent, "at">) => {
     const record: ChangeEvent = { ...event, at: new Date().toISOString() };
@@ -799,19 +813,22 @@ export default function WorkoutSession() {
     }
   };
 
-  const openFinishModal = () => {
-    const estimatedMin = estimateSessionDurationMin(items, Math.max(20, Math.round(elapsed / 60)));
-    const start = new Date(Date.now() - estimatedMin * 60_000);
-    setFinishDuration(String(estimatedMin));
-    setFinishStart(toIsoLocalInput(start));
-    setSaveError(null);
-    setFinishModal(true);
+  const discardWorkout = async () => {
+    clearActiveWorkout();
+    if (plannedWorkoutId) {
+      try { await resetPlannedWorkout(plannedWorkoutId); } catch { /* best-effort */ }
+      try { await deleteTodayCheckin(); } catch { /* best-effort */ }
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("schedule_updated"));
+    } catch { }
+    nav("/", { replace: true });
   };
 
   const completeWorkout = async () => {
     if (!plan || saving) return;
-    const durationMin = Math.max(10, Number(finishDuration) || Math.max(10, Math.round(elapsed / 60)));
-    const startedAtIso = finishStart ? new Date(finishStart).toISOString() : undefined;
+    const durationMin = Math.max(10, Math.round(elapsed / 60));
+    const startedAtIso = new Date(Date.now() - durationMin * 60_000).toISOString();
 
     const payload = {
       title: plan.title,
@@ -860,6 +877,7 @@ export default function WorkoutSession() {
       createdAt,
       sessionId: savedSessionId,
       plannedWorkoutId: plannedWorkoutId || null,
+      sessionNumber: typeof saveResponse?.sessionNumber === "number" ? saveResponse.sessionNumber : null,
       payload,
       progression: saveResponse?.progression ?? null,
       progressionJob: saveResponse?.progressionJobId
@@ -904,7 +922,6 @@ export default function WorkoutSession() {
     } catch { }
 
     setSaving(false);
-    setFinishModal(false);
     nav("/workout/result", { replace: true, state: { result: storedResult } });
   };
 
@@ -930,7 +947,6 @@ export default function WorkoutSession() {
     if (restSecLeft != null) return "rest_running";
     if (isSheetOpen) return "sheet_open";
     if (effortPromptIndex != null) return "exercise_completed";
-    if (finishModal) return "finish_confirm";
     if (!activeItem) return "lift_ready";
     const set = activeItem.sets[focusSetIndex];
     if (!set) return "lift_ready";
@@ -981,14 +997,19 @@ export default function WorkoutSession() {
       </main>
 
       <BottomDock
-        primaryLabel="Следующее упражнение"
-        primaryVariant="compactArrow"
+        primaryLabel={allDone ? "Завершить тренировку" : "Следующее упражнение"}
+        primaryVariant={allDone ? "compactArrow" : "compactArrow"}
+        primaryIcon={allDone ? <Flag size={18} strokeWidth={2} /> : undefined}
         onPrimary={() => {
-          if (!canGoNextExercise) return;
-          goNextExercise();
+          if (allDone) {
+            completeWorkout();
+          } else {
+            if (!canGoNextExercise) return;
+            goNextExercise();
+          }
         }}
-        secondaryLabel="Завершить тренировку"
-        onSecondary={openFinishModal}
+        secondaryLabel={allDone ? undefined : "Завершить тренировку"}
+        onSecondary={allDone ? undefined : () => setDiscardSheet(true)}
       />
 
       <RestOverlay
@@ -1046,21 +1067,68 @@ export default function WorkoutSession() {
         onBackMenu={() => setExerciseMenu({ index: activeIndex, mode: "menu" })}
       />
 
-      <FinishWorkoutModal
-        open={finishModal}
-        durationMin={finishDuration}
-        startedAt={finishStart}
-        saving={saving}
-        error={saveError}
-        onChangeDuration={setFinishDuration}
-        onChangeStartedAt={setFinishStart}
-        onCancel={() => {
-          if (saving) return;
-          setFinishModal(false);
-          setSaveError(null);
-        }}
-        onSubmit={completeWorkout}
-      />
+      {discardVisible ? (
+        <>
+          <div
+            style={{
+              ...styles.exitOverlay,
+              opacity: discardEntered ? 1 : 0,
+              transition: `opacity ${discardEntered ? 320 : 260}ms ease`,
+            }}
+            onClick={() => setDiscardSheet(false)}
+          />
+          <div
+            style={{
+              ...styles.exitSheet,
+              transform: discardEntered ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
+              opacity: discardEntered ? 1 : 0,
+              transition: discardEntered
+                ? `transform 380ms cubic-bezier(0.32,0.72,0,1), opacity ${380 * 0.6}ms ease`
+                : `transform 260ms cubic-bezier(0.55,0,1,0.45), opacity 260ms ease`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={styles.exitGrabberRow} aria-hidden>
+              <div style={styles.exitGrabber} />
+            </div>
+            <div style={styles.exitSheetHeader}>
+              <div style={styles.exitCloseSpacerL} aria-hidden />
+              <div style={styles.exitTitle}>Завершить тренировку?</div>
+              <button
+                type="button"
+                aria-label="Закрыть"
+                style={styles.exitCloseBtn}
+                onClick={() => setDiscardSheet(false)}
+              >
+                <X size={15} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div style={styles.exitSheetBody}>
+              <p style={styles.exitText}>Не все упражнения выполнены.</p>
+              <div style={styles.exitList}>
+                <button type="button" style={styles.exitSheetBtn} onClick={() => { setDiscardSheet(false); completeWorkout(); }}>
+                  <span style={styles.exitBtnIconWrap}>
+                    <Flag size={16} strokeWidth={2} />
+                  </span>
+                  <span style={styles.exitBtnLabel}>Сохранить и завершить</span>
+                </button>
+                <button type="button" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={discardWorkout}>
+                  <span style={{ ...styles.exitBtnIconWrap, ...styles.exitBtnIconWrapDanger }}>
+                    <LogOut size={16} strokeWidth={2} />
+                  </span>
+                  <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Завершить без сохранения</span>
+                </button>
+                <button type="button" style={styles.exitSheetBtn} onClick={() => setDiscardSheet(false)}>
+                  <span style={styles.exitBtnIconWrap}>
+                    <Dumbbell size={16} strokeWidth={2} />
+                  </span>
+                  <span style={styles.exitBtnLabel}>Продолжить тренировку</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       {exitVisible ? (
         <>
