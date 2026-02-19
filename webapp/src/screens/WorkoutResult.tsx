@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCoachJob, getProgressionJob, getWorkoutSessionById } from "@/api/plan";
 import mascotImg from "@/assets/robonew.webp";
@@ -60,7 +60,6 @@ function median(nums: number[]): number | null {
 
 function formatKg(v: number | null): string | null {
   if (v == null || !Number.isFinite(v) || v <= 0) return null;
-  // 0.25 kg rounding is common; keep as-is if integer-ish.
   const rounded = Math.round(v * 4) / 4;
   return `${rounded} кг`;
 }
@@ -123,6 +122,28 @@ function coachSummaryMessage(args: {
   return "Стабильность — это тоже прогресс. Добивай верх повторов с чистой техникой, и вес начнёт расти.";
 }
 
+// Typewriter hook
+function useTypewriter(text: string, speed = 28): string {
+  const [displayed, setDisplayed] = useState("");
+  const prevText = useRef("");
+
+  useEffect(() => {
+    if (text === prevText.current) return;
+    prevText.current = text;
+    setDisplayed("");
+    if (!text) return;
+    let i = 0;
+    const tick = () => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i < text.length) setTimeout(tick, speed);
+    };
+    setTimeout(tick, speed);
+  }, [text, speed]);
+
+  return displayed;
+}
+
 export default function WorkoutResult() {
   const nav = useNavigate();
   const location = useLocation();
@@ -154,6 +175,28 @@ export default function WorkoutResult() {
   const [expandDown, setExpandDown] = useState(false);
   const [showMoreProgress, setShowMoreProgress] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Fade-in for content blocks
+  const [contentVisible, setContentVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setContentVisible(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Listen for background save completing
+  useEffect(() => {
+    const onSaved = () => {
+      const fresh = readStored();
+      if (!fresh) return;
+      setResult(fresh);
+      setJob(fresh.progressionJob ?? null);
+      setSummary(fresh.progression ?? null);
+      setCoachJob(fresh.coachJob ?? null);
+      setCoachReport(fresh.coachReport ?? null);
+    };
+    window.addEventListener("workout_saved", onSaved);
+    return () => window.removeEventListener("workout_saved", onSaved);
+  }, []);
 
   // Deep link support: /workout/result?sessionId=...
   useEffect(() => {
@@ -189,9 +232,7 @@ export default function WorkoutResult() {
         // ignore deep-link failures
       }
     })();
-    return () => {
-      canceled = true;
-    };
+    return () => { canceled = true; };
   }, [result, urlSessionId]);
 
   useEffect(() => {
@@ -230,7 +271,6 @@ export default function WorkoutResult() {
     if (!needsPoll) return;
     if (polling) return;
     setPolling(true);
-
     let canceled = false;
     void (async () => {
       const maxPolls = 10;
@@ -241,16 +281,11 @@ export default function WorkoutResult() {
           const j = await pollOnce();
           const st = String(j?.status || "").toLowerCase();
           if (st === "done" || st === "failed") break;
-        } catch {
-          // ignore polling errors
-        }
+        } catch { }
       }
       if (!canceled) setPolling(false);
     })();
-
-    return () => {
-      canceled = true;
-    };
+    return () => { canceled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, needsPoll]);
 
@@ -259,7 +294,6 @@ export default function WorkoutResult() {
     if (!needsCoachPoll) return;
     if (coachPolling) return;
     setCoachPolling(true);
-
     let canceled = false;
     void (async () => {
       const maxPolls = 10;
@@ -270,16 +304,11 @@ export default function WorkoutResult() {
           const j = await pollCoachOnce();
           const st = String(j?.status || "").toLowerCase();
           if (st === "done" || st === "failed") break;
-        } catch {
-          // ignore polling errors
-        }
+        } catch { }
       }
       if (!canceled) setCoachPolling(false);
     })();
-
-    return () => {
-      canceled = true;
-    };
+    return () => { canceled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachJobId, needsCoachPoll]);
 
@@ -295,13 +324,7 @@ export default function WorkoutResult() {
     if (!result) return;
     setResult((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        progressionJob: job,
-        progression: summary,
-        coachJob,
-        coachReport,
-      };
+      return { ...prev, progressionJob: job, progression: summary, coachJob, coachReport };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job?.status, job?.lastError, summary, coachJob?.status, coachJob?.lastError, coachReport]);
@@ -348,39 +371,27 @@ export default function WorkoutResult() {
   });
 
   const scenario =
-    loadDown.length > 0
-      ? "down"
-      : weightUp.length > 0
-        ? "up"
-        : repsUp.length > 0
-          ? "reps"
+    loadDown.length > 0 ? "down"
+      : weightUp.length > 0 ? "up"
+        : repsUp.length > 0 ? "reps"
           : "stable";
 
   const heroHeadline =
-    scenario === "down"
-      ? "🛌 Сегодня бережный режим"
-      : scenario === "up"
-        ? "🎉 Ты стал сильнее"
-        : scenario === "reps"
-          ? "🎉 Ты стал выносливее"
+    scenario === "down" ? "🛌 Сегодня бережный режим"
+      : scenario === "up" ? "🎉 Ты стал сильнее"
+        : scenario === "reps" ? "🎉 Ты стал выносливее"
           : "✅ Отличная стабильность";
 
   const heroSubline =
-    scenario === "down"
-      ? "Снижаем нагрузку, чтобы восстановиться и вернуться сильнее."
-      : scenario === "up"
-        ? `В ${weightUp.length} упражнениях можно прибавить вес.`
-        : scenario === "reps"
-          ? `В ${repsUp.length} упражнениях повышаем цель по повторам.`
+    scenario === "down" ? "Снижаем нагрузку, чтобы восстановиться и вернуться сильнее."
+      : scenario === "up" ? `В ${weightUp.length} упражнениях можно прибавить вес.`
+        : scenario === "reps" ? `В ${repsUp.length} упражнениях повышаем цель по повторам.`
           : "Сохраняем вес и добиваем верх повторов — так и растут.";
 
   const mostImportant =
-    scenario === "down"
-      ? "Это не откат. Разгрузка помогает прогрессировать стабильнее и без перегруза."
-      : scenario === "up"
-        ? `На новых весах главное — техника и комфортный темп.`
-        : scenario === "reps"
-          ? "Повторы выросли — это тоже прогресс. Следующий шаг: постепенно прибавим вес."
+    scenario === "down" ? "Это не откат. Разгрузка помогает прогрессировать стабильнее и без перегруза."
+      : scenario === "up" ? `На новых весах главное — техника и комфортный темп.`
+        : scenario === "reps" ? "Повторы выросли — это тоже прогресс. Следующий шаг: постепенно прибавим вес."
           : "Стабильность — это прогресс. Добей верх повторов в 2–3 упражнениях, и вес начнёт расти.";
 
   const payloadByName = new Map<string, any>();
@@ -410,8 +421,6 @@ export default function WorkoutResult() {
   const prior = useMemo(() => {
     const history = readHistory().slice();
     history.sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
-
-    // Current record is usually the first one, but try to match by sessionId when possible.
     const sessionId = result.sessionId ? String(result.sessionId) : null;
     let currentIndex = 0;
     if (sessionId) {
@@ -434,9 +443,7 @@ export default function WorkoutResult() {
 
   const priorExercises = Array.isArray(prior?.exercises)
     ? prior?.exercises
-    : Array.isArray(prior?.items)
-      ? prior?.items
-      : [];
+    : Array.isArray(prior?.items) ? prior?.items : [];
   const priorExerciseCount = priorExercises.length;
   const priorDurationMin = toNumber(prior?.durationMin);
   const hasCompare = Boolean(prior && (priorDurationMin != null || priorExerciseCount > 0));
@@ -445,31 +452,109 @@ export default function WorkoutResult() {
     if (!hasCompare) return null;
     const curM = durationMin ?? null;
     const prevM = priorDurationMin ?? null;
-
     const deltas: string[] = [];
     if (curM != null && prevM != null) {
       deltas.push(curM < prevM ? "Сегодня короче" : curM > prevM ? "Сегодня дольше" : "По времени похоже");
     }
     if (deltas.length === 0) return "Похоже на прошлый раз — это хорошо: стабильность даёт результат.";
     return deltas.join(", ") + ".";
-  }, [durationMin, exerciseCount, hasCompare, priorDurationMin, priorExerciseCount]);
+  }, [durationMin, hasCompare, priorDurationMin, priorExerciseCount]);
+
+  return (
+    <ResultContent
+      result={result}
+      job={job}
+      summary={summary}
+      details={details}
+      coachJob={coachJob}
+      coachReport={coachReport}
+      sessionNumber={sessionNumber}
+      durationMin={durationMin}
+      exerciseCount={exerciseCount}
+      doneExercises={doneExercises}
+      recordedSets={recordedSets}
+      weightUp={weightUp}
+      repsUp={repsUp}
+      loadDown={loadDown}
+      keep={keep}
+      scenario={scenario}
+      heroHeadline={heroHeadline}
+      heroSubline={heroSubline}
+      mostImportant={mostImportant}
+      missingProgression={!!missingProgression}
+      contentVisible={contentVisible}
+      hasCompare={hasCompare}
+      compareSummary={compareSummary}
+      priorDurationMin={priorDurationMin}
+      priorExerciseCount={priorExerciseCount}
+      expandUp={expandUp} setExpandUp={setExpandUp}
+      expandKeep={expandKeep} setExpandKeep={setExpandKeep}
+      expandDown={expandDown} setExpandDown={setExpandDown}
+      showMoreProgress={showMoreProgress} setShowMoreProgress={setShowMoreProgress}
+      showDetails={showDetails} setShowDetails={setShowDetails}
+      getCurrentWeightFor={getCurrentWeightFor}
+      getTargetUpperFor={getTargetUpperFor}
+      jobId={jobId}
+      pollOnce={pollOnce}
+      nav={nav}
+    />
+  );
+}
+
+function ResultContent(props: any) {
+  const {
+    job, summary, details, coachJob, coachReport, sessionNumber,
+    durationMin, exerciseCount, doneExercises, recordedSets,
+    weightUp, repsUp, loadDown, keep, scenario,
+    heroHeadline, heroSubline, mostImportant, missingProgression,
+    contentVisible, hasCompare, compareSummary,
+    priorDurationMin, priorExerciseCount,
+    expandUp, setExpandUp, expandKeep, setExpandKeep,
+    expandDown, setExpandDown,
+    showMoreProgress, setShowMoreProgress,
+    showDetails, setShowDetails,
+    getCurrentWeightFor, getTargetUpperFor,
+    jobId, pollOnce, nav,
+  } = props;
+
+  const mascotHeyText = "Ееее! 🎉";
+  const mascotSubText = sessionNumber != null ? `Ты выполнил ${sessionNumber}-ю тренировку` : "";
+
+  const typedHey = useTypewriter(mascotHeyText, 40);
+  const [subReady, setSubReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSubReady(true), mascotHeyText.length * 40 + 120);
+    return () => clearTimeout(t);
+  }, []);
+  const typedSub = useTypewriter(subReady ? mascotSubText : "", 28);
+
+  const fadeStyle = (delayMs: number): CSSProperties => ({
+    opacity: contentVisible ? 1 : 0,
+    transform: contentVisible ? "translateY(0)" : "translateY(10px)",
+    transition: `opacity 380ms ease ${delayMs}ms, transform 380ms ease ${delayMs}ms`,
+  });
 
   return (
     <div style={page.outer}>
       <div style={page.inner}>
-        <div style={s.sheet}>
-          <div style={s.mascotRow}>
-            <div style={s.mascotCircle}>
-              <img src={mascotImg} alt="Моро" style={s.mascotImg} loading="eager" draggable={false} />
-            </div>
-            <div style={s.mascotText}>
-              <div style={s.mascotHey}>Ееее! 🎉</div>
-              {sessionNumber != null && (
-                <div style={s.mascotSub}>Ты выполнил {sessionNumber}-ю тренировку</div>
-              )}
-            </div>
-          </div>
 
+        {/* Mascot header — on page background, outside sheet */}
+        <div style={s.mascotRow}>
+          <div style={s.mascotCircle}>
+            <img src={mascotImg} alt="Моро" style={s.mascotImg} loading="eager" draggable={false} />
+          </div>
+          <div style={s.mascotText}>
+            <div style={s.mascotHey}>{typedHey}</div>
+            {mascotSubText && (
+              <div style={{ ...s.mascotSub, opacity: subReady ? 1 : 0, transition: "opacity 200ms ease" }}>
+                {typedSub}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main content sheet */}
+        <div style={{ ...s.sheet, ...fadeStyle(60) }}>
           <section style={s.hero}>
             <div style={s.heroTitle}>{heroHeadline}</div>
             <div style={s.heroSubtitle}>
@@ -496,7 +581,7 @@ export default function WorkoutResult() {
             </div>
           </section>
 
-          <section style={s.section}>
+          <section style={{ ...s.section, ...fadeStyle(180) }}>
             <div style={s.sectionTitle}>🎯 План на следующую тренировку</div>
 
             {job?.status === "failed" && (
@@ -506,11 +591,7 @@ export default function WorkoutResult() {
                 <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
                   <button
                     style={s.smallBtn}
-                    onClick={async () => {
-                      try {
-                        await pollOnce();
-                      } catch {}
-                    }}
+                    onClick={async () => { try { await pollOnce(); } catch {} }}
                     disabled={!jobId}
                   >
                     Обновить
@@ -518,12 +599,7 @@ export default function WorkoutResult() {
                   {job?.lastError ? (
                     <button
                       style={s.smallBtnGhost}
-                      onClick={() => {
-                        alert(
-                          "Техническая ошибка при обновлении прогрессии. Тренировка сохранена.\n\n" +
-                            String(job.lastError)
-                        );
-                      }}
+                      onClick={() => alert("Техническая ошибка при обновлении прогрессии. Тренировка сохранена.\n\n" + String(job.lastError))}
                     >
                       Что случилось?
                     </button>
@@ -546,16 +622,12 @@ export default function WorkoutResult() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
                 {weightUp.length > 0 && (
                   <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandUp((v) => !v)}>
+                    <button style={s.groupHeaderBtn} onClick={() => setExpandUp((v: boolean) => !v)}>
                       <div>
                         <div style={s.groupTitle}>💪 Прибавляем вес ({weightUp.length})</div>
                         {!expandUp && (
                           <div style={s.groupPreview}>
-                            {weightUp
-                              .slice(0, 2)
-                              .map((d) => String(d?.exerciseName || ""))
-                              .filter(Boolean)
-                              .join(", ")}
+                            {weightUp.slice(0, 2).map((d: any) => String(d?.exerciseName || "")).filter(Boolean).join(", ")}
                             {weightUp.length > 2 ? ` и ещё ${weightUp.length - 2}` : ""}
                           </div>
                         )}
@@ -564,7 +636,7 @@ export default function WorkoutResult() {
                     </button>
                     {expandUp && (
                       <div style={s.groupBody}>
-                        {weightUp.slice(0, showMoreProgress ? 50 : 3).map((d, idx) => {
+                        {weightUp.slice(0, showMoreProgress ? 50 : 3).map((d: any, idx: number) => {
                           const rec = d?.recommendation;
                           const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
                           const currentWLabel = formatKg(getCurrentWeightFor(name));
@@ -585,7 +657,7 @@ export default function WorkoutResult() {
                           );
                         })}
                         {weightUp.length > 3 && (
-                          <button style={s.showMoreBtn} onClick={() => setShowMoreProgress((v) => !v)}>
+                          <button style={s.showMoreBtn} onClick={() => setShowMoreProgress((v: boolean) => !v)}>
                             {showMoreProgress ? "Свернуть" : `Показать ещё ${weightUp.length - 3}`}
                           </button>
                         )}
@@ -596,7 +668,7 @@ export default function WorkoutResult() {
 
                 {keep.length > 0 && (
                   <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandKeep((v) => !v)}>
+                    <button style={s.groupHeaderBtn} onClick={() => setExpandKeep((v: boolean) => !v)}>
                       <div>
                         <div style={s.groupTitle}>
                           {repsUp.length > 0 ? `🎯 Повышаем повторы (${keep.length})` : `→ Держим вес, добиваем повторы (${keep.length})`}
@@ -613,7 +685,7 @@ export default function WorkoutResult() {
                     </button>
                     {expandKeep && (
                       <div style={s.groupBody}>
-                        {keep.slice(0, 30).map((d, idx) => {
+                        {keep.slice(0, 30).map((d: any, idx: number) => {
                           const rec = d?.recommendation;
                           const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
                           const currentWLabel = formatKg(getCurrentWeightFor(name));
@@ -623,8 +695,7 @@ export default function WorkoutResult() {
                           const targetLine =
                             action === "increase_reps" && repsTarget
                               ? `Цель: ${repsTarget[0]}–${repsTarget[1]} повторений`
-                              : targetUpper
-                                ? `Цель: дойти до ${targetUpper} повторений`
+                              : targetUpper ? `Цель: дойти до ${targetUpper} повторений`
                                 : "Цель: добить верх диапазона";
                           return (
                             <div key={idx} style={s.exerciseRow}>
@@ -646,7 +717,7 @@ export default function WorkoutResult() {
 
                 {loadDown.length > 0 && (
                   <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandDown((v) => !v)}>
+                    <button style={s.groupHeaderBtn} onClick={() => setExpandDown((v: boolean) => !v)}>
                       <div>
                         <div style={s.groupTitle}>🛌 Разгрузка / упрощаем ({loadDown.length})</div>
                         {!expandDown && (
@@ -657,7 +728,7 @@ export default function WorkoutResult() {
                     </button>
                     {expandDown && (
                       <div style={s.groupBody}>
-                        {loadDown.slice(0, 20).map((d, idx) => {
+                        {loadDown.slice(0, 20).map((d: any, idx: number) => {
                           const rec = d?.recommendation;
                           const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
                           const newWeightLabel = formatKg(toNumber(rec?.newWeight));
@@ -698,20 +769,10 @@ export default function WorkoutResult() {
                           <div key={i}>• {String(b || "").trim()}</div>
                         ))}
                       </div>
-                    ) : coachJobId && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
+                    ) : coachJob?.id && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
                       "Готовлю разбор тренировки…"
-                    ) : String(coachJob?.status || "").toLowerCase() === "failed" ? (
-                      coachSummaryMessage({
-                        hasLoadDown: loadDown.length > 0,
-                        weightUpCount: weightUp.length,
-                        repsUpCount: repsUp.length,
-                      })
                     ) : (
-                      coachSummaryMessage({
-                        hasLoadDown: loadDown.length > 0,
-                        weightUpCount: weightUp.length,
-                        repsUpCount: repsUp.length,
-                      })
+                      coachSummaryMessage({ hasLoadDown: loadDown.length > 0, weightUpCount: weightUp.length, repsUpCount: repsUp.length })
                     )}
                   </div>
                 </div>
@@ -719,7 +780,7 @@ export default function WorkoutResult() {
             )}
 
             {hasCompare && (
-              <div style={s.compareCard}>
+              <div style={{ ...s.compareCard, ...fadeStyle(260) }}>
                 <div style={s.compareTitle}>🆚 Сравнение с прошлой тренировкой</div>
                 <div style={s.compareGrid}>
                   <div style={s.compareCol}>
@@ -740,7 +801,7 @@ export default function WorkoutResult() {
 
             {(summary || recordedSets > 0) && (
               <div style={s.detailsWrap}>
-                <button style={s.detailsBtn} onClick={() => setShowDetails((v) => !v)}>
+                <button style={s.detailsBtn} onClick={() => setShowDetails((v: boolean) => !v)}>
                   Подробнее {showDetails ? "˅" : "›"}
                 </button>
                 {showDetails && (
@@ -765,14 +826,10 @@ export default function WorkoutResult() {
         <div style={s.stickyInner}>
           <button style={s.ctaPrimary} onClick={() => nav("/schedule")}>
             <span style={s.ctaPrimaryLeft}>
-              <span style={s.ctaPrimaryIcon} aria-hidden="true">
-                🗓️
-              </span>
+              <span style={s.ctaPrimaryIcon} aria-hidden="true">🗓️</span>
               <span style={s.ctaPrimaryText}>Запланировать следующую тренировку</span>
             </span>
-            <span style={s.ctaPrimaryArrow} aria-hidden="true">
-              ›
-            </span>
+            <span style={s.ctaPrimaryArrow} aria-hidden="true">›</span>
           </button>
           <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
             Посмотреть прогресс
@@ -780,9 +837,7 @@ export default function WorkoutResult() {
           <button
             style={s.ctaTertiary}
             onClick={() => {
-              try {
-                localStorage.removeItem(LAST_RESULT_KEY);
-              } catch {}
+              try { localStorage.removeItem(LAST_RESULT_KEY); } catch {}
               nav("/");
             }}
           >
@@ -805,18 +860,11 @@ const page = {
     maxWidth: 760,
     margin: "0 auto",
     fontFamily: "system-ui, -apple-system, Inter, Roboto",
-    paddingBottom: 210, // space for sticky actions
+    paddingBottom: 210,
   } as CSSProperties,
 };
 
 const s = {
-  sheet: {
-    borderRadius: 28,
-    padding: 18,
-    background: "#FFFFFF",
-    border: "1px solid rgba(17, 24, 39, 0.06)",
-    boxShadow: "0 18px 60px rgba(17, 24, 39, 0.10)",
-  } as CSSProperties,
   mascotRow: {
     display: "flex",
     alignItems: "center",
@@ -830,7 +878,8 @@ const s = {
     borderRadius: 999,
     overflow: "hidden",
     flexShrink: 0,
-    background: "rgba(17,24,39,0.06)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -853,12 +902,21 @@ const s = {
     fontWeight: 800,
     color: "#111827",
     lineHeight: 1.2,
+    minHeight: "1.2em",
   } as CSSProperties,
   mascotSub: {
     fontSize: 14,
     fontWeight: 500,
     color: "rgba(17,24,39,0.55)",
     lineHeight: 1.3,
+    minHeight: "1.3em",
+  } as CSSProperties,
+  sheet: {
+    borderRadius: 28,
+    padding: 18,
+    background: "#FFFFFF",
+    border: "1px solid rgba(17, 24, 39, 0.06)",
+    boxShadow: "0 18px 60px rgba(17, 24, 39, 0.10)",
   } as CSSProperties,
   hero: {
     padding: 4,
@@ -903,28 +961,6 @@ const s = {
     fontWeight: 800,
     cursor: "pointer",
   } as CSSProperties,
-
-  progressCard: {
-    marginTop: 16,
-    borderRadius: 18,
-    padding: 16,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 10px 30px rgba(17, 24, 39, 0.08)",
-  } as CSSProperties,
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.2,
-  } as CSSProperties,
-  progressSub: {
-    marginTop: 6,
-    fontSize: 14.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-
   metricsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
@@ -950,13 +986,6 @@ const s = {
     color: "#111827",
     letterSpacing: -0.3,
   } as CSSProperties,
-  metricSub: {
-    marginTop: 6,
-    fontSize: 12.5,
-    color: "#6B7280",
-    fontWeight: 800,
-  } as CSSProperties,
-
   importantCard: {
     marginTop: 14,
     borderRadius: 18,
@@ -977,7 +1006,6 @@ const s = {
     color: "#6B7280",
     lineHeight: 1.35,
   } as CSSProperties,
-
   section: {
     marginTop: 10,
   } as CSSProperties,
@@ -993,7 +1021,6 @@ const s = {
     color: "#6B7280",
     lineHeight: 1.35,
   } as CSSProperties,
-
   inlineWarning: {
     marginTop: 12,
     borderRadius: 16,
@@ -1012,65 +1039,6 @@ const s = {
     color: "#92400E",
     opacity: 0.85,
     lineHeight: 1.35,
-  } as CSSProperties,
-
-  recCard: {
-    borderRadius: 18,
-    padding: 16,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 6px 24px rgba(17, 24, 39, 0.06)",
-  } as CSSProperties,
-  recTitle: {
-    fontSize: 18,
-    fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.2,
-  } as CSSProperties,
-  recLine: {
-    marginTop: 10,
-    fontSize: 15,
-    color: "#111827",
-    fontWeight: 700,
-  } as CSSProperties,
-  recLineMuted: {
-    marginTop: 8,
-    fontSize: 14.5,
-    color: "#6B7280",
-    lineHeight: 1.3,
-  } as CSSProperties,
-  recChips: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    marginTop: 12,
-  } as CSSProperties,
-  chipGreen: {
-    fontSize: 12.5,
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "#ECFDF3",
-    color: "#067647",
-    fontWeight: 800,
-    border: "1px solid rgba(6, 118, 71, 0.15)",
-  } as CSSProperties,
-  chipAmber: {
-    fontSize: 12.5,
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "#FFF7ED",
-    color: "#9A3412",
-    fontWeight: 800,
-    border: "1px solid rgba(154, 52, 18, 0.12)",
-  } as CSSProperties,
-  chipBlue: {
-    fontSize: 12.5,
-    padding: "6px 10px",
-    borderRadius: 999,
-    background: "#EFF6FF",
-    color: "#1D4ED8",
-    fontWeight: 800,
-    border: "1px solid rgba(29, 78, 216, 0.12)",
   } as CSSProperties,
   groupCard: {
     borderRadius: 18,
@@ -1158,7 +1126,6 @@ const s = {
     width: "100%",
     textAlign: "center",
   } as CSSProperties,
-
   coachCard: {
     borderRadius: 18,
     padding: 16,
@@ -1189,7 +1156,6 @@ const s = {
     color: "#374151",
     lineHeight: 1.45,
   } as CSSProperties,
-
   compareCard: {
     borderRadius: 18,
     padding: 16,
@@ -1232,18 +1198,12 @@ const s = {
     fontWeight: 800,
     color: "#111827",
   } as CSSProperties,
-  compareLineMuted: {
-    fontSize: 13.5,
-    fontWeight: 800,
-    color: "#6B7280",
-  } as CSSProperties,
   compareHint: {
     marginTop: 12,
     fontSize: 13.5,
     color: "#6B7280",
     lineHeight: 1.35,
   } as CSSProperties,
-
   detailsWrap: {
     marginTop: 10,
   } as CSSProperties,
@@ -1270,7 +1230,6 @@ const s = {
     color: "#6B7280",
     lineHeight: 1.35,
   } as CSSProperties,
-
   stickyWrap: {
     position: "fixed",
     left: 0,

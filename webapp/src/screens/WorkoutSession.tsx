@@ -851,78 +851,79 @@ export default function WorkoutSession() {
       changes,
     };
 
-    let savedSessionId: string | null = null;
-    let saveResponse: any | null = null;
-
-    try {
-      setSaving(true);
-      setSaveError(null);
-      const result: any = await saveSession(payload, {
-        ...(plannedWorkoutId ? { plannedWorkoutId } : {}),
-        startedAt: startedAtIso,
-        durationMin,
-      });
-      saveResponse = result;
-      savedSessionId = typeof result?.sessionId === "string" ? result.sessionId : null;
-    } catch (error) {
-      console.error("Save session failed:", error);
-      setSaveError("Не удалось сохранить тренировку. Проверь интернет и попробуй снова.");
-      setSaving(false);
-      return;
-    }
-
+    // Build a provisional result and navigate immediately — save happens in background
     const createdAt = new Date().toISOString();
-    const storedResult = {
+    const provisionalResult = {
       version: 1 as const,
       createdAt,
-      sessionId: savedSessionId,
+      sessionId: null as string | null,
       plannedWorkoutId: plannedWorkoutId || null,
-      sessionNumber: typeof saveResponse?.sessionNumber === "number" ? saveResponse.sessionNumber : null,
+      sessionNumber: null as number | null,
       payload,
-      progression: saveResponse?.progression ?? null,
-      progressionJob: saveResponse?.progressionJobId
-        ? {
-          id: String(saveResponse.progressionJobId),
-          status: String(saveResponse.progressionJobStatus || "pending"),
-          lastError: null,
-        }
-        : null,
-      coachJob: saveResponse?.coachJobId
-        ? {
-          id: String(saveResponse.coachJobId),
-          status: String(saveResponse.coachJobStatus || "pending"),
-          lastError: null,
-        }
-        : null,
-      weeklyCoachJobId: saveResponse?.weeklyCoachJobId ? String(saveResponse.weeklyCoachJobId) : null,
+      progression: null,
+      progressionJob: null as any,
+      coachJob: null as any,
+      weeklyCoachJobId: null as string | null,
     };
 
     try {
-      localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(storedResult));
-    } catch { }
-
-    try {
-      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      const record = {
-        id: savedSessionId || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now())),
-        finishedAt: new Date().toISOString(),
-        ...payload,
-      };
-      const nextHistory = Array.isArray(history) ? [record, ...history].slice(0, 500) : [record];
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+      localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(provisionalResult));
     } catch { }
 
     clearActiveWorkout();
-    try {
-      localStorage.removeItem(PLAN_CACHE_KEY);
-    } catch { }
-    try {
-      window.dispatchEvent(new CustomEvent("plan_completed"));
-      window.dispatchEvent(new CustomEvent("schedule_updated"));
-    } catch { }
+    try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
     setSaving(false);
-    nav("/workout/result", { replace: true, state: { result: storedResult } });
+    nav("/workout/result", { replace: true, state: { result: provisionalResult } });
+
+    // Save in background, then patch localStorage so result screen picks it up on next read
+    void (async () => {
+      try {
+        const result: any = await saveSession(payload, {
+          ...(plannedWorkoutId ? { plannedWorkoutId } : {}),
+          startedAt: startedAtIso,
+          durationMin,
+        });
+        const savedSessionId = typeof result?.sessionId === "string" ? result.sessionId : null;
+        const patchedResult = {
+          ...provisionalResult,
+          sessionId: savedSessionId,
+          sessionNumber: typeof result?.sessionNumber === "number" ? result.sessionNumber : null,
+          progression: result?.progression ?? null,
+          progressionJob: result?.progressionJobId
+            ? { id: String(result.progressionJobId), status: String(result.progressionJobStatus || "pending"), lastError: null }
+            : null,
+          coachJob: result?.coachJobId
+            ? { id: String(result.coachJobId), status: String(result.coachJobStatus || "pending"), lastError: null }
+            : null,
+          weeklyCoachJobId: result?.weeklyCoachJobId ? String(result.weeklyCoachJobId) : null,
+        };
+        try { localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(patchedResult)); } catch { }
+
+        try {
+          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          const record = {
+            id: savedSessionId || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now())),
+            finishedAt: new Date().toISOString(),
+            ...payload,
+          };
+          const nextHistory = Array.isArray(history) ? [record, ...history].slice(0, 500) : [record];
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+        } catch { }
+
+        try {
+          window.dispatchEvent(new CustomEvent("plan_completed"));
+          window.dispatchEvent(new CustomEvent("schedule_updated"));
+        } catch { }
+
+        // Notify result screen to reload from localStorage
+        try { window.dispatchEvent(new CustomEvent("workout_saved")); } catch { }
+      } catch (error) {
+        console.error("Save session failed:", error);
+        // Notify result screen about the error
+        try { window.dispatchEvent(new CustomEvent("workout_save_error")); } catch { }
+      }
+    })();
   };
 
   if (!plan) {
@@ -1009,6 +1010,7 @@ export default function WorkoutSession() {
         primaryIcon={allDone ? <CheckCheck size={16} strokeWidth={2.2} /> : undefined}
         onPrimary={() => {
           if (allDone) {
+            fireHapticImpact("medium");
             completeWorkout();
           } else {
             if (!canGoNextExercise) return;
