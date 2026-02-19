@@ -71,7 +71,6 @@ export type ProgressionRecommendation = {
     failedLowerBound?: boolean;
     plannedSets?: number;
     performedSets?: number;
-    sessionRpe?: number;
     antiOverreach?: boolean;
     doNotPenalize?: boolean;
     doNotPenalizeReason?: string;
@@ -121,7 +120,6 @@ type ProgressionRules = {
 };
 
 export type ProgressionContext = {
-  sessionRpe?: number;
   exerciseEffort?: Exclude<EffortTag, null>;
   plannedSets?: number;
   performedSets?: number;
@@ -344,7 +342,6 @@ export function calculateProgression(args: {
       reason: "Нет истории по упражнению. Используй рабочий вес для техники.",
       failedLowerBound: false,
       explain: {
-        sessionRpe: context?.sessionRpe,
         antiOverreach: Boolean(context?.antiOverreach),
         doNotPenalize: Boolean(context?.doNotPenalize),
         doNotPenalizeReason: context?.doNotPenalizeReason,
@@ -372,7 +369,6 @@ export function calculateProgression(args: {
     failCount,
     plannedSets: context?.plannedSets,
     performedSets: context?.performedSets,
-    sessionRpe: context?.sessionRpe,
     antiOverreach: Boolean(context?.antiOverreach),
     doNotPenalize: Boolean(context?.doNotPenalize),
     doNotPenalizeReason: context?.doNotPenalizeReason,

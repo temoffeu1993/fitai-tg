@@ -50,11 +50,6 @@ function toNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function clampInt(n: number, min: number, max: number): number {
-  if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.min(max, Math.round(n)));
-}
-
 function median(nums: number[]): number | null {
   const sorted = nums.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
   if (sorted.length === 0) return null;
@@ -96,21 +91,11 @@ function parseUpperReps(reps: unknown): number | null {
   return null;
 }
 
-function effortLabel(sessionRpe: number | null): { icons: string; text: string } {
-  if (sessionRpe == null || !Number.isFinite(sessionRpe)) return { icons: "💪💪", text: "рабоче" };
-  const r = clampInt(sessionRpe, 1, 10);
-  const tier = r <= 6 ? 1 : r <= 8 ? 2 : 3;
-  const icons = "💪".repeat(tier);
-  const text = r <= 6 ? "легко" : r <= 8 ? "рабоче" : "тяжело";
-  return { icons, text };
-}
-
 type HistorySession = {
   id?: string;
   finishedAt?: string;
   durationMin?: number;
   title?: string;
-  feedback?: { sessionRpe?: number };
   items?: Array<any>;
   exercises?: Array<any>;
 };
@@ -128,15 +113,11 @@ function coachSummaryMessage(args: {
   hasLoadDown: boolean;
   weightUpCount: number;
   repsUpCount: number;
-  keepCount: number;
-  sessionRpe: number | null;
 }): string {
-  const { hasLoadDown, weightUpCount, repsUpCount, keepCount, sessionRpe } = args;
-  const effort = effortLabel(sessionRpe).text;
+  const { hasLoadDown, weightUpCount, repsUpCount } = args;
   if (hasLoadDown) return "Сегодня бережный режим — это часть прогресса. Сохрани технику и восстановление, дальше вернёмся к росту.";
   if (weightUpCount > 0) return `Отлично! В ${weightUpCount} упражнениях можно прибавить вес. На новых весах держи технику и комфортный темп.`;
   if (repsUpCount > 0) return `Хорошая работа! В ${repsUpCount} упражнениях повышаем цель по повторам — затем перейдём к росту веса.`;
-  if (keepCount > 0 && effort === "тяжело") return "Нагрузка была высокой — отлично. Сейчас цель: стабильно добить верх повторов и не спешить с весом.";
   return "Стабильность — это тоже прогресс. Добивай верх повторов с чистой техникой, и вес начнёт расти.";
 }
 
@@ -351,23 +332,6 @@ export default function WorkoutResult() {
   const doneExercises = payloadExercises.filter((ex) => ex?.done === true).length;
   const recordedSets = payloadExercises.reduce((acc, ex) => acc + (Array.isArray(ex?.sets) ? ex.sets.length : 0), 0);
 
-  const sum = details.reduce(
-    (acc, d) => {
-      const rec = d?.recommendation;
-      const ex = rec?.explain;
-      const ws = typeof ex?.totalWorkingSets === "number" ? ex.totalWorkingSets : 0;
-      acc.workingSets += ws;
-      const rpe = typeof ex?.sessionRpe === "number" && Number.isFinite(ex.sessionRpe) ? ex.sessionRpe : null;
-      if (acc.sessionRpe == null && rpe != null) acc.sessionRpe = rpe;
-      return acc;
-    },
-    { workingSets: 0, sessionRpe: null as number | null }
-  );
-
-  const payloadRpe = toNumber(result.payload?.feedback?.sessionRpe);
-  const sessionRpe =
-    typeof sum.sessionRpe === "number" && Number.isFinite(sum.sessionRpe) ? sum.sessionRpe : payloadRpe;
-
   const weightUp = details.filter((d) => String(d?.recommendation?.action || "") === "increase_weight");
   const repsUp = details.filter((d) => String(d?.recommendation?.action || "") === "increase_reps");
   const loadDown = details.filter((d) => {
@@ -471,31 +435,20 @@ export default function WorkoutResult() {
       : [];
   const priorExerciseCount = priorExercises.length;
   const priorDurationMin = toNumber(prior?.durationMin);
-  const priorRpe = toNumber((prior as any)?.feedback?.sessionRpe);
-  const hasCompare = Boolean(prior && (priorDurationMin != null || priorExerciseCount > 0 || priorRpe != null));
-
-  const effNow = effortLabel(sessionRpe ?? null);
-  const effPrev = effortLabel(priorRpe ?? null);
+  const hasCompare = Boolean(prior && (priorDurationMin != null || priorExerciseCount > 0));
 
   const compareSummary = useMemo(() => {
     if (!hasCompare) return null;
     const curM = durationMin ?? null;
     const prevM = priorDurationMin ?? null;
-    const curE = exerciseCount || null;
-    const prevE = priorExerciseCount || null;
 
     const deltas: string[] = [];
     if (curM != null && prevM != null) {
       deltas.push(curM < prevM ? "Сегодня короче" : curM > prevM ? "Сегодня дольше" : "По времени похоже");
     }
-    if (effNow.text !== effPrev.text) {
-      deltas.push(effNow.text === "тяжело" ? "интенсивнее" : effNow.text === "легко" ? "легче" : "рабоче");
-    }
     if (deltas.length === 0) return "Похоже на прошлый раз — это хорошо: стабильность даёт результат.";
-    if (deltas.join(" ").includes("короче") && deltas.join(" ").includes("интенсивнее")) return "Сегодня короче, но интенсивнее — отлично по эффективности.";
-    if (deltas.join(" ").includes("дольше") && deltas.join(" ").includes("легче")) return "Сегодня дольше и спокойнее — отлично для техники и выносливости.";
     return deltas.join(", ") + ".";
-  }, [durationMin, effNow.text, effPrev.text, exerciseCount, hasCompare, priorDurationMin, priorExerciseCount]);
+  }, [durationMin, exerciseCount, hasCompare, priorDurationMin, priorExerciseCount]);
 
   return (
     <div style={page.outer}>
@@ -518,11 +471,6 @@ export default function WorkoutResult() {
               <div style={s.metricCard}>
                 <div style={s.metricLabel}>🏋️ Упражнений</div>
                 <div style={s.metricValue}>{exerciseCount || "—"}</div>
-              </div>
-              <div style={s.metricCard}>
-                <div style={s.metricLabel}>💪 Нагрузка</div>
-                <div style={s.metricValue}>{effNow.icons}</div>
-                <div style={s.metricSub}>{effNow.text}</div>
               </div>
             </div>
 
@@ -741,16 +689,12 @@ export default function WorkoutResult() {
                         hasLoadDown: loadDown.length > 0,
                         weightUpCount: weightUp.length,
                         repsUpCount: repsUp.length,
-                        keepCount: keep.length,
-                        sessionRpe: sessionRpe ?? null,
                       })
                     ) : (
                       coachSummaryMessage({
                         hasLoadDown: loadDown.length > 0,
                         weightUpCount: weightUp.length,
                         repsUpCount: repsUp.length,
-                        keepCount: keep.length,
-                        sessionRpe: sessionRpe ?? null,
                       })
                     )}
                   </div>
@@ -766,18 +710,12 @@ export default function WorkoutResult() {
                     <div style={s.compareColTitle}>Сегодня</div>
                     <div style={s.compareLine}>{durationMin != null ? `${durationMin} мин` : "—"}</div>
                     <div style={s.compareLine}>{exerciseCount ? `${exerciseCount} упражнений` : "—"}</div>
-                    <div style={s.compareLine}>
-                      {effNow.icons} <span style={s.compareLineMuted}>({effNow.text})</span>
-                    </div>
                   </div>
                   <div style={s.compareDivider} />
                   <div style={s.compareCol}>
                     <div style={s.compareColTitle}>Прошлый раз</div>
                     <div style={s.compareLine}>{priorDurationMin != null ? `${priorDurationMin} мин` : "—"}</div>
                     <div style={s.compareLine}>{priorExerciseCount ? `${priorExerciseCount} упражнений` : "—"}</div>
-                    <div style={s.compareLine}>
-                      {effPrev.icons} <span style={s.compareLineMuted}>({effPrev.text})</span>
-                    </div>
                   </div>
                 </div>
                 {compareSummary ? <div style={s.compareHint}>{compareSummary}</div> : null}
@@ -792,9 +730,6 @@ export default function WorkoutResult() {
                 {showDetails && (
                   <div style={s.detailsBody}>
                     <div style={s.detailsLine}>Записано подходов: {recordedSets || 0}</div>
-                    {typeof sessionRpe === "number" && Number.isFinite(sessionRpe) ? (
-                      <div style={s.detailsLine}>Нагрузка (оценка): {Math.round(sessionRpe)}/10</div>
-                    ) : null}
                     {summary ? (
                       <div style={s.detailsLine}>Рекомендаций: {details.length}</div>
                     ) : missingProgression ? (

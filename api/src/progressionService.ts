@@ -88,9 +88,6 @@ export type SessionPayload = {
   location?: string;
   durationMin: number;
   exercises: FrontendExercise[];
-  feedback?: {
-    sessionRpe?: number;
-  };
 };
 
 /**
@@ -287,10 +284,6 @@ export async function applyProgressionFromSession(args: {
   console.log(`  Goal: ${goal}, Experience: ${experience}`);
   console.log(`  Exercises: ${payload.exercises?.length || 0}`);
   progLog(`  [ProgressionService][debug] plannedWorkoutId=${plannedWorkoutId || "null"} sessionId=${sessionId || "null"}`);
-
-  const sessionRpeRaw = payload.feedback?.sessionRpe;
-  const sessionRpe =
-    typeof sessionRpeRaw === "number" && Number.isFinite(sessionRpeRaw) ? sessionRpeRaw : undefined;
 
   // Optional planned workout context (for adherence + recovery/shortened detection)
   const plannedSetsByExerciseId = new Map<string, number>();
@@ -498,7 +491,7 @@ export async function applyProgressionFromSession(args: {
       
       // Map frontend effort to RPE
       const avgRpe = mapEffortToRPE(exerciseData.effort);
-      progLog(`  [ProgressionService][debug] mappedSetRpe=${avgRpe} sessionRpe=${sessionRpe ?? "n/a"}`);
+      progLog(`  [ProgressionService][debug] mappedSetRpe=${avgRpe}`);
       
       // Build full ExerciseHistory (store all reps-based sets)
       const fullHistory: ExerciseHistory = {
@@ -568,7 +561,6 @@ export async function applyProgressionFromSession(args: {
       );
 
       const antiOverreach =
-        (typeof sessionRpe === "number" && sessionRpe >= 9) ||
         exerciseData.effort === "hard" ||
         exerciseData.effort === "max";
 
@@ -622,7 +614,6 @@ export async function applyProgressionFromSession(args: {
                     : undefined;
 
       const context: ProgressionContext = {
-        sessionRpe,
         exerciseEffort: exerciseData.effort ?? undefined,
         plannedSets,
         performedSets,

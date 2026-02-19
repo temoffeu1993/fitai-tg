@@ -1,25 +1,14 @@
 import type { CSSProperties } from "react";
 import { workoutTheme } from "./theme";
 
-const RPE_OPTIONS: Array<{ value: number; emoji: string; label: string }> = [
-  { value: 5,  emoji: "😴", label: "Легко" },
-  { value: 6,  emoji: "🙂", label: "Умеренно" },
-  { value: 7,  emoji: "💪", label: "Рабочий" },
-  { value: 8,  emoji: "😮‍💨", label: "Тяжеловато" },
-  { value: 9,  emoji: "😵", label: "Тяжело" },
-  { value: 10, emoji: "🥵", label: "Предел" },
-];
-
 type Props = {
   open: boolean;
   durationMin: string;
   startedAt: string;
-  sessionRpe: number | null;
   saving: boolean;
   error: string | null;
   onChangeDuration: (v: string) => void;
   onChangeStartedAt: (v: string) => void;
-  onChangeSessionRpe: (v: number) => void;
   onCancel: () => void;
   onSubmit: () => void;
 };
@@ -29,12 +18,10 @@ export default function FinishWorkoutModal(props: Props) {
     open,
     durationMin,
     startedAt,
-    sessionRpe,
     saving,
     error,
     onChangeDuration,
     onChangeStartedAt,
-    onChangeSessionRpe,
     onCancel,
     onSubmit,
   } = props;
@@ -65,39 +52,6 @@ export default function FinishWorkoutModal(props: Props) {
             disabled={saving}
           />
         </label>
-
-        {/* Session RPE selector */}
-        <div style={s.label}>
-          <span style={s.labelText}>Общая нагрузка тренировки</span>
-          <div style={s.rpeRow}>
-            {RPE_OPTIONS.map((opt) => {
-              const selected = sessionRpe === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  disabled={saving}
-                  style={{
-                    ...s.rpeBtn,
-                    ...(selected ? s.rpeBtnSelected : {}),
-                  }}
-                  onClick={() => onChangeSessionRpe(opt.value)}
-                  title={opt.label}
-                >
-                  <span style={s.rpeEmoji}>{opt.emoji}</span>
-                  <span style={{ ...s.rpeLabel, ...(selected ? s.rpeLabelSelected : {}) }}>
-                    {opt.value}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {sessionRpe != null && (
-            <span style={s.rpeHint}>
-              {RPE_OPTIONS.find((o) => o.value === sessionRpe)?.label ?? ""}
-            </span>
-          )}
-        </div>
 
         {error ? <div style={s.error}>{error}</div> : null}
         <div style={s.row}>
@@ -167,52 +121,6 @@ const s: Record<string, CSSProperties> = {
     boxSizing: "border-box",
     outline: "none",
     boxShadow: "inset 0 1px 2px rgba(15,23,42,0.08)",
-  },
-  rpeRow: {
-    display: "flex",
-    gap: 4,
-  },
-  rpeBtn: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 12,
-    border: "1px solid rgba(15,23,42,0.08)",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    cursor: "pointer",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-    padding: "6px 2px",
-    WebkitTapHighlightColor: "transparent",
-    transition: "background 160ms ease, box-shadow 160ms ease",
-  } as CSSProperties,
-  rpeBtnSelected: {
-    background: "linear-gradient(135deg, rgba(196,228,178,0.55) 0%, rgba(196,228,178,0.35) 100%)",
-    border: "1px solid rgba(100,180,60,0.35)",
-    boxShadow: "0 2px 8px rgba(100,180,60,0.18), inset 0 1px 0 rgba(255,255,255,0.8)",
-  } as CSSProperties,
-  rpeEmoji: {
-    fontSize: 18,
-    lineHeight: 1,
-  },
-  rpeLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: workoutTheme.textMuted,
-    lineHeight: 1,
-  },
-  rpeLabelSelected: {
-    color: workoutTheme.textPrimary,
-  },
-  rpeHint: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: workoutTheme.textSecondary,
-    textAlign: "center" as const,
-    lineHeight: 1.3,
   },
   error: {
     fontSize: 13,
