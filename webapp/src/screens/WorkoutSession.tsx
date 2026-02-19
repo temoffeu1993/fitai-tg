@@ -996,6 +996,13 @@ export default function WorkoutSession() {
         </div>
       </main>
 
+      {saveError ? (
+        <div style={styles.saveErrorBanner} role="alert">
+          {saveError}
+          <button type="button" style={styles.saveErrorClose} onClick={() => setSaveError(null)} aria-label="Закрыть">✕</button>
+        </div>
+      ) : null}
+
       <BottomDock
         primaryLabel={allDone ? "Завершить тренировку" : "Следующее упражнение"}
         primaryVariant={allDone ? "compactArrow" : "compactArrow"}
@@ -1223,6 +1230,35 @@ const entryTransitionCss = `
 `;
 
 const styles: Record<string, React.CSSProperties> = {
+  saveErrorBanner: {
+    position: "fixed",
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 120px)",
+    left: 16,
+    right: 16,
+    zIndex: 50,
+    background: "#ff3b30",
+    color: "#fff",
+    borderRadius: 14,
+    padding: "12px 44px 12px 16px",
+    fontSize: 14,
+    fontWeight: 500,
+    boxShadow: "0 4px 16px rgba(255,59,48,0.35)",
+    display: "flex",
+    alignItems: "center",
+  },
+  saveErrorClose: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "none",
+    border: "none",
+    color: "#fff",
+    fontSize: 16,
+    cursor: "pointer",
+    padding: 4,
+    lineHeight: 1,
+  },
   page: {
     minHeight: "100vh",
     background: workoutTheme.pageGradient,

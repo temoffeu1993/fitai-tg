@@ -426,6 +426,22 @@ workoutGeneration.get(
 );
 
 // ============================================================================
+// DELETE /check-in/today - Delete today's check-in (used on discard workout)
+// ============================================================================
+
+workoutGeneration.delete(
+  "/check-in/today",
+  asyncHandler(async (req: any, res: Response) => {
+    const uid = getUid(req);
+    await q(
+      `DELETE FROM daily_check_ins WHERE user_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') = CURRENT_DATE`,
+      [uid]
+    );
+    res.json({ ok: true });
+  })
+);
+
+// ============================================================================
 // POST /generate - Алиас для совместимости со старым фронтендом
 // Генерирует недельный план и возвращает первый день
 // ============================================================================
