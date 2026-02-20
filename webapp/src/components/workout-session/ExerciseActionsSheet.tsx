@@ -536,15 +536,15 @@ function ConfirmView({
             ...s.menuGroupBtn,
             color: workoutTheme.danger,
             opacity: disabled ? 0.5 : 0.8,
-            justifyContent: "center",
+            justifyContent: "flex-start",
           }}
           onClick={onConfirm}
           disabled={disabled}
         >
-          <span style={s.menuBtnLabelCenter}>{confirmLabel}</span>
+          <span style={s.menuBtnLabel}>{confirmLabel}</span>
         </button>
 
-        <div style={{ ...s.menuDivider, marginLeft: 0 }} />
+        <div style={{ ...s.menuDivider, marginLeft: 16 }} />
 
         <button
           type="button"
@@ -552,11 +552,11 @@ function ConfirmView({
           style={{
             ...s.menuGroupBtn,
             color: workoutTheme.accent,
-            justifyContent: "center",
+            justifyContent: "flex-start",
           }}
           onClick={onCancel}
         >
-          <span style={s.menuBtnLabelCenter}>Отмена</span>
+          <span style={s.menuBtnLabel}>Отмена</span>
         </button>
       </div>
     </div>
@@ -938,8 +938,8 @@ const s: Record<string, CSSProperties> = {
     fontSize: 15,
     color: workoutTheme.textSecondary,
     lineHeight: 1.45,
-    textAlign: "center",
-    padding: "12px 24px 20px",
+    textAlign: "left",
+    padding: "16px 16px 20px",
     margin: 0,
   },
   confirmButtonGroup: {
