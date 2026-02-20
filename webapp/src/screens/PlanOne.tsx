@@ -2172,76 +2172,51 @@ function PeeSkeleton() {
   );
 }
 
-function PeeMenuBtn({ icon, label, onClick, danger = false, small = false, disabled = false }: {
+function PeeMenuBtn({ icon, label, onClick, danger = false, disabled = false }: {
   icon: React.ReactNode; label: string; onClick: () => void;
-  danger?: boolean; small?: boolean; disabled?: boolean;
+  danger?: boolean; disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="pee-sheet-btn"
+      className="pee-menu-btn"
       style={{
-        width: "100%",
-        minHeight: small ? 46 : 58,
-        borderRadius: 18,
-        border: "1px solid rgba(255,255,255,0.4)",
-        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-        boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-        padding: small ? "10px 12px" : "12px 14px",
-        fontSize: small ? 15 : 18,
-        fontWeight: small ? 400 : 500,
-        opacity: danger ? 0.72 : 1,
-        textAlign: "left" as const,
-        cursor: "pointer",
-        display: "flex",
-        flexDirection: "row" as const,
-        alignItems: "center",
-        gap: 12,
+        ...s.menuGroupBtn,
         color: danger ? workoutTheme.danger : workoutTheme.accent,
       }}
       onClick={onClick}
       disabled={disabled}
     >
-      <span style={{
-        width: small ? 28 : 34, height: small ? 28 : 34, borderRadius: 999,
-        background: workoutTheme.pillBg, boxShadow: workoutTheme.pillShadow,
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0, color: "inherit",
-      }}>
+      <span style={{ ...s.menuBtnIconWrap, color: danger ? workoutTheme.danger : workoutTheme.accent, opacity: danger ? 0.8 : 1 }}>
         {icon}
       </span>
-      <span style={{ flex: 1, color: "inherit", lineHeight: 1.25 }}>{label}</span>
+      <span style={{ ...s.menuBtnLabel, opacity: danger ? 0.8 : 1 }}>
+        {label}
+      </span>
     </button>
   );
 }
 
-function PeeAltRow({ alt, onClick, index }: { alt: ExerciseAlternative; onClick: () => void; index: number }) {
+function PeeAltRow({ alt, onClick, index, isLast }: { alt: ExerciseAlternative; onClick: () => void; index: number; isLast?: boolean }) {
   return (
-    <button
-      type="button"
-      className="pee-sheet-btn"
-      style={{
-        width: "100%",
-        minHeight: 58,
-        borderRadius: 18,
-        border: "1px solid rgba(255,255,255,0.4)",
-        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-        boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-        padding: "14px 16px",
-        textAlign: "left" as const,
-        cursor: "pointer",
-        display: "flex",
-        flexDirection: "column" as const,
-        alignItems: "flex-start",
-        color: workoutTheme.accent,
-        animation: "pee-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
-        animationDelay: `${index * 30}ms`,
-      }}
-      onClick={onClick}
-    >
-      <div style={{ fontSize: 18, fontWeight: 500, color: "inherit", lineHeight: 1.3 }}>{alt.name}</div>
-      {alt.hint ? <div style={{ fontSize: 13, fontWeight: 500, color: workoutTheme.textMuted, marginTop: 3, lineHeight: 1.3 }}>{alt.hint}</div> : null}
-    </button>
+    <>
+      <button
+        type="button"
+        className="pee-menu-btn"
+        style={{
+          ...s.menuGroupBtn,
+          ...s.altRowInner,
+          animationDelay: `${index * 30}ms`,
+        }}
+        onClick={onClick}
+      >
+        <div style={s.altTextWrap}>
+          <div style={s.altName}>{alt.name}</div>
+          {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
+        </div>
+      </button>
+      {!isLast && <div style={{ ...s.menuDivider, marginLeft: 16 }} />}
+    </>
   );
 }
 
@@ -2449,57 +2424,65 @@ function PlannedExercisesEditor({
     switch (m) {
       case "menu":
         return (
-          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <div style={s.menuWrap}>
+            <div style={s.menuGroup}>
               <PeeMenuBtn
-                icon={<RefreshCw size={16} strokeWidth={2.2} />}
-                label="Заменить"
+                icon={<RefreshCw size={18} strokeWidth={2.2} />}
+                label="Заменить упражнение"
                 onClick={() => void fetchAlternatives()}
                 disabled={loading || !currentId}
               />
+              <div style={s.menuDivider} />
               <PeeMenuBtn
-                icon={<Trash2 size={16} strokeWidth={2.2} />}
-                label="Удалить"
+                icon={<Trash2 size={18} strokeWidth={2.2} />}
+                label="Удалить из тренировки"
                 onClick={() => goMode("confirm_remove")}
                 danger
               />
+              <div style={s.menuDivider} />
+              <PeeMenuBtn
+                icon={<Ban size={18} strokeWidth={2.2} />}
+                label="Исключить из планов"
+                onClick={() => goMode("confirm_ban")}
+                danger
+                disabled={loading || !currentId}
+              />
             </div>
-            <PeeMenuBtn
-              icon={<Ban size={15} strokeWidth={2.2} />}
-              label="Заблокировать в будущих планах"
-              onClick={() => goMode("confirm_ban")}
-              danger
-              small
-              disabled={loading || !currentId}
-            />
           </div>
         );
       case "replace":
         return (
-          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
+          <div style={s.replaceWrap}>
             {loading ? (
               <PeeSkeleton />
             ) : err ? (
-              <div style={{ padding: "16px", textAlign: "center", color: workoutTheme.danger, fontSize: 14, fontWeight: 500 }}>
-                {err}
-                <br />
+              <div style={s.errorCard}>
+                <div style={s.errorTitle}>Не удалось загрузить</div>
+                <div style={s.errorBody}>{err}</div>
                 <button
                   type="button"
                   className="pee-sheet-btn"
-                  style={{ marginTop: 10, width: "100%", minHeight: 48, borderRadius: 18, border: "1px solid rgba(255,255,255,0.4)", background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)", boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7)", padding: "10px 14px", fontSize: 16, fontWeight: 500, color: workoutTheme.accent, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  style={{
+                    ...s.sheetBtn,
+                    color: workoutTheme.accent,
+                    ["--pee-btn-color" as never]: workoutTheme.accent,
+                    marginTop: 8,
+                  }}
                   onClick={() => void fetchAlternatives()}
                 >
                   Попробовать снова
                 </button>
               </div>
             ) : alts.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center", color: workoutTheme.textSecondary, fontSize: 15, fontWeight: 500 }}>
-                Замен не найдено
+              <div style={s.emptyState}>
+                <div style={s.emptyIcon}>🔍</div>
+                <div style={s.emptyTitle}>Замены не найдены</div>
+                <div style={s.emptyBody}>Для этого упражнения подходящих альтернатив нет</div>
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={s.menuGroup}>
                 {alts.map((a, idx) => (
-                  <PeeAltRow key={a.exerciseId} alt={a} onClick={() => void applyReplace(a.exerciseId)} index={idx} />
+                  <PeeAltRow key={a.exerciseId} alt={a} onClick={() => void applyReplace(a.exerciseId)} index={idx} isLast={idx === alts.length - 1} />
                 ))}
               </div>
             )}
@@ -2507,22 +2490,24 @@ function PlannedExercisesEditor({
         );
       case "confirm_remove":
         return (
-          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
-            <p style={{ fontSize: 15, color: workoutTheme.textSecondary, lineHeight: 1.45, textAlign: "center", padding: "8px 4px", margin: 0 }}>
-              Удалить упражнение из этого плана?
-            </p>
-            <PeeMenuBtn icon={<Trash2 size={16} strokeWidth={2.2} />} label={loading ? "Удаляем..." : "Да, удалить"} onClick={() => void applyRemove()} danger disabled={loading} />
-            <PeeMenuBtn icon={<ArrowLeft size={16} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+          <div style={s.confirmWrap}>
+            <p style={s.confirmBody}>Удалить упражнение из этого плана?</p>
+            <div style={s.confirmButtonGroup}>
+              <PeeMenuBtn icon={<Trash2 size={18} strokeWidth={2.2} />} label={loading ? "Удаляем..." : "Да, удалить"} onClick={() => void applyRemove()} danger disabled={loading} />
+              <div style={{ ...s.menuDivider, marginLeft: 16 }} />
+              <PeeMenuBtn icon={<ArrowLeft size={18} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+            </div>
           </div>
         );
       case "confirm_ban":
         return (
-          <div style={{ display: "grid", gap: 6, padding: "4px 16px 8px" }}>
-            <p style={{ fontSize: 15, color: workoutTheme.textSecondary, lineHeight: 1.45, textAlign: "center", padding: "8px 4px", margin: 0 }}>
-              Убрать упражнение из будущих генераций?
-            </p>
-            <PeeMenuBtn icon={<Ban size={16} strokeWidth={2.2} />} label={loading ? "Сохраняем..." : "Да, заблокировать"} onClick={() => void applyBan()} danger disabled={loading} />
-            <PeeMenuBtn icon={<ArrowLeft size={16} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+          <div style={s.confirmWrap}>
+            <p style={s.confirmBody}>Убрать упражнение из будущих генераций?</p>
+            <div style={s.confirmButtonGroup}>
+              <PeeMenuBtn icon={<Ban size={18} strokeWidth={2.2} />} label={loading ? "Сохраняем..." : "Да, заблокировать"} onClick={() => void applyBan()} danger disabled={loading} />
+              <div style={{ ...s.menuDivider, marginLeft: 16 }} />
+              <PeeMenuBtn icon={<ArrowLeft size={18} strokeWidth={2.2} />} label="Отмена" onClick={() => goMode("menu")} />
+            </div>
           </div>
         );
       default:
@@ -2756,6 +2741,19 @@ const peeCss = `
     background-size: 200% 100% !important;
     animation: pee-shimmer 1.4s ease infinite !important;
   }
+  /* Menu wrapper classes for PlanOne */
+  .pee-menu-btn {
+    appearance: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .pee-menu-btn:active:not(:disabled) {
+    background: rgba(15,23,42,0.08) !important;
+  }
+
   .pee-sheet-btn {
     appearance: none;
     outline: none;
@@ -2797,6 +2795,157 @@ const peeCss = `
 `;
 
 /* ----------------- Мелкие элементы ----------------- */
+
+const s: Record<string, React.CSSProperties> = {
+  ...modal,
+  menuWrap: {
+    padding: "0 16px 24px",
+    display: "flex",
+    flexDirection: "column",
+  },
+  menuGroup: {
+    display: "flex",
+    flexDirection: "column",
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 20,
+    border: "1px solid rgba(0,0,0,0.03)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    overflow: "hidden",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.5)",
+  },
+  menuGroupBtn: {
+    padding: "16px",
+    background: "transparent",
+    border: "none",
+    textAlign: "left" as const,
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    minHeight: 56,
+  },
+  menuDivider: {
+    height: 1,
+    background: "rgba(0,0,0,0.06)",
+    marginLeft: 44,
+  },
+  menuBtnIconWrap: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 24,
+  },
+  menuBtnLabel: {
+    fontSize: 17,
+    fontWeight: 500,
+    flex: 1,
+  },
+  replaceWrap: {
+    padding: "0 16px 24px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  altRowInner: {
+    animation: "pee-alt-in 0.35s cubic-bezier(0.36, 0.66, 0.04, 1) both",
+  },
+  altTextWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    flex: 1,
+  },
+  altName: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: workoutTheme.accent,
+    lineHeight: 1.25,
+  },
+  altHint: {
+    fontSize: 13,
+    color: workoutTheme.textMuted,
+    lineHeight: 1.35,
+  },
+  confirmWrap: {
+    padding: "0 16px 24px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  },
+  confirmBody: {
+    fontSize: 16,
+    color: workoutTheme.textSecondary,
+    textAlign: "center" as const,
+    lineHeight: 1.45,
+    margin: "0 8px",
+  },
+  confirmButtonGroup: {
+    display: "flex",
+    flexDirection: "column",
+    background: "rgba(255,255,255,0.6)",
+    borderRadius: 20,
+    border: "1px solid rgba(0,0,0,0.03)",
+    overflow: "hidden",
+  },
+  errorCard: {
+    background: "rgba(239,68,68,0.08)",
+    border: "1px solid rgba(239,68,68,0.2)",
+    borderRadius: 20,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center" as const,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: workoutTheme.danger,
+    marginBottom: 6,
+  },
+  errorBody: {
+    fontSize: 14,
+    color: workoutTheme.textSecondary,
+    marginBottom: 16,
+    lineHeight: 1.4,
+  },
+  sheetBtn: {
+    width: "100%",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%)",
+    border: "1px solid rgba(255,255,255,0.4)",
+    boxShadow: "0 8px 20px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+    borderRadius: 16,
+    padding: "14px 20px",
+    fontSize: 16,
+    fontWeight: 600,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyState: {
+    padding: "32px 20px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center" as const,
+  },
+  emptyIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+    opacity: 0.8,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: workoutTheme.textPrimary,
+    marginBottom: 6,
+  },
+  emptyBody: {
+    fontSize: 14,
+    color: workoutTheme.textSecondary,
+    lineHeight: 1.4,
+  },
+};
 
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
