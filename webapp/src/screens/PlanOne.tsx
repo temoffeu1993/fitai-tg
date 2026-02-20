@@ -2799,6 +2799,31 @@ const peeCss = `
   }
 `;
 
+/* ----------------- Стиль под Dashboard ----------------- */
+
+const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
+const BLOCK_GRADIENT =
+  "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
+const loaderSimple = {
+  wrap: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    background: "#ffffff",
+    padding: 16,
+  } as React.CSSProperties,
+  inner: {
+    display: "grid",
+    gap: 10,
+    justifyItems: "center",
+  } as React.CSSProperties,
+  label: {
+    fontSize: 13,
+    color: "rgba(15,23,42,0.62)",
+    fontWeight: 600,
+  } as React.CSSProperties,
+};
+
 /* ----------------- Мелкие элементы ----------------- */
 
 const modal: Record<string, React.CSSProperties> = {
@@ -3476,31 +3501,6 @@ function TypingDotsStyles() {
     `}</style>
   );
 }
-
-/* ----------------- Стиль под Dashboard ----------------- */
-
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-const BLOCK_GRADIENT =
-  "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
-const loaderSimple = {
-  wrap: {
-    minHeight: "100vh",
-    display: "grid",
-    placeItems: "center",
-    background: "#ffffff",
-    padding: 16,
-  } as React.CSSProperties,
-  inner: {
-    display: "grid",
-    gap: 10,
-    justifyItems: "center",
-  } as React.CSSProperties,
-  label: {
-    fontSize: 13,
-    color: "rgba(15,23,42,0.62)",
-    fontWeight: 600,
-  } as React.CSSProperties,
-};
 
 /* ----------------- Единые цвета секций ----------------- */
 const uxColors = {
