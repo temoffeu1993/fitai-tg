@@ -419,10 +419,10 @@ function MenuBtn({ icon, label, onClick, danger = false }: {
       }}
       onClick={onClick}
     >
-      <span style={{ ...s.menuBtnIconWrap, color: danger ? workoutTheme.danger : workoutTheme.accent }}>
+      <span style={{ ...s.menuBtnIconWrap, color: danger ? workoutTheme.danger : workoutTheme.accent, opacity: danger ? 0.8 : 1 }}>
         {icon}
       </span>
-      <span style={s.menuBtnLabel}>
+      <span style={{ ...s.menuBtnLabel, opacity: danger ? 0.8 : 1 }}>
         {label}
       </span>
     </button>
@@ -780,11 +780,8 @@ const s: Record<string, CSSProperties> = {
     gap: 12,
   },
   menuBtnIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    width: 28,
+    height: 28,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -806,18 +803,15 @@ const s: Record<string, CSSProperties> = {
   menuGroup: {
     display: "flex",
     flexDirection: "column",
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
     overflow: "hidden",
+    // Clean background per user request
   },
   menuGroupBtn: {
     width: "100%",
     minHeight: 56,
     background: "transparent",
     border: "none",
-    padding: "14px 16px",
+    padding: "14px 4px",
     fontSize: 18,
     fontWeight: 500,
     textAlign: "left" as const,
@@ -825,12 +819,12 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
   },
   menuDivider: {
     height: 1,
     background: "rgba(15,23,42,0.06)",
-    marginLeft: 64, // 16 padding + 34 icon + 14 gap
+    marginLeft: 48, // 4 padding + 28 icon + 16 gap
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
