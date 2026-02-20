@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { workoutTheme } from "./theme";
 import { formatClock } from "./utils";
-import { ArrowLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ArrowLeft, List, Pause, Play } from "lucide-react";
 
 type Props = {
   elapsedSec: number;
@@ -44,8 +44,7 @@ export default function SessionHeader(props: Props) {
             </button>
 
             <button type="button" aria-label="Открыть список упражнений" style={s.listBtn} onClick={onOpenList}>
-              <span style={s.listText}>{exerciseProgressLabel}</span>
-              <ChevronRight size={16} strokeWidth={2.2} style={s.iconGlyph} />
+              <List size={22} strokeWidth={2.2} style={s.iconGlyph} />
             </button>
           </div>
 
@@ -107,20 +106,13 @@ const s: Record<string, CSSProperties> = {
     background: "transparent",
     borderRadius: 999,
     minHeight: 44,
-    padding: "0 2px 0 6px",
-    color: "rgba(15,23,42,0.7)",
+    minWidth: 44,
+    padding: 0,
+    color: "rgba(15,23,42,0.72)",
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    whiteSpace: "nowrap",
-  },
-  listText: {
-    fontSize: 16,
-    fontWeight: 600,
-    lineHeight: 1,
-    fontVariantNumeric: "tabular-nums",
   },
   iconGlyph: {
     flex: "0 0 auto",

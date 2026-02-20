@@ -198,7 +198,7 @@ export default function SetEditorCard(props: Props) {
         <div
           style={{
             ...s.chipsWrap,
-            maxHeight: historyOpen ? `${item.sets.length * 44}px` : "0px",
+            maxHeight: historyOpen ? `${item.sets.length * 64 + 16}px` : "0px",
             opacity: historyOpen ? 1 : 0,
           }}
           aria-hidden={!historyOpen}
@@ -210,8 +210,8 @@ export default function SetEditorCard(props: Props) {
                   key={idx}
                   type="button"
                   style={{
-                    ...s.doneChip,
-                    ...(idx === focusSetIndex ? s.doneChipFocused : null),
+                    ...s.doneHistoryBtn,
+                    ...(idx === focusSetIndex ? s.doneHistoryBtnFocused : null),
                   }}
                   onClick={() => {
                     if (onFocusSet) {
@@ -220,7 +220,9 @@ export default function SetEditorCard(props: Props) {
                     }
                   }}
                 >
-                  {formatDoneChip(entry, needWeight)}
+                  <span style={s.doneHistoryBtnLeft}>Подход {idx + 1}</span>
+                  <span style={s.doneHistoryBtnCenter}>{formatDoneChip(entry, needWeight)}</span>
+                  <span style={s.doneHistoryBtnRight}>✓</span>
                 </button>
               ) : null
             )}
@@ -641,36 +643,50 @@ const s: Record<string, CSSProperties> = {
     transition: "transform 200ms ease",
   },
 
-  // Expandable chips accordion
+  // Expandable history accordion
   chipsWrap: {
     overflow: "hidden",
     transition: "max-height 220ms cubic-bezier(0.36, 0.66, 0.04, 1), opacity 180ms ease",
   },
-
-  // Done set chips
   doneChipsRow: {
     display: "flex",
-    flexWrap: "wrap",
-    gap: 5,
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 8,
     padding: "8px 0 2px",
   },
-  doneChip: {
+  doneHistoryBtn: {
+    width: "100%",
+    minHeight: 56,
+    borderRadius: 16,
     border: "none",
-    borderRadius: 999,
-    padding: "4px 10px",
-    fontSize: 12,
-    fontWeight: 600,
-    lineHeight: 1.3,
-    fontVariantNumeric: "tabular-nums",
     background: workoutTheme.pillBg,
     boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 16px",
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
+    transition: "background 100ms ease, box-shadow 100ms ease",
   },
-  doneChipFocused: {
+  doneHistoryBtnFocused: {
     background: "rgba(196,228,178,0.38)",
     boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  doneHistoryBtnLeft: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.6)",
+  },
+  doneHistoryBtnCenter: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: workoutTheme.textPrimary,
+    fontVariantNumeric: "tabular-nums",
+  },
+  doneHistoryBtnRight: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: workoutTheme.textPrimary,
   },
 };

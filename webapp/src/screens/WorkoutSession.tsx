@@ -608,8 +608,12 @@ export default function WorkoutSession() {
     const nextExerciseIndex = completedExerciseIndex < items.length - 1 ? completedExerciseIndex + 1 : null;
     if (nextExerciseIndex == null) return;
 
-    setPendingAdvanceExercise(nextExerciseIndex);
-    startRest(completed?.restSec);
+    if (restEnabled && (completed?.restSec || 0) > 0) {
+      setPendingAdvanceExercise(nextExerciseIndex);
+      startRest(completed?.restSec);
+    } else {
+      goToExercise(nextExerciseIndex);
+    }
   };
 
   const goToExercise = (index: number) => {
@@ -1008,8 +1012,8 @@ export default function WorkoutSession() {
       ) : null}
 
       <BottomDock
-        primaryLabel={allDone ? "Завершить тренировку" : "Следующее упражнение"}
-        primaryVisible={allDone || canGoNextExercise}
+        primaryLabel="Завершить тренировку"
+        primaryVisible={true}
         primaryVariant="compactArrow"
         primaryIcon={allDone ? <CheckCheck size={16} strokeWidth={2.2} /> : undefined}
         onPrimary={() => {
@@ -1017,12 +1021,9 @@ export default function WorkoutSession() {
             fireHapticImpact("medium");
             completeWorkout();
           } else {
-            if (!canGoNextExercise) return;
-            goNextExercise();
+            setDiscardSheet(true);
           }
         }}
-        secondaryLabel={allDone ? undefined : "Завершить тренировку"}
-        onSecondary={allDone ? undefined : () => setDiscardSheet(true)}
       />
 
       <RestOverlay

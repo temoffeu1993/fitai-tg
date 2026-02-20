@@ -121,7 +121,7 @@ export default function ExerciseListSheet(props: Props) {
         {/* Header */}
         <div style={s.header}>
           <span style={s.headerSpacer} aria-hidden />
-          <span style={s.title}>Упражнения</span>
+          <span style={s.title}></span>
           <button
             type="button"
             aria-label="Закрыть"
@@ -156,7 +156,7 @@ export default function ExerciseListSheet(props: Props) {
                   onClick={() => onPick(idx)}
                 >
                   <span style={{ ...s.rowName, color: isActive ? workoutTheme.accent : "inherit" }}>
-                    {item.name}
+                    {idx + 1}. {item.name}
                   </span>
                   <span style={{
                     ...s.rowMeta,
