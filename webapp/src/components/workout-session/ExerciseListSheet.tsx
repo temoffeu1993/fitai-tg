@@ -143,35 +143,31 @@ export default function ExerciseListSheet(props: Props) {
             const isSkipped = item.skipped;
             const isCompleted = !isSkipped && totalSets > 0 && doneSets >= totalSets;
             return (
-              <button
-                key={`${item.id || item.name}-${idx}`}
-                type="button"
-                className="els-row-btn"
-                style={{
-                  ...s.row,
-                  ...(isActive ? s.rowActive : null),
-                  ...(isDone || isSkipped ? s.rowDone : null),
-                  animationDelay: `${idx * 20}ms`,
-                  ["--els-bg" as never]: isActive
-                    ? "#1e1f22"
-                    : "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                  ["--els-border" as never]: isActive ? "#1e1f22" : "rgba(255,255,255,0.4)",
-                  ["--els-color" as never]: isActive ? "#fff" : "#1e1f22",
-                  ["--els-shadow" as never]: isActive
-                    ? "0 6px 10px rgba(0,0,0,0.24)"
-                    : "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-                }}
-                onClick={() => onPick(idx)}
-              >
-                <span style={s.rowName}>{item.name}</span>
-                <span style={{
-                  ...s.rowMeta,
-                  ...(isActive ? s.rowMetaActive : null),
-                  ...(isCompleted ? s.rowMetaDone : null),
-                }}>
-                  {isSkipped ? "—" : `${doneSets}/${totalSets}`}
-                </span>
-              </button>
+              <div key={`${item.id || item.name}-${idx}`} style={{ display: "flex", flexDirection: "column" }}>
+                <button
+                  type="button"
+                  className="els-row-btn"
+                  style={{
+                    ...s.row,
+                    ...(isActive ? s.rowActive : null),
+                    ...(isDone || isSkipped ? s.rowDone : null),
+                    animationDelay: `${idx * 20}ms`,
+                  }}
+                  onClick={() => onPick(idx)}
+                >
+                  <span style={{ ...s.rowName, color: isActive ? workoutTheme.accent : "inherit" }}>
+                    {item.name}
+                  </span>
+                  <span style={{
+                    ...s.rowMeta,
+                    ...(isActive ? s.rowMetaActive : null),
+                    ...(isCompleted ? s.rowMetaDone : null),
+                  }}>
+                    {isSkipped ? "—" : `${doneSets}/${totalSets}`}
+                  </span>
+                </button>
+                {idx < items.length - 1 && <div style={s.divider} />}
+              </div>
             );
           })}
         </div>
@@ -200,20 +196,10 @@ const css = `
     touch-action: manipulation;
     cursor: pointer;
     animation: els-row-in 0.3s cubic-bezier(0.36, 0.66, 0.04, 1) both;
-    transition:
-      background 220ms ease,
-      border-color 220ms ease,
-      color 220ms ease,
-      transform 160ms ease,
-      box-shadow 220ms ease;
-    will-change: transform, background, border-color, box-shadow;
+    transition: background 120ms ease;
   }
   .els-row-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.99);
-    background: var(--els-bg) !important;
-    border-color: var(--els-border) !important;
-    color: var(--els-color) !important;
-    box-shadow: var(--els-shadow) !important;
+    background: rgba(15,23,42,0.08) !important;
   }
 
   @keyframes els-row-in {
@@ -249,7 +235,8 @@ const s: Record<string, CSSProperties> = {
     border: workoutTheme.cardBorder,
     background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
     boxShadow: workoutTheme.cardShadow,
-    maxHeight: "74vh",
+    maxHeight: "80vh",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
     display: "flex",
     flexDirection: "column",
     willChange: "transform, opacity",
@@ -259,8 +246,8 @@ const s: Record<string, CSSProperties> = {
   grabberRow: {
     display: "flex",
     justifyContent: "center",
-    paddingTop: 10,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 0,
     flexShrink: 0,
   },
   grabber: {
@@ -276,7 +263,7 @@ const s: Record<string, CSSProperties> = {
     gridTemplateColumns: "32px 1fr 32px",
     alignItems: "center",
     gap: 4,
-    padding: "2px 8px 6px",
+    padding: "0px 8px 0px",
     flexShrink: 0,
   },
   headerSpacer: {
@@ -309,30 +296,32 @@ const s: Record<string, CSSProperties> = {
   // Scrollable list
   list: {
     overflowY: "auto",
-    display: "grid",
-    gap: 6,
-    padding: "4px 16px",
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    display: "flex",
+    flexDirection: "column",
+    padding: "0px 0px 8px",
   },
 
   // Row
   row: {
-    minHeight: 58,
-    borderRadius: 18,
-    border: "1px solid var(--els-border, rgba(255,255,255,0.4))",
-    background: "var(--els-bg, linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%))",
-    boxShadow: "var(--els-shadow, 0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25))",
+    minHeight: 56,
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    padding: "12px 14px",
-    color: "var(--els-color, #1e1f22)",
+    gap: 16,
+    padding: "14px 24px",
+    background: "transparent",
+    border: "none",
+    color: "#1e1f22",
     cursor: "pointer",
     textAlign: "left",
     width: "100%",
   },
+  divider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 24,
+  },
   rowActive: {
-    color: "#fff",
+    // Left empty since we color the text itself
   },
   rowDone: {
     opacity: 0.52,
@@ -343,7 +332,6 @@ const s: Record<string, CSSProperties> = {
     fontSize: 18,
     fontWeight: 500,
     lineHeight: 1.3,
-    color: "inherit",
   },
   rowMeta: {
     minWidth: 42,
@@ -363,9 +351,9 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: "0.2px",
   },
   rowMetaActive: {
-    background: "rgba(255,255,255,0.14)",
-    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.12)",
-    color: "rgba(255,255,255,0.82)",
+    background: "rgba(15,23,42,0.06)",
+    boxShadow: "none",
+    color: workoutTheme.accent,
   },
   rowMetaDone: {
     background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",

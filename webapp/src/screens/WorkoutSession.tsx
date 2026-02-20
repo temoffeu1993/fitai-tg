@@ -1119,21 +1119,23 @@ export default function WorkoutSession() {
             <div style={styles.exitSheetBody}>
               <p style={styles.exitText}>Не все упражнения выполнены.</p>
               <div style={styles.exitList}>
-                <button type="button" style={styles.exitSheetBtn} onClick={() => { setDiscardSheet(false); completeWorkout(); }}>
+                <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={() => { setDiscardSheet(false); completeWorkout(); }}>
                   <span style={styles.exitBtnIconWrap}>
-                    <Flag size={16} strokeWidth={2} />
+                    <Flag size={18} strokeWidth={2.2} />
                   </span>
                   <span style={styles.exitBtnLabel}>Сохранить и завершить</span>
                 </button>
-                <button type="button" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={discardWorkout}>
+                <div style={styles.exitDivider} />
+                <button type="button" className="eas-menu-btn" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={discardWorkout}>
                   <span style={{ ...styles.exitBtnIconWrap, ...styles.exitBtnIconWrapDanger }}>
-                    <LogOut size={16} strokeWidth={2} />
+                    <LogOut size={18} strokeWidth={2.2} />
                   </span>
                   <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Завершить без сохранения</span>
                 </button>
-                <button type="button" style={styles.exitSheetBtn} onClick={() => setDiscardSheet(false)}>
+                <div style={styles.exitDivider} />
+                <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={() => setDiscardSheet(false)}>
                   <span style={styles.exitBtnIconWrap}>
-                    <Dumbbell size={16} strokeWidth={2} />
+                    <Dumbbell size={18} strokeWidth={2.2} />
                   </span>
                   <span style={styles.exitBtnLabel}>Продолжить тренировку</span>
                 </button>
@@ -1186,15 +1188,16 @@ export default function WorkoutSession() {
             <div style={styles.exitSheetBody}>
               <p style={styles.exitText}>Прогресс сохранится как черновик. Можно вернуться и продолжить.</p>
               <div style={styles.exitList}>
-                <button type="button" style={styles.exitSheetBtn} onClick={closeExit}>
+                <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={closeExit}>
                   <span style={styles.exitBtnIconWrap}>
-                    <Dumbbell size={16} strokeWidth={2} />
+                    <Dumbbell size={18} strokeWidth={2.2} />
                   </span>
                   <span style={styles.exitBtnLabel}>Остаться</span>
                 </button>
-                <button type="button" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={() => nav("/plan/one")}>
+                <div style={styles.exitDivider} />
+                <button type="button" className="eas-menu-btn" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={() => nav("/plan/one")}>
                   <span style={{ ...styles.exitBtnIconWrap, ...styles.exitBtnIconWrapDanger }}>
-                    <LogOut size={16} strokeWidth={2} />
+                    <LogOut size={18} strokeWidth={2.2} />
                   </span>
                   <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Выйти</span>
                 </button>
@@ -1405,9 +1408,9 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   exitSheetBody: {
-    padding: "4px 16px 8px",
-    display: "grid",
-    gap: 6,
+    padding: "0px 0px 8px",
+    display: "flex",
+    flexDirection: "column",
   },
   exitText: {
     margin: 0,
@@ -1418,17 +1421,20 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "4px 4px 6px",
   },
   exitList: {
-    display: "grid",
-    gap: 6,
+    display: "flex",
+    flexDirection: "column",
+  },
+  exitDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 68,
   },
   exitSheetBtn: {
     width: "100%",
-    minHeight: 58,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.4)",
-    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-    boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-    padding: "12px 14px",
+    minHeight: 56,
+    background: "transparent",
+    border: "none",
+    padding: "14px 24px",
     fontSize: 18,
     fontWeight: 500,
     textAlign: "left" as const,
@@ -1436,7 +1442,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "row" as const,
     alignItems: "center",
-    gap: 12,
+    gap: 16,
     color: workoutTheme.textPrimary,
     WebkitTapHighlightColor: "transparent",
   },
@@ -1444,11 +1450,8 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0.9,
   },
   exitBtnIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
+    width: 28,
+    height: 28,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1457,6 +1460,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   exitBtnIconWrapDanger: {
     color: workoutTheme.danger,
+    opacity: 0.8,
   },
   exitBtnLabel: {
     flex: 1,

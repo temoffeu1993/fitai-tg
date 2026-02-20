@@ -10,11 +10,11 @@ const OVERLAY_ENTER_MS = 320;
 const OPEN_TICK_MS = 12;
 
 const EFFORT_OPTIONS: Array<{ value: Exclude<EffortTag, null>; emoji: string; label: string; sub: string }> = [
-  { value: "easy",       emoji: "🙂",   label: "Слишком легко",  sub: "Мог бы ещё столько же" },
-  { value: "working",    emoji: "💪",   label: "В самый раз",    sub: "Тяжело, но контролируемо" },
-  { value: "quite_hard", emoji: "😤",   label: "Тяжеловато",     sub: "Последние повторы дались с трудом" },
-  { value: "hard",       emoji: "😵",   label: "Очень тяжело",   sub: "Ещё одно — и всё, край" },
-  { value: "max",        emoji: "🥵",   label: "На пределе",     sub: "Полный отказ, не мог продолжить" },
+  { value: "easy", emoji: "🙂", label: "Слишком легко", sub: "Мог бы ещё столько же" },
+  { value: "working", emoji: "💪", label: "В самый раз", sub: "Тяжело, но контролируемо" },
+  { value: "quite_hard", emoji: "😤", label: "Тяжеловато", sub: "Последние повторы дались с трудом" },
+  { value: "hard", emoji: "😵", label: "Очень тяжело", sub: "Ещё одно — и всё, край" },
+  { value: "max", emoji: "🥵", label: "На пределе", sub: "Полный отказ, не мог продолжить" },
 ];
 
 type Props = {
@@ -136,69 +136,72 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
         </div>
 
         {/* Options */}
-        <div style={{ display: "grid", gap: 6, padding: "8px 16px" }}>
-          {EFFORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className="eas-sheet-btn"
-              style={{
-                width: "100%",
-                minHeight: 58,
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.4)",
-                background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
-                padding: "12px 14px",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                WebkitTapHighlightColor: "transparent",
-              }}
-              onClick={() => onSelect(option.value)}
-            >
-              <span style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                background: workoutTheme.pillBg,
-                boxShadow: workoutTheme.pillShadow,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                fontSize: 18,
-                lineHeight: 1,
-              }}>
-                {option.emoji}
-              </span>
-              <span style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-                textAlign: "left",
-              }}>
+        <div style={{ display: "flex", flexDirection: "column", padding: "0px 0px 8px" }}>
+          {EFFORT_OPTIONS.map((option, idx) => (
+            <div key={option.value} style={{ display: "flex", flexDirection: "column" }}>
+              <button
+                type="button"
+                className="eas-menu-btn"
+                style={{
+                  width: "100%",
+                  minHeight: 56,
+                  background: "transparent",
+                  border: "none",
+                  padding: "14px 24px",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 16,
+                  WebkitTapHighlightColor: "transparent",
+                }}
+                onClick={() => onSelect(option.value)}
+              >
                 <span style={{
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: workoutTheme.textPrimary,
-                  lineHeight: 1.2,
+                  width: 28,
+                  height: 28,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  fontSize: 24,
+                  lineHeight: 1,
                 }}>
-                  {option.label}
+                  {option.emoji}
                 </span>
                 <span style={{
-                  fontSize: 13,
-                  fontWeight: 400,
-                  color: workoutTheme.textSecondary,
-                  lineHeight: 1.25,
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  textAlign: "left",
                 }}>
-                  {option.sub}
+                  <span style={{
+                    fontSize: 17,
+                    fontWeight: 600,
+                    color: workoutTheme.textPrimary,
+                    lineHeight: 1.2,
+                  }}>
+                    {option.label}
+                  </span>
+                  <span style={{
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: workoutTheme.textSecondary,
+                    lineHeight: 1.25,
+                  }}>
+                    {option.sub}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+              {idx < EFFORT_OPTIONS.length - 1 && (
+                <div style={{
+                  height: 1,
+                  background: "rgba(15,23,42,0.06)",
+                  marginLeft: 68,
+                }} />
+              )}
+            </div>
           ))}
         </div>
       </div>
