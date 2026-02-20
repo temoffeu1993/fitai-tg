@@ -861,6 +861,7 @@ const s: Record<string, CSSProperties> = {
   altRowInner: {
     animation: "eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
     color: workoutTheme.accent,
+    padding: "14px 16px",
   },
   altTextWrap: {
     display: "flex",
