@@ -163,6 +163,10 @@ schedule.get(
          FROM planned_workouts
         WHERE user_id = $1
           AND status <> 'cancelled'
+          AND (
+            status <> 'completed'
+            OR scheduled_for >= date_trunc('week', CURRENT_DATE)
+          )
         ORDER BY scheduled_for ASC`,
       [userId]
     );
