@@ -156,7 +156,7 @@ schedule.get(
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
     const data = await loadScheduleData(userId);
-    const userProfile = await buildUserProfile(userId);
+    const userProfile = await buildUserProfile(userId).catch(() => null);
 
     const planned = await q<PlannedWorkoutRow>(
       `WITH latest_gen AS (
@@ -183,7 +183,7 @@ schedule.get(
       [userId]
     );
 
-    return res.json({ schedule: data, plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile.timeBucket)) });
+    return res.json({ schedule: data, plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile?.timeBucket)) });
   })
 );
 
