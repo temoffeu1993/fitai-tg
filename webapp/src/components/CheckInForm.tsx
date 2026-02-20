@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import type { CheckInPayload, SleepQuality, PainLocation } from "@/api/plan";
+import BottomDock from "@/components/workout-session/BottomDock";
 
 type Props = {
   onSubmit: (data: CheckInPayload) => Promise<void> | void;
@@ -346,11 +347,11 @@ export function CheckInForm({
 
     const pain = hasPain
       ? Object.entries(painMap)
-          .map(([location, level]) => ({
-            location: location as PainLocation,
-            level: Number(level),
-          }))
-          .filter(p => Number.isFinite(p.level) && p.level >= 1 && p.level <= 10)
+        .map(([location, level]) => ({
+          location: location as PainLocation,
+          level: Number(level),
+        }))
+        .filter(p => Number.isFinite(p.level) && p.level >= 1 && p.level <= 10)
       : undefined;
 
     const payload: CheckInPayload = {
@@ -374,25 +375,24 @@ export function CheckInForm({
 
   const wrapperStyle = inline ? modal.inlineWrap : modal.wrap;
   const isPainStep = step >= 4;
-  const shouldDockFooter = !isPainStep || (isPainStep && !hasPain);
+  // Always dock footer if inline, as requested to match WorkoutSession
+  const shouldDockFooter = inline;
   const cardStyle = inline
     ? {
-        ...modal.inlineCard,
-        ...(shouldDockFooter ? modal.inlineCardWithDockedFooter : null),
-      }
+      ...modal.inlineCard,
+      ...modal.inlineCardWithDockedFooter,
+    }
     : modal.card;
   const footerStyle = inline
-    ? {
-        ...(shouldDockFooter ? modal.footerInlineDockedFixed : modal.footerInlineFlowPainActive),
-      }
-    : modal.footer;
+    ? modal.footerInlineDockedFixed
+    : modal.footerInlineFlowPainActive;
   const saveBtnStyle = inline ? { ...modal.save, ...modal.saveInline } : modal.save;
   const backBtnStyle = inline ? { ...modal.backTextBtn, ...modal.backTextBtnInline } : modal.backTextBtn;
   const cardMiniStyle = inline
     ? {
-        ...modal.cardMini,
-        ...(step <= 2 ? modal.cardMiniInlineNarrow : modal.cardMiniInline),
-      }
+      ...modal.cardMini,
+      ...(step <= 2 ? modal.cardMiniInlineNarrow : modal.cardMiniInline),
+    }
     : modal.cardMini;
   const cardWideStyle = inline ? { ...modal.cardWide, ...modal.cardWideInline } : modal.cardWide;
   const durationGridStyle = inline ? { ...modal.durationGrid, ...modal.durationGridInline } : modal.durationGrid;
@@ -680,30 +680,43 @@ export function CheckInForm({
           {(error || formError) && <div style={modal.error}>{error || formError}</div>}
         </div>
 
-        <div style={footerStyle} className={inline ? "checkin-entry-target checkin-entry-fade" : undefined}>
-          <button
-            style={{
-              ...saveBtnStyle,
-            }}
-            onClick={handlePrimary}
-            type="button"
-            disabled={loading}
-            className="checkin-primary-btn"
-          >
-            <span style={modal.saveText}>{loading && isLastStep ? "Сохраняем..." : primaryLabel}</span>
-          </button>
-          {shouldShowBackTextBtn ? (
+        {inline ? (
+          <div className="checkin-entry-target checkin-entry-fade">
+            <BottomDock
+              primaryLabel={loading && isLastStep ? "Сохраняем..." : primaryLabel}
+              primaryVariant="compactArrow"
+              onPrimary={handlePrimary}
+              primaryEnabled={!loading}
+              secondaryLabel={shouldShowBackTextBtn ? (backLabel || "Назад") : undefined}
+              onSecondary={shouldShowBackTextBtn ? handleBackClick : undefined}
+            />
+          </div>
+        ) : (
+          <div style={footerStyle}>
             <button
-              style={backBtnStyle}
-              onClick={handleBackClick}
+              style={{
+                ...saveBtnStyle,
+              }}
+              onClick={handlePrimary}
               type="button"
               disabled={loading}
-              className="checkin-text-btn"
+              className="checkin-primary-btn"
             >
-              {backLabel || "Назад"}
+              <span style={modal.saveText}>{loading && isLastStep ? "Сохраняем..." : primaryLabel}</span>
             </button>
-          ) : null}
-        </div>
+            {shouldShowBackTextBtn ? (
+              <button
+                style={backBtnStyle}
+                onClick={handleBackClick}
+                type="button"
+                disabled={loading}
+                className="checkin-text-btn"
+              >
+                {backLabel || "Назад"}
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );

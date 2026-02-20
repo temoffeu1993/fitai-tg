@@ -9,6 +9,7 @@ import { buildCheckInSummaryViewModel } from "@/lib/checkinResultSummary";
 import mascotImg from "@/assets/robonew.webp";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
 import OnbAnalysisLoading from "@/screens/onb/OnbAnalysisLoading";
+import BottomDock from "@/components/workout-session/BottomDock";
 
 const INTRO_BUBBLE_PREFIX = "Пару вопросов ";
 const INTRO_BUBBLE_STRONG = "о самочувствии";
@@ -340,25 +341,16 @@ export default function CheckIn() {
             </div>
             <img src={mascotImg} alt="" style={styles.introMascotImg} loading="eager" decoding="async" />
           </section>
-          <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
-            <button
-              type="button"
-              style={{ ...styles.summaryPrimaryBtn, ...(skipLoading || loading ? styles.primaryDisabled : null) }}
-              className="intro-primary-btn"
-              onClick={() => setPhase("form")}
-              disabled={skipLoading || loading}
-            >
-              Пройти чекин
-            </button>
-            <button
-              type="button"
-              style={{ ...styles.introSkipBtn, ...(skipLoading || loading ? styles.backDisabled : null) }}
-              onClick={handleSkipCheckIn}
-              disabled={skipLoading || loading}
-            >
-              {skipLoading ? "Открываем..." : "Пропустить"}
-            </button>
-          </section>
+          <div className="onb-fade-soft">
+            <BottomDock
+              primaryLabel="Пройти чекин"
+              primaryVariant="compactArrow"
+              onPrimary={() => setPhase("form")}
+              primaryEnabled={!(skipLoading || loading)}
+              secondaryLabel={skipLoading ? "Открываем..." : "Пропустить"}
+              onSecondary={handleSkipCheckIn}
+            />
+          </div>
         </>
       ) : null}
 
@@ -411,26 +403,21 @@ export default function CheckIn() {
             </div>
           </section>
 
-          <section style={styles.introActions} className="onb-fade onb-fade-delay-2">
-            <button
-              type="button"
-              style={{ ...styles.summaryPrimaryBtn, ...(loading ? styles.primaryDisabled : null) }}
-              className="intro-primary-btn"
-              onClick={goToWorkout}
-              disabled={loading}
-            >
-              {result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
-            </button>
-            <button
-              type="button"
-              style={{ ...styles.introSkipBtn, ...(loading ? styles.backDisabled : null) }}
-              onClick={handleChangeAnswers}
-              disabled={loading}
-            >
-              Пройти заново
-            </button>
-            {resultError ? <div style={styles.summaryError}>{resultError}</div> : null}
-          </section>
+          <div className="onb-fade-soft">
+            {resultError ? (
+              <div style={{ position: "fixed", bottom: "calc(env(safe-area-inset-bottom, 0px) + 90px)", left: 0, right: 0, zIndex: 35, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{ ...styles.summaryError, pointerEvents: "auto" }}>{resultError}</div>
+              </div>
+            ) : null}
+            <BottomDock
+              primaryLabel={result.action === "skip" ? "Перейти к плану" : "Начать тренировку"}
+              primaryVariant="compactArrow"
+              onPrimary={goToWorkout}
+              primaryEnabled={!loading}
+              secondaryLabel="Пройти заново"
+              onSecondary={handleChangeAnswers}
+            />
+          </div>
         </>
       ) : null}
     </div>
@@ -491,26 +478,6 @@ const screenCss = `
   border-bottom: 10px solid rgba(255,255,255,0.9);
   filter: drop-shadow(0 -1px 0 rgba(15, 23, 42, 0.08));
 }
-.intro-primary-btn {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select: none;
-  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
-}
-.intro-primary-btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.99) !important;
-  background-color: #1e1f22 !important;
-  border-color: #1e1f22 !important;
-}
-@media (hover: hover) {
-  .intro-primary-btn:hover:not(:disabled) {
-    filter: brightness(1.03);
-  }
-}
-.intro-primary-btn:focus-visible {
-  outline: 3px solid rgba(15, 23, 42, 0.18);
-  outline-offset: 2px;
-}
 @media (prefers-reduced-motion: reduce) {
   .onb-fade-target { opacity: 1 !important; transform: none !important; }
   .onb-fade,
@@ -518,7 +485,6 @@ const screenCss = `
   .onb-fade-delay-1,
   .onb-fade-delay-2,
   .onb-fade-delay-3 { animation: none !important; }
-  .intro-primary-btn { transition: none !important; }
 }
 `;
 
