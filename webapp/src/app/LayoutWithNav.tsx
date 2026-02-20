@@ -19,6 +19,7 @@ function shouldHideNav(_pathname: string) {
   const pathname = _pathname || "";
   if (pathname.startsWith("/onb")) return true;
   if (pathname.startsWith("/coach")) return true;
+  if (pathname.startsWith("/check-in")) return true;
   if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
   if (pathname.startsWith("/workout/result")) return true;
@@ -50,21 +51,21 @@ function hasOnbLocal(): boolean {
       console.log("✅ hasOnbLocal: window.__ONB_COMPLETE__ = true");
       return true;
     }
-    
+
     // Проверка 2: localStorage
     const localFlag = localStorage.getItem("onb_complete");
     if (localFlag === "1") {
       console.log("✅ hasOnbLocal: localStorage = 1");
       return true;
     }
-    
+
     // Проверка 3: sessionStorage (fallback)
     const sessionFlag = sessionStorage.getItem("onb_complete");
     if (sessionFlag === "1") {
       console.log("✅ hasOnbLocal: sessionStorage = 1");
       return true;
     }
-    
+
     console.log("❌ hasOnbLocal: все проверки failed");
     return false;
   } catch (err) {
@@ -91,7 +92,7 @@ export default function LayoutWithNav() {
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
       window.scrollTo(0, 0);
-    } catch {}
+    } catch { }
   }, [pathname]);
 
   useEffect(() => {
@@ -130,14 +131,14 @@ export default function LayoutWithNav() {
       bc.onmessage = (event) => {
         if (event?.data === "onb_updated" || event?.data === "onb_complete") update();
       };
-    } catch {}
+    } catch { }
 
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("onb_updated" as any, onOnb);
       window.removeEventListener("onb_complete" as any, onComplete);
-      try { bc?.close(); } catch {}
+      try { bc?.close(); } catch { }
     };
   }, []);
 
@@ -146,9 +147,9 @@ export default function LayoutWithNav() {
   const safeTop =
     typeof window !== "undefined"
       ? Number.parseInt(
-          getComputedStyle(document.documentElement).getPropertyValue("--tg-viewport-inset-top") || "0",
-          10
-        ) || 0
+        getComputedStyle(document.documentElement).getPropertyValue("--tg-viewport-inset-top") || "0",
+        10
+      ) || 0
       : 0;
 
   const handleChange = (t: TabKey) => {
