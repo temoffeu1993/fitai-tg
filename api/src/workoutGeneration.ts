@@ -931,19 +931,17 @@ workoutGeneration.post(
       warnings: workout.warnings,
     };
 
-    const generationId = randomUUID();
     await q(
       `INSERT INTO planned_workouts
-       (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
-       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending', $3::uuid)
+       (user_id, workout_date, data, plan, scheduled_for, status)
+       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
        ON CONFLICT (user_id, workout_date)
        DO UPDATE SET
          data = $2::jsonb,
          plan = $2::jsonb,
          status = 'pending',
-         generation_id = $3::uuid,
          updated_at = now()`,
-      [uid, workoutData, generationId]
+      [uid, workoutData]
     );
 
     res.json({

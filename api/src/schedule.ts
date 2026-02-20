@@ -174,8 +174,10 @@ schedule.get(
           AND (
             -- show rows from the latest generation batch (any status)
             generation_id = (SELECT generation_id FROM latest_gen)
-            -- legacy rows (NULL generation_id): show only within current week
-            OR (generation_id IS NULL AND scheduled_for >= date_trunc('week', CURRENT_DATE))
+            -- legacy rows (NULL generation_id): only when no batch exists at all
+            OR (generation_id IS NULL
+                AND NOT EXISTS (SELECT 1 FROM latest_gen)
+                AND scheduled_for >= date_trunc('week', CURRENT_DATE))
           )
         ORDER BY scheduled_for ASC`,
       [userId]
