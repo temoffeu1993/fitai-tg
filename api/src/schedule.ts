@@ -158,29 +158,33 @@ schedule.get(
     const data = await loadScheduleData(userId);
     const userProfile = await buildUserProfile(userId).catch(() => null);
 
-    const planned = await q<PlannedWorkoutRow>(
-      `WITH latest_gen AS (
-         SELECT generation_id
-           FROM planned_workouts
-          WHERE user_id = $1
-            AND generation_id IS NOT NULL
-          ORDER BY created_at DESC
-          LIMIT 1
-       )
-       SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+    // Find the latest generation_id for this user (if any batch has been generated)
+    const latestGenRows = await q<{ generation_id: string }>(
+      `SELECT generation_id
          FROM planned_workouts
         WHERE user_id = $1
-          AND status <> 'cancelled'
-          AND (
-            -- show rows from the latest generation batch (any status)
-            generation_id = (SELECT generation_id FROM latest_gen)
-            -- legacy rows (NULL generation_id): only when no batch exists at all
-            OR (generation_id IS NULL
-                AND NOT EXISTS (SELECT 1 FROM latest_gen)
-                AND scheduled_for >= date_trunc('week', CURRENT_DATE))
-          )
-        ORDER BY scheduled_for ASC`,
+          AND generation_id IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 1`,
       [userId]
+    );
+    const latestGenId = latestGenRows[0]?.generation_id ?? null;
+
+    const planned = await q<PlannedWorkoutRow>(
+      latestGenId
+        ? `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+             FROM planned_workouts
+            WHERE user_id = $1
+              AND status <> 'cancelled'
+              AND generation_id = $2
+            ORDER BY scheduled_for ASC`
+        : `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+             FROM planned_workouts
+            WHERE user_id = $1
+              AND status <> 'cancelled'
+              AND scheduled_for >= date_trunc('week', CURRENT_DATE)
+            ORDER BY scheduled_for ASC`,
+      latestGenId ? [userId, latestGenId] : [userId]
     );
 
     return res.json({ schedule: data, plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile?.timeBucket)) });
