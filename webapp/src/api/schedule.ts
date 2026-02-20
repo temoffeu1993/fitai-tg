@@ -47,6 +47,9 @@ export async function createPlannedWorkout(input: {
   plan: any;
   scheduledFor: string;
   scheduledTime?: string;
+  date?: string;
+  time?: string;
+  utcOffsetMinutes?: number;
 }): Promise<PlannedWorkout> {
   const r = await apiFetch("/api/planned-workouts", {
     method: "POST",

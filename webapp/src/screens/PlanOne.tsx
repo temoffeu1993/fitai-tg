@@ -587,7 +587,14 @@ export default function PlanOne() {
     try {
       setScheduleSaving(true);
       setScheduleError(null);
-      await createPlannedWorkout({ plan, scheduledFor: when.toISOString(), scheduledTime: scheduleTime });
+      await createPlannedWorkout({
+        plan,
+        scheduledFor: when.toISOString(),
+        scheduledTime: scheduleTime,
+        date: scheduleDate,
+        time: scheduleTime,
+        utcOffsetMinutes: when.getTimezoneOffset(),
+      });
       setShowScheduleModal(false);
       try {
         window.dispatchEvent(new CustomEvent("schedule_updated"));

@@ -302,6 +302,9 @@ schedule.post(
     const body = req.body ?? {};
     const plan = body.plan;
     const scheduledForRaw = body.scheduledFor;
+    const date = typeof body.date === "string" ? body.date : "";
+    const time = typeof body.time === "string" ? body.time : "";
+    const utcOffsetMinutesRaw = body.utcOffsetMinutes;
 
     if (!plan || typeof plan !== "object") {
       return res.status(400).json({ error: "invalid_plan" });
@@ -311,14 +314,41 @@ schedule.post(
       return res.status(400).json({ error: "invalid_scheduled_for" });
     }
 
-    const scheduledFor = new Date(scheduledForRaw);
+    const hasLocalPayload =
+      date.trim().length > 0 ||
+      time.trim().length > 0 ||
+      utcOffsetMinutesRaw != null;
+
+    let scheduledFor = new Date(scheduledForRaw);
     if (!Number.isFinite(scheduledFor.getTime())) {
       return res.status(400).json({ error: "invalid_datetime" });
     }
 
-    const preferredTime = typeof body.scheduledTime === "string" ? body.scheduledTime : undefined;
-    const slotTime = resolveTime(scheduledFor, preferredTime);
-    const workoutDate = isoDateString(scheduledFor);
+    let slotTime: string;
+    let workoutDate: string | null;
+
+    if (hasLocalPayload) {
+      if (!isISODate(date)) {
+        return res.status(400).json({ error: "invalid_date" });
+      }
+      if (!isHHMM(time)) {
+        return res.status(400).json({ error: "invalid_time" });
+      }
+      if (!isUtcOffsetMinutes(utcOffsetMinutesRaw)) {
+        return res.status(400).json({ error: "invalid_utc_offset_minutes" });
+      }
+      const fromLocal = localDateTimeToUtc(date, time, Number(utcOffsetMinutesRaw));
+      if (!fromLocal) {
+        return res.status(400).json({ error: "invalid_datetime" });
+      }
+      scheduledFor = fromLocal;
+      slotTime = time;
+      workoutDate = date;
+    } else {
+      const preferredTime = typeof body.scheduledTime === "string" ? body.scheduledTime : undefined;
+      slotTime = resolveTime(scheduledFor, preferredTime);
+      workoutDate = isoDateString(scheduledFor);
+    }
 
     const [row] = await q<PlannedWorkoutRow>(
       `INSERT INTO planned_workouts (user_id, plan, scheduled_for, workout_date)
