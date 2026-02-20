@@ -257,6 +257,7 @@ export default function ExerciseActionsSheet(props: Props) {
                     alt={alt}
                     onReplace={onReplace}
                     index={i}
+                    isLast={i === alts.length - 1}
                   />
                 ))}
               </div>
@@ -485,26 +486,32 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
 }
 
 function AltRow({
-  alt, onReplace, index,
+  alt, onReplace, index, isLast
 }: {
   alt: ExerciseAlternative;
   onReplace: (a: ExerciseAlternative) => void;
   index: number;
+  isLast?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      className="eas-sheet-btn"
-      style={{
-        ...s.sheetBtn,
-        ...s.altRowInner,
-        animationDelay: `${index * 30}ms`,
-      }}
-      onClick={() => onReplace(alt)}
-    >
-      <div style={s.altName}>{alt.name}</div>
-      {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
-    </button>
+    <>
+      <button
+        type="button"
+        className="eas-menu-btn"
+        style={{
+          ...s.menuGroupBtn,
+          ...s.altRowInner,
+          animationDelay: `${index * 30}ms`,
+        }}
+        onClick={() => onReplace(alt)}
+      >
+        <div style={s.altTextWrap}>
+          <div style={s.altName}>{alt.name}</div>
+          {alt.hint ? <div style={s.altHint}>{alt.hint}</div> : null}
+        </div>
+      </button>
+      {!isLast && <div style={{ ...s.menuDivider, marginLeft: 16 }} />}
+    </>
   );
 }
 
@@ -520,32 +527,38 @@ function ConfirmView({
   return (
     <div style={s.confirmWrap}>
       <p style={s.confirmBody}>{body}</p>
-      <button
-        type="button"
-        className="eas-sheet-btn"
-        style={{
-          ...s.sheetBtn,
-          color: workoutTheme.danger,
-          ["--eas-btn-color" as never]: workoutTheme.danger,
-          opacity: 0.72,
-        }}
-        onClick={onConfirm}
-        disabled={disabled}
-      >
-        {confirmLabel}
-      </button>
-      <button
-        type="button"
-        className="eas-sheet-btn"
-        style={{
-          ...s.sheetBtn,
-          color: workoutTheme.accent,
-          ["--eas-btn-color" as never]: workoutTheme.accent,
-        }}
-        onClick={onCancel}
-      >
-        Отмена
-      </button>
+
+      <div style={s.confirmButtonGroup}>
+        <button
+          type="button"
+          className="eas-menu-btn"
+          style={{
+            ...s.menuGroupBtn,
+            color: workoutTheme.danger,
+            opacity: disabled ? 0.5 : 0.8,
+            justifyContent: "center",
+          }}
+          onClick={onConfirm}
+          disabled={disabled}
+        >
+          <span style={s.menuBtnLabelCenter}>{confirmLabel}</span>
+        </button>
+
+        <div style={{ ...s.menuDivider, marginLeft: 0 }} />
+
+        <button
+          type="button"
+          className="eas-menu-btn"
+          style={{
+            ...s.menuGroupBtn,
+            color: workoutTheme.accent,
+            justifyContent: "center",
+          }}
+          onClick={onCancel}
+        >
+          <span style={s.menuBtnLabelCenter}>Отмена</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -795,6 +808,14 @@ const s: Record<string, CSSProperties> = {
     color: "inherit",
     lineHeight: 1.25,
   },
+  menuBtnLabelCenter: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 500,
+    color: "inherit",
+    lineHeight: 1.25,
+    textAlign: "center",
+  },
 
   // ── Menu mode (Grouped / iOS style) ───────────────────────────────────
   menuWrap: {
@@ -830,17 +851,20 @@ const s: Record<string, CSSProperties> = {
   // ── Replace mode ──────────────────────────────────────────────────────
   replaceWrap: {
     display: "grid",
-    gap: 6,
-    padding: "4px 16px 8px",
+    gap: 0,
+    padding: "0px 0px 8px",
   },
   altList: {
-    display: "grid",
-    gap: 6,
+    display: "flex",
+    flexDirection: "column",
   },
   altRowInner: {
     animation: "eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
     color: workoutTheme.accent,
-    flexDirection: "column" as const,
+  },
+  altTextWrap: {
+    display: "flex",
+    flexDirection: "column",
     alignItems: "flex-start",
   },
   altName: {
@@ -905,16 +929,21 @@ const s: Record<string, CSSProperties> = {
 
   // ── Confirm mode ──────────────────────────────────────────────────────
   confirmWrap: {
-    display: "grid",
-    gap: 6,
-    padding: "4px 16px 8px",
+    display: "flex",
+    flexDirection: "column",
+    padding: "0px 0px 8px",
   },
   confirmBody: {
     fontSize: 15,
     color: workoutTheme.textSecondary,
     lineHeight: 1.45,
     textAlign: "center",
-    padding: "8px 4px",
+    padding: "12px 24px 20px",
     margin: 0,
+  },
+  confirmButtonGroup: {
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
   },
 };
