@@ -2,6 +2,7 @@ import { q } from "../db.js";
 import type { WorkoutSchedulePayload, DateSchedule } from "../types.js";
 
 const isHHMM = (s: unknown) => typeof s === "string" && /^\d{2}:\d{2}$/.test(s);
+const isISODate = (s: unknown) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 function normalizeSchedule(raw: any): WorkoutSchedulePayload {
   if (!raw) return { dow: {}, dates: {} };
@@ -62,8 +63,8 @@ function hasSameDates(a: DateSchedule, b: DateSchedule): boolean {
 
 export async function syncScheduleDatesWithPlannedWorkouts(userId: string): Promise<void> {
   const current = await loadScheduleData(userId);
-  const rows = await q<{ scheduled_for: string }>(
-    `SELECT scheduled_for
+  const rows = await q<{ scheduled_for: string; workout_date: string | null }>(
+    `SELECT scheduled_for, workout_date
        FROM planned_workouts
       WHERE user_id = $1
         AND status = 'scheduled'
@@ -77,7 +78,8 @@ export async function syncScheduleDatesWithPlannedWorkouts(userId: string): Prom
   for (const row of rows) {
     const dt = new Date(row.scheduled_for);
     if (!Number.isFinite(dt.getTime())) continue;
-    const isoDate = dt.toISOString().slice(0, 10);
+    const workoutDate = row.workout_date;
+    const isoDate = workoutDate && isISODate(workoutDate) ? workoutDate : dt.toISOString().slice(0, 10);
     const isoTime = dt.toISOString().slice(11, 16);
     activeDates.add(isoDate);
     if (!fallbackTimes.has(isoDate)) {

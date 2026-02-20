@@ -318,17 +318,17 @@ schedule.post(
 
     const preferredTime = typeof body.scheduledTime === "string" ? body.scheduledTime : undefined;
     const slotTime = resolveTime(scheduledFor, preferredTime);
+    const workoutDate = isoDateString(scheduledFor);
 
     const [row] = await q<PlannedWorkoutRow>(
-      `INSERT INTO planned_workouts (user_id, plan, scheduled_for)
-       VALUES ($1, $2::jsonb, $3)
+      `INSERT INTO planned_workouts (user_id, plan, scheduled_for, workout_date)
+       VALUES ($1, $2::jsonb, $3, $4::date)
        RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
-      [userId, JSON.stringify(plan), scheduledFor.toISOString()]
+      [userId, JSON.stringify(plan), scheduledFor.toISOString(), workoutDate]
     );
 
-    const isoDate = isoDateString(scheduledFor);
-    if (row.status === "scheduled" && isoDate) {
-      await upsertScheduleDate(userId, isoDate, slotTime);
+    if (row.status === "scheduled" && workoutDate) {
+      await upsertScheduleDate(userId, workoutDate, slotTime);
     }
     await syncScheduleDatesWithPlannedWorkouts(userId);
 
@@ -444,10 +444,11 @@ schedule.patch(
         `UPDATE planned_workouts
             SET status = 'scheduled',
                 scheduled_for = $3,
+                workout_date = $4::date,
                 updated_at = now()
           WHERE user_id = $1 AND id = $2
           RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
-        [userId, id, scheduledFor.toISOString()]
+        [userId, id, scheduledFor.toISOString(), date]
       );
       const updated = updatedRows[0];
       if (!updated) {
