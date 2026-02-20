@@ -187,37 +187,36 @@ export default function ExerciseActionsSheet(props: Props) {
     switch (mode) {
       case "menu":
         return (
-          <div style={s.menuList}>
-            {/* Primary actions — side by side */}
-            <div style={s.menuRow}>
+          <div style={s.menuWrap}>
+            <div style={s.menuGroup}>
               <MenuBtn
-                icon={<RefreshCw size={16} strokeWidth={2.2} />}
-                label="Заменить"
+                icon={<RefreshCw size={18} strokeWidth={2.2} />}
+                label="Заменить упражнение"
                 onClick={onLoadAlternatives}
               />
+              <div style={s.menuDivider} />
               <MenuBtn
-                icon={<SkipForward size={16} strokeWidth={2.2} />}
-                label="Пропустить"
+                icon={<SkipForward size={18} strokeWidth={2.2} />}
+                label="Пропустить подход"
                 onClick={onAskSkip}
               />
+              <div style={s.menuDivider} />
+              <RestToggleBtn enabled={restEnabled} onToggle={onToggleRestEnabled} />
+              <div style={s.menuDivider} />
+              <MenuBtn
+                icon={<Trash2 size={18} strokeWidth={2.2} />}
+                label="Удалить из тренировки"
+                onClick={onAskRemove}
+                danger
+              />
+              <div style={s.menuDivider} />
+              <MenuBtn
+                icon={<Ban size={18} strokeWidth={2.2} />}
+                label="Исключить из планов"
+                onClick={onAskBan}
+                danger
+              />
             </div>
-            {/* Rest timer toggle */}
-            <RestToggleBtn enabled={restEnabled} onToggle={onToggleRestEnabled} />
-            {/* Destructive actions — smaller, muted */}
-            <MenuBtn
-              icon={<Trash2 size={15} strokeWidth={2.2} />}
-              label="Удалить из тренировки"
-              onClick={onAskRemove}
-              danger
-              small
-            />
-            <MenuBtn
-              icon={<Ban size={15} strokeWidth={2.2} />}
-              label="Исключить из будущих тренировок"
-              onClick={onAskBan}
-              danger
-              small
-            />
           </div>
         );
 
@@ -404,30 +403,26 @@ export default function ExerciseActionsSheet(props: Props) {
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
-function MenuBtn({ icon, label, onClick, danger = false, small = false }: {
+function MenuBtn({ icon, label, onClick, danger = false }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
-  small?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="eas-sheet-btn"
+      className="eas-menu-btn"
       style={{
-        ...s.sheetBtn,
-        ...(small ? s.sheetBtnSmall : null),
+        ...s.menuGroupBtn,
         color: danger ? workoutTheme.danger : workoutTheme.accent,
-        ["--eas-btn-color" as never]: danger ? workoutTheme.danger : workoutTheme.accent,
-        opacity: danger ? 0.72 : 1,
       }}
       onClick={onClick}
     >
-      <span style={{ ...s.menuBtnIconWrap, ...(small ? s.menuBtnIconWrapSmall : null) }}>
+      <span style={{ ...s.menuBtnIconWrap, color: danger ? workoutTheme.danger : workoutTheme.accent }}>
         {icon}
       </span>
-      <span style={{ ...s.menuBtnLabel, ...(small ? s.menuBtnLabelSmall : null) }}>
+      <span style={s.menuBtnLabel}>
         {label}
       </span>
     </button>
@@ -438,23 +433,20 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
   return (
     <button
       type="button"
-      className="eas-sheet-btn"
+      className="eas-menu-btn"
       style={{
-        ...s.sheetBtn,
-        ...s.sheetBtnSmall,
+        ...s.menuGroupBtn,
         color: workoutTheme.accent,
-        ["--eas-btn-color" as never]: workoutTheme.accent,
       }}
       onClick={onToggle}
     >
       <span style={{
         ...s.menuBtnIconWrap,
-        ...s.menuBtnIconWrapSmall,
         color: workoutTheme.textSecondary,
       }}>
-        <Clock size={15} strokeWidth={2.2} />
+        <Clock size={18} strokeWidth={2.2} />
       </span>
-      <span style={{ ...s.menuBtnLabel, ...s.menuBtnLabelSmall }}>
+      <span style={s.menuBtnLabel}>
         Авто-таймер отдыха
       </span>
       {/* Toggle pill — fixed size, color animates via overlay */}
@@ -630,6 +622,19 @@ const globalCss = `
     animation: eas-shimmer 1.4s ease infinite !important;
   }
 
+  /* Menu group button */
+  .eas-menu-btn {
+    appearance: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .eas-menu-btn:active:not(:disabled) {
+    background: rgba(15,23,42,0.06) !important;
+  }
+
   /* Sheet button — matches ExerciseListSheet row style */
   .eas-sheet-btn {
     appearance: none;
@@ -794,28 +799,38 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1.25,
   },
 
-  // ── Menu mode ─────────────────────────────────────────────────────────
-  menuList: {
-    display: "grid",
-    gap: 6,
-    padding: "4px 16px 8px",
+  // ── Menu mode (Grouped / iOS style) ───────────────────────────────────
+  menuWrap: {
+    padding: "0px 16px 16px",
   },
-  menuRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 6,
+  menuGroup: {
+    display: "flex",
+    flexDirection: "column",
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.4)",
+    background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+    boxShadow: "0 10px 22px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 0 0 1px rgba(255,255,255,0.25)",
+    overflow: "hidden",
   },
-  sheetBtnSmall: {
-    minHeight: 46,
-    padding: "10px 12px",
+  menuGroupBtn: {
+    width: "100%",
+    minHeight: 56,
+    background: "transparent",
+    border: "none",
+    padding: "14px 16px",
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left" as const,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
-  menuBtnIconWrapSmall: {
-    width: 28,
-    height: 28,
-  },
-  menuBtnLabelSmall: {
-    fontSize: 15,
-    fontWeight: 400,
+  menuDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 64, // 16 padding + 34 icon + 14 gap
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
