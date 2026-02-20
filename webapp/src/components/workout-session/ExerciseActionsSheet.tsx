@@ -713,8 +713,8 @@ const s: Record<string, CSSProperties> = {
   grabberRow: {
     display: "flex",
     justifyContent: "center",
-    paddingTop: 10,
-    paddingBottom: 2,
+    paddingTop: 8,
+    paddingBottom: 0,
     flexShrink: 0,
   },
   grabber: {
@@ -728,7 +728,7 @@ const s: Record<string, CSSProperties> = {
   header: {
     display: "flex",
     alignItems: "center",
-    padding: "2px 8px 6px",
+    padding: "0px 8px 0px",
     flexShrink: 0,
   },
   headerSpacer: {
@@ -798,7 +798,7 @@ const s: Record<string, CSSProperties> = {
 
   // ── Menu mode (Grouped / iOS style) ───────────────────────────────────
   menuWrap: {
-    padding: "0px 16px 16px",
+    padding: "0px 16px 8px",
   },
   menuGroup: {
     display: "flex",
