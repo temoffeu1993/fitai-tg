@@ -2029,7 +2029,7 @@ workoutGeneration.post(
       if (plannedWorkoutId) {
         await q(
           `UPDATE planned_workouts
-	              SET scheduled_for = CASE WHEN status = 'pending' THEN $4 ELSE scheduled_for END,
+	              SET scheduled_for = $4,
 	                  status = 'completed',
 	                  result_session_id = $3,
 	                  completed_at = $4,
