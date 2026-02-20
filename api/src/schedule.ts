@@ -276,6 +276,9 @@ schedule.post(
                     #- '{meta,action}'
                     #- '{meta,wasSwapped}'
                     #- '{meta,swapInfo}',
+              status = 'pending',
+              result_session_id = NULL,
+              completed_at = NULL,
               updated_at = now()
         WHERE user_id = $1 AND id = $2
         RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
@@ -287,8 +290,8 @@ schedule.post(
       return res.status(404).json({ error: "not_found" });
     }
 
-    const userProfile = await buildUserProfile(userId);
-    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile.timeBucket) });
+    const userProfile = await buildUserProfile(userId).catch(() => null);
+    res.json({ plannedWorkout: serializePlannedWorkout(updated, userProfile?.timeBucket) });
   })
 );
 
