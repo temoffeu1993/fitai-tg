@@ -276,7 +276,7 @@ schedule.post(
                     #- '{meta,action}'
                     #- '{meta,wasSwapped}'
                     #- '{meta,swapInfo}',
-              status = 'pending',
+              status = 'scheduled',
               result_session_id = NULL,
               completed_at = NULL,
               updated_at = now()
