@@ -442,7 +442,7 @@ function RestToggleBtn({ enabled, onToggle }: { enabled: boolean; onToggle: () =
     >
       <span style={{
         ...s.menuBtnIconWrap,
-        color: workoutTheme.textSecondary,
+        color: workoutTheme.accent,
       }}>
         <Clock size={18} strokeWidth={2.2} />
       </span>
@@ -632,7 +632,7 @@ const globalCss = `
     transition: background 120ms ease;
   }
   .eas-menu-btn:active:not(:disabled) {
-    background: rgba(15,23,42,0.06) !important;
+    background: rgba(15,23,42,0.06);
   }
 
   /* Sheet button — matches ExerciseListSheet row style */
@@ -700,7 +700,7 @@ const s: Record<string, CSSProperties> = {
     border: workoutTheme.cardBorder,
     background: "linear-gradient(180deg, rgba(255,255,255,0.985) 0%, rgba(242,242,247,0.975) 100%)",
     boxShadow: workoutTheme.cardShadow,
-    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
     maxHeight: "80vh",
     display: "flex",
     flexDirection: "column",
@@ -798,7 +798,7 @@ const s: Record<string, CSSProperties> = {
 
   // ── Menu mode (Grouped / iOS style) ───────────────────────────────────
   menuWrap: {
-    padding: "0px 16px 8px",
+    padding: "0px 0px 0px",
   },
   menuGroup: {
     display: "flex",
@@ -811,7 +811,7 @@ const s: Record<string, CSSProperties> = {
     minHeight: 56,
     background: "transparent",
     border: "none",
-    padding: "14px 4px",
+    padding: "14px 16px",
     fontSize: 18,
     fontWeight: 500,
     textAlign: "left" as const,
@@ -824,7 +824,7 @@ const s: Record<string, CSSProperties> = {
   menuDivider: {
     height: 1,
     background: "rgba(15,23,42,0.06)",
-    marginLeft: 48, // 4 padding + 28 icon + 16 gap
+    marginLeft: 60, // 16 padding + 28 icon + 16 gap
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
