@@ -241,6 +241,7 @@ export default function WorkoutSession() {
   const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
   const blockTimerRef = useRef<number | null>(null);
   const restStartTimerRef = useRef<number | null>(null);
+  const discardingRef = useRef(false);
 
   useEffect(() => {
     const prevBody = document.body.style.background;
@@ -359,7 +360,7 @@ export default function WorkoutSession() {
   }, [restEndAt, pendingAdvanceExercise, items.length]);
 
   useEffect(() => {
-    if (!plan) return;
+    if (!plan || discardingRef.current) return;
     const payload = {
       title: plan.title,
       plan,
@@ -818,13 +819,15 @@ export default function WorkoutSession() {
   };
 
   const discardWorkout = async () => {
+    discardingRef.current = true;
     clearActiveWorkout();
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
     try { localStorage.removeItem("schedule_cache_v1"); } catch { }
     if (plannedWorkoutId) {
-      try { await resetPlannedWorkout(plannedWorkoutId); } catch { /* best-effort */ }
-      try { await deleteTodayCheckin(); } catch { /* best-effort */ }
+      try { await resetPlannedWorkout(plannedWorkoutId); } catch (e) { console.warn("resetPlannedWorkout failed", e); }
+      try { await deleteTodayCheckin(); } catch (e) { console.warn("deleteTodayCheckin failed", e); }
     }
+    clearActiveWorkout();
     try {
       window.dispatchEvent(new CustomEvent("schedule_updated"));
       window.dispatchEvent(new CustomEvent("planned_workouts_updated"));
