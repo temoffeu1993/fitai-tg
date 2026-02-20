@@ -832,7 +832,7 @@ const s: Record<string, CSSProperties> = {
     minHeight: 56,
     background: "transparent",
     border: "none",
-    padding: "14px 16px",
+    padding: "14px 24px",
     fontSize: 18,
     fontWeight: 500,
     textAlign: "left" as const,
@@ -845,7 +845,7 @@ const s: Record<string, CSSProperties> = {
   menuDivider: {
     height: 1,
     background: "rgba(15,23,42,0.06)",
-    marginLeft: 60, // 16 padding + 28 icon + 16 gap
+    marginLeft: 68, // 24 padding + 28 icon + 16 gap
   },
 
   // ── Replace mode ──────────────────────────────────────────────────────
@@ -861,7 +861,7 @@ const s: Record<string, CSSProperties> = {
   altRowInner: {
     animation: "eas-alt-in 0.32s cubic-bezier(0.36, 0.66, 0.04, 1) both",
     color: workoutTheme.accent,
-    padding: "14px 16px",
+    padding: "14px 24px",
   },
   altTextWrap: {
     display: "flex",
@@ -938,7 +938,7 @@ const s: Record<string, CSSProperties> = {
     fontSize: 15,
     color: workoutTheme.textSecondary,
     lineHeight: 1.45,
-    textAlign: "left",
+    textAlign: "center",
     padding: "16px 16px 20px",
     margin: 0,
   },
