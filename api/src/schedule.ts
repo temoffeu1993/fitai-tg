@@ -159,13 +159,24 @@ schedule.get(
     const userProfile = await buildUserProfile(userId);
 
     const planned = await q<PlannedWorkoutRow>(
-      `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+      `WITH latest_gen AS (
+         SELECT generation_id
+           FROM planned_workouts
+          WHERE user_id = $1
+            AND generation_id IS NOT NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+       )
+       SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
          FROM planned_workouts
         WHERE user_id = $1
           AND status <> 'cancelled'
           AND (
+            -- completed workouts: only show if from the latest generation batch
+            -- (hides stale completed rows from old generations)
             status <> 'completed'
-            OR scheduled_for >= date_trunc('week', CURRENT_DATE)
+            OR generation_id = (SELECT generation_id FROM latest_gen)
+            OR (generation_id IS NULL AND scheduled_for >= date_trunc('week', CURRENT_DATE))
           )
         ORDER BY scheduled_for ASC`,
       [userId]

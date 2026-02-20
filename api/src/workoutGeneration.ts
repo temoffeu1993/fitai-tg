@@ -3,6 +3,7 @@
 // NEW WORKOUT GENERATION API - Using Deterministic System
 // ============================================================================
 
+import { randomUUID } from "crypto";
 import { Router, Response } from "express";
 import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
@@ -518,6 +519,7 @@ workoutGeneration.post(
 
     // Save all workouts to planned_workouts
     console.log(`💾 Saving ${weekPlan.length} workouts to planned_workouts...`);
+    const generationId = randomUUID();
     for (let i = 0; i < weekPlan.length; i++) {
       const workout = weekPlan[i];
 
@@ -555,17 +557,18 @@ workoutGeneration.post(
 
       await q(
         `INSERT INTO planned_workouts
-         (user_id, workout_date, data, plan, scheduled_for, status)
+         (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)
          ON CONFLICT (user_id, workout_date)
          DO UPDATE SET
            data = $3::jsonb,
            plan = $3::jsonb,
            status = 'pending',
+           generation_id = $4::uuid,
            updated_at = now()
          WHERE planned_workouts.status <> 'completed'`,
-        [uid, i, workoutData]
+        [uid, i, workoutData, generationId]
       );
       console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
     }
@@ -1026,6 +1029,7 @@ workoutGeneration.post(
     });
 
     // Save all workouts
+    const generationId = randomUUID();
     for (let i = 0; i < weekPlan.length; i++) {
       const workout = weekPlan[i];
 
@@ -1059,18 +1063,19 @@ workoutGeneration.post(
 
       // Use different dates for each workout
       await q(
-        `INSERT INTO planned_workouts 
-         (user_id, workout_date, data, plan, scheduled_for, status)
+        `INSERT INTO planned_workouts
+         (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
          VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending')
-         ON CONFLICT (user_id, workout_date) 
-         DO UPDATE SET 
+                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)
+         ON CONFLICT (user_id, workout_date)
+         DO UPDATE SET
            data = $3::jsonb,
            plan = $3::jsonb,
-           status = 'pending', 
+           status = 'pending',
+           generation_id = $4::uuid,
            updated_at = now()
          WHERE planned_workouts.status <> 'completed'`,
-        [uid, i, workoutData]
+        [uid, i, workoutData, generationId]
       );
     }
 
