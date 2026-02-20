@@ -943,7 +943,10 @@ export default function WorkoutSession() {
   const exerciseProgressLabel = `${doneExercises}/${Math.max(1, items.length)}`;
   const isSheetOpen = listOpen || exerciseMenu != null;
   const canGoNextExercise =
-    Boolean(activeItem) && activeIndex < items.length - 1 && activeItem.sets.every((set) => Boolean(set.done));
+    Boolean(activeItem) &&
+    activeIndex < items.length - 1 &&
+    activeItem.sets.every((set) => Boolean(set.done)) &&
+    activeItem.effort != null;
   const uiState: SessionUiState = (() => {
     if (restSecLeft != null) return "rest_running";
     if (isSheetOpen) return "sheet_open";
@@ -1006,7 +1009,8 @@ export default function WorkoutSession() {
 
       <BottomDock
         primaryLabel={allDone ? "Завершить тренировку" : "Следующее упражнение"}
-        primaryVariant={allDone ? "compactArrow" : "compactArrow"}
+        primaryVisible={allDone || canGoNextExercise}
+        primaryVariant="compactArrow"
         primaryIcon={allDone ? <CheckCheck size={16} strokeWidth={2.2} /> : undefined}
         onPrimary={() => {
           if (allDone) {

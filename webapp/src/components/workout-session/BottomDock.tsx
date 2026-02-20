@@ -3,6 +3,7 @@ import { workoutTheme } from "./theme";
 
 type Props = {
   primaryLabel: string;
+  primaryVisible?: boolean;
   primaryEnabled?: boolean;
   primaryVariant?: "default" | "compactArrow";
   primaryIcon?: ReactNode;
@@ -14,6 +15,7 @@ type Props = {
 export default function BottomDock(props: Props) {
   const {
     primaryLabel,
+    primaryVisible = true,
     primaryEnabled = true,
     primaryVariant = "default",
     primaryIcon,
@@ -27,29 +29,31 @@ export default function BottomDock(props: Props) {
   return (
     <footer style={s.wrap}>
       <div style={s.inner}>
-        <button
-          type="button"
-          className="intro-primary-btn ws-primary-btn"
-          disabled={primaryDisabled}
-          style={{
-            ...s.primary,
-            ...(compact ? s.primaryCompact : null),
-            ...(compact || primaryEnabled ? s.primaryActive : null),
-            ...(!compact && !primaryEnabled ? s.primaryDisabled : null),
-          }}
-          onClick={onPrimary}
-        >
-          {compact ? (
-            <>
-              <span style={s.primaryCompactText}>{primaryLabel}</span>
-              <span style={s.primaryCompactArrowWrap} aria-hidden>
-                {primaryIcon ?? <span style={s.primaryCompactArrow}>→</span>}
-              </span>
-            </>
-          ) : (
-            primaryLabel
-          )}
-        </button>
+        {primaryVisible ? (
+          <button
+            type="button"
+            className="intro-primary-btn ws-primary-btn"
+            disabled={primaryDisabled}
+            style={{
+              ...s.primary,
+              ...(compact ? s.primaryCompact : null),
+              ...(compact || primaryEnabled ? s.primaryActive : null),
+              ...(!compact && !primaryEnabled ? s.primaryDisabled : null),
+            }}
+            onClick={onPrimary}
+          >
+            {compact ? (
+              <>
+                <span style={s.primaryCompactText}>{primaryLabel}</span>
+                <span style={s.primaryCompactArrowWrap} aria-hidden>
+                  {primaryIcon ?? <span style={s.primaryCompactArrow}>→</span>}
+                </span>
+              </>
+            ) : (
+              primaryLabel
+            )}
+          </button>
+        ) : null}
         {secondaryLabel && onSecondary ? (
           <button type="button" style={s.secondary} onClick={onSecondary}>
             {secondaryLabel}
