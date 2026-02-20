@@ -261,21 +261,11 @@ async function applyExerciseHistorySessionIdMigration() {
  */
 async function applyPlannedWorkoutsBasePlanMigration() {
   try {
-    console.log("\n🔧 Checking planned_workouts.base_plan migration...");
-
+    // Only ensures column exists; backfill is handled by sql/2026_02_base_plan.sql
     await pool.query(`
       ALTER TABLE planned_workouts
       ADD COLUMN IF NOT EXISTS base_plan jsonb NULL;
     `);
-
-    // Backfill: keep whatever is currently in plan as the baseline if none exists.
-    await pool.query(`
-      UPDATE planned_workouts
-      SET base_plan = plan
-      WHERE base_plan IS NULL;
-    `);
-
-    console.log("✅ planned_workouts.base_plan ensured\n");
   } catch (error: any) {
     console.error("❌ planned_workouts.base_plan migration failed:", error.message);
     throw error;

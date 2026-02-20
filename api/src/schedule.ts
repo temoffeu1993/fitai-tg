@@ -537,6 +537,14 @@ schedule.patch(
       scheduledDate = dt;
       fields.push(`scheduled_for = $${idx++}`);
       values.push(dt.toISOString());
+
+      // Keep workout_date in sync: prefer explicit local date from client,
+      // otherwise derive from the ISO string (first 10 chars = UTC date).
+      const localDate = typeof body.workoutDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.workoutDate)
+        ? body.workoutDate
+        : dt.toISOString().slice(0, 10);
+      fields.push(`workout_date = $${idx++}::date`);
+      values.push(localDate);
     }
 
     if (typeof body.plan === "object" && body.plan) {
