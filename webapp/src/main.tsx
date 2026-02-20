@@ -110,6 +110,24 @@ timeMark("boot:theme-applied");
 // корень приложения
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
+const CRITICAL_IMAGES = [
+  robotImg,
+  morobotImg,
+  fonImg,
+  mozgImg,
+  maleRobotImg,
+  femaleRobotImg,
+  beginnerImg,
+  intermediateImg,
+  advancedImg,
+  slimRobotImg,
+  toneRobotImg,
+  healthRobotImg,
+  smotrchasImg,
+  breathImg,
+  absImg,
+  dataCardImg,
+];
 const hideBootSplash = () => {
   const el = document.getElementById("boot-splash");
   if (el) {
@@ -132,6 +150,33 @@ function LoadingScreen() {
       </div>
     </div>
   );
+}
+
+function AuthErrorScreen({ message }: { message: string }) {
+  return (
+    <div style={loader.wrap}>
+      <div style={authError.card}>
+        <div style={authError.title}>Не удалось запустить приложение</div>
+        <div style={authError.text}>{message}</div>
+        <button style={authError.btn} onClick={() => window.location.reload()}>
+          Повторить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+async function renderAppShell(markLabel: string) {
+  await Promise.all([...CRITICAL_IMAGES.map(preloadImage), preloadScheduleCache()]);
+  timeMark("boot:critical-images-ready");
+  root.render(
+    <>
+      <App />
+      <DebugOverlay />
+    </>
+  );
+  timeMark(markLabel);
+  window.requestAnimationFrame(hideBootSplash);
 }
 
 async function preloadScheduleCache() {
@@ -312,35 +357,7 @@ if (isDev && !tg?.initData) {
     "profile",
     JSON.stringify({ first_name: "Dev", username: "dev" })
   );
-  const allImages = [
-    robotImg,
-    morobotImg,
-    fonImg,
-    mozgImg,
-    maleRobotImg,
-    femaleRobotImg,
-    beginnerImg,
-    intermediateImg,
-    advancedImg,
-    slimRobotImg,
-    toneRobotImg,
-    healthRobotImg,
-    smotrchasImg,
-    breathImg,
-    absImg,
-    dataCardImg,
-  ];
-  Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]).finally(() => {
-    timeMark("boot:critical-images-ready");
-    root.render(
-      <>
-        <App />
-        <DebugOverlay />
-      </>
-    );
-    timeMark("boot:app-rendered");
-    window.requestAnimationFrame(hideBootSplash);
-  });
+  void renderAppShell("boot:app-rendered");
 } else {
   // реальная авторизация через Telegram
   root.render(<LoadingScreen />);
@@ -368,36 +385,53 @@ async function auth() {
     timeMark("auth:response-ok");
     const { token } = await r.json();
     localStorage.setItem("token", token);
-    const allImages = [
-      robotImg,
-      morobotImg,
-      fonImg,
-      mozgImg,
-      maleRobotImg,
-      femaleRobotImg,
-      beginnerImg,
-      intermediateImg,
-      advancedImg,
-      slimRobotImg,
-      toneRobotImg,
-      healthRobotImg,
-      smotrchasImg,
-      breathImg,
-      absImg,
-      dataCardImg,
-    ];
-    await Promise.all([...allImages.map(preloadImage), preloadScheduleCache()]);
-    timeMark("boot:critical-images-ready");
-    root.render(
-      <>
-        <App />
-        <DebugOverlay />
-      </>
-    );
-    timeMark("boot:app-rendered");
-    window.requestAnimationFrame(hideBootSplash);
+    await renderAppShell("boot:app-rendered");
   } catch (e: any) {
-    root.render(<LoadingScreen />);
+    console.error("boot auth failed", e);
+    const cachedToken = localStorage.getItem("token");
+    if (cachedToken) {
+      await renderAppShell("boot:app-rendered-token-fallback");
+      return;
+    }
+    const details = typeof e?.message === "string" && e.message ? e.message : "Ошибка авторизации";
+    root.render(<AuthErrorScreen message={details} />);
     timeMark("auth:failed");
   }
 }
+
+const authError = {
+  card: {
+    width: "min(420px, calc(100vw - 32px))",
+    borderRadius: 16,
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    boxShadow: "0 10px 30px rgba(0,0,0,.08)",
+    padding: "18px 16px",
+    display: "grid",
+    gap: 10,
+    textAlign: "center",
+  } as React.CSSProperties,
+  title: {
+    fontSize: 17,
+    lineHeight: 1.2,
+    fontWeight: 800,
+    color: "#111827",
+  } as React.CSSProperties,
+  text: {
+    fontSize: 13,
+    lineHeight: 1.35,
+    color: "#4b5563",
+    wordBreak: "break-word",
+  } as React.CSSProperties,
+  btn: {
+    marginTop: 4,
+    height: 40,
+    borderRadius: 10,
+    border: "1px solid #111827",
+    background: "#111827",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+  } as React.CSSProperties,
+};
