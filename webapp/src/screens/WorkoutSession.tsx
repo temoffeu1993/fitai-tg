@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, LogOut, Dumbbell, Flag, CheckCheck, Check } from "lucide-react";
+import { X, LogOut, Dumbbell, Flag, CheckCheck, Square } from "lucide-react";
 import { saveSession, deleteTodayCheckin } from "@/api/plan";
 import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
@@ -1015,7 +1015,7 @@ export default function WorkoutSession() {
         primaryLabel="Завершить тренировку"
         primaryVisible={true}
         primaryVariant="compactArrow"
-        primaryIcon={allDone ? <CheckCheck size={20} strokeWidth={2.5} /> : <Check size={20} strokeWidth={2.5} />}
+        primaryIcon={allDone ? <CheckCheck size={20} strokeWidth={2.5} /> : <Square size={14} fill="currentColor" strokeWidth={2.5} />}
         onPrimary={() => {
           if (allDone) {
             fireHapticImpact("medium");
