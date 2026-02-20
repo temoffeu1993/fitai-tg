@@ -632,7 +632,7 @@ const globalCss = `
     transition: background 120ms ease;
   }
   .eas-menu-btn:active:not(:disabled) {
-    background: rgba(15,23,42,0.06);
+    background: rgba(15,23,42,0.08) !important;
   }
 
   /* Sheet button — matches ExerciseListSheet row style */
@@ -798,7 +798,7 @@ const s: Record<string, CSSProperties> = {
 
   // ── Menu mode (Grouped / iOS style) ───────────────────────────────────
   menuWrap: {
-    padding: "0px 0px 0px",
+    padding: "0px 0px 8px", // Only bottom padding
   },
   menuGroup: {
     display: "flex",
