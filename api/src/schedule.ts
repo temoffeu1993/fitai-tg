@@ -172,10 +172,9 @@ schedule.get(
         WHERE user_id = $1
           AND status <> 'cancelled'
           AND (
-            -- completed workouts: only show if from the latest generation batch
-            -- (hides stale completed rows from old generations)
-            status <> 'completed'
-            OR generation_id = (SELECT generation_id FROM latest_gen)
+            -- show rows from the latest generation batch (any status)
+            generation_id = (SELECT generation_id FROM latest_gen)
+            -- legacy rows (NULL generation_id): show only within current week
             OR (generation_id IS NULL AND scheduled_for >= date_trunc('week', CURRENT_DATE))
           )
         ORDER BY scheduled_for ASC`,
