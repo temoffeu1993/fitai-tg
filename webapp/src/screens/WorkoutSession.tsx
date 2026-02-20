@@ -819,12 +819,15 @@ export default function WorkoutSession() {
 
   const discardWorkout = async () => {
     clearActiveWorkout();
+    try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
+    try { localStorage.removeItem("schedule_cache_v1"); } catch { }
     if (plannedWorkoutId) {
       try { await resetPlannedWorkout(plannedWorkoutId); } catch { /* best-effort */ }
       try { await deleteTodayCheckin(); } catch { /* best-effort */ }
     }
     try {
       window.dispatchEvent(new CustomEvent("schedule_updated"));
+      window.dispatchEvent(new CustomEvent("planned_workouts_updated"));
     } catch { }
     nav("/", { replace: true });
   };
