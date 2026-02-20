@@ -2801,6 +2801,99 @@ const peeCss = `
 
 /* ----------------- Мелкие элементы ----------------- */
 
+const modal: Record<string, React.CSSProperties> = {
+  wrap: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,.35)",
+    display: "grid",
+    placeItems: "center",
+    padding: 16,
+    zIndex: 2000,
+    overscrollBehavior: "contain",
+  },
+  card: {
+    width: "min(92vw, 420px)",
+    borderRadius: 18,
+    background: "#fff",
+    boxShadow: "0 22px 60px rgba(0,0,0,.32)",
+    padding: 20,
+    display: "grid",
+    gap: 18,
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 800,
+  },
+  close: {
+    border: "none",
+    background: "transparent",
+    fontSize: 20,
+    cursor: "pointer",
+    lineHeight: 1,
+    color: "#555",
+  },
+  body: {
+    display: "grid",
+    gap: 12,
+  },
+  label: {
+    display: "grid",
+    gap: 6,
+  },
+  labelText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#555",
+  },
+  input: {
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(0,0,0,.12)",
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1b1b1b",
+    fontFamily: "inherit",
+  },
+  error: {
+    background: "rgba(255,102,102,.12)",
+    color: "#d24",
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "8px 10px",
+    borderRadius: 10,
+  },
+  footer: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  cancel: {
+    border: "none",
+    borderRadius: 12,
+    padding: "12px 14px",
+    fontWeight: 700,
+    background: "rgba(0,0,0,.06)",
+    color: "#333",
+    cursor: "pointer",
+  },
+  save: {
+    border: "none",
+    borderRadius: 12,
+    padding: "12px 14px",
+    fontWeight: 700,
+    color: "#1b1b1b",
+    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
+    boxShadow: "0 5px 16px rgba(0,0,0,.18)",
+    cursor: "pointer",
+  },
+};
+
 const s: Record<string, React.CSSProperties> = {
   ...modal,
   menuWrap: {
@@ -3407,99 +3500,6 @@ const loaderSimple = {
     color: "rgba(15,23,42,0.62)",
     fontWeight: 600,
   } as React.CSSProperties,
-};
-
-const modal: Record<string, React.CSSProperties> = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.35)",
-    display: "grid",
-    placeItems: "center",
-    padding: 16,
-    zIndex: 2000,
-    overscrollBehavior: "contain",
-  },
-  card: {
-    width: "min(92vw, 420px)",
-    borderRadius: 18,
-    background: "#fff",
-    boxShadow: "0 22px 60px rgba(0,0,0,.32)",
-    padding: 20,
-    display: "grid",
-    gap: 18,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 800,
-  },
-  close: {
-    border: "none",
-    background: "transparent",
-    fontSize: 20,
-    cursor: "pointer",
-    lineHeight: 1,
-    color: "#555",
-  },
-  body: {
-    display: "grid",
-    gap: 12,
-  },
-  label: {
-    display: "grid",
-    gap: 6,
-  },
-  labelText: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#555",
-  },
-  input: {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.12)",
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1b1b1b",
-    fontFamily: "inherit",
-  },
-  error: {
-    background: "rgba(255,102,102,.12)",
-    color: "#d24",
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "8px 10px",
-    borderRadius: 10,
-  },
-  footer: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  cancel: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    background: "rgba(0,0,0,.06)",
-    color: "#333",
-    cursor: "pointer",
-  },
-  save: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 5px 16px rgba(0,0,0,.18)",
-    cursor: "pointer",
-  },
 };
 
 /* ----------------- Единые цвета секций ----------------- */
