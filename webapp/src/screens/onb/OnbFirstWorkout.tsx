@@ -346,7 +346,8 @@ export default function OnbFirstWorkout({ onComplete, onBack }: Props) {
       }
     } catch (err: any) {
       console.error("OnbFirstWorkout handleConfirm error:", err, err?.status, err?.body);
-      setSaveError("Не удалось запланировать первую тренировку. Проверь интернет и попробуй еще раз.");
+      const detail = err?.body ? JSON.stringify(err.body) : (err?.message ?? String(err));
+      setSaveError(`Ошибка: ${detail}`);
       setIsSaving(false);
       fireHapticImpact("light");
       return;
