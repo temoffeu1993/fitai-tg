@@ -1,9 +1,7 @@
--- Migration: replace UNIQUE index on workout_date with a regular one.
--- A user may have multiple workouts on the same date (e.g. morning + evening),
--- so the UNIQUE constraint is too strict.
+-- Migration: ensure UNIQUE index on (user_id, workout_date) exists.
+-- This index is required by ON CONFLICT (user_id, workout_date) in workoutGeneration.ts.
+-- One workout per user per date is a business rule.
 -- 2026-02-20
 
-DROP INDEX IF EXISTS idx_planned_workouts_user_date;
-
-CREATE INDEX IF NOT EXISTS idx_planned_workouts_user_date
+CREATE UNIQUE INDEX IF NOT EXISTS idx_planned_workouts_user_date
   ON planned_workouts(user_id, workout_date);
