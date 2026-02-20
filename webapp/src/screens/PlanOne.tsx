@@ -227,7 +227,12 @@ export default function PlanOne() {
     typeof window !== "undefined" ? window.innerHeight : 812
   );
 
-  const activeDraft = useMemo(() => readSessionDraft(), []);
+  const [activeDraft, setActiveDraft] = useState(() => readSessionDraft());
+  useEffect(() => {
+    const refresh = () => setActiveDraft(readSessionDraft());
+    window.addEventListener("schedule_updated", refresh);
+    return () => window.removeEventListener("schedule_updated", refresh);
+  }, []);
   const activeProgress = useMemo(() => {
     const d = activeDraft;
     const items = Array.isArray(d?.items) ? d!.items : [];
