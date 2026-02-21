@@ -1677,9 +1677,9 @@ export default function Dashboard() {
                     }}
                   >
                     {done ? (
-                      <span style={{ ...s.goalCompactDoneMark, fontSize: Math.round(goalDotSize * 0.72) }}>✓</span>
+                      <span style={{ ...s.goalCompactDoneMark, fontSize: Math.round(goalDotSize * 0.55) }}>✓</span>
                     ) : (
-                      <span style={{ ...s.goalCompactTodoMark, fontSize: Math.round(goalDotSize * 0.72) }}>✓</span>
+                      <span style={{ ...s.goalCompactTodoMark, fontSize: Math.round(goalDotSize * 0.55) }}>✓</span>
                     )}
                   </span>
                 </span>
