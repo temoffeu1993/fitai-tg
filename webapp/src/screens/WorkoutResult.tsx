@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCoachJob, getProgressionJob, getWorkoutSessionById } from "@/api/plan";
 import mascotImg from "@/assets/robonew.webp";
+import confetti from "canvas-confetti";
 
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const HISTORY_KEY = "history_sessions_v1";
@@ -72,22 +73,22 @@ function parseUpperReps(reps: unknown): number | null {
     if (Number.isFinite(a) && Number.isFinite(b)) return Math.max(Math.round(a), Math.round(b));
   }
   if (typeof reps === "number" && Number.isFinite(reps) && reps > 0) return Math.round(reps + 2);
-  const s = String(reps).trim();
-  const m = s.match(/(\d+)\s*[-–—]\s*(\d+)/);
+  const str = String(reps).trim();
+  const m = str.match(/(\d+)\s*[-–—]\s*(\d+)/);
   if (m) {
     const a = Number(m[1]);
     const b = Number(m[2]);
     if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
     return Math.max(a, b);
   }
-  const c = s.match(/(\d+)\s*,\s*(\d+)/);
+  const c = str.match(/(\d+)\s*,\s*(\d+)/);
   if (c) {
     const a = Number(c[1]);
     const b = Number(c[2]);
     if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
     return Math.max(a, b);
   }
-  const n = Number(s);
+  const n = Number(str);
   if (Number.isFinite(n) && n > 0) return Math.round(n + 2);
   return null;
 }
@@ -108,18 +109,6 @@ function readHistory(): HistorySession[] {
   } catch {
     return [];
   }
-}
-
-function coachSummaryMessage(args: {
-  hasLoadDown: boolean;
-  weightUpCount: number;
-  repsUpCount: number;
-}): string {
-  const { hasLoadDown, weightUpCount, repsUpCount } = args;
-  if (hasLoadDown) return "Сегодня бережный режим — это часть прогресса. Сохрани технику и восстановление, дальше вернёмся к росту.";
-  if (weightUpCount > 0) return `Отлично! В ${weightUpCount} упражнениях можно прибавить вес. На новых весах держи технику и комфортный темп.`;
-  if (repsUpCount > 0) return `Хорошая работа! В ${repsUpCount} упражнениях повышаем цель по повторам — затем перейдём к росту веса.`;
-  return "Стабильность — это тоже прогресс. Добивай верх повторов с чистой техникой, и вес начнёт расти.";
 }
 
 // Typewriter hook
@@ -143,6 +132,163 @@ function useTypewriter(text: string, speed = 28): string {
 
   return displayed;
 }
+
+/** Compute total tonnage (sum of weight * reps for all done sets) */
+function computeTonnage(exercises: any[]): number {
+  let total = 0;
+  for (const ex of exercises) {
+    const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+    for (const set of sets) {
+      if (set?.done === false) continue;
+      const w = toNumber(set?.weight) ?? 0;
+      const r = toNumber(set?.reps) ?? 0;
+      if (w > 0 && r > 0) total += w * r;
+    }
+  }
+  return Math.round(total);
+}
+
+/** Compute tonnage from a history session */
+function computeHistoryTonnage(session: HistorySession): number {
+  const exercises = session?.exercises ?? session?.items ?? [];
+  return computeTonnage(Array.isArray(exercises) ? exercises : []);
+}
+
+/** Detect personal records from current workout vs history */
+function detectPRs(
+  currentExercises: any[],
+  history: HistorySession[],
+  currentSessionId: string | null
+): Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> {
+  const prs: Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> = [];
+
+  // Build best records from history (excluding current session)
+  const bestWeight = new Map<string, number>();
+  const bestReps = new Map<string, number>();
+
+  for (const session of history) {
+    if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
+    const exercises = session?.exercises ?? session?.items ?? [];
+    if (!Array.isArray(exercises)) continue;
+    for (const ex of exercises) {
+      const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
+      if (!key) continue;
+      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+      for (const set of sets) {
+        const w = toNumber(set?.weight);
+        const r = toNumber(set?.reps);
+        if (w != null && w > 0) bestWeight.set(key, Math.max(bestWeight.get(key) ?? 0, w));
+        if (r != null && r > 0) bestReps.set(key, Math.max(bestReps.get(key) ?? 0, r));
+      }
+    }
+  }
+
+  // Compare current exercises
+  for (const ex of currentExercises) {
+    const name = String(ex?.name || ex?.exerciseName || "");
+    const key = normalizeNameKey(name);
+    if (!key || !name) continue;
+    const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+    let maxW = 0;
+    let maxR = 0;
+    for (const set of sets) {
+      if (set?.done === false) continue;
+      const w = toNumber(set?.weight) ?? 0;
+      const r = toNumber(set?.reps) ?? 0;
+      if (w > maxW) maxW = w;
+      if (r > maxR) maxR = r;
+    }
+    const prevBestW = bestWeight.get(key) ?? 0;
+    const prevBestR = bestReps.get(key) ?? 0;
+
+    if (maxW > prevBestW && prevBestW > 0) {
+      prs.push({ name, weight: maxW, reps: maxR, type: "weight" });
+    } else if (maxR > prevBestR && prevBestR > 0 && maxW >= prevBestW) {
+      prs.push({ name, weight: maxW, reps: maxR, type: "reps" });
+    }
+  }
+
+  return prs.slice(0, 5);
+}
+
+/** Map effort to a color for the effort bar */
+function effortColor(effort: string | number | undefined): string {
+  const e = typeof effort === "number" ? effort : typeof effort === "string" ? Number(effort) : 0;
+  if (e >= 9) return "#ef4444"; // Red — very hard
+  if (e >= 7) return "#f59e0b"; // Orange — moderate-hard
+  if (e >= 5) return "#61d700"; // Green — moderate
+  return "#94a3b8"; // Gray — easy / unknown
+}
+
+/** Milestone thresholds and labels */
+function getMilestone(n: number): { current: number; next: number; label: string } | null {
+  const milestones = [5, 10, 25, 50, 75, 100, 150, 200, 300, 500];
+  for (const m of milestones) {
+    if (n < m) return { current: n, next: m, label: `${m}-я тренировка` };
+  }
+  return null;
+}
+
+/** Celebration confetti */
+function fireConfetti() {
+  const end = Date.now() + 1600;
+  const colors = ["#61d700", "#3B82F6", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+  const frame = () => {
+    confetti({
+      particleCount: 3,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.7 },
+      colors,
+      disableForReducedMotion: true,
+    });
+    confetti({
+      particleCount: 3,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.7 },
+      colors,
+      disableForReducedMotion: true,
+    });
+
+    if (Date.now() < end) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+/** Haptic feedback */
+function haptic() {
+  try {
+    if (navigator.vibrate) navigator.vibrate(80);
+    // Telegram WebApp haptic
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  } catch {}
+}
+
+/** Contextual mascot phrases by scenario */
+function mascotPhrase(scenario: string, sessionNumber: number | null): { hey: string; sub: string } {
+  const n = sessionNumber ?? 0;
+  if (scenario === "down") {
+    return { hey: "Молодец! ", sub: "Восстановление — тоже тренировка" };
+  }
+  if (scenario === "up") {
+    return { hey: "Ты стал сильнее! ", sub: n > 0 ? `${n}-я тренировка в копилке` : "Отличная работа" };
+  }
+  if (scenario === "reps") {
+    return { hey: "Круто! ", sub: n > 0 ? `Тренировка #${n} выполнена` : "Выносливость растёт" };
+  }
+  return { hey: "Отлично! ", sub: n > 0 ? `${n}-я тренировка завершена` : "Стабильность — это сила" };
+}
+
+/** Format tonnage for display */
+function formatTonnage(kg: number): string {
+  if (kg >= 1000) return `${(kg / 1000).toFixed(1).replace(/\.0$/, "")} т`;
+  return `${kg} кг`;
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function WorkoutResult() {
   const nav = useNavigate();
@@ -170,11 +316,6 @@ export default function WorkoutResult() {
   const [coachReport, setCoachReport] = useState<any | null>(initial?.coachReport ?? null);
   const [polling, setPolling] = useState(false);
   const [coachPolling, setCoachPolling] = useState(false);
-  const [expandUp, setExpandUp] = useState(true);
-  const [expandKeep, setExpandKeep] = useState(false);
-  const [expandDown, setExpandDown] = useState(false);
-  const [showMoreProgress, setShowMoreProgress] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
 
   // Fade-in for content blocks
   const [contentVisible, setContentVisible] = useState(false);
@@ -333,9 +474,9 @@ export default function WorkoutResult() {
     return (
       <div style={page.outer}>
         <div style={page.inner}>
-          <div style={s.sheet}>
+          <div style={s.glassCard}>
             <div style={s.heroTitle}>Результат тренировки</div>
-            <div style={s.heroSubtitle}>Нет данных о последней тренировке.</div>
+            <div style={{ ...s.bodyText, marginTop: 10 }}>Нет данных о последней тренировке.</div>
             <div style={{ marginTop: 14 }}>
               <button style={s.ctaPrimary} onClick={() => nav("/")}>
                 На главный экран
@@ -347,27 +488,61 @@ export default function WorkoutResult() {
     );
   }
 
+  return (
+    <ResultContent
+      result={result}
+      job={job}
+      summary={summary}
+      coachJob={coachJob}
+      coachReport={coachReport}
+      contentVisible={contentVisible}
+      jobId={jobId}
+      pollOnce={pollOnce}
+      nav={nav}
+    />
+  );
+}
+
+// ─── Result Content ────────────────────────────────────────────────────────────
+
+function ResultContent(props: any) {
+  const { result, job, summary, coachJob, coachReport, contentVisible, jobId, pollOnce, nav } = props;
+
   const details: Array<any> = Array.isArray(summary?.details) ? summary.details : [];
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
-
-  const missingProgression = !summary && job && job.status !== "done";
-
   const sessionNumber = typeof result.sessionNumber === "number" && result.sessionNumber > 0 ? result.sessionNumber : null;
 
   const durationMin: number | null = toNumber(result.payload?.durationMin);
   const exerciseCount = payloadExercises.length;
-  const doneExercises = payloadExercises.filter((ex) => ex?.done === true).length;
-  const recordedSets = payloadExercises.reduce((acc, ex) => acc + (Array.isArray(ex?.sets) ? ex.sets.length : 0), 0);
+  const doneExercises = payloadExercises.filter((ex: any) => ex?.done === true).length;
+  const totalSets = payloadExercises.reduce((acc: number, ex: any) => acc + (Array.isArray(ex?.sets) ? ex.sets.length : 0), 0);
 
-  const weightUp = details.filter((d) => String(d?.recommendation?.action || "") === "increase_weight");
-  const repsUp = details.filter((d) => String(d?.recommendation?.action || "") === "increase_reps");
-  const loadDown = details.filter((d) => {
+  // Tonnage
+  const tonnage = useMemo(() => computeTonnage(payloadExercises), [payloadExercises]);
+  const history = useMemo(() => readHistory(), []);
+  const priorTonnage = useMemo(() => {
+    const sorted = history.slice().sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
+    const sessionId = result.sessionId ? String(result.sessionId) : null;
+    let currentIndex = 0;
+    if (sessionId) {
+      const idx = sorted.findIndex((h) => String(h?.id || "") === sessionId);
+      if (idx >= 0) currentIndex = idx;
+    }
+    const prev = sorted[currentIndex + 1];
+    return prev ? computeHistoryTonnage(prev) : 0;
+  }, [history, result.sessionId]);
+  const tonnageDelta = priorTonnage > 0 ? tonnage - priorTonnage : 0;
+
+  // Progression groups
+  const weightUp = details.filter((d: any) => String(d?.recommendation?.action || "") === "increase_weight");
+  const repsUp = details.filter((d: any) => String(d?.recommendation?.action || "") === "increase_reps");
+  const loadDown = details.filter((d: any) => {
     const a = String(d?.recommendation?.action || "");
     return a === "decrease_weight" || a === "deload" || a === "rotate_exercise";
   });
-  const keep = details.filter((d) => {
+  const keep = details.filter((d: any) => {
     const a = String(d?.recommendation?.action || "");
-    return a === "maintain" || a === "increase_reps";
+    return a === "maintain";
   });
 
   const scenario =
@@ -376,37 +551,72 @@ export default function WorkoutResult() {
         : repsUp.length > 0 ? "reps"
           : "stable";
 
-  const heroHeadline =
-    scenario === "down" ? "🛌 Сегодня бережный режим"
-      : scenario === "up" ? "🎉 Ты стал сильнее"
-        : scenario === "reps" ? "🎉 Ты стал выносливее"
-          : "✅ Отличная стабильность";
+  // Personal records
+  const prs = useMemo(
+    () => detectPRs(payloadExercises, history, result.sessionId),
+    [payloadExercises, history, result.sessionId]
+  );
 
-  const heroSubline =
-    scenario === "down" ? "Снижаем нагрузку, чтобы восстановиться и вернуться сильнее."
-      : scenario === "up" ? `В ${weightUp.length} упражнениях можно прибавить вес.`
-        : scenario === "reps" ? `В ${repsUp.length} упражнениях повышаем цель по повторам.`
-          : "Сохраняем вес и добиваем верх повторов — так и растут.";
+  // Milestone
+  const milestone = sessionNumber != null ? getMilestone(sessionNumber) : null;
 
-  const mostImportant =
-    scenario === "down" ? "Это не откат. Разгрузка помогает прогрессировать стабильнее и без перегруза."
-      : scenario === "up" ? `На новых весах главное — техника и комфортный темп.`
-        : scenario === "reps" ? "Повторы выросли — это тоже прогресс. Следующий шаг: постепенно прибавим вес."
-          : "Стабильность — это прогресс. Добей верх повторов в 2–3 упражнениях, и вес начнёт расти.";
+  // Streak (count consecutive recent sessions from history)
+  const streak = useMemo(() => {
+    const sorted = history.slice().sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
+    let count = 0;
+    let prevDate: string | null = null;
+    for (const session of sorted) {
+      const d = session.finishedAt ? new Date(session.finishedAt).toISOString().slice(0, 10) : null;
+      if (!d) continue;
+      if (prevDate === d) continue; // same day
+      if (prevDate) {
+        const diff = (new Date(prevDate).getTime() - new Date(d).getTime()) / (1000 * 60 * 60 * 24);
+        if (diff > 7) break; // gap too large
+      }
+      prevDate = d;
+      count++;
+    }
+    return count;
+  }, [history]);
 
-  const payloadByName = new Map<string, any>();
-  for (const ex of payloadExercises) {
-    const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
-    if (!key) continue;
-    if (!payloadByName.has(key)) payloadByName.set(key, ex);
-  }
+  // Mascot phrase
+  const phrase = mascotPhrase(scenario, sessionNumber);
+  const typedHey = useTypewriter(phrase.hey, 35);
+  const [subReady, setSubReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSubReady(true), phrase.hey.length * 35 + 100);
+    return () => clearTimeout(t);
+  }, [phrase.hey]);
+  const typedSub = useTypewriter(subReady ? phrase.sub : "", 24);
+
+  // Confetti + haptic on mount
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    const t = setTimeout(() => {
+      fireConfetti();
+      haptic();
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Payload name map for getting current weight
+  const payloadByName = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const ex of payloadExercises) {
+      const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
+      if (key && !map.has(key)) map.set(key, ex);
+    }
+    return map;
+  }, [payloadExercises]);
 
   const getCurrentWeightFor = (name: string): number | null => {
     const key = normalizeNameKey(name);
     const ex = payloadByName.get(key);
     const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
     const weights = sets
-      .map((s) => toNumber(s?.weight))
+      .map((st) => toNumber(st?.weight))
       .filter((w): w is number => typeof w === "number" && Number.isFinite(w) && w > 0);
     return median(weights);
   };
@@ -418,133 +628,24 @@ export default function WorkoutResult() {
     return (fromRec != null ? Math.round(fromRec) : null) ?? parseUpperReps(ex?.reps) ?? 12;
   };
 
-  const prior = (() => {
-    const history = readHistory().slice();
-    history.sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
-    const sessionId = result.sessionId ? String(result.sessionId) : null;
-    let currentIndex = 0;
-    if (sessionId) {
-      const idx = history.findIndex((h) => String(h?.id || "") === sessionId);
-      if (idx >= 0) currentIndex = idx;
-    } else {
-      const createdAt = Date.parse(result.createdAt || "");
-      if (Number.isFinite(createdAt)) {
-        const idx = history.findIndex((h) => {
-          const t = Date.parse(String(h?.finishedAt || ""));
-          return Number.isFinite(t) && Math.abs(t - createdAt) <= 2 * 60 * 1000;
-        });
-        if (idx >= 0) currentIndex = idx;
-      }
-    }
-    const prev = history[currentIndex + 1] || null;
-    return prev;
-  })();
-
-  const priorExercises = Array.isArray(prior?.exercises)
-    ? prior?.exercises
-    : Array.isArray(prior?.items) ? prior?.items : [];
-  const priorExerciseCount = priorExercises.length;
-  const priorDurationMin = toNumber(prior?.durationMin);
-  const hasCompare = Boolean(prior && (priorDurationMin != null || priorExerciseCount > 0));
-
-  const compareSummary = (() => {
-    if (!hasCompare) return null;
-    const curM = durationMin ?? null;
-    const prevM = priorDurationMin ?? null;
-    const deltas: string[] = [];
-    if (curM != null && prevM != null) {
-      deltas.push(curM < prevM ? "Сегодня короче" : curM > prevM ? "Сегодня дольше" : "По времени похоже");
-    }
-    if (deltas.length === 0) return "Похоже на прошлый раз — это хорошо: стабильность даёт результат.";
-    return deltas.join(", ") + ".";
-  })();
-
-  return (
-    <ResultContent
-      result={result}
-      job={job}
-      summary={summary}
-      details={details}
-      coachJob={coachJob}
-      coachReport={coachReport}
-      sessionNumber={sessionNumber}
-      durationMin={durationMin}
-      exerciseCount={exerciseCount}
-      doneExercises={doneExercises}
-      recordedSets={recordedSets}
-      weightUp={weightUp}
-      repsUp={repsUp}
-      loadDown={loadDown}
-      keep={keep}
-      scenario={scenario}
-      heroHeadline={heroHeadline}
-      heroSubline={heroSubline}
-      mostImportant={mostImportant}
-      missingProgression={!!missingProgression}
-      contentVisible={contentVisible}
-      hasCompare={hasCompare}
-      compareSummary={compareSummary}
-      priorDurationMin={priorDurationMin}
-      priorExerciseCount={priorExerciseCount}
-      expandUp={expandUp} setExpandUp={setExpandUp}
-      expandKeep={expandKeep} setExpandKeep={setExpandKeep}
-      expandDown={expandDown} setExpandDown={setExpandDown}
-      showMoreProgress={showMoreProgress} setShowMoreProgress={setShowMoreProgress}
-      showDetails={showDetails} setShowDetails={setShowDetails}
-      getCurrentWeightFor={getCurrentWeightFor}
-      getTargetUpperFor={getTargetUpperFor}
-      jobId={jobId}
-      pollOnce={pollOnce}
-      nav={nav}
-    />
-  );
-}
-
-function ResultContent(props: any) {
-  const {
-    job, summary, details, coachJob, coachReport, sessionNumber,
-    durationMin, exerciseCount, doneExercises, recordedSets,
-    weightUp, repsUp, loadDown, keep, scenario,
-    heroHeadline, heroSubline, mostImportant, missingProgression,
-    contentVisible, hasCompare, compareSummary,
-    priorDurationMin, priorExerciseCount,
-    expandUp, setExpandUp, expandKeep, setExpandKeep,
-    expandDown, setExpandDown,
-    showMoreProgress, setShowMoreProgress,
-    showDetails, setShowDetails,
-    getCurrentWeightFor, getTargetUpperFor,
-    jobId, pollOnce, nav,
-  } = props;
-
-  const mascotHeyText = "Ееее! 🎉";
-  const mascotSubText = sessionNumber != null ? `Ты выполнил ${sessionNumber}-ю тренировку` : "";
-
-  const typedHey = useTypewriter(mascotHeyText, 40);
-  const [subReady, setSubReady] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setSubReady(true), mascotHeyText.length * 40 + 120);
-    return () => clearTimeout(t);
-  }, []);
-  const typedSub = useTypewriter(subReady ? mascotSubText : "", 28);
-
   const fadeStyle = (delayMs: number): CSSProperties => ({
     opacity: contentVisible ? 1 : 0,
-    transform: contentVisible ? "translateY(0)" : "translateY(10px)",
-    transition: `opacity 380ms ease ${delayMs}ms, transform 380ms ease ${delayMs}ms`,
+    transform: contentVisible ? "translateY(0)" : "translateY(12px)",
+    transition: `opacity 420ms ease ${delayMs}ms, transform 420ms ease ${delayMs}ms`,
   });
 
   return (
     <div style={page.outer}>
       <div style={page.inner}>
 
-        {/* Mascot header — on page background, outside sheet */}
-        <div style={s.mascotRow}>
+        {/* ── 1. Mascot Celebration Header ────────────────────────────── */}
+        <div style={{ ...s.mascotRow, ...fadeStyle(0) }}>
           <div style={s.mascotCircle}>
             <img src={mascotImg} alt="Моро" style={s.mascotImg} loading="eager" draggable={false} />
           </div>
           <div style={s.mascotText}>
             <div style={s.mascotHey}>{typedHey}</div>
-            {mascotSubText && (
+            {phrase.sub && (
               <div style={{ ...s.mascotSub, opacity: subReady ? 1 : 0, transition: "opacity 200ms ease" }}>
                 {typedSub}
               </div>
@@ -552,295 +653,269 @@ function ResultContent(props: any) {
           </div>
         </div>
 
-        {/* Main content sheet */}
-        <div style={{ ...s.sheet, ...fadeStyle(60) }}>
-          <section style={s.hero}>
-            <div style={s.heroTitle}>{heroHeadline}</div>
-            <div style={s.heroSubtitle}>
-              Выполнено: {doneExercises}/{exerciseCount || "—"} упражнений
+        {/* ── 2. Hero Tonnage Card ───────────────────────────────────── */}
+        <div style={{ ...s.glassCard, ...fadeStyle(80) }}>
+          <div style={s.tonnageRow}>
+            <div>
+              <div style={s.tonnageLabel}>Общий тоннаж</div>
+              <div style={s.tonnageValue}>{formatTonnage(tonnage)}</div>
             </div>
-            <div style={s.heroNote}>
-              {heroSubline} {recordedSets > 0 ? `Записано ${recordedSets} подходов.` : ""}
+            {tonnageDelta !== 0 && (
+              <div style={{
+                ...s.tonnageDelta,
+                color: tonnageDelta > 0 ? "#16a34a" : "#dc2626",
+              }}>
+                {tonnageDelta > 0 ? "+" : ""}{formatTonnage(Math.abs(tonnageDelta))}
+              </div>
+            )}
+          </div>
+
+          {/* Secondary stats row */}
+          <div style={s.statsRow}>
+            <div style={s.statItem}>
+              <div style={s.statValue}>{durationMin != null ? `${durationMin}` : "—"}</div>
+              <div style={s.statLabel}>мин</div>
             </div>
-
-            <div style={s.metricsGrid}>
-              <div style={s.metricCard}>
-                <div style={s.metricLabel}>⏱️ Время</div>
-                <div style={s.metricValue}>{durationMin != null ? `${durationMin} мин` : "—"}</div>
-              </div>
-              <div style={s.metricCard}>
-                <div style={s.metricLabel}>🏋️ Упражнений</div>
-                <div style={s.metricValue}>{exerciseCount || "—"}</div>
-              </div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={s.statValue}>{doneExercises}/{exerciseCount}</div>
+              <div style={s.statLabel}>упражнений</div>
             </div>
-
-            <div style={s.importantCard}>
-              <div style={s.importantTitle}>Самое важное</div>
-              <div style={s.importantText}>{mostImportant}</div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={s.statValue}>{totalSets}</div>
+              <div style={s.statLabel}>подходов</div>
             </div>
-          </section>
-
-          <section style={{ ...s.section, ...fadeStyle(180) }}>
-            <div style={s.sectionTitle}>🎯 План на следующую тренировку</div>
-
-            {job?.status === "failed" && (
-              <div style={s.inlineWarning}>
-                <div style={s.inlineWarningTitle}>Не удалось обновить прогрессию</div>
-                <div style={s.inlineWarningText}>Тренировка сохранена. Рекомендации можно пересчитать позже.</div>
-                <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-                  <button
-                    style={s.smallBtn}
-                    onClick={async () => { try { await pollOnce(); } catch {} }}
-                    disabled={!jobId}
-                  >
-                    Обновить
-                  </button>
-                  {job?.lastError ? (
-                    <button
-                      style={s.smallBtnGhost}
-                      onClick={() => alert("Техническая ошибка при обновлении прогрессии. Тренировка сохранена.\n\n" + String(job.lastError))}
-                    >
-                      Что случилось?
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            {missingProgression && (
-              <div style={s.sectionHint}>Пока готовим рекомендации. Ты можешь закрыть экран — они появятся автоматически.</div>
-            )}
-
-            {summary && details.length === 0 && (
-              <div style={s.sectionHint}>
-                Рекомендаций нет (скорее всего, в подходах не было повторов или упражнение не распознано).
-              </div>
-            )}
-
-            {summary && details.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                {weightUp.length > 0 && (
-                  <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandUp((v: boolean) => !v)}>
-                      <div>
-                        <div style={s.groupTitle}>💪 Прибавляем вес ({weightUp.length})</div>
-                        {!expandUp && (
-                          <div style={s.groupPreview}>
-                            {weightUp.slice(0, 2).map((d: any) => String(d?.exerciseName || "")).filter(Boolean).join(", ")}
-                            {weightUp.length > 2 ? ` и ещё ${weightUp.length - 2}` : ""}
-                          </div>
-                        )}
-                      </div>
-                      <div style={s.chev}>{expandUp ? "˅" : "›"}</div>
-                    </button>
-                    {expandUp && (
-                      <div style={s.groupBody}>
-                        {weightUp.slice(0, showMoreProgress ? 50 : 3).map((d: any, idx: number) => {
-                          const rec = d?.recommendation;
-                          const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
-                          const currentWLabel = formatKg(getCurrentWeightFor(name));
-                          const newWeightLabel = formatKg(toNumber(rec?.newWeight));
-                          const targetUpper = getTargetUpperFor(name, rec);
-                          return (
-                            <div key={idx} style={s.exerciseRow}>
-                              <div style={s.exerciseName}>{name}</div>
-                              <div style={s.exerciseMeta}>
-                                <div style={s.exerciseLineStrong}>
-                                  Новый вес: {newWeightLabel || "—"}
-                                  {currentWLabel && newWeightLabel ? ` (было ${currentWLabel})` : ""}
-                                </div>
-                                <div style={s.exerciseLineMuted}>Цель: {targetUpper ? `${targetUpper} повторений` : "верх диапазона"}</div>
-                                <div style={s.exerciseWhy}>Почему: верх повторов стабилен — пора прибавить.</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {weightUp.length > 3 && (
-                          <button style={s.showMoreBtn} onClick={() => setShowMoreProgress((v: boolean) => !v)}>
-                            {showMoreProgress ? "Свернуть" : `Показать ещё ${weightUp.length - 3}`}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {keep.length > 0 && (
-                  <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandKeep((v: boolean) => !v)}>
-                      <div>
-                        <div style={s.groupTitle}>
-                          {repsUp.length > 0 ? `🎯 Повышаем повторы (${keep.length})` : `→ Держим вес, добиваем повторы (${keep.length})`}
-                        </div>
-                        {!expandKeep && (
-                          <div style={s.groupPreview}>
-                            {repsUp.length > 0
-                              ? "Добиваем верх повторов — следующий шаг: прибавим вес."
-                              : "Цель: добить верх повторов, затем прибавим вес."}
-                          </div>
-                        )}
-                      </div>
-                      <div style={s.chev}>{expandKeep ? "˅" : "›"}</div>
-                    </button>
-                    {expandKeep && (
-                      <div style={s.groupBody}>
-                        {keep.slice(0, 30).map((d: any, idx: number) => {
-                          const rec = d?.recommendation;
-                          const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
-                          const currentWLabel = formatKg(getCurrentWeightFor(name));
-                          const targetUpper = getTargetUpperFor(name, rec);
-                          const action = String(rec?.action || "maintain");
-                          const repsTarget = Array.isArray(rec?.newRepsTarget) ? rec.newRepsTarget : null;
-                          const targetLine =
-                            action === "increase_reps" && repsTarget
-                              ? `Цель: ${repsTarget[0]}–${repsTarget[1]} повторений`
-                              : targetUpper ? `Цель: дойти до ${targetUpper} повторений`
-                                : "Цель: добить верх диапазона";
-                          return (
-                            <div key={idx} style={s.exerciseRow}>
-                              <div style={s.exerciseName}>{name}</div>
-                              <div style={s.exerciseMeta}>
-                                <div style={s.exerciseLineStrong}>
-                                  {currentWLabel ? `Вес: ${currentWLabel} — держим` : "Вес: держим"}
-                                </div>
-                                <div style={s.exerciseLineMuted}>{targetLine}</div>
-                                <div style={s.exerciseWhy}>Почему: когда верх повторов стабилен — вес растёт безопасно.</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {loadDown.length > 0 && (
-                  <div style={s.groupCard}>
-                    <button style={s.groupHeaderBtn} onClick={() => setExpandDown((v: boolean) => !v)}>
-                      <div>
-                        <div style={s.groupTitle}>🛌 Разгрузка / упрощаем ({loadDown.length})</div>
-                        {!expandDown && (
-                          <div style={s.groupPreview}>Снижаем нагрузку, чтобы восстановиться и сохранить прогресс.</div>
-                        )}
-                      </div>
-                      <div style={s.chev}>{expandDown ? "˅" : "›"}</div>
-                    </button>
-                    {expandDown && (
-                      <div style={s.groupBody}>
-                        {loadDown.slice(0, 20).map((d: any, idx: number) => {
-                          const rec = d?.recommendation;
-                          const name = String(d?.exerciseName || rec?.exerciseId || `Упражнение ${idx + 1}`);
-                          const newWeightLabel = formatKg(toNumber(rec?.newWeight));
-                          const currentWLabel = formatKg(getCurrentWeightFor(name));
-                          return (
-                            <div key={idx} style={s.exerciseRow}>
-                              <div style={s.exerciseName}>{name}</div>
-                              <div style={s.exerciseMeta}>
-                                <div style={s.exerciseLineStrong}>
-                                  {newWeightLabel && currentWLabel ? `Вес: ${currentWLabel} → ${newWeightLabel}` : "Нагрузка снижена"}
-                                </div>
-                                <div style={s.exerciseLineMuted}>Цель: техника и комфортное выполнение.</div>
-                                <div style={s.exerciseWhy}>Почему: восстановление сейчас важнее, чем добавлять нагрузку.</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={s.coachCard}>
-                  <div style={s.coachHead}>
-                    <div style={s.coachAvatar} aria-hidden="true" />
-                    <div style={s.coachHeadText}>Твой тренер</div>
-                  </div>
-                  <div style={s.coachMsg}>
-                    {Array.isArray((coachReport as any)?.detail?.bullets) && (coachReport as any).detail.bullets.length ? (
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {(coachReport as any).detail.bullets.slice(0, 5).map((b: any, i: number) => (
-                          <div key={i}>• {String(b || "").trim()}</div>
-                        ))}
-                      </div>
-                    ) : Array.isArray((coachReport as any)?.telegram?.bullets) && (coachReport as any).telegram.bullets.length ? (
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {(coachReport as any).telegram.bullets.slice(0, 5).map((b: any, i: number) => (
-                          <div key={i}>• {String(b || "").trim()}</div>
-                        ))}
-                      </div>
-                    ) : coachJob?.id && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
-                      "Готовлю разбор тренировки…"
-                    ) : (
-                      coachSummaryMessage({ hasLoadDown: loadDown.length > 0, weightUpCount: weightUp.length, repsUpCount: repsUp.length })
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {hasCompare && (
-              <div style={{ ...s.compareCard, ...fadeStyle(260) }}>
-                <div style={s.compareTitle}>🆚 Сравнение с прошлой тренировкой</div>
-                <div style={s.compareGrid}>
-                  <div style={s.compareCol}>
-                    <div style={s.compareColTitle}>Сегодня</div>
-                    <div style={s.compareLine}>{durationMin != null ? `${durationMin} мин` : "—"}</div>
-                    <div style={s.compareLine}>{exerciseCount ? `${exerciseCount} упражнений` : "—"}</div>
-                  </div>
-                  <div style={s.compareDivider} />
-                  <div style={s.compareCol}>
-                    <div style={s.compareColTitle}>Прошлый раз</div>
-                    <div style={s.compareLine}>{priorDurationMin != null ? `${priorDurationMin} мин` : "—"}</div>
-                    <div style={s.compareLine}>{priorExerciseCount ? `${priorExerciseCount} упражнений` : "—"}</div>
-                  </div>
-                </div>
-                {compareSummary ? <div style={s.compareHint}>{compareSummary}</div> : null}
-              </div>
-            )}
-
-            {(summary || recordedSets > 0) && (
-              <div style={s.detailsWrap}>
-                <button style={s.detailsBtn} onClick={() => setShowDetails((v: boolean) => !v)}>
-                  Подробнее {showDetails ? "˅" : "›"}
-                </button>
-                {showDetails && (
-                  <div style={s.detailsBody}>
-                    <div style={s.detailsLine}>Записано подходов: {recordedSets || 0}</div>
-                    {summary ? (
-                      <div style={s.detailsLine}>Рекомендаций: {details.length}</div>
-                    ) : missingProgression ? (
-                      <div style={s.detailsLine}>Рекомендации: готовятся…</div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          </div>
         </div>
 
-        <div style={{ height: 8 }} />
+        {/* ── 3. Streak + Milestone ──────────────────────────────────── */}
+        {(streak > 1 || milestone) && (
+          <div style={{ ...s.glassCard, ...fadeStyle(160), padding: 16 }}>
+            {streak > 1 && (
+              <div style={s.streakRow}>
+                <div style={s.streakPills}>
+                  {Array.from({ length: Math.min(streak, 7) }).map((_, i) => (
+                    <div key={i} style={s.streakDotFilled} />
+                  ))}
+                  {streak < 7 && Array.from({ length: 7 - Math.min(streak, 7) }).map((_, i) => (
+                    <div key={`e-${i}`} style={s.streakDotEmpty} />
+                  ))}
+                </div>
+                <div style={s.streakLabel}>{streak} тренировок подряд</div>
+              </div>
+            )}
+            {milestone && (
+              <div style={{ marginTop: streak > 1 ? 14 : 0 }}>
+                <div style={s.milestoneLabel}>
+                  До "{milestone.label}": {milestone.next - milestone.current} осталось
+                </div>
+                <div style={s.milestoneBar}>
+                  <div style={{
+                    ...s.milestoneBarFill,
+                    width: `${Math.min(100, (milestone.current / milestone.next) * 100)}%`,
+                  }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 4. Personal Records ────────────────────────────────────── */}
+        {prs.length > 0 && (
+          <div style={{ ...s.glassCard, ...fadeStyle(220) }}>
+            <div style={s.sectionTitle}>Личные рекорды</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+              {prs.map((pr, i) => (
+                <div key={i} style={s.prRow}>
+                  <div style={s.prBadge}>{pr.type === "weight" ? "W" : "R"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={s.prName}>{pr.name}</div>
+                    <div style={s.prDetail}>
+                      {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повторений`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 5. Effort Breakdown ────────────────────────────────────── */}
+        {payloadExercises.length > 0 && payloadExercises.some((ex: any) => toNumber(ex?.effort) != null) && (
+          <div style={{ ...s.glassCard, ...fadeStyle(280) }}>
+            <div style={s.sectionTitle}>Усилие по упражнениям</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+              {payloadExercises.map((ex: any, i: number) => {
+                const effort = toNumber(ex?.effort);
+                if (effort == null) return null;
+                const name = String(ex?.name || ex?.exerciseName || `Упражнение ${i + 1}`);
+                return (
+                  <div key={i} style={s.effortRow}>
+                    <div style={s.effortName}>{name}</div>
+                    <div style={s.effortBarWrap}>
+                      <div style={{ ...s.effortBarFill, width: `${Math.min(100, (effort / 10) * 100)}%`, background: effortColor(effort) }} />
+                    </div>
+                    <div style={{ ...s.effortValue, color: effortColor(effort) }}>{effort}/10</div>
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
+
+        {/* ── 6. Compact Progression ─────────────────────────────────── */}
+        {summary && details.length > 0 && (
+          <div style={{ ...s.glassCard, ...fadeStyle(340) }}>
+            <div style={s.sectionTitle}>План на следующую</div>
+
+            {weightUp.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={s.progressGroupLabel}>Прибавляем вес ({weightUp.length})</div>
+                {weightUp.slice(0, 5).map((d: any, idx: number) => {
+                  const rec = d?.recommendation;
+                  const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
+                  const currentWLabel = formatKg(getCurrentWeightFor(name));
+                  const newWeightLabel = formatKg(toNumber(rec?.newWeight));
+                  return (
+                    <div key={idx} style={s.progressLine}>
+                      <span style={s.progressLineName}>{name}</span>
+                      <span style={s.progressLineValue}>
+                        {currentWLabel && newWeightLabel ? `${currentWLabel} → ${newWeightLabel}` : newWeightLabel || "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {repsUp.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={s.progressGroupLabel}>Повышаем повторы ({repsUp.length})</div>
+                {repsUp.slice(0, 5).map((d: any, idx: number) => {
+                  const rec = d?.recommendation;
+                  const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
+                  const upper = getTargetUpperFor(name, rec);
+                  return (
+                    <div key={idx} style={s.progressLine}>
+                      <span style={s.progressLineName}>{name}</span>
+                      <span style={s.progressLineValue}>цель {upper} повт.</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {keep.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={s.progressGroupLabel}>Держим вес ({keep.length})</div>
+                {keep.slice(0, 3).map((d: any, idx: number) => {
+                  const name = String(d?.exerciseName || d?.recommendation?.exerciseId || `#${idx + 1}`);
+                  const currentWLabel = formatKg(getCurrentWeightFor(name));
+                  return (
+                    <div key={idx} style={s.progressLine}>
+                      <span style={s.progressLineName}>{name}</span>
+                      <span style={s.progressLineValue}>{currentWLabel || "—"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {loadDown.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={s.progressGroupLabel}>Снижаем ({loadDown.length})</div>
+                {loadDown.slice(0, 3).map((d: any, idx: number) => {
+                  const rec = d?.recommendation;
+                  const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
+                  const newWeightLabel = formatKg(toNumber(rec?.newWeight));
+                  return (
+                    <div key={idx} style={s.progressLine}>
+                      <span style={s.progressLineName}>{name}</span>
+                      <span style={s.progressLineValue}>{newWeightLabel || "разгрузка"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Progression loading / error states */}
+        {!summary && job && (
+          <div style={{ ...s.glassCard, ...fadeStyle(340) }}>
+            <div style={s.sectionTitle}>План на следующую</div>
+            {job.status === "failed" ? (
+              <div style={{ marginTop: 10 }}>
+                <div style={s.bodyText}>Не удалось обновить прогрессию. Тренировка сохранена.</div>
+                <button
+                  style={{ ...s.smallBtn, marginTop: 10 }}
+                  onClick={async () => { try { await pollOnce(); } catch {} }}
+                  disabled={!jobId}
+                >
+                  Обновить
+                </button>
+              </div>
+            ) : (
+              <div style={{ ...s.bodyText, marginTop: 10 }}>
+                Готовим рекомендации...
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 7. Coach Card ──────────────────────────────────────────── */}
+        <div style={{ ...s.coachCard, ...fadeStyle(400) }}>
+          <div style={s.coachHead}>
+            <div style={s.coachAvatarWrap}>
+              <img src={mascotImg} alt="Моро" style={s.coachAvatarImg} draggable={false} />
+            </div>
+            <div style={s.coachTitle}>Комментарий тренера</div>
+          </div>
+          <div style={s.coachMsg}>
+            {Array.isArray((coachReport as any)?.detail?.bullets) && (coachReport as any).detail.bullets.length ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                {(coachReport as any).detail.bullets.slice(0, 4).map((b: any, i: number) => (
+                  <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
+                ))}
+              </div>
+            ) : Array.isArray((coachReport as any)?.telegram?.bullets) && (coachReport as any).telegram.bullets.length ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                {(coachReport as any).telegram.bullets.slice(0, 4).map((b: any, i: number) => (
+                  <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
+                ))}
+              </div>
+            ) : coachJob?.id && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
+              <div style={s.coachBullet}>Готовлю разбор тренировки...</div>
+            ) : (
+              <div style={s.coachBullet}>
+                {scenario === "down" ? "Сегодня бережный режим — это часть прогресса."
+                  : scenario === "up" ? "Отлично! Техника и комфортный темп на новых весах."
+                    : scenario === "reps" ? "Повторы растут — следующий шаг: прибавим вес."
+                      : "Стабильность — тоже прогресс. Добивай верх повторов."}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* bottom spacer for sticky CTA */}
+        <div style={{ height: 140 }} />
       </div>
 
+      {/* ── 8. Sticky CTA ────────────────────────────────────────────── */}
       <div style={s.stickyWrap}>
         <div style={s.stickyInner}>
-          <button style={s.ctaPrimary} onClick={() => nav("/schedule")}>
-            <span style={s.ctaPrimaryLeft}>
-              <span style={s.ctaPrimaryIcon} aria-hidden="true">🗓️</span>
-              <span style={s.ctaPrimaryText}>Запланировать следующую тренировку</span>
-            </span>
-            <span style={s.ctaPrimaryArrow} aria-hidden="true">›</span>
-          </button>
-          <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
-            Посмотреть прогресс
-          </button>
           <button
-            style={s.ctaTertiary}
+            style={s.ctaPrimary}
             onClick={() => {
               try { localStorage.removeItem(LAST_RESULT_KEY); } catch {}
               nav("/");
             }}
           >
-            Закрыть
+            На главную
+          </button>
+          <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
+            Посмотреть прогресс
           </button>
         </div>
       </div>
@@ -848,29 +923,32 @@ function ResultContent(props: any) {
   );
 }
 
-const page = {
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const page: Record<string, CSSProperties> = {
   outer: {
     minHeight: "100vh",
     width: "100%",
-    padding: "20px 16px",
-    background: "radial-gradient(1100px 520px at 30% 0%, #EEF2FF 0%, #F6F7FB 55%, #F6F7FB 100%)",
-  } as CSSProperties,
+    padding: "20px 16px 0",
+  },
   inner: {
     maxWidth: 760,
     margin: "0 auto",
     fontFamily: "system-ui, -apple-system, Inter, Roboto",
-    paddingBottom: 210,
-  } as CSSProperties,
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  },
 };
 
-const s = {
+const s: Record<string, CSSProperties> = {
+  // ── Mascot header
   mascotRow: {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    marginBottom: 16,
     padding: "4px 4px 0",
-  } as CSSProperties,
+  },
   mascotCircle: {
     width: 56,
     height: 56,
@@ -883,436 +961,394 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
     padding: 2,
-  } as CSSProperties,
+  },
   mascotImg: {
     width: "100%",
     height: "100%",
     objectFit: "cover" as const,
     objectPosition: "center 10%",
     borderRadius: 999,
-  } as CSSProperties,
+  },
   mascotText: {
     display: "flex",
     flexDirection: "column" as const,
     gap: 2,
-  } as CSSProperties,
+  },
   mascotHey: {
     fontSize: 22,
     fontWeight: 800,
-    color: "#111827",
+    color: "#0f172a",
     lineHeight: 1.2,
     minHeight: "1.2em",
-  } as CSSProperties,
+  },
   mascotSub: {
     fontSize: 14,
     fontWeight: 500,
-    color: "rgba(17,24,39,0.55)",
+    color: "rgba(15,23,42,0.55)",
     lineHeight: 1.3,
     minHeight: "1.3em",
-  } as CSSProperties,
-  sheet: {
-    borderRadius: 28,
+  },
+
+  // ── Glassmorphism card
+  glassCard: {
+    borderRadius: 24,
     padding: 18,
-    background: "#FFFFFF",
-    border: "1px solid rgba(17, 24, 39, 0.06)",
-    boxShadow: "0 18px 60px rgba(17, 24, 39, 0.10)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
   } as CSSProperties,
-  hero: {
-    padding: 4,
-    marginBottom: 18,
-  } as CSSProperties,
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: 900,
-    letterSpacing: -0.4,
-    color: "#111827",
-    lineHeight: 1.15,
-  } as CSSProperties,
-  heroSubtitle: {
-    marginTop: 10,
-    fontSize: 17,
-    fontWeight: 700,
-    color: "#111827",
-  } as CSSProperties,
-  heroNote: {
-    marginTop: 10,
-    fontSize: 15,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  smallBtn: {
-    height: 36,
-    padding: "0 12px",
-    borderRadius: 12,
-    border: "1px solid #D1D5DB",
-    background: "#FFFFFF",
-    color: "#111827",
-    fontWeight: 800,
-    cursor: "pointer",
-  } as CSSProperties,
-  smallBtnGhost: {
-    height: 36,
-    padding: "0 12px",
-    borderRadius: 12,
-    border: "1px solid #EEF0F6",
-    background: "#F9FAFB",
-    color: "#111827",
-    fontWeight: 800,
-    cursor: "pointer",
-  } as CSSProperties,
-  metricsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+
+  // ── Tonnage hero
+  tonnageRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
     gap: 12,
-    marginTop: 14,
-  } as CSSProperties,
-  metricCard: {
-    borderRadius: 18,
-    padding: 14,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 6px 24px rgba(17, 24, 39, 0.06)",
-  } as CSSProperties,
-  metricLabel: {
-    fontSize: 12.5,
-    color: "#6B7280",
+  },
+  tonnageLabel: {
+    fontSize: 13,
     fontWeight: 700,
-  } as CSSProperties,
-  metricValue: {
-    marginTop: 8,
-    fontSize: 24,
+    color: "rgba(15,23,42,0.48)",
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+  },
+  tonnageValue: {
+    fontSize: 38,
     fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.3,
-  } as CSSProperties,
-  importantCard: {
-    marginTop: 14,
-    borderRadius: 18,
-    padding: 16,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 10px 30px rgba(17, 24, 39, 0.08)",
-  } as CSSProperties,
-  importantTitle: {
+    color: "#0f172a",
+    letterSpacing: -0.5,
+    lineHeight: 1.1,
+    marginTop: 4,
+  },
+  tonnageDelta: {
     fontSize: 16,
-    fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.2,
-  } as CSSProperties,
-  importantText: {
-    marginTop: 8,
-    fontSize: 14.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  section: {
-    marginTop: 10,
-  } as CSSProperties,
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.25,
-  } as CSSProperties,
-  sectionHint: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  inlineWarning: {
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 14,
-    background: "#FFFBEB",
-    border: "1px solid rgba(245, 158, 11, 0.20)",
-  } as CSSProperties,
-  inlineWarningTitle: {
-    fontSize: 14,
-    fontWeight: 900,
-    color: "#92400E",
-  } as CSSProperties,
-  inlineWarningText: {
-    marginTop: 6,
-    fontSize: 13.5,
-    color: "#92400E",
-    opacity: 0.85,
-    lineHeight: 1.35,
-  } as CSSProperties,
-  groupCard: {
-    borderRadius: 18,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 6px 24px rgba(17, 24, 39, 0.06)",
-    overflow: "hidden",
-  } as CSSProperties,
-  groupHeaderBtn: {
-    width: "100%",
-    padding: 16,
-    background: "transparent",
-    border: "none",
-    cursor: "pointer",
+    fontWeight: 800,
+    lineHeight: 1,
+    padding: "6px 10px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.5)",
+  },
+
+  // ── Stats row
+  statsRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    textAlign: "left",
-  } as CSSProperties,
-  groupTitle: {
-    fontSize: 16,
+    justifyContent: "space-around",
+    gap: 0,
+    marginTop: 18,
+    padding: "14px 0 2px",
+    borderTop: "1px solid rgba(15,23,42,0.06)",
+  },
+  statItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    gap: 2,
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
     fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.15,
-  } as CSSProperties,
-  groupPreview: {
-    marginTop: 6,
-    fontSize: 13.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  chev: {
-    fontSize: 22,
-    color: "#6B7280",
-    fontWeight: 900,
-    flex: "0 0 auto",
-    lineHeight: 1,
-  } as CSSProperties,
-  groupBody: {
-    padding: "0 16px 12px 16px",
-  } as CSSProperties,
-  exerciseRow: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr)",
-    gap: 8,
-    paddingTop: 12,
-    marginTop: 12,
-    borderTop: "1px solid #F3F4F6",
-  } as CSSProperties,
-  exerciseName: {
-    fontSize: 15,
-    fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.1,
-  } as CSSProperties,
-  exerciseMeta: {
-    display: "grid",
+    color: "#0f172a",
+    letterSpacing: -0.3,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.45)",
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    background: "rgba(15,23,42,0.08)",
+    borderRadius: 1,
+    flexShrink: 0,
+  },
+
+  // ── Streak
+  streakRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  streakPills: {
+    display: "flex",
     gap: 6,
-  } as CSSProperties,
-  exerciseLineStrong: {
-    fontSize: 14.5,
-    color: "#111827",
-    fontWeight: 800,
-  } as CSSProperties,
-  exerciseLineMuted: {
-    fontSize: 13.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  exerciseWhy: {
-    fontSize: 13.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  showMoreBtn: {
-    marginTop: 12,
-    padding: "10px 0",
-    background: "transparent",
-    border: "none",
-    color: "#2563EB",
-    fontSize: 13.5,
+  },
+  streakDotFilled: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+  },
+  streakDotEmpty: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  },
+  streakLabel: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#0f172a",
+  },
+
+  // ── Milestone
+  milestoneLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.55)",
+  },
+  milestoneBar: {
+    marginTop: 8,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    overflow: "hidden",
+  },
+  milestoneBarFill: {
+    height: "100%",
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    transition: "width 600ms ease",
+  },
+
+  // ── Personal Records
+  prRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  prBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    background: "linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%)",
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: 900,
-    cursor: "pointer",
-    width: "100%",
-    textAlign: "center",
-  } as CSSProperties,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    boxShadow: "0 2px 6px rgba(245,158,11,0.3)",
+  },
+  prName: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#0f172a",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  prDetail: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.55)",
+  },
+
+  // ── Effort breakdown
+  effortRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  effortName: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#0f172a",
+    width: 90,
+    flexShrink: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  effortBarWrap: {
+    flex: 1,
+    height: 8,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 1px 2px rgba(15,23,42,0.12)",
+    overflow: "hidden",
+  },
+  effortBarFill: {
+    height: "100%",
+    borderRadius: 999,
+    transition: "width 500ms ease",
+  },
+  effortValue: {
+    fontSize: 12,
+    fontWeight: 800,
+    width: 36,
+    textAlign: "right" as const,
+    flexShrink: 0,
+  },
+
+  // ── Compact progression
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#0f172a",
+    letterSpacing: -0.2,
+  },
+  progressGroupLabel: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.48)",
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  progressLine: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "6px 0",
+    borderBottom: "1px solid rgba(15,23,42,0.04)",
+    gap: 8,
+  },
+  progressLineName: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#0f172a",
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  progressLineValue: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.55)",
+    flexShrink: 0,
+  },
+
+  // ── Coach card
   coachCard: {
-    borderRadius: 18,
-    padding: 16,
-    background: "linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)",
-    border: "1px solid #E5E7EB",
+    borderRadius: 24,
+    padding: 18,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
   } as CSSProperties,
   coachHead: {
     display: "flex",
     alignItems: "center",
     gap: 10,
-  } as CSSProperties,
-  coachHeadText: {
-    fontSize: 14,
-    fontWeight: 900,
-    color: "#111827",
-  } as CSSProperties,
-  coachAvatar: {
-    width: 34,
-    height: 34,
+  },
+  coachAvatarWrap: {
+    width: 36,
+    height: 36,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #E5E7EB 0%, #F3F4F6 100%)",
-    border: "1px solid #EEF0F6",
-    flex: "0 0 auto",
-  } as CSSProperties,
+    overflow: "hidden",
+    flexShrink: 0,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    padding: 1,
+  },
+  coachAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover" as const,
+    objectPosition: "center 10%",
+    borderRadius: 999,
+  },
+  coachTitle: {
+    fontSize: 15,
+    fontWeight: 800,
+    color: "#0f172a",
+  },
   coachMsg: {
     marginTop: 10,
-    fontSize: 14.5,
-    color: "#374151",
+    fontSize: 14,
+    color: "rgba(15,23,42,0.62)",
     lineHeight: 1.45,
-  } as CSSProperties,
-  compareCard: {
-    borderRadius: 18,
-    padding: 16,
-    background: "#FFFFFF",
-    border: "1px solid #EEF0F6",
-    boxShadow: "0 6px 24px rgba(17, 24, 39, 0.06)",
-  } as CSSProperties,
-  compareTitle: {
-    fontSize: 16,
+  },
+  coachBullet: {
+    fontSize: 14,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
+  },
+
+  // ── Hero title (for empty state)
+  heroTitle: {
+    fontSize: 28,
     fontWeight: 900,
-    color: "#111827",
-    letterSpacing: -0.15,
-  } as CSSProperties,
-  compareGrid: {
-    marginTop: 12,
-    display: "grid",
-    gridTemplateColumns: "1fr 1px 1fr",
-    gap: 12,
-    alignItems: "start",
-  } as CSSProperties,
-  compareDivider: {
-    width: 1,
-    height: "100%",
-    background: "#EEF0F6",
-    borderRadius: 1,
-  } as CSSProperties,
-  compareCol: {
-    display: "grid",
-    gap: 8,
-  } as CSSProperties,
-  compareColTitle: {
-    fontSize: 12.5,
-    fontWeight: 900,
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  } as CSSProperties,
-  compareLine: {
+    letterSpacing: -0.4,
+    color: "#0f172a",
+  },
+  bodyText: {
     fontSize: 14.5,
+    color: "rgba(15,23,42,0.55)",
+    lineHeight: 1.4,
+  },
+  smallBtn: {
+    height: 36,
+    padding: "0 14px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    backdropFilter: "blur(18px)",
+    color: "#0f172a",
     fontWeight: 800,
-    color: "#111827",
-  } as CSSProperties,
-  compareHint: {
-    marginTop: 12,
-    fontSize: 13.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
-  detailsWrap: {
-    marginTop: 10,
-  } as CSSProperties,
-  detailsBtn: {
-    width: "100%",
-    padding: "10px 0",
-    background: "transparent",
-    border: "none",
+    fontSize: 13,
     cursor: "pointer",
-    color: "#2563EB",
-    fontWeight: 900,
-    fontSize: 13.5,
-    textAlign: "left",
-  } as CSSProperties,
-  detailsBody: {
-    marginTop: 8,
-    borderRadius: 16,
-    padding: 12,
-    background: "#F9FAFB",
-    border: "1px solid #EEF0F6",
-  } as CSSProperties,
-  detailsLine: {
-    fontSize: 13.5,
-    color: "#6B7280",
-    lineHeight: 1.35,
-  } as CSSProperties,
+    boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+  },
+
+  // ── Sticky CTA
   stickyWrap: {
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
     padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
-    background: "rgba(246, 247, 251, 0.86)",
+    background: "linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0))",
     backdropFilter: "blur(14px)",
-    borderTop: "1px solid #E5E7EB",
+    WebkitBackdropFilter: "blur(14px)",
   } as CSSProperties,
   stickyInner: {
     maxWidth: 760,
     margin: "0 auto",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: 10,
-  } as CSSProperties,
+  },
   ctaPrimary: {
     height: 52,
     width: "100%",
-    padding: "0 14px 0 14px",
     borderRadius: 16,
     border: "none",
     cursor: "pointer",
-    background: "linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
     color: "#FFFFFF",
-    fontWeight: 900,
-    fontSize: 15,
+    fontWeight: 800,
+    fontSize: 16,
     letterSpacing: -0.1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    textAlign: "left",
-  } as CSSProperties,
-  ctaPrimaryLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-  } as CSSProperties,
-  ctaPrimaryIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "rgba(255, 255, 255, 0.18)",
-    border: "1px solid rgba(255, 255, 255, 0.18)",
-    flex: "0 0 auto",
-  } as CSSProperties,
-  ctaPrimaryText: {
-    fontWeight: 900,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  } as CSSProperties,
-  ctaPrimaryArrow: {
-    fontSize: 28,
-    lineHeight: 1,
-    opacity: 0.95,
-    flex: "0 0 auto",
-  } as CSSProperties,
+  },
   ctaSecondary: {
     height: 48,
     width: "100%",
     borderRadius: 16,
-    border: "1px solid #D1D5DB",
+    border: "1px solid rgba(255,255,255,0.75)",
     cursor: "pointer",
-    background: "#FFFFFF",
-    color: "#111827",
-    fontWeight: 900,
-    fontSize: 15,
-    letterSpacing: -0.1,
-  } as CSSProperties,
-  ctaTertiary: {
-    height: 42,
-    width: "100%",
-    borderRadius: 16,
-    border: "none",
-    cursor: "pointer",
-    background: "transparent",
-    color: "#6B7280",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    color: "#0f172a",
     fontWeight: 800,
     fontSize: 15,
+    letterSpacing: -0.1,
   } as CSSProperties,
 };
