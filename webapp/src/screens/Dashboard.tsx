@@ -1678,7 +1678,32 @@ export default function Dashboard() {
                     }}
                   >
                     {done ? (
-                      <span style={s.goalCompactDoneMark}>✓</span>
+                      <svg viewBox="0 0 20 18" aria-hidden style={s.goalCompactDotCheckSvgDone}>
+                        <path
+                          d="M4.3 9.2L8.1 12.9L15.8 5.2"
+                          fill="none"
+                          stroke="rgba(255,255,255,0.65)"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M4 8.9L7.8 12.6L15.5 4.9"
+                          fill="none"
+                          stroke="rgba(255,255,255,0.15)"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M4.6 9.5L8.4 13.2L16.1 5.5"
+                          fill="none"
+                          stroke="rgba(0,0,0,0.8)"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     ) : (
                       <svg viewBox="0 0 20 18" aria-hidden style={s.goalCompactDotCheckSvg}>
                         <path
@@ -2390,14 +2415,10 @@ const s: Record<string, React.CSSProperties> = {
     mixBlendMode: "multiply",
     opacity: 0.84,
   },
-  goalCompactDoneMark: {
-    fontSize: 14,
-    lineHeight: 1,
-    color: "rgba(255,255,255,0.45)",
-    fontWeight: 700,
-    textShadow:
-      "0 1px 0 rgba(255,255,255,0.15), 0 -1px 0 rgba(0,0,0,0.8)",
-    transform: "translateY(0.5px)",
+  goalCompactDotCheckSvgDone: {
+    width: 15,
+    height: 14,
+    transform: "translateY(-0.2px)",
   },
   goalCompactCaption: {
     marginTop: 2,
