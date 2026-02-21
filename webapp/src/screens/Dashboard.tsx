@@ -1674,13 +1674,12 @@ export default function Dashboard() {
                       ...s.goalCompactDotPit,
                       width: goalDotSize,
                       height: goalDotSize,
-                      ...(done ? s.goalCompactDotFilled : undefined),
                     }}
                   >
                     {done ? (
-                      <span style={s.goalCompactDoneMark}>✓</span>
+                      <span style={{ ...s.goalCompactDoneMark, fontSize: Math.round(goalDotSize * 0.72) }}>✓</span>
                     ) : (
-                      <span style={s.goalCompactTodoMark}>✓</span>
+                      <span style={{ ...s.goalCompactTodoMark, fontSize: Math.round(goalDotSize * 0.72) }}>✓</span>
                     )}
                   </span>
                 </span>
@@ -2361,21 +2360,19 @@ const s: Record<string, React.CSSProperties> = {
   goalCompactTodoMark: {
     position: "relative",
     zIndex: 2,
-    fontSize: 20,
     fontWeight: 700,
     lineHeight: 1,
-    color: "rgba(15,23,42,0.45)",
-    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+    color: "rgba(15,23,42,0.12)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.7)",
     transform: "translateY(-1px)",
   },
   goalCompactDoneMark: {
     position: "relative",
     zIndex: 2,
-    fontSize: 20,
     fontWeight: 700,
     lineHeight: 1,
-    color: "#ffffff",
-    textShadow: "0 1px 0 rgba(255,255,255,0.15), 0 -1px 0 rgba(0,0,0,0.8)",
+    color: "#1e1f22",
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
     transform: "translateY(-1px)",
   },
   goalCompactCaption: {
