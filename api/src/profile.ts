@@ -67,6 +67,8 @@ profile.post(
 
       await q(`DELETE FROM onboardings WHERE user_id = $1`, [userId]);
 
+      await q(`UPDATE users SET created_at = NOW() WHERE id = $1::uuid`, [userId]);
+
       await q("COMMIT");
     } catch (err) {
       await q("ROLLBACK");

@@ -235,7 +235,7 @@ schedule.get(
   "/planned-workouts",
   asyncHandler(async (req: Request, res: Response) => {
     const userId = await getUserId(req as any);
-    const userProfile = await buildUserProfile(userId);
+    const userProfile = await buildUserProfile(userId).catch(() => null);
     const planned = await q<PlannedWorkoutRow>(
       `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
          FROM planned_workouts
@@ -248,7 +248,7 @@ schedule.get(
       [userId]
     );
 
-    res.json({ plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile.timeBucket)) });
+    res.json({ plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile?.timeBucket)) });
   })
 );
 
