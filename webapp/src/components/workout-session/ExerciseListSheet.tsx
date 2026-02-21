@@ -120,8 +120,8 @@ export default function ExerciseListSheet(props: Props) {
 
         {/* Header */}
         <div style={s.header}>
-          <span style={s.headerSpacer} aria-hidden />
-          <span style={s.title}></span>
+          <div style={s.headerSpacer} aria-hidden />
+          <div style={s.title}>Упражнения</div>
           <button
             type="button"
             aria-label="Закрыть"
@@ -131,6 +131,14 @@ export default function ExerciseListSheet(props: Props) {
           >
             <X size={15} strokeWidth={2.5} />
           </button>
+        </div>
+        <div style={s.subtitleWrap}>
+          <p style={s.subtitle}>
+            Выполнено {items.filter(i => {
+              const total = i.sets.length;
+              return total > 0 && i.sets.filter(s => s.done).length >= total && !i.skipped;
+            }).length} из {items.length}
+          </p>
         </div>
 
         {/* List */}
@@ -156,7 +164,7 @@ export default function ExerciseListSheet(props: Props) {
                   onClick={() => onPick(idx)}
                 >
                   <span style={{ ...s.rowName, color: isActive ? workoutTheme.accent : "inherit" }}>
-                    {idx + 1}. {item.name}
+                    {item.name}
                   </span>
                   <span style={{
                     ...s.rowMeta,
@@ -257,26 +265,37 @@ const s: Record<string, CSSProperties> = {
     background: "rgba(15,23,42,0.16)",
   },
 
-  // Header — крестик справа, заголовок по центру
   header: {
-    display: "grid",
-    gridTemplateColumns: "32px 1fr 32px",
+    display: "flex",
     alignItems: "center",
+    padding: "6px 8px 4px 8px",
     gap: 4,
-    padding: "0px 8px 0px",
     flexShrink: 0,
   },
   headerSpacer: {
-    display: "block",
     width: 32,
-    height: 32,
+    flexShrink: 0,
   },
   title: {
-    textAlign: "center",
-    fontSize: 16,
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 1.25,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
-    letterSpacing: "-0.2px",
+    textAlign: "center" as const,
+  },
+  subtitleWrap: {
+    padding: "0px 0px 8px",
+    display: "flex",
+    flexDirection: "column",
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: workoutTheme.textSecondary,
+    textAlign: "center" as const,
+    padding: "4px 4px 6px",
   },
   iconBtn: {
     width: 32,
