@@ -237,7 +237,7 @@ function writeScheduleCache(plannedWorkouts: PlannedWorkout[], scheduleDates: Sc
       SCHEDULE_CACHE_KEY,
       JSON.stringify({ plannedWorkouts, scheduleDates, ts: Date.now() })
     );
-  } catch {}
+  } catch { }
 }
 
 function formatDuration(minutes?: number | null) {
@@ -460,7 +460,7 @@ function ensureImagePreloaded(src: string, tag: string) {
     link.setAttribute("data-preload-img", tag);
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
-  } catch {}
+  } catch { }
   const img = new Image();
   img.decoding = "async";
   img.src = src;
@@ -898,11 +898,11 @@ export default function Dashboard() {
     const raw =
       String(
         plan.dayLabel ||
-          plan.title ||
-          plan.name ||
-          plan.label ||
-          plan.scheme_label ||
-          ""
+        plan.title ||
+        plan.name ||
+        plan.label ||
+        plan.scheme_label ||
+        ""
       ).trim();
     const idxRaw = Number(plan?.dayIndex);
     const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
@@ -922,11 +922,11 @@ export default function Dashboard() {
       const raw =
         String(
           plan.dayLabel ||
-            plan.title ||
-            plan.name ||
-            plan.label ||
-            plan.scheme_label ||
-            ""
+          plan.title ||
+          plan.name ||
+          plan.label ||
+          plan.scheme_label ||
+          ""
         ).trim();
       const idxRaw = Number(plan?.dayIndex);
       const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
@@ -1009,7 +1009,7 @@ export default function Dashboard() {
         );
         const mapped = String(displayData?.title || "").trim();
         if (mapped) return mapped;
-      } catch {}
+      } catch { }
     }
     const named = String(selectedScheme?.russianName || selectedScheme?.name || "").trim();
     if (named) return named;
@@ -1165,14 +1165,14 @@ export default function Dashboard() {
   const dayState: "weekly" | "completed" | "planned" = isSelectedCompleted
     ? "completed"
     : isSelectedPlanned
-    ? "planned"
-    : "weekly";
+      ? "planned"
+      : "weekly";
   const dayHeaderText =
     dayState === "weekly"
       ? "План на неделю"
       : dayState === "completed"
-      ? "Тренировка выполнена"
-      : "Тренировка на";
+        ? "Тренировка выполнена"
+        : "Тренировка на";
   const dayTitle =
     dayState === "weekly"
       ? weeklyPlanTitle
@@ -1201,10 +1201,10 @@ export default function Dashboard() {
     dayState === "completed"
       ? "Результат"
       : dayState === "planned"
-      ? dayHasActiveProgress
-        ? "Продолжить"
-        : "Начать"
-      : "Выбрать тренировку";
+        ? dayHasActiveProgress
+          ? "Продолжить"
+          : "Начать"
+        : "Выбрать тренировку";
   const isResultButton = dayState === "completed";
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
   const dayDateChipLabel = useMemo(() => {
@@ -1325,7 +1325,7 @@ export default function Dashboard() {
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
-      } catch {}
+      } catch { }
     } catch (err) {
       console.error("dashboard day schedule save failed", err);
       const code = extractApiErrorCode(err);
@@ -1370,7 +1370,7 @@ export default function Dashboard() {
       try {
         window.dispatchEvent(new Event("schedule_updated"));
         window.dispatchEvent(new Event("planned_workouts_updated"));
-      } catch {}
+      } catch { }
     } catch (err) {
       console.error("dashboard day schedule delete failed", err);
       setDayScheduleError("Не удалось удалить дату и время. Попробуй ещё раз.");
@@ -1677,7 +1677,9 @@ export default function Dashboard() {
                       ...(done ? s.goalCompactDotFilled : undefined),
                     }}
                   >
-                    {!done ? (
+                    {done ? (
+                      <span style={s.goalCompactDoneMark}>✓</span>
+                    ) : (
                       <svg viewBox="0 0 20 18" aria-hidden style={s.goalCompactDotCheckSvg}>
                         <path
                           d="M4.3 9.2L8.1 12.9L15.8 5.2"
@@ -1704,7 +1706,7 @@ export default function Dashboard() {
                           strokeLinejoin="round"
                         />
                       </svg>
-                    ) : null}
+                    )}
                   </span>
                 </span>
               );
@@ -2313,10 +2315,9 @@ const s: Record<string, React.CSSProperties> = {
   dayBtnDoneMark: {
     fontSize: 18,
     lineHeight: 1,
-    color: "rgba(92,143,66,0.92)",
+    color: "#1e1f22",
     fontWeight: 700,
-    textShadow:
-      "0 1px 0 rgba(255,255,255,0.76), 0 -1px 0 rgba(58,95,40,0.28)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
   // ===== BLOCK 4-5: Weekly Goal + Progress CTA =====
   goalProgressRow: {
@@ -2388,6 +2389,15 @@ const s: Record<string, React.CSSProperties> = {
     transform: "translateY(-0.2px)",
     mixBlendMode: "multiply",
     opacity: 0.84,
+  },
+  goalCompactDoneMark: {
+    fontSize: 14,
+    lineHeight: 1,
+    color: "rgba(255,255,255,0.45)",
+    fontWeight: 700,
+    textShadow:
+      "0 1px 0 rgba(255,255,255,0.15), 0 -1px 0 rgba(0,0,0,0.8)",
+    transform: "translateY(0.5px)",
   },
   goalCompactCaption: {
     marginTop: 2,
