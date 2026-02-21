@@ -446,6 +446,7 @@ schedule.patch(
         throw new AppError("planned_workout_cancelled", 409);
       }
 
+      // Find conflicts by scheduled_for time range (same day by UTC)
       const conflictRows = await q<{ id: string }>(
         `SELECT id
            FROM planned_workouts
@@ -458,11 +459,27 @@ schedule.patch(
         [userId, id, dayStartUtc.toISOString(), dayEndUtc.toISOString()]
       );
 
-      const conflictIds = conflictRows.map((row) => row.id);
+      // Also find conflicts by workout_date (UNIQUE constraint)
+      const dateConflictRows = await q<{ id: string }>(
+        `SELECT id
+           FROM planned_workouts
+          WHERE user_id = $1
+            AND id <> $2
+            AND workout_date = $3::date
+          ORDER BY id`,
+        [userId, id, date]
+      );
+
+      const conflictIdSet = new Set([
+        ...conflictRows.map((row) => row.id),
+        ...dateConflictRows.map((row) => row.id),
+      ]);
+      const conflictIds = [...conflictIdSet];
       if (conflictIds.length > 0) {
         await q(
           `UPDATE planned_workouts
               SET status = 'pending',
+                  workout_date = NULL,
                   scheduled_for = COALESCE(workout_date::timestamp, scheduled_for),
                   updated_at = now()
             WHERE user_id = $1 AND id = ANY($2::uuid[])`,
@@ -491,9 +508,9 @@ schedule.patch(
       return { updated, conflictIds };
     });
 
-    const userProfile = await buildUserProfile(userId);
+    const userProfile = await buildUserProfile(userId).catch(() => null);
     res.json({
-      plannedWorkout: serializePlannedWorkout(txResult.updated, userProfile.timeBucket),
+      plannedWorkout: serializePlannedWorkout(txResult.updated, userProfile?.timeBucket),
       unscheduledIds: txResult.conflictIds,
     });
   })
