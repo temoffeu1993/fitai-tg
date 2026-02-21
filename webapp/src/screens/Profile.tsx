@@ -23,6 +23,12 @@ const LOCAL_RESET_KEYS = [
   "current_plan",
   "session_draft",
   "planned_workout_id",
+  "schedule_cache_v1",
+  "last_workout_result_v1",
+  "scheme_selected",
+  "highlight_generate_btn",
+  "co2_test_result",
+  "profile",
 ];
 
 

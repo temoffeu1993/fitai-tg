@@ -55,6 +55,27 @@ profile.post(
 
     await q("BEGIN");
     try {
+      // Coach chat (messages FK-cascade from threads)
+      await q(`DELETE FROM coach_chat_messages WHERE thread_id IN (SELECT id FROM coach_chat_threads WHERE user_id = $1::uuid)`, [userId]);
+      await q(`DELETE FROM coach_chat_threads WHERE user_id = $1::uuid`, [userId]);
+
+      // Jobs
+      await q(`DELETE FROM coach_jobs WHERE user_id = $1::uuid`, [userId]);
+      await q(`DELETE FROM progression_jobs WHERE user_id = $1::uuid`, [userId]);
+
+      // Exercise history & progression (TEXT user_id)
+      await q(`DELETE FROM exercise_history WHERE user_id = $1`, [userId]);
+      await q(`DELETE FROM exercise_progression WHERE user_id = $1`, [userId]);
+      await q(`DELETE FROM exercise_change_events WHERE user_id = $1::uuid`, [userId]);
+
+      // Periodization
+      await q(`DELETE FROM weekly_plans WHERE user_id = $1`, [userId]);
+      await q(`DELETE FROM mesocycles WHERE user_id = $1`, [userId]);
+
+      // Check-ins
+      await q(`DELETE FROM daily_check_ins WHERE user_id = $1`, [userId]);
+
+      // Core workout data
       await q(`DELETE FROM planned_workouts WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM workout_sessions WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM workout_plans WHERE user_id = $1`, [userId]);
@@ -63,11 +84,18 @@ profile.post(
       await q(`DELETE FROM training_programs WHERE user_id = $1`, [userId]);
       await q(`DELETE FROM body_metrics WHERE user_id = $1`, [userId]);
 
+      // Scheme & counters
+      await q(`DELETE FROM user_workout_schemes WHERE user_id = $1::uuid`, [userId]);
+      await q(`DELETE FROM user_session_counters WHERE user_id = $1::uuid`, [userId]);
+
+      // Nutrition
       await wipeNutrition(userId);
 
+      // Onboarding
       await q(`DELETE FROM onboardings WHERE user_id = $1`, [userId]);
 
-      await q(`UPDATE users SET created_at = NOW() WHERE id = $1::uuid`, [userId]);
+      // Reset user record (created_at + excluded exercises)
+      await q(`UPDATE users SET created_at = NOW(), excluded_exercise_ids = '{}' WHERE id = $1::uuid`, [userId]);
 
       await q("COMMIT");
     } catch (err) {
