@@ -34,9 +34,16 @@ export default function SessionHeader(props: Props) {
               <ArrowLeft size={20} strokeWidth={2.2} style={s.iconGlyph} />
             </button>
 
-            <button type="button" style={s.timerPill} onClick={onToggleTimer}>
+            <button
+              type="button"
+              style={{
+                ...s.timerPill,
+                ...(running ? s.timerPillActive : null),
+              }}
+              onClick={onToggleTimer}
+            >
               {running ? (
-                <Pause size={14} strokeWidth={2.2} style={s.timerIcon} />
+                <Pause size={14} strokeWidth={2.2} style={{ ...s.timerIcon, ...s.timerIconActive }} />
               ) : (
                 <Play size={14} strokeWidth={2.2} style={s.timerIcon} />
               )}
@@ -134,10 +141,20 @@ const s: Record<string, CSSProperties> = {
     gap: 8,
     justifySelf: "center",
     minWidth: 146,
+    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+  },
+  timerPillActive: {
+    background: "rgba(196,228,178,0.38)",
+    boxShadow: "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)",
+    color: workoutTheme.textPrimary,
   },
   timerIcon: {
     color: "rgba(15,23,42,0.74)",
     flex: "0 0 auto",
+    transition: "color 200ms ease",
+  },
+  timerIconActive: {
+    color: workoutTheme.textPrimary,
   },
   progressTrack: {
     marginTop: 8,
