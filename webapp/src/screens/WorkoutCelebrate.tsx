@@ -126,8 +126,13 @@ export default function WorkoutCelebrate() {
     nav("/workout/result", { replace: true, state: { result } });
   };
 
+  useEffect(() => {
+    if (!payload) {
+      nav("/", { replace: true });
+    }
+  }, [payload, nav]);
+
   if (!payload) {
-    nav("/", { replace: true });
     return null;
   }
 
