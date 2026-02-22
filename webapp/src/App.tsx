@@ -13,6 +13,7 @@ import Profile from "./screens/Profile";
 import WorkoutSession from "./screens/WorkoutSession";
 import WorkoutCountdown from "./screens/WorkoutCountdown";
 import WorkoutResult from "./screens/WorkoutResult";
+import WorkoutCelebrate from "./screens/WorkoutCelebrate";
 import CoachChat from "./screens/CoachChat";
 import History from "@/screens/History";
 import NutritionToday from "@/screens/NutritionToday";
@@ -430,6 +431,7 @@ export default function App() {
 	            <Route path="/profile" element={<Profile />} />
             <Route path="/workout/countdown" element={<WorkoutCountdown />} />
             <Route path="/workout/session" element={<WorkoutSession />} />
+            <Route path="/workout/celebrate" element={<WorkoutCelebrate />} />
             <Route path="/workout/result" element={<WorkoutResult />} />
              <Route path="/history" element={<History />} />
              <Route path="/nutrition/today" element={<NutritionToday />} />

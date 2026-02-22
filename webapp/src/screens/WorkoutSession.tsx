@@ -884,7 +884,7 @@ export default function WorkoutSession() {
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
     setSaving(false);
-    nav("/workout/result", { replace: true, state: { result: provisionalResult } });
+    nav("/workout/celebrate", { replace: true, state: { result: provisionalResult } });
 
     // Save in background, then patch localStorage so result screen picks it up on next read
     void (async () => {
