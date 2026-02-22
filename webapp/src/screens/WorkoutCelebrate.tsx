@@ -213,11 +213,13 @@ export default function WorkoutCelebrate() {
 
         {/* --- Header / Mascot --- */}
         <section style={s.introCenter} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
-          <div style={s.mascotRow}>
-            <img src={mascotImg} alt="" style={s.mascotAvatar} loading="eager" decoding="async" />
-            <div style={s.mascotTextCol}>
-              <div style={s.mascotTitle}>Еее!</div>
-              <div style={s.mascotSubtitle}>
+          <div style={s.headerLeft}>
+            <div style={s.avatarCircle}>
+              <img src={mascotImg} alt="" style={s.mascotAvatarImg} loading="eager" decoding="async" />
+            </div>
+            <div style={s.headerText}>
+              <div style={s.headerGreeting}>Еее!</div>
+              <div style={s.headerSub}>
                 {workoutNumber ? `Вы выполнили ${workoutNumber} тренировку` : "Вы выполнили тренировку"}
               </div>
             </div>
@@ -272,13 +274,11 @@ export default function WorkoutCelebrate() {
             style={{ ...s.primaryBtn, opacity: stage >= 5 ? 1 : 0, pointerEvents: stage >= 5 ? "auto" : "none" }}
             onClick={goNext}
           >
-            <div style={s.primaryBtnInner}>
-              <span style={s.primaryBtnText}>Далее</span>
-              <div style={s.primaryBtnCircle}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}>
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </div>
+            <span style={s.primaryBtnText}>Далее</span>
+            <div style={s.primaryBtnCircle}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}>
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
             </div>
           </button>
 
@@ -299,9 +299,6 @@ export default function WorkoutCelebrate() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    maxWidth: 720,
-    margin: "0 auto",
-    minHeight: "100vh",
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
     display: "flex",
     flexDirection: "column",
@@ -309,6 +306,9 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     background: "var(--tg-theme-bg-color, #ffffff)",
     color: "#1e1f22",
+    minHeight: "100vh",
+    margin: "0 auto",
+    maxWidth: 720,
   },
   introCenter: {
     width: "100%",
@@ -318,35 +318,45 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
     paddingTop: "clamp(12px, 1.8vh, 18px)",
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  mascotRow: {
+  headerLeft: {
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  mascotAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    objectFit: "contain",
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    background: "linear-gradient(135deg, rgba(238,242,255,0.8) 0%, rgba(224,231,255,0.6) 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "inset 0 2px 4px rgba(255,255,255,0.9), 0 2px 10px rgba(79,70,229,0.1)",
+    border: "1px solid rgba(255,255,255,0.8)",
   },
-  mascotTextCol: {
+  mascotAvatarImg: {
+    width: 44,
+    height: 44,
+    objectFit: "contain",
+    marginTop: 8,
+  },
+  headerText: {
     display: "flex",
     flexDirection: "column",
     gap: 2,
   },
-  mascotTitle: {
+  headerGreeting: {
     fontSize: 22,
     fontWeight: 700,
-    color: "#1e1f22",
+    color: "#0f172a",
     lineHeight: 1.2,
   },
-  mascotSubtitle: {
+  headerSub: {
     fontSize: 15,
     fontWeight: 500,
-    color: "rgba(30,31,34,0.72)",
+    color: "rgba(15, 23, 42, 0.65)",
     lineHeight: 1.3,
   },
   metricsWrap: {
@@ -369,9 +379,9 @@ const s: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   valueBig: {
-    fontSize: 44, // like scroller
+    fontSize: 44,
     fontWeight: 900,
-    color: "rgba(30,31,34,0.14)", // exact scroller opacity
+    color: "#1e1f22",
     letterSpacing: "-0.04em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
@@ -379,19 +389,20 @@ const s: Record<string, React.CSSProperties> = {
   valuePercent: {
     fontSize: 28,
     fontWeight: 900,
-    color: "rgba(30,31,34,0.14)",
+    color: "#1e1f22",
   },
   valueUnit: {
     fontSize: 28,
     fontWeight: 900,
-    color: "rgba(30,31,34,0.14)",
+    color: "#1e1f22",
   },
   subtext: {
-    fontSize: 13,
-    fontWeight: 600,
-    lineHeight: 1.3,
-    color: "rgba(15,23,42,0.6)", // like pill subtext
-    letterSpacing: "0.2px",
+    fontSize: 11,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: "rgba(17,29,46,0.58)", // like doneSets pill text color from SessionHeader equivalent
+    letterSpacing: -0.1,
+    textTransform: "uppercase",
   },
   footerFlow: {
     position: "fixed",
@@ -403,31 +414,29 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 12,
-    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 40%, #ffffff 100%)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 40%, var(--tg-theme-bg-color, #ffffff) 100%)",
   },
   primaryBtn: {
     width: "100%",
     border: "none",
     background: "#1e1f22",
     borderRadius: 20,
-    padding: 16,
-    cursor: "pointer",
-    boxShadow: "0 6px 16px rgba(0,0,0,0.14), inset 0 1px 1px rgba(255,255,255,0.1)",
+    padding: "16px 20px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: 600,
+    cursor: "pointer",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.15)",
     transition: "transform 160ms ease, opacity 250ms ease",
     position: "relative",
-  },
-  primaryBtnInner: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
+    zIndex: 2,
   },
   primaryBtnText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 600,
   },
   primaryBtnCircle: {
@@ -450,10 +459,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: "12px 16px",
     cursor: "pointer",
     textAlign: "center",
-    position: "absolute",
-    bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
-    left: 20,
-    right: 20,
+    position: "relative",
+    zIndex: 1,
     transition: "opacity 250ms ease",
   },
 };
