@@ -173,8 +173,8 @@ const FILL_COLOR = "#1e1f22";
 const FILL_SHADOW =
   "inset 0 2px 3px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.15)";
 
-const CHAIN_HEIGHT = 20;
-const NODE_SIZE = 32;
+const CHAIN_HEIGHT = 28;
+const NODE_SIZE = 28;
 
 function StreakChain({
   total,
@@ -183,52 +183,55 @@ function StreakChain({
 }: {
   total: number;
   completed: number;
-  animateIdx: number; // which node is currently animating (0-based)
+  animateIdx: number;
 }) {
+  const trackTop = 8;
+  const fillPct = completed > 0 ? completed / total : 0;
+
   return (
     <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 16, marginTop: 8 }}>
-      {/* Groove track (full width bar) */}
+      {/* Groove track — full width */}
       <div
         style={{
           position: "absolute",
-          left: NODE_SIZE / 2,
-          right: NODE_SIZE / 2,
-          top: (NODE_SIZE - CHAIN_HEIGHT) / 2 + 8,
+          left: 0,
+          right: 0,
+          top: trackTop,
           height: CHAIN_HEIGHT,
           borderRadius: CHAIN_HEIGHT / 2,
           background: GROOVE_BG,
           boxShadow: GROOVE_SHADOW,
         }}
       />
-      {/* Fill track */}
-      <div
-        className="streak-fill-bar"
-        style={{
-          position: "absolute",
-          left: NODE_SIZE / 2,
-          top: (NODE_SIZE - CHAIN_HEIGHT) / 2 + 8,
-          height: CHAIN_HEIGHT,
-          borderRadius: CHAIN_HEIGHT / 2,
-          background: FILL_COLOR,
-          boxShadow: FILL_SHADOW,
-          width: completed > 0
-            ? `calc(${((Math.min(completed, total) - 1) / (total - 1)) * 100}% + ${NODE_SIZE / 2}px)`
-            : 0,
-          transition: "width 800ms cubic-bezier(0.22,1,0.36,1)",
-        }}
-      />
-      {/* Nodes */}
+      {/* Fill track — from left edge to right edge of last completed node */}
+      {completed > 0 && (
+        <div
+          className="streak-fill-bar"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: trackTop,
+            height: CHAIN_HEIGHT,
+            borderRadius: CHAIN_HEIGHT / 2,
+            background: FILL_COLOR,
+            boxShadow: FILL_SHADOW,
+            width: `calc(${fillPct * 100}% + ${NODE_SIZE * (1 - fillPct)}px)`,
+            transition: "width 800ms cubic-bezier(0.22,1,0.36,1)",
+          }}
+        />
+      )}
+      {/* Nodes — no node at left edge, last node at right edge */}
       {Array.from({ length: total }, (_, i) => {
         const isFilled = i < completed;
         const isAnimating = i === animateIdx;
-        const leftPct = total > 1 ? (i / (total - 1)) * 100 : 50;
+        const pct = (i + 1) / total;
         return (
           <div
             key={i}
             style={{
               position: "absolute",
-              left: `calc(${leftPct}% - ${NODE_SIZE / 2}px + ${leftPct > 0 && leftPct < 100 ? 0 : (leftPct === 0 ? 0 : 0)}px)`,
-              top: 8,
+              left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
+              top: trackTop,
               width: NODE_SIZE,
               height: NODE_SIZE,
               borderRadius: "50%",
@@ -244,12 +247,7 @@ function StreakChain({
             {isFilled && (
               <span
                 className={isAnimating ? "streak-fire-pop" : ""}
-                style={{
-                  fontSize: 16,
-                  lineHeight: 1,
-                  opacity: isFilled ? 1 : 0,
-                  transition: "opacity 300ms ease",
-                }}
+                style={{ fontSize: 14, lineHeight: 1 }}
               >
                 🔥
               </span>
@@ -257,8 +255,8 @@ function StreakChain({
             {!isFilled && (
               <span
                 style={{
-                  width: NODE_SIZE * 0.4,
-                  height: NODE_SIZE * 0.4,
+                  width: NODE_SIZE * 0.35,
+                  height: NODE_SIZE * 0.35,
                   borderRadius: "50%",
                   background: "rgba(15,23,42,0.06)",
                 }}
@@ -837,7 +835,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 4,
     width: "100%",
-    paddingTop: 24,
+    padding: "24px 20px 0",
   },
   streakCounter: {
     display: "flex",
