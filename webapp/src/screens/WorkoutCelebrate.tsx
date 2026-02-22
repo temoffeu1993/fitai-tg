@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import BottomDock from "@/components/workout-session/BottomDock";
+import { workoutTheme } from "@/components/workout-session/theme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -58,7 +59,6 @@ function useCounter(
       const elapsed = now - startTimeRef.current;
       const progress = Math.min(1, elapsed / durationMs);
 
-      // easeOutExpo
       const easing = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
       setValue(Math.round(target * easing));
@@ -81,7 +81,7 @@ function useCounter(
 
 // ─── Component ──────────────────────────────────────────────────────────
 
-const STAGE_DELAY = 1200; // ms between sequential blocks appearing
+const STAGE_DELAY = 1200;
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
@@ -89,38 +89,28 @@ export default function WorkoutCelebrate() {
   const result = (location.state as any)?.result;
   const payload: ResultPayload | undefined = result?.payload;
 
-  // Stages: 0=init, 1=show mascot, 2=block1 starts, 3=block2 starts, 4=block3 starts, 5=done
   const [stage, setStage] = useState(0);
-  const [exiting, setExiting] = useState(false);
-
-  // States to trigger subtext appearing after counters finish
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
 
   useLayoutEffect(() => {
+    const root = document.getElementById("root");
+    if (root) root.scrollTop = 0;
     window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
     if (!payload) return;
 
-    // T+100ms: show Mascot
     const t1 = setTimeout(() => {
       setStage(1);
       fireHapticImpact("medium");
     }, 100);
 
-    // T+800ms: block 1 appears (Percent)
     const t2 = setTimeout(() => setStage(2), 800);
-
-    // T+2000ms: block 2 appears (Duration)
     const t3 = setTimeout(() => setStage(3), 800 + STAGE_DELAY);
-
-    // T+3200ms: block 3 appears (Tonnage)
     const t4 = setTimeout(() => setStage(4), 800 + STAGE_DELAY * 2);
-
-    // T+4400ms: final (show Next button)
     const t5 = setTimeout(() => {
       setStage(5);
       fireHapticImpact("light");
@@ -132,12 +122,8 @@ export default function WorkoutCelebrate() {
   }, [payload]);
 
   const goNext = () => {
-    if (exiting) return;
-    setExiting(true);
     fireHapticImpact("medium");
-    setTimeout(() => {
-      nav("/workout/result", { replace: true, state: { result } });
-    }, 320);
+    nav("/workout/result", { replace: true, state: { result } });
   };
 
   if (!payload) {
@@ -145,9 +131,6 @@ export default function WorkoutCelebrate() {
     return null;
   }
 
-  // --- Calculations ---
-
-  // 1: Percent
   let totalSets = 0;
   let doneSets = 0;
   let totalVolume = 0;
@@ -168,14 +151,9 @@ export default function WorkoutCelebrate() {
   const percentSubtext = percent === 100
     ? "Идеальное выполнение! План закрыт полностью"
     : "Отличная работа! Лучше так, чем никак — доберём своё в следующий раз";
-
-  // 2: Duration
   const durMin = payload.durationMin || 0;
-
-  // 3: Tonnage
   const tonnage = Math.round(totalVolume);
 
-  // --- Counters ---
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
     setShowSub1(true);
@@ -194,49 +172,46 @@ export default function WorkoutCelebrate() {
   return (
     <>
       <style>{css}</style>
-      <div style={s.page} className={exiting ? "wc-exit" : undefined}>
+      <div style={s.page}>
 
         {/* --- Header / Mascot --- */}
-        <div style={s.hero} className={stage >= 1 ? "wc-slide-down" : "wc-hidden"}>
-          <div style={s.bubble} className="speech-bubble-bottom">
+        <section style={s.introCenter} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
+          <div style={s.introBubble} className="speech-bubble-bottom">
             <span>Еее! Ты выполнил тренировку</span>
           </div>
-          <img src={morobotImg} alt="" style={s.mascotImg} />
-        </div>
+          <img src={morobotImg} alt="" style={s.introMascotImg} loading="eager" />
+        </section>
 
         {/* --- Metrics Grid --- */}
         <div style={s.metricsWrap}>
 
-          {/* Block 1: Percent */}
-          <div style={s.card} className={stage >= 2 ? "wc-scale-in" : "wc-hidden"}>
+          <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valueUnit}>%</span>
             </div>
-            <div style={s.subtext} className={showSub1 ? "wc-fade-in" : "wc-hidden"}>
+            <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
               {percentSubtext}
             </div>
           </div>
 
-          {/* Block 2: Duration */}
-          <div style={s.card} className={stage >= 3 ? "wc-scale-in" : "wc-hidden"}>
+          <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
               <span style={s.valueBig}>{count2}</span>
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
-            <div style={s.subtext} className={showSub2 ? "wc-fade-in" : "wc-hidden"}>
-              инвестировано в твоё здоровье и красоту
+            <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
+              инвестировано в твоё здоровье
             </div>
           </div>
 
-          {/* Block 3: Tonnage (only show if > 0) */}
           {tonnage > 0 && (
-            <div style={s.card} className={stage >= 4 ? "wc-scale-in" : "wc-hidden"}>
+            <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
               <div style={s.valueRow}>
                 <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
                 <span style={s.valueUnit}>кг</span>
               </div>
-              <div style={s.subtext} className={showSub3 ? "wc-fade-in" : "wc-hidden"}>
+              <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
                 {getVolumeAnalogy(tonnage)}
               </div>
             </div>
@@ -244,10 +219,11 @@ export default function WorkoutCelebrate() {
 
         </div>
 
+        <div style={{ height: 120 }} />
+
       </div>
 
-      {/* --- Sticky Footer --- */}
-      <div className={stage >= 1 ? "wc-fade-in" : "wc-hidden"}>
+      <div className={stage >= 1 ? "onb-fade-soft" : "wc-hidden"}>
         <BottomDock
           primaryLabel="Далее"
           primaryVisible={stage >= 5}
@@ -265,61 +241,68 @@ export default function WorkoutCelebrate() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
+    maxWidth: 720,
+    margin: "0 auto",
     minHeight: "100vh",
-    background: "linear-gradient(180deg, #fceade 0%, #fdf5f2 40%, #ffffff 100%)", // Matches app theme
-    color: "#0f172a",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    padding: "calc(env(safe-area-inset-top, 0px) + 24px) 16px 120px",
-  },
-  hero: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
     gap: 16,
-    marginBottom: 32,
-    marginTop: 20,
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    background: "transparent",
+    color: "#1e1f22",
   },
-  bubble: {
+  introCenter: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "clamp(10px, 2.1vh, 18px)",
+    paddingTop: "clamp(12px, 1.8vh, 18px)",
+    marginTop: "clamp(12px, 1.8vh, 22px)",
+    marginBottom: 16,
+  },
+  introBubble: {
     position: "relative",
-    padding: "16px 20px",
+    width: "min(92%, 392px)",
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
     borderRadius: 20,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(245,245,250,0.8) 100%)",
-    border: "1px solid rgba(255,255,255,0.8)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
+    color: "#1e1f22",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     fontSize: 18,
-    fontWeight: 700,
-    color: "#1e1f22",
-    textAlign: "center",
-    maxWidth: 260,
+    fontWeight: 500,
+    lineHeight: 1.4,
   },
-  mascotImg: {
-    width: 140,
+  introMascotImg: {
+    width: "min(72vw, clamp(186px, 30vh, 262px))",
     height: "auto",
     objectFit: "contain",
   },
   metricsWrap: {
     display: "flex",
     flexDirection: "column",
-    gap: 16,
+    gap: 12,
     width: "100%",
-    maxWidth: 400,
   },
-  card: {
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.8)",
-    padding: "20px 24px",
+  summaryCard: {
+    position: "relative",
+    borderRadius: 20,
+    padding: "20px 18px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 4,
   },
   valueRow: {
     display: "flex",
@@ -327,23 +310,23 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   valueBig: {
-    fontSize: 48,
-    fontWeight: 900,
-    color: "#0f172a",
+    fontSize: 44,
+    fontWeight: 800,
+    color: "#1e1f22",
     letterSpacing: "-0.04em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
   },
   valueUnit: {
     fontSize: 18,
-    fontWeight: 700,
-    color: "rgba(15,23,42,0.5)",
+    fontWeight: 600,
+    color: "rgba(30,31,34,0.6)",
   },
   subtext: {
     fontSize: 15,
     fontWeight: 500,
-    lineHeight: 1.35,
-    color: "#334155",
+    lineHeight: 1.4,
+    color: "rgba(30,31,34,0.8)",
   },
 };
 
@@ -359,49 +342,31 @@ const css = `
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-top: 10px solid rgba(255,255,255,0.9);
-  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.05));
+  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
 }
 
-@keyframes wcSlideDown {
-  0% { opacity: 0; transform: translateY(-20px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes onbFadeUp {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.wc-slide-down {
-  animation: wcSlideDown 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes wcScaleIn {
-  0% { opacity: 0; transform: translateY(14px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.wc-scale-in {
-  animation: wcScaleIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes wcFadeIn {
+@keyframes onbFadeIn {
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
-.wc-fade-in {
-  animation: wcFadeIn 320ms ease-out both;
-}
 
+.onb-fade {
+  animation: onbFadeUp 520ms ease-out both;
+}
+.onb-fade-soft {
+  animation: onbFadeIn 420ms ease-out both;
+}
 .wc-hidden {
   opacity: 0;
   pointer-events: none;
 }
 
-@keyframes wcExit {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
-}
-.wc-exit {
-  animation: wcExit 320ms ease-in both;
-  pointer-events: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .wc-slide-down, .wc-scale-in, .wc-fade-in, .wc-exit {
+  .onb-fade, .onb-fade-soft {
     animation: none !important;
   }
 }
