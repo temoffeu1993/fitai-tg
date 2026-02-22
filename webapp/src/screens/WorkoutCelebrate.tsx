@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Goal, Flame, Hourglass, Weight } from "lucide-react";
+
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -364,7 +364,7 @@ export default function WorkoutCelebrate() {
 
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
-              <Goal size={24} strokeWidth={2} style={s.metricIcon} />
+              <span style={s.metricEmoji}>🎯</span>
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
               <span style={s.valueUnit}>выполнено</span>
@@ -376,7 +376,7 @@ export default function WorkoutCelebrate() {
 
           <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
-              <Hourglass size={24} strokeWidth={2} style={s.metricIcon} />
+              <span style={s.metricEmoji}>💰</span>
               <span style={s.valueBig}>{count2}</span>
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
@@ -389,8 +389,8 @@ export default function WorkoutCelebrate() {
             <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
               <div style={s.valueRow}>
                 {showCalories
-                  ? <Flame size={24} strokeWidth={2} style={s.metricIcon} />
-                  : <Weight size={24} strokeWidth={2} style={s.metricIcon} />
+                  ? <span style={s.metricEmoji}>🔥</span>
+                  : <span style={s.metricEmoji}>💪</span>
                 }
                 {showCalories && <span style={s.valueApprox}>~</span>}
                 <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
@@ -510,12 +510,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   valueRow: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "baseline",
     gap: 8,
   },
-  metricIcon: {
+  metricEmoji: {
+    fontSize: 22,
+    lineHeight: 1,
     flexShrink: 0,
-    color: "#1e1f22",
   },
   valueBig: {
     fontSize: 44,
