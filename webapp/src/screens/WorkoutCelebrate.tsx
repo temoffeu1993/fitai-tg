@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Goal, Hourglass, Weight } from "lucide-react";
+import { Flame, Goal, Hourglass, Weight } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -44,6 +44,37 @@ function getVolumeAnalogy(kg: number): string {
   if (kg < 5000) return "Вес взрослого азиатского слона. Серьезная заявочка!";
   if (kg < 10000) return "Поздравляю, вы подняли массу взрослого тираннозавра!";
   return "Огромный тоннаж, тянет на вес небольшого кита!";
+}
+
+function getCalorieAnalogy(kcal: number): string {
+  if (kcal < 150) return "Как стакан свежевыжатого сока — только в расход";
+  if (kcal < 250) return "Порция картошки фри испарилась ещё до стола";
+  if (kcal < 350) return "Кусок торта «Наполеон» сгорел ещё до чаепития";
+  if (kcal < 450) return "Целая шаурма осталась в прошлом. Тело говорит спасибо";
+  if (kcal < 600) return "Как полноценный обед — только в минус, а не в плюс";
+  if (kcal < 800) return "Это ужин на двоих — а сожгли вы в одиночку";
+  return "Праздничный ужин — организм работал на полную мощность";
+}
+
+function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; trainingLocation?: string } {
+  try {
+    const raw = localStorage.getItem("onb_summary");
+    if (!raw) return {};
+    const s = JSON.parse(raw);
+    return {
+      goal: s?.motivation?.goal,
+      weightKg: s?.body?.weight,
+      sex: s?.ageSex?.sex,
+      trainingLocation: s?.trainingPlace?.place,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean): number {
+  const met = hasWeights ? 5.5 : 4.5;
+  return Math.round(met * weightKg * (durMin / 60));
 }
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
@@ -264,6 +295,13 @@ export default function WorkoutCelebrate() {
   const durMin = payload.durationMin || 0;
   const tonnage = Math.round(totalVolume);
 
+  const userMeta = readUserMeta();
+  const showCalories =
+    userMeta.goal === "lose_weight" || userMeta.trainingLocation === "home_no_equipment";
+  const bodyWeightKg = userMeta.weightKg ?? (userMeta.sex === "female" ? 60 : 70);
+  const calories = durMin > 0 ? estimateCalories(durMin, bodyWeightKg, tonnage > 0) : 0;
+  const thirdValue = showCalories ? calories : tonnage;
+
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
     setShowSub1(true);
@@ -274,7 +312,7 @@ export default function WorkoutCelebrate() {
     fireHapticImpact("heavy");
     setShowSub2(true);
     setTimeout(() => {
-      if (tonnage > 0) {
+      if (thirdValue > 0) {
         fireHapticImpact("medium");
         setStage(4);
       } else {
@@ -284,8 +322,8 @@ export default function WorkoutCelebrate() {
     }, 2000);
   });
 
-  const count3 = useCounter(tonnage, stage >= 4, 800, () => {
-    if (tonnage > 0) {
+  const count3 = useCounter(thirdValue, stage >= 4, 800, () => {
+    if (thirdValue > 0) {
       fireHapticImpact("heavy");
       setShowSub3(true);
       setTimeout(() => {
@@ -345,15 +383,19 @@ export default function WorkoutCelebrate() {
             </div>
           </div>
 
-          {tonnage > 0 && (
+          {thirdValue > 0 && (
             <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
               <div style={s.valueRow}>
-                <Weight size={36} strokeWidth={2} style={s.metricIcon} />
-                <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
-                <span style={s.valueUnit}>кг</span>
+                {showCalories
+                  ? <Flame size={36} strokeWidth={2} style={s.metricIcon} />
+                  : <Weight size={36} strokeWidth={2} style={s.metricIcon} />
+                }
+                {showCalories && <span style={s.valueApprox}>~</span>}
+                <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
+                <span style={s.valueUnit}>{showCalories ? "ккал" : "кг"}</span>
               </div>
               <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
-                {getVolumeAnalogy(tonnage)}
+                {showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage)}
               </div>
             </div>
           )}
@@ -485,6 +527,12 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 28,
     fontWeight: 900,
     color: "#1e1f22",
+  },
+  valueApprox: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.45)",
+    marginRight: -4,
   },
   valueUnit: {
     fontSize: 28,
