@@ -38,7 +38,7 @@ function readStored(): StoredWorkoutResult | null {
 function writeStored(next: StoredWorkoutResult) {
   try {
     localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(next));
-  } catch {}
+  } catch { }
 }
 
 function normalizeNameKey(name: string): string {
@@ -264,7 +264,7 @@ function haptic() {
     // Telegram WebApp haptic
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  } catch {}
+  } catch { }
 }
 
 /** Contextual mascot phrases by scenario */
@@ -505,8 +505,23 @@ export default function WorkoutResult() {
 
 // ─── Result Content ────────────────────────────────────────────────────────────
 
+function tonnageToMetaphor(kg: number): string {
+  if (kg <= 0) return "Разминка для героя 🦸";
+  if (kg < 50) return "Крупная микроволновка 🥐";
+  if (kg < 150) return "Стиральная машина 🧺";
+  if (kg < 300) return "Бурый медведь 🐻";
+  if (kg < 600) return "Гранд-пианино 🎹";
+  if (kg < 1200) return "Легковое авто 🚗";
+  if (kg < 2500) return "Внедорожник 🚙";
+  if (kg < 3500) return "Взрослый носорог 🦏";
+  if (kg < 5000) return "Азиатский слон 🐘";
+  if (kg < 8000) return "Тираннозавр Рекс 🦖";
+  return "Груженый самосвал 🚛";
+}
+
 function ResultContent(props: any) {
   const { result, job, summary, coachJob, coachReport, contentVisible, jobId, pollOnce, nav } = props;
+  const [showPlan, setShowPlan] = useState(false);
 
   const details: Array<any> = Array.isArray(summary?.details) ? summary.details : [];
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
@@ -532,6 +547,15 @@ function ResultContent(props: any) {
     return prev ? computeHistoryTonnage(prev) : 0;
   }, [history, result.sessionId]);
   const tonnageDelta = priorTonnage > 0 ? tonnage - priorTonnage : 0;
+
+  const medianEffort = useMemo(() => {
+    const efforts = payloadExercises
+      .map((ex: any) => toNumber(ex?.effort))
+      .filter((e): e is number => typeof e === "number" && Number.isFinite(e) && e > 0);
+    if (!efforts.length) return null;
+    const m = median(efforts);
+    return m != null ? Math.round(m * 10) / 10 : null;
+  }, [payloadExercises]);
 
   // Progression groups
   const weightUp = details.filter((d: any) => String(d?.recommendation?.action || "") === "increase_weight");
@@ -653,12 +677,30 @@ function ResultContent(props: any) {
           </div>
         </div>
 
+        {/* Streak (moved to top) */}
+        {streak > 1 && (
+          <div style={{ ...s.streakTopRow, ...fadeStyle(40) }}>
+            <div style={s.streakPills}>
+              {Array.from({ length: Math.min(streak, 7) }).map((_, i) => (
+                <div key={i} style={s.streakFireDotFilled}>🔥</div>
+              ))}
+              {streak < 7 && Array.from({ length: 7 - Math.min(streak, 7) }).map((_, i) => (
+                <div key={`e-${i}`} style={s.streakFireDotEmpty} />
+              ))}
+            </div>
+            <div style={s.streakLabelTop}>{streak} огненных сессий подряд!</div>
+          </div>
+        )}
+
         {/* ── 2. Hero Tonnage Card ───────────────────────────────────── */}
         <div style={{ ...s.glassCard, ...fadeStyle(80) }}>
           <div style={s.tonnageRow}>
             <div>
               <div style={s.tonnageLabel}>Общий тоннаж</div>
               <div style={s.tonnageValue}>{formatTonnage(tonnage)}</div>
+              {tonnage > 0 && (
+                <div style={s.tonnageMetaphor}>{tonnageToMetaphor(tonnage)}</div>
+              )}
             </div>
             {tonnageDelta !== 0 && (
               <div style={{
@@ -679,60 +721,43 @@ function ResultContent(props: any) {
             <div style={s.statDivider} />
             <div style={s.statItem}>
               <div style={s.statValue}>{doneExercises}/{exerciseCount}</div>
-              <div style={s.statLabel}>упражнений</div>
+              <div style={s.statLabel}>упр-й</div>
             </div>
             <div style={s.statDivider} />
             <div style={s.statItem}>
-              <div style={s.statValue}>{totalSets}</div>
-              <div style={s.statLabel}>подходов</div>
+              <div style={s.statValue}>{medianEffort != null ? `${medianEffort}` : "—"}</div>
+              <div style={s.statLabel}>Avg RPE</div>
             </div>
           </div>
         </div>
 
-        {/* ── 3. Streak + Milestone ──────────────────────────────────── */}
-        {(streak > 1 || milestone) && (
+        {/* ── 3. Milestone ──────────────────────────────────── */}
+        {milestone && (
           <div style={{ ...s.glassCard, ...fadeStyle(160), padding: 16 }}>
-            {streak > 1 && (
-              <div style={s.streakRow}>
-                <div style={s.streakPills}>
-                  {Array.from({ length: Math.min(streak, 7) }).map((_, i) => (
-                    <div key={i} style={s.streakDotFilled} />
-                  ))}
-                  {streak < 7 && Array.from({ length: 7 - Math.min(streak, 7) }).map((_, i) => (
-                    <div key={`e-${i}`} style={s.streakDotEmpty} />
-                  ))}
-                </div>
-                <div style={s.streakLabel}>{streak} тренировок подряд</div>
-              </div>
-            )}
-            {milestone && (
-              <div style={{ marginTop: streak > 1 ? 14 : 0 }}>
-                <div style={s.milestoneLabel}>
-                  До "{milestone.label}": {milestone.next - milestone.current} осталось
-                </div>
-                <div style={s.milestoneBar}>
-                  <div style={{
-                    ...s.milestoneBarFill,
-                    width: `${Math.min(100, (milestone.current / milestone.next) * 100)}%`,
-                  }} />
-                </div>
-              </div>
-            )}
+            <div style={s.milestoneLabel}>
+              До "{milestone.label}": {milestone.next - milestone.current} осталось
+            </div>
+            <div style={s.milestoneBar}>
+              <div style={{
+                ...s.milestoneBarFill,
+                width: `${Math.min(100, (milestone.current / milestone.next) * 100)}%`,
+              }} />
+            </div>
           </div>
         )}
 
         {/* ── 4. Personal Records ────────────────────────────────────── */}
         {prs.length > 0 && (
           <div style={{ ...s.glassCard, ...fadeStyle(220) }}>
-            <div style={s.sectionTitle}>Личные рекорды</div>
+            <div style={s.sectionTitle}>Твои награды</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
               {prs.map((pr, i) => (
                 <div key={i} style={s.prRow}>
-                  <div style={s.prBadge}>{pr.type === "weight" ? "W" : "R"}</div>
+                  <div style={s.prBadge}>{pr.type === "weight" ? "🏆" : "🔥"}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.prName}>{pr.name}</div>
+                    <div style={s.prName}>{pr.type === "weight" ? "Новый рекорд веса" : "Рекорд выносливости"}</div>
                     <div style={s.prDetail}>
-                      {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повторений`}
+                      {pr.name} — {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повт.`}
                     </div>
                   </div>
                 </div>
@@ -741,36 +766,106 @@ function ResultContent(props: any) {
           </div>
         )}
 
-        {/* ── 5. Effort Breakdown ────────────────────────────────────── */}
-        {payloadExercises.length > 0 && payloadExercises.some((ex: any) => toNumber(ex?.effort) != null) && (
-          <div style={{ ...s.glassCard, ...fadeStyle(280) }}>
-            <div style={s.sectionTitle}>Усилие по упражнениям</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-              {payloadExercises.map((ex: any, i: number) => {
-                const effort = toNumber(ex?.effort);
-                if (effort == null) return null;
-                const name = String(ex?.name || ex?.exerciseName || `Упражнение ${i + 1}`);
-                return (
-                  <div key={i} style={s.effortRow}>
-                    <div style={s.effortName}>{name}</div>
-                    <div style={s.effortBarWrap}>
-                      <div style={{ ...s.effortBarFill, width: `${Math.min(100, (effort / 10) * 100)}%`, background: effortColor(effort) }} />
-                    </div>
-                    <div style={{ ...s.effortValue, color: effortColor(effort) }}>{effort}/10</div>
-                  </div>
-                );
-              }).filter(Boolean)}
-            </div>
-          </div>
-        )}
+        {/* 5. Effort Breakdown (removed to simplify UI) */}
 
-        {/* ── 6. Compact Progression ─────────────────────────────────── */}
-        {summary && details.length > 0 && (
-          <div style={{ ...s.glassCard, ...fadeStyle(340) }}>
-            <div style={s.sectionTitle}>План на следующую</div>
+        {/* ── 5. Coach Card (Chat Bubble) ────────────────────────────── */}
+        <div style={{ ...s.coachChatRow, ...fadeStyle(280) }}>
+          <div style={s.coachAvatarWrap}>
+            <img src={mascotImg} alt="Моро" style={s.coachAvatarImg} draggable={false} />
+          </div>
+          <div style={s.coachBubble}>
+            <div style={s.coachTitle}>Тренер Моро</div>
+            <div style={s.coachMsg}>
+              {Array.isArray((coachReport as any)?.detail?.bullets) && (coachReport as any).detail.bullets.length ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {(coachReport as any).detail.bullets.slice(0, 4).map((b: any, i: number) => (
+                    <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
+                  ))}
+                </div>
+              ) : Array.isArray((coachReport as any)?.telegram?.bullets) && (coachReport as any).telegram.bullets.length ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {(coachReport as any).telegram.bullets.slice(0, 4).map((b: any, i: number) => (
+                    <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
+                  ))}
+                </div>
+              ) : coachJob?.id && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
+                <div style={s.coachBullet}>Печатает...</div>
+              ) : (
+                <div style={s.coachBullet}>
+                  {scenario === "down" ? "Сегодня бережный режим — это часть прогресса. Отдыхай."
+                    : scenario === "up" ? "Отлично! Техника на уровне, так что я немного повысил веса на следующий раз."
+                      : scenario === "reps" ? "Твоя выносливость растет! Еще немного и будем повышать вес."
+                        : "Хорошая стабильная сессия. Так держать!"}
+                </div>
+              )}
+            </div>
+
+            {summary && details.length > 0 && (
+              <button style={s.planBtn} onClick={() => setShowPlan(true)}>
+                Посмотреть корректировки весов
+              </button>
+            )}
+            {!summary && job && (
+              job.status === "failed" ? (
+                <button style={s.planBtn} onClick={async () => { try { await pollOnce(); } catch { } }}>
+                  Обновить план
+                </button>
+              ) : (
+                <div style={{ marginTop: 10, fontSize: 13, color: "rgba(15,23,42,0.5)" }}>
+                  (Готовлю рекомендации на следующий раз...)
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* bottom spacer for sticky CTA */}
+        <div style={{ height: 140 }} />
+      </div>
+
+      {/* ── 8. Sticky CTA ────────────────────────────────────────────── */}
+      <div style={s.stickyWrap}>
+        <div style={s.stickyInner}>
+          <button
+            style={s.ctaPrimary}
+            onClick={() => {
+              try { localStorage.removeItem(LAST_RESULT_KEY); } catch { }
+              nav("/");
+            }}
+          >
+            На главную
+          </button>
+          <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
+            Посмотреть прогресс
+          </button>
+        </div>
+      </div>
+
+      {/* Progression details bottom sheet */}
+      <div
+        style={{
+          ...s.sheetOverlay,
+          opacity: showPlan ? 1 : 0,
+          pointerEvents: showPlan ? "auto" : "none",
+        }}
+        onClick={() => setShowPlan(false)}
+      >
+        <div
+          style={{
+            ...s.sheetContent,
+            transform: showPlan ? "translateY(0)" : "translateY(100%)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={s.sheetGrabberWrap} onClick={() => setShowPlan(false)}>
+            <div style={s.sheetGrabber} />
+          </div>
+
+          <div style={s.sheetBody}>
+            <div style={{ ...s.sectionTitle, marginBottom: 16 }}>Корректировки весов</div>
 
             {weightUp.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={s.progressGroupLabel}>Прибавляем вес ({weightUp.length})</div>
                 {weightUp.slice(0, 5).map((d: any, idx: number) => {
                   const rec = d?.recommendation;
@@ -790,7 +885,7 @@ function ResultContent(props: any) {
             )}
 
             {repsUp.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={s.progressGroupLabel}>Повышаем повторы ({repsUp.length})</div>
                 {repsUp.slice(0, 5).map((d: any, idx: number) => {
                   const rec = d?.recommendation;
@@ -807,7 +902,7 @@ function ResultContent(props: any) {
             )}
 
             {keep.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={s.progressGroupLabel}>Держим вес ({keep.length})</div>
                 {keep.slice(0, 3).map((d: any, idx: number) => {
                   const name = String(d?.exerciseName || d?.recommendation?.exerciseId || `#${idx + 1}`);
@@ -823,7 +918,7 @@ function ResultContent(props: any) {
             )}
 
             {loadDown.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={s.progressGroupLabel}>Снижаем ({loadDown.length})</div>
                 {loadDown.slice(0, 3).map((d: any, idx: number) => {
                   const rec = d?.recommendation;
@@ -839,84 +934,6 @@ function ResultContent(props: any) {
               </div>
             )}
           </div>
-        )}
-
-        {/* Progression loading / error states */}
-        {!summary && job && (
-          <div style={{ ...s.glassCard, ...fadeStyle(340) }}>
-            <div style={s.sectionTitle}>План на следующую</div>
-            {job.status === "failed" ? (
-              <div style={{ marginTop: 10 }}>
-                <div style={s.bodyText}>Не удалось обновить прогрессию. Тренировка сохранена.</div>
-                <button
-                  style={{ ...s.smallBtn, marginTop: 10 }}
-                  onClick={async () => { try { await pollOnce(); } catch {} }}
-                  disabled={!jobId}
-                >
-                  Обновить
-                </button>
-              </div>
-            ) : (
-              <div style={{ ...s.bodyText, marginTop: 10 }}>
-                Готовим рекомендации...
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── 7. Coach Card ──────────────────────────────────────────── */}
-        <div style={{ ...s.coachCard, ...fadeStyle(400) }}>
-          <div style={s.coachHead}>
-            <div style={s.coachAvatarWrap}>
-              <img src={mascotImg} alt="Моро" style={s.coachAvatarImg} draggable={false} />
-            </div>
-            <div style={s.coachTitle}>Комментарий тренера</div>
-          </div>
-          <div style={s.coachMsg}>
-            {Array.isArray((coachReport as any)?.detail?.bullets) && (coachReport as any).detail.bullets.length ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                {(coachReport as any).detail.bullets.slice(0, 4).map((b: any, i: number) => (
-                  <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
-                ))}
-              </div>
-            ) : Array.isArray((coachReport as any)?.telegram?.bullets) && (coachReport as any).telegram.bullets.length ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                {(coachReport as any).telegram.bullets.slice(0, 4).map((b: any, i: number) => (
-                  <div key={i} style={s.coachBullet}>{String(b || "").trim()}</div>
-                ))}
-              </div>
-            ) : coachJob?.id && (String(coachJob?.status || "").toLowerCase() === "pending" || String(coachJob?.status || "").toLowerCase() === "processing") ? (
-              <div style={s.coachBullet}>Готовлю разбор тренировки...</div>
-            ) : (
-              <div style={s.coachBullet}>
-                {scenario === "down" ? "Сегодня бережный режим — это часть прогресса."
-                  : scenario === "up" ? "Отлично! Техника и комфортный темп на новых весах."
-                    : scenario === "reps" ? "Повторы растут — следующий шаг: прибавим вес."
-                      : "Стабильность — тоже прогресс. Добивай верх повторов."}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* bottom spacer for sticky CTA */}
-        <div style={{ height: 140 }} />
-      </div>
-
-      {/* ── 8. Sticky CTA ────────────────────────────────────────────── */}
-      <div style={s.stickyWrap}>
-        <div style={s.stickyInner}>
-          <button
-            style={s.ctaPrimary}
-            onClick={() => {
-              try { localStorage.removeItem(LAST_RESULT_KEY); } catch {}
-              nav("/");
-            }}
-          >
-            На главную
-          </button>
-          <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
-            Посмотреть прогресс
-          </button>
         </div>
       </div>
     </div>
@@ -1015,12 +1032,22 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: 0.5,
   },
   tonnageValue: {
-    fontSize: 38,
+    fontSize: 56,
     fontWeight: 900,
     color: "#0f172a",
-    letterSpacing: -0.5,
-    lineHeight: 1.1,
-    marginTop: 4,
+    letterSpacing: -1.5,
+    lineHeight: 1,
+    marginTop: 6,
+  },
+  tonnageMetaphor: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.65)",
+    marginTop: 8,
+    display: "inline-block",
+    padding: "4px 8px",
+    background: "rgba(15,23,42,0.06)",
+    borderRadius: 8,
   },
   tonnageDelta: {
     fontSize: 16,
@@ -1028,7 +1055,9 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1,
     padding: "6px 10px",
     borderRadius: 12,
-    background: "rgba(255,255,255,0.5)",
+    background: "rgba(255,255,255,0.7)",
+    boxShadow: "0 2px 8px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,1)",
+    textShadow: "0 1px 1px rgba(255,255,255,1), 0 -1px 0 rgba(0,0,0,0.05)",
   },
 
   // ── Stats row
@@ -1068,33 +1097,38 @@ const s: Record<string, CSSProperties> = {
   },
 
   // ── Streak
-  streakRow: {
+  streakTopRow: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
+    marginTop: 2,
+    padding: "8px 14px",
+    background: "rgba(234, 88, 12, 0.08)",
+    borderRadius: 16,
+    border: "1px solid rgba(234, 88, 12, 0.15)",
+    boxShadow: "0 4px 12px rgba(234,88,12,0.06)",
   },
   streakPills: {
     display: "flex",
-    gap: 6,
+    gap: 4,
   },
-  streakDotFilled: {
-    width: 12,
-    height: 12,
+  streakFireDotFilled: {
+    fontSize: 15,
+    lineHeight: 1,
+    filter: "drop-shadow(0 2px 4px rgba(234,88,12,0.4))",
+  },
+  streakFireDotEmpty: {
+    width: 15,
+    height: 15,
+    marginTop: 1,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    background: "rgba(15,23,42,0.06)",
+    boxShadow: "inset 0 1px 3px rgba(15,23,42,0.1)",
   },
-  streakDotEmpty: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-  },
-  streakLabel: {
+  streakLabelTop: {
     fontSize: 14,
-    fontWeight: 700,
-    color: "#0f172a",
+    fontWeight: 800,
+    color: "#c2410c",
   },
 
   // ── Milestone
@@ -1123,34 +1157,39 @@ const s: Record<string, CSSProperties> = {
   prRow: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
+    padding: "10px 12px",
+    background: "linear-gradient(90deg, rgba(253, 230, 138, 0.4) 0%, rgba(255, 255, 255, 0.5) 100%)",
+    borderRadius: 16,
+    border: "1px solid rgba(245, 158, 11, 0.3)",
+    boxShadow: "0 4px 12px rgba(245, 158, 11, 0.08)",
   },
   prBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    background: "linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%)",
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: 900,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    background: "linear-gradient(180deg, #fef3c7 0%, #fde68a 100%)",
+    fontSize: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    boxShadow: "0 2px 6px rgba(245,158,11,0.3)",
+    boxShadow: "0 2px 6px rgba(245,158,11,0.2), inset 0 1px 0 rgba(255,255,255,0.8)",
   },
   prName: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#0f172a",
+    fontSize: 14.5,
+    fontWeight: 800,
+    color: "#92400e",
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  prDetail: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#b45309",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
-  },
-  prDetail: {
-    fontSize: 12.5,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.55)",
   },
 
   // ── Effort breakdown
@@ -1230,30 +1269,23 @@ const s: Record<string, CSSProperties> = {
     flexShrink: 0,
   },
 
-  // ── Coach card
-  coachCard: {
-    borderRadius: 24,
-    padding: 18,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
-  } as CSSProperties,
-  coachHead: {
+  // ── Coach Chat
+  coachChatRow: {
     display: "flex",
-    alignItems: "center",
-    gap: 10,
+    gap: 12,
+    alignItems: "flex-end",
+    marginTop: 10,
+    marginBottom: 20,
   },
   coachAvatarWrap: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: 999,
     overflow: "hidden",
     flexShrink: 0,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    padding: 1,
+    padding: 2,
   },
   coachAvatarImg: {
     width: "100%",
@@ -1262,21 +1294,82 @@ const s: Record<string, CSSProperties> = {
     objectPosition: "center 10%",
     borderRadius: 999,
   },
+  coachBubble: {
+    flex: 1,
+    padding: "14px 16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    borderRadius: "20px 20px 20px 4px",
+    boxShadow: "0 6px 16px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,1)",
+    border: "1px solid rgba(15,23,42,0.04)",
+  },
   coachTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 800,
     color: "#0f172a",
+    marginBottom: 4,
   },
   coachMsg: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "rgba(15,23,42,0.62)",
+    fontSize: 14.5,
+    color: "#334155",
     lineHeight: 1.45,
   },
   coachBullet: {
-    fontSize: 14,
-    color: "rgba(15,23,42,0.62)",
+    fontSize: 14.5,
+    color: "#334155",
     lineHeight: 1.45,
+  },
+  planBtn: {
+    marginTop: 14,
+    width: "100%",
+    padding: "10px 14px",
+    background: "rgba(15, 23, 42, 0.04)",
+    color: "#0f172a",
+    border: "none",
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  // ── Bottom Sheet
+  sheetOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(15,23,42,0.4)",
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
+    zIndex: 999,
+    transition: "all 300ms cubic-bezier(0.32, 0.72, 0, 1)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+  } as CSSProperties,
+  sheetContent: {
+    background: "#ffffff",
+    borderRadius: "24px 24px 0 0",
+    padding: "0 20px calc(24px + env(safe-area-inset-bottom))",
+    maxHeight: "85vh",
+    overflowY: "auto",
+    boxShadow: "0 -8px 24px rgba(0,0,0,0.12)",
+    transition: "transform 400ms cubic-bezier(0.32, 0.72, 0, 1)",
+  } as CSSProperties,
+  sheetGrabberWrap: {
+    padding: "16px 0",
+    display: "flex",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  sheetGrabber: {
+    width: 40,
+    height: 5,
+    borderRadius: 999,
+    background: "rgba(15,23,42,0.2)",
+  },
+  sheetBody: {
+    marginTop: 8,
   },
 
   // ── Hero title (for empty state)
