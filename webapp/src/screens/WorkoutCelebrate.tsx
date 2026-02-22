@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import morobotImg from "@/assets/morobot.webp";
@@ -77,7 +77,199 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
   return Math.round(met * weightKg * (durMin / 60));
 }
 
+// ─── Streak helpers ───────────────────────────────────────────────────────
 
+const HISTORY_KEY = "history_sessions_v1";
+
+type HistorySession = {
+  id?: string;
+  finishedAt?: string;
+};
+
+function readHistory(): HistorySession[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function computeStreak(history: HistorySession[]): number {
+  const sorted = history
+    .slice()
+    .sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
+  let count = 0;
+  let prevDate: string | null = null;
+  for (const session of sorted) {
+    const d = session.finishedAt ? new Date(session.finishedAt).toISOString().slice(0, 10) : null;
+    if (!d) continue;
+    if (prevDate === d) continue;
+    if (prevDate) {
+      const diff = (new Date(prevDate).getTime() - new Date(d).getTime()) / (1000 * 60 * 60 * 24);
+      if (diff > 7) break;
+    }
+    prevDate = d;
+    count++;
+  }
+  return count;
+}
+
+function getSessionsPerWeek(): number {
+  try {
+    // Try scheme cache first (same as Dashboard)
+    const schemeRaw = localStorage.getItem("schedule_cache_v1");
+    if (schemeRaw) {
+      const parsed = JSON.parse(schemeRaw);
+      const pw = parsed?.plannedWorkouts;
+      if (Array.isArray(pw) && pw.length >= 2 && pw.length <= 6) {
+        const scheduled = pw.filter((w: any) => w.status === "scheduled" || w.status === "completed");
+        if (scheduled.length >= 2 && scheduled.length <= 6) return scheduled.length;
+      }
+    }
+  } catch { }
+  try {
+    const onb = JSON.parse(localStorage.getItem("onb_summary") || "{}");
+    const d = Number(onb?.schedule?.daysPerWeek);
+    if (Number.isFinite(d) && d >= 2 && d <= 6) return d;
+  } catch { }
+  return 3; // fallback
+}
+
+function getWeekCompletedCount(history: HistorySession[]): number {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = (dayOfWeek + 6) % 7;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset);
+  const mondayTs = monday.getTime();
+
+  const uniqueDates = new Set<string>();
+  for (const h of history) {
+    if (!h.finishedAt) continue;
+    const dt = new Date(h.finishedAt);
+    if (dt.getTime() >= mondayTs) {
+      uniqueDates.add(dt.toISOString().slice(0, 10));
+    }
+  }
+  return uniqueDates.size;
+}
+
+function getStreakBubbleText(streak: number): string {
+  if (streak <= 1) return "Первая тренировка — серия пошла! 🔥";
+  if (streak === 2) return "Два в серии! Не останавливайся!";
+  if (streak === 3) return "Три подряд — отличный старт! 💪";
+  if (streak <= 5) return "Серия растёт! Так держать!";
+  if (streak <= 10) return "Уже привычка. Горжусь тобой! 🔥";
+  if (streak <= 20) return "Настоящая машина! Без пропусков!";
+  return "Легенда! Ничто тебя не остановит!";
+}
+
+// ─── Streak Chain Component ───────────────────────────────────────────────
+
+const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
+const GROOVE_SHADOW =
+  "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)";
+const FILL_COLOR = "#1e1f22";
+const FILL_SHADOW =
+  "inset 0 2px 3px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.15)";
+
+const CHAIN_HEIGHT = 20;
+const NODE_SIZE = 32;
+
+function StreakChain({
+  total,
+  completed,
+  animateIdx,
+}: {
+  total: number;
+  completed: number;
+  animateIdx: number; // which node is currently animating (0-based)
+}) {
+  return (
+    <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 16, marginTop: 8 }}>
+      {/* Groove track (full width bar) */}
+      <div
+        style={{
+          position: "absolute",
+          left: NODE_SIZE / 2,
+          right: NODE_SIZE / 2,
+          top: (NODE_SIZE - CHAIN_HEIGHT) / 2 + 8,
+          height: CHAIN_HEIGHT,
+          borderRadius: CHAIN_HEIGHT / 2,
+          background: GROOVE_BG,
+          boxShadow: GROOVE_SHADOW,
+        }}
+      />
+      {/* Fill track */}
+      <div
+        className="streak-fill-bar"
+        style={{
+          position: "absolute",
+          left: NODE_SIZE / 2,
+          top: (NODE_SIZE - CHAIN_HEIGHT) / 2 + 8,
+          height: CHAIN_HEIGHT,
+          borderRadius: CHAIN_HEIGHT / 2,
+          background: FILL_COLOR,
+          boxShadow: FILL_SHADOW,
+          width: completed > 0
+            ? `calc(${((Math.min(completed, total) - 1) / (total - 1)) * 100}% + ${NODE_SIZE / 2}px)`
+            : 0,
+          transition: "width 800ms cubic-bezier(0.22,1,0.36,1)",
+        }}
+      />
+      {/* Nodes */}
+      {Array.from({ length: total }, (_, i) => {
+        const isFilled = i < completed;
+        const isAnimating = i === animateIdx;
+        const leftPct = total > 1 ? (i / (total - 1)) * 100 : 50;
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `calc(${leftPct}% - ${NODE_SIZE / 2}px + ${leftPct > 0 && leftPct < 100 ? 0 : (leftPct === 0 ? 0 : 0)}px)`,
+              top: 8,
+              width: NODE_SIZE,
+              height: NODE_SIZE,
+              borderRadius: "50%",
+              background: isFilled ? FILL_COLOR : GROOVE_BG,
+              boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+              transition: "background 300ms ease, box-shadow 300ms ease",
+            }}
+          >
+            {isFilled && (
+              <span
+                className={isAnimating ? "streak-fire-pop" : ""}
+                style={{
+                  fontSize: 16,
+                  lineHeight: 1,
+                  opacity: isFilled ? 1 : 0,
+                  transition: "opacity 300ms ease",
+                }}
+              >
+                🔥
+              </span>
+            )}
+            {!isFilled && (
+              <span
+                style={{
+                  width: NODE_SIZE * 0.4,
+                  height: NODE_SIZE * 0.4,
+                  borderRadius: "50%",
+                  background: "rgba(15,23,42,0.06)",
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
 
@@ -218,8 +410,15 @@ function spawnConfetti(container: HTMLDivElement) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
-
-const STAGE_DELAY = 1200;
+// Stages:
+// 0 = initial
+// 1 = mascot + confetti
+// 2 = percent counter
+// 3 = duration counter
+// 4 = volume counter
+// 5 = first "Далее" visible (metrics phase done)
+// 6 = streak block shown (metrics fade out, streak fades in)
+// 7 = streak animation done, second "Далее" visible
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
@@ -231,7 +430,16 @@ export default function WorkoutCelebrate() {
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
+  const [streakAnimIdx, setStreakAnimIdx] = useState(-1);
+  const [streakCounterPulse, setStreakCounterPulse] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
+
+  // Streak data
+  const history = useMemo(() => readHistory(), []);
+  const streak = useMemo(() => computeStreak(history), [history]);
+  const sessionsPerWeek = useMemo(() => getSessionsPerWeek(), []);
+  const weekCompleted = useMemo(() => getWeekCompletedCount(history), [history]);
+  const chainCompleted = Math.min(weekCompleted, sessionsPerWeek);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -261,7 +469,32 @@ export default function WorkoutCelebrate() {
     };
   }, [payload]);
 
-  const goNext = () => {
+  // Streak animation sequence (when stage becomes 6)
+  useEffect(() => {
+    if (stage !== 6) return;
+    // After a short delay, start the fill animation
+    const t1 = setTimeout(() => {
+      setStreakAnimIdx(chainCompleted - 1); // this triggers the fill
+    }, 400);
+    // After fill animation completes, pulse the counter
+    const t2 = setTimeout(() => {
+      setStreakCounterPulse(true);
+      fireHapticImpact("heavy");
+    }, 1400);
+    // Make buttons visible
+    const t3 = setTimeout(() => {
+      setStage(7);
+      fireHapticImpact("light");
+    }, 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [stage, chainCompleted]);
+
+  const goToStreak = () => {
+    fireHapticImpact("medium");
+    setStage(6);
+  };
+
+  const goToResult = () => {
     fireHapticImpact("medium");
     nav("/workout/result", { replace: true, state: { result } });
   };
@@ -337,10 +570,18 @@ export default function WorkoutCelebrate() {
 
   const workoutNumberMatch = payload?.title?.match(/\d+/);
   const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
-  const bubbleTarget = stage >= 1
-    ? (workoutNumber ? `Еее! Вы выполнили ${workoutNumber}-ю тренировку!` : "Еее! Вы выполнили тренировку!")
-    : "";
+
+  // Bubble text changes depending on phase
+  const isStreakPhase = stage >= 6;
+  const bubbleTarget = !isStreakPhase
+    ? (stage >= 1
+      ? (workoutNumber ? `Еее! Вы выполнили ${workoutNumber}-ю тренировку!` : "Еее! Вы выполнили тренировку!")
+      : "")
+    : getStreakBubbleText(streak);
   const bubbleTyped = useTypewriterText(bubbleTarget, { charIntervalMs: 22, startDelayMs: 80 });
+
+  const showMetrics = stage < 6;
+  const showStreak = stage >= 6;
 
   return (
     <>
@@ -359,9 +600,17 @@ export default function WorkoutCelebrate() {
           </div>
         </div>
 
-        {/* --- Metrics Grid --- */}
-        <div style={s.metricsWrap}>
-
+        {/* --- Metrics Grid (fades out at stage 6) --- */}
+        <div
+          style={{
+            ...s.metricsWrap,
+            opacity: showMetrics ? 1 : 0,
+            transform: showMetrics ? "translateY(0)" : "translateY(-10px)",
+            transition: "opacity 350ms ease, transform 350ms ease",
+            pointerEvents: showMetrics ? "auto" : "none",
+            position: showMetrics ? "relative" : "absolute",
+          }}
+        >
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
               <span style={s.metricEmoji}>🎯</span>
@@ -401,8 +650,41 @@ export default function WorkoutCelebrate() {
               </div>
             </div>
           )}
-
         </div>
+
+        {/* --- Streak Block (fades in at stage 6) --- */}
+        {showStreak && (
+          <div style={s.streakWrap} className="onb-fade">
+            {/* Streak counter */}
+            <div style={s.streakCounter}>
+              <span
+                className={streakCounterPulse ? "streak-pulse" : ""}
+                style={s.streakEmoji}
+              >
+                🔥
+              </span>
+              <span
+                className={streakCounterPulse ? "streak-pulse" : ""}
+                style={s.streakNumber}
+              >
+                {streak}
+              </span>
+            </div>
+            <div style={s.streakLabel}>
+              {streak === 1 ? "тренировка подряд" : streak >= 2 && streak <= 4 ? "тренировки подряд" : "тренировок подряд"}
+            </div>
+
+            {/* Streak chain */}
+            <StreakChain
+              total={sessionsPerWeek}
+              completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
+              animateIdx={streakAnimIdx}
+            />
+            <div style={s.streakWeekLabel}>
+              {chainCompleted} из {sessionsPerWeek} на этой неделе
+            </div>
+          </div>
+        )}
 
         <div style={{ height: 120 }} />
 
@@ -414,10 +696,10 @@ export default function WorkoutCelebrate() {
             className="checkin-primary-btn"
             style={{
               ...s.primaryBtn,
-              opacity: stage >= 5 ? 1 : 0,
-              pointerEvents: stage >= 5 ? "auto" : "none",
+              opacity: (stage >= 5 && stage < 6) || stage >= 7 ? 1 : 0,
+              pointerEvents: (stage >= 5 && stage < 6) || stage >= 7 ? "auto" : "none",
             }}
-            onClick={goNext}
+            onClick={stage >= 7 ? goToResult : goToStreak}
           >
             <span style={s.primaryBtnText}>Далее</span>
             <span style={s.primaryBtnCircle} aria-hidden>
@@ -432,7 +714,7 @@ export default function WorkoutCelebrate() {
               opacity: stage >= 1 ? 1 : 0,
               pointerEvents: stage >= 1 ? "auto" : "none",
             }}
-            onClick={goNext}
+            onClick={goToResult}
           >
             Пропустить
           </button>
@@ -542,13 +824,53 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     color: "#1e1f22",
   },
-  // Exact SetEditorCard setIndexTextLayer style
   subtext: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.62)",
   },
+  // ── Streak ──
+  streakWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 4,
+    width: "100%",
+    paddingTop: 24,
+  },
+  streakCounter: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  streakEmoji: {
+    fontSize: 48,
+    lineHeight: 1,
+  },
+  streakNumber: {
+    fontSize: 64,
+    fontWeight: 900,
+    color: "#1e1f22",
+    letterSpacing: "-0.04em",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
+  },
+  streakLabel: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.62)",
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  streakWeekLabel: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.50)",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  // ── Footer ──
   footerFlow: {
     position: "fixed",
     bottom: 0,
@@ -559,7 +881,6 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gap: 8,
   },
-  // Exact BottomDock compactArrow button style
   primaryBtn: {
     width: "fit-content",
     maxWidth: "100%",
@@ -585,7 +906,6 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     color: "#fff",
   },
-  // Exact BottomDock primaryCompactArrowWrap style
   primaryBtnCircle: {
     width: 40,
     height: 40,
@@ -599,7 +919,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     flexShrink: 0,
   },
-  // Exact BottomDock secondary style
   secondaryBtn: {
     width: "100%",
     minHeight: 40,
@@ -624,6 +943,16 @@ const css = `
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
+@keyframes streakPulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+@keyframes streakFirePop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 .onb-fade {
   animation: onbFadeUp 520ms ease-out both;
@@ -634,6 +963,13 @@ const css = `
 .wc-hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+.streak-pulse {
+  animation: streakPulse 500ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.streak-fire-pop {
+  animation: streakFirePop 400ms cubic-bezier(0.22,1,0.36,1) both;
 }
 
 .wc-speech-bubble::before {
@@ -668,7 +1004,7 @@ const css = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .onb-fade, .onb-fade-soft {
+  .onb-fade, .onb-fade-soft, .streak-pulse, .streak-fire-pop {
     animation: none !important;
   }
 }
