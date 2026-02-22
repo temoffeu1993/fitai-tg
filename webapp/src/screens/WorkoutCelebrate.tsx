@@ -26,11 +26,10 @@ function pluralizeMinutes(n: number): string {
 }
 
 function getPercentSubtext(p: number): string {
-  if (p >= 100) return "Идеальное выполнение! План закрыт на все 100%";
-  if (p >= 80) return "Отличная работа! Почти весь план выполнен, так держать";
-  if (p >= 50) return "Хорошая тренировка! Половина дела сделана, базу отработали";
-  if (p > 0) return "Любое движение лучше, чем ничего! Доберем свое на следующих тренировках";
-  return "Главное, что вы пришли! Завтра будет лучше, чем сегодня";
+  if (p >= 100) return "Всё по плану. Идеальное выполнение";
+  if (p >= 80) return "Почти всё закрыто — очень достойно";
+  if (p >= 50) return "Больше половины сделано. Зачтено";
+  return "Каждое упражнение на счету";
 }
 
 function getVolumeAnalogy(kg: number): string {
@@ -327,6 +326,7 @@ export default function WorkoutCelebrate() {
               <span style={s.metricEmoji}>🎯</span>
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
+              <span style={s.valueUnit}>выполнено</span>
             </div>
             <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
               {percentSubtext}
