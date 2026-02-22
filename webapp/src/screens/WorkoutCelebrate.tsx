@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import confetti from "canvas-confetti";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
+import BottomDock from "@/components/workout-session/BottomDock";
 
-/* ── helpers ─────────────────────────────────────────────────── */
+// ─── Helpers ─────────────────────────────────────────────────────────────
 
 interface ResultPayload {
   title: string;
@@ -17,465 +17,392 @@ interface ResultPayload {
   }>;
 }
 
-interface Pill {
-  icon: string;
-  value: string;
-  label: string;
-}
-
-function buildPills(payload: ResultPayload): Pill[] {
-  const pills: Pill[] = [];
-
-  // 1 — Duration
-  const dur = payload.durationMin;
-  pills.push({
-    icon: "⏱",
-    value: `${dur} мин`,
-    label: "активной тренировки",
-  });
-
-  // 2 — Volume (tonnage) for weighted exercises
-  let totalVolume = 0;
-  let totalSets = 0;
-  let totalReps = 0;
-  for (const ex of payload.exercises) {
-    if (!ex.done && !ex.skipped) continue;
-    for (const set of ex.sets) {
-      if (!set.done) continue;
-      totalSets++;
-      const reps = set.reps ?? 0;
-      const weight = set.weight ?? 0;
-      totalReps += reps;
-      totalVolume += reps * weight;
-    }
-  }
-
-  if (totalVolume > 0) {
-    const formatted =
-      totalVolume >= 1000
-        ? `${(totalVolume / 1000).toFixed(1).replace(/\.0$/, "")} т`
-        : `${Math.round(totalVolume)} кг`;
-    const analogy = getVolumeAnalogy(totalVolume);
-    pills.push({
-      icon: "🏋️",
-      value: formatted,
-      label: analogy || "общий объём",
-    });
-  }
-
-  // 3 — Completion or sets
-  const doneExercises = payload.exercises.filter((e) => e.done).length;
-  const totalExercises = payload.exercises.length;
-
-  if (doneExercises === totalExercises && totalExercises > 0) {
-    pills.push({
-      icon: "✅",
-      value: `${doneExercises}/${totalExercises}`,
-      label: "план выполнен полностью",
-    });
-  } else if (totalSets > 0) {
-    pills.push({
-      icon: "💪",
-      value: `${totalSets}`,
-      label: totalSets === 1 ? "подход" : pluralizeSets(totalSets),
-    });
-  }
-
-  return pills.slice(0, 3);
+function pluralizeMinutes(n: number): string {
+  if (n >= 11 && n <= 14) return "минут";
+  const mod10 = n % 10;
+  if (mod10 === 1) return "минута";
+  if (mod10 >= 2 && mod10 <= 4) return "минуты";
+  return "минут";
 }
 
 function getVolumeAnalogy(kg: number): string {
-  if (kg >= 20000) return "это масса слона 🐘";
-  if (kg >= 10000) return "это масса лошади 🐎";
-  if (kg >= 4000) return "это масса носорога 🦏";
-  if (kg >= 1500) return "это целый автомобиль 🚗";
-  if (kg >= 800) return "это масса коровы 🐄";
-  if (kg >= 300) return "это масса рояля 🎹";
-  if (kg >= 100) return "это масса холодильника";
-  return "общий объём";
+  if (kg < 50) return "Легкая разминка для настоящего героя";
+  if (kg < 100) return "Как будто перетащил большой холодильник";
+  if (kg < 300) return "Это масса целого рояля. Музыка для мышц";
+  if (kg < 600) return "Ты как будто поднял взрослого бурого медведя";
+  if (kg < 1500) return "Суммарно это вес легкового автомобиля";
+  if (kg < 3000) return "Целый тяжелый внедорожник остался позади";
+  if (kg < 5000) return "Это же вес целого азиатского слона";
+  if (kg < 10000) return "Ты поднял массу взрослого тираннозавра";
+  return "Огромный тоннаж, достойный супергероя";
 }
 
-function pluralizeSets(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 14) return "подходов";
-  if (mod10 === 1) return "подход";
-  if (mod10 >= 2 && mod10 <= 4) return "подхода";
-  return "подходов";
+// ─── Number Counter Hook ──────────────────────────────────────────────────
+
+function useCounter(
+  target: number,
+  active: boolean,
+  durationMs: number = 800,
+  onComplete?: () => void
+) {
+  const [value, setValue] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    if (!active || doneRef.current) return;
+
+    let rafId: number;
+    const tick = (now: number) => {
+      if (!startTimeRef.current) startTimeRef.current = now;
+      const elapsed = now - startTimeRef.current;
+      const progress = Math.min(1, elapsed / durationMs);
+
+      // easeOutExpo
+      const easing = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+
+      setValue(Math.round(target * easing));
+
+      if (progress < 1) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        setValue(target);
+        doneRef.current = true;
+        if (onComplete) onComplete();
+      }
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(rafId);
+  }, [target, active, durationMs, onComplete]);
+
+  return value;
 }
 
-/* ── confetti burst ──────────────────────────────────────────── */
+// ─── Component ──────────────────────────────────────────────────────────
 
-function fireConfetti() {
-  const defaults = {
-    spread: 70,
-    ticks: 90,
-    gravity: 1.2,
-    decay: 0.92,
-    startVelocity: 35,
-    colors: ["#61d700", "#00d4ff", "#ff6b6b", "#ffd93d", "#c084fc", "#ffffff"],
-  };
-
-  // Two bursts from sides
-  confetti({ ...defaults, particleCount: 45, origin: { x: 0.15, y: 0.55 }, angle: 60 });
-  confetti({ ...defaults, particleCount: 45, origin: { x: 0.85, y: 0.55 }, angle: 120 });
-
-  // Center burst after small delay
-  setTimeout(() => {
-    confetti({
-      ...defaults,
-      particleCount: 30,
-      origin: { x: 0.5, y: 0.45 },
-      spread: 90,
-      startVelocity: 30,
-    });
-  }, 200);
-}
-
-/* ── component ───────────────────────────────────────────────── */
-
-const PILL_STAGGER = 400; // ms between each pill appearance
-const AUTO_ADVANCE_DELAY = 3500; // ms after last pill before auto-advance
-const EXIT_DURATION = 320; // ms for exit animation
+const STAGE_DELAY = 1200; // ms between sequential blocks appearing
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
   const nav = useNavigate();
   const result = (location.state as any)?.result;
+  const payload: ResultPayload | undefined = result?.payload;
 
-  const [showMascot, setShowMascot] = useState(false);
-  const [visiblePills, setVisiblePills] = useState(0);
-  const [showButton, setShowButton] = useState(false);
+  // Stages: 0=init, 1=show mascot, 2=block1 starts, 3=block2 starts, 4=block3 starts, 5=done
+  const [stage, setStage] = useState(0);
   const [exiting, setExiting] = useState(false);
-  const autoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasConfettied = useRef(false);
-  const exitingRef = useRef(false);
 
-  const pills = useMemo(
-    () => (result?.payload ? buildPills(result.payload) : []),
-    [result],
-  );
+  // States to trigger subtext appearing after counters finish
+  const [showSub1, setShowSub1] = useState(false);
+  const [showSub2, setShowSub2] = useState(false);
+  const [showSub3, setShowSub3] = useState(false);
 
-  // Scroll to top
   useLayoutEffect(() => {
-    const root = document.getElementById("root");
-    if (root) root.scrollTop = 0;
     window.scrollTo(0, 0);
   }, []);
 
-  // Entrance sequence
   useEffect(() => {
-    const prefersReduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    )?.matches;
+    if (!payload) return;
 
-    if (prefersReduced) {
-      setShowMascot(true);
-      setVisiblePills(pills.length);
-      setShowButton(true);
-      return;
-    }
-
-    // T+100ms: mascot appears
+    // T+100ms: show Mascot
     const t1 = setTimeout(() => {
-      setShowMascot(true);
+      setStage(1);
       fireHapticImpact("medium");
     }, 100);
 
-    // T+600ms: confetti
-    const t2 = setTimeout(() => {
-      if (!hasConfettied.current) {
-        hasConfettied.current = true;
-        fireConfetti();
-        fireHapticImpact("heavy");
-      }
-    }, 600);
+    // T+800ms: block 1 appears (Percent)
+    const t2 = setTimeout(() => setStage(2), 800);
 
-    // Pills appear with stagger starting at T+900ms
-    const pillTimers: ReturnType<typeof setTimeout>[] = [];
-    pills.forEach((_, i) => {
-      const t = setTimeout(() => {
-        setVisiblePills((v) => Math.max(v, i + 1));
-        fireHapticImpact("light");
-      }, 900 + i * PILL_STAGGER);
-      pillTimers.push(t);
-    });
+    // T+2000ms: block 2 appears (Duration)
+    const t3 = setTimeout(() => setStage(3), 800 + STAGE_DELAY);
 
-    // Button appears after all pills
-    const btnDelay = 900 + pills.length * PILL_STAGGER + 300;
-    const t3 = setTimeout(() => setShowButton(true), btnDelay);
+    // T+3200ms: block 3 appears (Tonnage)
+    const t4 = setTimeout(() => setStage(4), 800 + STAGE_DELAY * 2);
 
-    // Auto-advance
-    const autoDelay = 900 + pills.length * PILL_STAGGER + AUTO_ADVANCE_DELAY;
-    autoRef.current = setTimeout(() => {
-      goNext();
-    }, autoDelay);
+    // T+4400ms: final (show Next button)
+    const t5 = setTimeout(() => {
+      setStage(5);
+      fireHapticImpact("light");
+    }, 800 + STAGE_DELAY * 3);
 
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      pillTimers.forEach(clearTimeout);
-      if (autoRef.current) clearTimeout(autoRef.current);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5);
     };
-  }, [pills.length]);
+  }, [payload]);
 
   const goNext = () => {
-    if (exitingRef.current) return;
-    exitingRef.current = true;
+    if (exiting) return;
     setExiting(true);
-    if (autoRef.current) clearTimeout(autoRef.current);
-    fireHapticImpact("light");
-
+    fireHapticImpact("medium");
     setTimeout(() => {
       nav("/workout/result", { replace: true, state: { result } });
-    }, EXIT_DURATION);
+    }, 320);
   };
 
-  // Fallback: if no result, go to dashboard
-  if (!result) {
+  if (!payload) {
     nav("/", { replace: true });
     return null;
   }
 
+  // --- Calculations ---
+
+  // 1: Percent
+  let totalSets = 0;
+  let doneSets = 0;
+  let totalVolume = 0;
+
+  for (const ex of payload.exercises) {
+    if (ex.skipped) continue;
+    for (const set of ex.sets) {
+      totalSets++;
+      if (set.done) {
+        doneSets++;
+        if (set.reps && set.weight) {
+          totalVolume += set.reps * set.weight;
+        }
+      }
+    }
+  }
+  const percent = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0;
+  const percentSubtext = percent === 100
+    ? "Идеальное выполнение! План закрыт полностью"
+    : "Отличная работа! Лучше так, чем никак — доберём своё в следующий раз";
+
+  // 2: Duration
+  const durMin = payload.durationMin || 0;
+
+  // 3: Tonnage
+  const tonnage = Math.round(totalVolume);
+
+  // --- Counters ---
+  const count1 = useCounter(percent, stage >= 2, 700, () => {
+    fireHapticImpact("heavy");
+    setShowSub1(true);
+  });
+
+  const count2 = useCounter(durMin, stage >= 3, 700, () => {
+    fireHapticImpact("heavy");
+    setShowSub2(true);
+  });
+
+  const count3 = useCounter(tonnage, stage >= 4, 800, () => {
+    fireHapticImpact("heavy");
+    setShowSub3(true);
+  });
+
   return (
     <>
-      <CelebrateStyles />
-      <div
-        style={s.page}
-        className={exiting ? "wc-exit" : undefined}
-        onClick={goNext}
-      >
-        {/* Mascot */}
-        <div
-          style={s.mascotWrap}
-          className={showMascot ? "wc-mascot-in" : "wc-hidden"}
-        >
+      <style>{css}</style>
+      <div style={s.page} className={exiting ? "wc-exit" : undefined}>
+
+        {/* --- Header / Mascot --- */}
+        <div style={s.hero} className={stage >= 1 ? "wc-slide-down" : "wc-hidden"}>
+          <div style={s.bubble} className="speech-bubble-bottom">
+            <span>Еее! Ты выполнил тренировку</span>
+          </div>
           <img src={morobotImg} alt="" style={s.mascotImg} />
         </div>
 
-        {/* Pills */}
-        <div style={s.pillsWrap}>
-          {pills.map((pill, i) => (
-            <div
-              key={i}
-              style={s.pill}
-              className={i < visiblePills ? "wc-pill-in" : "wc-hidden"}
-            >
-              <span style={s.pillIcon}>{pill.icon}</span>
-              <div style={s.pillText}>
-                <span style={s.pillValue}>{pill.value}</span>
-                <span style={s.pillLabel}>{pill.label}</span>
+        {/* --- Metrics Grid --- */}
+        <div style={s.metricsWrap}>
+
+          {/* Block 1: Percent */}
+          <div style={s.card} className={stage >= 2 ? "wc-scale-in" : "wc-hidden"}>
+            <div style={s.valueRow}>
+              <span style={s.valueBig}>{count1}</span>
+              <span style={s.valueUnit}>%</span>
+            </div>
+            <div style={s.subtext} className={showSub1 ? "wc-fade-in" : "wc-hidden"}>
+              {percentSubtext}
+            </div>
+          </div>
+
+          {/* Block 2: Duration */}
+          <div style={s.card} className={stage >= 3 ? "wc-scale-in" : "wc-hidden"}>
+            <div style={s.valueRow}>
+              <span style={s.valueBig}>{count2}</span>
+              <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
+            </div>
+            <div style={s.subtext} className={showSub2 ? "wc-fade-in" : "wc-hidden"}>
+              инвестировано в твоё здоровье и красоту
+            </div>
+          </div>
+
+          {/* Block 3: Tonnage (only show if > 0) */}
+          {tonnage > 0 && (
+            <div style={s.card} className={stage >= 4 ? "wc-scale-in" : "wc-hidden"}>
+              <div style={s.valueRow}>
+                <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
+                <span style={s.valueUnit}>кг</span>
+              </div>
+              <div style={s.subtext} className={showSub3 ? "wc-fade-in" : "wc-hidden"}>
+                {getVolumeAnalogy(tonnage)}
               </div>
             </div>
-          ))}
+          )}
+
         </div>
 
-        {/* Button */}
-        <div
-          style={s.buttonWrap}
-          className={showButton ? "wc-btn-in" : "wc-hidden"}
-        >
-          <button
-            type="button"
-            style={s.nextBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
-            }}
-          >
-            Далее
-          </button>
-          <span style={s.skipHint}>или нажмите в любом месте</span>
-        </div>
+      </div>
+
+      {/* --- Sticky Footer --- */}
+      <div className={stage >= 1 ? "wc-fade-in" : "wc-hidden"}>
+        <BottomDock
+          primaryLabel="Далее"
+          primaryVisible={stage >= 5}
+          primaryVariant="compactArrow"
+          onPrimary={goNext}
+          secondaryLabel={stage >= 1 && stage < 5 ? "Пропустить" : undefined}
+          onSecondary={goNext}
+        />
       </div>
     </>
   );
 }
 
-/* ── styles ──────────────────────────────────────────────────── */
-
-function CelebrateStyles() {
-  return (
-    <style>{`
-      /* Mascot entrance — drop + bounce */
-      @keyframes wcMascotIn {
-        0% { opacity: 0; transform: translateY(-60px) scale(0.7); }
-        50% { opacity: 1; transform: translateY(12px) scale(1.05); }
-        70% { transform: translateY(-6px) scale(0.98); }
-        100% { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      .wc-mascot-in {
-        animation: wcMascotIn 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-      }
-
-      /* Mascot subtle float after entrance */
-      @keyframes wcFloat {
-        0% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
-        100% { transform: translateY(0); }
-      }
-      .wc-mascot-in img {
-        animation: wcFloat 3000ms ease-in-out 800ms infinite;
-      }
-
-      /* Pill entrance — slide up + fade */
-      @keyframes wcPillIn {
-        0% { opacity: 0; transform: translateY(30px) scale(0.95); }
-        60% { opacity: 1; transform: translateY(-4px) scale(1.01); }
-        100% { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      .wc-pill-in {
-        animation: wcPillIn 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-      }
-
-      /* Button entrance */
-      @keyframes wcBtnIn {
-        0% { opacity: 0; transform: translateY(20px); }
-        100% { opacity: 1; transform: translateY(0); }
-      }
-      .wc-btn-in {
-        animation: wcBtnIn 400ms ease-out both;
-      }
-
-      /* Hidden state */
-      .wc-hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* Exit animation */
-      @keyframes wcExit {
-        0% { opacity: 1; transform: scale(1); }
-        100% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
-      }
-      .wc-exit {
-        animation: wcExit ${EXIT_DURATION}ms ease-in both;
-        pointer-events: none;
-      }
-
-      /* Pill glow pulse */
-      @keyframes wcGlow {
-        0%, 100% { box-shadow: 0 4px 20px rgba(97,215,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2); }
-        50% { box-shadow: 0 4px 28px rgba(97,215,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3); }
-      }
-      .wc-pill-in {
-        animation: wcPillIn 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
-                   wcGlow 2400ms ease-in-out 600ms infinite;
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .wc-mascot-in, .wc-pill-in, .wc-btn-in, .wc-exit {
-          animation: none !important;
-        }
-        .wc-hidden { opacity: 1; pointer-events: auto; }
-      }
-    `}</style>
-  );
-}
+// ─── Styles ───────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 100,
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #fceade 0%, #fdf5f2 40%, #ffffff 100%)", // Matches app theme
+    color: "#0f172a",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 24,
-    padding: "24px 20px 40px",
-    background:
-      "radial-gradient(ellipse at 50% 30%, rgba(97,215,0,0.08) 0%, transparent 60%), " +
-      "linear-gradient(180deg, #0f1118 0%, #181b24 50%, #0f1118 100%)",
-    overflow: "hidden",
-    cursor: "pointer",
-    userSelect: "none",
-    WebkitTapHighlightColor: "transparent",
+    padding: "calc(env(safe-area-inset-top, 0px) + 24px) 16px 120px",
   },
-
-  mascotWrap: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  mascotImg: {
-    width: 180,
-    height: "auto",
-    filter: "drop-shadow(0 16px 40px rgba(97,215,0,0.25))",
-  },
-
-  pillsWrap: {
+  hero: {
     display: "flex",
     flexDirection: "column",
-    gap: 12,
-    width: "100%",
-    maxWidth: 360,
-  },
-  pill: {
-    display: "flex",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
+    marginBottom: 32,
+    marginTop: 20,
+  },
+  bubble: {
+    position: "relative",
     padding: "16px 20px",
     borderRadius: 20,
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(245,245,250,0.8) 100%)",
+    border: "1px solid rgba(255,255,255,0.8)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#1e1f22",
+    textAlign: "center",
+    maxWidth: 260,
   },
-  pillIcon: {
-    fontSize: 28,
+  mascotImg: {
+    width: 140,
+    height: "auto",
+    objectFit: "contain",
+  },
+  metricsWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    width: "100%",
+    maxWidth: 400,
+  },
+  card: {
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.8)",
+    padding: "20px 24px",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  valueRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  valueBig: {
+    fontSize: 48,
+    fontWeight: 900,
+    color: "#0f172a",
+    letterSpacing: "-0.04em",
     lineHeight: 1,
-    flexShrink: 0,
+    fontVariantNumeric: "tabular-nums",
   },
-  pillText: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  },
-  pillValue: {
-    fontSize: 22,
+  valueUnit: {
+    fontSize: 18,
     fontWeight: 700,
-    color: "#ffffff",
-    letterSpacing: "-0.02em",
-    fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif",
+    color: "rgba(15,23,42,0.5)",
   },
-  pillLabel: {
-    fontSize: 14,
+  subtext: {
+    fontSize: 15,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.55)",
-    lineHeight: 1.3,
-  },
-
-  buttonWrap: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 12,
-    width: "100%",
-    maxWidth: 360,
-  },
-  nextBtn: {
-    width: "100%",
-    padding: "16px 0",
-    borderRadius: 16,
-    border: "none",
-    background: "linear-gradient(180deg, #72e800 0%, #56b800 100%)",
-    color: "#0a1200",
-    fontSize: 17,
-    fontWeight: 700,
-    fontFamily: "'SF Pro Display', system-ui, -apple-system, sans-serif",
-    cursor: "pointer",
-    boxShadow:
-      "0 4px 16px rgba(97,215,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)",
-    WebkitTapHighlightColor: "transparent",
-  },
-  skipHint: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.3)",
-    fontWeight: 400,
+    lineHeight: 1.35,
+    color: "#334155",
   },
 };
+
+const css = `
+.speech-bubble-bottom:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.05));
+}
+
+@keyframes wcSlideDown {
+  0% { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.wc-slide-down {
+  animation: wcSlideDown 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes wcScaleIn {
+  0% { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.wc-scale-in {
+  animation: wcScaleIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes wcFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.wc-fade-in {
+  animation: wcFadeIn 320ms ease-out both;
+}
+
+.wc-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes wcExit {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
+}
+.wc-exit {
+  animation: wcExit 320ms ease-in both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-slide-down, .wc-scale-in, .wc-fade-in, .wc-exit {
+    animation: none !important;
+  }
+}
+`;
