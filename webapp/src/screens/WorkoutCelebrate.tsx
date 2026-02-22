@@ -288,8 +288,8 @@ export default function WorkoutCelebrate() {
             className="checkin-text-btn"
             style={{
               ...s.secondaryBtn,
-              opacity: stage >= 1 && stage < 5 ? 1 : 0,
-              pointerEvents: stage >= 1 && stage < 5 ? "auto" : "none",
+              opacity: stage >= 1 ? 1 : 0,
+              pointerEvents: stage >= 1 ? "auto" : "none",
             }}
             onClick={goNext}
           >
