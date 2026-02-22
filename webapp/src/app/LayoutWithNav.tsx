@@ -23,6 +23,7 @@ function shouldHideNav(_pathname: string) {
   if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
   if (pathname.startsWith("/workout/result")) return true;
+  if (pathname.startsWith("/workout/celebrate")) return true;
   return false;
 }
 

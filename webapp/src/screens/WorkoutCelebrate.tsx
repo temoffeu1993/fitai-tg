@@ -213,10 +213,15 @@ export default function WorkoutCelebrate() {
 
         {/* --- Header / Mascot --- */}
         <section style={s.introCenter} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
-          <div style={s.introBubble} className="speech-bubble-bottom">
-            <span>{titleText}</span>
+          <div style={s.mascotRow}>
+            <img src={mascotImg} alt="" style={s.mascotAvatar} loading="eager" decoding="async" />
+            <div style={s.mascotTextCol}>
+              <div style={s.mascotTitle}>Еее!</div>
+              <div style={s.mascotSubtitle}>
+                {workoutNumber ? `Вы выполнили ${workoutNumber} тренировку` : "Вы выполнили тренировку"}
+              </div>
+            </div>
           </div>
-          <img src={mascotImg} alt="" style={s.introMascotImg} loading="eager" decoding="async" />
         </section>
 
         {/* --- Metrics Grid --- */}
@@ -225,7 +230,7 @@ export default function WorkoutCelebrate() {
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
               <span style={s.valueBig}>{count1}</span>
-              <span style={s.valueUnit}>%</span>
+              <span style={s.valuePercent}>%</span>
             </div>
             <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
               {percentSubtext}
@@ -261,14 +266,30 @@ export default function WorkoutCelebrate() {
       </div>
 
       <div className={stage >= 1 ? "onb-fade-soft" : "wc-hidden"}>
-        <BottomDock
-          primaryLabel="Далее"
-          primaryVisible={stage >= 5}
-          primaryVariant="compactArrow"
-          onPrimary={goNext}
-          secondaryLabel={stage >= 1 && stage < 5 ? "Пропустить" : undefined}
-          onSecondary={goNext}
-        />
+        <div style={s.footerFlow}>
+          <button
+            className="checkin-primary-btn"
+            style={{ ...s.primaryBtn, opacity: stage >= 5 ? 1 : 0, pointerEvents: stage >= 5 ? "auto" : "none" }}
+            onClick={goNext}
+          >
+            <div style={s.primaryBtnInner}>
+              <span style={s.primaryBtnText}>Далее</span>
+              <div style={s.primaryBtnCircle}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}>
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+
+          <button
+            className="checkin-text-btn"
+            style={{ ...s.secondaryBtn, opacity: stage >= 1 && stage < 5 ? 1 : 0, pointerEvents: stage >= 1 && stage < 5 ? "auto" : "none" }}
+            onClick={goNext}
+          >
+            Пропустить
+          </button>
+        </div>
       </div>
     </>
   );
@@ -293,95 +314,151 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "clamp(10px, 2.1vh, 18px)",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
     paddingTop: "clamp(12px, 1.8vh, 18px)",
-    marginTop: "clamp(12px, 1.8vh, 22px)",
+    marginTop: 8,
     marginBottom: 16,
   },
-  introBubble: {
-    position: "relative",
-    width: "min(92%, 392px)",
-    boxSizing: "border-box",
-    textAlign: "center",
-    padding: "clamp(14px, 2.1vh, 20px) clamp(16px, 2.6vw, 24px)",
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,250,0.75) 100%)",
-    color: "#1e1f22",
-    boxShadow: "0 14px 30px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.4,
+  mascotRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  introMascotImg: {
-    width: "min(72vw, clamp(186px, 30vh, 262px))",
-    height: "auto",
+  mascotAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     objectFit: "contain",
+  },
+  mascotTextCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  mascotTitle: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#1e1f22",
+    lineHeight: 1.2,
+  },
+  mascotSubtitle: {
+    fontSize: 15,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.72)",
+    lineHeight: 1.3,
   },
   metricsWrap: {
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 24,
     width: "100%",
+    paddingTop: 16,
   },
   summaryCard: {
     position: "relative",
-    borderRadius: 20,
-    padding: "20px 18px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
     display: "flex",
     flexDirection: "column",
     gap: 4,
+    padding: "0 10px",
   },
   valueRow: {
     display: "flex",
     alignItems: "baseline",
-    gap: 8,
+    gap: 4,
   },
   valueBig: {
-    fontSize: 44,
-    fontWeight: 800,
-    color: "#1e1f22",
+    fontSize: 44, // like scroller
+    fontWeight: 900,
+    color: "rgba(30,31,34,0.14)", // exact scroller opacity
     letterSpacing: "-0.04em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
   },
+  valuePercent: {
+    fontSize: 28,
+    fontWeight: 900,
+    color: "rgba(30,31,34,0.14)",
+  },
   valueUnit: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.6)",
+    fontSize: 28,
+    fontWeight: 900,
+    color: "rgba(30,31,34,0.14)",
   },
   subtext: {
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.3,
+    color: "rgba(15,23,42,0.6)", // like pill subtext
+    letterSpacing: "0.2px",
+  },
+  footerFlow: {
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    padding: "16px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 40%, #ffffff 100%)",
+  },
+  primaryBtn: {
+    width: "100%",
+    border: "none",
+    background: "#1e1f22",
+    borderRadius: 20,
+    padding: 16,
+    cursor: "pointer",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.14), inset 0 1px 1px rgba(255,255,255,0.1)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "transform 160ms ease, opacity 250ms ease",
+    position: "relative",
+  },
+  primaryBtnInner: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  primaryBtnText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: 600,
+  },
+  primaryBtnCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
+  },
+  secondaryBtn: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.6)",
     fontSize: 15,
     fontWeight: 500,
-    lineHeight: 1.4,
-    color: "rgba(30,31,34,0.8)",
+    padding: "12px 16px",
+    cursor: "pointer",
+    textAlign: "center",
+    position: "absolute",
+    bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    left: 20,
+    right: 20,
+    transition: "opacity 250ms ease",
   },
 };
 
 const css = `
-.speech-bubble-bottom:before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -10px;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-top: 10px solid rgba(255,255,255,0.9);
-  filter: drop-shadow(0 1px 0 rgba(15, 23, 42, 0.08));
-}
-
 @keyframes onbFadeUp {
   0% { opacity: 0; transform: translateY(14px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -400,6 +477,24 @@ const css = `
 .wc-hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+.checkin-primary-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.checkin-primary-btn:active {
+  transform: translateY(1px) scale(0.99) !important;
+  background-color: #1e1f22 !important;
+}
+
+.checkin-text-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.checkin-text-btn:active {
+  transform: translateY(1px) !important;
+  color: rgba(17,24,39,0.72) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
