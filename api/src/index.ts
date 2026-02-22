@@ -84,7 +84,8 @@ server.on("error", (err) => {
 // Background worker: догоняет прогрессию из outbox очереди
 startProgressionJobWorker();
 // Background worker: генерирует "тренерский" фидбек (best-effort)
-startCoachJobWorker();
+// TODO: временно отключено чтобы не тратить токены OpenAI во время разработки
+// startCoachJobWorker();
 
 (async () => {
   try {
