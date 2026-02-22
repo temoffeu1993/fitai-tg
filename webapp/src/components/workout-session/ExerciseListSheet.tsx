@@ -370,9 +370,9 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: "0.2px",
   },
   rowMetaActive: {
-    background: "#1e1f22",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-    color: "#fff",
+    background: "rgba(15,23,42,0.06)",
+    boxShadow: "none",
+    color: workoutTheme.accent,
   },
   rowMetaDone: {
     background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
