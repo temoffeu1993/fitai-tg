@@ -566,13 +566,12 @@ workoutGeneration.post(
            plan = $3::jsonb,
            status = 'pending',
            generation_id = $4::uuid,
-           updated_at = now()
-         WHERE planned_workouts.status <> 'completed'`,
+           updated_at = now()`,
         [uid, i, workoutData, generationId]
       );
       console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
     }
-    console.log(`✅ All workouts saved to planned_workouts`);
+    console.log(`✅ All workouts saved to planned_workouts (generation ${generationId})`);
 
     // Cleanup: cancel leftover auto-generated scheduled workouts not in the newly generated week.
     // This prevents "old" generated workouts from sticking around after a regenerate
@@ -1073,8 +1072,7 @@ workoutGeneration.post(
            plan = $3::jsonb,
            status = 'pending',
            generation_id = $4::uuid,
-           updated_at = now()
-         WHERE planned_workouts.status <> 'completed'`,
+           updated_at = now()`,
         [uid, i, workoutData, generationId]
       );
     }

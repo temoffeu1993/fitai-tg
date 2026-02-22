@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import morobotImg from "@/assets/morobot.webp";
+import mascotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import BottomDock from "@/components/workout-session/BottomDock";
-import { workoutTheme } from "@/components/workout-session/theme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -26,16 +25,25 @@ function pluralizeMinutes(n: number): string {
   return "минут";
 }
 
+function getPercentSubtext(p: number): string {
+  if (p >= 100) return "Идеальное выполнение! План закрыт на все 100%";
+  if (p >= 80) return "Отличная работа! Почти весь план выполнен, так держать";
+  if (p >= 50) return "Хорошая тренировка! Половина дела сделана, базу отработали";
+  if (p > 0) return "Любое движение лучше, чем ничего! Доберем свое на следующих тренировках";
+  return "Главное, что ты пришел! Завтра будет лучше, чем сегодня";
+}
+
 function getVolumeAnalogy(kg: number): string {
-  if (kg < 50) return "Легкая разминка для настоящего героя";
-  if (kg < 100) return "Как будто перетащил большой холодильник";
-  if (kg < 300) return "Это масса целого рояля. Музыка для мышц";
-  if (kg < 600) return "Ты как будто поднял взрослого бурого медведя";
-  if (kg < 1500) return "Суммарно это вес легкового автомобиля";
-  if (kg < 3000) return "Целый тяжелый внедорожник остался позади";
-  if (kg < 5000) return "Это же вес целого азиатского слона";
-  if (kg < 10000) return "Ты поднял массу взрослого тираннозавра";
-  return "Огромный тоннаж, достойный супергероя";
+  if (kg < 50) return "Как будто перенес пару увесистых арбузов с рынка";
+  if (kg < 100) return "Масса здорового сенбернара. Хороший песик!";
+  if (kg < 300) return "Ты только что поднял взрослого льва. Царь зверей отдыхает";
+  if (kg < 600) return "Это масса концертного рояля. Настоящая музыка для мышц!";
+  if (kg < 1000) return "Ты перетаскал вес целого белого медведя. Мощно!";
+  if (kg < 2000) return "Суммарно это вес легкового автомобиля хэтчбека";
+  if (kg < 3500) return "Целый тяжелый внедорожник остался позади";
+  if (kg < 5000) return "Вес взрослого азиатского слона. Серьезная заявочка!";
+  if (kg < 10000) return "Поздравляю, ты поднял массу взрослого тираннозавра!";
+  return "Огромный тоннаж, тянет на вес небольшого кита!";
 }
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
@@ -49,9 +57,20 @@ function useCounter(
   const [value, setValue] = useState(0);
   const startTimeRef = useRef<number | null>(null);
   const doneRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (!active || doneRef.current) return;
+    if (target === 0) {
+      setValue(0);
+      doneRef.current = true;
+      if (onCompleteRef.current) onCompleteRef.current();
+      return;
+    }
 
     let rafId: number;
     const tick = (now: number) => {
@@ -68,13 +87,13 @@ function useCounter(
       } else {
         setValue(target);
         doneRef.current = true;
-        if (onComplete) onComplete();
+        if (onCompleteRef.current) onCompleteRef.current();
       }
     };
     rafId = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(rafId);
-  }, [target, active, durationMs, onComplete]);
+  }, [target, active, durationMs]);
 
   return value;
 }
@@ -106,18 +125,14 @@ export default function WorkoutCelebrate() {
     const t1 = setTimeout(() => {
       setStage(1);
       fireHapticImpact("medium");
-    }, 100);
+    }, 400);
 
-    const t2 = setTimeout(() => setStage(2), 800);
-    const t3 = setTimeout(() => setStage(3), 800 + STAGE_DELAY);
-    const t4 = setTimeout(() => setStage(4), 800 + STAGE_DELAY * 2);
-    const t5 = setTimeout(() => {
-      setStage(5);
-      fireHapticImpact("light");
-    }, 800 + STAGE_DELAY * 3);
+    const t2 = setTimeout(() => {
+      setStage(2);
+    }, 1800);
 
     return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5);
+      clearTimeout(t1); clearTimeout(t2);
     };
   }, [payload]);
 
@@ -153,26 +168,43 @@ export default function WorkoutCelebrate() {
     }
   }
   const percent = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0;
-  const percentSubtext = percent === 100
-    ? "Идеальное выполнение! План закрыт полностью"
-    : "Отличная работа! Лучше так, чем никак — доберём своё в следующий раз";
+  const percentSubtext = getPercentSubtext(percent);
   const durMin = payload.durationMin || 0;
   const tonnage = Math.round(totalVolume);
 
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
     setShowSub1(true);
+    setTimeout(() => setStage(3), 1000);
   });
 
   const count2 = useCounter(durMin, stage >= 3, 700, () => {
     fireHapticImpact("heavy");
     setShowSub2(true);
+    setTimeout(() => {
+      if (tonnage > 0) {
+        setStage(4);
+      } else {
+        setStage(5);
+        fireHapticImpact("light");
+      }
+    }, 1000);
   });
 
   const count3 = useCounter(tonnage, stage >= 4, 800, () => {
-    fireHapticImpact("heavy");
-    setShowSub3(true);
+    if (tonnage > 0) {
+      fireHapticImpact("heavy");
+      setShowSub3(true);
+      setTimeout(() => {
+        setStage(5);
+        fireHapticImpact("light");
+      }, 1000);
+    }
   });
+
+  const workoutNumberMatch = payload?.title?.match(/\d+/);
+  const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
+  const titleText = workoutNumber ? `Еее! Ты выполнил ${workoutNumber} тренировку` : "Еее! Ты выполнил тренировку";
 
   return (
     <>
@@ -182,9 +214,9 @@ export default function WorkoutCelebrate() {
         {/* --- Header / Mascot --- */}
         <section style={s.introCenter} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
           <div style={s.introBubble} className="speech-bubble-bottom">
-            <span>Еее! Ты выполнил тренировку</span>
+            <span>{titleText}</span>
           </div>
-          <img src={morobotImg} alt="" style={s.introMascotImg} loading="eager" />
+          <img src={mascotImg} alt="" style={s.introMascotImg} loading="eager" decoding="async" />
         </section>
 
         {/* --- Metrics Grid --- */}
@@ -206,7 +238,7 @@ export default function WorkoutCelebrate() {
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
             <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
-              инвестировано в твоё здоровье
+              инвестировано в твое здоровье
             </div>
           </div>
 
@@ -254,7 +286,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 16,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    background: "transparent",
+    background: "var(--tg-theme-bg-color, #ffffff)",
     color: "#1e1f22",
   },
   introCenter: {
