@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Goal, Flame, Hourglass, Weight } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -55,7 +56,7 @@ function getCalorieAnalogy(kcal: number): string {
   return "Праздничный ужин — организм работал на полную мощность";
 }
 
-function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; trainingLocation?: string; minutesPerSession?: number } {
+function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; trainingLocation?: string } {
   try {
     const raw = localStorage.getItem("onb_summary");
     if (!raw) return {};
@@ -65,7 +66,6 @@ function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; train
       weightKg: s?.body?.weight,
       sex: s?.ageSex?.sex,
       trainingLocation: s?.trainingPlace?.place,
-      minutesPerSession: s?.schedule?.minutesPerSession,
     };
   } catch {
     return {};
@@ -77,101 +77,7 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
   return Math.round(met * weightKg * (durMin / 60));
 }
 
-// ─── Activity Rings ───────────────────────────────────────────────────────
 
-const RING_CONTAINER = 150;
-const FILL_COLOR = "#1e1f22";
-
-// Each ring: [outerDiameter, thickness]
-const RING_CFG = [
-  { diameter: 140, thickness: 14 },
-  { diameter: 106, thickness: 14 },
-  { diameter: 72, thickness: 14 },
-] as const;
-
-// Groove track style matching workoutTheme.pillBg + pillShadow exactly
-const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
-const GROOVE_SHADOW =
-  "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)";
-
-function GrooveRing({ diameter, thickness, pct }: { diameter: number; thickness: number; pct: number }) {
-  const clampedPct = Math.min(100, Math.max(0, pct));
-  const innerDiameter = diameter - thickness * 2;
-
-  // conic-gradient: filled portion is FILL_COLOR, rest is transparent
-  const progressBg = clampedPct > 0
-    ? `conic-gradient(from 0deg, ${FILL_COLOR} ${clampedPct * 3.6}deg, transparent ${clampedPct * 3.6}deg)`
-    : "none";
-
-  const center = RING_CONTAINER / 2;
-  const top = center - diameter / 2;
-  const left = center - diameter / 2;
-
-  return (
-    <>
-      {/* Groove track (background donut) */}
-      <div
-        style={{
-          position: "absolute",
-          top,
-          left,
-          width: diameter,
-          height: diameter,
-          borderRadius: "50%",
-          background: GROOVE_BG,
-          boxShadow: GROOVE_SHADOW,
-        }}
-      >
-        {/* Inner cutout for donut shape */}
-        <div
-          style={{
-            position: "absolute",
-            top: thickness,
-            left: thickness,
-            width: innerDiameter,
-            height: innerDiameter,
-            borderRadius: "50%",
-            background: "#f5f5f7",
-          }}
-        />
-      </div>
-      {/* Progress fill (conic-gradient arc, masked to donut) */}
-      {clampedPct > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top,
-            left,
-            width: diameter,
-            height: diameter,
-            borderRadius: "50%",
-            background: progressBg,
-            // mask to create donut: transparent inner circle
-            WebkitMask: `radial-gradient(circle at center, transparent ${innerDiameter / 2}px, #000 ${innerDiameter / 2}px)`,
-            mask: `radial-gradient(circle at center, transparent ${innerDiameter / 2}px, #000 ${innerDiameter / 2}px)`,
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-function ActivityRings({ p1, p2, p3 }: { p1: number; p2: number; p3: number }) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        width: RING_CONTAINER,
-        height: RING_CONTAINER,
-        flexShrink: 0,
-      }}
-    >
-      <GrooveRing diameter={RING_CFG[0].diameter} thickness={RING_CFG[0].thickness} pct={p1} />
-      <GrooveRing diameter={RING_CFG[1].diameter} thickness={RING_CFG[1].thickness} pct={p2} />
-      <GrooveRing diameter={RING_CFG[2].diameter} thickness={RING_CFG[2].thickness} pct={p3} />
-    </div>
-  );
-}
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
 
@@ -397,9 +303,6 @@ export default function WorkoutCelebrate() {
   const bodyWeightKg = userMeta.weightKg ?? (userMeta.sex === "female" ? 60 : 70);
   const calories = durMin > 0 ? estimateCalories(durMin, bodyWeightKg, tonnage > 0) : 0;
   const thirdValue = showCalories ? calories : tonnage;
-  const plannedMin = userMeta.minutesPerSession ?? 60;
-  const expectedCalories = estimateCalories(plannedMin, bodyWeightKg, tonnage > 0);
-  const TONNAGE_CAP = 1000;
 
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
@@ -432,22 +335,6 @@ export default function WorkoutCelebrate() {
     }
   });
 
-  const ring1Pct = count1;
-  const ring2Pct = plannedMin > 0 ? Math.min(100, Math.round((count2 / plannedMin) * 100)) : 0;
-  const ring3Pct = thirdValue > 0
-    ? (showCalories
-      ? Math.min(100, Math.round((count3 / expectedCalories) * 100))
-      : Math.min(100, Math.round((count3 / TONNAGE_CAP) * 100)))
-    : 0;
-
-  const currentSubtext = showSub3
-    ? (showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage))
-    : showSub2
-      ? "инвестировано в ваше здоровье"
-      : showSub1
-        ? percentSubtext
-        : null;
-
   const workoutNumberMatch = payload?.title?.match(/\d+/);
   const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
   const bubbleTarget = stage >= 1
@@ -472,45 +359,49 @@ export default function WorkoutCelebrate() {
           </div>
         </div>
 
-        {/* --- Activity Rings --- */}
-        <div style={s.ringsBlock} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
-          <div style={s.ringsRow}>
-            <ActivityRings p1={ring1Pct} p2={ring2Pct} p3={ring3Pct} />
-            <div style={s.ringsLegend}>
-              <div style={s.legendRow}>
-                <span style={{ ...s.legendDot, background: FILL_COLOR }} />
-                <div>
-                  <span style={s.legendValue}>{count1}</span>
-                  <span style={s.legendUnit}>%</span>
-                  <div style={s.legendLabel}>выполнено</div>
-                </div>
-              </div>
-              <div style={s.legendRow}>
-                <span style={{ ...s.legendDot, background: FILL_COLOR }} />
-                <div>
-                  <span style={s.legendValue}>{count2}</span>
-                  <span style={s.legendUnit}> {pluralizeMinutes(durMin)}</span>
-                  <div style={s.legendLabel}>из {plannedMin} плановых</div>
-                </div>
-              </div>
-              {thirdValue > 0 && (
-                <div style={s.legendRow}>
-                  <span style={{ ...s.legendDot, background: FILL_COLOR }} />
-                  <div>
-                    {showCalories && <span style={s.legendApprox}>~</span>}
-                    <span style={s.legendValue}>{count3.toLocaleString("ru-RU")}</span>
-                    <span style={s.legendUnit}> {showCalories ? "ккал" : "кг"}</span>
-                    <div style={s.legendLabel}>{showCalories ? "сожжено" : "суммарный тоннаж"}</div>
-                  </div>
-                </div>
-              )}
+        {/* --- Metrics Grid --- */}
+        <div style={s.metricsWrap}>
+
+          <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
+            <div style={s.valueRow}>
+              <Goal size={24} strokeWidth={2} style={s.metricIcon} />
+              <span style={s.valueBig}>{count1}</span>
+              <span style={s.valuePercent}>%</span>
+              <span style={s.valueUnit}>выполнено</span>
+            </div>
+            <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
+              {percentSubtext}
             </div>
           </div>
-          {currentSubtext && (
-            <div key={currentSubtext} style={s.ringsSubtext} className="onb-fade-soft">
-              {currentSubtext}
+
+          <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
+            <div style={s.valueRow}>
+              <Hourglass size={24} strokeWidth={2} style={s.metricIcon} />
+              <span style={s.valueBig}>{count2}</span>
+              <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
+            </div>
+            <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
+              инвестировано в ваше здоровье
+            </div>
+          </div>
+
+          {thirdValue > 0 && (
+            <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
+              <div style={s.valueRow}>
+                {showCalories
+                  ? <Flame size={24} strokeWidth={2} style={s.metricIcon} />
+                  : <Weight size={24} strokeWidth={2} style={s.metricIcon} />
+                }
+                {showCalories && <span style={s.valueApprox}>~</span>}
+                <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
+                <span style={s.valueUnit}>{showCalories ? "ккал" : "кг"}</span>
+              </div>
+              <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
+                {showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage)}
+              </div>
             </div>
           )}
+
         </div>
 
         <div style={{ height: 120 }} />
@@ -603,71 +494,59 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     whiteSpace: "pre-line",
   },
-  ringsBlock: {
+  metricsWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 24,
     width: "100%",
-    paddingTop: 12,
+    paddingTop: 16,
+  },
+  summaryCard: {
+    position: "relative",
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 4,
+    padding: "0 10px",
   },
-  ringsRow: {
+  valueRow: {
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 20,
+    gap: 8,
   },
-  ringsLegend: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    flex: 1,
-  },
-  legendRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
+  metricIcon: {
     flexShrink: 0,
-    marginTop: 6,
-  },
-  legendValue: {
-    fontSize: 28,
-    fontWeight: 800,
     color: "#1e1f22",
-    letterSpacing: "-0.03em",
+  },
+  valueBig: {
+    fontSize: 44,
+    fontWeight: 900,
+    color: "#1e1f22",
+    letterSpacing: "-0.04em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
   },
-  legendUnit: {
-    fontSize: 16,
-    fontWeight: 600,
+  valuePercent: {
+    fontSize: 28,
+    fontWeight: 900,
     color: "#1e1f22",
-    lineHeight: 1,
   },
-  legendApprox: {
-    fontSize: 16,
-    fontWeight: 600,
+  valueApprox: {
+    fontSize: 28,
+    fontWeight: 700,
     color: "rgba(15,23,42,0.45)",
-    marginRight: 1,
+    marginRight: -4,
   },
-  legendLabel: {
-    fontSize: 12,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.50)",
-    lineHeight: 1.4,
-    marginTop: 2,
+  valueUnit: {
+    fontSize: 28,
+    fontWeight: 900,
+    color: "#1e1f22",
   },
-  ringsSubtext: {
+  // Exact SetEditorCard setIndexTextLayer style
+  subtext: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.45,
-    color: "rgba(15,23,42,0.62)",
-    paddingLeft: 2,
+    color: "rgba(15, 23, 42, 0.62)",
   },
   footerFlow: {
     position: "fixed",
