@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Flame, Goal, Hourglass, Weight } from "lucide-react";
+import { Flame, Hourglass, Weight } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -75,6 +75,39 @@ function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; train
 function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean): number {
   const met = hasWeights ? 5.5 : 4.5;
   return Math.round(met * weightKg * (durMin / 60));
+}
+
+// ─── Percent Ring ─────────────────────────────────────────────────────────
+
+function PercentRing({ value }: { value: number }) {
+  const SEGMENTS = 36;
+  const SIZE = 44;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const outerR = 20;
+  const innerR = 14;
+  const filled = Math.round((Math.min(value, 100) / 100) * SEGMENTS);
+
+  return (
+    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ flexShrink: 0 }}>
+      {Array.from({ length: SEGMENTS }, (_, i) => {
+        const angle = (i / SEGMENTS) * 2 * Math.PI - Math.PI / 2;
+        const x1 = cx + innerR * Math.cos(angle);
+        const y1 = cy + innerR * Math.sin(angle);
+        const x2 = cx + outerR * Math.cos(angle);
+        const y2 = cy + outerR * Math.sin(angle);
+        return (
+          <line
+            key={i}
+            x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke={i < filled ? "#1e1f22" : "rgba(15,23,42,0.12)"}
+            strokeWidth={2.8}
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </svg>
+  );
 }
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
@@ -362,7 +395,7 @@ export default function WorkoutCelebrate() {
 
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
-              <Goal size={36} strokeWidth={2} style={s.metricIcon} />
+              <PercentRing value={count1} />
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
               <span style={s.valueUnit}>выполнено</span>
