@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import mascotImg from "@/assets/robonew.webp";
+import { Target, Clock, Dumbbell } from "lucide-react";
+import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
-import BottomDock from "@/components/workout-session/BottomDock";
+import { useTypewriterText } from "@/hooks/useTypewriterText";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -30,19 +31,19 @@ function getPercentSubtext(p: number): string {
   if (p >= 80) return "Отличная работа! Почти весь план выполнен, так держать";
   if (p >= 50) return "Хорошая тренировка! Половина дела сделана, базу отработали";
   if (p > 0) return "Любое движение лучше, чем ничего! Доберем свое на следующих тренировках";
-  return "Главное, что ты пришел! Завтра будет лучше, чем сегодня";
+  return "Главное, что вы пришли! Завтра будет лучше, чем сегодня";
 }
 
 function getVolumeAnalogy(kg: number): string {
-  if (kg < 50) return "Как будто перенес пару увесистых арбузов с рынка";
+  if (kg < 50) return "Как будто перенесли пару увесистых арбузов с рынка";
   if (kg < 100) return "Масса здорового сенбернара. Хороший песик!";
-  if (kg < 300) return "Ты только что поднял взрослого льва. Царь зверей отдыхает";
+  if (kg < 300) return "Вы только что подняли взрослого льва. Царь зверей отдыхает";
   if (kg < 600) return "Это масса концертного рояля. Настоящая музыка для мышц!";
-  if (kg < 1000) return "Ты перетаскал вес целого белого медведя. Мощно!";
+  if (kg < 1000) return "Вы перетаскали вес целого белого медведя. Мощно!";
   if (kg < 2000) return "Суммарно это вес легкового автомобиля хэтчбека";
   if (kg < 3500) return "Целый тяжелый внедорожник остался позади";
   if (kg < 5000) return "Вес взрослого азиатского слона. Серьезная заявочка!";
-  if (kg < 10000) return "Поздравляю, ты поднял массу взрослого тираннозавра!";
+  if (kg < 10000) return "Поздравляю, вы подняли массу взрослого тираннозавра!";
   return "Огромный тоннаж, тянет на вес небольшого кита!";
 }
 
@@ -98,6 +99,92 @@ function useCounter(
   return value;
 }
 
+// ─── Confetti ─────────────────────────────────────────────────────────────
+
+const FOIL_COLORS = [
+  ["linear-gradient(135deg,#f5e6d0,#c9a96e 50%,#f5e6d0)", "linear-gradient(135deg,#b8956a,#e8d5b7 50%,#b8956a)"],
+  ["linear-gradient(135deg,#f4f4f5,#a1a1aa 50%,#f4f4f5)", "linear-gradient(135deg,#71717a,#d4d4d8 50%,#71717a)"],
+  ["linear-gradient(135deg,#fff1f2,#f9a8d4 50%,#fce7f3)", "linear-gradient(135deg,#ec4899,#fecdd3 50%,#ec4899)"],
+  ["linear-gradient(135deg,#e0e7ff,#818cf8 50%,#e0e7ff)", "linear-gradient(135deg,#6366f1,#c7d2fe 50%,#6366f1)"],
+  ["linear-gradient(135deg,#d1fae5,#6ee7b7 50%,#d1fae5)", "linear-gradient(135deg,#34d399,#a7f3d0 50%,#34d399)"],
+  ["linear-gradient(135deg,#e0f2fe,#7dd3fc 50%,#e0f2fe)", "linear-gradient(135deg,#38bdf8,#bae6fd 50%,#38bdf8)"],
+  ["linear-gradient(135deg,#fef3c7,#fbbf24 50%,#fef3c7)", "linear-gradient(135deg,#d97706,#fde68a 50%,#d97706)"],
+  ["linear-gradient(135deg,#fce4ec,#f06292 50%,#fce4ec)", "linear-gradient(135deg,#c2185b,#f48fb1 50%,#c2185b)"],
+];
+type Particle = {
+  el: HTMLSpanElement;
+  x: number; y: number;
+  vx: number; vy: number;
+  rotX: number; rotY: number; rotZ: number;
+  vRotX: number; vRotY: number; vRotZ: number;
+  w: number; h: number;
+  face: string; back: string;
+  opacity: number;
+  life: number; maxLife: number;
+  wobblePhase: number; wobbleSpeed: number;
+};
+const GRAVITY = 0.12;
+const DRAG = 0.985;
+const WOBBLE_AMP = 0.6;
+
+function spawnConfetti(container: HTMLDivElement) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const cx = vw / 2;
+  const cy = vh * 0.35;
+  const COUNT = 100;
+  const particles: Particle[] = [];
+
+  for (let i = 0; i < COUNT; i++) {
+    const [face, back] = FOIL_COLORS[Math.floor(Math.random() * FOIL_COLORS.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 10;
+    const w = 10 + Math.random() * 14;
+    const h = 8 + Math.random() * 12;
+    const el = document.createElement("span");
+    el.style.cssText = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;border-radius:2px;backface-visibility:visible;will-change:transform;pointer-events:none;box-shadow:inset 0 0 3px rgba(255,255,255,0.5);`;
+    container.appendChild(el);
+    particles.push({
+      el, x: cx, y: cy,
+      vx: Math.cos(angle) * speed * (0.7 + Math.random() * 0.6),
+      vy: Math.sin(angle) * speed * (0.7 + Math.random() * 0.6) - 3,
+      rotX: Math.random() * 360, rotY: Math.random() * 360, rotZ: Math.random() * 360,
+      vRotX: -8 + Math.random() * 16,
+      vRotY: -8 + Math.random() * 16,
+      vRotZ: -4 + Math.random() * 8,
+      w, h, face, back,
+      opacity: 1, life: 0,
+      maxLife: 120 + Math.random() * 80,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.05 + Math.random() * 0.08,
+    });
+  }
+
+  let raf: number;
+  const tick = () => {
+    let alive = 0;
+    for (const p of particles) {
+      p.life++;
+      if (p.life > p.maxLife) { if (p.el.parentNode) p.el.parentNode.removeChild(p.el); continue; }
+      alive++;
+      p.vy += GRAVITY; p.vx *= DRAG; p.vy *= DRAG;
+      p.vx += Math.sin(p.wobblePhase) * WOBBLE_AMP;
+      p.wobblePhase += p.wobbleSpeed;
+      p.x += p.vx; p.y += p.vy;
+      p.rotX += p.vRotX; p.rotY += p.vRotY; p.rotZ += p.vRotZ;
+      const fadeStart = p.maxLife * 0.7;
+      p.opacity = p.life > fadeStart ? 1 - (p.life - fadeStart) / (p.maxLife - fadeStart) : 1;
+      const showBack = (Math.abs(p.rotY % 360) > 90 && Math.abs(p.rotY % 360) < 270);
+      p.el.style.background = showBack ? p.back : p.face;
+      p.el.style.transform = `translate3d(${p.x}px,${p.y}px,0) rotateX(${p.rotX}deg) rotateY(${p.rotY}deg) rotate(${p.rotZ}deg)`;
+      p.el.style.opacity = String(p.opacity);
+    }
+    if (alive > 0) raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  setTimeout(() => { cancelAnimationFrame(raf); container.innerHTML = ""; }, 5000);
+}
+
 // ─── Component ──────────────────────────────────────────────────────────
 
 const STAGE_DELAY = 1200;
@@ -112,6 +199,7 @@ export default function WorkoutCelebrate() {
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
+  const confettiRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -124,11 +212,16 @@ export default function WorkoutCelebrate() {
 
     const t1 = setTimeout(() => {
       setStage(1);
-      fireHapticImpact("medium");
+      fireHapticImpact("heavy");
+      if (confettiRef.current) {
+        confettiRef.current.innerHTML = "";
+        spawnConfetti(confettiRef.current);
+      }
     }, 400);
 
     const t2 = setTimeout(() => {
       setStage(2);
+      fireHapticImpact("medium");
     }, 1800);
 
     return () => {
@@ -175,7 +268,7 @@ export default function WorkoutCelebrate() {
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
     setShowSub1(true);
-    setTimeout(() => setStage(3), 1000);
+    setTimeout(() => { fireHapticImpact("medium"); setStage(3); }, 2000);
   });
 
   const count2 = useCounter(durMin, stage >= 3, 700, () => {
@@ -183,12 +276,13 @@ export default function WorkoutCelebrate() {
     setShowSub2(true);
     setTimeout(() => {
       if (tonnage > 0) {
+        fireHapticImpact("medium");
         setStage(4);
       } else {
         setStage(5);
         fireHapticImpact("light");
       }
-    }, 1000);
+    }, 2000);
   });
 
   const count3 = useCounter(tonnage, stage >= 4, 800, () => {
@@ -198,38 +292,41 @@ export default function WorkoutCelebrate() {
       setTimeout(() => {
         setStage(5);
         fireHapticImpact("light");
-      }, 1000);
+      }, 2000);
     }
   });
 
   const workoutNumberMatch = payload?.title?.match(/\d+/);
   const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
-  const titleText = workoutNumber ? `Еее! Ты выполнил ${workoutNumber} тренировку` : "Еее! Ты выполнил тренировку";
+  const bubbleTarget = stage >= 1
+    ? (workoutNumber ? `Еее! Вы выполнили ${workoutNumber}-ю тренировку!` : "Еее! Вы выполнили тренировку!")
+    : "";
+  const bubbleTyped = useTypewriterText(bubbleTarget, { charIntervalMs: 22, startDelayMs: 80 });
 
   return (
     <>
       <style>{css}</style>
+
+      {/* --- Confetti layer --- */}
+      <div ref={confettiRef} style={s.confettiLayer} />
+
       <div style={s.page}>
 
-        {/* --- Header / Mascot --- */}
-        <section style={s.introCenter} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
-          <div style={s.headerLeft}>
-            <div style={s.avatarCircle}>
-              <img src={mascotImg} alt="" style={s.mascotAvatarImg} loading="eager" decoding="async" />
-            </div>
-            <div style={s.headerText}>
-              <div style={s.headerGreeting}>Еее!</div>
-              <div style={s.headerSub}>
-                {workoutNumber ? `Вы выполнили ${workoutNumber} тренировку` : "Вы выполнили тренировку"}
-              </div>
-            </div>
+        {/* --- Header / Mascot + Bubble --- */}
+        <div style={s.mascotRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
+          <img src={morobotImg} alt="" style={s.mascotFullImg} loading="eager" decoding="async" />
+          <div style={s.bubble} className="wc-speech-bubble">
+            <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
           </div>
-        </section>
+        </div>
 
         {/* --- Metrics Grid --- */}
         <div style={s.metricsWrap}>
 
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
+            <div style={s.iconWrap}>
+              <Target size={18} strokeWidth={2.2} />
+            </div>
             <div style={s.valueRow}>
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
@@ -240,17 +337,23 @@ export default function WorkoutCelebrate() {
           </div>
 
           <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
+            <div style={s.iconWrap}>
+              <Clock size={18} strokeWidth={2.2} />
+            </div>
             <div style={s.valueRow}>
               <span style={s.valueBig}>{count2}</span>
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
             <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
-              инвестировано в твое здоровье
+              инвестировано в ваше здоровье
             </div>
           </div>
 
           {tonnage > 0 && (
             <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
+              <div style={s.iconWrap}>
+                <Dumbbell size={18} strokeWidth={2.2} />
+              </div>
               <div style={s.valueRow}>
                 <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
                 <span style={s.valueUnit}>кг</span>
@@ -316,58 +419,42 @@ const s: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     maxWidth: 720,
   },
-  introCenter: {
-    width: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-start",
-    alignItems: "flex-start",
-    marginTop: 8,
-    marginBottom: 12,
+  confettiLayer: {
+    position: "fixed",
+    inset: 0,
+    pointerEvents: "none",
+    zIndex: 60,
   },
-  headerLeft: {
-    display: "flex",
+  mascotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
     alignItems: "center",
     gap: 12,
+    marginTop: 8,
+    marginBottom: 4,
   },
-  // Exact Dashboard avatarCircle style
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 999,
-    border: "none",
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+  mascotFullImg: {
+    width: 130,
+    height: "auto",
+    objectFit: "contain",
     flexShrink: 0,
-    overflow: "hidden",
   },
-  // Exact Dashboard mascotAvatarImg style
-  mascotAvatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    objectPosition: "center 10%",
-    borderRadius: 999,
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
-  headerText: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  },
-  headerGreeting: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.2,
-  },
-  headerSub: {
-    fontSize: 15,
-    fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.65)",
-    lineHeight: 1.3,
+  bubbleText: {
+    fontSize: 17,
+    fontWeight: 600,
+    lineHeight: 1.35,
+    color: "#1e1f22",
+    whiteSpace: "pre-line",
   },
   metricsWrap: {
     display: "flex",
@@ -382,6 +469,16 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 4,
     padding: "0 10px",
+  },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    color: "rgba(15,23,42,0.48)",
+    marginBottom: 2,
   },
   valueRow: {
     display: "flex",
@@ -498,6 +595,19 @@ const css = `
 .wc-hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+.wc-speech-bubble::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(-1px 0 0 rgba(15,23,42,0.10));
 }
 
 .checkin-primary-btn {
