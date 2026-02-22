@@ -79,99 +79,97 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
 
 // ─── Activity Rings ───────────────────────────────────────────────────────
 
-const RING_SIZE = 140;
-const RING_CX = RING_SIZE / 2;
-const RING_CY = RING_SIZE / 2;
-// [radius, strokeWidth] for each ring (outer → inner)
-const RING_CFG = [
-  { r: 61, sw: 10 },
-  { r: 46, sw: 10 },
-  { r: 31, sw: 10 },
-] as const;
+const RING_CONTAINER = 150;
 const FILL_COLOR = "#1e1f22";
 
-function CircularRing({ r, sw, pct }: { r: number; sw: number; pct: number }) {
-  const circumference = 2 * Math.PI * r;
+// Each ring: [outerDiameter, thickness]
+const RING_CFG = [
+  { diameter: 140, thickness: 14 },
+  { diameter: 106, thickness: 14 },
+  { diameter: 72, thickness: 14 },
+] as const;
+
+// Groove track style matching workoutTheme.pillBg + pillShadow exactly
+const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
+const GROOVE_SHADOW =
+  "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)";
+
+function GrooveRing({ diameter, thickness, pct }: { diameter: number; thickness: number; pct: number }) {
   const clampedPct = Math.min(100, Math.max(0, pct));
-  const dashOffset = circumference * (1 - clampedPct / 100);
+  const innerDiameter = diameter - thickness * 2;
+
+  // conic-gradient: filled portion is FILL_COLOR, rest is transparent
+  const progressBg = clampedPct > 0
+    ? `conic-gradient(from 0deg, ${FILL_COLOR} ${clampedPct * 3.6}deg, transparent ${clampedPct * 3.6}deg)`
+    : "none";
+
+  const center = RING_CONTAINER / 2;
+  const top = center - diameter / 2;
+  const left = center - diameter / 2;
 
   return (
-    <g>
-      {/* ── groove shadow (bottom layer, gives the 3D inset look) ── */}
-      <circle
-        cx={RING_CX}
-        cy={RING_CY}
-        r={r}
-        fill="none"
-        stroke="rgba(0,0,0,0.22)"
-        strokeWidth={sw + 1}
-      />
-      {/* ── track base ── */}
-      <circle
-        cx={RING_CX}
-        cy={RING_CY}
-        r={r}
-        fill="none"
-        stroke="rgba(15,23,42,0.07)"
-        strokeWidth={sw}
-      />
-      {/* ── inner highlight (top rim of groove) ── */}
-      <circle
-        cx={RING_CX}
-        cy={RING_CY}
-        r={r}
-        fill="none"
-        stroke="rgba(255,255,255,0.40)"
-        strokeWidth={1.2}
-      />
-      {/* ── progress arc ── */}
+    <>
+      {/* Groove track (background donut) */}
+      <div
+        style={{
+          position: "absolute",
+          top,
+          left,
+          width: diameter,
+          height: diameter,
+          borderRadius: "50%",
+          background: GROOVE_BG,
+          boxShadow: GROOVE_SHADOW,
+        }}
+      >
+        {/* Inner cutout for donut shape */}
+        <div
+          style={{
+            position: "absolute",
+            top: thickness,
+            left: thickness,
+            width: innerDiameter,
+            height: innerDiameter,
+            borderRadius: "50%",
+            background: "#f5f5f7",
+          }}
+        />
+      </div>
+      {/* Progress fill (conic-gradient arc, masked to donut) */}
       {clampedPct > 0 && (
-        <circle
-          cx={RING_CX}
-          cy={RING_CY}
-          r={r}
-          fill="none"
-          stroke={FILL_COLOR}
-          strokeWidth={sw}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          transform={`rotate(-90 ${RING_CX} ${RING_CY})`}
-          style={{ transition: "stroke-dashoffset 0.05s linear" }}
+        <div
+          style={{
+            position: "absolute",
+            top,
+            left,
+            width: diameter,
+            height: diameter,
+            borderRadius: "50%",
+            background: progressBg,
+            // mask to create donut: transparent inner circle
+            WebkitMask: `radial-gradient(circle at center, transparent ${innerDiameter / 2}px, #000 ${innerDiameter / 2}px)`,
+            mask: `radial-gradient(circle at center, transparent ${innerDiameter / 2}px, #000 ${innerDiameter / 2}px)`,
+          }}
         />
       )}
-      {/* ── progress arc shine (top gloss) ── */}
-      {clampedPct > 0 && (
-        <circle
-          cx={RING_CX}
-          cy={RING_CY}
-          r={r}
-          fill="none"
-          stroke="rgba(255,255,255,0.12)"
-          strokeWidth={sw * 0.35}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          transform={`rotate(-90 ${RING_CX} ${RING_CY})`}
-          style={{ transition: "stroke-dashoffset 0.05s linear" }}
-        />
-      )}
-    </g>
+    </>
   );
 }
 
 function ActivityRings({ p1, p2, p3 }: { p1: number; p2: number; p3: number }) {
   return (
-    <svg
-      width={RING_SIZE}
-      height={RING_SIZE}
-      viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-      style={{ flexShrink: 0, overflow: "visible" }}
+    <div
+      style={{
+        position: "relative",
+        width: RING_CONTAINER,
+        height: RING_CONTAINER,
+        flexShrink: 0,
+      }}
     >
-      <CircularRing r={RING_CFG[0].r} sw={RING_CFG[0].sw} pct={p1} />
-      <CircularRing r={RING_CFG[1].r} sw={RING_CFG[1].sw} pct={p2} />
-      <CircularRing r={RING_CFG[2].r} sw={RING_CFG[2].sw} pct={p3} />
-    </svg>
+      <GrooveRing diameter={RING_CFG[0].diameter} thickness={RING_CFG[0].thickness} pct={p1} />
+      <GrooveRing diameter={RING_CFG[1].diameter} thickness={RING_CFG[1].thickness} pct={p2} />
+      <GrooveRing diameter={RING_CFG[2].diameter} thickness={RING_CFG[2].thickness} pct={p3} />
+    </div>
   );
 }
 
