@@ -267,30 +267,36 @@ export default function WorkoutCelebrate() {
 
       </div>
 
-      <div className={stage >= 1 ? "onb-fade-soft" : "wc-hidden"}>
+      {stage >= 1 && (
         <div style={s.footerFlow}>
           <button
             className="checkin-primary-btn"
-            style={{ ...s.primaryBtn, opacity: stage >= 5 ? 1 : 0, pointerEvents: stage >= 5 ? "auto" : "none" }}
+            style={{
+              ...s.primaryBtn,
+              opacity: stage >= 5 ? 1 : 0,
+              pointerEvents: stage >= 5 ? "auto" : "none",
+            }}
             onClick={goNext}
           >
             <span style={s.primaryBtnText}>Далее</span>
-            <div style={s.primaryBtnCircle}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}>
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </div>
+            <span style={s.primaryBtnCircle} aria-hidden>
+              <span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span>
+            </span>
           </button>
 
           <button
             className="checkin-text-btn"
-            style={{ ...s.secondaryBtn, opacity: stage >= 1 && stage < 5 ? 1 : 0, pointerEvents: stage >= 1 && stage < 5 ? "auto" : "none" }}
+            style={{
+              ...s.secondaryBtn,
+              opacity: stage >= 1 && stage < 5 ? 1 : 0,
+              pointerEvents: stage >= 1 && stage < 5 ? "auto" : "none",
+            }}
             onClick={goNext}
           >
             Пропустить
           </button>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -304,7 +310,7 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     gap: 16,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-    background: "var(--tg-theme-bg-color, #ffffff)",
+    background: "transparent",
     color: "#1e1f22",
     minHeight: "100vh",
     margin: "0 auto",
@@ -325,22 +331,27 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 12,
   },
+  // Exact Dashboard avatarCircle style
   avatarCircle: {
     width: 56,
     height: 56,
     borderRadius: 999,
-    background: "linear-gradient(135deg, rgba(238,242,255,0.8) 0%, rgba(224,231,255,0.6) 100%)",
+    border: "none",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "inset 0 2px 4px rgba(255,255,255,0.9), 0 2px 10px rgba(79,70,229,0.1)",
-    border: "1px solid rgba(255,255,255,0.8)",
+    flexShrink: 0,
+    overflow: "hidden",
   },
+  // Exact Dashboard mascotAvatarImg style
   mascotAvatarImg: {
-    width: 44,
-    height: 44,
-    objectFit: "contain",
-    marginTop: 8,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center 10%",
+    borderRadius: 999,
   },
   headerText: {
     display: "flex",
@@ -396,13 +407,12 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     color: "#1e1f22",
   },
+  // Exact SetEditorCard setIndexTextLayer style
   subtext: {
-    fontSize: 11,
-    fontWeight: 700,
-    lineHeight: 1,
-    color: "rgba(17,29,46,0.58)", // like doneSets pill text color from SessionHeader equivalent
-    letterSpacing: -0.1,
-    textTransform: "uppercase",
+    fontSize: 14,
+    fontWeight: 400,
+    lineHeight: 1.45,
+    color: "rgba(15, 23, 42, 0.62)",
   },
   footerFlow: {
     position: "fixed",
@@ -410,57 +420,62 @@ const s: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     zIndex: 50,
-    padding: "16px 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    background: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 40%, var(--tg-theme-bg-color, #ffffff) 100%)",
+    padding: "10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px)",
+    display: "grid",
+    gap: 8,
   },
+  // Exact BottomDock compactArrow button style
   primaryBtn: {
-    width: "100%",
-    border: "none",
-    background: "#1e1f22",
-    borderRadius: 20,
-    padding: "16px 20px",
-    display: "flex",
+    width: "fit-content",
+    maxWidth: "100%",
+    justifySelf: "center",
+    display: "inline-flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
+    height: 56,
+    minHeight: 56,
+    padding: "0 14px",
+    borderRadius: 999,
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
     color: "#fff",
-    fontSize: 17,
-    fontWeight: 600,
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     cursor: "pointer",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.15)",
     transition: "transform 160ms ease, opacity 250ms ease",
-    position: "relative",
-    zIndex: 2,
   },
   primaryBtnText: {
+    whiteSpace: "nowrap",
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1,
     color: "#fff",
-    fontSize: 17,
-    fontWeight: 600,
   },
+  // Exact BottomDock primaryCompactArrowWrap style
   primaryBtnCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.2)",
-    display: "flex",
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#fff",
+    marginRight: -6,
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "#0f172a",
+    flexShrink: 0,
   },
+  // Exact BottomDock secondary style
   secondaryBtn: {
     width: "100%",
+    minHeight: 40,
     border: "none",
     background: "transparent",
-    color: "rgba(15, 23, 42, 0.6)",
-    fontSize: 15,
+    borderRadius: 999,
+    color: "rgba(15,23,42,0.6)",
+    fontSize: 14,
     fontWeight: 500,
-    padding: "12px 16px",
     cursor: "pointer",
     textAlign: "center",
-    position: "relative",
-    zIndex: 1,
     transition: "opacity 250ms ease",
   },
 };
