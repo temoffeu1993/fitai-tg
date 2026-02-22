@@ -510,11 +510,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   valueRow: {
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: 8,
   },
   metricEmoji: {
-    fontSize: 22,
+    fontSize: 36,
     lineHeight: 1,
     flexShrink: 0,
   },
