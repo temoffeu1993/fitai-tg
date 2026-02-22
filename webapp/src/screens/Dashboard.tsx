@@ -1016,12 +1016,8 @@ export default function Dashboard() {
     return `План на ${totalPlanDays} тренировки`;
   }, [selectedScheme, totalPlanDays, dashboardUserContext]);
   const weeklyCompletedCount = useMemo(() => {
-    const completedDays = new Set(
-      plannedWorkouts
-        .filter((w) => w.status === "completed" && w.scheduledFor)
-        .map((w) => String(w.scheduledFor).slice(0, 10)),
-    );
-    return Math.min(totalPlanDays, completedDays.size);
+    const completed = plannedWorkouts.filter((w) => w.status === "completed").length;
+    return Math.min(totalPlanDays, completed);
   }, [plannedWorkouts, totalPlanDays]);
   const goalDotColumns = useMemo(() => {
     if (totalPlanDays <= 3) return totalPlanDays;
@@ -1676,7 +1672,6 @@ export default function Dashboard() {
                   <span
                     style={{
                       ...s.goalCompactDotPit,
-                      ...(done ? s.goalCompactDotFilled : {}),
                       width: goalDotSize,
                       height: goalDotSize,
                     }}
