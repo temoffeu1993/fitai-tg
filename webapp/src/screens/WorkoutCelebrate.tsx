@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Target, Clock, Dumbbell } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -324,10 +323,8 @@ export default function WorkoutCelebrate() {
         <div style={s.metricsWrap}>
 
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.iconWrap}>
-              <Target size={18} strokeWidth={2.2} />
-            </div>
             <div style={s.valueRow}>
+              <span style={s.metricEmoji}>🎯</span>
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
             </div>
@@ -337,10 +334,8 @@ export default function WorkoutCelebrate() {
           </div>
 
           <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.iconWrap}>
-              <Clock size={18} strokeWidth={2.2} />
-            </div>
             <div style={s.valueRow}>
+              <span style={s.metricEmoji}>💰</span>
               <span style={s.valueBig}>{count2}</span>
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
@@ -351,10 +346,8 @@ export default function WorkoutCelebrate() {
 
           {tonnage > 0 && (
             <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
-              <div style={s.iconWrap}>
-                <Dumbbell size={18} strokeWidth={2.2} />
-              </div>
               <div style={s.valueRow}>
+                <span style={s.metricEmoji}>💪</span>
                 <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
                 <span style={s.valueUnit}>кг</span>
               </div>
@@ -470,20 +463,15 @@ const s: Record<string, React.CSSProperties> = {
     gap: 4,
     padding: "0 10px",
   },
-  iconWrap: {
-    width: 28,
-    height: 28,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    color: "rgba(15,23,42,0.48)",
-    marginBottom: 2,
-  },
   valueRow: {
     display: "flex",
-    alignItems: "baseline",
-    gap: 4,
+    alignItems: "center",
+    gap: 8,
+  },
+  metricEmoji: {
+    fontSize: 36,
+    lineHeight: 1,
+    flexShrink: 0,
   },
   valueBig: {
     fontSize: 44,
