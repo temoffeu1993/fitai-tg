@@ -305,10 +305,10 @@ export default function WorkoutCelebrate() {
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px)",
+    padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 0",
     display: "flex",
     flexDirection: "column",
-    gap: 16,
+    gap: 12,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     background: "transparent",
     color: "#1e1f22",
@@ -322,9 +322,8 @@ const s: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     justifyContent: "flex-start",
     alignItems: "flex-start",
-    paddingTop: "clamp(12px, 1.8vh, 18px)",
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   headerLeft: {
     display: "flex",
