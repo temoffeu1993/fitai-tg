@@ -79,38 +79,98 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
 
 // ─── Activity Rings ───────────────────────────────────────────────────────
 
-const RING_CFG = [
-  { outerR: 64, innerR: 57, color: "#1e1f22" },
-  { outerR: 49, innerR: 42, color: "#1e3a5f" },
-  { outerR: 34, innerR: 27, color: "#1a3a2a" },
-] as const;
-const SEGS = 36;
 const RING_SIZE = 140;
 const RING_CX = RING_SIZE / 2;
 const RING_CY = RING_SIZE / 2;
+// [radius, strokeWidth] for each ring (outer → inner)
+const RING_CFG = [
+  { r: 61, sw: 10 },
+  { r: 46, sw: 10 },
+  { r: 31, sw: 10 },
+] as const;
+const FILL_COLOR = "#1e1f22";
+
+function CircularRing({ r, sw, pct }: { r: number; sw: number; pct: number }) {
+  const circumference = 2 * Math.PI * r;
+  const clampedPct = Math.min(100, Math.max(0, pct));
+  const dashOffset = circumference * (1 - clampedPct / 100);
+
+  return (
+    <g>
+      {/* ── groove shadow (bottom layer, gives the 3D inset look) ── */}
+      <circle
+        cx={RING_CX}
+        cy={RING_CY}
+        r={r}
+        fill="none"
+        stroke="rgba(0,0,0,0.22)"
+        strokeWidth={sw + 1}
+      />
+      {/* ── track base ── */}
+      <circle
+        cx={RING_CX}
+        cy={RING_CY}
+        r={r}
+        fill="none"
+        stroke="rgba(15,23,42,0.07)"
+        strokeWidth={sw}
+      />
+      {/* ── inner highlight (top rim of groove) ── */}
+      <circle
+        cx={RING_CX}
+        cy={RING_CY}
+        r={r}
+        fill="none"
+        stroke="rgba(255,255,255,0.40)"
+        strokeWidth={1.2}
+      />
+      {/* ── progress arc ── */}
+      {clampedPct > 0 && (
+        <circle
+          cx={RING_CX}
+          cy={RING_CY}
+          r={r}
+          fill="none"
+          stroke={FILL_COLOR}
+          strokeWidth={sw}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${RING_CX} ${RING_CY})`}
+          style={{ transition: "stroke-dashoffset 0.05s linear" }}
+        />
+      )}
+      {/* ── progress arc shine (top gloss) ── */}
+      {clampedPct > 0 && (
+        <circle
+          cx={RING_CX}
+          cy={RING_CY}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth={sw * 0.35}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${RING_CX} ${RING_CY})`}
+          style={{ transition: "stroke-dashoffset 0.05s linear" }}
+        />
+      )}
+    </g>
+  );
+}
 
 function ActivityRings({ p1, p2, p3 }: { p1: number; p2: number; p3: number }) {
-  const pcts = [p1, p2, p3];
   return (
-    <svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} style={{ flexShrink: 0 }}>
-      {RING_CFG.map(({ outerR, innerR, color }, ri) => {
-        const filled = Math.round((Math.min(pcts[ri], 100) / 100) * SEGS);
-        return Array.from({ length: SEGS }, (_, i) => {
-          const angle = (i / SEGS) * 2 * Math.PI - Math.PI / 2;
-          return (
-            <line
-              key={`${ri}-${i}`}
-              x1={RING_CX + innerR * Math.cos(angle)}
-              y1={RING_CY + innerR * Math.sin(angle)}
-              x2={RING_CX + outerR * Math.cos(angle)}
-              y2={RING_CY + outerR * Math.sin(angle)}
-              stroke={i < filled ? color : "rgba(15,23,42,0.10)"}
-              strokeWidth={2.8}
-              strokeLinecap="round"
-            />
-          );
-        });
-      })}
+    <svg
+      width={RING_SIZE}
+      height={RING_SIZE}
+      viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+      style={{ flexShrink: 0, overflow: "visible" }}
+    >
+      <CircularRing r={RING_CFG[0].r} sw={RING_CFG[0].sw} pct={p1} />
+      <CircularRing r={RING_CFG[1].r} sw={RING_CFG[1].sw} pct={p2} />
+      <CircularRing r={RING_CFG[2].r} sw={RING_CFG[2].sw} pct={p3} />
     </svg>
   );
 }
@@ -385,10 +445,10 @@ export default function WorkoutCelebrate() {
   const currentSubtext = showSub3
     ? (showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage))
     : showSub2
-    ? "инвестировано в ваше здоровье"
-    : showSub1
-    ? percentSubtext
-    : null;
+      ? "инвестировано в ваше здоровье"
+      : showSub1
+        ? percentSubtext
+        : null;
 
   const workoutNumberMatch = payload?.title?.match(/\d+/);
   const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
@@ -420,7 +480,7 @@ export default function WorkoutCelebrate() {
             <ActivityRings p1={ring1Pct} p2={ring2Pct} p3={ring3Pct} />
             <div style={s.ringsLegend}>
               <div style={s.legendRow}>
-                <span style={{ ...s.legendDot, background: RING_CFG[0].color }} />
+                <span style={{ ...s.legendDot, background: FILL_COLOR }} />
                 <div>
                   <span style={s.legendValue}>{count1}</span>
                   <span style={s.legendUnit}>%</span>
@@ -428,7 +488,7 @@ export default function WorkoutCelebrate() {
                 </div>
               </div>
               <div style={s.legendRow}>
-                <span style={{ ...s.legendDot, background: RING_CFG[1].color }} />
+                <span style={{ ...s.legendDot, background: FILL_COLOR }} />
                 <div>
                   <span style={s.legendValue}>{count2}</span>
                   <span style={s.legendUnit}> {pluralizeMinutes(durMin)}</span>
@@ -437,7 +497,7 @@ export default function WorkoutCelebrate() {
               </div>
               {thirdValue > 0 && (
                 <div style={s.legendRow}>
-                  <span style={{ ...s.legendDot, background: RING_CFG[2].color }} />
+                  <span style={{ ...s.legendDot, background: FILL_COLOR }} />
                   <div>
                     {showCalories && <span style={s.legendApprox}>~</span>}
                     <span style={s.legendValue}>{count3.toLocaleString("ru-RU")}</span>
