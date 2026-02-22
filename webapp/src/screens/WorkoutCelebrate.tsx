@@ -4,6 +4,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
+import {
+  loadHistory,
+  computeStreak,
+  getWeekCompletedCount,
+  getSessionsPerWeek,
+} from "@/lib/history";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -75,83 +81,6 @@ function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; train
 function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean): number {
   const met = hasWeights ? 5.5 : 4.5;
   return Math.round(met * weightKg * (durMin / 60));
-}
-
-// ─── Streak helpers ───────────────────────────────────────────────────────
-
-const HISTORY_KEY = "history_sessions_v1";
-
-type HistorySession = {
-  id?: string;
-  finishedAt?: string;
-};
-
-function readHistory(): HistorySession[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    return Array.isArray(raw) ? raw : [];
-  } catch {
-    return [];
-  }
-}
-
-function computeStreak(history: HistorySession[]): number {
-  const sorted = history
-    .slice()
-    .sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
-  let count = 0;
-  let prevDate: string | null = null;
-  for (const session of sorted) {
-    const d = session.finishedAt ? new Date(session.finishedAt).toISOString().slice(0, 10) : null;
-    if (!d) continue;
-    if (prevDate === d) continue;
-    if (prevDate) {
-      const diff = (new Date(prevDate).getTime() - new Date(d).getTime()) / (1000 * 60 * 60 * 24);
-      if (diff > 7) break;
-    }
-    prevDate = d;
-    count++;
-  }
-  return count;
-}
-
-function getSessionsPerWeek(): number {
-  try {
-    // Try scheme cache first (same as Dashboard)
-    const schemeRaw = localStorage.getItem("schedule_cache_v1");
-    if (schemeRaw) {
-      const parsed = JSON.parse(schemeRaw);
-      const pw = parsed?.plannedWorkouts;
-      if (Array.isArray(pw) && pw.length >= 2 && pw.length <= 6) {
-        const scheduled = pw.filter((w: any) => w.status === "scheduled" || w.status === "completed");
-        if (scheduled.length >= 2 && scheduled.length <= 6) return scheduled.length;
-      }
-    }
-  } catch { }
-  try {
-    const onb = JSON.parse(localStorage.getItem("onb_summary") || "{}");
-    const d = Number(onb?.schedule?.daysPerWeek);
-    if (Number.isFinite(d) && d >= 2 && d <= 6) return d;
-  } catch { }
-  return 3; // fallback
-}
-
-function getWeekCompletedCount(history: HistorySession[]): number {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = (dayOfWeek + 6) % 7;
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset);
-  const mondayTs = monday.getTime();
-
-  const uniqueDates = new Set<string>();
-  for (const h of history) {
-    if (!h.finishedAt) continue;
-    const dt = new Date(h.finishedAt);
-    if (dt.getTime() >= mondayTs) {
-      uniqueDates.add(dt.toISOString().slice(0, 10));
-    }
-  }
-  return uniqueDates.size;
 }
 
 function getStreakBubbleText(streak: number): string {
@@ -429,12 +358,11 @@ export default function WorkoutCelebrate() {
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
   const [streakAnimIdx, setStreakAnimIdx] = useState(-1);
-  const [streakChainVisible, setStreakChainVisible] = useState(false);
   const [streakCounterVisible, setStreakCounterVisible] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
 
   // Streak data
-  const history = useMemo(() => readHistory(), []);
+  const history = useMemo(() => loadHistory(), []);
   const streak = useMemo(() => computeStreak(history), [history]);
   const sessionsPerWeek = useMemo(() => getSessionsPerWeek(), []);
   const weekCompleted = useMemo(() => getWeekCompletedCount(history), [history]);
@@ -473,26 +401,21 @@ export default function WorkoutCelebrate() {
   const onStreakBubbleDone = () => {
     if (streakAnimFired.current) return;
     streakAnimFired.current = true;
-    // Step 1: show chain + label, start fill
-    setTimeout(() => {
-      setStreakChainVisible(true);
-      fireHapticImpact("medium");
-    }, 300);
-    // Step 2: fill reaches node → fire pop
+    // Step 1: start fill
     setTimeout(() => {
       setStreakAnimIdx(chainCompleted - 1);
       fireHapticImpact("heavy");
-    }, 600);
-    // Step 3: after fire pop → show counter
+    }, 300);
+    // Step 2: after fire pop → show counter
     setTimeout(() => {
       setStreakCounterVisible(true);
       fireHapticImpact("heavy");
-    }, 1400);
-    // Step 4: done
+    }, 1100);
+    // Step 3: done
     setTimeout(() => {
       setStage(7);
       fireHapticImpact("light");
-    }, 2000);
+    }, 1600);
   };
 
   const goToStreak = () => {
@@ -664,7 +587,7 @@ export default function WorkoutCelebrate() {
 
         {/* --- Streak Block (fades in at stage 6) --- */}
         {showStreak && (
-          <div style={s.streakWrap}>
+          <div style={s.streakWrap} className="onb-fade">
             {/* Streak counter — appears after fire pop */}
             <div
               style={s.streakCounter}
@@ -674,18 +597,16 @@ export default function WorkoutCelebrate() {
               <span className="streak-pulse" style={s.streakNumber}>{streak}</span>
             </div>
 
-            {/* Streak chain — appears after bubble typewriter */}
-            <div className={streakChainVisible ? "onb-fade" : "wc-hidden"}>
-              <StreakChain
-                total={sessionsPerWeek}
-                completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
-                animateIdx={streakAnimIdx}
-              />
-              <div style={s.streakWeekLabel}>
-                {streak <= 1
-                  ? "Начало серии. Не пропускай следующую"
-                  : `${streak} ${streak >= 2 && streak <= 4 ? "тренировки" : "тренировок"} без пропуска`}
-              </div>
+            {/* Streak chain — visible immediately, fills after typewriter */}
+            <StreakChain
+              total={sessionsPerWeek}
+              completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
+              animateIdx={streakAnimIdx}
+            />
+            <div style={s.streakWeekLabel}>
+              {streak <= 1
+                ? "Начало серии. Не пропускай следующую"
+                : `${streak} ${streak >= 2 && streak <= 4 ? "тренировки" : "тренировок"} без пропуска`}
             </div>
           </div>
         )}

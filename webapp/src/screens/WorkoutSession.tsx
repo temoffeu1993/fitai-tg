@@ -5,6 +5,7 @@ import { saveSession, deleteTodayCheckin } from "@/api/plan";
 import { resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
+import { pushOptimisticSession, reconcileSession } from "@/lib/history";
 import { toSessionPlan } from "@/lib/toSessionPlan";
 import { fireHapticImpact } from "@/utils/haptics";
 import BottomDock from "@/components/workout-session/BottomDock";
@@ -883,10 +884,13 @@ export default function WorkoutSession() {
     clearActiveWorkout();
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
+    // Optimistic: write to history BEFORE navigation so celebrate reads fresh data
+    const tempHistoryId = pushOptimisticSession(payload);
+
     setSaving(false);
     nav("/workout/celebrate", { replace: true, state: { result: provisionalResult } });
 
-    // Save in background, then patch localStorage so result screen picks it up on next read
+    // Save in background, then reconcile optimistic record
     void (async () => {
       try {
         const result: any = await saveSession(payload, {
@@ -910,27 +914,18 @@ export default function WorkoutSession() {
         };
         try { localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(patchedResult)); } catch { }
 
-        try {
-          const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-          const record = {
-            id: savedSessionId || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now())),
-            finishedAt: new Date().toISOString(),
-            ...payload,
-          };
-          const nextHistory = Array.isArray(history) ? [record, ...history].slice(0, 500) : [record];
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-        } catch { }
+        // Reconcile: replace temp id with server id, mark synced
+        reconcileSession(tempHistoryId, savedSessionId);
 
         try {
           window.dispatchEvent(new CustomEvent("plan_completed"));
           window.dispatchEvent(new CustomEvent("schedule_updated"));
         } catch { }
 
-        // Notify result screen to reload from localStorage
         try { window.dispatchEvent(new CustomEvent("workout_saved")); } catch { }
       } catch (error) {
         console.error("Save session failed:", error);
-        // Notify result screen about the error
+        // Optimistic record stays in history with _sync: "pending" — no data loss
         try { window.dispatchEvent(new CustomEvent("workout_save_error")); } catch { }
       }
     })();

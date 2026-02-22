@@ -4,9 +4,9 @@ import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
 import { BodyIcon, getDayHighlight } from "@/components/BodyIcon";
 import { ArrowRight, Clock3, Dumbbell, TrendingUp, ChevronUp, ChevronDown, Minus } from "lucide-react";
 import confetti from "canvas-confetti";
+import { loadHistory, computeStreak, type HistSession } from "@/lib/history";
 
 const LAST_RESULT_KEY = "last_workout_result_v1";
-const HISTORY_KEY = "history_sessions_v1";
 
 type ProgressionJob = { id: string; status: string; lastError?: string | null } | null;
 
@@ -92,23 +92,6 @@ function parseUpperReps(reps: unknown): number | null {
     return null;
 }
 
-type HistorySession = {
-    id?: string;
-    finishedAt?: string;
-    durationMin?: number;
-    title?: string;
-    items?: Array<any>;
-    exercises?: Array<any>;
-};
-
-function readHistory(): HistorySession[] {
-    try {
-        const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-        return Array.isArray(raw) ? raw : [];
-    } catch {
-        return [];
-    }
-}
 
 function computeTonnage(exercises: any[]): number {
     let total = 0;
@@ -124,14 +107,14 @@ function computeTonnage(exercises: any[]): number {
     return Math.round(total);
 }
 
-function computeHistoryTonnage(session: HistorySession): number {
-    const exercises = session?.exercises ?? session?.items ?? [];
+function computeHistoryTonnage(session: HistSession): number {
+    const exercises = (session as any)?.exercises ?? session?.items ?? [];
     return computeTonnage(Array.isArray(exercises) ? exercises : []);
 }
 
 function detectPRs(
     currentExercises: any[],
-    history: HistorySession[],
+    history: HistSession[],
     currentSessionId: string | null
 ): Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> {
     const prs: Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> = [];
@@ -139,7 +122,7 @@ function detectPRs(
     const bestReps = new Map<string, number>();
     for (const session of history) {
         if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
-        const exercises = session?.exercises ?? session?.items ?? [];
+        const exercises = (session as any)?.exercises ?? session?.items ?? [];
         if (!Array.isArray(exercises)) continue;
         for (const ex of exercises) {
             const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
@@ -370,7 +353,17 @@ function ResultContent(props: any) {
 
   // Tonnage
   const tonnage = useMemo(() => computeTonnage(payloadExercises), [payloadExercises]);
-  const history = useMemo(() => readHistory(), []);
+  const [history, setHistory] = useState(() => loadHistory());
+  useEffect(() => {
+    const reload = () => setHistory(loadHistory());
+    const onStorage = (e: StorageEvent) => { if (e.key === "history_sessions_v1") reload(); };
+    window.addEventListener("workout_saved", reload);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("workout_saved", reload);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const priorTonnage = useMemo(() => {
     const sorted = history.slice().sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
     const sessionId = result.sessionId ? String(result.sessionId) : null;
@@ -399,7 +392,7 @@ function ResultContent(props: any) {
     }
     const lastVolumeMap = new Map<string, {vol: number, reps: number}>();
     for (const session of pastSessions) {
-      const exs = session?.exercises ?? session?.items ?? [];
+      const exs = (session as any)?.exercises ?? session?.items ?? [];
       for (const ex of (Array.isArray(exs) ? exs : [])) {
         const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
         if (!key) continue;
@@ -441,18 +434,7 @@ function ResultContent(props: any) {
   const milestone = sessionNumber != null ? getMilestone(sessionNumber) : null;
 
   // Streak
-  const streak = useMemo(() => {
-    const sorted = history.slice().sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
-    let count = 0; let prevDate: string | null = null;
-    for (const session of sorted) {
-      const d = session.finishedAt ? new Date(session.finishedAt).toISOString().slice(0, 10) : null;
-      if (!d) continue;
-      if (prevDate === d) continue;
-      if (prevDate) { const diff = (new Date(prevDate).getTime() - new Date(d).getTime()) / (1000 * 60 * 60 * 24); if (diff > 7) break; }
-      prevDate = d; count++;
-    }
-    return count;
-  }, [history]);
+  const streak = useMemo(() => computeStreak(history), [history]);
 
   // Confetti
   const firedRef = useRef(false);
