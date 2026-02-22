@@ -538,10 +538,9 @@ export default function WorkoutCelebrate() {
           style={{
             ...s.metricsWrap,
             opacity: showMetrics ? 1 : 0,
-            transform: showMetrics ? "translateY(0)" : "translateY(-10px)",
-            transition: "opacity 350ms ease, transform 350ms ease",
+            transition: "opacity 180ms ease-out",
             pointerEvents: showMetrics ? "auto" : "none",
-            position: showMetrics ? "relative" : "absolute",
+            ...(showMetrics ? {} : { position: "absolute", visibility: "hidden" }),
           }}
         >
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
