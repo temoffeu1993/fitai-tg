@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Flame, Hourglass, Weight } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -56,7 +55,7 @@ function getCalorieAnalogy(kcal: number): string {
   return "Праздничный ужин — организм работал на полную мощность";
 }
 
-function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; trainingLocation?: string } {
+function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; trainingLocation?: string; minutesPerSession?: number } {
   try {
     const raw = localStorage.getItem("onb_summary");
     if (!raw) return {};
@@ -66,6 +65,7 @@ function readUserMeta(): { goal?: string; weightKg?: number; sex?: string; train
       weightKg: s?.body?.weight,
       sex: s?.ageSex?.sex,
       trainingLocation: s?.trainingPlace?.place,
+      minutesPerSession: s?.schedule?.minutesPerSession,
     };
   } catch {
     return {};
@@ -77,34 +77,39 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
   return Math.round(met * weightKg * (durMin / 60));
 }
 
-// ─── Percent Ring ─────────────────────────────────────────────────────────
+// ─── Activity Rings ───────────────────────────────────────────────────────
 
-function PercentRing({ value }: { value: number }) {
-  const SEGMENTS = 36;
-  const SIZE = 44;
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-  const outerR = 20;
-  const innerR = 14;
-  const filled = Math.round((Math.min(value, 100) / 100) * SEGMENTS);
+const RING_CFG = [
+  { outerR: 64, innerR: 57, color: "#1e1f22" },
+  { outerR: 49, innerR: 42, color: "#1e3a5f" },
+  { outerR: 34, innerR: 27, color: "#1a3a2a" },
+] as const;
+const SEGS = 36;
+const RING_SIZE = 140;
+const RING_CX = RING_SIZE / 2;
+const RING_CY = RING_SIZE / 2;
 
+function ActivityRings({ p1, p2, p3 }: { p1: number; p2: number; p3: number }) {
+  const pcts = [p1, p2, p3];
   return (
-    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ flexShrink: 0 }}>
-      {Array.from({ length: SEGMENTS }, (_, i) => {
-        const angle = (i / SEGMENTS) * 2 * Math.PI - Math.PI / 2;
-        const x1 = cx + innerR * Math.cos(angle);
-        const y1 = cy + innerR * Math.sin(angle);
-        const x2 = cx + outerR * Math.cos(angle);
-        const y2 = cy + outerR * Math.sin(angle);
-        return (
-          <line
-            key={i}
-            x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={i < filled ? "#1e1f22" : "rgba(15,23,42,0.12)"}
-            strokeWidth={2.8}
-            strokeLinecap="round"
-          />
-        );
+    <svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} style={{ flexShrink: 0 }}>
+      {RING_CFG.map(({ outerR, innerR, color }, ri) => {
+        const filled = Math.round((Math.min(pcts[ri], 100) / 100) * SEGS);
+        return Array.from({ length: SEGS }, (_, i) => {
+          const angle = (i / SEGS) * 2 * Math.PI - Math.PI / 2;
+          return (
+            <line
+              key={`${ri}-${i}`}
+              x1={RING_CX + innerR * Math.cos(angle)}
+              y1={RING_CY + innerR * Math.sin(angle)}
+              x2={RING_CX + outerR * Math.cos(angle)}
+              y2={RING_CY + outerR * Math.sin(angle)}
+              stroke={i < filled ? color : "rgba(15,23,42,0.10)"}
+              strokeWidth={2.8}
+              strokeLinecap="round"
+            />
+          );
+        });
       })}
     </svg>
   );
@@ -334,6 +339,9 @@ export default function WorkoutCelebrate() {
   const bodyWeightKg = userMeta.weightKg ?? (userMeta.sex === "female" ? 60 : 70);
   const calories = durMin > 0 ? estimateCalories(durMin, bodyWeightKg, tonnage > 0) : 0;
   const thirdValue = showCalories ? calories : tonnage;
+  const plannedMin = userMeta.minutesPerSession ?? 60;
+  const expectedCalories = estimateCalories(plannedMin, bodyWeightKg, tonnage > 0);
+  const TONNAGE_CAP = 1000;
 
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
@@ -366,6 +374,22 @@ export default function WorkoutCelebrate() {
     }
   });
 
+  const ring1Pct = count1;
+  const ring2Pct = plannedMin > 0 ? Math.min(100, Math.round((count2 / plannedMin) * 100)) : 0;
+  const ring3Pct = thirdValue > 0
+    ? (showCalories
+      ? Math.min(100, Math.round((count3 / expectedCalories) * 100))
+      : Math.min(100, Math.round((count3 / TONNAGE_CAP) * 100)))
+    : 0;
+
+  const currentSubtext = showSub3
+    ? (showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage))
+    : showSub2
+    ? "инвестировано в ваше здоровье"
+    : showSub1
+    ? percentSubtext
+    : null;
+
   const workoutNumberMatch = payload?.title?.match(/\d+/);
   const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
   const bubbleTarget = stage >= 1
@@ -390,49 +414,45 @@ export default function WorkoutCelebrate() {
           </div>
         </div>
 
-        {/* --- Metrics Grid --- */}
-        <div style={s.metricsWrap}>
-
-          <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.valueRow}>
-              <PercentRing value={count1} />
-              <span style={s.valueBig}>{count1}</span>
-              <span style={s.valuePercent}>%</span>
-              <span style={s.valueUnit}>выполнено</span>
-            </div>
-            <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
-              {percentSubtext}
+        {/* --- Activity Rings --- */}
+        <div style={s.ringsBlock} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
+          <div style={s.ringsRow}>
+            <ActivityRings p1={ring1Pct} p2={ring2Pct} p3={ring3Pct} />
+            <div style={s.ringsLegend}>
+              <div style={s.legendRow}>
+                <span style={{ ...s.legendDot, background: RING_CFG[0].color }} />
+                <div>
+                  <span style={s.legendValue}>{count1}</span>
+                  <span style={s.legendUnit}>%</span>
+                  <div style={s.legendLabel}>выполнено</div>
+                </div>
+              </div>
+              <div style={s.legendRow}>
+                <span style={{ ...s.legendDot, background: RING_CFG[1].color }} />
+                <div>
+                  <span style={s.legendValue}>{count2}</span>
+                  <span style={s.legendUnit}> {pluralizeMinutes(durMin)}</span>
+                  <div style={s.legendLabel}>из {plannedMin} плановых</div>
+                </div>
+              </div>
+              {thirdValue > 0 && (
+                <div style={s.legendRow}>
+                  <span style={{ ...s.legendDot, background: RING_CFG[2].color }} />
+                  <div>
+                    {showCalories && <span style={s.legendApprox}>~</span>}
+                    <span style={s.legendValue}>{count3.toLocaleString("ru-RU")}</span>
+                    <span style={s.legendUnit}> {showCalories ? "ккал" : "кг"}</span>
+                    <div style={s.legendLabel}>{showCalories ? "сожжено" : "суммарный тоннаж"}</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.valueRow}>
-              <Hourglass size={36} strokeWidth={2} style={s.metricIcon} />
-              <span style={s.valueBig}>{count2}</span>
-              <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
-            </div>
-            <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
-              инвестировано в ваше здоровье
-            </div>
-          </div>
-
-          {thirdValue > 0 && (
-            <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
-              <div style={s.valueRow}>
-                {showCalories
-                  ? <Flame size={36} strokeWidth={2} style={s.metricIcon} />
-                  : <Weight size={36} strokeWidth={2} style={s.metricIcon} />
-                }
-                {showCalories && <span style={s.valueApprox}>~</span>}
-                <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
-                <span style={s.valueUnit}>{showCalories ? "ккал" : "кг"}</span>
-              </div>
-              <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
-                {showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage)}
-              </div>
+          {currentSubtext && (
+            <div key={currentSubtext} style={s.ringsSubtext} className="onb-fade-soft">
+              {currentSubtext}
             </div>
           )}
-
         </div>
 
         <div style={{ height: 120 }} />
@@ -525,59 +545,71 @@ const s: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
     whiteSpace: "pre-line",
   },
-  metricsWrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
+  ringsBlock: {
     width: "100%",
-    paddingTop: 16,
-  },
-  summaryCard: {
-    position: "relative",
+    paddingTop: 12,
     display: "flex",
     flexDirection: "column",
-    gap: 4,
-    padding: "0 10px",
+    gap: 12,
   },
-  valueRow: {
+  ringsRow: {
     display: "flex",
+    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 20,
   },
-  metricIcon: {
+  ringsLegend: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    flex: 1,
+  },
+  legendRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
     flexShrink: 0,
-    color: "#1e1f22",
+    marginTop: 6,
   },
-  valueBig: {
-    fontSize: 44,
-    fontWeight: 900,
+  legendValue: {
+    fontSize: 28,
+    fontWeight: 800,
     color: "#1e1f22",
-    letterSpacing: "-0.04em",
+    letterSpacing: "-0.03em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
   },
-  valuePercent: {
-    fontSize: 28,
-    fontWeight: 900,
+  legendUnit: {
+    fontSize: 16,
+    fontWeight: 600,
     color: "#1e1f22",
+    lineHeight: 1,
   },
-  valueApprox: {
-    fontSize: 28,
-    fontWeight: 700,
+  legendApprox: {
+    fontSize: 16,
+    fontWeight: 600,
     color: "rgba(15,23,42,0.45)",
-    marginRight: -4,
+    marginRight: 1,
   },
-  valueUnit: {
-    fontSize: 28,
-    fontWeight: 900,
-    color: "#1e1f22",
+  legendLabel: {
+    fontSize: 12,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.50)",
+    lineHeight: 1.4,
+    marginTop: 2,
   },
-  // Exact SetEditorCard setIndexTextLayer style
-  subtext: {
+  ringsSubtext: {
     fontSize: 14,
     fontWeight: 400,
     lineHeight: 1.45,
-    color: "rgba(15, 23, 42, 0.62)",
+    color: "rgba(15,23,42,0.62)",
+    paddingLeft: 2,
   },
   footerFlow: {
     position: "fixed",
