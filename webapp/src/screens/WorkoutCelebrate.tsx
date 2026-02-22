@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Goal, Hourglass, Weight } from "lucide-react";
 import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 import { useTypewriterText } from "@/hooks/useTypewriterText";
@@ -323,7 +324,7 @@ export default function WorkoutCelebrate() {
 
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
-              <span style={s.metricEmoji}>🎯</span>
+              <Goal size={36} strokeWidth={2} style={s.metricIcon} />
               <span style={s.valueBig}>{count1}</span>
               <span style={s.valuePercent}>%</span>
               <span style={s.valueUnit}>выполнено</span>
@@ -335,7 +336,7 @@ export default function WorkoutCelebrate() {
 
           <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
-              <span style={s.metricEmoji}>💰</span>
+              <Hourglass size={36} strokeWidth={2} style={s.metricIcon} />
               <span style={s.valueBig}>{count2}</span>
               <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
             </div>
@@ -347,7 +348,7 @@ export default function WorkoutCelebrate() {
           {tonnage > 0 && (
             <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
               <div style={s.valueRow}>
-                <span style={s.metricEmoji}>💪</span>
+                <Weight size={36} strokeWidth={2} style={s.metricIcon} />
                 <span style={s.valueBig}>{count3.toLocaleString('ru-RU')}</span>
                 <span style={s.valueUnit}>кг</span>
               </div>
@@ -468,10 +469,9 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 8,
   },
-  metricEmoji: {
-    fontSize: 36,
-    lineHeight: 1,
+  metricIcon: {
     flexShrink: 0,
+    color: "#1e1f22",
   },
   valueBig: {
     fontSize: 44,
