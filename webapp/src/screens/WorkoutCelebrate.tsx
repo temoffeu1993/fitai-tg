@@ -155,13 +155,13 @@ function getWeekCompletedCount(history: HistorySession[]): number {
 }
 
 function getStreakBubbleText(streak: number): string {
-  if (streak <= 1) return "Первая тренировка — серия пошла! 🔥";
-  if (streak === 2) return "Два в серии! Не останавливайся!";
-  if (streak === 3) return "Три подряд — отличный старт! 💪";
-  if (streak <= 5) return "Серия растёт! Так держать!";
-  if (streak <= 10) return "Уже привычка. Горжусь тобой! 🔥";
-  if (streak <= 20) return "Настоящая машина! Без пропусков!";
-  return "Легенда! Ничто тебя не остановит!";
+  if (streak <= 1) return "Отличное начало. Каждая серия начинается с первого шага";
+  if (streak === 2) return "Две подряд. Это уже не случайность, а выбор";
+  if (streak === 3) return "Три без пропуска. Тело начинает привыкать";
+  if (streak <= 5) return "Серия растёт. Регулярность важнее интенсивности";
+  if (streak <= 10) return "Стабильный ритм. Привычка уже формируется";
+  if (streak <= 20) return "Впечатляющая дисциплина. Это уже часть твоей рутины";
+  return "Выдающаяся серия. Ты задал стандарт, который сложно превзойти";
 }
 
 // ─── Streak Chain Component ───────────────────────────────────────────────
@@ -173,8 +173,8 @@ const FILL_COLOR = "#1e1f22";
 const FILL_SHADOW =
   "inset 0 2px 3px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.15)";
 
-const CHAIN_HEIGHT = 28;
-const NODE_SIZE = 28;
+const CHAIN_HEIGHT = 14;
+const NODE_SIZE = 34;
 
 function StreakChain({
   total,
@@ -185,12 +185,12 @@ function StreakChain({
   completed: number;
   animateIdx: number;
 }) {
-  const trackTop = 8;
+  const trackTop = (NODE_SIZE - CHAIN_HEIGHT) / 2;
   const fillPct = completed > 0 ? completed / total : 0;
 
   return (
-    <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 16, marginTop: 8 }}>
-      {/* Groove track — full width */}
+    <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 8, marginTop: 8 }}>
+      {/* Groove track — full width, vertically centered */}
       <div
         style={{
           position: "absolute",
@@ -231,7 +231,7 @@ function StreakChain({
             style={{
               position: "absolute",
               left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
-              top: trackTop,
+              top: 0,
               width: NODE_SIZE,
               height: NODE_SIZE,
               borderRadius: "50%",
@@ -247,7 +247,7 @@ function StreakChain({
             {isFilled && (
               <span
                 className={isAnimating ? "streak-fire-pop" : ""}
-                style={{ fontSize: 14, lineHeight: 1 }}
+                style={{ fontSize: 16, lineHeight: 1 }}
               >
                 🔥
               </span>
@@ -255,8 +255,8 @@ function StreakChain({
             {!isFilled && (
               <span
                 style={{
-                  width: NODE_SIZE * 0.35,
-                  height: NODE_SIZE * 0.35,
+                  width: NODE_SIZE * 0.3,
+                  height: NODE_SIZE * 0.3,
                   borderRadius: "50%",
                   background: "rgba(15,23,42,0.06)",
                 }}
@@ -429,7 +429,8 @@ export default function WorkoutCelebrate() {
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
   const [streakAnimIdx, setStreakAnimIdx] = useState(-1);
-  const [streakCounterPulse, setStreakCounterPulse] = useState(false);
+  const [streakChainVisible, setStreakChainVisible] = useState(false);
+  const [streakCounterVisible, setStreakCounterVisible] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
 
   // Streak data
@@ -467,25 +468,32 @@ export default function WorkoutCelebrate() {
     };
   }, [payload]);
 
-  // Streak animation sequence (when stage becomes 6)
-  useEffect(() => {
-    if (stage !== 6) return;
-    // After a short delay, start the fill animation
-    const t1 = setTimeout(() => {
-      setStreakAnimIdx(chainCompleted - 1); // this triggers the fill
-    }, 400);
-    // After fill animation completes, pulse the counter
-    const t2 = setTimeout(() => {
-      setStreakCounterPulse(true);
+  // Streak animation: triggered when bubble typewriter finishes (via onStreakBubbleDone)
+  const streakAnimFired = useRef(false);
+  const onStreakBubbleDone = () => {
+    if (streakAnimFired.current) return;
+    streakAnimFired.current = true;
+    // Step 1: show chain + label, start fill
+    setTimeout(() => {
+      setStreakChainVisible(true);
+      fireHapticImpact("medium");
+    }, 300);
+    // Step 2: fill reaches node → fire pop
+    setTimeout(() => {
+      setStreakAnimIdx(chainCompleted - 1);
+      fireHapticImpact("heavy");
+    }, 600);
+    // Step 3: after fire pop → show counter
+    setTimeout(() => {
+      setStreakCounterVisible(true);
       fireHapticImpact("heavy");
     }, 1400);
-    // Make buttons visible
-    const t3 = setTimeout(() => {
+    // Step 4: done
+    setTimeout(() => {
       setStage(7);
       fireHapticImpact("light");
-    }, 2200);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [stage, chainCompleted]);
+    }, 2000);
+  };
 
   const goToStreak = () => {
     fireHapticImpact("medium");
@@ -538,7 +546,7 @@ export default function WorkoutCelebrate() {
   const count1 = useCounter(percent, stage >= 2, 700, () => {
     fireHapticImpact("heavy");
     setShowSub1(true);
-    setTimeout(() => { fireHapticImpact("medium"); setStage(3); }, 2000);
+    setTimeout(() => { fireHapticImpact("medium"); setStage(3); }, 800);
   });
 
   const count2 = useCounter(durMin, stage >= 3, 700, () => {
@@ -552,7 +560,7 @@ export default function WorkoutCelebrate() {
         setStage(5);
         fireHapticImpact("light");
       }
-    }, 2000);
+    }, 800);
   });
 
   const count3 = useCounter(thirdValue, stage >= 4, 800, () => {
@@ -562,7 +570,7 @@ export default function WorkoutCelebrate() {
       setTimeout(() => {
         setStage(5);
         fireHapticImpact("light");
-      }, 2000);
+      }, 800);
     }
   });
 
@@ -576,7 +584,11 @@ export default function WorkoutCelebrate() {
       ? (workoutNumber ? `Еее! Вы выполнили ${workoutNumber}-ю тренировку!` : "Еее! Вы выполнили тренировку!")
       : "")
     : getStreakBubbleText(streak);
-  const bubbleTyped = useTypewriterText(bubbleTarget, { charIntervalMs: 22, startDelayMs: 80 });
+  const bubbleTyped = useTypewriterText(bubbleTarget, {
+    charIntervalMs: 22,
+    startDelayMs: 80,
+    onComplete: isStreakPhase ? onStreakBubbleDone : undefined,
+  });
 
   const showMetrics = stage < 6;
   const showStreak = stage >= 6;
@@ -652,34 +664,28 @@ export default function WorkoutCelebrate() {
 
         {/* --- Streak Block (fades in at stage 6) --- */}
         {showStreak && (
-          <div style={s.streakWrap} className="onb-fade">
-            {/* Streak counter */}
-            <div style={s.streakCounter}>
-              <span
-                className={streakCounterPulse ? "streak-pulse" : ""}
-                style={s.streakEmoji}
-              >
-                🔥
-              </span>
-              <span
-                className={streakCounterPulse ? "streak-pulse" : ""}
-                style={s.streakNumber}
-              >
-                {streak}
-              </span>
-            </div>
-            <div style={s.streakLabel}>
-              {streak === 1 ? "тренировка подряд" : streak >= 2 && streak <= 4 ? "тренировки подряд" : "тренировок подряд"}
+          <div style={s.streakWrap}>
+            {/* Streak counter — appears after fire pop */}
+            <div
+              style={s.streakCounter}
+              className={streakCounterVisible ? "onb-fade" : "wc-hidden"}
+            >
+              <span className="streak-pulse" style={s.streakEmoji}>🔥</span>
+              <span className="streak-pulse" style={s.streakNumber}>{streak}</span>
             </div>
 
-            {/* Streak chain */}
-            <StreakChain
-              total={sessionsPerWeek}
-              completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
-              animateIdx={streakAnimIdx}
-            />
-            <div style={s.streakWeekLabel}>
-              {chainCompleted} из {sessionsPerWeek} на этой неделе
+            {/* Streak chain — appears after bubble typewriter */}
+            <div className={streakChainVisible ? "onb-fade" : "wc-hidden"}>
+              <StreakChain
+                total={sessionsPerWeek}
+                completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
+                animateIdx={streakAnimIdx}
+              />
+              <div style={s.streakWeekLabel}>
+                {streak <= 1
+                  ? "Начало серии. Не пропускай следующую"
+                  : `${streak} ${streak >= 2 && streak <= 4 ? "тренировки" : "тренировок"} без пропуска`}
+              </div>
             </div>
           </div>
         )}
@@ -853,13 +859,6 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.04em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
-  },
-  streakLabel: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.62)",
-    marginTop: 2,
-    marginBottom: 16,
   },
   streakWeekLabel: {
     fontSize: 14,

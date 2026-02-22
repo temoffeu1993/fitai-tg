@@ -1,18 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type TypewriterOptions = {
   charIntervalMs?: number;
   startDelayMs?: number;
   disabled?: boolean;
+  onComplete?: () => void;
 };
 
 export function useTypewriterText(
   target: string,
   options: TypewriterOptions = {}
 ): string {
-  const { charIntervalMs = 30, startDelayMs = 0, disabled = false } = options;
+  const { charIntervalMs = 30, startDelayMs = 0, disabled = false, onComplete } = options;
   const normalizedTarget = target || "";
   const [typed, setTyped] = useState<string>("");
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const prefersReduced =
@@ -21,6 +24,7 @@ export function useTypewriterText(
 
     if (disabled || prefersReduced) {
       setTyped(normalizedTarget);
+      if (normalizedTarget) onCompleteRef.current?.();
       return;
     }
 
@@ -40,6 +44,7 @@ export function useTypewriterText(
         if (index >= normalizedTarget.length && intervalId != null) {
           window.clearInterval(intervalId);
           intervalId = null;
+          onCompleteRef.current?.();
         }
       }, charIntervalMs);
     };
