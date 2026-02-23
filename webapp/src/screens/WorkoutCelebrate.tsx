@@ -93,7 +93,7 @@ function getStreakBubbleText(streak: number): string {
   return `${streak} без единого пропуска. Ты — машина`;
 }
 
-// ─── Streak Chain Component ───────────────────────────────────────────────
+// ─── Streak Panel Component ──────────────────────────────────────────────
 
 const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
 const GROOVE_SHADOW =
@@ -102,146 +102,221 @@ const FILL_COLOR = "#1e1f22";
 const FILL_SHADOW =
   "inset 0 2px 3px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.15)";
 
-const CHAIN_HEIGHT = 14;
-const NODE_SIZE = 34;
-
+const BAR_HEIGHT = 12;
 const FILL_DURATION_MS = 700;
+const NODE_MIN = 24;
+const NODE_MAX = 36;
+const NODE_GAP = 6;
 
 /**
- * StreakChain — 3 phases:
- *  "before"  → fill bar at `prev` width, target node empty
- *  "filling" → CSS animation grows bar from `prev` to `target`, flame runs along edge
- *  "done"    → fill bar at `target` width, target node pops with 🔥
+ * StreakPanel — 2-column layout:
+ *  Left:  fire icon groove + streak counter + label
+ *  Right: progress bar + workout circles
+ *
+ * Animation phases:
+ *  "before"  → bar at prev, circles at prev
+ *  "filling" → bar animates prev→target
+ *  "checked" → target circle gets checkmark pop
+ *  "fire"    → left fire icon pops
+ *  "counting" → streak number counts up 0→N
+ *  "done"    → all settled
  */
-function StreakChain({
+function StreakPanel({
   total,
   prev,
   target,
+  streak,
   phase,
-  onFillDone,
+  streakCount,
+  onBarDone,
 }: {
   total: number;
-  /** How many nodes were filled BEFORE this workout */
   prev: number;
-  /** How many nodes should be filled AFTER (including this workout) */
   target: number;
-  phase: "before" | "filling" | "done";
-  onFillDone?: () => void;
+  streak: number;
+  phase: "before" | "filling" | "checked" | "fire" | "counting" | "done";
+  /** Current animated streak value (from useCounter) */
+  streakCount: number;
+  onBarDone?: () => void;
 }) {
-  const trackTop = (NODE_SIZE - CHAIN_HEIGHT) / 2;
+  // Progress bar fill %
+  const prevPct = prev / total;
+  const targetPct = target / total;
+  const prevWidth = `${prevPct * 100}%`;
+  const targetWidth = `${targetPct * 100}%`;
+  const fillWidth = phase === "before" || phase === "filling" ? prevWidth : targetWidth;
 
-  // Width calculations
-  const prevPct = prev > 0 ? prev / total : 0;
-  const targetPct = target > 0 ? target / total : 0;
-  const prevWidth = prev > 0
-    ? `calc(${prevPct * 100}% + ${NODE_SIZE * (1 - prevPct)}px)`
-    : "0px";
-  const targetWidth = `calc(${targetPct * 100}% + ${NODE_SIZE * (1 - targetPct)}px)`;
+  // Adaptive node size: fill available width evenly
+  const rightRef = useRef<HTMLDivElement>(null);
+  const [nodeSize, setNodeSize] = useState(NODE_MAX);
+  useEffect(() => {
+    if (!rightRef.current) return;
+    const w = rightRef.current.offsetWidth;
+    const size = Math.min(NODE_MAX, Math.max(NODE_MIN, (w - NODE_GAP * (total - 1)) / total));
+    setNodeSize(Math.floor(size));
+  }, [total]);
 
-  // The visible fill width depends on phase
-  const fillWidth = phase === "done" ? targetWidth : prevWidth;
-
-  // Track animation completion
-  const onFillDoneRef = useRef(onFillDone);
-  onFillDoneRef.current = onFillDone;
+  // Bar animation done callback
+  const onBarDoneRef = useRef(onBarDone);
+  onBarDoneRef.current = onBarDone;
   useEffect(() => {
     if (phase !== "filling") return;
-    const t = setTimeout(() => onFillDoneRef.current?.(), FILL_DURATION_MS);
+    const t = setTimeout(() => onBarDoneRef.current?.(), FILL_DURATION_MS);
     return () => clearTimeout(t);
   }, [phase]);
 
+  const showFirePop = phase === "fire" || phase === "counting" || phase === "done";
+  const showCounter = phase === "counting" || phase === "done";
+
   return (
-    <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 8, marginTop: 8 }}>
-      {/* Groove track */}
-      <div
-        style={{
-          position: "absolute", left: 0, right: 0, top: trackTop,
-          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
-          background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
-        }}
-      />
-
-      {/* Single fill bar — static in "before" & "done", animated in "filling" */}
-      {phase === "filling" ? (
-        <div
-          className="streak-fill-grow"
-          style={{
-            position: "absolute", left: 0, top: trackTop,
-            height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
-            background: FILL_COLOR, boxShadow: FILL_SHADOW,
-            "--fill-from": prevWidth,
-            "--fill-to": targetWidth,
-          } as React.CSSProperties}
-        />
-      ) : (prev > 0 || phase === "done") && (
-        <div style={{
-          position: "absolute", left: 0, top: trackTop,
-          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
-          background: FILL_COLOR, boxShadow: FILL_SHADOW,
-          width: fillWidth,
-        }} />
-      )}
-
-      {/* Flame runner — only during filling phase */}
-      {phase === "filling" && (
+    <div style={sk.row}>
+      {/* ── Left: Fire groove block ── */}
+      <div style={sk.fireBlock}>
         <span
-          className="streak-flame-runner"
-          style={{
-            position: "absolute",
-            top: trackTop + CHAIN_HEIGHT / 2,
-            transform: "translate(-50%, -50%)",
-            fontSize: 20, lineHeight: 1,
-            zIndex: 5, pointerEvents: "none",
-            filter: "drop-shadow(0 0 6px rgba(255,160,0,0.7))",
-            "--runner-from": prevWidth,
-            "--runner-to": targetWidth,
-          } as React.CSSProperties}
+          className={showFirePop ? "streak-fire-pop" : "wc-hidden"}
+          style={{ fontSize: 40, lineHeight: 1 }}
         >
           🔥
         </span>
-      )}
+        <span
+          className={showCounter ? "onb-fade" : "wc-hidden"}
+          style={sk.fireNumber}
+        >
+          {streakCount}
+        </span>
+        <span
+          className={showCounter ? "onb-fade" : "wc-hidden"}
+          style={sk.fireLabel}
+        >
+          без пропуска
+        </span>
+      </div>
 
-      {/* Nodes */}
-      {Array.from({ length: total }, (_, i) => {
-        const pct = (i + 1) / total;
-        const isFilled = phase === "done"
-          ? i < target
-          : i < prev;
-        const justPopped = phase === "done" && i === target - 1 && target > prev;
-        return (
-          <div
-            key={i}
-            className={justPopped ? "streak-node-pop" : ""}
-            style={{
-              position: "absolute",
-              left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
-              top: 0, width: NODE_SIZE, height: NODE_SIZE, borderRadius: "50%",
-              background: isFilled ? FILL_COLOR : GROOVE_BG,
-              boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              zIndex: 2,
-            }}
-          >
-            {isFilled && (
-              <span
-                className={justPopped ? "streak-fire-pop" : ""}
-                style={{ fontSize: 16, lineHeight: 1 }}
+      {/* ── Right: Bar + Circles ── */}
+      <div style={sk.rightCol} ref={rightRef}>
+        <span style={sk.weekLabel}>Цель недели</span>
+
+        {/* Progress bar groove */}
+        <div style={sk.barGroove}>
+          {phase === "filling" ? (
+            <div
+              className="streak-fill-grow"
+              style={{
+                height: "100%", borderRadius: BAR_HEIGHT / 2,
+                background: FILL_COLOR, boxShadow: FILL_SHADOW,
+                "--fill-from": prevWidth,
+                "--fill-to": targetWidth,
+              } as React.CSSProperties}
+            />
+          ) : (
+            <div style={{
+              height: "100%", borderRadius: BAR_HEIGHT / 2,
+              background: FILL_COLOR, boxShadow: FILL_SHADOW,
+              width: fillWidth,
+              transition: phase === "before" ? "none" : "width 300ms ease",
+            }} />
+          )}
+        </div>
+
+        {/* Workout circles */}
+        <div style={{ display: "flex", gap: NODE_GAP, justifyContent: "center" }}>
+          {Array.from({ length: total }, (_, i) => {
+            const isFilled = i < (phase === "before" || phase === "filling" ? prev : target);
+            const justChecked = phase === "checked" && i === target - 1 && target > prev;
+            return (
+              <div
+                key={i}
+                className={justChecked ? "streak-node-pop" : ""}
+                style={{
+                  width: nodeSize, height: nodeSize, borderRadius: "50%",
+                  background: isFilled ? FILL_COLOR : GROOVE_BG,
+                  boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}
               >
-                🔥
-              </span>
-            )}
-            {!isFilled && (
-              <span style={{
-                width: NODE_SIZE * 0.3, height: NODE_SIZE * 0.3,
-                borderRadius: "50%", background: "rgba(15,23,42,0.06)",
-              }} />
-            )}
-          </div>
-        );
-      })}
+                {isFilled ? (
+                  <span
+                    className={justChecked ? "streak-check-pop" : ""}
+                    style={{ fontSize: Math.round(nodeSize * 0.48), lineHeight: 1, color: "#fff" }}
+                  >
+                    ✓
+                  </span>
+                ) : (
+                  <span style={{
+                    fontSize: Math.round(nodeSize * 0.36), fontWeight: 600,
+                    color: "rgba(15,23,42,0.25)", lineHeight: 1,
+                  }}>
+                    {i + 1}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
+
+const sk: Record<string, React.CSSProperties> = {
+  row: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    gap: 14,
+    alignItems: "center",
+    width: "100%",
+    padding: "0 4px",
+  },
+  fireBlock: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    width: 96,
+    minHeight: 96,
+    borderRadius: 20,
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
+    padding: "10px 6px",
+  },
+  fireNumber: {
+    fontSize: 32,
+    fontWeight: 900,
+    color: "#1e1f22",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
+    letterSpacing: "-0.03em",
+  },
+  fireLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.45)",
+    lineHeight: 1,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
+  },
+  rightCol: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  weekLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.45)",
+    letterSpacing: "0.02em",
+  },
+  barGroove: {
+    width: "100%",
+    height: BAR_HEIGHT,
+    borderRadius: BAR_HEIGHT / 2,
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
+    overflow: "hidden",
+  },
+};
 
 // ─── Number Counter Hook ──────────────────────────────────────────────────
 
@@ -402,9 +477,9 @@ export default function WorkoutCelebrate() {
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
-  const [streakFilling, setStreakFilling] = useState(false);
-  const [streakFillDone, setStreakFillDone] = useState(false);
-  const [streakCounterVisible, setStreakCounterVisible] = useState(false);
+  const [streakPhase, setStreakPhase] = useState<
+    "before" | "filling" | "checked" | "fire" | "counting" | "done"
+  >("before");
   const confettiRef = useRef<HTMLDivElement>(null);
 
   // Streak data
@@ -447,28 +522,33 @@ export default function WorkoutCelebrate() {
   const onStreakBubbleDone = () => {
     if (streakAnimFired.current) return;
     streakAnimFired.current = true;
-    // Step 1: start fill animation (flame runs along bar)
+    // Step 1: progress bar fills
     setTimeout(() => {
-      setStreakFilling(true);
+      setStreakPhase("filling");
       fireHapticImpact("heavy");
     }, 300);
   };
 
-  // Called when the fill animation completes (bar reached the target node)
-  const onChainFillDone = () => {
-    setStreakFilling(false);
-    setStreakFillDone(true);
+  // Step 2: bar done → checkmark pops in circle
+  const onBarFillDone = () => {
+    setStreakPhase("checked");
     fireHapticImpact("heavy");
-    // Show counter after node pop
+    // Step 3: fire icon pops
     setTimeout(() => {
-      setStreakCounterVisible(true);
+      setStreakPhase("fire");
       fireHapticImpact("heavy");
-    }, 400);
-    // Done
+    }, 500);
+    // Step 4: streak counter counts up
     setTimeout(() => {
+      setStreakPhase("counting");
+      fireHapticImpact("medium");
+    }, 900);
+    // Step 5: done
+    setTimeout(() => {
+      setStreakPhase("done");
       setStage(7);
       fireHapticImpact("light");
-    }, 900);
+    }, 1800);
   };
 
   const goToStreak = () => {
@@ -549,6 +629,8 @@ export default function WorkoutCelebrate() {
       }, 800);
     }
   });
+
+  const streakCounter = useCounter(streak, streakPhase === "counting" || streakPhase === "done", 600);
 
   const workoutNumber = history.length;
 
@@ -640,29 +722,16 @@ export default function WorkoutCelebrate() {
 
         {/* --- Streak Block (fades in at stage 6) --- */}
         {showStreak && (
-          <div style={s.streakWrap} className="onb-fade">
-            {/* Streak counter — appears after fire pop */}
-            <div
-              style={s.streakCounter}
-              className={streakCounterVisible ? "streak-counter-pop" : "wc-hidden"}
-            >
-              <span style={s.streakEmoji}>🔥</span>
-              <span style={s.streakNumber}>{streak}</span>
-            </div>
-
-            {/* Streak chain — visible immediately, fills after typewriter */}
-            <StreakChain
+          <div style={{ width: "100%", paddingTop: 16 }} className="onb-fade">
+            <StreakPanel
               total={sessionsPerWeek}
               prev={Math.max(0, chainCompleted - 1)}
               target={chainCompleted}
-              phase={streakFillDone ? "done" : streakFilling ? "filling" : "before"}
-              onFillDone={onChainFillDone}
+              streak={streak}
+              phase={streakPhase}
+              streakCount={streakCounter}
+              onBarDone={onBarFillDone}
             />
-            <div style={s.streakWeekLabel}>
-              {streak <= 1
-                ? "Начало серии. Не пропускай следующую"
-                : `${streak} ${streak >= 2 && streak <= 4 ? "тренировки" : "тренировок"} без пропуска`}
-            </div>
           </div>
         )}
 
@@ -810,39 +879,6 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.62)",
   },
-  // ── Streak ──
-  streakWrap: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 4,
-    width: "100%",
-    padding: "24px 20px 0",
-  },
-  streakCounter: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  streakEmoji: {
-    fontSize: 48,
-    lineHeight: 1,
-  },
-  streakNumber: {
-    fontSize: 64,
-    fontWeight: 900,
-    color: "#1e1f22",
-    letterSpacing: "-0.04em",
-    lineHeight: 1,
-    fontVariantNumeric: "tabular-nums",
-  },
-  streakWeekLabel: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.50)",
-    marginTop: 8,
-    textAlign: "center",
-  },
   // ── Footer ──
   footerFlow: {
     position: "fixed",
@@ -927,10 +963,10 @@ const css = `
   50% { transform: scale(1.4); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
-@keyframes streakCounterPop {
+@keyframes streakCheckPop {
   0% { transform: scale(0); opacity: 0; }
-  45% { transform: scale(1.35); opacity: 1; }
-  70% { transform: scale(0.92); opacity: 1; }
+  45% { transform: scale(1.6); opacity: 1; }
+  70% { transform: scale(0.9); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 @keyframes streakFillGrow {
@@ -967,8 +1003,8 @@ const css = `
 .streak-fire-pop {
   animation: streakFirePop 400ms cubic-bezier(0.22,1,0.36,1) both;
 }
-.streak-counter-pop {
-  animation: streakCounterPop 550ms cubic-bezier(0.22,1,0.36,1) both;
+.streak-check-pop {
+  animation: streakCheckPop 450ms cubic-bezier(0.22,1,0.36,1) both;
 }
 
 .wc-speech-bubble::before {
@@ -1004,7 +1040,7 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .onb-fade, .onb-fade-soft, .streak-node-pop, .streak-fire-pop,
-  .streak-counter-pop, .streak-fill-grow, .streak-flame-runner {
+  .streak-check-pop, .streak-fill-grow, .streak-flame-runner {
     animation: none !important;
   }
 }
