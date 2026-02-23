@@ -105,91 +105,133 @@ const FILL_SHADOW =
 const CHAIN_HEIGHT = 14;
 const NODE_SIZE = 34;
 
+const FILL_DURATION_MS = 700;
+
 function StreakChain({
   total,
   completed,
-  animateIdx,
+  animating,
+  onFillDone,
 }: {
   total: number;
   completed: number;
-  animateIdx: number;
+  /** true = play the fill animation from (completed-1) to completed */
+  animating: boolean;
+  onFillDone?: () => void;
 }) {
   const trackTop = (NODE_SIZE - CHAIN_HEIGHT) / 2;
-  const fillPct = completed > 0 ? completed / total : 0;
+
+  // Before animation: show previous state; after: show target state
+  const prevCompleted = Math.max(0, completed - 1);
+  const showCompleted = animating ? prevCompleted : completed;
+  const fillPct = showCompleted > 0 ? showCompleted / total : 0;
+
+  // Target fill width for animation end
+  const targetPct = completed > 0 ? completed / total : 0;
+
+  // CSS custom properties for the keyframe animation
+  const startWidth = showCompleted > 0
+    ? `calc(${fillPct * 100}% + ${NODE_SIZE * (1 - fillPct)}px)`
+    : "0px";
+  const endWidth = `calc(${targetPct * 100}% + ${NODE_SIZE * (1 - targetPct)}px)`;
+
+  // Track animation completion
+  const onFillDoneRef = useRef(onFillDone);
+  onFillDoneRef.current = onFillDone;
+  useEffect(() => {
+    if (!animating) return;
+    const t = setTimeout(() => onFillDoneRef.current?.(), FILL_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [animating]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 8, marginTop: 8 }}>
-      {/* Groove track — full width, vertically centered */}
+      {/* Groove track */}
       <div
         style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: trackTop,
-          height: CHAIN_HEIGHT,
-          borderRadius: CHAIN_HEIGHT / 2,
-          background: GROOVE_BG,
-          boxShadow: GROOVE_SHADOW,
+          position: "absolute", left: 0, right: 0, top: trackTop,
+          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
+          background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
         }}
       />
-      {/* Fill track — from left edge to right edge of last completed node */}
-      {completed > 0 && (
+
+      {/* Static fill (already completed nodes) */}
+      {showCompleted > 0 && (
+        <div style={{
+          position: "absolute", left: 0, top: trackTop,
+          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
+          background: FILL_COLOR, boxShadow: FILL_SHADOW,
+          width: startWidth,
+        }} />
+      )}
+
+      {/* Animated fill overlay — grows from prev to target */}
+      {animating && (
         <div
-          className="streak-fill-bar"
+          className="streak-fill-grow"
           style={{
-            position: "absolute",
-            left: 0,
-            top: trackTop,
-            height: CHAIN_HEIGHT,
-            borderRadius: CHAIN_HEIGHT / 2,
-            background: FILL_COLOR,
-            boxShadow: FILL_SHADOW,
-            width: `calc(${fillPct * 100}% + ${NODE_SIZE * (1 - fillPct)}px)`,
-            transition: "width 800ms cubic-bezier(0.22,1,0.36,1)",
-          }}
+            position: "absolute", left: 0, top: trackTop,
+            height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
+            background: FILL_COLOR, boxShadow: FILL_SHADOW,
+            // CSS variables for keyframe
+            "--fill-from": startWidth,
+            "--fill-to": endWidth,
+          } as React.CSSProperties}
         />
       )}
-      {/* Nodes — no node at left edge, last node at right edge */}
+
+      {/* Flame runner — moves along the leading edge of fill */}
+      {animating && (
+        <span
+          className="streak-flame-runner"
+          style={{
+            position: "absolute",
+            top: trackTop + CHAIN_HEIGHT / 2,
+            transform: "translate(-50%, -50%)",
+            fontSize: 20, lineHeight: 1,
+            zIndex: 5, pointerEvents: "none",
+            filter: "drop-shadow(0 0 6px rgba(255,160,0,0.7))",
+            "--runner-from": startWidth,
+            "--runner-to": endWidth,
+          } as React.CSSProperties}
+        >
+          🔥
+        </span>
+      )}
+
+      {/* Nodes */}
       {Array.from({ length: total }, (_, i) => {
-        const isFilled = i < completed;
-        const isAnimating = i === animateIdx;
         const pct = (i + 1) / total;
+        // Node fills when: already completed, OR it's the target node after animation finishes
+        const isFilled = i < showCompleted || (!animating && i < completed);
+        const justFilled = !animating && i === completed - 1 && completed > prevCompleted;
         return (
           <div
             key={i}
             style={{
               position: "absolute",
               left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
-              top: 0,
-              width: NODE_SIZE,
-              height: NODE_SIZE,
-              borderRadius: "50%",
+              top: 0, width: NODE_SIZE, height: NODE_SIZE, borderRadius: "50%",
               background: isFilled ? FILL_COLOR : GROOVE_BG,
               boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              display: "flex", alignItems: "center", justifyContent: "center",
               zIndex: 2,
-              transition: "background 300ms ease, box-shadow 300ms ease",
+              transition: isFilled ? "none" : "background 300ms ease, box-shadow 300ms ease",
             }}
           >
             {isFilled && (
               <span
-                className={isAnimating ? "streak-fire-pop" : ""}
+                className={justFilled ? "streak-fire-pop" : ""}
                 style={{ fontSize: 16, lineHeight: 1 }}
               >
                 🔥
               </span>
             )}
             {!isFilled && (
-              <span
-                style={{
-                  width: NODE_SIZE * 0.3,
-                  height: NODE_SIZE * 0.3,
-                  borderRadius: "50%",
-                  background: "rgba(15,23,42,0.06)",
-                }}
-              />
+              <span style={{
+                width: NODE_SIZE * 0.3, height: NODE_SIZE * 0.3,
+                borderRadius: "50%", background: "rgba(15,23,42,0.06)",
+              }} />
             )}
           </div>
         );
@@ -357,7 +399,8 @@ export default function WorkoutCelebrate() {
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
-  const [streakAnimIdx, setStreakAnimIdx] = useState(-1);
+  const [streakFilling, setStreakFilling] = useState(false);
+  const [streakFillDone, setStreakFillDone] = useState(false);
   const [streakCounterVisible, setStreakCounterVisible] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
 
@@ -401,21 +444,28 @@ export default function WorkoutCelebrate() {
   const onStreakBubbleDone = () => {
     if (streakAnimFired.current) return;
     streakAnimFired.current = true;
-    // Step 1: start fill
+    // Step 1: start fill animation (flame runs along bar)
     setTimeout(() => {
-      setStreakAnimIdx(chainCompleted - 1);
+      setStreakFilling(true);
       fireHapticImpact("heavy");
     }, 300);
-    // Step 2: after fire pop → show counter
+  };
+
+  // Called when the fill animation completes (bar reached the target node)
+  const onChainFillDone = () => {
+    setStreakFilling(false);
+    setStreakFillDone(true);
+    fireHapticImpact("heavy");
+    // Show counter after node pop
     setTimeout(() => {
       setStreakCounterVisible(true);
       fireHapticImpact("heavy");
-    }, 1100);
-    // Step 3: done
+    }, 400);
+    // Done
     setTimeout(() => {
       setStage(7);
       fireHapticImpact("light");
-    }, 1600);
+    }, 900);
   };
 
   const goToStreak = () => {
@@ -599,8 +649,9 @@ export default function WorkoutCelebrate() {
             {/* Streak chain — visible immediately, fills after typewriter */}
             <StreakChain
               total={sessionsPerWeek}
-              completed={streakAnimIdx >= 0 ? chainCompleted : Math.max(0, chainCompleted - 1)}
-              animateIdx={streakAnimIdx}
+              completed={streakFillDone ? chainCompleted : chainCompleted}
+              animating={streakFilling}
+              onFillDone={onChainFillDone}
             />
             <div style={s.streakWeekLabel}>
               {streak <= 1
@@ -620,8 +671,8 @@ export default function WorkoutCelebrate() {
             className="checkin-primary-btn"
             style={{
               ...s.primaryBtn,
-              opacity: (stage >= 5 && stage < 6) || stage >= 7 ? 1 : 0,
-              pointerEvents: (stage >= 5 && stage < 6) || stage >= 7 ? "auto" : "none",
+              opacity: stage >= 5 ? 1 : 0,
+              pointerEvents: stage >= 5 ? "auto" : "none",
             }}
             onClick={stage >= 7 ? goToResult : goToStreak}
           >
@@ -870,6 +921,22 @@ const css = `
   50% { transform: scale(1.4); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes streakFillGrow {
+  0% { width: var(--fill-from); }
+  100% { width: var(--fill-to); }
+}
+@keyframes streakFlameRun {
+  0% { left: var(--runner-from); opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: var(--runner-to); opacity: 0; }
+}
+
+.streak-fill-grow {
+  animation: streakFillGrow 700ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.streak-flame-runner {
+  animation: streakFlameRun 700ms cubic-bezier(0.22,1,0.36,1) both;
+}
 
 .onb-fade {
   animation: onbFadeUp 520ms ease-out both;
@@ -921,7 +988,8 @@ const css = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .onb-fade, .onb-fade-soft, .streak-pulse, .streak-fire-pop {
+  .onb-fade, .onb-fade-soft, .streak-pulse, .streak-fire-pop,
+  .streak-fill-grow, .streak-flame-runner {
     animation: none !important;
   }
 }
