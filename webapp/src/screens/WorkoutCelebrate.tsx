@@ -107,42 +107,48 @@ const NODE_SIZE = 34;
 
 const FILL_DURATION_MS = 700;
 
+/**
+ * StreakChain — 3 phases:
+ *  "before"  → fill bar at `prev` width, target node empty
+ *  "filling" → CSS animation grows bar from `prev` to `target`, flame runs along edge
+ *  "done"    → fill bar at `target` width, target node pops with 🔥
+ */
 function StreakChain({
   total,
-  completed,
-  animating,
+  prev,
+  target,
+  phase,
   onFillDone,
 }: {
   total: number;
-  completed: number;
-  /** true = play the fill animation from (completed-1) to completed */
-  animating: boolean;
+  /** How many nodes were filled BEFORE this workout */
+  prev: number;
+  /** How many nodes should be filled AFTER (including this workout) */
+  target: number;
+  phase: "before" | "filling" | "done";
   onFillDone?: () => void;
 }) {
   const trackTop = (NODE_SIZE - CHAIN_HEIGHT) / 2;
 
-  // Before animation: show previous state; after: show target state
-  const prevCompleted = Math.max(0, completed - 1);
-  const showCompleted = animating ? prevCompleted : completed;
-  const fillPct = showCompleted > 0 ? showCompleted / total : 0;
-
-  // Target fill width for animation end
-  const targetPct = completed > 0 ? completed / total : 0;
-
-  // CSS custom properties for the keyframe animation
-  const startWidth = showCompleted > 0
-    ? `calc(${fillPct * 100}% + ${NODE_SIZE * (1 - fillPct)}px)`
+  // Width calculations
+  const prevPct = prev > 0 ? prev / total : 0;
+  const targetPct = target > 0 ? target / total : 0;
+  const prevWidth = prev > 0
+    ? `calc(${prevPct * 100}% + ${NODE_SIZE * (1 - prevPct)}px)`
     : "0px";
-  const endWidth = `calc(${targetPct * 100}% + ${NODE_SIZE * (1 - targetPct)}px)`;
+  const targetWidth = `calc(${targetPct * 100}% + ${NODE_SIZE * (1 - targetPct)}px)`;
+
+  // The visible fill width depends on phase
+  const fillWidth = phase === "done" ? targetWidth : prevWidth;
 
   // Track animation completion
   const onFillDoneRef = useRef(onFillDone);
   onFillDoneRef.current = onFillDone;
   useEffect(() => {
-    if (!animating) return;
+    if (phase !== "filling") return;
     const t = setTimeout(() => onFillDoneRef.current?.(), FILL_DURATION_MS);
     return () => clearTimeout(t);
-  }, [animating]);
+  }, [phase]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: NODE_SIZE + 8, marginTop: 8 }}>
@@ -155,33 +161,29 @@ function StreakChain({
         }}
       />
 
-      {/* Static fill (already completed nodes) */}
-      {showCompleted > 0 && (
-        <div style={{
-          position: "absolute", left: 0, top: trackTop,
-          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
-          background: FILL_COLOR, boxShadow: FILL_SHADOW,
-          width: startWidth,
-        }} />
-      )}
-
-      {/* Animated fill overlay — grows from prev to target */}
-      {animating && (
+      {/* Single fill bar — static in "before" & "done", animated in "filling" */}
+      {phase === "filling" ? (
         <div
           className="streak-fill-grow"
           style={{
             position: "absolute", left: 0, top: trackTop,
             height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
             background: FILL_COLOR, boxShadow: FILL_SHADOW,
-            // CSS variables for keyframe
-            "--fill-from": startWidth,
-            "--fill-to": endWidth,
+            "--fill-from": prevWidth,
+            "--fill-to": targetWidth,
           } as React.CSSProperties}
         />
+      ) : (prev > 0 || phase === "done") && (
+        <div style={{
+          position: "absolute", left: 0, top: trackTop,
+          height: CHAIN_HEIGHT, borderRadius: CHAIN_HEIGHT / 2,
+          background: FILL_COLOR, boxShadow: FILL_SHADOW,
+          width: fillWidth,
+        }} />
       )}
 
-      {/* Flame runner — moves along the leading edge of fill */}
-      {animating && (
+      {/* Flame runner — only during filling phase */}
+      {phase === "filling" && (
         <span
           className="streak-flame-runner"
           style={{
@@ -191,8 +193,8 @@ function StreakChain({
             fontSize: 20, lineHeight: 1,
             zIndex: 5, pointerEvents: "none",
             filter: "drop-shadow(0 0 6px rgba(255,160,0,0.7))",
-            "--runner-from": startWidth,
-            "--runner-to": endWidth,
+            "--runner-from": prevWidth,
+            "--runner-to": targetWidth,
           } as React.CSSProperties}
         >
           🔥
@@ -202,13 +204,14 @@ function StreakChain({
       {/* Nodes */}
       {Array.from({ length: total }, (_, i) => {
         const pct = (i + 1) / total;
-        // Node fills when: already completed, OR it's the target node after animation finishes
-        const isFilled = i < showCompleted || (!animating && i < completed);
-        const justFilled = !animating && i === completed - 1 && completed > prevCompleted;
+        const isFilled = phase === "done"
+          ? i < target
+          : i < prev;
+        const justPopped = phase === "done" && i === target - 1 && target > prev;
         return (
           <div
             key={i}
-            className={justFilled ? "streak-node-pop" : ""}
+            className={justPopped ? "streak-node-pop" : ""}
             style={{
               position: "absolute",
               left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
@@ -217,12 +220,11 @@ function StreakChain({
               boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
               display: "flex", alignItems: "center", justifyContent: "center",
               zIndex: 2,
-              transition: isFilled ? "none" : "background 300ms ease, box-shadow 300ms ease",
             }}
           >
             {isFilled && (
               <span
-                className={justFilled ? "streak-fire-pop" : ""}
+                className={justPopped ? "streak-fire-pop" : ""}
                 style={{ fontSize: 16, lineHeight: 1 }}
               >
                 🔥
@@ -651,8 +653,9 @@ export default function WorkoutCelebrate() {
             {/* Streak chain — visible immediately, fills after typewriter */}
             <StreakChain
               total={sessionsPerWeek}
-              completed={streakFillDone ? chainCompleted : chainCompleted}
-              animating={streakFilling}
+              prev={Math.max(0, chainCompleted - 1)}
+              target={chainCompleted}
+              phase={streakFillDone ? "done" : streakFilling ? "filling" : "before"}
               onFillDone={onChainFillDone}
             />
             <div style={s.streakWeekLabel}>

@@ -113,18 +113,16 @@ function sessionDate(s: { finishedAt?: string; completedAt?: string; date?: stri
 const MAX_GAP_DAYS = 8; // allow up to 8 days gap (weekly + 1 day buffer)
 
 /**
- * Count consecutive workout sessions (unique dates, newest-first).
- * A gap of more than MAX_GAP_DAYS between two consecutive workout dates breaks the streak.
+ * Count consecutive workout sessions (newest-first).
+ * Each session counts as +1 (even multiple per day).
+ * A gap of more than MAX_GAP_DAYS between two consecutive sessions breaks the streak.
  */
 export function computeStreak(history: HistSession[]): number {
-  // Collect unique dates, sorted newest → oldest
-  const dates = Array.from(
-    new Set(
-      history
-        .map(sessionDate)
-        .filter((d): d is string => d !== null)
-    )
-  ).sort((a, b) => b.localeCompare(a));
+  // All session dates, sorted newest → oldest (keeps duplicates for same-day sessions)
+  const dates = history
+    .map(sessionDate)
+    .filter((d): d is string => d !== null)
+    .sort((a, b) => b.localeCompare(a));
 
   if (dates.length === 0) return 0;
 
@@ -191,17 +189,17 @@ export function getWeekCompletedCount(history: HistSession[]): number {
   const planCompleted = thisWeekWorkouts(readPlannedWorkouts())
     .filter((w: any) => w.status === "completed").length;
 
-  // Also count unique history dates this week (Mon–Sun)
+  // Also count history sessions this week (Mon–Sun), not unique dates
   const mondayStr = currentWeekMondayStr();
   const sundayStr = currentWeekSundayStr();
-  const dates = new Set<string>();
+  let historyCount = 0;
   for (const h of history) {
     const d = sessionDate(h);
     if (!d) continue;
-    if (d >= mondayStr && d <= sundayStr) dates.add(d);
+    if (d >= mondayStr && d <= sundayStr) historyCount++;
   }
 
-  return Math.max(planCompleted, dates.size);
+  return Math.max(planCompleted, historyCount);
 }
 
 /**
