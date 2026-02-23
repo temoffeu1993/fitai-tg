@@ -84,13 +84,13 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
 }
 
 function getStreakBubbleText(streak: number): string {
-  if (streak <= 1) return "Отличное начало. Каждая серия начинается с первого шага";
-  if (streak === 2) return "Две подряд. Это уже не случайность, а выбор";
-  if (streak === 3) return "Три без пропуска. Тело начинает привыкать";
-  if (streak <= 5) return "Серия растёт. Регулярность важнее интенсивности";
-  if (streak <= 10) return "Стабильный ритм. Привычка уже формируется";
-  if (streak <= 20) return "Впечатляющая дисциплина. Это уже часть твоей рутины";
-  return "Выдающаяся серия. Ты задал стандарт, который сложно превзойти";
+  if (streak <= 1) return "Одна тренировка без пропуска — с чего-то надо начинать. Не сбавляй";
+  if (streak === 2) return "Две тренировки подряд без пропуска. Разогрев засчитан";
+  if (streak === 3) return "Три без пропуска — тело втягивается быстрее, чем ты думаешь";
+  if (streak <= 5) return `Уже ${streak} подряд без пропуска. Лень нервничает — так и надо`;
+  if (streak <= 10) return `${streak} тренировок без пропуска. Это уже не усилие, а привычка`;
+  if (streak <= 20) return `${streak} подряд — большинство сдаётся гораздо раньше. Уважение`;
+  return `${streak} без единого пропуска. Ты — машина`;
 }
 
 // ─── Streak Chain Component ───────────────────────────────────────────────
@@ -548,14 +548,15 @@ export default function WorkoutCelebrate() {
     }
   });
 
-  const workoutNumberMatch = payload?.title?.match(/\d+/);
-  const workoutNumber = workoutNumberMatch ? workoutNumberMatch[0] : "";
+  const workoutNumber = history.length;
 
   // Bubble text changes depending on phase
   const isStreakPhase = stage >= 6;
   const bubbleTarget = !isStreakPhase
     ? (stage >= 1
-      ? (workoutNumber ? `Еее! Вы выполнили ${workoutNumber}-ю тренировку!` : "Еее! Вы выполнили тренировку!")
+      ? (workoutNumber === 1
+        ? "Еее! Первая тренировка в копилке!"
+        : `Еее! ${workoutNumber}-я тренировка в копилке!`)
       : "")
     : getStreakBubbleText(streak);
   const bubbleTyped = useTypewriterText(bubbleTarget, {
