@@ -208,6 +208,7 @@ function StreakChain({
         return (
           <div
             key={i}
+            className={justFilled ? "streak-node-pop" : ""}
             style={{
               position: "absolute",
               left: `calc(${pct * 100}% - ${pct * NODE_SIZE}px)`,
@@ -640,10 +641,10 @@ export default function WorkoutCelebrate() {
             {/* Streak counter — appears after fire pop */}
             <div
               style={s.streakCounter}
-              className={streakCounterVisible ? "onb-fade" : "wc-hidden"}
+              className={streakCounterVisible ? "streak-counter-pop" : "wc-hidden"}
             >
-              <span className="streak-pulse" style={s.streakEmoji}>🔥</span>
-              <span className="streak-pulse" style={s.streakNumber}>{streak}</span>
+              <span style={s.streakEmoji}>🔥</span>
+              <span style={s.streakNumber}>{streak}</span>
             </div>
 
             {/* Streak chain — visible immediately, fills after typewriter */}
@@ -911,14 +912,21 @@ const css = `
   0% { opacity: 0; }
   100% { opacity: 1; }
 }
-@keyframes streakPulse {
+@keyframes streakNodePop {
   0% { transform: scale(1); }
-  30% { transform: scale(1.3); }
+  40% { transform: scale(1.55); }
+  70% { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 @keyframes streakFirePop {
   0% { transform: scale(0); opacity: 0; }
   50% { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes streakCounterPop {
+  0% { transform: scale(0); opacity: 0; }
+  45% { transform: scale(1.35); opacity: 1; }
+  70% { transform: scale(0.92); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 @keyframes streakFillGrow {
@@ -949,11 +957,14 @@ const css = `
   pointer-events: none;
 }
 
-.streak-pulse {
-  animation: streakPulse 500ms cubic-bezier(0.22,1,0.36,1) both;
+.streak-node-pop {
+  animation: streakNodePop 500ms cubic-bezier(0.22,1,0.36,1) both;
 }
 .streak-fire-pop {
   animation: streakFirePop 400ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.streak-counter-pop {
+  animation: streakCounterPop 550ms cubic-bezier(0.22,1,0.36,1) both;
 }
 
 .wc-speech-bubble::before {
@@ -988,8 +999,8 @@ const css = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .onb-fade, .onb-fade-soft, .streak-pulse, .streak-fire-pop,
-  .streak-fill-grow, .streak-flame-runner {
+  .onb-fade, .onb-fade-soft, .streak-node-pop, .streak-fire-pop,
+  .streak-counter-pop, .streak-fill-grow, .streak-flame-runner {
     animation: none !important;
   }
 }
