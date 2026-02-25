@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import mascotImg from "@/assets/robonew.webp";
+import morobotImg from "@/assets/morobot.webp";
 import { fireHapticImpact } from "@/utils/haptics";
+import { useTypewriterText } from "@/hooks/useTypewriterText";
 import {
   loadHistory,
   getWeekCompletedCount,
@@ -112,7 +113,6 @@ function WeeklyGoalPanel({
   completedDays: Set<number>;
   onBarDone?: () => void;
 }) {
-  // Progress bar fill %
   const prevPct = prev / total;
   const targetPct = target / total;
   const prevWidth = `${prevPct * 100}%`;
@@ -120,7 +120,6 @@ function WeeklyGoalPanel({
   const fillWidth = phase === "before" || phase === "filling" ? prevWidth : targetWidth;
   const displayTarget = phase === "before" || phase === "filling" ? prev : target;
 
-  // Adaptive day dot size
   const rightRef = useRef<HTMLDivElement>(null);
   const [dotSize, setDotSize] = useState(28);
   useEffect(() => {
@@ -130,10 +129,8 @@ function WeeklyGoalPanel({
     setDotSize(size);
   }, []);
 
-  // Which day just got checked (the current day of the week)
   const todayIso = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
-  // Bar animation done callback
   const onBarDoneRef = useRef(onBarDone);
   onBarDoneRef.current = onBarDone;
   useEffect(() => {
@@ -148,7 +145,6 @@ function WeeklyGoalPanel({
 
   return (
     <div style={sk.row}>
-      {/* ── Left: Workout count groove block ── */}
       <div style={sk.fireBlock}>
         <div style={sk.fireRow}>
           <span
@@ -172,11 +168,9 @@ function WeeklyGoalPanel({
         </span>
       </div>
 
-      {/* ── Right: Bar + Day dots ── */}
       <div style={sk.rightCol} ref={rightRef}>
         <span style={sk.weekLabel}>Цель недели</span>
 
-        {/* Progress bar groove with text inside */}
         <div style={sk.barGroove}>
           {phase === "filling" ? (
             <div
@@ -196,11 +190,9 @@ function WeeklyGoalPanel({
               transition: phase === "before" ? "none" : "width 300ms ease",
             }} />
           )}
-          {/* Dark text for unfilled area */}
           <span style={{ ...sk.barText, color: "rgba(15,23,42,0.55)" }}>
             {displayTarget}/{total} тренировок
           </span>
-          {/* White text clipped to filled area */}
           <span style={{
             ...sk.barText,
             color: "#fff",
@@ -211,7 +203,6 @@ function WeeklyGoalPanel({
           </span>
         </div>
 
-        {/* 7 day dots (Пн–Вс) */}
         <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
           {DAY_LABELS.map((label, i) => {
             const wasDone = completedDays.has(i) && i !== todayIso;
@@ -365,11 +356,8 @@ function useCounter(
       if (!startTimeRef.current) startTimeRef.current = now;
       const elapsed = now - startTimeRef.current;
       const progress = Math.min(1, elapsed / durationMs);
-
       const easing = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-
       setValue(Math.round(target * easing));
-
       if (progress < 1) {
         rafId = requestAnimationFrame(tick);
       } else {
@@ -379,7 +367,6 @@ function useCounter(
       }
     };
     rafId = requestAnimationFrame(tick);
-
     return () => cancelAnimationFrame(rafId);
   }, [target, active, durationMs]);
 
@@ -473,14 +460,19 @@ function spawnConfetti(container: HTMLDivElement) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
-// Single-screen layout:
+// Two-step flow:
+//
+// STEP 1: Mascot + bubble + metrics
 // 0 = initial
-// 1 = header (avatar + text) + confetti
-// 2 = first metric (%)
-// 3 = duration counter
-// 4 = volume counter
-// 5 = weekly goal panel appears + bar fills
-// 6 = all done, "Далее" visible
+// 1 = mascot + bubble ("Еее! Тренировка выполнена!") + confetti
+// 2 = % metric
+// 3 = time metric
+// 4 = kg/kcal metric
+// 5 = "Далее" visible
+//
+// STEP 2: Mascot centered + bubble + weekly goal panel
+// 6 = transition to step 2, new bubble, panel appears
+// 7 = goal panel animation done, "Далее" visible
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
@@ -505,17 +497,17 @@ export default function WorkoutCelebrate() {
   const completedDays = useMemo(() => getWeekCompletedDays(history), [history]);
   const workoutNumber = history.length;
 
+  const isStep2 = stage >= 6;
+
   useLayoutEffect(() => {
     const root = document.getElementById("root");
     if (root) root.scrollTop = 0;
     window.scrollTo(0, 0);
   }, []);
 
-  // Main animation sequence
+  // Step 1 animation
   useEffect(() => {
     if (!payload) return;
-
-    // Stage 1: header + confetti
     const t1 = setTimeout(() => {
       setStage(1);
       fireHapticImpact("heavy");
@@ -524,25 +516,20 @@ export default function WorkoutCelebrate() {
         spawnConfetti(confettiRef.current);
       }
     }, 400);
-
-    // Stage 2: first metric (%)
     const t2 = setTimeout(() => {
       setStage(2);
       fireHapticImpact("medium");
-    }, 1400);
-
-    return () => {
-      clearTimeout(t1); clearTimeout(t2);
-    };
+    }, 1800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [payload]);
 
-  // Start bar fill when weekly goal panel appears (stage 5)
+  // Step 2: start bar fill after panel appears
   useEffect(() => {
-    if (stage !== 5) return;
+    if (stage !== 6) return;
     const t = setTimeout(() => {
       setGoalPhase("filling");
       fireHapticImpact("heavy");
-    }, 600);
+    }, 800);
     return () => clearTimeout(t);
   }, [stage]);
 
@@ -560,9 +547,14 @@ export default function WorkoutCelebrate() {
     }, 700);
     setTimeout(() => {
       setGoalPhase("done");
-      setStage(6);
+      setStage(7);
       fireHapticImpact("light");
     }, 1400);
+  };
+
+  const goToStep2 = () => {
+    fireHapticImpact("medium");
+    setStage(6);
   };
 
   const goToResult = () => {
@@ -571,14 +563,10 @@ export default function WorkoutCelebrate() {
   };
 
   useEffect(() => {
-    if (!payload) {
-      nav("/", { replace: true });
-    }
+    if (!payload) nav("/", { replace: true });
   }, [payload, nav]);
 
-  if (!payload) {
-    return null;
-  }
+  if (!payload) return null;
 
   let totalSets = 0;
   let doneSets = 0;
@@ -590,9 +578,7 @@ export default function WorkoutCelebrate() {
       totalSets++;
       if (set.done) {
         doneSets++;
-        if (set.reps && set.weight) {
-          totalVolume += set.reps * set.weight;
-        }
+        if (set.reps && set.weight) totalVolume += set.reps * set.weight;
       }
     }
   }
@@ -622,7 +608,6 @@ export default function WorkoutCelebrate() {
         fireHapticImpact("medium");
         setStage(4);
       } else {
-        // No third metric → go straight to weekly goal
         setStage(5);
         fireHapticImpact("light");
       }
@@ -634,7 +619,6 @@ export default function WorkoutCelebrate() {
       fireHapticImpact("heavy");
       setShowSub3(true);
       setTimeout(() => {
-        // Metrics done → show weekly goal panel
         setStage(5);
         fireHapticImpact("light");
       }, 800);
@@ -643,106 +627,140 @@ export default function WorkoutCelebrate() {
 
   const workoutCountAnimated = useCounter(workoutNumber, goalPhase === "counting" || goalPhase === "done", 600);
 
-  const headerMain = "Еее!";
-  const headerSub = "Тренировка выполнена";
+  // Bubble text
+  const step1Bubble = percent >= 90
+    ? "Вот это я понимаю, уровень!"
+    : percent >= 50
+      ? "Хорошо позанимались, респект"
+      : "Пришли и сделали — это главное";
+
+  const step2Bubble = chainCompleted >= sessionsPerWeek
+    ? "Неделя закрыта!"
+    : chainCompleted === sessionsPerWeek - 1
+      ? "Ещё одна и цель!"
+      : workoutNumber === 1
+        ? "Первый шаг сделан!"
+        : chainCompleted === 1
+          ? "Неделя началась!"
+          : "Идём по плану!";
+
+  const bubbleTarget = isStep2
+    ? step2Bubble
+    : (stage >= 1 ? step1Bubble : "");
+  const bubbleTyped = useTypewriterText(bubbleTarget, {
+    charIntervalMs: 22,
+    startDelayMs: 80,
+  });
+
+  const showStep1 = !isStep2;
+  const showStep2 = isStep2;
 
   return (
     <>
       <style>{css}</style>
-
-      {/* --- Confetti layer --- */}
       <div ref={confettiRef} style={s.confettiLayer} />
 
-      <div style={s.page}>
+      {/* ═══ STEP 1: Mascot + Bubble + Metrics ═══ */}
+      {showStep1 && (
+        <div style={s.page}>
+          {/* Mascot + Bubble */}
+          <div style={s.mascotRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
+            <img src={morobotImg} alt="" style={s.mascotImg} loading="eager" decoding="async" />
+            <div style={s.bubble} className="wc-speech-bubble">
+              <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
+            </div>
+          </div>
 
-        {/* --- Header: Avatar + Text (two lines like Dashboard) --- */}
-        <div style={s.headerRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
-          <div style={s.avatarCircle}>
-            <img
-              src={mascotImg}
-              alt="Моро"
-              style={s.avatarImg}
-              loading="eager"
-              decoding="async"
-              draggable={false}
+          {/* Metrics */}
+          <div style={s.metricsWrap}>
+            <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
+              <div style={s.valueRow}>
+                <span style={s.metricEmoji}>🎯</span>
+                <span style={s.valueBig}>{count1}</span>
+                <span style={s.valuePercent}>%</span>
+                <span style={s.valueUnit}>выполнено</span>
+              </div>
+              <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
+                {percentSubtext}
+              </div>
+            </div>
+
+            <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
+              <div style={s.valueRow}>
+                <span style={s.metricEmoji}>💰</span>
+                <span style={s.valueBig}>{count2}</span>
+                <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
+              </div>
+              <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
+                инвестировано в ваше здоровье
+              </div>
+            </div>
+
+            {thirdValue > 0 && (
+              <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
+                <div style={s.valueRow}>
+                  {showCalories
+                    ? <span style={s.metricEmoji}>🔥</span>
+                    : <span style={s.metricEmoji}>💪</span>
+                  }
+                  {showCalories && <span style={s.valueApprox}>~</span>}
+                  <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
+                  <span style={s.valueUnit}>{showCalories ? "ккал" : "кг"}</span>
+                </div>
+                <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
+                  {showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ height: 120 }} />
+        </div>
+      )}
+
+      {/* ═══ STEP 2: Mascot centered + Bubble above + Weekly Goal Panel ═══ */}
+      {showStep2 && (
+        <div style={s.page2}>
+          {/* Bubble above mascot */}
+          <div style={s.bubble2Wrap} className="onb-fade">
+            <div style={s.bubble2} className="wc-speech-bubble-down">
+              <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
+            </div>
+          </div>
+
+          {/* Centered mascot */}
+          <div style={s.mascotCenter} className="onb-fade">
+            <img src={morobotImg} alt="" style={s.mascotCenterImg} loading="eager" decoding="async" />
+          </div>
+
+          {/* Weekly Goal Panel */}
+          <div className="onb-fade" style={{ width: "100%", marginTop: 24 }}>
+            <WeeklyGoalPanel
+              total={sessionsPerWeek}
+              prev={Math.max(0, chainCompleted - 1)}
+              target={chainCompleted}
+              phase={goalPhase}
+              workoutCount={workoutCountAnimated}
+              completedDays={completedDays}
+              onBarDone={onBarFillDone}
             />
           </div>
-          <div style={s.headerText}>
-            <div style={s.headerGreeting}>{headerMain}</div>
-            <div style={s.headerSub}>{headerSub}</div>
-          </div>
+
+          <div style={{ height: 120 }} />
         </div>
+      )}
 
-        {/* --- Metrics --- */}
-        <div style={s.metricsWrap}>
-          <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.valueRow}>
-              <span style={s.metricEmoji}>🎯</span>
-              <span style={s.valueBig}>{count1}</span>
-              <span style={s.valuePercent}>%</span>
-              <span style={s.valueUnit}>выполнено</span>
-            </div>
-            <div style={s.subtext} className={showSub1 ? "onb-fade-soft" : "wc-hidden"}>
-              {percentSubtext}
-            </div>
-          </div>
-
-          <div style={s.summaryCard} className={stage >= 3 ? "onb-fade" : "wc-hidden"}>
-            <div style={s.valueRow}>
-              <span style={s.metricEmoji}>💰</span>
-              <span style={s.valueBig}>{count2}</span>
-              <span style={s.valueUnit}>{pluralizeMinutes(durMin)}</span>
-            </div>
-            <div style={s.subtext} className={showSub2 ? "onb-fade-soft" : "wc-hidden"}>
-              инвестировано в ваше здоровье
-            </div>
-          </div>
-
-          {thirdValue > 0 && (
-            <div style={s.summaryCard} className={stage >= 4 ? "onb-fade" : "wc-hidden"}>
-              <div style={s.valueRow}>
-                {showCalories
-                  ? <span style={s.metricEmoji}>🔥</span>
-                  : <span style={s.metricEmoji}>💪</span>
-                }
-                {showCalories && <span style={s.valueApprox}>~</span>}
-                <span style={s.valueBig}>{count3.toLocaleString("ru-RU")}</span>
-                <span style={s.valueUnit}>{showCalories ? "ккал" : "кг"}</span>
-              </div>
-              <div style={s.subtext} className={showSub3 ? "onb-fade-soft" : "wc-hidden"}>
-                {showCalories ? getCalorieAnalogy(calories) : getVolumeAnalogy(tonnage)}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* --- Weekly Goal Panel (appears after metrics) --- */}
-        <div className={stage >= 5 ? "onb-fade" : "wc-hidden"} style={{ width: "100%" }}>
-          <WeeklyGoalPanel
-            total={sessionsPerWeek}
-            prev={Math.max(0, chainCompleted - 1)}
-            target={chainCompleted}
-            phase={goalPhase}
-            workoutCount={workoutCountAnimated}
-            completedDays={completedDays}
-            onBarDone={onBarFillDone}
-          />
-        </div>
-
-        <div style={{ height: 120 }} />
-
-      </div>
-
+      {/* ═══ Footer ═══ */}
       {stage >= 1 && (
         <div style={s.footerFlow}>
           <button
             className="checkin-primary-btn"
             style={{
               ...s.primaryBtn,
-              opacity: stage >= 6 ? 1 : 0,
-              pointerEvents: stage >= 6 ? "auto" : "none",
+              opacity: (showStep1 && stage >= 5) || (showStep2 && stage >= 7) ? 1 : 0,
+              pointerEvents: (showStep1 && stage >= 5) || (showStep2 && stage >= 7) ? "auto" : "none",
             }}
-            onClick={goToResult}
+            onClick={isStep2 ? goToResult : goToStep2}
           >
             <span style={s.primaryBtnText}>Далее</span>
             <span style={s.primaryBtnCircle} aria-hidden>
@@ -769,9 +787,8 @@ export default function WorkoutCelebrate() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────
 
-const AVATAR_SIZE = 56;
-
 const s: Record<string, React.CSSProperties> = {
+  // ── Step 1 page ──
   page: {
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 0",
     display: "flex",
@@ -790,50 +807,37 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 60,
   },
-  // ── Header (avatar + text) ──
-  headerRow: {
-    display: "flex",
+  // ── Step 1: Mascot + Bubble (grid, mascot left) ──
+  mascotRow: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
     alignItems: "center",
     gap: 12,
     marginTop: 8,
+    marginBottom: 4,
   },
-  avatarCircle: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: 999,
-    border: "none",
-    background: GROOVE_BG,
-    boxShadow: GROOVE_SHADOW,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    flex: "0 0 auto",
-    padding: 2,
+  mascotImg: {
+    width: 130,
+    height: "auto",
+    objectFit: "contain",
+    flexShrink: 0,
   },
-  avatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    objectPosition: "center 10%",
-    borderRadius: 999,
+  bubble: {
+    position: "relative",
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
-  headerText: {
-    display: "flex",
-    flexDirection: "column",
-    minWidth: 0,
-  },
-  headerGreeting: {
+  bubbleText: {
     fontSize: 18,
-    fontWeight: 700,
-    color: "#1e1f22",
-    lineHeight: 1.2,
-  },
-  headerSub: {
-    fontSize: 15,
     fontWeight: 500,
-    lineHeight: 1.4,
-    color: "rgba(30, 31, 34, 0.7)",
+    lineHeight: 1.35,
+    color: "#0f172a",
+    whiteSpace: "pre-line",
   },
   // ── Metrics ──
   metricsWrap: {
@@ -888,6 +892,46 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     lineHeight: 1.45,
     color: "rgba(15, 23, 42, 0.62)",
+  },
+  // ── Step 2 page ──
+  page2: {
+    padding: "calc(env(safe-area-inset-top, 0px) + 24px) 16px 0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    background: "transparent",
+    color: "#1e1f22",
+    minHeight: "100vh",
+    margin: "0 auto",
+    maxWidth: 720,
+  },
+  bubble2Wrap: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  bubble2: {
+    position: "relative",
+    padding: "14px 20px",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    maxWidth: 280,
+    textAlign: "center",
+  },
+  mascotCenter: {
+    display: "flex",
+    justifyContent: "center",
+  },
+  mascotCenterImg: {
+    width: 180,
+    height: "auto",
+    objectFit: "contain",
   },
   // ── Footer ──
   footerFlow: {
@@ -1007,6 +1051,33 @@ const css = `
 }
 .streak-check-pop {
   animation: streakCheckPop 450ms cubic-bezier(0.22,1,0.36,1) both;
+}
+
+.wc-speech-bubble::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(-1px 0 0 rgba(15,23,42,0.10));
+}
+
+.wc-speech-bubble-down::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(255,255,255,0.9);
+  filter: drop-shadow(0 1px 0 rgba(15,23,42,0.10));
 }
 
 .checkin-primary-btn {
