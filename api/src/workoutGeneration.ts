@@ -9,12 +9,12 @@ import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { enqueueProgressionJob, processProgressionJob } from "./progressionJobs.js";
 import {
-  enqueueCoachJob,
+  // enqueueCoachJob,        // TODO: временно отключено
   getCoachJob,
   getCoachReportBySession,
   getLatestWeeklyCoachReport,
-  maybeEnqueueWeeklyCoachJob,
-  processCoachJob,
+  // maybeEnqueueWeeklyCoachJob, // TODO: временно отключено
+  // processCoachJob,            // TODO: временно отключено
 } from "./coachJobs.js";
 import { getCoachChatHistoryForUser, sendCoachChatMessage } from "./coachChat.js";
 import { getNextWorkoutRecommendations } from "./progressionService.js";
@@ -2069,13 +2069,14 @@ workoutGeneration.post(
         workoutDate: finishedAt.toISOString().slice(0, 10),
       });
 
-      const { jobId: cj } = await enqueueCoachJob({
-        userId: uid,
-        kind: "session",
-        sessionId,
-      });
+      // TODO: временно отключено — разбор от ИИ после тренировки
+      // const { jobId: cj } = await enqueueCoachJob({
+      //   userId: uid,
+      //   kind: "session",
+      //   sessionId,
+      // });
 
-      return { sessionId, jobId, coachJobId: cj };
+      return { sessionId, jobId, coachJobId: null as any };
     });
 
     progressionJobId = jobId;
@@ -2092,23 +2093,23 @@ workoutGeneration.post(
       progression = null;
     }
 
-    // Coach feedback: do not block saving the workout (OpenAI call can be slow).
-    coachJobStatus = coachJobId ? "pending" : null;
-    if (coachJobId) {
-      setTimeout(() => {
-        processCoachJob({ jobId: coachJobId })
-          .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
-      }, 0);
-    }
+    // TODO: временно отключено — разбор от ИИ после тренировки
+    // coachJobStatus = coachJobId ? "pending" : null;
+    // if (coachJobId) {
+    //   setTimeout(() => {
+    //     processCoachJob({ jobId: coachJobId })
+    //       .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
+    //   }, 0);
+    // }
 
-    // Weekly: best-effort enqueue (throttled inside helper)
-    try {
-      const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
-      weeklyCoachJobId = w?.jobId || null;
-    } catch (e) {
-      console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
-      weeklyCoachJobId = null;
-    }
+    // TODO: временно отключено — недельные итоги от ИИ
+    // try {
+    //   const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
+    //   weeklyCoachJobId = w?.jobId || null;
+    // } catch (e) {
+    //   console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
+    //   weeklyCoachJobId = null;
+    // }
 
     if (debugProgression) {
       console.log("[save-session][debug] response", {
