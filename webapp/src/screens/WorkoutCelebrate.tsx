@@ -8,6 +8,7 @@ import {
   loadHistory,
   computeStreak,
   getWeekCompletedCount,
+  getWeekCompletedDays,
   getSessionsPerWeek,
 } from "@/lib/history";
 
@@ -102,41 +103,26 @@ const FILL_COLOR = "#1e1f22";
 const FILL_SHADOW =
   "inset 0 2px 3px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(255,255,255,0.15)";
 
-const BAR_HEIGHT = 12;
+const BAR_HEIGHT = 26;
 const FILL_DURATION_MS = 700;
-const NODE_MIN = 24;
-const NODE_MAX = 36;
-const NODE_GAP = 6;
+const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-/**
- * StreakPanel — 2-column layout:
- *  Left:  fire icon groove + streak counter + label
- *  Right: progress bar + workout circles
- *
- * Animation phases:
- *  "before"  → bar at prev, circles at prev
- *  "filling" → bar animates prev→target
- *  "checked" → target circle gets checkmark pop
- *  "fire"    → left fire icon pops
- *  "counting" → streak number counts up 0→N
- *  "done"    → all settled
- */
 function StreakPanel({
   total,
   prev,
   target,
-  streak,
   phase,
   streakCount,
+  completedDays,
   onBarDone,
 }: {
   total: number;
   prev: number;
   target: number;
-  streak: number;
   phase: "before" | "filling" | "checked" | "fire" | "counting" | "done";
-  /** Current animated streak value (from useCounter) */
   streakCount: number;
+  /** Set of ISO weekday indices (0=Mon…6=Sun) with completed workouts */
+  completedDays: Set<number>;
   onBarDone?: () => void;
 }) {
   // Progress bar fill %
@@ -145,16 +131,20 @@ function StreakPanel({
   const prevWidth = `${prevPct * 100}%`;
   const targetWidth = `${targetPct * 100}%`;
   const fillWidth = phase === "before" || phase === "filling" ? prevWidth : targetWidth;
+  const displayTarget = phase === "before" || phase === "filling" ? prev : target;
 
-  // Adaptive node size: fill available width evenly
+  // Adaptive day dot size: distribute 7 dots across right column
   const rightRef = useRef<HTMLDivElement>(null);
-  const [nodeSize, setNodeSize] = useState(NODE_MAX);
+  const [dotSize, setDotSize] = useState(28);
   useEffect(() => {
     if (!rightRef.current) return;
     const w = rightRef.current.offsetWidth;
-    const size = Math.min(NODE_MAX, Math.max(NODE_MIN, (w - NODE_GAP * (total - 1)) / total));
-    setNodeSize(Math.floor(size));
-  }, [total]);
+    const size = Math.min(32, Math.max(22, Math.floor((w - 6 * 6) / 7)));
+    setDotSize(size);
+  }, []);
+
+  // Which day just got checked (the current day of the week)
+  const todayIso = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
   // Bar animation done callback
   const onBarDoneRef = useRef(onBarDone);
@@ -167,36 +157,39 @@ function StreakPanel({
 
   const showFirePop = phase === "fire" || phase === "counting" || phase === "done";
   const showCounter = phase === "counting" || phase === "done";
+  const showChecked = phase === "checked" || phase === "fire" || phase === "counting" || phase === "done";
 
   return (
     <div style={sk.row}>
       {/* ── Left: Fire groove block ── */}
       <div style={sk.fireBlock}>
-        <span
-          className={showFirePop ? "streak-fire-pop" : "wc-hidden"}
-          style={{ fontSize: 40, lineHeight: 1 }}
-        >
-          🔥
-        </span>
-        <span
-          className={showCounter ? "onb-fade" : "wc-hidden"}
-          style={sk.fireNumber}
-        >
-          {streakCount}
-        </span>
+        <div style={sk.fireRow}>
+          <span
+            className={showFirePop ? "streak-fire-pop" : "wc-hidden"}
+            style={{ fontSize: 32, lineHeight: 1 }}
+          >
+            🔥
+          </span>
+          <span
+            className={showCounter ? "onb-fade" : "wc-hidden"}
+            style={sk.fireNumber}
+          >
+            {streakCount}
+          </span>
+        </div>
         <span
           className={showCounter ? "onb-fade" : "wc-hidden"}
           style={sk.fireLabel}
         >
-          без пропуска
+          тренировок подряд
         </span>
       </div>
 
-      {/* ── Right: Bar + Circles ── */}
+      {/* ── Right: Bar + Day dots ── */}
       <div style={sk.rightCol} ref={rightRef}>
         <span style={sk.weekLabel}>Цель недели</span>
 
-        {/* Progress bar groove */}
+        {/* Progress bar groove with text inside */}
         <div style={sk.barGroove}>
           {phase === "filling" ? (
             <div
@@ -216,40 +209,52 @@ function StreakPanel({
               transition: phase === "before" ? "none" : "width 300ms ease",
             }} />
           )}
+          <span style={sk.barText}>
+            {displayTarget}/{total} тренировок
+          </span>
         </div>
 
-        {/* Workout circles */}
-        <div style={{ display: "flex", gap: NODE_GAP, justifyContent: "center" }}>
-          {Array.from({ length: total }, (_, i) => {
-            const isFilled = i < (phase === "before" || phase === "filling" ? prev : target);
-            const justChecked = phase === "checked" && i === target - 1 && target > prev;
+        {/* 7 day dots (Пн–Вс) */}
+        <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+          {DAY_LABELS.map((label, i) => {
+            const wasDone = completedDays.has(i) && i !== todayIso;
+            const justDone = showChecked && i === todayIso;
+            const isDone = wasDone || justDone;
             return (
-              <div
-                key={i}
-                className={justChecked ? "streak-node-pop" : ""}
-                style={{
-                  width: nodeSize, height: nodeSize, borderRadius: "50%",
-                  background: isFilled ? FILL_COLOR : GROOVE_BG,
-                  boxShadow: isFilled ? FILL_SHADOW : GROOVE_SHADOW,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                {isFilled ? (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: 1 }}>
+                <div
+                  className={justDone ? "streak-node-pop" : ""}
+                  style={{
+                    width: dotSize, height: dotSize, borderRadius: 999,
+                    background: GROOVE_BG,
+                    boxShadow: isDone
+                      ? "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)"
+                      : GROOVE_SHADOW,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
                   <span
-                    className={justChecked ? "streak-check-pop" : ""}
-                    style={{ fontSize: Math.round(nodeSize * 0.48), lineHeight: 1, color: "#fff" }}
+                    className={justDone ? "streak-check-pop" : ""}
+                    style={{
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      fontSize: Math.round(dotSize * 0.55),
+                      color: isDone ? "#1e1f22" : "rgba(15,23,42,0.12)",
+                      textShadow: isDone
+                        ? "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)"
+                        : "0 1px 0 rgba(255,255,255,0.7)",
+                      transform: "translateY(-1px)",
+                    }}
                   >
                     ✓
                   </span>
-                ) : (
-                  <span style={{
-                    fontSize: Math.round(nodeSize * 0.36), fontWeight: 600,
-                    color: "rgba(15,23,42,0.25)", lineHeight: 1,
-                  }}>
-                    {i + 1}
-                  </span>
-                )}
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 500, lineHeight: 1,
+                  color: isDone ? "rgba(15,23,42,0.6)" : "rgba(15,23,42,0.3)",
+                }}>
+                  {label}
+                </span>
               </div>
             );
           })}
@@ -273,16 +278,21 @@ const sk: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    width: 96,
-    minHeight: 96,
+    gap: 4,
+    width: 100,
+    minHeight: 100,
     borderRadius: 20,
     background: GROOVE_BG,
     boxShadow: GROOVE_SHADOW,
-    padding: "10px 6px",
+    padding: "12px 8px",
+  },
+  fireRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
   },
   fireNumber: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 900,
     color: "#1e1f22",
     lineHeight: 1,
@@ -290,12 +300,11 @@ const sk: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.03em",
   },
   fireLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.45)",
-    lineHeight: 1,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.04em",
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
+    textAlign: "center",
   },
   rightCol: {
     display: "flex",
@@ -303,18 +312,31 @@ const sk: Record<string, React.CSSProperties> = {
     gap: 10,
   },
   weekLabel: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.45)",
-    letterSpacing: "0.02em",
+    fontSize: 18,
+    fontWeight: 700,
+    lineHeight: 1.2,
+    color: "#0f172a",
   },
   barGroove: {
+    position: "relative",
     width: "100%",
     height: BAR_HEIGHT,
     borderRadius: BAR_HEIGHT / 2,
     background: GROOVE_BG,
     boxShadow: GROOVE_SHADOW,
     overflow: "hidden",
+  },
+  barText: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    fontWeight: 700,
+    color: "rgba(15,23,42,0.45)",
+    mixBlendMode: "luminosity",
+    pointerEvents: "none",
   },
 };
 
@@ -488,6 +510,7 @@ export default function WorkoutCelebrate() {
   const sessionsPerWeek = useMemo(() => getSessionsPerWeek(), []);
   const weekCompleted = useMemo(() => getWeekCompletedCount(history), [history]);
   const chainCompleted = Math.min(weekCompleted, sessionsPerWeek);
+  const completedDays = useMemo(() => getWeekCompletedDays(history), [history]);
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -727,9 +750,9 @@ export default function WorkoutCelebrate() {
               total={sessionsPerWeek}
               prev={Math.max(0, chainCompleted - 1)}
               target={chainCompleted}
-              streak={streak}
               phase={streakPhase}
               streakCount={streakCounter}
+              completedDays={completedDays}
               onBarDone={onBarFillDone}
             />
           </div>
@@ -819,10 +842,10 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(18px)",
   },
   bubbleText: {
-    fontSize: 17,
-    fontWeight: 600,
+    fontSize: 18,
+    fontWeight: 500,
     lineHeight: 1.35,
-    color: "#1e1f22",
+    color: "#0f172a",
     whiteSpace: "pre-line",
   },
   metricsWrap: {

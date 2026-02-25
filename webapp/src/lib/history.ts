@@ -203,6 +203,29 @@ export function getWeekCompletedCount(history: HistSession[]): number {
 }
 
 /**
+ * Returns a Set of ISO weekday indices (0=Mon … 6=Sun) on which
+ * the user completed at least one workout this week.
+ */
+export function getWeekCompletedDays(history: HistSession[]): Set<number> {
+  const mondayStr = currentWeekMondayStr();
+  const sundayStr = currentWeekSundayStr();
+  const days = new Set<number>();
+  for (const h of history) {
+    const d = sessionDate(h);
+    if (!d) continue;
+    if (d >= mondayStr && d <= sundayStr) {
+      const jsDay = new Date(d).getDay(); // 0=Sun, 1=Mon …
+      const isoDay = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon … 6=Sun
+      days.add(isoDay);
+    }
+  }
+  // Also include today (current workout just finished)
+  const todayJs = new Date().getDay();
+  days.add(todayJs === 0 ? 6 : todayJs - 1);
+  return days;
+}
+
+/**
  * How many sessions per week the user has scheduled (target).
  * Counts scheduled + completed from this week's plannedWorkouts; falls back to onboarding.
  */
