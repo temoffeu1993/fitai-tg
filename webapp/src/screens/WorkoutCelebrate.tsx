@@ -33,10 +33,10 @@ function pluralizeMinutes(n: number): string {
 }
 
 function getPercentSubtext(p: number): string {
-  if (p >= 100) return "Всё по плану. Идеальное выполнение";
-  if (p >= 80) return "Почти всё закрыто — очень достойно";
-  if (p >= 50) return "Больше половины сделано. Зачтено";
-  return "Каждое упражнение на счету";
+  if (p >= 100) return "Мышцы загружены по полной";
+  if (p >= 80) return "Организм получил мощный стимул";
+  if (p >= 50) return "Достаточно для прогресса";
+  return "Тело уже включилось в работу";
 }
 
 function getVolumeAnalogy(kg: number): string {
@@ -108,7 +108,7 @@ function WeeklyGoalPanel({
   total: number;
   prev: number;
   target: number;
-  phase: "before" | "filling" | "checked" | "fire" | "counting" | "done";
+  phase: "before" | "counting" | "filling" | "checked" | "done";
   workoutCount: number;
   completedDays: Set<number>;
   onBarDone?: () => void;
@@ -117,8 +117,9 @@ function WeeklyGoalPanel({
   const targetPct = target / total;
   const prevWidth = `${prevPct * 100}%`;
   const targetWidth = `${targetPct * 100}%`;
-  const fillWidth = phase === "before" || phase === "filling" ? prevWidth : targetWidth;
-  const displayTarget = phase === "before" || phase === "filling" ? prev : target;
+  const isFilled = phase === "checked" || phase === "done";
+  const fillWidth = isFilled ? targetWidth : prevWidth;
+  const displayTarget = isFilled ? target : prev;
 
   const rightRef = useRef<HTMLDivElement>(null);
   const [dotSize, setDotSize] = useState(28);
@@ -139,33 +140,16 @@ function WeeklyGoalPanel({
     return () => clearTimeout(t);
   }, [phase]);
 
-  const showFirePop = phase === "fire" || phase === "counting" || phase === "done";
-  const showCounter = phase === "counting" || phase === "done";
-  const showChecked = phase === "checked" || phase === "fire" || phase === "counting" || phase === "done";
+  const showChecked = phase === "checked" || phase === "done";
 
   return (
     <div style={sk.row}>
       <div style={sk.fireBlock}>
         <div style={sk.fireRow}>
-          <span
-            className={showFirePop ? "streak-fire-pop" : "wc-hidden"}
-            style={{ fontSize: 32, lineHeight: 1 }}
-          >
-            🔥
-          </span>
-          <span
-            className={showCounter ? "onb-fade" : "wc-hidden"}
-            style={sk.fireNumber}
-          >
-            {workoutCount}
-          </span>
+          <span style={{ fontSize: 32, lineHeight: 1 }}>🔥</span>
+          <span style={sk.fireNumber}>{workoutCount}</span>
         </div>
-        <span
-          className={showCounter ? "onb-fade" : "wc-hidden"}
-          style={sk.fireLabel}
-        >
-          тренировок выполнено
-        </span>
+        <span style={sk.fireLabel}>тренировок выполнено</span>
       </div>
 
       <div style={sk.rightCol} ref={rightRef}>
@@ -190,15 +174,7 @@ function WeeklyGoalPanel({
               transition: phase === "before" ? "none" : "width 300ms ease",
             }} />
           )}
-          <span style={{ ...sk.barText, color: "rgba(15,23,42,0.55)" }}>
-            {displayTarget}/{total} тренировок
-          </span>
-          <span style={{
-            ...sk.barText,
-            color: "#fff",
-            clipPath: `inset(0 ${100 - (displayTarget / total) * 100}% 0 0)`,
-            transition: "clip-path 300ms ease",
-          }}>
+          <span style={sk.barText}>
             {displayTarget}/{total} тренировок
           </span>
         </div>
@@ -318,8 +294,9 @@ const sk: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.55)",
     pointerEvents: "none",
     zIndex: 1,
   },
@@ -331,9 +308,10 @@ function useCounter(
   target: number,
   active: boolean,
   durationMs: number = 800,
-  onComplete?: () => void
+  onComplete?: () => void,
+  from: number = 0,
 ) {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(from);
   const startTimeRef = useRef<number | null>(null);
   const doneRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
@@ -344,8 +322,8 @@ function useCounter(
 
   useEffect(() => {
     if (!active || doneRef.current) return;
-    if (target === 0) {
-      setValue(0);
+    if (target === from) {
+      setValue(target);
       doneRef.current = true;
       if (onCompleteRef.current) onCompleteRef.current();
       return;
@@ -357,7 +335,7 @@ function useCounter(
       const elapsed = now - startTimeRef.current;
       const progress = Math.min(1, elapsed / durationMs);
       const easing = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setValue(Math.round(target * easing));
+      setValue(Math.round(from + (target - from) * easing));
       if (progress < 1) {
         rafId = requestAnimationFrame(tick);
       } else {
@@ -368,7 +346,7 @@ function useCounter(
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [target, active, durationMs]);
+  }, [target, active, durationMs, from]);
 
   return value;
 }
@@ -485,7 +463,7 @@ export default function WorkoutCelebrate() {
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
   const [goalPhase, setGoalPhase] = useState<
-    "before" | "filling" | "checked" | "fire" | "counting" | "done"
+    "before" | "counting" | "filling" | "checked" | "done"
   >("before");
   const confettiRef = useRef<HTMLDivElement>(null);
 
@@ -523,33 +501,32 @@ export default function WorkoutCelebrate() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [payload]);
 
-  // Step 2: start bar fill after panel appears
+  // Step 2: start count animation after panel appears
   useEffect(() => {
     if (stage !== 6) return;
     const t = setTimeout(() => {
-      setGoalPhase("filling");
-      fireHapticImpact("heavy");
+      setGoalPhase("counting");
+      fireHapticImpact("medium");
     }, 800);
     return () => clearTimeout(t);
   }, [stage]);
 
-  // Bar fill done → checkmark → fire → counter → done
+  // Count done → fill bar → checkmark → done
+  const onCountDone = () => {
+    setTimeout(() => {
+      setGoalPhase("filling");
+      fireHapticImpact("heavy");
+    }, 400);
+  };
+
   const onBarFillDone = () => {
     setGoalPhase("checked");
     fireHapticImpact("heavy");
     setTimeout(() => {
-      setGoalPhase("fire");
-      fireHapticImpact("heavy");
-    }, 400);
-    setTimeout(() => {
-      setGoalPhase("counting");
-      fireHapticImpact("medium");
-    }, 700);
-    setTimeout(() => {
       setGoalPhase("done");
       setStage(7);
       fireHapticImpact("light");
-    }, 1400);
+    }, 600);
   };
 
   const goToStep2 = () => {
@@ -625,24 +602,32 @@ export default function WorkoutCelebrate() {
     }
   });
 
-  const workoutCountAnimated = useCounter(workoutNumber, goalPhase === "counting" || goalPhase === "done", 600);
+  const workoutCountAnimated = useCounter(
+    workoutNumber,
+    goalPhase !== "before",
+    600,
+    onCountDone,
+    Math.max(0, workoutNumber - 1),
+  );
 
   // Bubble text
-  const step1Bubble = percent >= 90
-    ? "Вот это я понимаю, уровень!"
-    : percent >= 50
-      ? "Хорошо позанимались, респект"
-      : "Пришли и сделали — это главное";
+  const step1Bubble = workoutNumber === 1
+    ? "Еее, первая готова! Запомните этот день!"
+    : percent >= 90
+      ? "Тренировка огонь! Вот это уровень!"
+      : percent >= 50
+        ? "Круто позанимались! Респект!"
+        : "Пришли и сделали, это главное!";
 
   const step2Bubble = chainCompleted >= sessionsPerWeek
-    ? "Неделя закрыта!"
+    ? "Еее! Цель недели выполнена!"
     : chainCompleted === sessionsPerWeek - 1
-      ? "Ещё одна и цель!"
+      ? "Осталась одна тренировка до цели!"
       : workoutNumber === 1
-        ? "Первый шаг сделан!"
+        ? "Первый шаг самый важный!"
         : chainCompleted === 1
-          ? "Неделя началась!"
-          : "Идём по плану!";
+          ? "Старт недели!"
+          : "Продолжаем в том же духе!";
 
   const bubbleTarget = isStep2
     ? step2Bubble
