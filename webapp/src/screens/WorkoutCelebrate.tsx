@@ -475,11 +475,12 @@ function spawnConfetti(container: HTMLDivElement) {
 // ─── Component ──────────────────────────────────────────────────────────
 // Single-screen layout:
 // 0 = initial
-// 1 = header (avatar + text) + confetti + weekly goal panel starts animating
-// 2 = weekly goal animation done → first metric (%)
+// 1 = header (avatar + text) + confetti
+// 2 = first metric (%)
 // 3 = duration counter
 // 4 = volume counter
-// 5 = all done, "Далее" visible
+// 5 = weekly goal panel appears + bar fills
+// 6 = all done, "Далее" visible
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
@@ -514,7 +515,7 @@ export default function WorkoutCelebrate() {
   useEffect(() => {
     if (!payload) return;
 
-    // Stage 1: header + confetti + start goal panel animation
+    // Stage 1: header + confetti
     const t1 = setTimeout(() => {
       setStage(1);
       fireHapticImpact("heavy");
@@ -524,36 +525,43 @@ export default function WorkoutCelebrate() {
       }
     }, 400);
 
-    // Start bar fill shortly after
+    // Stage 2: first metric (%)
     const t2 = setTimeout(() => {
-      setGoalPhase("filling");
-      fireHapticImpact("heavy");
-    }, 1200);
+      setStage(2);
+      fireHapticImpact("medium");
+    }, 1400);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2);
     };
   }, [payload]);
 
-  // Bar fill done → checkmark → fire → counter → metrics
+  // Start bar fill when weekly goal panel appears (stage 5)
+  useEffect(() => {
+    if (stage !== 5) return;
+    const t = setTimeout(() => {
+      setGoalPhase("filling");
+      fireHapticImpact("heavy");
+    }, 600);
+    return () => clearTimeout(t);
+  }, [stage]);
+
+  // Bar fill done → checkmark → fire → counter → done
   const onBarFillDone = () => {
     setGoalPhase("checked");
     fireHapticImpact("heavy");
-    // Fire icon pops
     setTimeout(() => {
       setGoalPhase("fire");
       fireHapticImpact("heavy");
     }, 400);
-    // Counter counts up
     setTimeout(() => {
       setGoalPhase("counting");
       fireHapticImpact("medium");
     }, 700);
-    // Done → start metrics
     setTimeout(() => {
       setGoalPhase("done");
-      setStage(2);
-      fireHapticImpact("medium");
+      setStage(6);
+      fireHapticImpact("light");
     }, 1400);
   };
 
@@ -614,6 +622,7 @@ export default function WorkoutCelebrate() {
         fireHapticImpact("medium");
         setStage(4);
       } else {
+        // No third metric → go straight to weekly goal
         setStage(5);
         fireHapticImpact("light");
       }
@@ -625,6 +634,7 @@ export default function WorkoutCelebrate() {
       fireHapticImpact("heavy");
       setShowSub3(true);
       setTimeout(() => {
+        // Metrics done → show weekly goal panel
         setStage(5);
         fireHapticImpact("light");
       }, 800);
@@ -633,9 +643,8 @@ export default function WorkoutCelebrate() {
 
   const workoutCountAnimated = useCounter(workoutNumber, goalPhase === "counting" || goalPhase === "done", 600);
 
-  const headerText = workoutNumber === 1
-    ? "Еее! Первая тренировка в копилке!"
-    : `Еее! ${workoutNumber}-я тренировка в копилке!`;
+  const headerMain = "Еее!";
+  const headerSub = "Тренировка выполнена";
 
   return (
     <>
@@ -646,7 +655,7 @@ export default function WorkoutCelebrate() {
 
       <div style={s.page}>
 
-        {/* --- Header: Avatar + Text --- */}
+        {/* --- Header: Avatar + Text (two lines like Dashboard) --- */}
         <div style={s.headerRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
           <div style={s.avatarCircle}>
             <img
@@ -659,21 +668,9 @@ export default function WorkoutCelebrate() {
             />
           </div>
           <div style={s.headerText}>
-            <div style={s.headerGreeting}>{headerText}</div>
+            <div style={s.headerGreeting}>{headerMain}</div>
+            <div style={s.headerSub}>{headerSub}</div>
           </div>
-        </div>
-
-        {/* --- Weekly Goal Panel --- */}
-        <div className={stage >= 1 ? "onb-fade" : "wc-hidden"} style={{ width: "100%" }}>
-          <WeeklyGoalPanel
-            total={sessionsPerWeek}
-            prev={Math.max(0, chainCompleted - 1)}
-            target={chainCompleted}
-            phase={goalPhase}
-            workoutCount={workoutCountAnimated}
-            completedDays={completedDays}
-            onBarDone={onBarFillDone}
-          />
         </div>
 
         {/* --- Metrics --- */}
@@ -719,6 +716,19 @@ export default function WorkoutCelebrate() {
           )}
         </div>
 
+        {/* --- Weekly Goal Panel (appears after metrics) --- */}
+        <div className={stage >= 5 ? "onb-fade" : "wc-hidden"} style={{ width: "100%" }}>
+          <WeeklyGoalPanel
+            total={sessionsPerWeek}
+            prev={Math.max(0, chainCompleted - 1)}
+            target={chainCompleted}
+            phase={goalPhase}
+            workoutCount={workoutCountAnimated}
+            completedDays={completedDays}
+            onBarDone={onBarFillDone}
+          />
+        </div>
+
         <div style={{ height: 120 }} />
 
       </div>
@@ -729,8 +739,8 @@ export default function WorkoutCelebrate() {
             className="checkin-primary-btn"
             style={{
               ...s.primaryBtn,
-              opacity: stage >= 5 ? 1 : 0,
-              pointerEvents: stage >= 5 ? "auto" : "none",
+              opacity: stage >= 6 ? 1 : 0,
+              pointerEvents: stage >= 6 ? "auto" : "none",
             }}
             onClick={goToResult}
           >
@@ -817,13 +827,19 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 700,
     color: "#1e1f22",
-    lineHeight: 1.3,
+    lineHeight: 1.2,
+  },
+  headerSub: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.7)",
   },
   // ── Metrics ──
   metricsWrap: {
     display: "flex",
     flexDirection: "column",
-    gap: 24,
+    gap: 20,
     width: "100%",
   },
   summaryCard: {
@@ -839,31 +855,31 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   metricEmoji: {
-    fontSize: 36,
+    fontSize: 28,
     lineHeight: 1,
     flexShrink: 0,
   },
   valueBig: {
-    fontSize: 44,
+    fontSize: 36,
     fontWeight: 900,
     color: "#1e1f22",
-    letterSpacing: "-0.04em",
+    letterSpacing: "-0.03em",
     lineHeight: 1,
     fontVariantNumeric: "tabular-nums",
   },
   valuePercent: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 900,
     color: "#1e1f22",
   },
   valueApprox: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 700,
     color: "rgba(15,23,42,0.45)",
     marginRight: -4,
   },
   valueUnit: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 900,
     color: "#1e1f22",
   },
