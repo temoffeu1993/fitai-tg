@@ -1,12 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import morobotImg from "@/assets/morobot.webp";
+import mascotImg from "@/assets/robonew.webp";
 import { fireHapticImpact } from "@/utils/haptics";
-import { useTypewriterText } from "@/hooks/useTypewriterText";
 import {
   loadHistory,
-  computeStreak,
   getWeekCompletedCount,
   getWeekCompletedDays,
   getSessionsPerWeek,
@@ -84,17 +82,7 @@ function estimateCalories(durMin: number, weightKg: number, hasWeights: boolean)
   return Math.round(met * weightKg * (durMin / 60));
 }
 
-function getStreakBubbleText(streak: number): string {
-  if (streak <= 1) return "Одна тренировка без пропуска — с чего-то надо начинать. Не сбавляй";
-  if (streak === 2) return "Две тренировки подряд без пропуска. Разогрев засчитан";
-  if (streak === 3) return "Три без пропуска — тело втягивается быстрее, чем ты думаешь";
-  if (streak <= 5) return `Уже ${streak} подряд без пропуска. Лень нервничает — так и надо`;
-  if (streak <= 10) return `${streak} тренировок без пропуска. Это уже не усилие, а привычка`;
-  if (streak <= 20) return `${streak} подряд — большинство сдаётся гораздо раньше. Уважение`;
-  return `${streak} без единого пропуска. Ты — машина`;
-}
-
-// ─── Streak Panel Component ──────────────────────────────────────────────
+// ─── Weekly Goal Panel Component ─────────────────────────────────────────
 
 const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
 const GROOVE_SHADOW =
@@ -107,12 +95,12 @@ const BAR_HEIGHT = 26;
 const FILL_DURATION_MS = 700;
 const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-function StreakPanel({
+function WeeklyGoalPanel({
   total,
   prev,
   target,
   phase,
-  streakCount,
+  workoutCount,
   completedDays,
   onBarDone,
 }: {
@@ -120,8 +108,7 @@ function StreakPanel({
   prev: number;
   target: number;
   phase: "before" | "filling" | "checked" | "fire" | "counting" | "done";
-  streakCount: number;
-  /** Set of ISO weekday indices (0=Mon…6=Sun) with completed workouts */
+  workoutCount: number;
   completedDays: Set<number>;
   onBarDone?: () => void;
 }) {
@@ -133,7 +120,7 @@ function StreakPanel({
   const fillWidth = phase === "before" || phase === "filling" ? prevWidth : targetWidth;
   const displayTarget = phase === "before" || phase === "filling" ? prev : target;
 
-  // Adaptive day dot size: distribute 7 dots across right column
+  // Adaptive day dot size
   const rightRef = useRef<HTMLDivElement>(null);
   const [dotSize, setDotSize] = useState(28);
   useEffect(() => {
@@ -161,7 +148,7 @@ function StreakPanel({
 
   return (
     <div style={sk.row}>
-      {/* ── Left: Fire groove block ── */}
+      {/* ── Left: Workout count groove block ── */}
       <div style={sk.fireBlock}>
         <div style={sk.fireRow}>
           <span
@@ -174,14 +161,14 @@ function StreakPanel({
             className={showCounter ? "onb-fade" : "wc-hidden"}
             style={sk.fireNumber}
           >
-            {streakCount}
+            {workoutCount}
           </span>
         </div>
         <span
           className={showCounter ? "onb-fade" : "wc-hidden"}
           style={sk.fireLabel}
         >
-          тренировок подряд
+          тренировок выполнено
         </span>
       </div>
 
@@ -486,15 +473,13 @@ function spawnConfetti(container: HTMLDivElement) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
-// Stages:
+// Single-screen layout:
 // 0 = initial
-// 1 = mascot + confetti
-// 2 = percent counter
+// 1 = header (avatar + text) + confetti + weekly goal panel starts animating
+// 2 = weekly goal animation done → first metric (%)
 // 3 = duration counter
 // 4 = volume counter
-// 5 = first "Далее" visible (metrics phase done)
-// 6 = streak block shown (metrics fade out, streak fades in)
-// 7 = streak animation done, second "Далее" visible
+// 5 = all done, "Далее" visible
 
 export default function WorkoutCelebrate() {
   const location = useLocation();
@@ -506,18 +491,18 @@ export default function WorkoutCelebrate() {
   const [showSub1, setShowSub1] = useState(false);
   const [showSub2, setShowSub2] = useState(false);
   const [showSub3, setShowSub3] = useState(false);
-  const [streakPhase, setStreakPhase] = useState<
+  const [goalPhase, setGoalPhase] = useState<
     "before" | "filling" | "checked" | "fire" | "counting" | "done"
   >("before");
   const confettiRef = useRef<HTMLDivElement>(null);
 
-  // Streak data
+  // Data
   const history = useMemo(() => loadHistory(), []);
-  const streak = useMemo(() => computeStreak(history), [history]);
   const sessionsPerWeek = useMemo(() => getSessionsPerWeek(), []);
   const weekCompleted = useMemo(() => getWeekCompletedCount(history), [history]);
   const chainCompleted = Math.min(weekCompleted, sessionsPerWeek);
   const completedDays = useMemo(() => getWeekCompletedDays(history), [history]);
+  const workoutNumber = history.length;
 
   useLayoutEffect(() => {
     const root = document.getElementById("root");
@@ -525,9 +510,11 @@ export default function WorkoutCelebrate() {
     window.scrollTo(0, 0);
   }, []);
 
+  // Main animation sequence
   useEffect(() => {
     if (!payload) return;
 
+    // Stage 1: header + confetti + start goal panel animation
     const t1 = setTimeout(() => {
       setStage(1);
       fireHapticImpact("heavy");
@@ -537,53 +524,37 @@ export default function WorkoutCelebrate() {
       }
     }, 400);
 
+    // Start bar fill shortly after
     const t2 = setTimeout(() => {
-      setStage(2);
-      fireHapticImpact("medium");
-    }, 1800);
+      setGoalPhase("filling");
+      fireHapticImpact("heavy");
+    }, 1200);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2);
     };
   }, [payload]);
 
-  // Streak animation: triggered when bubble typewriter finishes (via onStreakBubbleDone)
-  const streakAnimFired = useRef(false);
-  const onStreakBubbleDone = () => {
-    if (streakAnimFired.current) return;
-    streakAnimFired.current = true;
-    // Step 1: progress bar fills
-    setTimeout(() => {
-      setStreakPhase("filling");
-      fireHapticImpact("heavy");
-    }, 300);
-  };
-
-  // Step 2: bar done → checkmark pops in circle
+  // Bar fill done → checkmark → fire → counter → metrics
   const onBarFillDone = () => {
-    setStreakPhase("checked");
+    setGoalPhase("checked");
     fireHapticImpact("heavy");
-    // Step 3: fire icon pops
+    // Fire icon pops
     setTimeout(() => {
-      setStreakPhase("fire");
+      setGoalPhase("fire");
       fireHapticImpact("heavy");
-    }, 500);
-    // Step 4: streak counter counts up
+    }, 400);
+    // Counter counts up
     setTimeout(() => {
-      setStreakPhase("counting");
+      setGoalPhase("counting");
       fireHapticImpact("medium");
-    }, 900);
-    // Step 5: done
+    }, 700);
+    // Done → start metrics
     setTimeout(() => {
-      setStreakPhase("done");
-      setStage(7);
-      fireHapticImpact("light");
-    }, 1800);
-  };
-
-  const goToStreak = () => {
-    fireHapticImpact("medium");
-    setStage(6);
+      setGoalPhase("done");
+      setStage(2);
+      fireHapticImpact("medium");
+    }, 1400);
   };
 
   const goToResult = () => {
@@ -660,27 +631,11 @@ export default function WorkoutCelebrate() {
     }
   });
 
-  const streakCounter = useCounter(streak, streakPhase === "counting" || streakPhase === "done", 600);
+  const workoutCountAnimated = useCounter(workoutNumber, goalPhase === "counting" || goalPhase === "done", 600);
 
-  const workoutNumber = history.length;
-
-  // Bubble text changes depending on phase
-  const isStreakPhase = stage >= 6;
-  const bubbleTarget = !isStreakPhase
-    ? (stage >= 1
-      ? (workoutNumber === 1
-        ? "Еее! Первая тренировка в копилке!"
-        : `Еее! ${workoutNumber}-я тренировка в копилке!`)
-      : "")
-    : getStreakBubbleText(streak);
-  const bubbleTyped = useTypewriterText(bubbleTarget, {
-    charIntervalMs: 22,
-    startDelayMs: 80,
-    onComplete: isStreakPhase ? onStreakBubbleDone : undefined,
-  });
-
-  const showMetrics = stage < 6;
-  const showStreak = stage >= 6;
+  const headerText = workoutNumber === 1
+    ? "Еее! Первая тренировка в копилке!"
+    : `Еее! ${workoutNumber}-я тренировка в копилке!`;
 
   return (
     <>
@@ -691,24 +646,38 @@ export default function WorkoutCelebrate() {
 
       <div style={s.page}>
 
-        {/* --- Header / Mascot + Bubble --- */}
-        <div style={s.mascotRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
-          <img src={morobotImg} alt="" style={s.mascotFullImg} loading="eager" decoding="async" />
-          <div style={s.bubble} className="wc-speech-bubble">
-            <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
+        {/* --- Header: Avatar + Text --- */}
+        <div style={s.headerRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
+          <div style={s.avatarCircle}>
+            <img
+              src={mascotImg}
+              alt="Моро"
+              style={s.avatarImg}
+              loading="eager"
+              decoding="async"
+              draggable={false}
+            />
+          </div>
+          <div style={s.headerText}>
+            <div style={s.headerGreeting}>{headerText}</div>
           </div>
         </div>
 
-        {/* --- Metrics Grid (fades out at stage 6) --- */}
-        <div
-          style={{
-            ...s.metricsWrap,
-            opacity: showMetrics ? 1 : 0,
-            transition: "opacity 180ms ease-out",
-            pointerEvents: showMetrics ? "auto" : "none",
-            ...(showMetrics ? {} : { position: "absolute", visibility: "hidden" }),
-          }}
-        >
+        {/* --- Weekly Goal Panel --- */}
+        <div className={stage >= 1 ? "onb-fade" : "wc-hidden"} style={{ width: "100%" }}>
+          <WeeklyGoalPanel
+            total={sessionsPerWeek}
+            prev={Math.max(0, chainCompleted - 1)}
+            target={chainCompleted}
+            phase={goalPhase}
+            workoutCount={workoutCountAnimated}
+            completedDays={completedDays}
+            onBarDone={onBarFillDone}
+          />
+        </div>
+
+        {/* --- Metrics --- */}
+        <div style={s.metricsWrap}>
           <div style={s.summaryCard} className={stage >= 2 ? "onb-fade" : "wc-hidden"}>
             <div style={s.valueRow}>
               <span style={s.metricEmoji}>🎯</span>
@@ -750,21 +719,6 @@ export default function WorkoutCelebrate() {
           )}
         </div>
 
-        {/* --- Streak Block (fades in at stage 6) --- */}
-        {showStreak && (
-          <div style={{ width: "100%", paddingTop: 16 }} className="onb-fade">
-            <StreakPanel
-              total={sessionsPerWeek}
-              prev={Math.max(0, chainCompleted - 1)}
-              target={chainCompleted}
-              phase={streakPhase}
-              streakCount={streakCounter}
-              completedDays={completedDays}
-              onBarDone={onBarFillDone}
-            />
-          </div>
-        )}
-
         <div style={{ height: 120 }} />
 
       </div>
@@ -778,7 +732,7 @@ export default function WorkoutCelebrate() {
               opacity: stage >= 5 ? 1 : 0,
               pointerEvents: stage >= 5 ? "auto" : "none",
             }}
-            onClick={stage >= 7 ? goToResult : goToStreak}
+            onClick={goToResult}
           >
             <span style={s.primaryBtnText}>Далее</span>
             <span style={s.primaryBtnCircle} aria-hidden>
@@ -805,12 +759,14 @@ export default function WorkoutCelebrate() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────
 
+const AVATAR_SIZE = 56;
+
 const s: Record<string, React.CSSProperties> = {
   page: {
     padding: "calc(env(safe-area-inset-top, 0px) + 16px) 16px 0",
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 20,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     background: "transparent",
     color: "#1e1f22",
@@ -824,43 +780,51 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 60,
   },
-  mascotRow: {
-    display: "grid",
-    gridTemplateColumns: "auto 1fr",
+  // ── Header (avatar + text) ──
+  headerRow: {
+    display: "flex",
     alignItems: "center",
     gap: 12,
     marginTop: 8,
-    marginBottom: 4,
   },
-  mascotFullImg: {
-    width: 130,
-    height: "auto",
-    objectFit: "contain",
-    flexShrink: 0,
+  avatarCircle: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: 999,
+    border: "none",
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    flex: "0 0 auto",
+    padding: 2,
   },
-  bubble: {
-    position: "relative",
-    padding: "14px 16px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.6)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center 10%",
+    borderRadius: 999,
   },
-  bubbleText: {
+  headerText: {
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+  },
+  headerGreeting: {
     fontSize: 18,
-    fontWeight: 500,
-    lineHeight: 1.35,
-    color: "#0f172a",
-    whiteSpace: "pre-line",
+    fontWeight: 700,
+    color: "#1e1f22",
+    lineHeight: 1.3,
   },
+  // ── Metrics ──
   metricsWrap: {
     display: "flex",
     flexDirection: "column",
     gap: 24,
     width: "100%",
-    paddingTop: 16,
   },
   summaryCard: {
     position: "relative",
@@ -1003,17 +967,9 @@ const css = `
   0% { width: var(--fill-from); }
   100% { width: var(--fill-to); }
 }
-@keyframes streakFlameRun {
-  0% { left: var(--runner-from); opacity: 1; }
-  85% { opacity: 1; }
-  100% { left: var(--runner-to); opacity: 0; }
-}
 
 .streak-fill-grow {
   animation: streakFillGrow 700ms cubic-bezier(0.22,1,0.36,1) both;
-}
-.streak-flame-runner {
-  animation: streakFlameRun 700ms cubic-bezier(0.22,1,0.36,1) both;
 }
 
 .onb-fade {
@@ -1037,19 +993,6 @@ const css = `
   animation: streakCheckPop 450ms cubic-bezier(0.22,1,0.36,1) both;
 }
 
-.wc-speech-bubble::before {
-  content: "";
-  position: absolute;
-  left: -8px;
-  top: 18px;
-  width: 0;
-  height: 0;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-right: 8px solid rgba(255,255,255,0.9);
-  filter: drop-shadow(-1px 0 0 rgba(15,23,42,0.10));
-}
-
 .checkin-primary-btn {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1070,7 +1013,7 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .onb-fade, .onb-fade-soft, .streak-node-pop, .streak-fire-pop,
-  .streak-check-pop, .streak-fill-grow, .streak-flame-runner {
+  .streak-check-pop, .streak-fill-grow {
     animation: none !important;
   }
 }
