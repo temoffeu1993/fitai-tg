@@ -209,7 +209,17 @@ function StreakPanel({
               transition: phase === "before" ? "none" : "width 300ms ease",
             }} />
           )}
-          <span style={sk.barText}>
+          {/* Dark text for unfilled area */}
+          <span style={{ ...sk.barText, color: "rgba(15,23,42,0.55)" }}>
+            {displayTarget}/{total} тренировок
+          </span>
+          {/* White text clipped to filled area */}
+          <span style={{
+            ...sk.barText,
+            color: "#fff",
+            clipPath: `inset(0 ${100 - (displayTarget / total) * 100}% 0 0)`,
+            transition: "clip-path 300ms ease",
+          }}>
             {displayTarget}/{total} тренировок
           </span>
         </div>
@@ -227,9 +237,7 @@ function StreakPanel({
                   style={{
                     width: dotSize, height: dotSize, borderRadius: 999,
                     background: GROOVE_BG,
-                    boxShadow: isDone
-                      ? "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)"
-                      : GROOVE_SHADOW,
+                    boxShadow: GROOVE_SHADOW,
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                 >
@@ -278,13 +286,13 @@ const sk: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 6,
     width: 100,
-    minHeight: 100,
+    minHeight: 108,
     borderRadius: 20,
     background: GROOVE_BG,
     boxShadow: GROOVE_SHADOW,
-    padding: "12px 8px",
+    padding: "16px 8px",
   },
   fireRow: {
     display: "flex",
@@ -309,7 +317,7 @@ const sk: Record<string, React.CSSProperties> = {
   rightCol: {
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 14,
   },
   weekLabel: {
     fontSize: 18,
@@ -334,9 +342,8 @@ const sk: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     fontSize: 11,
     fontWeight: 700,
-    color: "rgba(15,23,42,0.45)",
-    mixBlendMode: "luminosity",
     pointerEvents: "none",
+    zIndex: 1,
   },
 };
 
