@@ -942,6 +942,26 @@ export default function WorkoutSession() {
       } catch {
         cacheIsStale = true;
       }
+    } else {
+      // No plannedWorkoutId — check if cache looks stale (e.g., all this-week workouts already completed)
+      try {
+        const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const pw = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+          const { monStr, sunStr } = getCurrentWeekRangeKeys();
+          const thisWeek = pw.filter((w: any) => {
+            const d = parseLocalDateKey(w?.scheduledFor);
+            return !!d && d >= monStr && d <= sunStr;
+          });
+          const allCompleted = thisWeek.length > 0 && thisWeek.every((w: any) => w.status === "completed");
+          if (allCompleted) cacheIsStale = true;
+        } else {
+          cacheIsStale = true;
+        }
+      } catch {
+        cacheIsStale = true;
+      }
     }
 
     // Compute weekly stats for celebrate from current-week plan.

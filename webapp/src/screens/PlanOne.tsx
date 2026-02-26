@@ -290,6 +290,14 @@ export default function PlanOne() {
       try {
         localStorage.setItem(PLANNED_WORKOUTS_COUNT_KEY, String(next.length));
       } catch { }
+      // Keep schedule_cache_v1 in sync so WorkoutSession reads fresh data
+      try {
+        localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify({
+          plannedWorkouts: Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [],
+          scheduleDates: data?.schedule?.dates ?? {},
+          ts: Date.now(),
+        }));
+      } catch { }
       try {
         window.dispatchEvent(new CustomEvent("planned_workouts_updated", { detail: { count: next.length } }));
       } catch {
