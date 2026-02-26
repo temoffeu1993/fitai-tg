@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X, LogOut, Dumbbell, Flag, CheckCheck, Square } from "lucide-react";
 import { saveSession, deleteTodayCheckin } from "@/api/plan";
-import { resetPlannedWorkout } from "@/api/schedule";
+import { getScheduleOverview, resetPlannedWorkout } from "@/api/schedule";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { clearActiveWorkout } from "@/lib/activeWorkout";
 import { pushOptimisticSession, reconcileSession } from "@/lib/history";
@@ -38,6 +38,7 @@ import {
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
 const HISTORY_KEY = "history_sessions_v1";
+const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const REST_PREF_KEY = "workout_rest_enabled_v2";
 const REST_OVERLAY_ENTER_DELAY_MS = 340;
@@ -65,6 +66,41 @@ function toIsoLocalInput(date: Date): string {
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseLocalDateKey(raw: unknown): string | null {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dt = new Date(s);
+  if (!Number.isFinite(dt.getTime())) return null;
+  return toLocalDateKey(dt);
+}
+
+function getCurrentWeekRangeKeys(now = new Date()): { monStr: string; sunStr: string } {
+  const mondayOff = (now.getDay() + 6) % 7;
+  const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOff);
+  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+  return {
+    monStr: toLocalDateKey(mon),
+    sunStr: toLocalDateKey(sun),
+  };
+}
+
+function readOnboardingDaysPerWeek(): number | null {
+  try {
+    const onb = JSON.parse(localStorage.getItem("onb_summary") || "{}");
+    const d = Number(onb?.schedule?.daysPerWeek);
+    if (Number.isFinite(d) && d >= 2 && d <= 6) return d;
+  } catch { }
+  return null;
 }
 
 function normalizeSessionPlan(raw: any): SessionPlan | null {
@@ -823,7 +859,7 @@ export default function WorkoutSession() {
     discardingRef.current = true;
     clearActiveWorkout();
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
-    try { localStorage.removeItem("schedule_cache_v1"); } catch { }
+    try { localStorage.removeItem(SCHEDULE_CACHE_KEY); } catch { }
     if (plannedWorkoutId) {
       try { await resetPlannedWorkout(plannedWorkoutId); } catch (e) { console.warn("resetPlannedWorkout failed", e); }
       try { await deleteTodayCheckin(); } catch (e) { console.warn("deleteTodayCheckin failed", e); }
@@ -884,18 +920,18 @@ export default function WorkoutSession() {
     clearActiveWorkout();
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
-    // Optimistic: mark plannedWorkout as completed in schedule_cache_v1
+    // Optimistic: mark plannedWorkout as completed in schedule cache
     let cacheIsStale = false;
     if (plannedWorkoutId) {
       try {
-        const raw = localStorage.getItem("schedule_cache_v1");
+        const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
           const pw = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
           const match = pw.find((w: any) => String(w?.id) === String(plannedWorkoutId));
           if (match) {
             match.status = "completed";
-            localStorage.setItem("schedule_cache_v1", JSON.stringify(parsed));
+            localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(parsed));
           } else {
             // plannedWorkoutId not in cache → cache is stale (new plan was generated)
             cacheIsStale = true;
@@ -908,40 +944,58 @@ export default function WorkoutSession() {
       }
     }
 
-    // Compute weekly stats from the (now-updated) schedule cache
-    let weekCompleted = 1; // at minimum, current workout counts
-    let sessionsPerWeek = 3; // default fallback
+    // Compute weekly stats for celebrate from current-week plan.
+    const onboardingTarget = readOnboardingDaysPerWeek() ?? 3;
+    let weekCompleted = 1; // at minimum, this just-finished workout
+    let sessionsPerWeek = onboardingTarget;
+    const computeWeekStats = (plannedWorkouts: any[]) => {
+      const { monStr, sunStr } = getCurrentWeekRangeKeys();
+      const thisWeek = plannedWorkouts.filter((w: any) => {
+        const d = parseLocalDateKey(w?.scheduledFor);
+        return !!d && d >= monStr && d <= sunStr;
+      });
+      const active = thisWeek.filter(
+        (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
+      );
+      if (active.length >= 2 && active.length <= 6) {
+        sessionsPerWeek = active.length;
+      }
+      let completed = thisWeek.filter((w: any) => w.status === "completed").length;
+      if (plannedWorkoutId) {
+        const current = thisWeek.find((w: any) => String(w?.id) === String(plannedWorkoutId));
+        if (current && current.status !== "completed") completed += 1;
+      }
+      weekCompleted = Math.max(1, completed);
+    };
+
     if (!cacheIsStale) {
       try {
-        const raw = localStorage.getItem("schedule_cache_v1");
+        const raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
           const pw: any[] = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
-          const now = new Date();
-          const mondayOff = (now.getDay() + 6) % 7;
-          const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOff);
-          const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-          const pad = (n: number) => String(n).padStart(2, "0");
-          const monStr = `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`;
-          const sunStr = `${sun.getFullYear()}-${pad(sun.getMonth() + 1)}-${pad(sun.getDate())}`;
-          const thisWeek = pw.filter((w: any) => {
-            const d = String(w?.scheduledFor || "").slice(0, 10);
-            return d >= monStr && d <= sunStr;
-          });
-          const active = thisWeek.filter(
-            (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
-          );
-          if (active.length >= 2 && active.length <= 6) sessionsPerWeek = active.length;
-          weekCompleted = thisWeek.filter((w: any) => w.status === "completed").length;
+          computeWeekStats(pw);
         }
       } catch { }
     } else {
-      // Cache stale — fall back to onboarding daysPerWeek
+      // Cache stale (usually after new generation): refresh once from API for accurate plan week stats.
       try {
-        const onb = JSON.parse(localStorage.getItem("onb_summary") || "{}");
-        const d = Number(onb?.schedule?.daysPerWeek);
-        if (Number.isFinite(d) && d >= 2 && d <= 6) sessionsPerWeek = d;
-      } catch { }
+        const overview = await getScheduleOverview();
+        const plannedWorkouts = Array.isArray(overview?.plannedWorkouts) ? overview.plannedWorkouts : [];
+        try {
+          localStorage.setItem(
+            SCHEDULE_CACHE_KEY,
+            JSON.stringify({
+              plannedWorkouts,
+              scheduleDates: overview?.schedule?.dates ?? {},
+              ts: Date.now(),
+            })
+          );
+        } catch { }
+        computeWeekStats(plannedWorkouts);
+      } catch {
+        // Keep fallback: 1 completed + onboarding target.
+      }
     }
 
     // Optimistic: write to history BEFORE navigation so celebrate reads fresh data

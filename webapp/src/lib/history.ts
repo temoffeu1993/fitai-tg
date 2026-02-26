@@ -99,13 +99,18 @@ function toLocalDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Extract a local YYYY-MM-DD string from a history record. */
-function sessionDate(s: { finishedAt?: string; completedAt?: string; date?: string }): string | null {
-  const raw = (s as any).finishedAt || (s as any).completedAt || (s as any).date;
-  if (!raw) return null;
-  const d = new Date(raw);
+function parseDateKey(raw: unknown): string | null {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
   if (!Number.isFinite(d.getTime())) return null;
   return toLocalDateStr(d);
+}
+
+/** Extract a local YYYY-MM-DD string from a history record. */
+function sessionDate(s: { finishedAt?: string; completedAt?: string; date?: string }): string | null {
+  return parseDateKey((s as any).finishedAt || (s as any).completedAt || (s as any).date);
 }
 
 // ─── Streak ─────────────────────────────────────────────────────────────────
@@ -174,30 +179,30 @@ function thisWeekWorkouts(pw: any[]): any[] {
   const mon = currentWeekMondayStr();
   const sun = currentWeekSundayStr();
   return pw.filter((w: any) => {
-    const d = String(w?.scheduledFor || "").slice(0, 10);
-    return d >= mon && d <= sun;
+    const d = parseDateKey(w?.scheduledFor);
+    return !!d && d >= mon && d <= sun;
   });
 }
 
 /**
  * Number of completed workouts in the current plan week.
  * Primary: plannedWorkouts with status "completed" in this Mon–Sun.
- * Fallback: unique history dates this week (if plan cache is empty/stale).
+ * Fallback: all history sessions this week (if plan cache is empty/stale).
  */
 export function getWeekCompletedCount(history: HistSession[]): number {
   const planCompleted = thisWeekWorkouts(readPlannedWorkouts())
     .filter((w: any) => w.status === "completed").length;
   if (planCompleted > 0) return planCompleted;
 
-  // Fallback: count unique dates with sessions this week
+  // Fallback: count all sessions this week (same-day sessions count separately)
   const mondayStr = currentWeekMondayStr();
   const sundayStr = currentWeekSundayStr();
-  const dates = new Set<string>();
+  let sessions = 0;
   for (const h of history) {
     const d = sessionDate(h);
-    if (d && d >= mondayStr && d <= sundayStr) dates.add(d);
+    if (d && d >= mondayStr && d <= sundayStr) sessions++;
   }
-  return dates.size;
+  return sessions;
 }
 
 /**
@@ -212,7 +217,10 @@ export function getWeekCompletedDays(history: HistSession[]): Set<number> {
     const d = sessionDate(h);
     if (!d) continue;
     if (d >= mondayStr && d <= sundayStr) {
-      const jsDay = new Date(d).getDay(); // 0=Sun, 1=Mon …
+      const y = Number(d.slice(0, 4));
+      const m = Number(d.slice(5, 7));
+      const day = Number(d.slice(8, 10));
+      const jsDay = new Date(y, m - 1, day).getDay(); // 0=Sun, 1=Mon …
       const isoDay = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon … 6=Sun
       days.add(isoDay);
     }
