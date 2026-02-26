@@ -219,7 +219,7 @@ export function getSessionsPerWeek(): number {
   const weekPw = thisWeekWorkouts(readPlannedWorkouts());
   if (weekPw.length >= 2) {
     const active = weekPw.filter(
-      (w: any) => w.status === "scheduled" || w.status === "completed"
+      (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
     );
     if (active.length >= 2 && active.length <= 6) return active.length;
   }
