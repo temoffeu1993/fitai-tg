@@ -161,22 +161,22 @@ function WeeklyGoalPanel({
       <div style={sk.fireBlock}>
         <div style={sk.fireRow}>
           <span style={{ fontSize: 32, lineHeight: 1 }}>🔥</span>
-          <div style={sk.slideWrap}>
+          <div style={sk.popWrap}>
             <span
-              className={isCounting ? "wc-slide-out" : ""}
+              className={isCounting ? "wc-num-out" : ""}
               style={{ ...sk.fireNumber, gridArea: "1/1" }}
             >
               {oldWorkoutCount}
             </span>
             <span
-              className={isCounting ? "wc-slide-in" : "wc-hidden"}
+              className={isCounting ? "wc-num-in" : "wc-hidden"}
               style={{ ...sk.fireNumber, gridArea: "1/1" }}
             >
               {newWorkoutCount}
             </span>
           </div>
         </div>
-        <span style={sk.fireLabel}>тренировок выполнено</span>
+        <span style={sk.fireLabel}>всего тренировок</span>
       </div>
 
       <div style={sk.rightCol} ref={rightRef}>
@@ -288,9 +288,8 @@ const sk: Record<string, React.CSSProperties> = {
     fontVariantNumeric: "tabular-nums",
     letterSpacing: "-0.03em",
   },
-  slideWrap: {
+  popWrap: {
     display: "grid",
-    overflow: "hidden",
     height: 36,
   },
   fireLabel: {
@@ -659,7 +658,7 @@ export default function WorkoutCelebrate() {
     ? step2Bubble
     : (stage >= 1 ? step1Bubble : "");
   const bubbleTyped = useTypewriterText(bubbleTarget, {
-    charIntervalMs: 22,
+    charIntervalMs: 15,
     startDelayMs: 80,
   });
 
@@ -844,6 +843,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
+    minHeight: 76,
   },
   bubbleText: {
     fontSize: 18,
@@ -1047,15 +1047,16 @@ const css = `
   0% { width: var(--fill-from); }
   100% { width: var(--fill-to); }
 }
-@keyframes wcSlideOut {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(-110%); opacity: 0; }
+@keyframes wcNumOut {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
-@keyframes wcSlideIn {
-  0% { transform: translateY(110%); opacity: 0; }
-  60% { transform: translateY(-8%); opacity: 1; }
-  80% { transform: translateY(3%); }
-  100% { transform: translateY(0); opacity: 1; }
+@keyframes wcNumIn {
+  0% { transform: scale(0); opacity: 0; }
+  40% { transform: scale(1.35); opacity: 1; }
+  65% { transform: scale(0.9); opacity: 1; }
+  80% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .streak-fill-grow {
@@ -1085,11 +1086,11 @@ const css = `
 .wc-check-pop {
   animation: wcCheckPop 500ms cubic-bezier(0.22,1,0.36,1) both;
 }
-.wc-slide-out {
-  animation: wcSlideOut 400ms cubic-bezier(0.4,0,0.2,1) both;
+.wc-num-out {
+  animation: wcNumOut 300ms cubic-bezier(0.4,0,0.2,1) both;
 }
-.wc-slide-in {
-  animation: wcSlideIn 500ms cubic-bezier(0.22,1,0.36,1) both;
+.wc-num-in {
+  animation: wcNumIn 500ms cubic-bezier(0.22,1,0.36,1) both;
   animation-delay: 150ms;
 }
 
@@ -1140,7 +1141,7 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .onb-fade, .onb-fade-soft, .streak-node-pop, .streak-fire-pop,
-  .streak-check-pop, .streak-fill-grow, .wc-slide-out, .wc-slide-in,
+  .streak-check-pop, .streak-fill-grow, .wc-num-out, .wc-num-in,
   .wc-check-pop {
     animation: none !important;
   }
