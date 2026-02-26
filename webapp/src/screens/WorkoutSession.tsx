@@ -1182,20 +1182,28 @@ export default function WorkoutSession() {
               </button>
             </div>
             <div style={styles.exitSheetBody}>
-              <p style={styles.exitText}>Не все упражнения выполнены.</p>
+              <p style={styles.exitText}>
+                {doneSets === 0
+                  ? "Ни один подход не выполнен. Тренировка не будет засчитана."
+                  : "Не все упражнения выполнены."}
+              </p>
               <div style={styles.exitList}>
-                <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={() => { setDiscardSheet(false); completeWorkout(); }}>
-                  <span style={styles.exitBtnIconWrap}>
-                    <Flag size={18} strokeWidth={2.2} />
-                  </span>
-                  <span style={styles.exitBtnLabel}>Сохранить и завершить</span>
-                </button>
-                <div style={styles.exitDivider} />
+                {doneSets > 0 && (
+                  <>
+                    <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={() => { setDiscardSheet(false); completeWorkout(); }}>
+                      <span style={styles.exitBtnIconWrap}>
+                        <Flag size={18} strokeWidth={2.2} />
+                      </span>
+                      <span style={styles.exitBtnLabel}>Сохранить и завершить</span>
+                    </button>
+                    <div style={styles.exitDivider} />
+                  </>
+                )}
                 <button type="button" className="eas-menu-btn" style={{ ...styles.exitSheetBtn, ...styles.exitSheetBtnDanger }} onClick={discardWorkout}>
                   <span style={{ ...styles.exitBtnIconWrap, ...styles.exitBtnIconWrapDanger }}>
                     <LogOut size={18} strokeWidth={2.2} />
                   </span>
-                  <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Завершить без сохранения</span>
+                  <span style={{ ...styles.exitBtnLabel, color: workoutTheme.danger }}>Выйти без сохранения</span>
                 </button>
                 <div style={styles.exitDivider} />
                 <button type="button" className="eas-menu-btn" style={styles.exitSheetBtn} onClick={() => setDiscardSheet(false)}>
