@@ -101,25 +101,29 @@ function WeeklyGoalPanel({
   prev,
   target,
   phase,
-  workoutCount,
+  oldWorkoutCount,
+  newWorkoutCount,
   completedDays,
   onBarDone,
+  onCountDone,
 }: {
   total: number;
   prev: number;
   target: number;
   phase: "before" | "counting" | "filling" | "checked" | "done";
-  workoutCount: number;
+  oldWorkoutCount: number;
+  newWorkoutCount: number;
   completedDays: Set<number>;
   onBarDone?: () => void;
+  onCountDone?: () => void;
 }) {
   const prevPct = prev / total;
   const targetPct = target / total;
   const prevWidth = `${prevPct * 100}%`;
   const targetWidth = `${targetPct * 100}%`;
-  const isFilled = phase === "checked" || phase === "done";
-  const fillWidth = isFilled ? targetWidth : prevWidth;
-  const displayTarget = isFilled ? target : prev;
+  const isAfterCount = phase === "filling" || phase === "checked" || phase === "done";
+  const fillWidth = isAfterCount ? targetWidth : prevWidth;
+  const displayTarget = isAfterCount ? target : prev;
 
   const rightRef = useRef<HTMLDivElement>(null);
   const [dotSize, setDotSize] = useState(28);
@@ -140,6 +144,16 @@ function WeeklyGoalPanel({
     return () => clearTimeout(t);
   }, [phase]);
 
+  // Fire count done callback
+  const onCountDoneRef = useRef(onCountDone);
+  onCountDoneRef.current = onCountDone;
+  useEffect(() => {
+    if (phase !== "counting") return;
+    const t = setTimeout(() => onCountDoneRef.current?.(), 600);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  const isCounting = phase === "counting" || phase === "filling" || phase === "checked" || phase === "done";
   const showChecked = phase === "checked" || phase === "done";
 
   return (
@@ -147,7 +161,20 @@ function WeeklyGoalPanel({
       <div style={sk.fireBlock}>
         <div style={sk.fireRow}>
           <span style={{ fontSize: 32, lineHeight: 1 }}>🔥</span>
-          <span style={sk.fireNumber}>{workoutCount}</span>
+          <div style={sk.slideWrap}>
+            <span
+              className={isCounting ? "wc-slide-out" : ""}
+              style={{ ...sk.fireNumber, gridArea: "1/1" }}
+            >
+              {oldWorkoutCount}
+            </span>
+            <span
+              className={isCounting ? "wc-slide-in" : "wc-hidden"}
+              style={{ ...sk.fireNumber, gridArea: "1/1" }}
+            >
+              {newWorkoutCount}
+            </span>
+          </div>
         </div>
         <span style={sk.fireLabel}>тренировок выполнено</span>
       </div>
@@ -187,16 +214,16 @@ function WeeklyGoalPanel({
             return (
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: 1 }}>
                 <div
-                  className={justDone ? "streak-node-pop" : ""}
                   style={{
                     width: dotSize, height: dotSize, borderRadius: 999,
                     background: GROOVE_BG,
                     boxShadow: GROOVE_SHADOW,
                     display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "visible",
                   }}
                 >
                   <span
-                    className={justDone ? "streak-check-pop" : ""}
+                    className={justDone ? "wc-check-pop" : ""}
                     style={{
                       fontWeight: 700,
                       lineHeight: 1,
@@ -261,6 +288,11 @@ const sk: Record<string, React.CSSProperties> = {
     fontVariantNumeric: "tabular-nums",
     letterSpacing: "-0.03em",
   },
+  slideWrap: {
+    display: "grid",
+    overflow: "hidden",
+    height: 36,
+  },
   fireLabel: {
     fontSize: 14,
     fontWeight: 400,
@@ -296,7 +328,7 @@ const sk: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     fontSize: 14,
     fontWeight: 400,
-    color: "rgba(15,23,42,0.55)",
+    color: "rgba(160,160,160,1)",
     pointerEvents: "none",
     zIndex: 1,
   },
@@ -465,6 +497,7 @@ export default function WorkoutCelebrate() {
   const [goalPhase, setGoalPhase] = useState<
     "before" | "counting" | "filling" | "checked" | "done"
   >("before");
+  const [showPanel, setShowPanel] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
 
   // Data
@@ -501,22 +534,23 @@ export default function WorkoutCelebrate() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [payload]);
 
-  // Step 2: start count animation after panel appears
+  // Step 2: show panel after bubble starts typing, then start counting
   useEffect(() => {
     if (stage !== 6) return;
-    const t = setTimeout(() => {
+    const t1 = setTimeout(() => {
+      setShowPanel(true);
+    }, 1200);
+    const t2 = setTimeout(() => {
       setGoalPhase("counting");
       fireHapticImpact("medium");
-    }, 800);
-    return () => clearTimeout(t);
+    }, 2000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [stage]);
 
-  // Count done → fill bar → checkmark → done
+  // Count done → fill bar
   const onCountDone = () => {
-    setTimeout(() => {
-      setGoalPhase("filling");
-      fireHapticImpact("heavy");
-    }, 400);
+    setGoalPhase("filling");
+    fireHapticImpact("heavy");
   };
 
   const onBarFillDone = () => {
@@ -601,14 +635,6 @@ export default function WorkoutCelebrate() {
       }, 800);
     }
   });
-
-  const workoutCountAnimated = useCounter(
-    workoutNumber,
-    goalPhase !== "before",
-    600,
-    onCountDone,
-    Math.max(0, workoutNumber - 1),
-  );
 
   // Bubble text
   const step1Bubble = workoutNumber === 1
@@ -719,15 +745,17 @@ export default function WorkoutCelebrate() {
           </div>
 
           {/* Weekly Goal Panel */}
-          <div className="onb-fade" style={{ width: "100%", marginTop: 24 }}>
+          <div className={showPanel ? "onb-fade" : "wc-hidden"} style={{ width: "100%", marginTop: 24 }}>
             <WeeklyGoalPanel
               total={sessionsPerWeek}
               prev={Math.max(0, chainCompleted - 1)}
               target={chainCompleted}
               phase={goalPhase}
-              workoutCount={workoutCountAnimated}
+              oldWorkoutCount={Math.max(0, workoutNumber - 1)}
+              newWorkoutCount={workoutNumber}
               completedDays={completedDays}
               onBarDone={onBarFillDone}
+              onCountDone={onCountDone}
             />
           </div>
 
@@ -1008,9 +1036,26 @@ const css = `
   70% { transform: scale(0.9); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes wcCheckPop {
+  0% { transform: translateY(-1px) scale(0); opacity: 0; }
+  40% { transform: translateY(-1px) scale(2.2); opacity: 1; }
+  65% { transform: translateY(-1px) scale(0.85); opacity: 1; }
+  80% { transform: translateY(-1px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-1px) scale(1); opacity: 1; }
+}
 @keyframes streakFillGrow {
   0% { width: var(--fill-from); }
   100% { width: var(--fill-to); }
+}
+@keyframes wcSlideOut {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-110%); opacity: 0; }
+}
+@keyframes wcSlideIn {
+  0% { transform: translateY(110%); opacity: 0; }
+  60% { transform: translateY(-8%); opacity: 1; }
+  80% { transform: translateY(3%); }
+  100% { transform: translateY(0); opacity: 1; }
 }
 
 .streak-fill-grow {
@@ -1036,6 +1081,16 @@ const css = `
 }
 .streak-check-pop {
   animation: streakCheckPop 450ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.wc-check-pop {
+  animation: wcCheckPop 500ms cubic-bezier(0.22,1,0.36,1) both;
+}
+.wc-slide-out {
+  animation: wcSlideOut 400ms cubic-bezier(0.4,0,0.2,1) both;
+}
+.wc-slide-in {
+  animation: wcSlideIn 500ms cubic-bezier(0.22,1,0.36,1) both;
+  animation-delay: 150ms;
 }
 
 .wc-speech-bubble::before {
@@ -1085,7 +1140,8 @@ const css = `
 
 @media (prefers-reduced-motion: reduce) {
   .onb-fade, .onb-fade-soft, .streak-node-pop, .streak-fire-pop,
-  .streak-check-pop, .streak-fill-grow {
+  .streak-check-pop, .streak-fill-grow, .wc-slide-out, .wc-slide-in,
+  .wc-check-pop {
     animation: none !important;
   }
 }
