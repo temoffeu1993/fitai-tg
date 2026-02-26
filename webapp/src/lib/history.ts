@@ -181,11 +181,23 @@ function thisWeekWorkouts(pw: any[]): any[] {
 
 /**
  * Number of completed workouts in the current plan week.
- * Counts plannedWorkouts with status "completed" in this Mon–Sun.
+ * Primary: plannedWorkouts with status "completed" in this Mon–Sun.
+ * Fallback: unique history dates this week (if plan cache is empty/stale).
  */
-export function getWeekCompletedCount(_history: HistSession[]): number {
-  return thisWeekWorkouts(readPlannedWorkouts())
+export function getWeekCompletedCount(history: HistSession[]): number {
+  const planCompleted = thisWeekWorkouts(readPlannedWorkouts())
     .filter((w: any) => w.status === "completed").length;
+  if (planCompleted > 0) return planCompleted;
+
+  // Fallback: count unique dates with sessions this week
+  const mondayStr = currentWeekMondayStr();
+  const sundayStr = currentWeekSundayStr();
+  const dates = new Set<string>();
+  for (const h of history) {
+    const d = sessionDate(h);
+    if (d && d >= mondayStr && d <= sundayStr) dates.add(d);
+  }
+  return dates.size;
 }
 
 /**

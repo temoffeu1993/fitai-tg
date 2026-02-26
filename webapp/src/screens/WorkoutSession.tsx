@@ -885,6 +885,7 @@ export default function WorkoutSession() {
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
     // Optimistic: mark plannedWorkout as completed in schedule_cache_v1
+    let cacheIsStale = false;
     if (plannedWorkoutId) {
       try {
         const raw = localStorage.getItem("schedule_cache_v1");
@@ -895,37 +896,53 @@ export default function WorkoutSession() {
           if (match) {
             match.status = "completed";
             localStorage.setItem("schedule_cache_v1", JSON.stringify(parsed));
+          } else {
+            // plannedWorkoutId not in cache → cache is stale (new plan was generated)
+            cacheIsStale = true;
           }
+        } else {
+          cacheIsStale = true;
         }
-      } catch { }
+      } catch {
+        cacheIsStale = true;
+      }
     }
 
     // Compute weekly stats from the (now-updated) schedule cache
-    let weekCompleted = 0;
-    let sessionsPerWeek = 3;
-    try {
-      const raw = localStorage.getItem("schedule_cache_v1");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const pw: any[] = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
-        const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-        const monStr = mon.toISOString().slice(0, 10);
-        const sunStr = sun.toISOString().slice(0, 10);
-        const thisWeek = pw.filter((w: any) => {
-          const d = String(w?.scheduledFor || "").slice(0, 10);
-          return d >= monStr && d <= sunStr;
-        });
-        const active = thisWeek.filter(
-          (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
-        );
-        if (active.length >= 2 && active.length <= 6) sessionsPerWeek = active.length;
-        weekCompleted = thisWeek.filter((w: any) => w.status === "completed").length;
-      }
-    } catch { }
+    let weekCompleted = 1; // at minimum, current workout counts
+    let sessionsPerWeek = 3; // default fallback
+    if (!cacheIsStale) {
+      try {
+        const raw = localStorage.getItem("schedule_cache_v1");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const pw: any[] = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+          const now = new Date();
+          const mondayOff = (now.getDay() + 6) % 7;
+          const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOff);
+          const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const monStr = `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`;
+          const sunStr = `${sun.getFullYear()}-${pad(sun.getMonth() + 1)}-${pad(sun.getDate())}`;
+          const thisWeek = pw.filter((w: any) => {
+            const d = String(w?.scheduledFor || "").slice(0, 10);
+            return d >= monStr && d <= sunStr;
+          });
+          const active = thisWeek.filter(
+            (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
+          );
+          if (active.length >= 2 && active.length <= 6) sessionsPerWeek = active.length;
+          weekCompleted = thisWeek.filter((w: any) => w.status === "completed").length;
+        }
+      } catch { }
+    } else {
+      // Cache stale — fall back to onboarding daysPerWeek
+      try {
+        const onb = JSON.parse(localStorage.getItem("onb_summary") || "{}");
+        const d = Number(onb?.schedule?.daysPerWeek);
+        if (Number.isFinite(d) && d >= 2 && d <= 6) sessionsPerWeek = d;
+      } catch { }
+    }
 
     // Optimistic: write to history BEFORE navigation so celebrate reads fresh data
     const tempHistoryId = pushOptimisticSession(payload);
