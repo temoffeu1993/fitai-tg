@@ -884,6 +884,22 @@ export default function WorkoutSession() {
     clearActiveWorkout();
     try { localStorage.removeItem(PLAN_CACHE_KEY); } catch { }
 
+    // Optimistic: mark plannedWorkout as completed in schedule_cache_v1
+    if (plannedWorkoutId) {
+      try {
+        const raw = localStorage.getItem("schedule_cache_v1");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const pw = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+          const match = pw.find((w: any) => String(w?.id) === String(plannedWorkoutId));
+          if (match) {
+            match.status = "completed";
+            localStorage.setItem("schedule_cache_v1", JSON.stringify(parsed));
+          }
+        }
+      } catch { }
+    }
+
     // Optimistic: write to history BEFORE navigation so celebrate reads fresh data
     const tempHistoryId = pushOptimisticSession(payload);
 
