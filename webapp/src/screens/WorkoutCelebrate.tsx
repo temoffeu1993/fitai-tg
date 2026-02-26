@@ -676,8 +676,9 @@ export default function WorkoutCelebrate() {
           {/* Mascot + Bubble */}
           <div style={s.mascotRow} className={stage >= 1 ? "onb-fade" : "wc-hidden"}>
             <img src={morobotImg} alt="" style={s.mascotImg} loading="eager" decoding="async" />
-            <div style={s.bubble} className="wc-speech-bubble">
-              <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
+            <div style={{ ...s.bubble, position: "relative" }} className="wc-speech-bubble">
+              <span style={{ ...s.bubbleText, visibility: "hidden" }}>{step1Bubble}</span>
+              <span style={{ ...s.bubbleText, position: "absolute", inset: "14px 16px" }}>{bubbleTyped || "\u00A0"}</span>
             </div>
           </div>
 
@@ -733,8 +734,9 @@ export default function WorkoutCelebrate() {
         <div style={s.page2}>
           {/* Bubble above mascot */}
           <div style={s.bubble2Wrap} className="onb-fade">
-            <div style={s.bubble2} className="wc-speech-bubble-down">
-              <span style={s.bubbleText}>{bubbleTyped || "\u00A0"}</span>
+            <div style={{ ...s.bubble2, position: "relative" }} className="wc-speech-bubble-down">
+              <span style={{ ...s.bubbleText, visibility: "hidden" }}>{step2Bubble}</span>
+              <span style={{ ...s.bubbleText, position: "absolute", inset: "14px 20px" }}>{bubbleTyped || "\u00A0"}</span>
             </div>
           </div>
 
@@ -843,7 +845,6 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 10px 22px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.7)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    minHeight: 76,
   },
   bubbleText: {
     fontSize: 18,
