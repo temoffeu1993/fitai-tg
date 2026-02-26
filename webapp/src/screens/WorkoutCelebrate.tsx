@@ -499,10 +499,16 @@ export default function WorkoutCelebrate() {
   const [showPanel, setShowPanel] = useState(false);
   const confettiRef = useRef<HTMLDivElement>(null);
 
-  // Data
+  // Data — prefer values passed via location.state (computed from fresh cache)
   const history = useMemo(() => loadHistory(), []);
-  const sessionsPerWeek = useMemo(() => getSessionsPerWeek(), []);
-  const weekCompleted = useMemo(() => getWeekCompletedCount(history), [history]);
+  const stateWeekCompleted = (location.state as any)?.weekCompleted;
+  const stateSessionsPerWeek = (location.state as any)?.sessionsPerWeek;
+  const sessionsPerWeek = typeof stateSessionsPerWeek === "number" && stateSessionsPerWeek >= 2
+    ? stateSessionsPerWeek
+    : getSessionsPerWeek();
+  const weekCompleted = typeof stateWeekCompleted === "number"
+    ? stateWeekCompleted
+    : getWeekCompletedCount(history);
   const chainCompleted = Math.min(weekCompleted, sessionsPerWeek);
   const completedDays = useMemo(() => getWeekCompletedDays(history), [history]);
   const workoutNumber = history.length;

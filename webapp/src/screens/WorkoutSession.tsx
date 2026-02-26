@@ -900,11 +900,41 @@ export default function WorkoutSession() {
       } catch { }
     }
 
+    // Compute weekly stats from the (now-updated) schedule cache
+    let weekCompleted = 0;
+    let sessionsPerWeek = 3;
+    try {
+      const raw = localStorage.getItem("schedule_cache_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const pw: any[] = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+        const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+        const monStr = mon.toISOString().slice(0, 10);
+        const sunStr = sun.toISOString().slice(0, 10);
+        const thisWeek = pw.filter((w: any) => {
+          const d = String(w?.scheduledFor || "").slice(0, 10);
+          return d >= monStr && d <= sunStr;
+        });
+        const active = thisWeek.filter(
+          (w: any) => w.status === "scheduled" || w.status === "completed" || w.status === "pending"
+        );
+        if (active.length >= 2 && active.length <= 6) sessionsPerWeek = active.length;
+        weekCompleted = thisWeek.filter((w: any) => w.status === "completed").length;
+      }
+    } catch { }
+
     // Optimistic: write to history BEFORE navigation so celebrate reads fresh data
     const tempHistoryId = pushOptimisticSession(payload);
 
     setSaving(false);
-    nav("/workout/celebrate", { replace: true, state: { result: provisionalResult } });
+    nav("/workout/celebrate", {
+      replace: true,
+      state: { result: provisionalResult, weekCompleted, sessionsPerWeek },
+    });
 
     // Save in background, then reconcile optimistic record
     void (async () => {
