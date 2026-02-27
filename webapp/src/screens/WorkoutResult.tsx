@@ -858,7 +858,7 @@ const s: Record<string, CSSProperties> = {
     fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2,
   },
   headerSubRow: {
-    display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" as const,
+    display: "flex", alignItems: "center", gap: 16, marginTop: 3, flexWrap: "wrap" as const,
   },
   headerSubChip: {
     display: "inline-flex", alignItems: "center", gap: 4,
