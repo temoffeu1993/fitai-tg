@@ -604,17 +604,26 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   const EFFORT_COLOR: Record<string, string> = {
     easy: "#93C5FD", working: "#86EFAC", quite_hard: "#FDE68A", hard: "#FDBA74", max: "#FCA5A5",
   };
+  const EFFORT_LABELS: Record<string, string> = {
+    easy: "Слишком легко", working: "В самый раз", quite_hard: "Тяжеловато",
+    hard: "Очень тяжело", max: "На пределе",
+  };
   const effortBars = useMemo(() => {
-    return payloadExercises
-      .filter((ex: any) => ex?.done !== false && ex?.skipped !== true)
-      .map((ex: any) => {
-        const name = String(ex?.name || ex?.exerciseName || "Упражнение");
-        const shortName = name.length > 14 ? name.slice(0, 13) + "…" : name;
-        const effort: string | null = ex?.effort || null;
-        const level = effort ? (EFFORT_LEVEL[effort] ?? 0) : 0;
-        const color = effort ? (EFFORT_COLOR[effort] ?? "#d1d5db") : "#d1d5db";
-        return { name: shortName, level, color, hasEffort: level > 0 };
-      });
+    return payloadExercises.map((ex: any) => {
+      const name = String(ex?.name || ex?.exerciseName || "Упражнение");
+      const shortName = name.length > 14 ? name.slice(0, 13) + "…" : name;
+      const effort: string | null = ex?.effort || null;
+      const level = effort ? (EFFORT_LEVEL[effort] ?? 0) : 0;
+      const color = effort ? (EFFORT_COLOR[effort] ?? "#d1d5db") : "#d1d5db";
+      return { name: shortName, level, color, hasEffort: level > 0 };
+    });
+  }, [payloadExercises]);
+  const usedEffortKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const ex of payloadExercises) {
+      if (ex?.effort && EFFORT_LEVEL[ex.effort]) keys.add(ex.effort);
+    }
+    return Array.from(keys).sort((a, b) => EFFORT_LEVEL[a] - EFFORT_LEVEL[b]);
   }, [payloadExercises]);
 
   // PRs
@@ -719,16 +728,23 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
               {effortBars.map((bar, i) => (
                 <div key={i} style={s.rpeBarCol}>
                   <div style={s.rpeBarGroove}>
-                    <div style={{
-                      ...s.rpeBarFill,
-                      height: bar.hasEffort ? `${(bar.level / 5) * 100}%` : "6%",
-                      background: bar.color,
-                      boxShadow: bar.hasEffort
-                        ? "inset 0 2px 3px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.25)"
-                        : "none",
-                    }} />
+                    {bar.hasEffort && (
+                      <div style={{
+                        ...s.rpeBarFill,
+                        height: `${(bar.level / 5) * 100}%`,
+                        background: bar.color,
+                      }} />
+                    )}
                     <span style={s.rpeBarLabel}>{bar.name}</span>
                   </div>
+                </div>
+              ))}
+            </div>
+            <div style={s.rpeLegend}>
+              {usedEffortKeys.map(key => (
+                <div key={key} style={s.rpeLegendItem}>
+                  <div style={{ ...s.rpeLegendDot, background: EFFORT_COLOR[key] }} />
+                  <span style={s.rpeLegendText}>{EFFORT_LABELS[key]}</span>
                 </div>
               ))}
             </div>
@@ -959,14 +975,14 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   rpeBarGroove: {
     position: "relative", width: "100%", height: "100%",
-    borderRadius: 10,
+    borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     overflow: "hidden",
     display: "flex", flexDirection: "column", justifyContent: "flex-end",
   } as CSSProperties,
   rpeBarFill: {
-    width: "100%", borderRadius: 10,
+    width: "100%", borderRadius: 999,
     transition: "height 600ms ease",
   },
   rpeBarLabel: {
@@ -979,6 +995,18 @@ const s: Record<string, CSSProperties> = {
     pointerEvents: "none", zIndex: 1,
     letterSpacing: 0.3,
   } as CSSProperties,
+  rpeLegend: {
+    display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14,
+  } as CSSProperties,
+  rpeLegendItem: {
+    display: "flex", alignItems: "center", gap: 5,
+  },
+  rpeLegendDot: {
+    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+  },
+  rpeLegendText: {
+    fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
+  },
 
   // ── Record
   recordHeader: {
