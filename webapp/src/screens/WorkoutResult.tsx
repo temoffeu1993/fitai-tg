@@ -1090,28 +1090,32 @@ const s: Record<string, CSSProperties> = {
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
   } as CSSProperties,
   stickyInner: {
-    maxWidth: 420, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr", gap: 10, boxSizing: "border-box",
+    maxWidth: 720, margin: "0 auto", display: "grid", gap: 8, boxSizing: "border-box",
   },
   primaryBtn: {
-    width: "100%", maxWidth: "420px", justifySelf: "center",
-    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0,
-    height: "auto", minHeight: 56, padding: "16px 18px",
-    borderRadius: 16, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
+    width: "fit-content", maxWidth: "100%", justifySelf: "center",
+    display: "inline-flex", alignItems: "center", gap: 12,
+    height: 56, minHeight: 56, padding: "0 14px",
+    borderRadius: 999, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)", cursor: "pointer",
     transition: "transform 160ms ease, opacity 250ms ease",
-    appearance: "none", WebkitAppearance: "none", outline: "none",
   },
   primaryBtnText: {
-    fontSize: 18, fontWeight: 500, textAlign: "center", color: "#fff", lineHeight: 1.2
+    whiteSpace: "nowrap" as const, fontSize: 18, fontWeight: 500, lineHeight: 1, color: "#fff",
   },
   primaryBtnCircle: {
-    display: "none", // hidden to match CheckIn "Далее" style
+    width: 40, height: 40, borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    marginRight: -6,
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "#0f172a", flexShrink: 0,
   },
   secondaryBtn: {
-    width: "100%", maxWidth: "420px", justifySelf: "center", minHeight: 40,
+    width: "100%", justifySelf: "center", minHeight: 40,
     border: "none", background: "transparent", borderRadius: 999,
-    color: "#1e1f22", fontSize: 16, fontWeight: 600, padding: "14px 16px",
+    color: "rgba(15,23,42,0.6)", fontSize: 14, fontWeight: 500,
     cursor: "pointer", textAlign: "center" as const,
-    transition: "opacity 250ms ease", WebkitTapHighlightColor: "transparent",
+    transition: "opacity 250ms ease",
   },
 };
