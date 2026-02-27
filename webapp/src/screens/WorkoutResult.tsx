@@ -602,7 +602,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   // RPE bar chart data
   const EFFORT_LEVEL: Record<string, number> = { easy: 1, working: 2, quite_hard: 3, hard: 4, max: 5 };
   const EFFORT_COLOR: Record<string, string> = {
-    easy: "#93C5FD", working: "#86EFAC", quite_hard: "#FDE68A", hard: "#FDBA74", max: "#FCA5A5",
+    easy: "#3B82F6", working: "#10B981", quite_hard: "#F59E0B", hard: "#F97316", max: "#EF4444",
   };
   const EFFORT_LABELS: Record<string, string> = {
     easy: "Слишком легко", working: "В самый раз", quite_hard: "Тяжеловато",
@@ -990,8 +990,8 @@ const s: Record<string, CSSProperties> = {
     display: "flex", alignItems: "center", justifyContent: "center",
     writingMode: "vertical-rl" as const,
     textOrientation: "mixed" as const,
-    fontSize: 11, fontWeight: 500,
-    color: "rgba(160,160,160,1)",
+    fontSize: 11, fontWeight: 700,
+    color: "#ffffff",
     pointerEvents: "none", zIndex: 1,
     letterSpacing: 0.3,
   } as CSSProperties,
