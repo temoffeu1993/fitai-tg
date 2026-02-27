@@ -616,7 +616,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                     <Zap size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
                     <span>{sessionNumber}-я тренировка</span>
                   </span>
-                  <span style={s.headerSubDot}>·</span>
                   <span style={s.headerSubChip}>
                     <Calendar size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
                     <span>{dateStr}</span>
