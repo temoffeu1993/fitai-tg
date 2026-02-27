@@ -682,7 +682,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
         {muscleDistribution.length > 0 && (
           <div style={{ ...s.glassCard, ...fadeStyle(120) }}>
-            <div style={s.muscleTitle}>{workoutTitle}</div>
+            <div style={s.muscleTitle}>Какие мышцы работали</div>
             <div style={s.muscleBar}>
               {muscleDistribution.map((m, i) => (
                 <div key={i} style={{ ...s.muscleBarSegment, width: `${Math.max(m.percent, 2)}%`, background: m.color }} />
