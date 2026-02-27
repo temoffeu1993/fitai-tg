@@ -1004,7 +1004,6 @@ const s: Record<string, CSSProperties> = {
     display: "flex", gap: 6, alignItems: "flex-end", height: 140,
   },
   progressCtaBarTrack: {
-    width: 14,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
@@ -1013,12 +1012,12 @@ const s: Record<string, CSSProperties> = {
     overflow: "hidden",
     display: "inline-flex",
     alignItems: "flex-end",
-    flexShrink: 0,
     height: "100%",
   } as CSSProperties,
   progressCtaBarFill: {
     width: "100%",
     borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow:
       "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
     transition: "height 600ms ease",
