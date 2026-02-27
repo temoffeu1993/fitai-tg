@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { ArrowRight, ChevronUp, ChevronDown, Minus } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
+import mascotImg from "@/assets/robonew.webp";
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const LAST_RESULT_KEY = "last_workout_result_v1";
+const DASH_AVATAR_SIZE = 56;
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 type ProgressionJob = { id: string; status: string; lastError?: string | null } | null;
 
@@ -21,6 +27,8 @@ type StoredWorkoutResult = {
   coachReport?: any | null;
   weeklyCoachJobId?: string | null;
 };
+
+// ─── Storage ───────────────────────────────────────────────────────────────────
 
 function readStored(): StoredWorkoutResult | null {
   try {
@@ -40,6 +48,8 @@ function writeStored(next: StoredWorkoutResult) {
   } catch { }
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
 function normalizeNameKey(name: string): string {
   return String(name || "")
     .toLowerCase()
@@ -53,64 +63,226 @@ function toNumber(v: unknown): number | null {
 }
 
 function median(nums: number[]): number | null {
-  const sorted = nums.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  const sorted = nums.filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
   if (sorted.length === 0) return null;
-  return sorted[Math.floor(sorted.length / 2)];
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) return (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted[mid];
 }
 
-function formatKg(v: number | null): string | null {
-  if (v == null || !Number.isFinite(v) || v <= 0) return null;
-  const rounded = Math.round(v * 4) / 4;
-  return `${rounded} кг`;
+function haptic() {
+  try {
+    if (navigator.vibrate) navigator.vibrate(80);
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+  } catch { }
 }
 
-function parseUpperReps(reps: unknown): number | null {
-  if (reps == null) return null;
-  if (Array.isArray(reps) && reps.length >= 2) {
-    const a = Number(reps[0]);
-    const b = Number(reps[1]);
-    if (Number.isFinite(a) && Number.isFinite(b)) return Math.max(Math.round(a), Math.round(b));
-  }
-  if (typeof reps === "number" && Number.isFinite(reps) && reps > 0) return Math.round(reps + 2);
-  const str = String(reps).trim();
-  const m = str.match(/(\d+)\s*[-–—]\s*(\d+)/);
-  if (m) {
-    const a = Number(m[1]); const b = Number(m[2]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    return Math.max(a, b);
-  }
-  const c = str.match(/(\d+)\s*,\s*(\d+)/);
-  if (c) {
-    const a = Number(c[1]); const b = Number(c[2]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    return Math.max(a, b);
-  }
-  const n = Number(str);
-  if (Number.isFinite(n) && n > 0) return Math.round(n + 2);
-  return null;
+function pluralExercises(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "упражнение";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "упражнения";
+  return "упражнений";
 }
 
+function pluralSets(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "подход";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "подхода";
+  return "подходов";
+}
 
-function computeTonnage(exercises: any[]): number {
+function ordinalWorkout(n: number): string {
+  // Russian ordinal for workout number
+  if (n === 1) return "1-я";
+  if (n === 2) return "2-я";
+  if (n === 3) return "3-я";
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return `${n}-я`;
+  if (mod10 === 1) return `${n}-я`;
+  if (mod10 === 2) return `${n}-я`;
+  if (mod10 === 3) return `${n}-я`;
+  return `${n}-я`;
+}
+
+// ─── Effort mapping ────────────────────────────────────────────────────────────
+
+type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max";
+
+const EFFORT_LABELS: Record<EffortTag, string> = {
+  easy: "Легко",
+  working: "Рабочая",
+  quite_hard: "Ощутимо",
+  hard: "Тяжело",
+  max: "Максимум",
+};
+
+const EFFORT_NUMERIC: Record<EffortTag, number> = {
+  easy: 1,
+  working: 2,
+  quite_hard: 3,
+  hard: 4,
+  max: 5,
+};
+
+function effortLabel(tag: EffortTag | string | null | undefined): string {
+  if (!tag) return "";
+  return EFFORT_LABELS[tag as EffortTag] || "";
+}
+
+function avgEffortLabel(exercises: any[]): string {
+  const values: number[] = [];
+  for (const ex of exercises) {
+    const e = ex?.effort as EffortTag | undefined;
+    if (e && EFFORT_NUMERIC[e]) values.push(EFFORT_NUMERIC[e]);
+  }
+  if (values.length === 0) return "";
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  if (avg <= 1.5) return "Легко";
+  if (avg <= 2.5) return "Рабочая";
+  if (avg <= 3.5) return "Ощутимо";
+  if (avg <= 4.5) return "Тяжело";
+  return "Максимум";
+}
+
+// ─── Muscle group mapping ──────────────────────────────────────────────────────
+
+const MUSCLE_GROUP_MAP: Record<string, string> = {
+  quads: "Квадрицепсы",
+  glutes: "Ягодицы",
+  hamstrings: "Бицепс бедра",
+  calves: "Икры",
+  chest: "Грудь",
+  lats: "Широчайшие",
+  upper_back: "Верх спины",
+  rear_delts: "Плечи",
+  front_delts: "Плечи",
+  side_delts: "Плечи",
+  triceps: "Трицепс",
+  biceps: "Бицепс",
+  forearms: "Предплечья",
+  core: "Пресс",
+  lower_back: "Поясница",
+};
+
+const PATTERN_TO_MUSCLES: Record<string, string[]> = {
+  squat: ["Квадрицепсы", "Ягодицы"],
+  hinge: ["Бицепс бедра", "Ягодицы"],
+  lunge: ["Квадрицепсы", "Ягодицы"],
+  hip_thrust: ["Ягодицы"],
+  horizontal_push: ["Грудь", "Трицепс"],
+  incline_push: ["Грудь", "Плечи"],
+  vertical_push: ["Плечи", "Трицепс"],
+  horizontal_pull: ["Верх спины", "Бицепс"],
+  vertical_pull: ["Широчайшие", "Бицепс"],
+  rear_delts: ["Плечи"],
+  delts_iso: ["Плечи"],
+  triceps_iso: ["Трицепс"],
+  biceps_iso: ["Бицепс"],
+  calves: ["Икры"],
+  core: ["Пресс"],
+};
+
+const MUSCLE_COLORS: Record<string, string> = {
+  "Грудь": "#3B82F6",
+  "Плечи": "#8B5CF6",
+  "Трицепс": "#EC4899",
+  "Бицепс": "#F59E0B",
+  "Широчайшие": "#10B981",
+  "Верх спины": "#14B8A6",
+  "Квадрицепсы": "#EF4444",
+  "Ягодицы": "#F97316",
+  "Бицепс бедра": "#D946EF",
+  "Икры": "#6366F1",
+  "Пресс": "#0EA5E9",
+  "Поясница": "#64748B",
+  "Предплечья": "#84CC16",
+};
+
+function getMusclesForExercise(ex: any): string[] {
+  // Try targetMuscles from payload
+  const target: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
+  if (target.length > 0) {
+    const mapped = target.map((m: string) => MUSCLE_GROUP_MAP[m] || m);
+    return [...new Set(mapped)];
+  }
+  // Fallback: pattern
+  const pattern = String(ex?.pattern || "");
+  if (pattern && PATTERN_TO_MUSCLES[pattern]) {
+    return PATTERN_TO_MUSCLES[pattern];
+  }
+  return [];
+}
+
+function computeMuscleDistribution(exercises: any[]): Array<{ muscle: string; percent: number; color: string }> {
+  const counts: Record<string, number> = {};
   let total = 0;
   for (const ex of exercises) {
-    const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-    for (const set of sets) {
-      if (set?.done === false) continue;
-      const w = toNumber(set?.weight) ?? 0;
-      const r = toNumber(set?.reps) ?? 0;
-      if (w > 0 && r > 0) total += w * r;
+    if (ex?.done === false || ex?.skipped === true) continue;
+    const doneSets = (Array.isArray(ex?.sets) ? ex.sets : []).filter((s: any) => s?.done !== false).length;
+    if (doneSets === 0) continue;
+    const muscles = getMusclesForExercise(ex);
+    if (muscles.length === 0) continue;
+    const perMuscle = doneSets / muscles.length;
+    for (const m of muscles) {
+      counts[m] = (counts[m] || 0) + perMuscle;
+      total += perMuscle;
     }
   }
-  return Math.round(total);
+  if (total === 0) return [];
+  return Object.entries(counts)
+    .map(([muscle, count]) => ({
+      muscle,
+      percent: Math.round((count / total) * 100),
+      color: MUSCLE_COLORS[muscle] || "#94A3B8",
+    }))
+    .sort((a, b) => b.percent - a.percent);
 }
+
+// ─── PR Detection ──────────────────────────────────────────────────────────────
+
+type PR = { name: string; weight: number; reps: number; type: "weight" | "reps" | "first"; tonnage?: number };
 
 function detectPRs(
   currentExercises: any[],
   history: HistSession[],
   currentSessionId: string | null
-): Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> {
-  const prs: Array<{ name: string; weight: number; reps: number; type: "weight" | "reps" }> = [];
+): PR[] {
+  const hasHistory = history.some(s => currentSessionId ? String(s?.id || "") !== currentSessionId : true);
+  
+  if (!hasHistory || history.length <= 1) {
+    // First workout — find exercise with highest tonnage as "Первый рекорд"
+    let bestEx: PR | null = null;
+    let bestTonnage = 0;
+    for (const ex of currentExercises) {
+      if (ex?.done === false || ex?.skipped === true) continue;
+      const name = String(ex?.name || ex?.exerciseName || "");
+      if (!name) continue;
+      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+      let tonnage = 0;
+      let maxW = 0;
+      let maxR = 0;
+      for (const set of sets) {
+        if (set?.done === false) continue;
+        const w = toNumber(set?.weight) ?? 0;
+        const r = toNumber(set?.reps) ?? 0;
+        if (w > maxW) maxW = w;
+        if (r > maxR) maxR = r;
+        tonnage += w * r;
+      }
+      if (tonnage > bestTonnage) {
+        bestTonnage = tonnage;
+        bestEx = { name, weight: maxW, reps: maxR, type: "first", tonnage };
+      }
+    }
+    return bestEx ? [bestEx] : [];
+  }
+
+  // Normal PR detection
+  const prs: PR[] = [];
   const bestWeight = new Map<string, number>();
   const bestReps = new Map<string, number>();
   for (const session of history) {
@@ -130,6 +302,7 @@ function detectPRs(
     }
   }
   for (const ex of currentExercises) {
+    if (ex?.done === false || ex?.skipped === true) continue;
     const name = String(ex?.name || ex?.exerciseName || "");
     const key = normalizeNameKey(name);
     if (!key || !name) continue;
@@ -153,75 +326,70 @@ function detectPRs(
   return prs.slice(0, 5);
 }
 
-// Near-PRs: exercises where current is >= 95% of best but not a full PR
-function detectNearPRs(
-  currentExercises: any[],
+// ─── Exercise comparison (per exercise, not per workout) ───────────────────────
+
+type ExerciseDelta = {
+  weightDelta: number | null; // kg difference
+  repsDelta: number | null;   // reps difference
+  effortPrev: string | null;
+};
+
+function findPreviousExercise(
+  exerciseName: string,
   history: HistSession[],
-  currentSessionId: string | null,
-  existingPrKeys: Set<string>
-): Array<{ name: string; current: number; best: number; gap: number; type: "weight" | "reps" }> {
-  const nearPrs: Array<{ name: string; current: number; best: number; gap: number; type: "weight" | "reps" }> = [];
-  const bestWeight = new Map<string, number>();
+  currentSessionId: string | null
+): { medianWeight: number | null; medianReps: number | null; effort: string | null } | null {
+  const key = normalizeNameKey(exerciseName);
+  if (!key) return null;
+  
   for (const session of history) {
     if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
     const exercises = (session as any)?.exercises ?? session?.items ?? [];
     if (!Array.isArray(exercises)) continue;
     for (const ex of exercises) {
-      const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
-      if (!key) continue;
+      const exKey = normalizeNameKey(ex?.name || ex?.exerciseName || "");
+      if (exKey !== key) continue;
       const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-      for (const set of sets) {
-        const w = toNumber(set?.weight);
-        if (w != null && w > 0) bestWeight.set(key, Math.max(bestWeight.get(key) ?? 0, w));
-      }
+      const weights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
+      const reps = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
+      return {
+        medianWeight: median(weights),
+        medianReps: median(reps),
+        effort: ex?.effort || null,
+      };
     }
-  }
-  for (const ex of currentExercises) {
-    const name = String(ex?.name || ex?.exerciseName || "");
-    const key = normalizeNameKey(name);
-    if (!key || !name || existingPrKeys.has(key)) continue;
-    const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-    let maxW = 0;
-    for (const set of sets) {
-      if (set?.done === false) continue;
-      const w = toNumber(set?.weight) ?? 0;
-      if (w > maxW) maxW = w;
-    }
-    const prevBestW = bestWeight.get(key) ?? 0;
-    if (prevBestW > 0 && maxW > 0 && maxW < prevBestW && maxW >= prevBestW * 0.95) {
-      nearPrs.push({ name, current: maxW, best: prevBestW, gap: prevBestW - maxW, type: "weight" });
-    }
-  }
-  return nearPrs.sort((a, b) => a.gap - b.gap).slice(0, 3);
-}
-
-function getMilestone(n: number): { current: number; next: number; label: string } | null {
-  const milestones = [5, 10, 25, 50, 75, 100, 150, 200, 300, 500];
-  for (const m of milestones) {
-    if (n < m) return { current: n, next: m, label: `${m}-я тренировка` };
   }
   return null;
 }
 
-function formatTonnage(kg: number): string {
-  if (kg >= 1000) return `${(kg / 1000).toFixed(1).replace(/\.0$/, "")} т`;
-  return `${kg} кг`;
+function computeExerciseDelta(
+  ex: any,
+  history: HistSession[],
+  currentSessionId: string | null
+): ExerciseDelta {
+  const prev = findPreviousExercise(ex?.name || ex?.exerciseName || "", history, currentSessionId);
+  if (!prev) return { weightDelta: null, repsDelta: null, effortPrev: null };
+  
+  const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+  const curWeights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
+  const curReps = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
+  
+  const curMedW = median(curWeights);
+  const curMedR = median(curReps);
+  
+  return {
+    weightDelta: (curMedW != null && prev.medianWeight != null) ? Math.round((curMedW - prev.medianWeight) * 4) / 4 : null,
+    repsDelta: (curMedR != null && prev.medianReps != null) ? Math.round(curMedR - prev.medianReps) : null,
+    effortPrev: prev.effort,
+  };
 }
 
-function haptic() {
-  try {
-    if (navigator.vibrate) navigator.vibrate(80);
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-  } catch { }
-}
+// ─── Workout title resolution ──────────────────────────────────────────────────
 
-function pluralizeExercises(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "упражнение";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "упражнения";
-  return "упражнений";
+function resolveWorkoutTitle(payload: any): string {
+  if (!payload) return "Тренировка";
+  const title = String(payload.title || payload.dayLabel || payload.name || "").trim();
+  return title || "Тренировка";
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -341,8 +509,9 @@ export default function WorkoutResult() {
         <div style={s.glassCard}>
           <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>Результат тренировки</div>
           <div style={{ fontSize: 15, color: "rgba(15,23,42,0.55)", marginTop: 8 }}>Нет данных о последней тренировке.</div>
-          <button style={{ ...s.ctaPrimary, marginTop: 16, width: "auto", padding: "12px 24px" }} className="dash-primary-btn" onClick={() => nav("/")}>
-            На главную
+          <button style={{ ...s.primaryBtn, marginTop: 16 }} className="result-primary-btn" onClick={() => nav("/")}>
+            <span style={s.primaryBtnText}>На главную</span>
+            <span style={s.primaryBtnCircle} aria-hidden><span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span></span>
           </button>
         </div>
       </div></div>
@@ -350,81 +519,37 @@ export default function WorkoutResult() {
   }
 
   return (
-    <ResultContent result={result} job={job} summary={summary} contentVisible={contentVisible} jobId={jobId} pollOnce={pollOnce} nav={nav} />
+    <ResultContent result={result} contentVisible={contentVisible} nav={nav} />
   );
 }
 
 // ─── Result Content ────────────────────────────────────────────────────────────
 
-function ResultContent(props: any) {
-  const { result, job, summary, contentVisible, pollOnce, nav } = props;
-
-  const details: Array<any> = Array.isArray(summary?.details) ? summary.details : [];
+function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutResult; contentVisible: boolean; nav: any }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
   const sessionNumber = typeof result.sessionNumber === "number" && result.sessionNumber > 0 ? result.sessionNumber : null;
-
   const durationMin: number | null = toNumber(result.payload?.durationMin);
-  const exerciseCount = payloadExercises.length;
-  const doneExercises = payloadExercises.filter((ex: any) => ex?.done === true).length;
+  const exerciseCount = payloadExercises.filter((ex: any) => ex?.done !== false && ex?.skipped !== true).length;
+  const workoutTitle = resolveWorkoutTitle(result.payload);
 
-  // Tonnage
-  const tonnage = useMemo(() => computeTonnage(payloadExercises), [payloadExercises]);
+  // History
   const [history, setHistory] = useState(() => loadHistory());
   useEffect(() => {
     const reload = () => setHistory(loadHistory());
     const onStorage = (e: StorageEvent) => { if (e.key === "history_sessions_v1") reload(); };
     window.addEventListener("workout_saved", reload);
     window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("workout_saved", reload);
-      window.removeEventListener("storage", onStorage);
-    };
+    return () => { window.removeEventListener("workout_saved", reload); window.removeEventListener("storage", onStorage); };
   }, []);
 
-  // Progression groups
-  const weightUp = details.filter((d: any) => String(d?.recommendation?.action || "") === "increase_weight");
-  const repsUp = details.filter((d: any) => String(d?.recommendation?.action || "") === "increase_reps");
-  const loadDown = details.filter((d: any) => { const a = String(d?.recommendation?.action || ""); return a === "decrease_weight" || a === "deload" || a === "rotate_exercise"; });
-  const keep = details.filter((d: any) => String(d?.recommendation?.action || "") === "maintain");
+  // Average effort
+  const avgEffort = useMemo(() => avgEffortLabel(payloadExercises), [payloadExercises]);
 
-  // Personal records
+  // Muscle distribution
+  const muscleDistribution = useMemo(() => computeMuscleDistribution(payloadExercises), [payloadExercises]);
+
+  // PRs
   const prs = useMemo(() => detectPRs(payloadExercises, history, result.sessionId), [payloadExercises, history, result.sessionId]);
-  const prKeys = useMemo(() => new Set(prs.map(pr => normalizeNameKey(pr.name))), [prs]);
-
-  // Near-PRs (only when no actual PRs)
-  const nearPrs = useMemo(() => {
-    if (prs.length > 0) return [];
-    return detectNearPRs(payloadExercises, history, result.sessionId, prKeys);
-  }, [payloadExercises, history, result.sessionId, prs.length, prKeys]);
-
-  // Milestone (show only when ≤3 away)
-  const milestone = sessionNumber != null ? getMilestone(sessionNumber) : null;
-  const showMilestone = milestone != null && (milestone.next - milestone.current) <= 3;
-
-  const hasAdjustments = summary && details.length > 0;
-
-  const payloadByName = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const ex of payloadExercises) { const key = normalizeNameKey(ex?.name || ex?.exerciseName || ""); if (key && !map.has(key)) map.set(key, ex); }
-    return map;
-  }, [payloadExercises]);
-
-  const getCurrentWeightFor = (name: string): number | null => {
-    const ex = payloadByName.get(normalizeNameKey(name));
-    const weights = (Array.isArray(ex?.sets) ? ex.sets : []).map((st: any) => toNumber(st?.weight)).filter((w: any): w is number => typeof w === "number" && Number.isFinite(w) && w > 0);
-    return median(weights);
-  };
-  const getTargetUpperFor = (name: string, rec: any): number | null => {
-    const ex = payloadByName.get(normalizeNameKey(name));
-    const fromRec = Array.isArray(rec?.newRepsTarget) ? toNumber(rec.newRepsTarget?.[1]) : null;
-    return (fromRec != null ? Math.round(fromRec) : null) ?? parseUpperReps(ex?.reps) ?? 12;
-  };
-
-  const fadeStyle = (delayMs: number): CSSProperties => ({
-    opacity: contentVisible ? 1 : 0,
-    transform: contentVisible ? "translateY(0)" : "translateY(12px)",
-    transition: `opacity 420ms ease ${delayMs}ms, transform 420ms ease ${delayMs}ms`,
-  });
 
   // Haptic on mount
   const firedRef = useRef(false);
@@ -434,153 +559,193 @@ function ResultContent(props: any) {
     return () => clearTimeout(t);
   }, []);
 
-  // Recap line
-  const recapParts: string[] = [];
-  if (durationMin != null && durationMin > 0) recapParts.push(`${durationMin} мин`);
-  recapParts.push(`${doneExercises} ${pluralizeExercises(doneExercises)}`);
-  if (tonnage > 0) recapParts.push(formatTonnage(tonnage));
-  const recapLine = recapParts.join(" · ");
+  const fadeStyle = (delayMs: number): CSSProperties => ({
+    opacity: contentVisible ? 1 : 0,
+    transform: contentVisible ? "translateY(0)" : "translateY(12px)",
+    transition: `opacity 420ms ease ${delayMs}ms, transform 420ms ease ${delayMs}ms`,
+  });
+
+  // Date formatting
+  const dateStr = new Date(result.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div style={page.outer}>
       <style>{`
-        .dash-primary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, box-shadow 160ms ease; }
-        .dash-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; }
-        @keyframes resultPulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
+        .result-primary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, box-shadow 160ms ease; }
+        .result-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; }
+        .result-secondary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .result-secondary-btn:active { transform: translateY(1px) !important; color: rgba(17,24,39,0.72) !important; }
       `}</style>
       <div style={page.inner}>
 
-        {/* ── 1. Header ──────────────────────────────────────────── */}
+        {/* ── 1. Header: Avatar + Title ──────────────────────────── */}
         <div style={{ ...fadeStyle(0) }}>
-          <div style={s.headerTitle}>{sessionNumber ? `Тренировка #${sessionNumber}` : "Тренировка завершена"}</div>
-          <div style={s.headerDate}>{new Date(result.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</div>
+          <div style={s.headerRow}>
+            <div style={s.avatarCircle}>
+              <img src={mascotImg} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
+            </div>
+            <div style={s.headerTextBlock}>
+              <div style={s.headerTitle}>
+                {sessionNumber ? `${ordinalWorkout(sessionNumber)} тренировка завершена!` : "Тренировка завершена!"}
+              </div>
+              <div style={s.headerDate}>{dateStr}</div>
+            </div>
+          </div>
         </div>
 
-        {/* ── 2. Recap Line ──────────────────────────────────────── */}
-        <div style={{ ...s.recapLine, ...fadeStyle(40) }}>
-          {recapLine}
+        {/* ── 2. Stat Chips ─────────────────────────────────────── */}
+        <div style={{ ...s.chipsRow, ...fadeStyle(60) }}>
+          {durationMin != null && durationMin > 0 && (
+            <div style={s.chip}>
+              <Clock3 size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
+              <span style={s.chipText}>{durationMin} мин</span>
+            </div>
+          )}
+          <div style={s.chip}>
+            <Dumbbell size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
+            <span style={s.chipText}>{exerciseCount} {pluralExercises(exerciseCount)}</span>
+          </div>
+          {avgEffort && (
+            <div style={s.chip}>
+              <Activity size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
+              <span style={s.chipText}>{avgEffort}</span>
+            </div>
+          )}
         </div>
 
-        {/* ── 3. Personal Records ────────────────────────────────── */}
+        {/* ── 3. Muscle Distribution ────────────────────────────── */}
+        {muscleDistribution.length > 0 && (
+          <div style={{ ...s.glassCard, ...fadeStyle(120) }}>
+            <div style={s.muscleTitle}>{workoutTitle}</div>
+            <div style={s.muscleBar}>
+              {muscleDistribution.map((m, i) => (
+                <div key={i} style={{ ...s.muscleBarSegment, width: `${Math.max(m.percent, 2)}%`, background: m.color }} />
+              ))}
+            </div>
+            <div style={s.muscleLegend}>
+              {muscleDistribution.map((m, i) => (
+                <div key={i} style={s.legendItem}>
+                  <div style={{ ...s.legendDot, background: m.color }} />
+                  <span style={s.legendText}>{m.muscle} {m.percent}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 4. Record ─────────────────────────────────────────── */}
         {prs.length > 0 && (
-          <div style={{ ...fadeStyle(80) }}>
-            <div style={{ ...s.sectionTitle, marginBottom: 10 }}>🏅 Рекорды дня</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {prs.map((pr, i) => (
-                <div key={i} style={s.prRow}>
-                  <div style={s.prBadge}>{pr.type === "weight" ? "🏆" : "🔥"}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.prName}>{pr.type === "weight" ? "Новый рекорд веса" : "Рекорд повторений"}</div>
-                    <div style={s.prDetail}>{pr.name} — {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повт.`}</div>
-                  </div>
+          <div style={{ ...s.glassCard, ...fadeStyle(180) }}>
+            <div style={s.recordHeader}>
+              <Trophy size={32} strokeWidth={2} color="#F59E0B" />
+              <div style={s.recordHeaderText}>
+                <div style={s.recordTitle}>
+                  {prs[0].type === "first" ? "Первый рекорд!" : prs[0].type === "weight" ? "Новый рекорд веса!" : "Рекорд повторений!"}
                 </div>
-              ))}
+                <div style={s.recordSubtitle}>{prs[0].name}</div>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* ── 3b. Near-PRs (when no actual PRs) ──────────────────── */}
-        {prs.length === 0 && nearPrs.length > 0 && (
-          <div style={{ ...fadeStyle(80) }}>
-            <div style={{ ...s.sectionTitle, marginBottom: 10 }}>💪 Близко к рекорду!</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {nearPrs.map((np, i) => (
-                <div key={i} style={s.nearPrRow}>
-                  <div style={s.nearPrBadge}>⚡</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.nearPrName}>{np.name}</div>
-                    <div style={s.nearPrDetail}>{np.current} кг — до рекорда {np.gap} кг</div>
-                  </div>
+            <div style={s.recordValues}>
+              {prs[0].weight > 0 && (
+                <div style={s.recordChip}>
+                  <span style={s.recordChipValue}>{prs[0].weight}</span>
+                  <span style={s.recordChipUnit}>кг</span>
                 </div>
-              ))}
+              )}
+              {prs[0].reps > 0 && (
+                <div style={s.recordChip}>
+                  <span style={s.recordChipValue}>{prs[0].reps}</span>
+                  <span style={s.recordChipUnit}>повт</span>
+                </div>
+              )}
             </div>
+            {prs.length > 1 && (
+              <div style={s.recordExtra}>
+                {prs.slice(1).map((pr, i) => (
+                  <div key={i} style={s.recordExtraRow}>
+                    <Trophy size={16} strokeWidth={2} color="#F59E0B" style={{ flexShrink: 0 }} />
+                    <span style={s.recordExtraName}>{pr.name}</span>
+                    <span style={s.recordExtraVal}>
+                      {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повт`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── 4. Milestone (only when ≤3 away) ───────────────────── */}
-        {showMilestone && milestone && (
-          <div style={{ ...s.glassCard, ...fadeStyle(120), padding: 16 }}>
-            <div style={s.milestoneRow}>
-              <span style={{ fontSize: 20 }}>🎯</span>
-              <div style={{ flex: 1 }}>
-                <div style={s.milestoneText}>До «{milestone.label}» — ещё {milestone.next - milestone.current}</div>
-                <div style={s.milestoneBar}><div style={{ ...s.milestoneBarFill, width: `${Math.min(100, (milestone.current / milestone.next) * 100)}%` }} /></div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ── 5. Exercise Details ────────────────────────────────── */}
+        <div style={{ ...fadeStyle(240) }}>
+          {payloadExercises.map((ex: any, idx: number) => {
+            if (ex?.skipped === true) return null;
+            const name = String(ex?.name || ex?.exerciseName || `Упражнение ${idx + 1}`);
+            const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+            const doneSets = sets.filter((s: any) => s?.done !== false);
+            const weights = doneSets.map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
+            const reps = doneSets.map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
+            const medW = median(weights);
+            const medR = median(reps);
+            const effort = effortLabel(ex?.effort);
+            const delta = computeExerciseDelta(ex, history, result.sessionId);
 
-        {/* ── 5. Algo Adjustments ─────────────────────────────────── */}
-        {hasAdjustments ? (
-          <div style={{ ...s.glassCard, ...fadeStyle(160) }}>
-            <div style={{ ...s.sectionTitle, marginBottom: 14 }}>⚙️ Что изменится в следующий раз</div>
-            {weightUp.length > 0 && (
-              <div style={s.adjGroup}>
-                <div style={s.adjGroupLabel}><ChevronUp size={14} strokeWidth={2.5} color="#16a34a" /> Повышаем вес</div>
-                {weightUp.slice(0, 5).map((d: any, idx: number) => {
-                  const rec = d?.recommendation; const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
-                  const cur = formatKg(getCurrentWeightFor(name)); const next = formatKg(toNumber(rec?.newWeight));
-                  return <div key={idx} style={s.adjLine}><span style={s.adjLineName}>{name}</span><span style={s.adjLineVal}>{cur && next ? `${cur} → ${next}` : next || "—"}</span></div>;
-                })}
+            return (
+              <div key={idx} style={s.exerciseCard}>
+                <div style={s.exerciseName}>{name}</div>
+                <div style={s.exerciseChipsRow}>
+                  <span style={s.exerciseChip}>{doneSets.length} {pluralSets(doneSets.length)}</span>
+                  {medW != null && (
+                    <span style={s.exerciseChip}>
+                      {medW % 1 === 0 ? medW : medW.toFixed(1)} кг
+                      {delta.weightDelta != null && delta.weightDelta !== 0 && (
+                        <span style={{ ...s.delta, color: delta.weightDelta > 0 ? "#16a34a" : "#dc2626" }}>
+                          {delta.weightDelta > 0 ? <ChevronUp size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} /> : <ChevronDown size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} />}
+                          {Math.abs(delta.weightDelta)}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {medR != null && (
+                    <span style={s.exerciseChip}>
+                      {Math.round(medR)} повт
+                      {delta.repsDelta != null && delta.repsDelta !== 0 && (
+                        <span style={{ ...s.delta, color: delta.repsDelta > 0 ? "#16a34a" : "#dc2626" }}>
+                          {delta.repsDelta > 0 ? <ChevronUp size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} /> : <ChevronDown size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} />}
+                          {Math.abs(delta.repsDelta)}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {effort && (
+                    <span style={s.exerciseChipEffort}>
+                      {effort}
+                      {delta.effortPrev && delta.effortPrev !== ex?.effort && (
+                        <span style={s.effortDelta}>← {effortLabel(delta.effortPrev)}</span>
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-            {repsUp.length > 0 && (
-              <div style={s.adjGroup}>
-                <div style={s.adjGroupLabel}><ChevronUp size={14} strokeWidth={2.5} color="#0284c7" /> Больше повторений</div>
-                {repsUp.slice(0, 5).map((d: any, idx: number) => {
-                  const rec = d?.recommendation; const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
-                  return <div key={idx} style={s.adjLine}><span style={s.adjLineName}>{name}</span><span style={s.adjLineVal}>цель {getTargetUpperFor(name, rec)} повт.</span></div>;
-                })}
-              </div>
-            )}
-            {keep.length > 0 && (
-              <div style={s.adjGroup}>
-                <div style={s.adjGroupLabel}><Minus size={14} strokeWidth={2.5} color="rgba(15,23,42,0.4)" /> Фиксируем</div>
-                {keep.slice(0, 3).map((d: any, idx: number) => {
-                  const name = String(d?.exerciseName || d?.recommendation?.exerciseId || `#${idx + 1}`);
-                  return <div key={idx} style={s.adjLine}><span style={s.adjLineName}>{name}</span><span style={s.adjLineVal}>без изменений</span></div>;
-                })}
-              </div>
-            )}
-            {loadDown.length > 0 && (
-              <div style={s.adjGroup}>
-                <div style={s.adjGroupLabel}><ChevronDown size={14} strokeWidth={2.5} color="#dc2626" /> Разгружаем</div>
-                {loadDown.slice(0, 3).map((d: any, idx: number) => {
-                  const rec = d?.recommendation; const name = String(d?.exerciseName || rec?.exerciseId || `#${idx + 1}`);
-                  return <div key={idx} style={s.adjLine}><span style={s.adjLineName}>{name}</span><span style={{ ...s.adjLineVal, color: "#64748b" }}>{formatKg(toNumber(rec?.newWeight)) || "лёгкий режим"}</span></div>;
-                })}
-              </div>
-            )}
-          </div>
-        ) : (!summary && job && job.status !== "failed") ? (
-          <div style={{ ...s.glassCard, ...fadeStyle(160), padding: "24px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: 14, color: "rgba(15,23,42,0.5)" }}>
-              <span style={{ display: "inline-block", animation: "resultPulse 1.5s ease-in-out infinite" }}>⚙️</span>
-              {" "}Анализирую тренировку...
-            </div>
-          </div>
-        ) : (!summary && job?.status === "failed") ? (
-          <button style={{ ...s.adjRetryBtn }} className="dash-primary-btn" onClick={async () => { try { await pollOnce(); } catch { } }}>
-            Обновить план
-          </button>
-        ) : null}
+            );
+          })}
+        </div>
 
         {/* bottom spacer */}
-        <div style={{ height: 130 }} />
+        <div style={{ height: 140 }} />
       </div>
 
-      {/* ── 6. Sticky CTA ───────────────────────────────────────── */}
+      {/* ── 6. Sticky Buttons ───────────────────────────────────── */}
       <div style={s.stickyWrap}>
         <div style={s.stickyInner}>
-          <button style={s.ctaPrimary} className="dash-primary-btn"
+          <button style={s.primaryBtn} className="result-primary-btn"
             onClick={() => { try { localStorage.removeItem(LAST_RESULT_KEY); } catch { } nav("/"); }}>
-            На главную <ArrowRight size={18} strokeWidth={2.5} style={{ marginLeft: 4, opacity: 0.7 }} />
+            <span style={s.primaryBtnText}>На главную</span>
+            <span style={s.primaryBtnCircle} aria-hidden>
+              <span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span>
+            </span>
           </button>
-          <button style={s.ctaSecondary} onClick={() => nav("/progress")}>
-            Посмотреть прогресс
+          <button style={s.secondaryBtn} className="result-secondary-btn" onClick={() => nav("/progress")}>
+            Прогресс
           </button>
         </div>
       </div>
@@ -602,16 +767,42 @@ const page: Record<string, CSSProperties> = {
 
 const s: Record<string, CSSProperties> = {
   // ── Header
-  headerTitle: { fontSize: 26, fontWeight: 900, color: "#0f172a", letterSpacing: -0.5, lineHeight: 1.1 },
-  headerDate: { fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.5)", marginTop: 4 },
-
-  // ── Recap Line
-  recapLine: {
-    fontSize: 15, fontWeight: 500, color: "rgba(15,23,42,0.45)", lineHeight: 1.4,
-    padding: "0 2px",
+  headerRow: {
+    display: "flex", alignItems: "center", gap: 14,
+  },
+  avatarCircle: {
+    width: DASH_AVATAR_SIZE, height: DASH_AVATAR_SIZE, borderRadius: "50%",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    overflow: "hidden", flexShrink: 0,
+  },
+  mascotAvatarImg: {
+    width: DASH_AVATAR_SIZE - 4, height: DASH_AVATAR_SIZE - 4,
+    objectFit: "cover", borderRadius: "50%",
+  },
+  headerTextBlock: {
+    display: "flex", flexDirection: "column", gap: 2, minWidth: 0,
+  },
+  headerTitle: {
+    fontSize: 22, fontWeight: 900, color: "#0f172a", letterSpacing: -0.5, lineHeight: 1.15,
+  },
+  headerDate: {
+    fontSize: 14, fontWeight: 500, color: "rgba(15,23,42,0.45)", lineHeight: 1.3,
   },
 
-  // ── Glass Card (Dashboard token)
+  // ── Chips
+  chipsRow: {
+    display: "flex", flexWrap: "wrap", gap: 12, padding: "4px 0",
+  },
+  chip: {
+    display: "flex", alignItems: "center", gap: 6,
+  },
+  chipText: {
+    fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
+  },
+
+  // ── Glass Card
   glassCard: {
     borderRadius: 24, padding: 18,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
@@ -619,69 +810,137 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
   } as CSSProperties,
 
-  // ── Section Title
-  sectionTitle: { fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2 },
-
-  // ── Personal Records
-  prRow: {
-    display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-    background: "linear-gradient(90deg, rgba(253,230,138,0.4) 0%, rgba(255,255,255,0.5) 100%)",
-    borderRadius: 20, border: "1px solid rgba(245,158,11,0.25)",
-    boxShadow: "0 4px 12px rgba(245,158,11,0.08)",
+  // ── Muscle Distribution
+  muscleTitle: {
+    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2, marginBottom: 14,
   },
-  prBadge: {
-    width: 40, height: 40, borderRadius: 14,
-    background: "linear-gradient(180deg, #fef3c7 0%, #fde68a 100%)",
-    fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-    boxShadow: "0 2px 6px rgba(245,158,11,0.2), inset 0 1px 0 rgba(255,255,255,0.8)",
+  muscleBar: {
+    display: "flex", height: 16, borderRadius: 10, overflow: "hidden", width: "100%", background: "#F1F5F9",
   },
-  prName: { fontSize: 14.5, fontWeight: 800, color: "#92400e", marginBottom: 1 },
-  prDetail: { fontSize: 13, fontWeight: 600, color: "#b45309", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-
-  // ── Near-PRs
-  nearPrRow: {
-    display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-    background: "linear-gradient(90deg, rgba(219,234,254,0.5) 0%, rgba(255,255,255,0.5) 100%)",
-    borderRadius: 20, border: "1px solid rgba(59,130,246,0.2)",
-    boxShadow: "0 4px 12px rgba(59,130,246,0.06)",
+  muscleBarSegment: {
+    height: "100%", transition: "width 600ms ease",
   },
-  nearPrBadge: {
-    width: 40, height: 40, borderRadius: 14,
-    background: "linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%)",
-    fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-    boxShadow: "0 2px 6px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.8)",
+  muscleLegend: {
+    display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12,
   },
-  nearPrName: { fontSize: 14.5, fontWeight: 800, color: "#1e40af", marginBottom: 1 },
-  nearPrDetail: { fontSize: 13, fontWeight: 600, color: "#3b82f6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-
-  // ── Milestone
-  milestoneRow: { display: "flex", alignItems: "center", gap: 12 },
-  milestoneText: { fontSize: 14, fontWeight: 700, color: "rgba(15,23,42,0.65)", marginBottom: 6 },
-  milestoneBar: { height: 6, borderRadius: 999, background: "rgba(15,23,42,0.06)", overflow: "hidden" },
-  milestoneBarFill: {
-    height: "100%", borderRadius: 999,
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    transition: "width 600ms ease",
+  legendItem: {
+    display: "flex", alignItems: "center", gap: 5,
+  },
+  legendDot: {
+    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+  },
+  legendText: {
+    fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
   },
 
-  // ── Adjustments
-  adjGroup: { marginBottom: 14 },
-  adjGroupLabel: { display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 800, color: "rgba(15,23,42,0.5)", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 8 },
-  adjLine: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(15,23,42,0.04)", gap: 10 },
-  adjLineName: { fontSize: 14, fontWeight: 600, color: "#334155", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-  adjLineVal: { fontSize: 13.5, fontWeight: 800, color: "#0f172a", flexShrink: 0 },
-  adjRetryBtn: { width: "100%", padding: 14, background: "rgba(15,23,42,0.05)", color: "#0f172a", border: "none", borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer" },
-
-  // ── Sticky CTA
-  stickyWrap: { position: "fixed", left: 0, right: 0, bottom: 0, padding: "12px 16px calc(12px + env(safe-area-inset-bottom))", background: "linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", zIndex: 10 } as CSSProperties,
-  stickyInner: { maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column" as const, gap: 8 },
-  ctaPrimary: {
-    width: "100%", borderRadius: 16, padding: "16px 18px", display: "inline-flex", alignItems: "center", justifyContent: "center",
-    border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff", fontWeight: 600, fontSize: 17, cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)", WebkitTapHighlightColor: "transparent", outline: "none",
+  // ── Record
+  recordHeader: {
+    display: "flex", alignItems: "center", gap: 14,
   },
-  ctaSecondary: {
-    width: "100%", border: "none", background: "transparent", color: "#1e1f22", fontSize: 15, fontWeight: 700,
-    padding: "12px 16px", cursor: "pointer", textAlign: "center" as const, WebkitTapHighlightColor: "transparent",
+  recordHeaderText: {
+    flex: 1, minWidth: 0,
+  },
+  recordTitle: {
+    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2,
+  },
+  recordSubtitle: {
+    fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.55)", marginTop: 2,
+    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+  },
+  recordValues: {
+    display: "flex", gap: 10, marginTop: 14,
+  },
+  recordChip: {
+    display: "flex", alignItems: "baseline", gap: 3,
+    padding: "8px 14px", borderRadius: 14,
+    background: "linear-gradient(180deg, rgba(253,230,138,0.35) 0%, rgba(254,243,199,0.25) 100%)",
+    border: "1px solid rgba(245,158,11,0.2)",
+  },
+  recordChipValue: {
+    fontSize: 24, fontWeight: 900, color: "#92400e", lineHeight: 1,
+  },
+  recordChipUnit: {
+    fontSize: 14, fontWeight: 600, color: "#b45309",
+  },
+  recordExtra: {
+    display: "flex", flexDirection: "column", gap: 8, marginTop: 14,
+    borderTop: "1px solid rgba(15,23,42,0.06)", paddingTop: 12,
+  },
+  recordExtraRow: {
+    display: "flex", alignItems: "center", gap: 8,
+  },
+  recordExtraName: {
+    flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "#334155",
+    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+  },
+  recordExtraVal: {
+    fontSize: 14, fontWeight: 800, color: "#92400e", flexShrink: 0,
+  },
+
+  // ── Exercise Details
+  exerciseCard: {
+    padding: "14px 0",
+    borderBottom: "1px solid rgba(15,23,42,0.06)",
+  },
+  exerciseName: {
+    fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 8,
+  },
+  exerciseChipsRow: {
+    display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
+  },
+  exerciseChip: {
+    display: "inline-flex", alignItems: "center", gap: 3,
+    padding: "5px 10px", borderRadius: 10,
+    background: "rgba(15,23,42,0.04)",
+    fontSize: 13, fontWeight: 700, color: "#334155",
+  },
+  exerciseChipEffort: {
+    display: "inline-flex", alignItems: "center", gap: 4,
+    padding: "5px 10px", borderRadius: 10,
+    background: "rgba(139,92,246,0.08)",
+    fontSize: 13, fontWeight: 700, color: "#7c3aed",
+  },
+  delta: {
+    fontSize: 12, fontWeight: 800, marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 0,
+  },
+  effortDelta: {
+    fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.35)", marginLeft: 4,
+  },
+
+  // ── Buttons
+  stickyWrap: {
+    position: "fixed", left: 0, right: 0, bottom: 0,
+    padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
+    background: "linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0))",
+    backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", zIndex: 10,
+  } as CSSProperties,
+  stickyInner: {
+    maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8,
+  },
+  primaryBtn: {
+    width: "fit-content", maxWidth: "100%",
+    display: "inline-flex", alignItems: "center", gap: 12,
+    height: 56, minHeight: 56, padding: "0 14px",
+    borderRadius: 999, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)", cursor: "pointer",
+    transition: "transform 160ms ease, opacity 250ms ease",
+  },
+  primaryBtnText: {
+    whiteSpace: "nowrap" as const, fontSize: 18, fontWeight: 500, lineHeight: 1, color: "#fff",
+  },
+  primaryBtnCircle: {
+    width: 40, height: 40, borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    marginRight: -6,
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "#0f172a", flexShrink: 0,
+  },
+  secondaryBtn: {
+    width: "100%", minHeight: 40,
+    border: "none", background: "transparent", borderRadius: 999,
+    color: "rgba(15,23,42,0.6)", fontSize: 14, fontWeight: 500,
+    cursor: "pointer", textAlign: "center" as const,
+    transition: "opacity 250ms ease",
   },
 };
