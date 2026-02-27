@@ -721,35 +721,81 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         )}
 
         {/* ── 3.5. RPE Bar Chart ───────────────────────────── */}
-        {effortBars.some(b => b.hasEffort) && (
-          <div style={{ ...s.glassCard, ...fadeStyle(150) }}>
-            <div style={s.muscleTitle}>Как ощущалась нагрузка</div>
-            <div style={s.rpeChartWrap}>
-              {effortBars.map((bar, i) => (
-                <div key={i} style={s.rpeBarCol}>
-                  <div style={s.rpeBarGroove}>
-                    {bar.hasEffort && (
+        {effortBars.some(b => b.hasEffort) && (() => {
+          // Calculate average effort
+          const efforts = effortBars.filter(b => b.hasEffort);
+          const avgLevel = efforts.reduce((sum, b) => sum + b.level, 0) / efforts.length;
+          const avgPercent = avgLevel > 0 ? (avgLevel / 5) * 100 : 0;
+
+          let avgLabelStr = "Нет данных";
+          let avgColor = "#94A3B8";
+          if (avgLevel > 0) {
+            const nearestLevel = Math.round(avgLevel);
+            const key = Object.keys(EFFORT_LEVEL).find(k => EFFORT_LEVEL[k] === nearestLevel) || "working";
+            avgLabelStr = EFFORT_LABELS[key] || "Нормально";
+            avgColor = EFFORT_COLOR[key] || "#10B981";
+          }
+
+          return (
+            <div style={{ ...s.glassCard, ...fadeStyle(150), paddingBottom: 24, paddingTop: 18 }}>
+              <div style={s.muscleTitle}>Как ощущалась нагрузка</div>
+              <div style={{ position: "relative", height: 160, width: "100%", marginTop: 24 }}>
+
+                {/* Columns Area (Left 70%) */}
+                <div style={{
+                  position: "absolute", left: 0, bottom: 0, top: 0, width: "70%",
+                  display: "flex", alignItems: "flex-end", gap: 6
+                }}>
+                  {effortBars.map((bar, i) => (
+                    <div key={i} style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                       <div style={{
-                        ...s.rpeBarFill,
-                        height: `${(bar.level / 5) * 100}%`,
-                        background: bar.color,
-                      }} />
-                    )}
-                    <span style={s.rpeBarLabel}>{bar.name}</span>
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 999,
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
+                        boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 2px 4px rgba(0,0,0,0.08)",
+                        overflow: "hidden",
+                        display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                      }}>
+                        {bar.hasEffort && (
+                          <div style={{
+                            width: "100%",
+                            height: `${(bar.level / 5) * 100}%`,
+                            background: bar.color,
+                            borderRadius: 999,
+                            transition: "height 600ms ease",
+                          }} />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Average Dashed Line */}
+                <div style={{
+                  position: "absolute", left: 0, right: 0, bottom: `${avgPercent}%`,
+                  borderBottom: `2px dashed ${avgColor}`,
+                  opacity: 0.8,
+                  zIndex: 2,
+                }} />
+
+                {/* Average Text (Right 30%, above line) */}
+                <div style={{
+                  position: "absolute", right: 0, bottom: `calc(${avgPercent}% + 8px)`,
+                  width: "28%", textAlign: "right",
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: avgColor, lineHeight: 1.1 }}>
+                    {avgLabelStr}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.5)", marginTop: 4 }}>
+                    В среднем
                   </div>
                 </div>
-              ))}
+
+              </div>
             </div>
-            <div style={s.rpeLegend}>
-              {usedEffortKeys.map(key => (
-                <div key={key} style={s.rpeLegendItem}>
-                  <div style={{ ...s.rpeLegendDot, background: EFFORT_COLOR[key] }} />
-                  <span style={s.rpeLegendText}>{EFFORT_LABELS[key]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── 4. Record ─────────────────────────────────────────── */}
         {prs.length > 0 && (
