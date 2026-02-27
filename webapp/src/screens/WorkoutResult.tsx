@@ -655,28 +655,22 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         </div>
 
-        {/* ── 2. Stat Cards ───────────────────────────────────── */}
-        <div style={{ ...s.statCardsRow, ...fadeStyle(60) }}>
-          <div style={s.statCard}>
-            <CircleCheckBig size={18} strokeWidth={2.2} color="#1e1f22" />
-            <div style={s.statCardValue}>{completionPct}%</div>
-          </div>
-          <div style={s.statCard}>
-            <Clock3 size={18} strokeWidth={2.2} color="#1e1f22" />
-            <div style={s.statCardValue}>{durationMin ?? "—"} мин</div>
-          </div>
-          <div style={s.statCard}>
+        {/* ── 2. Stat Pill ────────────────────────────────────── */}
+        <div style={{ ...s.statPill, ...fadeStyle(60) }}>
+          <span style={s.statChip}>
+            <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
+            <span>{completionPct}%</span>
+          </span>
+          <span style={s.statChip}>
+            <Clock3 size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
+            <span>{durationMin ?? "—"} мин</span>
+          </span>
+          <span style={s.statChip}>
             {showCalories
-              ? <Flame size={18} strokeWidth={2.2} color="#1e1f22" />
-              : <Dumbbell size={18} strokeWidth={2.2} color="#1e1f22" />}
-            <div style={s.statCardValue}>
-              {showCalories
-                ? `~${calories} ккал`
-                : tonnage >= 1000
-                  ? `${(tonnage / 1000).toFixed(1)} т`
-                  : `${tonnage} кг`}
-            </div>
-          </div>
+              ? <Flame size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
+              : <Dumbbell size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />}
+            <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
+          </span>
         </div>
 
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
@@ -870,23 +864,17 @@ const s: Record<string, CSSProperties> = {
     fontSize: 14, color: "rgba(30,31,34,0.3)", lineHeight: 1,
   },
 
-  // ── Stat Cards
-  statCardsRow: {
-    display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10,
+  // ── Stat Pill
+  statPill: {
+    display: "flex", alignItems: "center", justifyContent: "space-evenly",
+    borderRadius: 999, padding: "12px 16px",
+    background: "#1e1f22",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
-  statCard: {
-    borderRadius: 20, padding: "14px 8px",
-    background: "transparent",
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-  } as CSSProperties,
-  statCardLabel: {
-    fontSize: 14, fontWeight: 400, color: "rgba(15, 23, 42, 0.62)", lineHeight: 1.45,
-    textAlign: "center",
-  } as CSSProperties,
-  statCardValue: {
-    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2, lineHeight: 1.2,
-    textAlign: "center",
-  } as CSSProperties,
+  statChip: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.85)", lineHeight: 1,
+  },
 
   // ── Glass Card
   glassCard: {
