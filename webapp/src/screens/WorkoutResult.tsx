@@ -252,7 +252,7 @@ function detectPRs(
   currentSessionId: string | null
 ): PR[] {
   const hasHistory = history.some(s => currentSessionId ? String(s?.id || "") !== currentSessionId : true);
-  
+
   if (!hasHistory || history.length <= 1) {
     // First workout — find exercise with highest tonnage as "Первый рекорд"
     let bestEx: PR | null = null;
@@ -341,7 +341,7 @@ function findPreviousExercise(
 ): { medianWeight: number | null; medianReps: number | null; effort: string | null } | null {
   const key = normalizeNameKey(exerciseName);
   if (!key) return null;
-  
+
   for (const session of history) {
     if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
     const exercises = (session as any)?.exercises ?? session?.items ?? [];
@@ -369,14 +369,14 @@ function computeExerciseDelta(
 ): ExerciseDelta {
   const prev = findPreviousExercise(ex?.name || ex?.exerciseName || "", history, currentSessionId);
   if (!prev) return { weightDelta: null, repsDelta: null, effortPrev: null };
-  
+
   const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
   const curWeights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
   const curReps = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
-  
+
   const curMedW = median(curWeights);
   const curMedR = median(curReps);
-  
+
   return {
     weightDelta: (curMedW != null && prev.medianWeight != null) ? Math.round((curMedW - prev.medianWeight) * 4) / 4 : null,
     repsDelta: (curMedR != null && prev.medianReps != null) ? Math.round(curMedR - prev.medianReps) : null,
@@ -527,13 +527,19 @@ export default function WorkoutResult() {
 
 function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutResult; contentVisible: boolean; nav: any }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
-  const sessionNumber = typeof result.sessionNumber === "number" && result.sessionNumber > 0 ? result.sessionNumber : null;
   const durationMin: number | null = toNumber(result.payload?.durationMin);
   const exerciseCount = payloadExercises.filter((ex: any) => ex?.done !== false && ex?.skipped !== true).length;
   const workoutTitle = resolveWorkoutTitle(result.payload);
 
   // History
   const [history, setHistory] = useState(() => loadHistory());
+
+  // Session number: from stored field or count from history
+  const sessionNumber = useMemo(() => {
+    if (typeof result.sessionNumber === "number" && result.sessionNumber > 0) return result.sessionNumber;
+    // Count all sessions in history — this session is one of them
+    return history.length > 0 ? history.length : 1;
+  }, [result.sessionNumber, history.length]);
   useEffect(() => {
     const reload = () => setHistory(loadHistory());
     const onStorage = (e: StorageEvent) => { if (e.key === "history_sessions_v1") reload(); };
@@ -587,7 +593,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
               </div>
               <div style={s.headerTextBlock}>
                 <div style={s.headerTitle}>
-                  {sessionNumber ? `${ordinalWorkout(sessionNumber)} тренировка завершена!` : "Тренировка завершена!"}
+                  {`${ordinalWorkout(sessionNumber)} тренировка завершена!`}
                 </div>
                 <div style={s.headerDate}>{dateStr}</div>
               </div>
