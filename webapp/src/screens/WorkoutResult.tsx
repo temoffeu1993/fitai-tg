@@ -588,7 +588,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   });
 
   // Date formatting
-  const dateStr = new Date(result.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  const dateStr = new Date(result.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 
   return (
     <div style={page.outer}>
@@ -609,7 +609,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
               </div>
               <div style={s.headerTextBlock}>
                 <div style={s.headerTitle}>
-                  {`Тренировка на ${workoutTitle}`}
+                  {workoutTitle}
                 </div>
                 <div style={s.headerSubRow}>
                   <span style={s.headerSubChip}>
