@@ -748,22 +748,12 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                 }}>
                   {effortBars.map((bar, i) => (
                     <div key={i} style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                      <div style={{
-                        width: "100%",
-                        height: "100%",
-                        borderRadius: 999,
-                        background: "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 100%)",
-                        boxShadow: "inset 0 1px 1px rgba(255,255,255,0.5), inset 0 2px 4px rgba(0,0,0,0.08)",
-                        overflow: "hidden",
-                        display: "flex", flexDirection: "column", justifyContent: "flex-end",
-                      }}>
+                      <div style={{ ...s.progressCtaBarTrack, width: "100%" }}>
                         {bar.hasEffort && (
                           <div style={{
-                            width: "100%",
+                            ...s.progressCtaBarFill,
                             height: `${(bar.level / 5) * 100}%`,
                             background: bar.color,
-                            borderRadius: 999,
-                            transition: "height 600ms ease",
                           }} />
                         )}
                       </div>
@@ -1013,30 +1003,25 @@ const s: Record<string, CSSProperties> = {
   rpeChartWrap: {
     display: "flex", gap: 6, alignItems: "flex-end", height: 140,
   },
-  rpeBarCol: {
-    flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%",
-  } as CSSProperties,
-  rpeBarGroove: {
-    position: "relative", width: "100%", height: "100%",
+  progressCtaBarTrack: {
+    width: 14,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    boxShadow:
+      "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
     overflow: "hidden",
-    display: "flex", flexDirection: "column", justifyContent: "flex-end",
+    display: "inline-flex",
+    alignItems: "flex-end",
+    flexShrink: 0,
+    height: "100%",
   } as CSSProperties,
-  rpeBarFill: {
-    width: "100%", borderRadius: 999,
+  progressCtaBarFill: {
+    width: "100%",
+    borderRadius: 999,
+    boxShadow:
+      "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
     transition: "height 600ms ease",
-  },
-  rpeBarLabel: {
-    position: "absolute", inset: 0,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    writingMode: "vertical-rl" as const,
-    textOrientation: "mixed" as const,
-    fontSize: 11, fontWeight: 700,
-    color: "#1e1f22",
-    pointerEvents: "none", zIndex: 1,
-    letterSpacing: 0.3,
   } as CSSProperties,
   rpeLegend: {
     display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14,
