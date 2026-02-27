@@ -725,20 +725,32 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           <div style={{ ...s.glassCard, ...fadeStyle(150) }}>
             <div style={s.muscleTitle}>Как ощущалась нагрузка</div>
             <div style={s.rpeChartWrap}>
-              {effortBars.map((bar, i) => (
-                <div key={i} style={s.rpeBarCol}>
-                  <div style={s.rpeBarGroove}>
-                    {bar.hasEffort && (
-                      <div style={{
-                        ...s.rpeBarFill,
-                        height: `${(bar.level / 5) * 100}%`,
-                        background: bar.color,
-                      }} />
-                    )}
-                    <span style={s.rpeBarLabel}>{bar.name}</span>
+              {effortBars.map((bar, i) => {
+                const words = bar.name.split(" ");
+                let shortName = words[0];
+                if (shortName.length <= 4 && words.length > 1) {
+                  shortName = `${shortName} ${words[1]}`;
+                }
+                if (shortName.length > 9) {
+                  shortName = shortName.substring(0, 8).trim() + ".";
+                }
+
+                return (
+                  <div key={i} style={s.rpeBarCol}>
+                    <div style={s.rpeBarGroove}>
+                      {bar.hasEffort && (
+                        <div style={{
+                          ...s.rpeBarFill,
+                          height: `${(bar.level / 5) * 100}%`,
+                          background: `linear-gradient(180deg, ${bar.color}dd 0%, ${bar.color} 100%)`,
+                          boxShadow: "inset 0 4px 6px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.15)",
+                        }} />
+                      )}
+                    </div>
+                    <div style={s.rpeBarSubText}>{shortName}</div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div style={s.rpeLegend}>
               {usedEffortKeys.map(key => (
@@ -965,16 +977,16 @@ const s: Record<string, CSSProperties> = {
 
   // ── RPE Bar Chart
   rpeChartWrap: {
-    display: "flex", gap: 6, alignItems: "flex-end", height: 140,
+    display: "flex", gap: 8, alignItems: "flex-end", height: 160,
   },
   rpeBarCol: {
-    flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%",
+    flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%", alignItems: "center", gap: 6,
   } as CSSProperties,
   rpeBarGroove: {
-    position: "relative", width: "100%", height: "100%",
+    position: "relative", width: "100%", height: "100%", maxWidth: 32,
     borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    background: "linear-gradient(180deg, rgba(229,231,235,0.4) 0%, rgba(243,244,246,0.6) 100%)",
+    boxShadow: "inset 0 4px 6px rgba(15,23,42,0.08), inset 0 -1px 0 rgba(255,255,255,0.8)",
     overflow: "hidden",
     display: "flex", flexDirection: "column", justifyContent: "flex-end",
   } as CSSProperties,
@@ -982,15 +994,10 @@ const s: Record<string, CSSProperties> = {
     width: "100%", borderRadius: 999,
     transition: "height 600ms ease",
   },
-  rpeBarLabel: {
-    position: "absolute", inset: 0,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    writingMode: "vertical-rl" as const,
-    textOrientation: "mixed" as const,
-    fontSize: 11, fontWeight: 700,
-    color: "#1e1f22",
-    pointerEvents: "none", zIndex: 1,
-    letterSpacing: 0.3,
+  rpeBarSubText: {
+    fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.55)",
+    textAlign: "center", lineHeight: 1, letterSpacing: -0.2,
+    width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
   } as CSSProperties,
   rpeLegend: {
     display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14,
