@@ -544,8 +544,37 @@ export default function WorkoutResult() {
 function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutResult; contentVisible: boolean; nav: any }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
   const durationMin: number | null = toNumber(result.payload?.durationMin);
+  const totalExercises = payloadExercises.length;
   const exerciseCount = payloadExercises.filter((ex: any) => ex?.done !== false && ex?.skipped !== true).length;
   const workoutTitle = resolveWorkoutTitle(result.payload);
+
+  // Completion %
+  const completionPct = useMemo(() => {
+    let totalSets = 0, doneSets = 0;
+    for (const ex of payloadExercises) {
+      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+      totalSets += sets.length;
+      doneSets += sets.filter((s: any) => Boolean(s?.done)).length;
+    }
+    return totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 100;
+  }, [payloadExercises]);
+
+  // Tonnage & calories
+  const { tonnage, calories, showCalories } = useMemo(() => {
+    let ton = 0;
+    for (const ex of payloadExercises) {
+      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+      for (const set of sets) {
+        if (!set?.done) continue;
+        const w = toNumber(set?.weight) ?? 0;
+        const r = toNumber(set?.reps) ?? 0;
+        if (w > 0 && r > 0) ton += w * r;
+      }
+    }
+    const dur = durationMin ?? 30;
+    const kcal = Math.round(dur * 6);
+    return { tonnage: Math.round(ton), calories: kcal, showCalories: ton === 0 };
+  }, [payloadExercises, durationMin]);
 
   // History
   const [history, setHistory] = useState(() => loadHistory());
@@ -626,24 +655,26 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         </div>
 
-        {/* ── 2. Stat Chips ─────────────────────────────────────── */}
-        <div style={{ ...s.chipsRow, ...fadeStyle(60) }}>
-          {durationMin != null && durationMin > 0 && (
-            <div style={s.chip}>
-              <Clock3 size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
-              <span style={s.chipText}>{durationMin} мин</span>
-            </div>
-          )}
-          <div style={s.chip}>
-            <Dumbbell size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
-            <span style={s.chipText}>{exerciseCount} {pluralExercises(exerciseCount)}</span>
+        {/* ── 2. Stat Cards ───────────────────────────────────── */}
+        <div style={{ ...s.statCardsRow, ...fadeStyle(60) }}>
+          <div style={s.statCard}>
+            <div style={s.statCardLabel}>Выполнение</div>
+            <div style={s.statCardValue}>{completionPct}%</div>
           </div>
-          {avgEffort && (
-            <div style={s.chip}>
-              <Activity size={16} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
-              <span style={s.chipText}>{avgEffort}</span>
+          <div style={s.statCard}>
+            <div style={s.statCardLabel}>Время</div>
+            <div style={s.statCardValue}>{durationMin ?? "—"} мин</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statCardLabel}>{showCalories ? "Калории" : "Тоннаж"}</div>
+            <div style={s.statCardValue}>
+              {showCalories
+                ? `~${calories} ккал`
+                : tonnage >= 1000
+                  ? `${(tonnage / 1000).toFixed(1)} т`
+                  : `${tonnage} кг`}
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
@@ -837,16 +868,25 @@ const s: Record<string, CSSProperties> = {
     fontSize: 14, color: "rgba(30,31,34,0.3)", lineHeight: 1,
   },
 
-  // ── Chips
-  chipsRow: {
-    display: "flex", flexWrap: "wrap", gap: 12, padding: "4px 0",
+  // ── Stat Cards
+  statCardsRow: {
+    display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10,
   },
-  chip: {
-    display: "flex", alignItems: "center", gap: 6,
-  },
-  chipText: {
-    fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
-  },
+  statCard: {
+    borderRadius: 20, padding: "14px 8px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+  } as CSSProperties,
+  statCardLabel: {
+    fontSize: 14, fontWeight: 400, color: "rgba(15, 23, 42, 0.62)", lineHeight: 1.45,
+    textAlign: "center",
+  } as CSSProperties,
+  statCardValue: {
+    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2, lineHeight: 1.2,
+    textAlign: "center",
+  } as CSSProperties,
 
   // ── Glass Card
   glassCard: {
