@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Hash, Calendar } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -600,7 +600,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
       `}</style>
       <div style={page.inner}>
 
-        {/* ── 1. Header: Avatar + Title + Chips ────────────────── */}
+        {/* ── 1. Header: Avatar + Title ──────────────────────────── */}
         <div style={{ ...fadeStyle(0) }}>
           <div style={s.headerRow}>
             <div style={s.headerLeft}>
@@ -609,20 +609,20 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
               </div>
               <div style={s.headerTextBlock}>
                 <div style={s.headerTitle}>
-                  {`Тренировка на`}
+                  {`Тренировка на ${workoutTitle}`}
                 </div>
-                <div style={s.headerSubtitle}>{workoutTitle}</div>
+                <div style={s.headerSubRow}>
+                  <span style={s.headerSubChip}>
+                    <Zap size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                    <span>{sessionNumber}-я тренировка</span>
+                  </span>
+                  <span style={s.headerSubDot}>·</span>
+                  <span style={s.headerSubChip}>
+                    <Calendar size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                    <span>{dateStr}</span>
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
-          <div style={s.headerChipsRow}>
-            <div style={s.headerChip}>
-              <Hash size={14} strokeWidth={2.5} color="rgba(30,31,34,0.5)" />
-              <span style={s.headerChipText}>{sessionNumber} тренировка</span>
-            </div>
-            <div style={s.headerChip}>
-              <Calendar size={14} strokeWidth={2.2} color="rgba(30,31,34,0.5)" />
-              <span style={s.headerChipText}>{dateStr}</span>
             </div>
           </div>
         </div>
@@ -825,21 +825,17 @@ const s: Record<string, CSSProperties> = {
     display: "flex", flexDirection: "column", minWidth: 0,
   },
   headerTitle: {
-    fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "rgba(30, 31, 34, 0.7)",
-  },
-  headerSubtitle: {
     fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2,
   },
-  headerChipsRow: {
-    display: "flex", justifyContent: "space-between", gap: 12,
-    marginTop: 4,
+  headerSubRow: {
+    display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" as const,
   },
-  headerChip: {
-    display: "flex", alignItems: "center", gap: 5, flex: 1,
-    justifyContent: "center",
+  headerSubChip: {
+    display: "inline-flex", alignItems: "center", gap: 4,
+    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
   },
-  headerChipText: {
-    fontSize: 14, fontWeight: 600, color: "rgba(30,31,34,0.5)", lineHeight: 1,
+  headerSubDot: {
+    fontSize: 14, color: "rgba(30,31,34,0.3)", lineHeight: 1,
   },
 
   // ── Chips
