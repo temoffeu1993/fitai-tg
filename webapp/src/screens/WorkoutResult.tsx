@@ -658,17 +658,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Pill ────────────────────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
+            <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
+            <Clock3 size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
-              : <Dumbbell size={14} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />}
+              ? <Flame size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+              : <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
@@ -866,14 +866,15 @@ const s: Record<string, CSSProperties> = {
 
   // ── Stat Pill
   statPill: {
-    display: "flex", alignItems: "center", justifyContent: "space-evenly",
-    borderRadius: 999, padding: "12px 16px",
-    background: "#1e1f22",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-  },
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    borderRadius: 24, padding: "14px 18px",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+  } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.85)", lineHeight: 1,
+    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
   },
 
   // ── Glass Card
