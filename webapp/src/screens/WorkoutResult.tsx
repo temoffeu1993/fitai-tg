@@ -581,14 +581,16 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 1. Header: Avatar + Title ──────────────────────────── */}
         <div style={{ ...fadeStyle(0) }}>
           <div style={s.headerRow}>
-            <div style={s.avatarCircle}>
-              <img src={mascotImg} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
-            </div>
-            <div style={s.headerTextBlock}>
-              <div style={s.headerTitle}>
-                {sessionNumber ? `${ordinalWorkout(sessionNumber)} тренировка завершена!` : "Тренировка завершена!"}
+            <div style={s.headerLeft}>
+              <div style={s.avatarCircle}>
+                <img src={mascotImg} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
               </div>
-              <div style={s.headerDate}>{dateStr}</div>
+              <div style={s.headerTextBlock}>
+                <div style={s.headerTitle}>
+                  {sessionNumber ? `${ordinalWorkout(sessionNumber)} тренировка завершена!` : "Тренировка завершена!"}
+                </div>
+                <div style={s.headerDate}>{dateStr}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -766,29 +768,35 @@ const page: Record<string, CSSProperties> = {
 };
 
 const s: Record<string, CSSProperties> = {
-  // ── Header
+  // ── Header (matched to Dashboard)
   headerRow: {
-    display: "flex", alignItems: "center", gap: 14,
+    display: "flex", alignItems: "center", gap: 12,
+    marginTop: 8, marginBottom: 12,
+  },
+  headerLeft: {
+    display: "flex", alignItems: "center", gap: 12, minWidth: 0,
   },
   avatarCircle: {
-    width: DASH_AVATAR_SIZE, height: DASH_AVATAR_SIZE, borderRadius: "50%",
+    width: DASH_AVATAR_SIZE, height: DASH_AVATAR_SIZE, borderRadius: 999,
+    border: "none",
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "flex", alignItems: "center", justifyContent: "center",
-    overflow: "hidden", flexShrink: 0,
+    overflow: "hidden", flex: "0 0 auto", padding: 2,
   },
   mascotAvatarImg: {
-    width: DASH_AVATAR_SIZE - 4, height: DASH_AVATAR_SIZE - 4,
-    objectFit: "cover", borderRadius: "50%",
+    width: "100%", height: "100%",
+    objectFit: "cover" as const, objectPosition: "center 10%",
+    borderRadius: 999,
   },
   headerTextBlock: {
-    display: "flex", flexDirection: "column", gap: 2, minWidth: 0,
+    display: "flex", flexDirection: "column", minWidth: 0,
   },
   headerTitle: {
-    fontSize: 22, fontWeight: 900, color: "#0f172a", letterSpacing: -0.5, lineHeight: 1.15,
+    fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2,
   },
   headerDate: {
-    fontSize: 14, fontWeight: 500, color: "rgba(15,23,42,0.45)", lineHeight: 1.3,
+    fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "rgba(30, 31, 34, 0.7)",
   },
 
   // ── Chips
