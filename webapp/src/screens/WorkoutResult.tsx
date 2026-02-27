@@ -1085,15 +1085,15 @@ const s: Record<string, CSSProperties> = {
   // ── Buttons
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
-    padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
-    background: "linear-gradient(to top, rgba(245,245,247,0.96) 60%, rgba(245,245,247,0))",
-    backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", zIndex: 10,
+    zIndex: 30,
+    padding: "10px 16px calc(10px + env(safe-area-inset-bottom))",
+    background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
   } as CSSProperties,
   stickyInner: {
-    maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8,
+    maxWidth: 720, margin: "0 auto", display: "grid", gap: 8, boxSizing: "border-box",
   },
   primaryBtn: {
-    width: "fit-content", maxWidth: "100%",
+    width: "fit-content", maxWidth: "100%", justifySelf: "center",
     display: "inline-flex", alignItems: "center", gap: 12,
     height: 56, minHeight: 56, padding: "0 14px",
     borderRadius: 999, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
@@ -1112,7 +1112,7 @@ const s: Record<string, CSSProperties> = {
     color: "#0f172a", flexShrink: 0,
   },
   secondaryBtn: {
-    width: "100%", minHeight: 40,
+    width: "100%", justifySelf: "center", minHeight: 40,
     border: "none", background: "transparent", borderRadius: 999,
     color: "rgba(15,23,42,0.6)", fontSize: 14, fontWeight: 500,
     cursor: "pointer", textAlign: "center" as const,
