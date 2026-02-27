@@ -855,15 +855,12 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
       {/* ── 6. Sticky Buttons ───────────────────────────────────── */}
       <div style={s.stickyWrap}>
         <div style={s.stickyInner}>
-          <button style={s.primaryBtn} className="result-primary-btn"
+          <button style={s.primaryBtn} className="intro-primary-btn ws-primary-btn result-primary-btn"
             onClick={() => { try { localStorage.removeItem(LAST_RESULT_KEY); } catch { } nav("/"); }}>
             <span style={s.primaryBtnText}>На главную</span>
             <span style={s.primaryBtnCircle} aria-hidden>
               <span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span>
             </span>
-          </button>
-          <button style={s.secondaryBtn} className="result-secondary-btn" onClick={() => nav("/progress")}>
-            Прогресс
           </button>
         </div>
       </div>
@@ -1086,11 +1083,11 @@ const s: Record<string, CSSProperties> = {
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
     zIndex: 30,
-    padding: "14px clamp(16px, 4vw, 20px) calc(max(env(safe-area-inset-bottom, 0px), 0px) + 2px)",
-    background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
+    padding: "10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px)",
+    background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))", // workoutTheme.dockFade
   } as CSSProperties,
   stickyInner: {
-    maxWidth: 720, margin: "0 auto", display: "grid", gap: 10, boxSizing: "border-box",
+    width: "100%", maxWidth: 720, margin: "0 auto", display: "grid", gap: 8, boxSizing: "border-box",
   },
   primaryBtn: {
     width: "fit-content", maxWidth: "100%", justifySelf: "center",
@@ -1099,23 +1096,17 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 999, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
     boxShadow: "0 6px 10px rgba(0,0,0,0.24)", cursor: "pointer",
     transition: "transform 160ms ease, opacity 250ms ease",
+    fontSize: 18, fontWeight: 500,
   },
   primaryBtnText: {
     whiteSpace: "nowrap" as const, fontSize: 18, fontWeight: 500, lineHeight: 1, color: "#fff",
   },
   primaryBtnCircle: {
     width: 40, height: 40, borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)", // workoutTheme.pillBg
     display: "inline-flex", alignItems: "center", justifyContent: "center",
     marginRight: -6,
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)", // workoutTheme.pillShadow
     color: "#0f172a", flexShrink: 0,
-  },
-  secondaryBtn: {
-    width: "100%", justifySelf: "center", minHeight: 40,
-    border: "none", background: "transparent", borderRadius: 999,
-    color: "rgba(15,23,42,0.6)", fontSize: 14, fontWeight: 500,
-    cursor: "pointer", textAlign: "center" as const,
-    transition: "opacity 250ms ease",
   },
 };
