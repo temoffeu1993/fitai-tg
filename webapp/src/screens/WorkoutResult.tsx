@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -658,15 +658,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Cards ───────────────────────────────────── */}
         <div style={{ ...s.statCardsRow, ...fadeStyle(60) }}>
           <div style={s.statCard}>
-            <div style={s.statCardLabel}>Выполнение</div>
+            <CircleCheckBig size={18} strokeWidth={2.2} color="#1e1f22" />
             <div style={s.statCardValue}>{completionPct}%</div>
           </div>
           <div style={s.statCard}>
-            <div style={s.statCardLabel}>Время</div>
+            <Clock3 size={18} strokeWidth={2.2} color="#1e1f22" />
             <div style={s.statCardValue}>{durationMin ?? "—"} мин</div>
           </div>
           <div style={s.statCard}>
-            <div style={s.statCardLabel}>{showCalories ? "Калории" : "Тоннаж"}</div>
+            {showCalories
+              ? <Flame size={18} strokeWidth={2.2} color="#1e1f22" />
+              : <Dumbbell size={18} strokeWidth={2.2} color="#1e1f22" />}
             <div style={s.statCardValue}>
               {showCalories
                 ? `~${calories} ккал`
@@ -874,9 +876,7 @@ const s: Record<string, CSSProperties> = {
   },
   statCard: {
     borderRadius: 20, padding: "14px 8px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    border: "1px solid rgba(255,255,255,0.75)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    background: "transparent",
     display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
   } as CSSProperties,
   statCardLabel: {
