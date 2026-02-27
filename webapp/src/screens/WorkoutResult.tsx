@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Hash, Calendar } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
+import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -384,12 +385,27 @@ function computeExerciseDelta(
   };
 }
 
-// ─── Workout title resolution ──────────────────────────────────────────────────
+// ─── Workout title resolution (matches PlanOne dayLabelRU) ─────────────────────
 
 function resolveWorkoutTitle(payload: any): string {
   if (!payload) return "Тренировка";
-  const title = String(payload.title || payload.dayLabel || payload.name || "").trim();
-  return title || "Тренировка";
+  const raw = String(
+    payload.dayLabel ||
+    payload.title ||
+    payload.name ||
+    payload.label ||
+    payload.scheme_label ||
+    ""
+  ).trim();
+  const idxRaw = Number(payload.dayIndex);
+  const idx = Number.isFinite(idxRaw) ? Math.max(0, idxRaw - 1) : 0;
+  const splitType = String(payload.splitType || payload.meta?.splitType || "").trim();
+  if (raw) {
+    const resolved = resolveDayCopy(raw, splitType, idx).title;
+    if (/^День\s+\d+/.test(resolved)) return raw;
+    return resolved;
+  }
+  return "Тренировка";
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -584,7 +600,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
       `}</style>
       <div style={page.inner}>
 
-        {/* ── 1. Header: Avatar + Title ──────────────────────────── */}
+        {/* ── 1. Header: Avatar + Title + Chips ────────────────── */}
         <div style={{ ...fadeStyle(0) }}>
           <div style={s.headerRow}>
             <div style={s.headerLeft}>
@@ -593,10 +609,20 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
               </div>
               <div style={s.headerTextBlock}>
                 <div style={s.headerTitle}>
-                  {`${ordinalWorkout(sessionNumber)} тренировка завершена!`}
+                  {`Тренировка на`}
                 </div>
-                <div style={s.headerDate}>{dateStr}</div>
+                <div style={s.headerSubtitle}>{workoutTitle}</div>
               </div>
+            </div>
+          </div>
+          <div style={s.headerChipsRow}>
+            <div style={s.headerChip}>
+              <Hash size={14} strokeWidth={2.5} color="rgba(30,31,34,0.5)" />
+              <span style={s.headerChipText}>{sessionNumber} тренировка</span>
+            </div>
+            <div style={s.headerChip}>
+              <Calendar size={14} strokeWidth={2.2} color="rgba(30,31,34,0.5)" />
+              <span style={s.headerChipText}>{dateStr}</span>
             </div>
           </div>
         </div>
@@ -799,10 +825,21 @@ const s: Record<string, CSSProperties> = {
     display: "flex", flexDirection: "column", minWidth: 0,
   },
   headerTitle: {
+    fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "rgba(30, 31, 34, 0.7)",
+  },
+  headerSubtitle: {
     fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2,
   },
-  headerDate: {
-    fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "rgba(30, 31, 34, 0.7)",
+  headerChipsRow: {
+    display: "flex", justifyContent: "space-between", gap: 12,
+    marginTop: 4,
+  },
+  headerChip: {
+    display: "flex", alignItems: "center", gap: 5, flex: 1,
+    justifyContent: "center",
+  },
+  headerChipText: {
+    fontSize: 14, fontWeight: 600, color: "rgba(30,31,34,0.5)", lineHeight: 1,
   },
 
   // ── Chips
