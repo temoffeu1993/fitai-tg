@@ -599,6 +599,24 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   // Muscle distribution
   const muscleDistribution = useMemo(() => computeMuscleDistribution(payloadExercises), [payloadExercises]);
 
+  // RPE bar chart data
+  const EFFORT_LEVEL: Record<string, number> = { easy: 1, working: 2, quite_hard: 3, hard: 4, max: 5 };
+  const EFFORT_COLOR: Record<string, string> = {
+    easy: "#93C5FD", working: "#86EFAC", quite_hard: "#FDE68A", hard: "#FDBA74", max: "#FCA5A5",
+  };
+  const effortBars = useMemo(() => {
+    return payloadExercises
+      .filter((ex: any) => ex?.done !== false && ex?.skipped !== true)
+      .map((ex: any) => {
+        const name = String(ex?.name || ex?.exerciseName || "Упражнение");
+        const shortName = name.length > 14 ? name.slice(0, 13) + "…" : name;
+        const effort: string | null = ex?.effort || null;
+        const level = effort ? (EFFORT_LEVEL[effort] ?? 0) : 0;
+        const color = effort ? (EFFORT_COLOR[effort] ?? "#d1d5db") : "#d1d5db";
+        return { name: shortName, level, color, hasEffort: level > 0 };
+      });
+  }, [payloadExercises]);
+
   // PRs
   const prs = useMemo(() => detectPRs(payloadExercises, history, result.sessionId), [payloadExercises, history, result.sessionId]);
 
@@ -687,6 +705,30 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                 <div key={i} style={s.legendItem}>
                   <div style={{ ...s.legendDot, background: m.color }} />
                   <span style={s.legendText}>{m.muscle} {m.percent}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 3.5. RPE Bar Chart ───────────────────────────── */}
+        {effortBars.some(b => b.hasEffort) && (
+          <div style={{ ...s.glassCard, ...fadeStyle(150) }}>
+            <div style={s.muscleTitle}>Как ощущалась нагрузка</div>
+            <div style={s.rpeChartWrap}>
+              {effortBars.map((bar, i) => (
+                <div key={i} style={s.rpeBarCol}>
+                  <div style={s.rpeBarGroove}>
+                    <div style={{
+                      ...s.rpeBarFill,
+                      height: bar.hasEffort ? `${(bar.level / 5) * 100}%` : "6%",
+                      background: bar.color,
+                      boxShadow: bar.hasEffort
+                        ? "inset 0 2px 3px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.25)"
+                        : "none",
+                    }} />
+                    <span style={s.rpeBarLabel}>{bar.name}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -907,6 +949,36 @@ const s: Record<string, CSSProperties> = {
   legendText: {
     fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
   },
+
+  // ── RPE Bar Chart
+  rpeChartWrap: {
+    display: "flex", gap: 6, alignItems: "flex-end", height: 140,
+  },
+  rpeBarCol: {
+    flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%",
+  } as CSSProperties,
+  rpeBarGroove: {
+    position: "relative", width: "100%", height: "100%",
+    borderRadius: 10,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    overflow: "hidden",
+    display: "flex", flexDirection: "column", justifyContent: "flex-end",
+  } as CSSProperties,
+  rpeBarFill: {
+    width: "100%", borderRadius: 10,
+    transition: "height 600ms ease",
+  },
+  rpeBarLabel: {
+    position: "absolute", inset: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    writingMode: "vertical-rl" as const,
+    textOrientation: "mixed" as const,
+    fontSize: 11, fontWeight: 500,
+    color: "rgba(160,160,160,1)",
+    pointerEvents: "none", zIndex: 1,
+    letterSpacing: 0.3,
+  } as CSSProperties,
 
   // ── Record
   recordHeader: {
