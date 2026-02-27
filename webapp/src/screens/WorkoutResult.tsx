@@ -991,7 +991,7 @@ const s: Record<string, CSSProperties> = {
     writingMode: "vertical-rl" as const,
     textOrientation: "mixed" as const,
     fontSize: 11, fontWeight: 700,
-    color: "#ffffff",
+    color: "#1e1f22",
     pointerEvents: "none", zIndex: 1,
     letterSpacing: 0.3,
   } as CSSProperties,
@@ -1086,11 +1086,11 @@ const s: Record<string, CSSProperties> = {
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
     zIndex: 30,
-    padding: "10px 16px calc(10px + env(safe-area-inset-bottom))",
+    padding: "14px clamp(16px, 4vw, 20px) calc(max(env(safe-area-inset-bottom, 0px), 0px) + 2px)",
     background: "linear-gradient(to top, rgba(245,245,247,1) 70%, rgba(245,245,247,0))",
   } as CSSProperties,
   stickyInner: {
-    maxWidth: 720, margin: "0 auto", display: "grid", gap: 8, boxSizing: "border-box",
+    maxWidth: 720, margin: "0 auto", display: "grid", gap: 10, boxSizing: "border-box",
   },
   primaryBtn: {
     width: "fit-content", maxWidth: "100%", justifySelf: "center",
