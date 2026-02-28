@@ -969,7 +969,7 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
+    fontSize: 14, fontWeight: 500, color: "#0f172a", lineHeight: 1,
   },
 
   // ── Glass Card
