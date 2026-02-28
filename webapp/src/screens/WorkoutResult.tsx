@@ -769,10 +769,10 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
                 {/* Average Text (Right 30%, above line) */}
                 <div style={{
-                  position: "absolute", right: 0, bottom: `calc(${avgPercent}% + 12px)`,
-                  width: "28%", textAlign: "right", display: "flex", flexDirection: "column", gap: 2,
+                  position: "absolute", left: "70%", bottom: `calc(${avgPercent}% + 8px)`,
+                  width: "30%", textAlign: "left", display: "flex", flexDirection: "column", gap: 2, paddingLeft: 12,
                 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: avgColor, lineHeight: 1.1, letterSpacing: -0.2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
                     {avgLabelStr}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
