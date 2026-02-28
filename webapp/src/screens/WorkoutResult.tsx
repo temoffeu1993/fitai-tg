@@ -982,7 +982,7 @@ const s: Record<string, CSSProperties> = {
 
   // ── Muscle Distribution
   muscleTitle: {
-    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2, marginBottom: 14,
+    fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, marginBottom: 14,
   },
   muscleBar: {
     display: "flex", height: 16, borderRadius: 10, overflow: "hidden", width: "100%", background: "#F1F5F9",
