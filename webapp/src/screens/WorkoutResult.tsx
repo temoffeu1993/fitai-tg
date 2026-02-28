@@ -763,8 +763,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                 {/* Average Dashed Line */}
                 <div style={{
                   position: "absolute", left: 0, right: 0, bottom: `${avgPercent}%`,
-                  borderBottom: `2px dashed ${avgColor}`,
-                  opacity: 0.8,
+                  borderBottom: `1px dashed rgba(15, 23, 42, 0.62)`,
                   zIndex: 2,
                 }} />
 
