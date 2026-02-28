@@ -985,11 +985,14 @@ const s: Record<string, CSSProperties> = {
     fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2, marginBottom: 14,
   },
   muscleBar: {
-    display: "flex", height: 16, borderRadius: 10, overflow: "hidden", width: "100%", background: "#F1F5F9",
-  },
+    display: "flex", height: 16, borderRadius: 999, overflow: "hidden", width: "100%",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  } as CSSProperties,
   muscleBarSegment: {
     height: "100%", transition: "width 600ms ease",
-  },
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -1px 1px rgba(0,0,0,0.3)",
+  } as CSSProperties,
   muscleLegend: {
     display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12,
   },
