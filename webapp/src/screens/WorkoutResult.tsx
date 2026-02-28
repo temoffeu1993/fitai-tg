@@ -703,7 +703,10 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
         {muscleDistribution.length > 0 && (
           <div style={{ ...s.glassCard, ...fadeStyle(120) }}>
-            <div style={s.muscleTitle}>Какие мышцы работали</div>
+            <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
+              <Activity size={18} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+              Какие мышцы работали
+            </div>
             <div style={s.muscleBar}>
               {muscleDistribution.map((m, i) => (
                 <div key={i} style={{ ...s.muscleBarSegment, width: `${Math.max(m.percent, 2)}%`, background: m.color }} />
@@ -738,7 +741,10 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
           return (
             <div style={{ ...s.glassCard, ...fadeStyle(150), paddingBottom: 24, paddingTop: 18 }}>
-              <div style={s.muscleTitle}>Как ощущалась нагрузка</div>
+              <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
+                <Flame size={18} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                Как ощущалась нагрузка
+              </div>
               <div style={{ position: "relative", height: 160, width: "100%", marginTop: 24 }}>
 
                 {/* Columns Area (Left 70%) */}
