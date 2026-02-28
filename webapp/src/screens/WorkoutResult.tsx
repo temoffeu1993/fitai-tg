@@ -776,7 +776,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                     {avgLabelStr}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
-                    В среднем
+                    в среднем
                   </div>
                 </div>
 
