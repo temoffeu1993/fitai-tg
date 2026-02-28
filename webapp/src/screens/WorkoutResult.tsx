@@ -770,13 +770,13 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
                 {/* Average Text (Right 30%, above line) */}
                 <div style={{
-                  position: "absolute", right: 0, bottom: `calc(${avgPercent}% + 8px)`,
-                  width: "28%", textAlign: "right",
+                  position: "absolute", right: 0, bottom: `calc(${avgPercent}% + 12px)`,
+                  width: "28%", textAlign: "right", display: "flex", flexDirection: "column", gap: 2,
                 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: avgColor, lineHeight: 1.1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: avgColor, lineHeight: 1.1, letterSpacing: -0.2 }}>
                     {avgLabelStr}
                   </div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.5)", marginTop: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
                     В среднем
                   </div>
                 </div>
@@ -995,7 +995,7 @@ const s: Record<string, CSSProperties> = {
     width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
   },
   legendText: {
-    fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
+    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
   },
 
   // ── RPE Bar Chart
