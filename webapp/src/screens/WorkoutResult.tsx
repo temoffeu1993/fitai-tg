@@ -753,7 +753,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                           <div style={{
                             ...s.progressCtaBarFill,
                             height: `${(bar.level / 5) * 100}%`,
-                            background: bar.color,
                           }} />
                         )}
                       </div>
