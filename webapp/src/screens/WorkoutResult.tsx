@@ -314,106 +314,6 @@ function computeExerciseDelta(
   };
 }
 
-// ─── Achievement detection ──────────────────────────────────────────────────────
-
-type Achievement = { icon: "trophy" | "medal"; title: string; subtitle: string };
-
-function historyTonnage(session: HistSession): number {
-  let ton = 0;
-  for (const item of session.items || []) {
-    for (const set of item.sets || []) {
-      const w = Number(set?.weight || 0);
-      const r = Number(set?.reps || 0);
-      if (w > 0 && r > 0) ton += w * r;
-    }
-  }
-  return Math.round(ton);
-}
-
-function detectAchievement(
-  sessionNumber: number,
-  tonnage: number,
-  durationMin: number | null,
-  completionPct: number,
-  history: HistSession[],
-  excludeIds: Set<string>,
-): Achievement | null {
-  // Filter history to past sessions only
-  const past = history.filter(s => !excludeIds.has(String(s?.id || "")));
-
-  // 1. Milestone session numbers
-  const milestones: [number, string][] = [
-    [1, "Начало положено!"],
-    [5, "Привычка формируется"],
-    [10, "Стабильность — это сила"],
-    [25, "Ты уже не новичок"],
-    [50, "Полсотни в копилке"],
-    [100, "Это уже образ жизни"],
-  ];
-  for (const [n, sub] of milestones) {
-    if (sessionNumber === n) {
-      return { icon: "trophy", title: `${n}-я тренировка!`, subtitle: sub };
-    }
-  }
-
-  // Precompute past tonnages
-  const pastTonnages = past.map(historyTonnage);
-  const maxPastTonnage = pastTonnages.length > 0 ? Math.max(...pastTonnages) : 0;
-
-  // 2. Tonnage record (only if there's past data to beat)
-  if (tonnage > 0 && maxPastTonnage > 0 && tonnage > maxPastTonnage) {
-    return {
-      icon: "trophy",
-      title: `Рекорд тоннажа — ${tonnage.toLocaleString("ru-RU")} кг!`,
-      subtitle: "Лучший результат за все тренировки",
-    };
-  }
-
-  // 3. Duration record
-  if (durationMin != null && durationMin > 0 && past.length > 0) {
-    const maxPastDur = Math.max(...past.map(s => Number(s?.durationMin || 0)));
-    if (maxPastDur > 0 && durationMin > maxPastDur) {
-      return {
-        icon: "trophy",
-        title: `Самая длинная тренировка — ${durationMin} мин!`,
-        subtitle: "Новый рекорд по длительности",
-      };
-    }
-  }
-
-  // 4. Tonnage thresholds (first time crossing)
-  const thresholds: [number, string, string][] = [
-    [10_000, "10 тонн за тренировку!", "Монстр объёма"],
-    [5_000, "5 тонн за тренировку!", "Серьёзный объём"],
-    [2_000, "2 тонны за тренировку!", "Набираешь обороты"],
-    [1_000, "Первая тонна за тренировку!", "Весомый результат"],
-  ];
-  for (const [thresh, title, subtitle] of thresholds) {
-    if (tonnage >= thresh && !pastTonnages.some(t => t >= thresh)) {
-      return { icon: "trophy", title, subtitle };
-    }
-  }
-
-  // 5. 100% completion (only if first time or rare — no past 100%)
-  if (completionPct === 100 && past.length > 0) {
-    const anyPast100 = past.some(session => {
-      let total = 0, done = 0;
-      for (const item of session.items || []) {
-        for (const set of item.sets || []) {
-          total++;
-          if (set?.done) done++;
-        }
-      }
-      return total > 0 && done === total;
-    });
-    if (!anyPast100) {
-      return { icon: "trophy", title: "100% выполнение!", subtitle: "Ни одного пропуска" };
-    }
-  }
-
-  return null;
-}
-
 // ─── Workout title resolution (matches PlanOne dayLabelRU) ─────────────────────
 
 function resolveWorkoutTitle(payload: any): string {
@@ -681,12 +581,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return ids;
   }, [result.clientSessionId, result.sessionId]);
 
-  // Achievement
-  const achievement = useMemo(() =>
-    detectAchievement(sessionNumber, tonnage, durationMin, completionPct, history, excludeIds),
-    [sessionNumber, tonnage, durationMin, completionPct, history, excludeIds],
-  );
-
   // Exercise deltas (only exercises with weight or reps changes)
   const exerciseDeltas = useMemo(() => {
     return payloadExercises
@@ -754,35 +648,23 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         </div>
 
-        {/* ── 2. Stat Pill ────────────────────────────────────── */}
+        {/* ── 2. Stat Pill (dark embossed) ─────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
+            <CircleCheckBig size={18} strokeWidth={2.5} style={s.statIconEmboss} />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={18} strokeWidth={2.5} color="#0f172a" />
+            <Clock3 size={18} strokeWidth={2.5} style={s.statIconEmboss} />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={18} strokeWidth={2.5} color="#0f172a" />
-              : <Dumbbell size={18} strokeWidth={2.5} color="#0f172a" />}
+              ? <Flame size={18} strokeWidth={2.5} style={s.statIconEmboss} />
+              : <Dumbbell size={18} strokeWidth={2.5} style={s.statIconEmboss} />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
-
-        {/* ── 2.5. Achievement Card ──────────────────────────── */}
-        {achievement && (
-          <div style={{ ...s.achieveCard, ...fadeStyle(90) }}>
-            <div style={s.medalOuter}>
-              <div style={s.medalInner}>
-                <Zap size={26} strokeWidth={2.2} style={s.medalIcon} />
-              </div>
-            </div>
-            <div style={s.achieveTitle}>{achievement.title}</div>
-          </div>
-        )}
 
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
         {muscleDistribution.length > 0 && (
@@ -1012,14 +894,19 @@ const s: Record<string, CSSProperties> = {
   statPill: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     borderRadius: 24, padding: "14px 18px",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    border: "1px solid rgba(255,255,255,0.75)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
   } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2,
+    fontSize: 18, fontWeight: 700, lineHeight: 1.2,
+    color: "rgba(255,255,255,0.88)",
+    textShadow: "0 -1px 1px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1)",
   },
+  statIconEmboss: {
+    color: "rgba(255,255,255,0.88)",
+    filter: "drop-shadow(0 -1px 1px rgba(0,0,0,0.5)) drop-shadow(0 1px 0 rgba(255,255,255,0.1))",
+  } as CSSProperties,
 
   // ── Glass Card
   glassCard: {
@@ -1111,36 +998,6 @@ const s: Record<string, CSSProperties> = {
     fontSize: 11, fontWeight: 600, lineHeight: 1,
     position: "relative", top: -3,
   } as CSSProperties,
-  // ── Achievement Card
-  achieveCard: {
-    borderRadius: 24, padding: "20px 18px",
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
-    display: "flex", flexDirection: "row", alignItems: "center", gap: 16,
-  } as CSSProperties,
-  medalOuter: {
-    width: 56, height: 56, borderRadius: 999, flexShrink: 0,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-  } as CSSProperties,
-  medalInner: {
-    width: 40, height: 40, borderRadius: 999,
-    background: "linear-gradient(180deg, #d1d5db 0%, #e5e7eb 100%)",
-    boxShadow: "inset 0 2px 4px rgba(15,23,42,0.22), inset 0 -1px 0 rgba(255,255,255,0.9)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-  } as CSSProperties,
-  medalIcon: {
-    color: "rgba(15,23,42,0.35)",
-    filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.7))",
-  } as CSSProperties,
-  achieveTitle: {
-    fontSize: 28, fontWeight: 800, lineHeight: 1.1,
-    color: "rgba(255,255,255,0.88)",
-    textShadow: "0 -1px 1px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1)",
-    minWidth: 0,
-  },
-
   // ── Buttons
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
