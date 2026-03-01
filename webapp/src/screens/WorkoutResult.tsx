@@ -851,27 +851,25 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {hasWeightDelta && (
                           <span style={s.exChip}>
                             <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-                            <span style={{ ...s.exChipDelta, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta} кг
                             </span>
-                            <span style={{ ...s.exArrow, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444", transform: d.weightDelta! > 0 ? "rotate(-90deg)" : "rotate(90deg)" }}>→</span>
                           </span>
                         )}
                         {/* Reps delta */}
                         {hasRepsDelta && (
                           <span style={s.exChip}>
                             <Repeat size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-                            <span style={{ ...s.exChipDelta, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
                             </span>
-                            <span style={{ ...s.exArrow, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444", transform: d.repsDelta! > 0 ? "rotate(-90deg)" : "rotate(90deg)" }}>→</span>
                           </span>
                         )}
                         {/* RPE — always show current, no delta */}
                         {d.curEffort && (
                           <span style={s.exChip}>
                             <Activity size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-                            <span style={s.exChipText}>{EFFORT_SHORT[d.curEffort] || d.curEffort}</span>
+                            <span>{EFFORT_SHORT[d.curEffort] || d.curEffort}</span>
                           </span>
                         )}
                       </div>
@@ -1098,16 +1096,6 @@ const s: Record<string, CSSProperties> = {
     // same style as statChip — no background
     fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
   },
-  exChipDelta: {
-    fontSize: 14, fontWeight: 500, lineHeight: 1,
-  },
-  exChipText: {
-    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
-  },
-  exArrow: {
-    fontSize: 14, fontWeight: 700, lineHeight: 1, display: "inline-block",
-  },
-
   // ── Record
   recordHeader: {
     display: "flex", alignItems: "center", gap: 14,
