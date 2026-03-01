@@ -651,17 +651,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Pill (dark embossed) ─────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={18} strokeWidth={2.5} style={s.statIconEmboss} />
+            <CircleCheckBig size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={18} strokeWidth={2.5} style={s.statIconEmboss} />
+            <Clock3 size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={18} strokeWidth={2.5} style={s.statIconEmboss} />
-              : <Dumbbell size={18} strokeWidth={2.5} style={s.statIconEmboss} />}
+              ? <Flame size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+              : <Dumbbell size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
@@ -901,12 +901,7 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex", alignItems: "center", gap: 5,
     fontSize: 18, fontWeight: 700, lineHeight: 1.2,
     color: "rgba(255,255,255,0.88)",
-    textShadow: "0 -1px 1px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1)",
   },
-  statIconEmboss: {
-    color: "rgba(255,255,255,0.88)",
-    filter: "drop-shadow(0 -1px 1px rgba(0,0,0,0.5)) drop-shadow(0 1px 0 rgba(255,255,255,0.1))",
-  } as CSSProperties,
 
   // ── Glass Card
   glassCard: {
