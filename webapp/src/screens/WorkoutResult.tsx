@@ -314,6 +314,106 @@ function computeExerciseDelta(
   };
 }
 
+// ─── Achievement detection ──────────────────────────────────────────────────────
+
+type Achievement = { emoji: string; title: string; subtitle: string };
+
+function historyTonnage(session: HistSession): number {
+  let ton = 0;
+  for (const item of session.items || []) {
+    for (const set of item.sets || []) {
+      const w = Number(set?.weight || 0);
+      const r = Number(set?.reps || 0);
+      if (w > 0 && r > 0) ton += w * r;
+    }
+  }
+  return Math.round(ton);
+}
+
+function detectAchievement(
+  sessionNumber: number,
+  tonnage: number,
+  durationMin: number | null,
+  completionPct: number,
+  history: HistSession[],
+  excludeIds: Set<string>,
+): Achievement | null {
+  // Filter history to past sessions only
+  const past = history.filter(s => !excludeIds.has(String(s?.id || "")));
+
+  // 1. Milestone session numbers
+  const milestones: [number, string][] = [
+    [1, "Начало положено!"],
+    [5, "Привычка формируется"],
+    [10, "Стабильность — это сила"],
+    [25, "Ты уже не новичок"],
+    [50, "Полсотни в копилке"],
+    [100, "Это уже образ жизни"],
+  ];
+  for (const [n, sub] of milestones) {
+    if (sessionNumber === n) {
+      return { emoji: "🏆", title: `${n}-я тренировка!`, subtitle: sub };
+    }
+  }
+
+  // Precompute past tonnages
+  const pastTonnages = past.map(historyTonnage);
+  const maxPastTonnage = pastTonnages.length > 0 ? Math.max(...pastTonnages) : 0;
+
+  // 2. Tonnage record (only if there's past data to beat)
+  if (tonnage > 0 && maxPastTonnage > 0 && tonnage > maxPastTonnage) {
+    return {
+      emoji: "🏆",
+      title: `Рекорд тоннажа — ${tonnage.toLocaleString("ru-RU")} кг!`,
+      subtitle: "Лучший результат за все тренировки",
+    };
+  }
+
+  // 3. Duration record
+  if (durationMin != null && durationMin > 0 && past.length > 0) {
+    const maxPastDur = Math.max(...past.map(s => Number(s?.durationMin || 0)));
+    if (maxPastDur > 0 && durationMin > maxPastDur) {
+      return {
+        emoji: "🏆",
+        title: `Самая длинная тренировка — ${durationMin} мин!`,
+        subtitle: "Новый рекорд по длительности",
+      };
+    }
+  }
+
+  // 4. Tonnage thresholds (first time crossing)
+  const thresholds: [number, string, string][] = [
+    [10_000, "10 тонн за тренировку!", "Монстр объёма"],
+    [5_000, "5 тонн за тренировку!", "Серьёзный объём"],
+    [2_000, "2 тонны за тренировку!", "Набираешь обороты"],
+    [1_000, "Первая тонна за тренировку!", "Весомый результат"],
+  ];
+  for (const [thresh, title, subtitle] of thresholds) {
+    if (tonnage >= thresh && !pastTonnages.some(t => t >= thresh)) {
+      return { emoji: "🏆", title, subtitle };
+    }
+  }
+
+  // 5. 100% completion (only if first time or rare — no past 100%)
+  if (completionPct === 100 && past.length > 0) {
+    const anyPast100 = past.some(session => {
+      let total = 0, done = 0;
+      for (const item of session.items || []) {
+        for (const set of item.sets || []) {
+          total++;
+          if (set?.done) done++;
+        }
+      }
+      return total > 0 && done === total;
+    });
+    if (!anyPast100) {
+      return { emoji: "🏆", title: "100% выполнение!", subtitle: "Ни одного пропуска" };
+    }
+  }
+
+  return null;
+}
+
 // ─── Workout title resolution (matches PlanOne dayLabelRU) ─────────────────────
 
 function resolveWorkoutTitle(payload: any): string {
@@ -581,6 +681,12 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return ids;
   }, [result.clientSessionId, result.sessionId]);
 
+  // Achievement
+  const achievement = useMemo(() =>
+    detectAchievement(sessionNumber, tonnage, durationMin, completionPct, history, excludeIds),
+    [sessionNumber, tonnage, durationMin, completionPct, history, excludeIds],
+  );
+
   // Exercise deltas (only exercises with weight or reps changes)
   const exerciseDeltas = useMemo(() => {
     return payloadExercises
@@ -819,8 +925,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         )}
 
-        {/* bottom spacer */}
-        <div style={{ height: 140 }} />
+        {/* ── 4. Achievement Card ──────────────────────────── */}
+        {achievement && (
+          <div style={{ ...s.achieveCard, ...fadeStyle(195) }}>
+            <div style={s.achieveEmoji}>{achievement.emoji}</div>
+            <div style={s.achieveTitle}>{achievement.title}</div>
+            <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
+          </div>
+        )}
+
+        {/* bottom spacer for sticky button */}
+        <div style={{ height: 90 }} />
       </div>
 
       {/* ── 6. Sticky Buttons ───────────────────────────────────── */}
@@ -993,6 +1108,24 @@ const s: Record<string, CSSProperties> = {
     fontSize: 11, fontWeight: 600, lineHeight: 1,
     position: "relative", top: -3,
   } as CSSProperties,
+  // ── Achievement Card
+  achieveCard: {
+    borderRadius: 24, padding: "24px 18px",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+    textAlign: "center",
+  } as CSSProperties,
+  achieveEmoji: {
+    fontSize: 44, lineHeight: 1, marginBottom: 4,
+  },
+  achieveTitle: {
+    fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1.25,
+  },
+  achieveSubtitle: {
+    fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.55)", lineHeight: 1.4,
+  },
+
   // ── Buttons
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
