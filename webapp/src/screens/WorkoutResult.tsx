@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat, Trophy, Award } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -316,7 +316,7 @@ function computeExerciseDelta(
 
 // ─── Achievement detection ──────────────────────────────────────────────────────
 
-type Achievement = { emoji: string; title: string; subtitle: string };
+type Achievement = { icon: "trophy" | "medal"; title: string; subtitle: string };
 
 function historyTonnage(session: HistSession): number {
   let ton = 0;
@@ -352,7 +352,7 @@ function detectAchievement(
   ];
   for (const [n, sub] of milestones) {
     if (sessionNumber === n) {
-      return { emoji: "🏆", title: `${n}-я тренировка!`, subtitle: sub };
+      return { icon: "trophy", title: `${n}-я тренировка!`, subtitle: sub };
     }
   }
 
@@ -363,7 +363,7 @@ function detectAchievement(
   // 2. Tonnage record (only if there's past data to beat)
   if (tonnage > 0 && maxPastTonnage > 0 && tonnage > maxPastTonnage) {
     return {
-      emoji: "🏆",
+      icon: "trophy",
       title: `Рекорд тоннажа — ${tonnage.toLocaleString("ru-RU")} кг!`,
       subtitle: "Лучший результат за все тренировки",
     };
@@ -374,7 +374,7 @@ function detectAchievement(
     const maxPastDur = Math.max(...past.map(s => Number(s?.durationMin || 0)));
     if (maxPastDur > 0 && durationMin > maxPastDur) {
       return {
-        emoji: "🏆",
+        icon: "trophy",
         title: `Самая длинная тренировка — ${durationMin} мин!`,
         subtitle: "Новый рекорд по длительности",
       };
@@ -390,7 +390,7 @@ function detectAchievement(
   ];
   for (const [thresh, title, subtitle] of thresholds) {
     if (tonnage >= thresh && !pastTonnages.some(t => t >= thresh)) {
-      return { emoji: "🏆", title, subtitle };
+      return { icon: "trophy", title, subtitle };
     }
   }
 
@@ -407,7 +407,7 @@ function detectAchievement(
       return total > 0 && done === total;
     });
     if (!anyPast100) {
-      return { emoji: "🏆", title: "100% выполнение!", subtitle: "Ни одного пропуска" };
+      return { icon: "trophy", title: "100% выполнение!", subtitle: "Ни одного пропуска" };
     }
   }
 
@@ -775,9 +775,15 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2.5. Achievement Card ──────────────────────────── */}
         {achievement && (
           <div style={{ ...s.achieveCard, ...fadeStyle(90) }}>
-            <div style={s.achieveEmoji}>{achievement.emoji}</div>
-            <div style={s.achieveTitle}>{achievement.title}</div>
-            <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
+            <div style={s.achieveMedallion}>
+              {achievement.icon === "trophy"
+                ? <Trophy size={28} strokeWidth={1.8} color="rgba(255,255,255,0.7)" />
+                : <Award size={28} strokeWidth={1.8} color="rgba(255,255,255,0.7)" />}
+            </div>
+            <div style={s.achieveText}>
+              <div style={s.achieveTitle}>{achievement.title}</div>
+              <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
+            </div>
           </div>
         )}
 
@@ -1110,20 +1116,25 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   // ── Achievement Card
   achieveCard: {
-    borderRadius: 24, padding: "24px 18px",
+    borderRadius: 24, padding: "18px 20px",
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-    textAlign: "center",
+    display: "flex", flexDirection: "row", alignItems: "center", gap: 14,
   } as CSSProperties,
-  achieveEmoji: {
-    fontSize: 44, lineHeight: 1, marginBottom: 4,
-  },
+  achieveMedallion: {
+    width: 52, height: 52, borderRadius: 999, flexShrink: 0,
+    background: "linear-gradient(180deg, #2a2b2f 0%, #18191c 100%)",
+    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.06)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  } as CSSProperties,
+  achieveText: {
+    display: "flex", flexDirection: "column", gap: 3, minWidth: 0,
+  } as CSSProperties,
   achieveTitle: {
-    fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1.25,
+    fontSize: 17, fontWeight: 700, color: "#fff", lineHeight: 1.25,
   },
   achieveSubtitle: {
-    fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.55)", lineHeight: 1.4,
+    fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.5)", lineHeight: 1.35,
   },
 
   // ── Buttons
