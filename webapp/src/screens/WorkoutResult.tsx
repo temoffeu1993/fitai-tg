@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame, TrendingUp } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -333,6 +333,10 @@ type ExerciseDelta = {
   weightDelta: number | null; // kg difference
   repsDelta: number | null;   // reps difference
   effortPrev: string | null;
+  curWeight: number | null;
+  curReps: number | null;
+  curEffort: string | null;
+  isFirst: boolean;           // true = no previous data, delta from 0
 };
 
 function findPreviousExercise(
@@ -368,20 +372,36 @@ function computeExerciseDelta(
   history: HistSession[],
   currentSessionId: string | null
 ): ExerciseDelta {
-  const prev = findPreviousExercise(ex?.name || ex?.exerciseName || "", history, currentSessionId);
-  if (!prev) return { weightDelta: null, repsDelta: null, effortPrev: null };
-
   const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
   const curWeights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
   const curReps = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
-
   const curMedW = median(curWeights);
   const curMedR = median(curReps);
+  const curEffort: string | null = ex?.effort || null;
+
+  const prev = findPreviousExercise(ex?.name || ex?.exerciseName || "", history, currentSessionId);
+
+  if (!prev) {
+    // First time — delta from 0
+    return {
+      weightDelta: curMedW,
+      repsDelta: curMedR != null ? Math.round(curMedR) : null,
+      effortPrev: null,
+      curWeight: curMedW,
+      curReps: curMedR != null ? Math.round(curMedR) : null,
+      curEffort,
+      isFirst: true,
+    };
+  }
 
   return {
     weightDelta: (curMedW != null && prev.medianWeight != null) ? Math.round((curMedW - prev.medianWeight) * 4) / 4 : null,
     repsDelta: (curMedR != null && prev.medianReps != null) ? Math.round(curMedR - prev.medianReps) : null,
     effortPrev: prev.effort,
+    curWeight: curMedW,
+    curReps: curMedR != null ? Math.round(curMedR) : null,
+    curEffort,
+    isFirst: false,
   };
 }
 
@@ -629,6 +649,16 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   // PRs
   const prs = useMemo(() => detectPRs(payloadExercises, history, result.sessionId), [payloadExercises, history, result.sessionId]);
 
+  // Exercise deltas (for progress block)
+  const exerciseDeltas = useMemo(() => {
+    return payloadExercises
+      .filter((ex: any) => ex?.done !== false && ex?.skipped !== true)
+      .map((ex: any) => ({
+        name: String(ex?.name || ex?.exerciseName || "Упражнение"),
+        delta: computeExerciseDelta(ex, history, result.sessionId),
+      }));
+  }, [payloadExercises, history, result.sessionId]);
+
   // Haptic on mount
   const firedRef = useRef(false);
   useEffect(() => {
@@ -790,6 +820,85 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
             </div>
           );
         })()}
+
+        {/* ── 3.7. Exercise Progress ──────────────────────────── */}
+        {exerciseDeltas.length > 0 && (
+          <div style={{ ...s.glassCard, ...fadeStyle(165) }}>
+            <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
+              <TrendingUp size={18} strokeWidth={2.5} color="#0f172a" />
+              Прогресс по упражнениям
+            </div>
+            {exerciseDeltas.map((item, idx) => {
+              const d = item.delta;
+              const EFFORT_EMOJI: Record<string, string> = {
+                easy: "🙂", working: "💪", quite_hard: "😤", hard: "😵", max: "🥵",
+              };
+              const EFFORT_SHORT: Record<string, string> = {
+                easy: "Легко", working: "В самый раз", quite_hard: "Тяжеловато", hard: "Очень тяжело", max: "На пределе",
+              };
+              // effort delta direction: lower = better (green), higher = worse (red)
+              const effortLevel: Record<string, number> = { easy: 1, working: 2, quite_hard: 3, hard: 4, max: 5 };
+              const curELvl = d.curEffort ? (effortLevel[d.curEffort] ?? 0) : 0;
+              const prevELvl = d.effortPrev ? (effortLevel[d.effortPrev] ?? 0) : 0;
+              const effortDelta = (curELvl > 0 && prevELvl > 0) ? curELvl - prevELvl : null;
+
+              return (
+                <div key={idx}>
+                  {idx > 0 && <div style={s.exDivider} />}
+                  <div style={s.exRow}>
+                    <div style={s.exName}>{item.name}</div>
+                    <div style={s.exChips}>
+                      {/* Weight */}
+                      {d.curWeight != null && (
+                        <div style={s.exChip}>
+                          <span style={s.exChipValue}>{d.curWeight} кг</span>
+                          {d.weightDelta != null && d.weightDelta !== 0 && (
+                            <span style={{ ...s.exChipDelta, color: d.weightDelta > 0 ? "#16A34A" : "#EF4444" }}>
+                              {d.weightDelta > 0 ? "▲" : "▼"} {d.weightDelta > 0 ? "+" : ""}{d.weightDelta} кг
+                            </span>
+                          )}
+                          {d.weightDelta === 0 && !d.isFirst && (
+                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
+                          )}
+                        </div>
+                      )}
+                      {/* Reps */}
+                      {d.curReps != null && (
+                        <div style={s.exChip}>
+                          <span style={s.exChipValue}>{d.curReps} повт</span>
+                          {d.repsDelta != null && d.repsDelta !== 0 && (
+                            <span style={{ ...s.exChipDelta, color: d.repsDelta > 0 ? "#16A34A" : "#EF4444" }}>
+                              {d.repsDelta > 0 ? "▲" : "▼"} {d.repsDelta > 0 ? "+" : ""}{d.repsDelta}
+                            </span>
+                          )}
+                          {d.repsDelta === 0 && !d.isFirst && (
+                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
+                          )}
+                        </div>
+                      )}
+                      {/* Effort / RPE */}
+                      {d.curEffort && (
+                        <div style={s.exChip}>
+                          <span style={s.exChipValue}>
+                            {EFFORT_EMOJI[d.curEffort] || ""} {EFFORT_SHORT[d.curEffort] || d.curEffort}
+                          </span>
+                          {effortDelta != null && effortDelta !== 0 && (
+                            <span style={{ ...s.exChipDelta, color: effortDelta < 0 ? "#16A34A" : "#EF4444" }}>
+                              {effortDelta < 0 ? "▲" : "▼"} было {EFFORT_EMOJI[d.effortPrev!] || ""}
+                            </span>
+                          )}
+                          {effortDelta === 0 && (
+                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── 4. Record ─────────────────────────────────────────── */}
         {prs.length > 0 && (
@@ -984,6 +1093,33 @@ const s: Record<string, CSSProperties> = {
   },
   rpeLegendText: {
     fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
+  },
+
+  // ── Exercise Progress
+  exDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    margin: "12px 0",
+  },
+  exRow: {
+    display: "flex", flexDirection: "column", gap: 8,
+  },
+  exName: {
+    fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
+  },
+  exChips: {
+    display: "flex", flexWrap: "wrap", gap: 8,
+  },
+  exChip: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    padding: "5px 10px", borderRadius: 10,
+    background: "rgba(15,23,42,0.04)",
+  },
+  exChipValue: {
+    fontSize: 13, fontWeight: 600, color: "#334155", lineHeight: 1,
+  },
+  exChipDelta: {
+    fontSize: 12, fontWeight: 700, lineHeight: 1,
   },
 
   // ── Record
