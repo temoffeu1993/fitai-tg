@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
+import { Clock3, Dumbbell, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat, Weight } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -661,7 +661,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           <span style={s.statChip}>
             {showCalories
               ? <Flame size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
-              : <Dumbbell size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
+              : <Weight size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
