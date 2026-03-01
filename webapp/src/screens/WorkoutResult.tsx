@@ -775,22 +775,12 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2.5. Achievement Card ──────────────────────────── */}
         {achievement && (
           <div style={{ ...s.achieveCard, ...fadeStyle(90) }}>
-            <div style={s.medalWrap}>
-              {/* Ribbon tails */}
-              <div style={s.ribbonLeft} />
-              <div style={s.ribbonRight} />
-              {/* Outer ring (inset) */}
-              <div style={s.medalOuter}>
-                {/* Inner raised disc */}
-                <div style={s.medalInner}>
-                  <Zap size={22} strokeWidth={2.2} color="rgba(255,255,255,0.75)" fill="rgba(255,255,255,0.15)" />
-                </div>
+            <div style={s.medalOuter}>
+              <div style={s.medalInner}>
+                <Zap size={26} strokeWidth={2.2} style={s.medalIcon} />
               </div>
             </div>
-            <div style={s.achieveText}>
-              <div style={s.achieveTitle}>{achievement.title}</div>
-              <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
-            </div>
+            <div style={s.achieveTitle}>{achievement.title}</div>
           </div>
         )}
 
@@ -1123,47 +1113,32 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   // ── Achievement Card
   achieveCard: {
-    borderRadius: 24, padding: "18px 20px",
+    borderRadius: 24, padding: "20px 18px",
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
-    display: "flex", flexDirection: "row", alignItems: "center", gap: 14,
-  } as CSSProperties,
-  medalWrap: {
-    position: "relative", width: 56, height: 64, flexShrink: 0,
-  } as CSSProperties,
-  ribbonLeft: {
-    position: "absolute", top: 0, left: 8, width: 14, height: 20,
-    background: "linear-gradient(180deg, #D97706 0%, #B45309 100%)",
-    borderRadius: "0 0 2px 2px",
-    transform: "rotate(-15deg)", transformOrigin: "top center",
-  } as CSSProperties,
-  ribbonRight: {
-    position: "absolute", top: 0, right: 8, width: 14, height: 20,
-    background: "linear-gradient(180deg, #D97706 0%, #B45309 100%)",
-    borderRadius: "0 0 2px 2px",
-    transform: "rotate(15deg)", transformOrigin: "top center",
+    display: "flex", flexDirection: "row", alignItems: "center", gap: 16,
   } as CSSProperties,
   medalOuter: {
-    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
-    width: 52, height: 52, borderRadius: 999,
-    background: "linear-gradient(180deg, #2a2b2f 0%, #18191c 100%)",
-    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.3)",
+    width: 56, height: 56, borderRadius: 999, flexShrink: 0,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "flex", alignItems: "center", justifyContent: "center",
   } as CSSProperties,
   medalInner: {
-    width: 38, height: 38, borderRadius: 999,
-    background: "linear-gradient(180deg, #3a3b40 0%, #2a2b2f 100%)",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08)",
+    width: 40, height: 40, borderRadius: 999,
+    background: "linear-gradient(180deg, #d1d5db 0%, #e5e7eb 100%)",
+    boxShadow: "inset 0 2px 4px rgba(15,23,42,0.22), inset 0 -1px 0 rgba(255,255,255,0.9)",
     display: "flex", alignItems: "center", justifyContent: "center",
   } as CSSProperties,
-  achieveText: {
-    display: "flex", flexDirection: "column", gap: 3, minWidth: 0,
+  medalIcon: {
+    color: "rgba(15,23,42,0.35)",
+    filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.7))",
   } as CSSProperties,
   achieveTitle: {
-    fontSize: 17, fontWeight: 700, color: "#fff", lineHeight: 1.25,
-  },
-  achieveSubtitle: {
-    fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.5)", lineHeight: 1.35,
+    fontSize: 22, fontWeight: 800, lineHeight: 1.15,
+    color: "rgba(255,255,255,0.12)",
+    textShadow: "0 1px 1px rgba(255,255,255,0.15), 0 -1px 1px rgba(0,0,0,0.6)",
+    minWidth: 0,
   },
 
   // ── Buttons
