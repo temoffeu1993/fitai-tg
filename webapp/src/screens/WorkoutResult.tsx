@@ -651,17 +651,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Pill (dark embossed) ─────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+            <CircleCheckBig size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+            <Clock3 size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
-              : <Dumbbell size={18} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
+              ? <Flame size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+              : <Dumbbell size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
@@ -899,7 +899,7 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 18, fontWeight: 700, lineHeight: 1.2,
+    fontSize: 15, fontWeight: 600, lineHeight: 1.25,
     color: "rgba(255,255,255,0.88)",
   },
 
