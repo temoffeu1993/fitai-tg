@@ -867,22 +867,28 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                     <div style={s.exRow}>
                       <div style={s.exName}>{item.name}</div>
                       <div style={s.exChips}>
-                        {/* Weight delta */}
-                        {hasWeightDelta && (
+                        {/* Weight */}
+                        {d.curWeight != null && (
                           <span style={s.exChip}>
                             <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
-                              {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta} кг
-                            </span>
+                            <span>{d.curWeight} кг</span>
+                            {hasWeightDelta && (
+                              <span style={{ ...s.exDelta, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                                {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta}
+                              </span>
+                            )}
                           </span>
                         )}
-                        {/* Reps delta */}
-                        {hasRepsDelta && (
+                        {/* Reps */}
+                        {d.curReps != null && (
                           <span style={s.exChip}>
                             <Repeat size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
-                              {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
-                            </span>
+                            <span>{d.curReps}</span>
+                            {hasRepsDelta && (
+                              <span style={{ ...s.exDelta, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                                {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
+                              </span>
+                            )}
                           </span>
                         )}
                         {/* RPE — always show current, no delta */}
@@ -1115,6 +1121,10 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex", alignItems: "center", gap: 5,
     fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
   },
+  exDelta: {
+    fontSize: 11, fontWeight: 600, lineHeight: 1,
+    position: "relative", top: -3,
+  } as CSSProperties,
   // ── Record
   recordHeader: {
     display: "flex", alignItems: "center", gap: 14,
