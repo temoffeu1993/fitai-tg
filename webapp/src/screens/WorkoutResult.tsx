@@ -833,60 +833,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         )}
 
-        {/* ── 5. Exercise Details ────────────────────────────────── */}
-        <div style={{ ...fadeStyle(240) }}>
-          {payloadExercises.map((ex: any, idx: number) => {
-            if (ex?.skipped === true) return null;
-            const name = String(ex?.name || ex?.exerciseName || `Упражнение ${idx + 1}`);
-            const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-            const doneSets = sets.filter((s: any) => s?.done !== false);
-            const weights = doneSets.map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
-            const reps = doneSets.map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
-            const medW = median(weights);
-            const medR = median(reps);
-            const effort = effortLabel(ex?.effort);
-            const delta = computeExerciseDelta(ex, history, result.sessionId);
 
-            return (
-              <div key={idx} style={s.exerciseCard}>
-                <div style={s.exerciseName}>{name}</div>
-                <div style={s.exerciseChipsRow}>
-                  <span style={s.exerciseChip}>{doneSets.length} {pluralSets(doneSets.length)}</span>
-                  {medW != null && (
-                    <span style={s.exerciseChip}>
-                      {medW % 1 === 0 ? medW : medW.toFixed(1)} кг
-                      {delta.weightDelta != null && delta.weightDelta !== 0 && (
-                        <span style={{ ...s.delta, color: delta.weightDelta > 0 ? "#16a34a" : "#dc2626" }}>
-                          {delta.weightDelta > 0 ? <ChevronUp size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} /> : <ChevronDown size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} />}
-                          {Math.abs(delta.weightDelta)}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {medR != null && (
-                    <span style={s.exerciseChip}>
-                      {Math.round(medR)} повт
-                      {delta.repsDelta != null && delta.repsDelta !== 0 && (
-                        <span style={{ ...s.delta, color: delta.repsDelta > 0 ? "#16a34a" : "#dc2626" }}>
-                          {delta.repsDelta > 0 ? <ChevronUp size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} /> : <ChevronDown size={12} strokeWidth={3} style={{ verticalAlign: "middle", marginBottom: 1 }} />}
-                          {Math.abs(delta.repsDelta)}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {effort && (
-                    <span style={s.exerciseChipEffort}>
-                      {effort}
-                      {delta.effortPrev && delta.effortPrev !== ex?.effort && (
-                        <span style={s.effortDelta}>← {effortLabel(delta.effortPrev)}</span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
 
         {/* bottom spacer */}
         <div style={{ height: 140 }} />
@@ -1083,35 +1030,7 @@ const s: Record<string, CSSProperties> = {
     fontSize: 14, fontWeight: 800, color: "#92400e", flexShrink: 0,
   },
 
-  // ── Exercise Details
-  exerciseCard: {
-    padding: "14px 0",
-    borderBottom: "1px solid rgba(15,23,42,0.06)",
-  },
-  exerciseName: {
-    fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 8,
-  },
-  exerciseChipsRow: {
-    display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
-  },
-  exerciseChip: {
-    display: "inline-flex", alignItems: "center", gap: 3,
-    padding: "5px 10px", borderRadius: 10,
-    background: "rgba(15,23,42,0.04)",
-    fontSize: 13, fontWeight: 700, color: "#334155",
-  },
-  exerciseChipEffort: {
-    display: "inline-flex", alignItems: "center", gap: 4,
-    padding: "5px 10px", borderRadius: 10,
-    background: "rgba(139,92,246,0.08)",
-    fontSize: 13, fontWeight: 700, color: "#7c3aed",
-  },
-  delta: {
-    fontSize: 12, fontWeight: 800, marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 0,
-  },
-  effortDelta: {
-    fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.35)", marginLeft: 4,
-  },
+
 
   // ── Buttons
   stickyWrap: {
