@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame, TrendingUp } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -649,14 +649,18 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
   // PRs
   const prs = useMemo(() => detectPRs(payloadExercises, history, result.sessionId), [payloadExercises, history, result.sessionId]);
 
-  // Exercise deltas (for progress block)
+  // Exercise deltas (only exercises with weight or reps changes)
   const exerciseDeltas = useMemo(() => {
     return payloadExercises
       .filter((ex: any) => ex?.done !== false && ex?.skipped !== true)
       .map((ex: any) => ({
         name: String(ex?.name || ex?.exerciseName || "Упражнение"),
         delta: computeExerciseDelta(ex, history, result.sessionId),
-      }));
+      }))
+      .filter(item => {
+        const d = item.delta;
+        return (d.weightDelta != null && d.weightDelta !== 0) || (d.repsDelta != null && d.repsDelta !== 0);
+      });
   }, [payloadExercises, history, result.sessionId]);
 
   // Haptic on mount
@@ -823,80 +827,59 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
         {/* ── 3.7. Exercise Progress ──────────────────────────── */}
         {exerciseDeltas.length > 0 && (
-          <div style={{ ...s.glassCard, ...fadeStyle(165) }}>
+          <div style={{ ...s.glassCard, ...fadeStyle(165), paddingBottom: 24, paddingTop: 18 }}>
             <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
               <TrendingUp size={18} strokeWidth={2.5} color="#0f172a" />
               Прогресс по упражнениям
             </div>
-            {exerciseDeltas.map((item, idx) => {
-              const d = item.delta;
-              const EFFORT_EMOJI: Record<string, string> = {
-                easy: "🙂", working: "💪", quite_hard: "😤", hard: "😵", max: "🥵",
-              };
-              const EFFORT_SHORT: Record<string, string> = {
-                easy: "Легко", working: "В самый раз", quite_hard: "Тяжеловато", hard: "Очень тяжело", max: "На пределе",
-              };
-              // effort delta direction: lower = better (green), higher = worse (red)
-              const effortLevel: Record<string, number> = { easy: 1, working: 2, quite_hard: 3, hard: 4, max: 5 };
-              const curELvl = d.curEffort ? (effortLevel[d.curEffort] ?? 0) : 0;
-              const prevELvl = d.effortPrev ? (effortLevel[d.effortPrev] ?? 0) : 0;
-              const effortDelta = (curELvl > 0 && prevELvl > 0) ? curELvl - prevELvl : null;
+            <div style={{ marginTop: 24 }}>
+              {exerciseDeltas.map((item, idx) => {
+                const d = item.delta;
+                const EFFORT_SHORT: Record<string, string> = {
+                  easy: "Легко", working: "В самый раз", quite_hard: "Тяжеловато", hard: "Очень тяжело", max: "На пределе",
+                };
+                const hasWeightDelta = d.weightDelta != null && d.weightDelta !== 0;
+                const hasRepsDelta = d.repsDelta != null && d.repsDelta !== 0;
 
-              return (
-                <div key={idx}>
-                  {idx > 0 && <div style={s.exDivider} />}
-                  <div style={s.exRow}>
-                    <div style={s.exName}>{item.name}</div>
-                    <div style={s.exChips}>
-                      {/* Weight */}
-                      {d.curWeight != null && (
-                        <div style={s.exChip}>
-                          <span style={s.exChipValue}>{d.curWeight} кг</span>
-                          {d.weightDelta != null && d.weightDelta !== 0 && (
-                            <span style={{ ...s.exChipDelta, color: d.weightDelta > 0 ? "#16A34A" : "#EF4444" }}>
-                              {d.weightDelta > 0 ? "▲" : "▼"} {d.weightDelta > 0 ? "+" : ""}{d.weightDelta} кг
+                return (
+                  <div key={idx}>
+                    {idx > 0 && <div style={s.exDivider} />}
+                    <div style={s.exRow}>
+                      <div style={s.exName}>{item.name}</div>
+                      <div style={s.exChips}>
+                        {/* Weight delta */}
+                        {hasWeightDelta && (
+                          <span style={s.exChip}>
+                            <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <span style={{ ...s.exChipDelta, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                              {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta} кг
                             </span>
-                          )}
-                          {d.weightDelta === 0 && !d.isFirst && (
-                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
-                          )}
-                        </div>
-                      )}
-                      {/* Reps */}
-                      {d.curReps != null && (
-                        <div style={s.exChip}>
-                          <span style={s.exChipValue}>{d.curReps} повт</span>
-                          {d.repsDelta != null && d.repsDelta !== 0 && (
-                            <span style={{ ...s.exChipDelta, color: d.repsDelta > 0 ? "#16A34A" : "#EF4444" }}>
-                              {d.repsDelta > 0 ? "▲" : "▼"} {d.repsDelta > 0 ? "+" : ""}{d.repsDelta}
-                            </span>
-                          )}
-                          {d.repsDelta === 0 && !d.isFirst && (
-                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
-                          )}
-                        </div>
-                      )}
-                      {/* Effort / RPE */}
-                      {d.curEffort && (
-                        <div style={s.exChip}>
-                          <span style={s.exChipValue}>
-                            {EFFORT_EMOJI[d.curEffort] || ""} {EFFORT_SHORT[d.curEffort] || d.curEffort}
+                            <span style={{ ...s.exArrow, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444", transform: d.weightDelta! > 0 ? "rotate(-90deg)" : "rotate(90deg)" }}>→</span>
                           </span>
-                          {effortDelta != null && effortDelta !== 0 && (
-                            <span style={{ ...s.exChipDelta, color: effortDelta < 0 ? "#16A34A" : "#EF4444" }}>
-                              {effortDelta < 0 ? "▲" : "▼"} было {EFFORT_EMOJI[d.effortPrev!] || ""}
+                        )}
+                        {/* Reps delta */}
+                        {hasRepsDelta && (
+                          <span style={s.exChip}>
+                            <Repeat size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <span style={{ ...s.exChipDelta, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                              {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
                             </span>
-                          )}
-                          {effortDelta === 0 && (
-                            <span style={{ ...s.exChipDelta, color: "rgba(15,23,42,0.35)" }}>=</span>
-                          )}
-                        </div>
-                      )}
+                            <span style={{ ...s.exArrow, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444", transform: d.repsDelta! > 0 ? "rotate(-90deg)" : "rotate(90deg)" }}>→</span>
+                          </span>
+                        )}
+                        {/* RPE — always show current, no delta */}
+                        {d.curEffort && (
+                          <span style={s.exChip}>
+                            <Activity size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <span style={s.exChipText}>{EFFORT_SHORT[d.curEffort] || d.curEffort}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -1108,18 +1091,21 @@ const s: Record<string, CSSProperties> = {
     fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
   },
   exChips: {
-    display: "flex", flexWrap: "wrap", gap: 8,
+    display: "flex", flexWrap: "wrap", gap: 12,
   },
   exChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    padding: "5px 10px", borderRadius: 10,
-    background: "rgba(15,23,42,0.04)",
-  },
-  exChipValue: {
-    fontSize: 13, fontWeight: 600, color: "#334155", lineHeight: 1,
+    // same style as statChip — no background
+    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
   },
   exChipDelta: {
-    fontSize: 12, fontWeight: 700, lineHeight: 1,
+    fontSize: 14, fontWeight: 500, lineHeight: 1,
+  },
+  exChipText: {
+    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
+  },
+  exArrow: {
+    fontSize: 14, fontWeight: 700, lineHeight: 1, display: "inline-block",
   },
 
   // ── Record
