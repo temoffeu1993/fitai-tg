@@ -1135,9 +1135,9 @@ const s: Record<string, CSSProperties> = {
     filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.7))",
   } as CSSProperties,
   achieveTitle: {
-    fontSize: 22, fontWeight: 800, lineHeight: 1.15,
-    color: "rgba(255,255,255,0.12)",
-    textShadow: "0 1px 1px rgba(255,255,255,0.15), 0 -1px 1px rgba(0,0,0,0.6)",
+    fontSize: 28, fontWeight: 800, lineHeight: 1.1,
+    color: "rgba(255,255,255,0.88)",
+    textShadow: "0 -1px 1px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1)",
     minWidth: 0,
   },
 
