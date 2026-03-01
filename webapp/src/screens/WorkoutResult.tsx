@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat, Trophy, Award } from "lucide-react";
+import { Clock3, Dumbbell, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -775,10 +775,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2.5. Achievement Card ──────────────────────────── */}
         {achievement && (
           <div style={{ ...s.achieveCard, ...fadeStyle(90) }}>
-            <div style={s.achieveMedallion}>
-              {achievement.icon === "trophy"
-                ? <Trophy size={28} strokeWidth={1.8} color="rgba(255,255,255,0.7)" />
-                : <Award size={28} strokeWidth={1.8} color="rgba(255,255,255,0.7)" />}
+            <div style={s.medalWrap}>
+              {/* Ribbon tails */}
+              <div style={s.ribbonLeft} />
+              <div style={s.ribbonRight} />
+              {/* Outer ring (inset) */}
+              <div style={s.medalOuter}>
+                {/* Inner raised disc */}
+                <div style={s.medalInner}>
+                  <Zap size={22} strokeWidth={2.2} color="rgba(255,255,255,0.75)" fill="rgba(255,255,255,0.15)" />
+                </div>
+              </div>
             </div>
             <div style={s.achieveText}>
               <div style={s.achieveTitle}>{achievement.title}</div>
@@ -1121,10 +1128,32 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
     display: "flex", flexDirection: "row", alignItems: "center", gap: 14,
   } as CSSProperties,
-  achieveMedallion: {
-    width: 52, height: 52, borderRadius: 999, flexShrink: 0,
+  medalWrap: {
+    position: "relative", width: 56, height: 64, flexShrink: 0,
+  } as CSSProperties,
+  ribbonLeft: {
+    position: "absolute", top: 0, left: 8, width: 14, height: 20,
+    background: "linear-gradient(180deg, #D97706 0%, #B45309 100%)",
+    borderRadius: "0 0 2px 2px",
+    transform: "rotate(-15deg)", transformOrigin: "top center",
+  } as CSSProperties,
+  ribbonRight: {
+    position: "absolute", top: 0, right: 8, width: 14, height: 20,
+    background: "linear-gradient(180deg, #D97706 0%, #B45309 100%)",
+    borderRadius: "0 0 2px 2px",
+    transform: "rotate(15deg)", transformOrigin: "top center",
+  } as CSSProperties,
+  medalOuter: {
+    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+    width: 52, height: 52, borderRadius: 999,
     background: "linear-gradient(180deg, #2a2b2f 0%, #18191c 100%)",
-    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.06)",
+    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.3)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  } as CSSProperties,
+  medalInner: {
+    width: 38, height: 38, borderRadius: 999,
+    background: "linear-gradient(180deg, #3a3b40 0%, #2a2b2f 100%)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.08)",
     display: "flex", alignItems: "center", justifyContent: "center",
   } as CSSProperties,
   achieveText: {
