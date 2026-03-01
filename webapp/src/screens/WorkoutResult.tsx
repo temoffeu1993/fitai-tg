@@ -703,11 +703,11 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                 </div>
                 <div style={s.headerSubRow}>
                   <span style={s.headerSubChip}>
-                    <Zap size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                    <Zap size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                     <span>{sessionNumber}-я тренировка</span>
                   </span>
                   <span style={s.headerSubChip}>
-                    <Calendar size={13} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                    <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                     <span>{dateStr}</span>
                   </span>
                 </div>
@@ -719,17 +719,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Pill ────────────────────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={14} strokeWidth={2.2} color="#0f172a" />
+            <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={14} strokeWidth={2.2} color="#0f172a" />
+            <Clock3 size={18} strokeWidth={2.5} color="#0f172a" />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={14} strokeWidth={2.2} color="#0f172a" />
-              : <Dumbbell size={14} strokeWidth={2.2} color="#0f172a" />}
+              ? <Flame size={18} strokeWidth={2.5} color="#0f172a" />
+              : <Dumbbell size={18} strokeWidth={2.5} color="#0f172a" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
@@ -850,7 +850,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {/* Weight delta */}
                         {hasWeightDelta && (
                           <span style={s.exChip}>
-                            <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                             <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta} кг
                             </span>
@@ -859,7 +859,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {/* Reps delta */}
                         {hasRepsDelta && (
                           <span style={s.exChip}>
-                            <Repeat size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <Repeat size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                             <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
                             </span>
@@ -868,7 +868,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {/* RPE — always show current, no delta */}
                         {d.curEffort && (
                           <span style={s.exChip}>
-                            <Activity size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+                            <Activity size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                             <span>{EFFORT_SHORT[d.curEffort] || d.curEffort}</span>
                           </span>
                         )}
@@ -989,8 +989,8 @@ const s: Record<string, CSSProperties> = {
     display: "flex", alignItems: "center", gap: 16, marginTop: 3, flexWrap: "wrap" as const,
   },
   headerSubChip: {
-    display: "inline-flex", alignItems: "center", gap: 4,
-    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
   },
   headerSubDot: {
     fontSize: 14, color: "rgba(30,31,34,0.3)", lineHeight: 1,
@@ -1006,7 +1006,7 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 14, fontWeight: 400, color: "#0f172a", lineHeight: 1.45,
+    fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2,
   },
 
   // ── Glass Card
