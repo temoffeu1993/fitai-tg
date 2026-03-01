@@ -18,6 +18,7 @@ type ProgressionJob = { id: string; status: string; lastError?: string | null } 
 type StoredWorkoutResult = {
   version: 1;
   createdAt: string;
+  clientSessionId?: string | null;
   sessionId: string | null;
   plannedWorkoutId: string | null;
   sessionNumber?: number | null;
@@ -50,13 +51,6 @@ function writeStored(next: StoredWorkoutResult) {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-
-function normalizeNameKey(name: string): string {
-  return String(name || "")
-    .toLowerCase()
-    .replace(/ё/g, "е")
-    .replace(/[^\wа-яa-z]/g, "");
-}
 
 function toNumber(v: unknown): number | null {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
@@ -250,9 +244,10 @@ type PR = { name: string; weight: number; reps: number; type: "weight" | "reps" 
 function detectPRs(
   currentExercises: any[],
   history: HistSession[],
-  currentSessionId: string | null
+  excludeIds: Set<string>
 ): PR[] {
-  const hasHistory = history.some(s => currentSessionId ? String(s?.id || "") !== currentSessionId : true);
+  const isExcluded = (s: HistSession) => excludeIds.size > 0 && excludeIds.has(String(s?.id || ""));
+  const hasHistory = history.some(s => !isExcluded(s));
 
   if (!hasHistory || history.length <= 1) {
     // First workout — find exercise with highest tonnage as "Первый рекорд"
@@ -287,11 +282,11 @@ function detectPRs(
   const bestWeight = new Map<string, number>();
   const bestReps = new Map<string, number>();
   for (const session of history) {
-    if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
+    if (isExcluded(session)) continue;
     const exercises = (session as any)?.exercises ?? session?.items ?? [];
     if (!Array.isArray(exercises)) continue;
     for (const ex of exercises) {
-      const key = normalizeNameKey(ex?.name || ex?.exerciseName || "");
+      const key = ex?.exerciseId || ex?.id || "";
       if (!key) continue;
       const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
       for (const set of sets) {
@@ -305,7 +300,7 @@ function detectPRs(
   for (const ex of currentExercises) {
     if (ex?.done === false || ex?.skipped === true) continue;
     const name = String(ex?.name || ex?.exerciseName || "");
-    const key = normalizeNameKey(name);
+    const key = ex?.id || ex?.exerciseId || "";
     if (!key || !name) continue;
     const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
     let maxW = 0; let maxR = 0;
@@ -340,20 +335,19 @@ type ExerciseDelta = {
 };
 
 function findPreviousExercise(
-  exerciseName: string,
+  exerciseId: string | undefined,
   history: HistSession[],
-  currentSessionId: string | null
+  excludeIds: Set<string>
 ): { medianWeight: number | null; medianReps: number | null; effort: string | null } | null {
-  const key = normalizeNameKey(exerciseName);
-  if (!key) return null;
+  if (!exerciseId) return null;
 
   for (const session of history) {
-    if (currentSessionId && String(session?.id || "") === currentSessionId) continue;
+    if (excludeIds.size > 0 && excludeIds.has(String(session?.id || ""))) continue;
     const exercises = (session as any)?.exercises ?? session?.items ?? [];
     if (!Array.isArray(exercises)) continue;
     for (const ex of exercises) {
-      const exKey = normalizeNameKey(ex?.name || ex?.exerciseName || "");
-      if (exKey !== key) continue;
+      const exId = ex?.exerciseId || ex?.id || "";
+      if (exId !== exerciseId) continue;
       const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
       const weights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
       const reps = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.reps)).filter((r): r is number => r != null && r > 0);
@@ -370,7 +364,7 @@ function findPreviousExercise(
 function computeExerciseDelta(
   ex: any,
   history: HistSession[],
-  currentSessionId: string | null
+  excludeIds: Set<string>
 ): ExerciseDelta {
   const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
   const curWeights = sets.filter((s: any) => s?.done !== false).map((s: any) => toNumber(s?.weight)).filter((w): w is number => w != null && w > 0);
@@ -379,7 +373,7 @@ function computeExerciseDelta(
   const curMedR = median(curReps);
   const curEffort: string | null = ex?.effort || null;
 
-  const prev = findPreviousExercise(ex?.name || ex?.exerciseName || "", history, currentSessionId);
+  const prev = findPreviousExercise(ex?.id || ex?.exerciseId, history, excludeIds);
 
   if (!prev) {
     // First time — delta from 0
@@ -443,7 +437,18 @@ export default function WorkoutResult() {
     } catch { return null; }
   }, [location.search]);
 
-  const initial = useMemo(() => fromState || readStored(), [fromState]);
+  const initial = useMemo(() => {
+    const stored = readStored();
+    if (fromState && stored) {
+      // If stored has the same workout but more data (e.g. sessionId filled by server),
+      // prefer it over the potentially stale fromState passed via navigate.
+      const sameWorkout =
+        (fromState.clientSessionId && fromState.clientSessionId === stored.clientSessionId) ||
+        (fromState.createdAt && fromState.createdAt === stored.createdAt);
+      if (sameWorkout && stored.sessionId && !fromState.sessionId) return stored;
+    }
+    return fromState || stored;
+  }, [fromState]);
   const [result, setResult] = useState<StoredWorkoutResult | null>(initial);
   const [job, setJob] = useState<ProgressionJob>(initial?.progressionJob ?? null);
   const [summary, setSummary] = useState<any | null>(initial?.progression ?? null);
@@ -491,7 +496,14 @@ export default function WorkoutResult() {
     return () => { canceled = true; };
   }, [result, urlSessionId]);
 
-  useEffect(() => { if (result) writeStored(result); }, [result]);
+  useEffect(() => {
+    if (!result) return;
+    // Don't overwrite storage with stale data — only write if we have at least as much info
+    const stored = readStored();
+    if (stored?.sessionId && !result.sessionId &&
+        stored.clientSessionId === result.clientSessionId) return;
+    writeStored(result);
+  }, [result]);
 
   const jobId = job?.id ? String(job.id) : null;
   const needsPoll = Boolean(jobId && (!summary || job?.status !== "done") && job?.status !== "failed");
@@ -646,8 +658,16 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return Array.from(keys).sort((a, b) => EFFORT_LEVEL[a] - EFFORT_LEVEL[b]);
   }, [payloadExercises]);
 
+  // Both IDs needed: clientSessionId (before reconcile) and sessionId (after reconcile).
+  const excludeIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (result.clientSessionId) ids.add(result.clientSessionId);
+    if (result.sessionId) ids.add(result.sessionId);
+    return ids;
+  }, [result.clientSessionId, result.sessionId]);
+
   // PRs
-  const prs = useMemo(() => detectPRs(payloadExercises, history, result.sessionId), [payloadExercises, history, result.sessionId]);
+  const prs = useMemo(() => detectPRs(payloadExercises, history, excludeIds), [payloadExercises, history, excludeIds]);
 
   // Exercise deltas (only exercises with weight or reps changes)
   const exerciseDeltas = useMemo(() => {
@@ -655,13 +675,13 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
       .filter((ex: any) => ex?.done !== false && ex?.skipped !== true)
       .map((ex: any) => ({
         name: String(ex?.name || ex?.exerciseName || "Упражнение"),
-        delta: computeExerciseDelta(ex, history, result.sessionId),
+        delta: computeExerciseDelta(ex, history, excludeIds),
       }))
       .filter(item => {
         const d = item.delta;
         return (d.weightDelta != null && d.weightDelta !== 0) || (d.repsDelta != null && d.repsDelta !== 0);
       });
-  }, [payloadExercises, history, result.sessionId]);
+  }, [payloadExercises, history, excludeIds]);
 
   // Haptic on mount
   const firedRef = useRef(false);

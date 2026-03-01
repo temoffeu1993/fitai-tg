@@ -903,6 +903,7 @@ export default function WorkoutSession() {
     const provisionalResult = {
       version: 1 as const,
       createdAt,
+      clientSessionId: null as string | null,
       sessionId: null as string | null,
       plannedWorkoutId: plannedWorkoutId || null,
       sessionNumber: null as number | null,
@@ -1020,6 +1021,8 @@ export default function WorkoutSession() {
 
     // Optimistic: write to history BEFORE navigation so celebrate reads fresh data
     const tempHistoryId = pushOptimisticSession(payload);
+    provisionalResult.clientSessionId = tempHistoryId;
+    try { localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(provisionalResult)); } catch { }
 
     setSaving(false);
     nav("/workout/celebrate", {

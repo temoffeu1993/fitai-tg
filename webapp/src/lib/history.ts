@@ -6,7 +6,7 @@ const HISTORY_KEY = "history_sessions_v1";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type HistSet = { reps?: number; weight?: number; done?: boolean };
-export type HistItem = { name: string; pattern?: string; sets: HistSet[] };
+export type HistItem = { exerciseId?: string; name: string; pattern?: string; sets: HistSet[] };
 export type HistSession = {
   id: string;
   finishedAt: string;
@@ -53,6 +53,7 @@ export function pushOptimisticSession(payload: {
       : `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const items: HistItem[] = (payload.exercises ?? []).map((ex: any) => ({
+    exerciseId: ex.id || ex.exerciseId || undefined,
     name: ex.name ?? "",
     pattern: ex.pattern,
     sets: Array.isArray(ex.sets)
