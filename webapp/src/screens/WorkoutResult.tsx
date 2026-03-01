@@ -772,6 +772,15 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </span>
         </div>
 
+        {/* ── 2.5. Achievement Card ──────────────────────────── */}
+        {achievement && (
+          <div style={{ ...s.achieveCard, ...fadeStyle(90) }}>
+            <div style={s.achieveEmoji}>{achievement.emoji}</div>
+            <div style={s.achieveTitle}>{achievement.title}</div>
+            <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
+          </div>
+        )}
+
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
         {muscleDistribution.length > 0 && (
           <div style={{ ...s.glassCard, ...fadeStyle(120) }}>
@@ -922,15 +931,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* ── 4. Achievement Card ──────────────────────────── */}
-        {achievement && (
-          <div style={{ ...s.achieveCard, ...fadeStyle(195) }}>
-            <div style={s.achieveEmoji}>{achievement.emoji}</div>
-            <div style={s.achieveTitle}>{achievement.title}</div>
-            <div style={s.achieveSubtitle}>{achievement.subtitle}</div>
           </div>
         )}
 
