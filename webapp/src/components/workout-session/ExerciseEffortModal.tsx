@@ -23,7 +23,7 @@ const EFFORT_OPTIONS: Array<{
   { value: "max", num: 10, label: "На пределе", sub: "Полный отказ, не мог продолжить" },
 ];
 
-const BAR_HEIGHTS = [28, 48, 68, 88, 108]; // increasing heights for 5 bars
+const BAR_HEIGHTS = [56, 96, 136, 176, 216]; // increasing heights for 5 bars
 
 type Props = {
   open: boolean;
@@ -92,8 +92,6 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
     <>
       <style>{`
         .effort-bar-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        .effort-confirm-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, box-shadow 160ms ease; }
-        .effort-confirm-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; }
       `}</style>
 
       {/* Backdrop */}
@@ -130,13 +128,30 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Grabber */}
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 2 }} aria-hidden>
+        {/* Grabber + check button row */}
+        <div style={{ display: "flex", alignItems: "center", padding: "10px 16px 2px" }}>
+          <div style={{ flex: 1 }} />
           <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.16)" }} />
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              className="effort-bar-btn"
+              style={{
+                background: "transparent", border: "none", padding: 4, cursor: "pointer",
+                opacity: selected != null ? 1 : 0.25,
+                pointerEvents: selected != null ? "auto" : "none",
+                transition: "opacity 200ms ease",
+              }}
+              disabled={selected == null}
+              onClick={() => { if (selected != null) onSelect(EFFORT_OPTIONS[selected].value); }}
+            >
+              <Check size={26} strokeWidth={2.5} color={workoutTheme.textPrimary} />
+            </button>
+          </div>
         </div>
 
         {/* Header */}
-        <div style={{ padding: "8px 16px 4px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <div style={{ padding: "4px 16px 4px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <Activity size={18} strokeWidth={2.5} color={workoutTheme.textPrimary} />
           <div style={{
             fontSize: 18, fontWeight: 700, lineHeight: 1.25,
@@ -146,7 +161,7 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
           </div>
         </div>
 
-        {/* Bars + numbers */}
+        {/* Bars */}
         <div style={st.barsRow}>
           {EFFORT_OPTIONS.map((option, idx) => {
             const isSelected = selected === idx;
@@ -164,35 +179,24 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
                 }}>
                   {isSelected && <div style={st.barFill} />}
                 </div>
-                <div style={st.barNum}>{option.num}</div>
               </button>
             );
           })}
         </div>
 
-        {/* Confirm button */}
-        <div style={st.btnWrap}>
-          <button
-            type="button"
-            className="effort-confirm-btn"
-            style={{
-              ...st.confirmBtn,
-              opacity: selected != null ? 1 : 0.35,
-              pointerEvents: selected != null ? "auto" : "none",
-            }}
-            disabled={selected == null}
-            onClick={() => {
-              if (selected != null) onSelect(EFFORT_OPTIONS[selected].value);
-            }}
-          >
-            <div style={st.confirmBtnTextWrap}>
-              <span style={st.confirmBtnLabel}>{opt ? opt.label : "Выберите нагрузку"}</span>
-              {opt && <span style={st.confirmBtnSub}>{opt.sub}</span>}
+        {/* Legend */}
+        <div style={st.legendWrap}>
+          {opt ? (
+            <div style={st.legendRow}>
+              <div style={st.legendNum}>{opt.num}</div>
+              <div style={st.legendText}>
+                <div style={st.legendLabel}>{opt.label}</div>
+                <div style={st.legendSub}>{opt.sub}</div>
+              </div>
             </div>
-            <span style={st.confirmBtnCircle} aria-hidden>
-              <Check size={20} strokeWidth={2.5} color="#0f172a" />
-            </span>
-          </button>
+          ) : (
+            <div style={st.legendPlaceholder}>Выберите уровень нагрузки</div>
+          )}
         </div>
       </div>
     </>
@@ -204,16 +208,16 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
 const st: Record<string, CSSProperties> = {
   barsRow: {
     display: "flex", alignItems: "flex-end", justifyContent: "center",
-    gap: 8, padding: "24px 32px 12px",
-    height: 140,
+    gap: 8, padding: "16px 32px 12px",
+    height: 240,
   },
   barTouchArea: {
     display: "flex", flexDirection: "column", justifyContent: "flex-end",
     alignItems: "center", background: "transparent", border: "none",
-    padding: "0 4px", cursor: "pointer", height: "100%", gap: 6,
+    padding: "0 4px", cursor: "pointer", height: "100%",
   } as CSSProperties,
   barTrack: {
-    width: 28, borderRadius: 999,
+    width: 36, borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     position: "relative", overflow: "hidden",
@@ -223,37 +227,29 @@ const st: Record<string, CSSProperties> = {
     background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
     boxShadow: "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   } as CSSProperties,
-  barNum: {
-    fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.48)", lineHeight: 1,
-  },
 
-  btnWrap: {
-    padding: "8px 24px 0", display: "flex", justifyContent: "center",
+  legendWrap: {
+    padding: "4px 24px 4px", minHeight: 52,
+    display: "flex", alignItems: "center",
   },
-  confirmBtn: {
-    display: "inline-flex", alignItems: "center", gap: 12,
-    height: 56, minHeight: 56, padding: "0 14px 0 20px",
-    borderRadius: 999, border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)", cursor: "pointer",
-    transition: "transform 160ms ease, opacity 250ms ease",
+  legendRow: {
+    display: "flex", alignItems: "center", gap: 12, width: "100%",
   },
-  confirmBtnTextWrap: {
-    display: "flex", flexDirection: "column", alignItems: "flex-start",
-    gap: 1, minWidth: 0,
-  } as CSSProperties,
-  confirmBtnLabel: {
-    whiteSpace: "nowrap", fontSize: 16, fontWeight: 600, lineHeight: 1.2, color: "#fff",
-  } as CSSProperties,
-  confirmBtnSub: {
-    whiteSpace: "nowrap", fontSize: 12, fontWeight: 400, lineHeight: 1.2,
-    color: "rgba(255,255,255,0.55)",
-  } as CSSProperties,
-  confirmBtnCircle: {
-    width: 40, height: 40, borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    display: "inline-flex", alignItems: "center", justifyContent: "center",
-    marginRight: -6, flexShrink: 0,
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "#0f172a",
+  legendNum: {
+    fontSize: 22, fontWeight: 800, color: workoutTheme.textPrimary, lineHeight: 1,
+    flexShrink: 0, minWidth: 24,
   },
+  legendText: {
+    display: "flex", flexDirection: "column", gap: 2, minWidth: 0,
+  } as CSSProperties,
+  legendLabel: {
+    fontSize: 17, fontWeight: 600, color: workoutTheme.textPrimary, lineHeight: 1.2,
+  },
+  legendSub: {
+    fontSize: 13, fontWeight: 400, color: workoutTheme.textSecondary, lineHeight: 1.25,
+  },
+  legendPlaceholder: {
+    fontSize: 15, fontWeight: 500, color: "rgba(15,23,42,0.35)",
+    textAlign: "center", width: "100%",
+  } as CSSProperties,
 };
