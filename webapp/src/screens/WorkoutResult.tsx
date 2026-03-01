@@ -719,17 +719,17 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         {/* ── 2. Stat Pill ────────────────────────────────────── */}
         <div style={{ ...s.statPill, ...fadeStyle(60) }}>
           <span style={s.statChip}>
-            <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+            <CircleCheckBig size={14} strokeWidth={2.2} color="#0f172a" />
             <span>{completionPct}%</span>
           </span>
           <span style={s.statChip}>
-            <Clock3 size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
+            <Clock3 size={14} strokeWidth={2.2} color="#0f172a" />
             <span>{durationMin ?? "—"} мин</span>
           </span>
           <span style={s.statChip}>
             {showCalories
-              ? <Flame size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-              : <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />}
+              ? <Flame size={14} strokeWidth={2.2} color="#0f172a" />
+              : <Dumbbell size={14} strokeWidth={2.2} color="#0f172a" />}
             <span>{showCalories ? `~${calories} ккал` : `${tonnage.toLocaleString("ru-RU")} кг`}</span>
           </span>
         </div>
@@ -851,7 +851,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {hasWeightDelta && (
                           <span style={s.exChip}>
                             <Dumbbell size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-                            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                            <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.weightDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.weightDelta! > 0 ? "+" : ""}{d.weightDelta} кг
                             </span>
                           </span>
@@ -860,7 +860,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
                         {hasRepsDelta && (
                           <span style={s.exChip}>
                             <Repeat size={14} strokeWidth={2.2} color="rgba(30,31,34,0.45)" />
-                            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
+                            <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, color: d.repsDelta! > 0 ? "#16A34A" : "#EF4444" }}>
                               {d.repsDelta! > 0 ? "+" : ""}{d.repsDelta}
                             </span>
                           </span>
@@ -1006,7 +1006,7 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
   statChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
+    fontSize: 14, fontWeight: 400, color: "#0f172a", lineHeight: 1.45,
   },
 
   // ── Glass Card
@@ -1093,8 +1093,7 @@ const s: Record<string, CSSProperties> = {
   },
   exChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    // same style as statChip — no background
-    fontSize: 14, fontWeight: 500, color: "rgba(30,31,34,0.55)", lineHeight: 1,
+    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
   },
   // ── Record
   recordHeader: {
