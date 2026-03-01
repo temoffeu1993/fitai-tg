@@ -128,26 +128,22 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Grabber + check button row */}
-        <div style={{ display: "flex", alignItems: "center", padding: "10px 16px 2px" }}>
-          <div style={{ flex: 1 }} />
-          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.16)" }} />
-          <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              className="effort-bar-btn"
-              style={{
-                background: "transparent", border: "none", padding: 4, cursor: "pointer",
-                opacity: selected != null ? 1 : 0.25,
-                pointerEvents: selected != null ? "auto" : "none",
-                transition: "opacity 200ms ease",
-              }}
-              disabled={selected == null}
-              onClick={() => { if (selected != null) onSelect(EFFORT_OPTIONS[selected].value); }}
-            >
-              <Check size={26} strokeWidth={2.5} color={workoutTheme.textPrimary} />
-            </button>
-          </div>
+        {/* Check button top-right */}
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 16px 0" }}>
+          <button
+            type="button"
+            className="effort-bar-btn"
+            style={{
+              background: "transparent", border: "none", padding: 4, cursor: "pointer",
+              opacity: selected != null ? 1 : 0.25,
+              pointerEvents: selected != null ? "auto" : "none",
+              transition: "opacity 200ms ease",
+            }}
+            disabled={selected == null}
+            onClick={() => { if (selected != null) onSelect(EFFORT_OPTIONS[selected].value); }}
+          >
+            <Check size={26} strokeWidth={2.5} color={workoutTheme.textPrimary} />
+          </button>
         </div>
 
         {/* Header */}
@@ -208,8 +204,8 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
 const st: Record<string, CSSProperties> = {
   barsRow: {
     display: "flex", alignItems: "flex-end", justifyContent: "center",
-    gap: 8, padding: "16px 32px 12px",
-    height: 240,
+    gap: 8, padding: "16px 32px 16px",
+    height: 260,
   },
   barTouchArea: {
     display: "flex", flexDirection: "column", justifyContent: "flex-end",
@@ -230,10 +226,10 @@ const st: Record<string, CSSProperties> = {
 
   legendWrap: {
     padding: "4px 24px 4px", minHeight: 52,
-    display: "flex", alignItems: "center",
+    display: "flex", alignItems: "center", justifyContent: "center",
   },
   legendRow: {
-    display: "flex", alignItems: "center", gap: 12, width: "100%",
+    display: "flex", alignItems: "center", gap: 12,
   },
   legendNum: {
     fontSize: 22, fontWeight: 800, color: workoutTheme.textPrimary, lineHeight: 1,
