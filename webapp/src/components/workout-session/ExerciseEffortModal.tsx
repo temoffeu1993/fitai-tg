@@ -224,16 +224,16 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
 const st: Record<string, CSSProperties> = {
   barsRow: {
     display: "flex", alignItems: "flex-end", justifyContent: "center",
-    gap: 12, padding: "24px 32px 16px",
+    gap: 14, padding: "24px 32px 16px",
     height: 140,
   },
   barTouchArea: {
-    flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end",
+    display: "flex", flexDirection: "column", justifyContent: "flex-end",
     alignItems: "center", background: "transparent", border: "none",
-    padding: 0, cursor: "pointer", height: "100%",
+    padding: "0 6px", cursor: "pointer", height: "100%",
   } as CSSProperties,
   barTrack: {
-    width: "100%", borderRadius: 999,
+    width: 28, borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     position: "relative", overflow: "hidden",
