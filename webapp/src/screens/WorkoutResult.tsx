@@ -1086,7 +1086,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex", flexDirection: "column", gap: 8,
   },
   exName: {
-    fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2,
+    fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
   },
   exChips: {
     display: "flex", flexWrap: "wrap", gap: 12,
