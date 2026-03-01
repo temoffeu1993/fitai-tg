@@ -17,11 +17,11 @@ const EFFORT_OPTIONS: Array<{
   sub: string;
   bg: string;
 }> = [
-  { value: "easy", num: 1, label: "Слишком легко", sub: "Мог бы ещё столько же", bg: "rgba(59,130,246,0.1)" },
-  { value: "working", num: 2, label: "В самый раз", sub: "Тяжело, но контролируемо", bg: "rgba(16,185,129,0.1)" },
-  { value: "quite_hard", num: 3, label: "Тяжеловато", sub: "Последние повторы дались с трудом", bg: "rgba(245,158,11,0.12)" },
-  { value: "hard", num: 4, label: "Очень тяжело", sub: "Ещё одно — и всё, край", bg: "rgba(249,115,22,0.12)" },
-  { value: "max", num: 5, label: "На пределе", sub: "Полный отказ, не мог продолжить", bg: "rgba(239,68,68,0.12)" },
+  { value: "easy", num: 1, label: "Слишком легко", sub: "Мог бы ещё столько же", bg: "#edf3fd" },
+  { value: "working", num: 2, label: "В самый раз", sub: "Тяжело, но контролируемо", bg: "#e8f8f2" },
+  { value: "quite_hard", num: 3, label: "Тяжеловато", sub: "Последние повторы дались с трудом", bg: "#fef3e2" },
+  { value: "hard", num: 4, label: "Очень тяжело", sub: "Ещё одно — и всё, край", bg: "#feeee3" },
+  { value: "max", num: 5, label: "На пределе", sub: "Полный отказ, не мог продолжить", bg: "#fee8e8" },
 ];
 
 const BAR_HEIGHTS = [28, 48, 68, 88, 108]; // increasing heights for 5 bars
@@ -88,7 +88,7 @@ export default function ExerciseEffortModal({ open, onSelect }: Props) {
   if (!renderOpen) return null;
 
   const opt = selected != null ? EFFORT_OPTIONS[selected] : null;
-  const sheetBg = opt ? opt.bg : "rgba(255,255,255,0.985)";
+  const sheetBg = opt ? opt.bg : "#ffffff";
 
   return (
     <>
