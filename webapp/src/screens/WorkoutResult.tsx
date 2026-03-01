@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Trophy, ArrowRight, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
+import { Clock3, Dumbbell, ChevronUp, ChevronDown, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -235,91 +235,6 @@ function computeMuscleDistribution(exercises: any[]): Array<{ muscle: string; pe
       color: MUSCLE_COLORS[muscle] || "#94A3B8",
     }))
     .sort((a, b) => b.percent - a.percent);
-}
-
-// ─── PR Detection ──────────────────────────────────────────────────────────────
-
-type PR = { name: string; weight: number; reps: number; type: "weight" | "reps" | "first"; tonnage?: number };
-
-function detectPRs(
-  currentExercises: any[],
-  history: HistSession[],
-  excludeIds: Set<string>
-): PR[] {
-  const isExcluded = (s: HistSession) => excludeIds.size > 0 && excludeIds.has(String(s?.id || ""));
-  const hasHistory = history.some(s => !isExcluded(s));
-
-  if (!hasHistory || history.length <= 1) {
-    // First workout — find exercise with highest tonnage as "Первый рекорд"
-    let bestEx: PR | null = null;
-    let bestTonnage = 0;
-    for (const ex of currentExercises) {
-      if (ex?.done === false || ex?.skipped === true) continue;
-      const name = String(ex?.name || ex?.exerciseName || "");
-      if (!name) continue;
-      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-      let tonnage = 0;
-      let maxW = 0;
-      let maxR = 0;
-      for (const set of sets) {
-        if (set?.done === false) continue;
-        const w = toNumber(set?.weight) ?? 0;
-        const r = toNumber(set?.reps) ?? 0;
-        if (w > maxW) maxW = w;
-        if (r > maxR) maxR = r;
-        tonnage += w * r;
-      }
-      if (tonnage > bestTonnage) {
-        bestTonnage = tonnage;
-        bestEx = { name, weight: maxW, reps: maxR, type: "first", tonnage };
-      }
-    }
-    return bestEx ? [bestEx] : [];
-  }
-
-  // Normal PR detection
-  const prs: PR[] = [];
-  const bestWeight = new Map<string, number>();
-  const bestReps = new Map<string, number>();
-  for (const session of history) {
-    if (isExcluded(session)) continue;
-    const exercises = (session as any)?.exercises ?? session?.items ?? [];
-    if (!Array.isArray(exercises)) continue;
-    for (const ex of exercises) {
-      const key = ex?.exerciseId || ex?.id || "";
-      if (!key) continue;
-      const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-      for (const set of sets) {
-        const w = toNumber(set?.weight);
-        const r = toNumber(set?.reps);
-        if (w != null && w > 0) bestWeight.set(key, Math.max(bestWeight.get(key) ?? 0, w));
-        if (r != null && r > 0) bestReps.set(key, Math.max(bestReps.get(key) ?? 0, r));
-      }
-    }
-  }
-  for (const ex of currentExercises) {
-    if (ex?.done === false || ex?.skipped === true) continue;
-    const name = String(ex?.name || ex?.exerciseName || "");
-    const key = ex?.id || ex?.exerciseId || "";
-    if (!key || !name) continue;
-    const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-    let maxW = 0; let maxR = 0;
-    for (const set of sets) {
-      if (set?.done === false) continue;
-      const w = toNumber(set?.weight) ?? 0;
-      const r = toNumber(set?.reps) ?? 0;
-      if (w > maxW) maxW = w;
-      if (r > maxR) maxR = r;
-    }
-    const prevBestW = bestWeight.get(key) ?? 0;
-    const prevBestR = bestReps.get(key) ?? 0;
-    if (maxW > prevBestW && prevBestW > 0) {
-      prs.push({ name, weight: maxW, reps: maxR, type: "weight" });
-    } else if (maxR > prevBestR && prevBestR > 0 && maxW >= prevBestW) {
-      prs.push({ name, weight: maxW, reps: maxR, type: "reps" });
-    }
-  }
-  return prs.slice(0, 5);
 }
 
 // ─── Exercise comparison (per exercise, not per workout) ───────────────────────
@@ -666,9 +581,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return ids;
   }, [result.clientSessionId, result.sessionId]);
 
-  // PRs
-  const prs = useMemo(() => detectPRs(payloadExercises, history, excludeIds), [payloadExercises, history, excludeIds]);
-
   // Exercise deltas (only exercises with weight or reps changes)
   const exerciseDeltas = useMemo(() => {
     return payloadExercises
@@ -907,50 +819,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           </div>
         )}
 
-        {/* ── 4. Record ─────────────────────────────────────────── */}
-        {prs.length > 0 && (
-          <div style={{ ...s.glassCard, ...fadeStyle(180) }}>
-            <div style={s.recordHeader}>
-              <Trophy size={32} strokeWidth={2} color="#F59E0B" />
-              <div style={s.recordHeaderText}>
-                <div style={s.recordTitle}>
-                  {prs[0].type === "first" ? "Первый рекорд!" : prs[0].type === "weight" ? "Новый рекорд веса!" : "Рекорд повторений!"}
-                </div>
-                <div style={s.recordSubtitle}>{prs[0].name}</div>
-              </div>
-            </div>
-            <div style={s.recordValues}>
-              {prs[0].weight > 0 && (
-                <div style={s.recordChip}>
-                  <span style={s.recordChipValue}>{prs[0].weight}</span>
-                  <span style={s.recordChipUnit}>кг</span>
-                </div>
-              )}
-              {prs[0].reps > 0 && (
-                <div style={s.recordChip}>
-                  <span style={s.recordChipValue}>{prs[0].reps}</span>
-                  <span style={s.recordChipUnit}>повт</span>
-                </div>
-              )}
-            </div>
-            {prs.length > 1 && (
-              <div style={s.recordExtra}>
-                {prs.slice(1).map((pr, i) => (
-                  <div key={i} style={s.recordExtraRow}>
-                    <Trophy size={16} strokeWidth={2} color="#F59E0B" style={{ flexShrink: 0 }} />
-                    <span style={s.recordExtraName}>{pr.name}</span>
-                    <span style={s.recordExtraVal}>
-                      {pr.type === "weight" ? `${pr.weight} кг` : `${pr.reps} повт`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-
-
         {/* bottom spacer */}
         <div style={{ height: 140 }} />
       </div>
@@ -1125,52 +993,6 @@ const s: Record<string, CSSProperties> = {
     fontSize: 11, fontWeight: 600, lineHeight: 1,
     position: "relative", top: -3,
   } as CSSProperties,
-  // ── Record
-  recordHeader: {
-    display: "flex", alignItems: "center", gap: 14,
-  },
-  recordHeaderText: {
-    flex: 1, minWidth: 0,
-  },
-  recordTitle: {
-    fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.2,
-  },
-  recordSubtitle: {
-    fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.55)", marginTop: 2,
-    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
-  },
-  recordValues: {
-    display: "flex", gap: 10, marginTop: 14,
-  },
-  recordChip: {
-    display: "flex", alignItems: "baseline", gap: 3,
-    padding: "8px 14px", borderRadius: 14,
-    background: "linear-gradient(180deg, rgba(253,230,138,0.35) 0%, rgba(254,243,199,0.25) 100%)",
-    border: "1px solid rgba(245,158,11,0.2)",
-  },
-  recordChipValue: {
-    fontSize: 24, fontWeight: 900, color: "#92400e", lineHeight: 1,
-  },
-  recordChipUnit: {
-    fontSize: 14, fontWeight: 600, color: "#b45309",
-  },
-  recordExtra: {
-    display: "flex", flexDirection: "column", gap: 8, marginTop: 14,
-    borderTop: "1px solid rgba(15,23,42,0.06)", paddingTop: 12,
-  },
-  recordExtraRow: {
-    display: "flex", alignItems: "center", gap: 8,
-  },
-  recordExtraName: {
-    flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "#334155",
-    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
-  },
-  recordExtraVal: {
-    fontSize: 14, fontWeight: 800, color: "#92400e", flexShrink: 0,
-  },
-
-
-
   // ── Buttons
   stickyWrap: {
     position: "fixed", left: 0, right: 0, bottom: 0,
