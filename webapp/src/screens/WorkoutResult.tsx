@@ -145,7 +145,37 @@ function avgEffortLabel(exercises: any[]): string {
 
 // ─── Muscle group mapping ──────────────────────────────────────────────────────
 
-const MUSCLE_GROUP_MAP: Record<string, string> = {
+// ─── Muscle distribution: pattern-based weighted profiles ────────────────────
+
+// Explicit weight profiles per pattern, keyed by raw muscle id (not UI group).
+// Weights represent relative contribution; they are normalized at runtime.
+const PATTERN_MUSCLE_WEIGHTS: Record<string, Record<string, number>> = {
+  horizontal_push:  { chest: 0.65, triceps: 0.25, front_delts: 0.10 },
+  incline_push:     { chest: 0.55, front_delts: 0.30, triceps: 0.15 },
+  vertical_push:    { front_delts: 0.45, side_delts: 0.25, triceps: 0.20, chest: 0.10 },
+  horizontal_pull:  { upper_back: 0.50, lats: 0.30, biceps: 0.15, rear_delts: 0.05 },
+  vertical_pull:    { lats: 0.70, upper_back: 0.15, biceps: 0.15 },
+  squat:            { quads: 0.60, glutes: 0.30, core: 0.10 },
+  hinge:            { hamstrings: 0.40, glutes: 0.35, lower_back: 0.15, quads: 0.10 },
+  lunge:            { quads: 0.50, glutes: 0.35, hamstrings: 0.15 },
+  hip_thrust:       { glutes: 0.80, hamstrings: 0.15, core: 0.05 },
+  rear_delts:       { rear_delts: 0.75, upper_back: 0.25 },
+  delts_iso:        { side_delts: 0.85, front_delts: 0.15 },
+  triceps_iso:      { triceps: 1 },
+  biceps_iso:       { biceps: 1 },
+  calves:           { calves: 1 },
+  core:             { core: 1 },
+  carry:            { core: 0.70, forearms: 0.30 },
+};
+
+// Conditioning patterns are excluded from muscle distribution (general cardio load).
+const CONDITIONING_PATTERNS = new Set([
+  "conditioning_low_impact",
+  "conditioning_intervals",
+]);
+
+// Raw muscle → UI display group
+const MUSCLE_UI_GROUP: Record<string, string> = {
   quads: "Квадрицепсы",
   glutes: "Ягодицы",
   hamstrings: "Бицепс бедра",
@@ -161,24 +191,6 @@ const MUSCLE_GROUP_MAP: Record<string, string> = {
   forearms: "Предплечья",
   core: "Пресс",
   lower_back: "Поясница",
-};
-
-const PATTERN_TO_MUSCLES: Record<string, string[]> = {
-  squat: ["Квадрицепсы", "Ягодицы"],
-  hinge: ["Бицепс бедра", "Ягодицы"],
-  lunge: ["Квадрицепсы", "Ягодицы"],
-  hip_thrust: ["Ягодицы"],
-  horizontal_push: ["Грудь", "Трицепс"],
-  incline_push: ["Грудь", "Плечи"],
-  vertical_push: ["Плечи", "Трицепс"],
-  horizontal_pull: ["Верх спины", "Бицепс"],
-  vertical_pull: ["Широчайшие", "Бицепс"],
-  rear_delts: ["Плечи"],
-  delts_iso: ["Плечи"],
-  triceps_iso: ["Трицепс"],
-  biceps_iso: ["Бицепс"],
-  calves: ["Икры"],
-  core: ["Пресс"],
 };
 
 const MUSCLE_COLORS: Record<string, string> = {
@@ -197,41 +209,93 @@ const MUSCLE_COLORS: Record<string, string> = {
   "Предплечья": "#84CC16",
 };
 
-function getMusclesForExercise(ex: any): string[] {
-  // Try targetMuscles from payload
-  const target: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
-  if (target.length > 0) {
-    const mapped = target.map((m: string) => MUSCLE_GROUP_MAP[m] || m);
-    return [...new Set(mapped)];
-  }
-  // Fallback: pattern
+// Positional fallback weights when pattern is unknown
+const FALLBACK_WEIGHTS = [0.70, 0.20, 0.10];
+
+/** Get normalized weights for an exercise's raw muscles based on pattern profile. */
+function getWeightsForExercise(ex: any): Array<{ muscle: string; weight: number }> {
+  const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
   const pattern = String(ex?.pattern || "");
-  if (pattern && PATTERN_TO_MUSCLES[pattern]) {
-    return PATTERN_TO_MUSCLES[pattern];
+
+  // Skip conditioning
+  if (CONDITIONING_PATTERNS.has(pattern)) return [];
+
+  const profile = PATTERN_MUSCLE_WEIGHTS[pattern] ?? null;
+
+  // If we have targetMuscles + a profile: intersect and normalize
+  if (targetMuscles.length > 0 && profile) {
+    const matched: Array<{ muscle: string; weight: number }> = [];
+    for (const m of targetMuscles) {
+      if (profile[m] != null) matched.push({ muscle: m, weight: profile[m] });
+    }
+    // Muscles in targetMuscles but not in profile → small residual weight
+    const unmatched = targetMuscles.filter(m => profile[m] == null);
+    if (unmatched.length > 0) {
+      const residual = 0.05;
+      for (const m of unmatched) matched.push({ muscle: m, weight: residual });
+    }
+    // Normalize to sum=1
+    const sum = matched.reduce((s, e) => s + e.weight, 0);
+    if (sum > 0) return matched.map(e => ({ muscle: e.muscle, weight: e.weight / sum }));
   }
+
+  // If we have targetMuscles but no profile: positional fallback
+  if (targetMuscles.length > 0) {
+    const total = targetMuscles.length;
+    if (total === 1) return [{ muscle: targetMuscles[0], weight: 1 }];
+    const weights = FALLBACK_WEIGHTS.slice(0, total);
+    const wSum = weights.reduce((s, w) => s + w, 0);
+    return targetMuscles.map((m, i) => ({
+      muscle: m,
+      weight: (weights[i] ?? weights[weights.length - 1]) / wSum,
+    }));
+  }
+
+  // No targetMuscles: use profile keys as fallback muscles
+  if (profile) {
+    const entries = Object.entries(profile);
+    const sum = entries.reduce((s, [, w]) => s + w, 0);
+    return entries.map(([m, w]) => ({ muscle: m, weight: w / sum }));
+  }
+
   return [];
 }
 
 function computeMuscleDistribution(exercises: any[]): Array<{ muscle: string; percent: number; color: string }> {
-  const counts: Record<string, number> = {};
-  let total = 0;
+  // Step 1: accumulate raw muscle contributions
+  const rawCounts: Record<string, number> = {};
+  let rawTotal = 0;
+
   for (const ex of exercises) {
     if (ex?.done === false || ex?.skipped === true) continue;
     const doneSets = (Array.isArray(ex?.sets) ? ex.sets : []).filter((s: any) => s?.done !== false).length;
     if (doneSets === 0) continue;
-    const muscles = getMusclesForExercise(ex);
-    if (muscles.length === 0) continue;
-    const perMuscle = doneSets / muscles.length;
-    for (const m of muscles) {
-      counts[m] = (counts[m] || 0) + perMuscle;
-      total += perMuscle;
+
+    const weights = getWeightsForExercise(ex);
+    if (weights.length === 0) continue;
+
+    for (const { muscle, weight } of weights) {
+      const contribution = doneSets * weight;
+      rawCounts[muscle] = (rawCounts[muscle] || 0) + contribution;
+      rawTotal += contribution;
     }
   }
-  if (total === 0) return [];
-  return Object.entries(counts)
+
+  if (rawTotal === 0) return [];
+
+  // Step 2: merge into UI groups
+  const uiCounts: Record<string, number> = {};
+  for (const [muscle, count] of Object.entries(rawCounts)) {
+    const group = MUSCLE_UI_GROUP[muscle] || muscle;
+    uiCounts[group] = (uiCounts[group] || 0) + count;
+  }
+
+  // Step 3: calculate percentages from UI groups
+  const uiTotal = Object.values(uiCounts).reduce((s, v) => s + v, 0);
+  return Object.entries(uiCounts)
     .map(([muscle, count]) => ({
       muscle,
-      percent: Math.round((count / total) * 100),
+      percent: Math.round((count / uiTotal) * 100),
       color: MUSCLE_COLORS[muscle] || "#94A3B8",
     }))
     .sort((a, b) => b.percent - a.percent);
