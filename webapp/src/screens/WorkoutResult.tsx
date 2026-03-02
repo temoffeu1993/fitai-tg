@@ -204,23 +204,23 @@ const MUSCLE_COLORS: Record<string, string> = {
 };
 
 function getExerciseGroups(ex: any): string[] {
-  const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
-  if (targetMuscles.length > 0) {
-    const seen = new Set<string>();
-    const groups: string[] = [];
-    for (const raw of targetMuscles) {
-      const key = typeof raw === "string" ? raw.trim() : "";
-      if (!key) continue;
-      const group = MUSCLE_UI_GROUP[key] || key;
-      if (!group || seen.has(group)) continue;
-      seen.add(group);
-      groups.push(group);
-    }
-    if (groups.length > 0) return groups.slice(0, 2);
-  }
-
+  // Pattern groups first — curated specifically for this card
   const patternGroups = PATTERN_PRIMARY_GROUPS[String(ex?.pattern || "")];
-  return Array.isArray(patternGroups) ? patternGroups.slice(0, 2) : [];
+  if (Array.isArray(patternGroups) && patternGroups.length > 0) return patternGroups.slice(0, 2);
+
+  // Fallback: map targetMuscles → UI groups (for exercises with unknown pattern)
+  const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
+  const seen = new Set<string>();
+  const groups: string[] = [];
+  for (const raw of targetMuscles) {
+    const key = typeof raw === "string" ? raw.trim() : "";
+    if (!key) continue;
+    const group = MUSCLE_UI_GROUP[key] || key;
+    if (!group || seen.has(group)) continue;
+    seen.add(group);
+    groups.push(group);
+  }
+  return groups.slice(0, 2);
 }
 
 /** Get normalized UI-group weights for an exercise based on its pattern. */
