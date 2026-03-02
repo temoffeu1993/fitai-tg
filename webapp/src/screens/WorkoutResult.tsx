@@ -145,34 +145,27 @@ function avgEffortLabel(exercises: any[]): string {
 
 // ─── Muscle group mapping ──────────────────────────────────────────────────────
 
-// ─── Muscle distribution: EMG-backed activation profiles ─────────────────────
-//
-// Weights derived from published EMG %MVIC data (normalized to sum = 1).
-// Sources: Saeterbakken & Fimland 2013 (OHP), Contreras et al. 2015/2016
-// (hip thrust, squat, deadlift), Caterisano et al. 2002 (squat depth),
-// Fenwick et al. 2009 (rows), Youdas et al. 2010 (pull-up/chin-up),
-// Trebs et al. 2010 & Saeterbakken 2011 (bench press), PMC7579505 (incline),
-// PMC7046193 (deadlift variants), Schoenfeld et al. 2015 (hamstrings).
-//
-// Tonnage (weight × reps) is used as the base unit so heavy compounds
-// naturally contribute more than light isolation exercises.
-const PATTERN_GROUP_WEIGHTS: Record<string, Record<string, number>> = {
-  horizontal_push: { "Грудь": 0.55, "Плечи": 0.25, "Трицепс": 0.20 },
-  incline_push:    { "Грудь": 0.45, "Плечи": 0.35, "Трицепс": 0.20 },
-  vertical_push:   { "Плечи": 0.65, "Трицепс": 0.25, "Грудь": 0.10 },
-  horizontal_pull: { "Широчайшие": 0.30, "Плечи": 0.27, "Верх спины": 0.25, "Бицепс": 0.18 },
-  vertical_pull:   { "Широчайшие": 0.33, "Бицепс": 0.24, "Верх спины": 0.23, "Плечи": 0.20 },
-  squat:           { "Квадрицепсы": 0.40, "Ягодицы": 0.35, "Бицепс бедра": 0.18, "Пресс": 0.07 },
-  hinge:           { "Бицепс бедра": 0.37, "Ягодицы": 0.32, "Поясница": 0.22, "Пресс": 0.09 },
-  lunge:           { "Квадрицепсы": 0.40, "Ягодицы": 0.37, "Бицепс бедра": 0.15, "Пресс": 0.08 },
-  hip_thrust:      { "Ягодицы": 0.65, "Бицепс бедра": 0.25, "Пресс": 0.10 },
-  rear_delts:      { "Плечи": 0.55, "Верх спины": 0.45 },
-  delts_iso:       { "Плечи": 1 },
-  triceps_iso:     { "Трицепс": 1 },
-  biceps_iso:      { "Бицепс": 1 },
-  calves:          { "Икры": 1 },
-  core:            { "Пресс": 1 },
-  carry:           { "Пресс": 0.50, "Предплечья": 0.30, "Верх спины": 0.15, "Плечи": 0.05 },
+// ─── Muscle distribution: simple volume by 1–2 main muscles ─────────────────
+
+// This card is intentionally simple and product-oriented:
+// take 1–2 main target muscles, then split exercise volume 100% or 70/30.
+const PATTERN_PRIMARY_GROUPS: Record<string, string[]> = {
+  horizontal_push: ["Грудь", "Трицепс"],
+  incline_push: ["Грудь", "Плечи"],
+  vertical_push: ["Плечи", "Трицепс"],
+  horizontal_pull: ["Верх спины", "Широчайшие"],
+  vertical_pull: ["Широчайшие", "Бицепс"],
+  squat: ["Квадрицепсы", "Ягодицы"],
+  hinge: ["Бицепс бедра", "Ягодицы"],
+  lunge: ["Квадрицепсы", "Ягодицы"],
+  hip_thrust: ["Ягодицы", "Бицепс бедра"],
+  rear_delts: ["Плечи", "Верх спины"],
+  delts_iso: ["Плечи"],
+  triceps_iso: ["Трицепс"],
+  biceps_iso: ["Бицепс"],
+  calves: ["Икры"],
+  core: ["Пресс"],
+  carry: ["Пресс", "Предплечья"],
 };
 
 // Raw muscle → UI display group
@@ -210,19 +203,6 @@ const MUSCLE_COLORS: Record<string, string> = {
   "Предплечья": "#84CC16",
 };
 
-const POSITIONAL_FALLBACKS = new Map<number, number[]>([
-  [1, [1]],
-  [2, [0.75, 0.25]],
-  [3, [0.60, 0.25, 0.15]],
-  [4, [0.52, 0.23, 0.15, 0.10]],
-]);
-
-function normalizeWeights<T extends { weight: number }>(entries: T[]): T[] {
-  const sum = entries.reduce((acc, entry) => acc + entry.weight, 0);
-  if (!(sum > 0)) return [];
-  return entries.map((entry) => ({ ...entry, weight: entry.weight / sum }));
-}
-
 function getExerciseGroups(ex: any): string[] {
   const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
   if (targetMuscles.length > 0) {
@@ -236,63 +216,22 @@ function getExerciseGroups(ex: any): string[] {
       seen.add(group);
       groups.push(group);
     }
-    if (groups.length > 0) return groups;
+    if (groups.length > 0) return groups.slice(0, 2);
   }
 
-  const profile = PATTERN_GROUP_WEIGHTS[String(ex?.pattern || "")];
-  return profile ? Object.keys(profile) : [];
+  const patternGroups = PATTERN_PRIMARY_GROUPS[String(ex?.pattern || "")];
+  return Array.isArray(patternGroups) ? patternGroups.slice(0, 2) : [];
 }
-
-function buildFallbackGroupWeights(groups: string[]): Array<{ muscle: string; weight: number }> {
-  if (groups.length === 0) return [];
-
-  const preset = POSITIONAL_FALLBACKS.get(groups.length);
-  if (preset) {
-    return groups.map((muscle, index) => ({
-      muscle,
-      weight: preset[index] ?? 0,
-    }));
-  }
-
-  return normalizeWeights(
-    groups.map((muscle, index) => ({
-      muscle,
-      weight: Math.pow(0.55, index),
-    }))
-  );
-}
-
-/** Minimum profile weight to keep a muscle that isn't in targetMuscles.
- *  Below this threshold the contribution is too small to be meaningful
- *  and may attribute load to muscles the exercise doesn't really train. */
-const SYNERGIST_THRESHOLD = 0.15;
 
 /** Get normalized UI-group weights for an exercise based on its pattern. */
 function getWeightsForExercise(ex: any): Array<{ muscle: string; weight: number }> {
-  const profile = PATTERN_GROUP_WEIGHTS[String(ex?.pattern || "")];
-  if (profile) {
-    // Map targetMuscles → UI groups
-    const targetGroups = new Set<string>();
-    const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
-    for (const raw of targetMuscles) {
-      const key = typeof raw === "string" ? raw.trim() : "";
-      if (key) targetGroups.add(MUSCLE_UI_GROUP[key] || key);
-    }
-
-    // Keep muscles that are in targetMuscles OR are significant synergists (≥ threshold).
-    // Minor contributions to muscles NOT in targetMuscles are dropped (e.g. 10% chest from OHP).
-    const entries = Object.entries(profile)
-      .filter(([muscle, weight]) =>
-        targetGroups.size === 0 || targetGroups.has(muscle) || weight >= SYNERGIST_THRESHOLD
-      )
-      .map(([muscle, weight]) => ({ muscle, weight }));
-
-    return entries.length > 0 ? normalizeWeights(entries) : [];
-  }
-
-  // Fallback: map targetMuscles → UI groups with positional weights
   const groups = getExerciseGroups(ex);
-  return buildFallbackGroupWeights(groups);
+  if (groups.length === 0) return [];
+  if (groups.length === 1) return [{ muscle: groups[0], weight: 1 }];
+  return [
+    { muscle: groups[0], weight: 0.7 },
+    { muscle: groups[1], weight: 0.3 },
+  ];
 }
 
 function computeMuscleDistribution(exercises: any[]): Array<{ muscle: string; percent: number; color: string }> {
@@ -308,33 +247,21 @@ function computeMuscleDistribution(exercises: any[]): Array<{ muscle: string; pe
     const sets: any[] = (Array.isArray(ex?.sets) ? ex.sets : []).filter((s: any) => s?.done !== false);
     if (sets.length === 0) continue;
 
-    // Tonnage = Σ(weight × reps) for done sets.
-    // Heavy compounds naturally dominate over light isolation.
-    // For assisted exercises (e.g. gravitron) where more weight = less effort,
-    // we skip the tonnage calc and use total reps instead.
-    const isAssisted = ex?.weightInverted === true;
-    let tonnage = 0;
-    if (!isAssisted) {
-      for (const set of sets) {
-        const w = toNumber(set?.weight) ?? 0;
-        const r = toNumber(set?.reps) ?? 0;
-        if (w > 0 && r > 0) tonnage += w * r;
-      }
+    let weightedVolume = 0;
+    let totalReps = 0;
+    for (const set of sets) {
+      const r = toNumber(set?.reps) ?? 0;
+      const w = toNumber(set?.weight) ?? 0;
+      if (r > 0) totalReps += r;
+      if (w > 0 && r > 0) weightedVolume += w * r;
     }
-    // Bodyweight / no-weight / assisted exercises: use total reps (not set count)
-    // so that 4×15 push-ups = 60, not 4.
-    if (tonnage === 0) {
-      for (const set of sets) {
-        const r = toNumber(set?.reps) ?? 0;
-        tonnage += r > 0 ? r : 1;
-      }
-    }
+    const volume = weightedVolume > 0 ? weightedVolume : totalReps > 0 ? totalReps : sets.length;
 
     const weights = getWeightsForExercise(ex);
     if (weights.length === 0) continue;
 
     for (const { muscle, weight } of weights) {
-      counts[muscle] = (counts[muscle] || 0) + tonnage * weight;
+      counts[muscle] = (counts[muscle] || 0) + volume * weight;
     }
   }
 
