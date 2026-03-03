@@ -85,8 +85,8 @@ export default function SetEditorCard(props: Props) {
   const needWeight = requiresWeightInput(item);
   const totalSets = Math.max(1, item.sets.length);
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
-  const repsHint = "повторы";
-  const weightHint = needWeight ? (item.weightLabel || "кг") : null;
+  const repsHint = "Повторы";
+  const weightHint = needWeight ? (item.weightLabel || "Кг") : null;
   const explicitReps = Number(set.reps);
   const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
   const prevReps =
