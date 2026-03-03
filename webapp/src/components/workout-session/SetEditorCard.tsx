@@ -30,8 +30,9 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 72;
-const WHEEL_VISIBLE = 1;
+const WHEEL_ITEM_H = 44;
+const WHEEL_VISIBLE = 5;
+const WHEEL_CENTER_OFFSET = ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H;
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
@@ -232,12 +233,12 @@ export default function SetEditorCard(props: Props) {
   );
 }
 
-/* ─── Touch-based wheel picker ─── */
-const SLOT_COUNT = 7;
-const HALF_SLOTS = 3;
-const W_FRICTION = 0.985;
-const W_SNAP_VEL = 0.04;
-const W_SPRING = 0.22;
+/* ─── Touch-based wheel picker (iOS-style) ─── */
+const SLOT_COUNT = 9;
+const HALF_SLOTS = 4;
+const W_FRICTION = 0.97;
+const W_SNAP_VEL = 0.05;
+const W_SPRING = 0.2;
 
 function WheelField(props: {
   ariaLabel: string;
@@ -288,7 +289,7 @@ function WheelField(props: {
     return best;
   };
 
-  /* Paint 7 slots using direct DOM updates — no React re-renders */
+  /* Paint slots — direct DOM updates, no React re-renders */
   const paint = () => {
     const pos = posRef.current;
     const arr = valuesRef.current;
@@ -306,11 +307,13 @@ function WheelField(props: {
         el.style.transform = "translateY(0px)";
         el.textContent = "";
       } else {
-        const y = (valIdx - pos) * WHEEL_ITEM_H;
+        const y = (valIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
         const dist = Math.abs(valIdx - pos);
-        const opacity = Math.max(0, 1 - dist * 0.75);
+        const isCenter = dist < 0.5;
         el.style.transform = `translateY(${y}px)`;
-        el.style.opacity = String(opacity);
+        el.style.opacity = "1";
+        el.style.color = isCenter ? workoutTheme.textPrimary : "rgba(15,23,42,0.35)";
+        el.style.fontWeight = isCenter ? "700" : "500";
         el.textContent = fmt(arr[valIdx]);
       }
     }
@@ -398,9 +401,7 @@ function WheelField(props: {
     const dt = s1.t - s0.t;
     if (dt <= 0) return 0;
     const dy = s0.y - s1.y; // positive = scrolled upward = value increases
-    const raw = (dy / WHEEL_ITEM_H) / dt * 16;
-    // Amplify fast flicks so large ranges (0-300kg) are reachable in 2-3 flicks
-    return raw * (1 + Math.abs(raw));
+    return (dy / WHEEL_ITEM_H) / dt * 16;
   };
 
   /* ── Pointer handlers (unified touch + mouse) ── */
@@ -516,6 +517,10 @@ function WheelField(props: {
             ...(flashSuccess ? s.wheelTintOverlayOn : null),
           }}
         />
+        {/* iOS-style center selection band */}
+        <div aria-hidden style={s.wheelCenterBand} />
+        {/* Edge fade mask */}
+        <div aria-hidden style={s.wheelEdgeFade} />
         <div
           ref={containerRef}
           style={{ ...s.wheelContainer, ...(disabled ? s.wheelContainerDisabled : null) }}
@@ -625,6 +630,26 @@ const s: Record<string, CSSProperties> = {
   wheelTintOverlayOn: {
     opacity: 1,
   },
+  wheelCenterBand: {
+    position: "absolute",
+    top: "50%",
+    left: 4,
+    right: 4,
+    height: WHEEL_ITEM_H,
+    transform: "translateY(-50%)",
+    borderRadius: 10,
+    background: "rgba(120, 120, 128, 0.1)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  wheelEdgeFade: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    zIndex: 3,
+    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 22%, transparent 78%, ${workoutTheme.pillBg} 100%)`,
+    borderRadius: 16,
+  },
   wheelContainer: {
     position: "relative",
     zIndex: 2,
@@ -647,7 +672,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",
