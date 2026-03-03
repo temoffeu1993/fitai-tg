@@ -15,7 +15,6 @@
 import type { Exercise, JointFlag, Equipment as LibraryEquipment, Experience, ExerciseKind, Pattern, MuscleGroup } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Location, TimeBucket } from "./normalizedSchemes.js";
 import type { ProgressionRecommendation } from "./progressionEngine.js";
-import { getCandidateSchemes, rankSchemes } from "./normalizedSchemes.js";
 import { buildDaySlots } from "./dayPatternMap.js";
 import {
   selectExercisesForDay,
@@ -29,7 +28,6 @@ import {
   getRestTime,
   validateWorkoutVolume,
   getSessionCaps,
-  MAX_RECOVERABLE_VOLUME,
 } from "./volumeEngine.js";
 import {
   getWeekPlan,
@@ -485,14 +483,12 @@ function fitSession(args: {
 // ============================================================================
 
 export function generateRecoverySession(args: {
-  userProfile: UserProfile;
   painAreas?: string[];
   availableMinutes?: number;
   blockedPatterns?: string[];
   avoidFlags?: JointFlag[];
 }): GeneratedWorkoutDay {
   const {
-    userProfile,
     painAreas = [],
     availableMinutes = 30,
     blockedPatterns = [],
@@ -750,7 +746,6 @@ export function generateRecoverySession(args: {
 function generateMissedPatternExplanations(
   missedPatterns: Pattern[],
   pain: Array<{ location: string; level: number }>,
-  corePolicy?: "required" | "optional"
 ): string[] {
   const explanations: string[] = [];
   
@@ -987,7 +982,6 @@ export async function generateWorkoutDay(args: {
     missedPatternExplanations = generateMissedPatternExplanations(
       removedByPain,
       painArray,
-      readiness.corePolicy
     );
     
     // Добавим объяснение для core если удалён из-за policy
@@ -1099,7 +1093,6 @@ export async function generateWorkoutDay(args: {
     const uncoveredExplanations = generateMissedPatternExplanations(
       uncoveredRequired,
       painArray,
-      readiness.corePolicy
     );
     
     if (uncoveredExplanations.length > 0) {
@@ -1224,7 +1217,6 @@ export async function generateWorkoutDay(args: {
           deload: "🛌",
           decrease_weight: "📉",
           maintain: "➡️",
-          rotate_exercise: "🔄",
         };
 
         const emoji = emojiByAction[recommendation.action];
@@ -1286,9 +1278,6 @@ export async function generateWorkoutDay(args: {
   const totalExercises = exercises.length;
   const totalSets = exercises.reduce((sum, e) => sum + e.sets, 0);
   const estimatedDuration = warmupMin + estimateMainMinutesFromGeneratedExercises(exercises) + cooldownMin;
-  
-  console.log(`\n  ✅ FINAL WORKOUT:`);
-  console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
   
   // Final validation (только для отладки/логов)
   const finalValidation = validateWorkoutVolume({
@@ -1380,8 +1369,8 @@ export async function generateWorkoutDay(args: {
   // STEP 6: Generate warmup and cooldown
   // -------------------------------------------------------------------------
   
-  const warmup = generateWarmup(exercises.map(e => e.exercise), dayBlueprint.focus);
-  const cooldown = generateCooldown(exercises.map(e => e.exercise), dayBlueprint.focus);
+  const warmup = generateWarmup(exercises.map(e => e.exercise));
+  const cooldown = generateCooldown(exercises.map(e => e.exercise));
 
   console.log(`\n  ✅ FINAL WORKOUT:`);
   console.log(`     Total: ${totalExercises} exercises, ${totalSets} sets, ${estimatedDuration} min`);
@@ -1443,7 +1432,7 @@ export async function generateWorkoutDay(args: {
 // HELPER: Generate warmup
 // ============================================================================
 
-function generateWarmup(exercises: Exercise[], dayFocus: string): string[] {
+function generateWarmup(exercises: Exercise[]): string[] {
   const warmupItems: string[] = [];
   
   // Базовая разминка (всегда)
@@ -1479,7 +1468,7 @@ function generateWarmup(exercises: Exercise[], dayFocus: string): string[] {
 // HELPER: Generate cooldown
 // ============================================================================
 
-function generateCooldown(exercises: Exercise[], dayFocus: string): string[] {
+function generateCooldown(exercises: Exercise[]): string[] {
   const cooldownItems: string[] = [];
   
   // Растяжка по группам мышц
@@ -1507,57 +1496,16 @@ function generateCooldown(exercises: Exercise[], dayFocus: string): string[] {
 }
 
 // ============================================================================
-// HELPER: Recommend scheme for user
-// ============================================================================
-
-export function recommendScheme(userProfile: UserProfile): {
-  recommended: NormalizedWorkoutScheme;
-  alternatives: NormalizedWorkoutScheme[];
-} {
-  const candidates = getCandidateSchemes({
-    experience: userProfile.experience,
-    goal: userProfile.goal,
-    daysPerWeek: userProfile.daysPerWeek,
-    timeBucket: userProfile.timeBucket,
-    location: userProfile.location,
-    sex: userProfile.sex,
-    constraints: [], // TODO: map from userProfile.constraints
-  });
-
-  if (candidates.length === 0) {
-    throw new Error("No suitable schemes found for this user profile");
-  }
-
-  const ranked = rankSchemes(
-    {
-      experience: userProfile.experience,
-      goal: userProfile.goal,
-      daysPerWeek: userProfile.daysPerWeek,
-      timeBucket: userProfile.timeBucket,
-      location: userProfile.location,
-      sex: userProfile.sex,
-    },
-    candidates
-  );
-
-  return {
-    recommended: ranked[0],
-    alternatives: ranked.slice(1, 4), // Top 3 alternatives
-  };
-}
-
-// ============================================================================
 // HELPER: Generate full week
 // ============================================================================
 
 export async function generateWeekPlan(args: {
   scheme: NormalizedWorkoutScheme;
   userProfile: UserProfile;
-  mesocycle?: Mesocycle; // НОВОЕ: мезоцикл для периодизации
-  checkins?: CheckInData[]; // One per day
+  mesocycle?: Mesocycle;
   history?: WorkoutHistory;
 }): Promise<GeneratedWorkoutDay[]> {
-  const { scheme, userProfile, mesocycle, checkins, history } = args;
+  const { scheme, userProfile, mesocycle, history } = args;
 
   // НОВОЕ: Получить план недели из мезоцикла
   let weekPlanData = null;
@@ -1575,13 +1523,7 @@ export async function generateWeekPlan(args: {
   // чтобы избежать дублей между днями
   const usedExerciseIds: string[] = [];
   
-  // NEW H: Weekly volume tracking for muscle balance
-  const weeklyProgress = new Map<string, number>(); // muscle -> sets accumulated
-  const targetPerWeek = MAX_RECOVERABLE_VOLUME[userProfile.experience].perMusclePerWeek;
-
   for (let dayIndex = 0; dayIndex < scheme.daysPerWeek; dayIndex++) {
-    const checkin = checkins?.[dayIndex];
-    
     // НОВОЕ: Получить DUP интенсивность для этого дня
     const dupIntensity = weekPlanData?.dupPattern?.[dayIndex];
     
@@ -1614,12 +1556,6 @@ export async function generateWeekPlan(args: {
     // НОВОЕ: Собираем ID упражнений этого дня
     dayPlan.exercises.forEach(ex => {
       usedExerciseIds.push(ex.exercise.id);
-      
-      // NEW H: Update weekly volume progress
-      for (const muscle of ex.exercise.primaryMuscles) {
-        const current = weeklyProgress.get(muscle) || 0;
-        weeklyProgress.set(muscle, current + ex.sets);
-      }
     });
   }
 

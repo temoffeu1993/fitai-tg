@@ -8,9 +8,8 @@
 // ИСПОЛЬЗУЕТ: readiness.ts для единой оценки готовности
 // ============================================================================
 
-import type { CheckInData } from "./workoutDayGenerator.js";
 import type { NormalizedWorkoutScheme } from "./normalizedSchemes.js";
-import { translateLocation, type DayType, type Readiness } from "./readiness.js";
+import { type DayType, type Readiness } from "./readiness.js";
 
 // ============================================================================
 // TYPES
@@ -195,4 +194,4 @@ function findSwapDay(
   return null;
 }
 
-// translateLocation() удалена - используем import из readiness.ts
+

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  cancelPlannedWorkout,
   getScheduleOverview,
   updatePlannedWorkout,
   reschedulePlannedWorkout,
@@ -46,7 +45,7 @@ const normalizeScheduleDates = (dates: Record<string, { time?: string }> | null 
   if (!dates) return {};
   const out: ScheduleByDate = {};
   Object.entries(dates).forEach(([iso, entry]) => {
-    if (entry && isValidTime(entry.time)) {
+    if (entry?.time && isValidTime(entry.time)) {
       out[iso] = { time: entry.time };
     }
   });
@@ -645,197 +644,6 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
 /* ===================== Модалы ===================== */
 
-function SlotModal({
-  iso,
-  time,
-  hasExisting,
-  saving,
-  error,
-  onClose,
-  onChange,
-  onSave,
-  onDelete,
-}: {
-  iso: string;
-  time: string;
-  hasExisting: boolean;
-  saving: boolean;
-  error: string | null;
-  onClose: () => void;
-  onChange: (value: string) => void;
-  onSave: () => void;
-  onDelete: () => void;
-}) {
-  const [hh, mm] = time.split(":").map(v => Number(v) || 0);
-
-  const setHour = (v: number) => onChange(`${String(v).padStart(2,"0")}:${String(mm).padStart(2,"0")}`);
-  const setMin  = (v: number) => onChange(`${String(hh).padStart(2,"0")}:${String(v).padStart(2,"0")}`);
-
-  // Блокировка скролла body
-  useEffect(() => {
-    const originalStyle = window.getComputedStyle(document.body).overflow;
-    const originalPosition = window.getComputedStyle(document.body).position;
-    const scrollY = window.scrollY;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = "0";
-    document.body.style.right = "0";
-    return () => {
-      document.body.style.overflow = originalStyle;
-      document.body.style.position = originalPosition;
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
-  // Только дата, всегда в одну строку
-  const modalDateLabel = parseIsoDate(iso).toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-  });
-
-  return (
-    <div
-      style={slotModalStyles.wrap}
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onTouchMove={(e) => {
-        const target = e.target as HTMLElement;
-        const scrollContainer = target.closest("[data-wheel-scroll]");
-        if (!scrollContainer) e.preventDefault();
-      }}
-    >
-      <div style={slotModalStyles.card}>
-        <div style={slotModalStyles.topbar}>
-          <button type="button" style={slotModalStyles.topBtnGhost} onClick={onClose} disabled={saving}>
-            Отмена
-          </button>
-          <div style={slotModalStyles.title} title={modalDateLabel}>{modalDateLabel}</div>
-          <button type="button" style={slotModalStyles.topBtnPrimary} onClick={onSave} disabled={saving}>
-            Сохранить
-          </button>
-        </div>
-
-        {/* зона колес — фон как у экрана schedule.tsx */}
-        <div style={wheel.container}>
-          <div style={wheel.fadeTop} />
-          <Wheel value={hh} maxValue={23} onChange={setHour} ariaLabel="Часы" />
-          <div style={wheel.sep}>:</div>
-          <Wheel value={mm} maxValue={59} onChange={setMin} ariaLabel="Минуты" />
-          <div style={wheel.fadeBottom} />
-          <div style={wheel.selector} />
-        </div>
-
-        {error && <div style={slotModalStyles.error}>{error}</div>}
-
-        {hasExisting && (
-          <button type="button" style={slotModalStyles.delete} onClick={onDelete} disabled={saving}>
-            Удалить запись
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Wheel({
-  value, maxValue, onChange, ariaLabel,
-}: {
-  value: number;
-  maxValue: number;
-  onChange: (v: number) => void;
-  ariaLabel?: string;
-}) {
-  const ITEM_H = 36;
-  const VISIBLE_ITEMS = 5;
-  const PADDING_ITEMS = Math.floor(VISIBLE_ITEMS / 2);
-  
-  const ref = useRef<HTMLDivElement | null>(null);
-  const scrollTimeoutRef = useRef<number | null>(null);
-
-  const values = Array.from({ length: maxValue + 1 }, (_, i) => i);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const targetScroll = value * ITEM_H;
-    el.scrollTop = targetScroll;
-  }, []);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      const scrollTop = el.scrollTop;
-      const rawIndex = scrollTop / ITEM_H;
-      const currentIndex = Math.round(rawIndex);
-      const clampedIndex = Math.min(Math.max(currentIndex, 0), maxValue);
-
-      if (clampedIndex !== value) {
-        onChange(clampedIndex);
-      }
-
-      scrollTimeoutRef.current = window.setTimeout(() => {
-        const finalScrollTop = el.scrollTop;
-        const finalRawIndex = finalScrollTop / ITEM_H;
-        const finalIndex = Math.round(finalRawIndex);
-        const finalClamped = Math.min(Math.max(finalIndex, 0), maxValue);
-        
-        const targetScroll = finalClamped * ITEM_H;
-
-        if (Math.abs(el.scrollTop - targetScroll) > 0.5) {
-          el.scrollTo({
-            top: targetScroll,
-            behavior: 'smooth'
-          });
-        }
-
-        if (finalClamped !== value) {
-          onChange(finalClamped);
-        }
-      }, 150);
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      el.removeEventListener("scroll", onScroll);
-    };
-  }, [value, maxValue, onChange]);
-
-  return (
-  <div style={wheel.colWrap} aria-label={ariaLabel}>
-    <div ref={ref} style={wheel.col} data-wheel-scroll="true">
-      {Array.from({ length: PADDING_ITEMS }).map((_, i) => (
-        <div key={`pad-top-${i}`} style={wheel.item} />
-      ))}
-      
-      {values.map(v => (
-        <div key={v} style={{ ...wheel.item, ...(v === value ? wheel.itemActive : {}) }}>
-          {String(v).padStart(2, "0")}
-        </div>
-      ))}
-      
-      {Array.from({ length: PADDING_ITEMS }).map((_, i) => (
-        <div key={`pad-bottom-${i}`} style={wheel.item} />
-      ))}
-    </div>
-  </div>
-);
-}
-
 function PlanPreviewModal({
   workout,
   selectedWorkoutId,
@@ -1237,15 +1045,6 @@ function sameDate(a: Date, b: Date) {
   );
 }
 
-function fmtShortDate(iso: string) {
-  const dt = parseIsoDate(iso);
-  return dt.toLocaleDateString("ru-RU", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-}
-
 function fmtFullDate(iso: string) {
   const dt = parseIsoDate(iso);
   return dt.toLocaleDateString("ru-RU", {
@@ -1271,7 +1070,6 @@ function formatTime(iso: string) {
   });
 }
 
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
 const s: Record<string, CSSProperties> = {
   page: {
     maxWidth: 760,
@@ -1455,10 +1253,6 @@ const cal: Record<string, CSSProperties> = {
     position: "relative",
   },
   today: { boxShadow: "0 0 0 2px rgba(114,135,255,.4)" },
-  slot: {
-    background: "rgba(114,135,255,.2)",
-    borderColor: "rgba(114,135,255,.4)",
-  },
   planned: {
     background: "rgba(255,230,128,.25)",
     borderColor: "rgba(255,179,107,.4)",
@@ -1493,9 +1287,6 @@ const cal: Record<string, CSSProperties> = {
   },
   timeTextPlanned: {
     color: "#8a4d0f",
-  },
-  timeTextSlot: {
-    color: "#2f3a8f",
   },
   timeLineTop: {
     fontSize: 11,
@@ -1542,163 +1333,6 @@ const list: Record<string, CSSProperties> = {
   left: { display: "grid", gap: 2 },
   title: { fontWeight: 700, fontSize: 14 },
   hint: { fontSize: 12, color: "#666" },
-};
-
-const slotModalStyles: Record<string, CSSProperties> = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.55)",
-    display: "grid",
-    placeItems: "center",
-    zIndex: 1900,
-    padding: 16,
-    overflow: "hidden",
-  },
-  // сам модал — чёрный фон
-  card: {
-    width: "min(92vw, 420px)",
-    background: "#000",
-    color: "#fff",
-    borderRadius: 20,
-    boxShadow: "0 24px 64px rgba(0,0,0,.65)",
-    padding: "12px 12px 14px",
-    display: "grid",
-    gap: 10,
-  },
-  topbar: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    gap: 8,
-  },
-  // «Отмена» — белый текст без фона
-  topBtnGhost: {
-    justifySelf: "start",
-    border: "none",
-    background: "transparent",
-    color: "#fff",
-    padding: "10px 12px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontSize: 17,
-    fontWeight: 600,
-  },
-  // «Сохранить» — фон как у кнопки редактирования анкеты, чёрный текст
-      topBtnPrimary: {
-    justifySelf: "end",
-    border: "none",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    color: "#000",
-    padding: "10px 14px",
-    borderRadius: 12,
-    cursor: "pointer",
-    fontSize: 17,
-    fontWeight: 800,
-    boxShadow: "0 6px 16px rgba(0,0,0,.3)",
-  },
-
-  // дата — в одну строку
-  title: {
-    textAlign: "center",
-    fontWeight: 800,
-    fontSize: 17,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  error: {
-    background: "rgba(255,102,102,.12)",
-    color: "#ff8a8a",
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "8px 10px",
-    borderRadius: 10,
-  },
-  delete: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px",
-    fontWeight: 400,
-    background: "transparent",
-    color: "#ff6b6b",
-    cursor: "pointer",
-    fontSize: 14,
-    justifySelf: "center",
-  },
-};
-
-const wheel: Record<string, CSSProperties> = {
-  // фон под часами/минутами — как фон страницы schedule.tsx
-    container: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    gap: 8,
-    alignItems: "center",
-    padding: "8px 10px",
-    borderRadius: 14,
-    // точный фон экрана Schedule — светлый и без прозрачности
-    background:
-      "linear-gradient(135deg, #ECE3FF 0%, #D9C2F0 45%, #FFD8C2 100%)",
-    position: "relative",
-    overflow: "hidden",
-  },
-
-  sep: { fontSize: 24, fontWeight: 900, opacity: 0.85, alignSelf: "center", margin: "0 2px", color: "#111" },
-  colWrap: { position: "relative", height: 180, overflow: "hidden", borderRadius: 12, background: "transparent" },
-  col: {
-    height: "100%",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y mandatory",
-    WebkitOverflowScrolling: "touch",
-  },
-  item: {
-    height: 36,
-    display: "grid",
-    placeItems: "center",
-    scrollSnapAlign: "center",
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#111",
-    userSelect: "none",
-  },
-  itemActive: { transform: "scale(1.06)" },
-
-  // лёгкие «шторки» сверху/снизу
-  fadeTop: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 60,
-    // светлый градиент в цвет фона schedule
-    background: "linear-gradient(to bottom, #ECE3FF 0%, #ECE3FF 35%, rgba(236,227,255,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 10,
-  },
-  fadeBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 60,
-    // такой же плавный градиент снизу вверх
-    background: "linear-gradient(to top, #FFD8C2 0%, #FFD8C2 35%, rgba(255,216,194,0) 100%)",
-    pointerEvents: "none",
-    zIndex: 10,
-  },
-  selector: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    top: "calc(50% - 18px)",
-    height: 36,
-    borderRadius: 10,
-    boxShadow: "inset 0 0 0 2px rgba(0,0,0,.6)",
-    pointerEvents: "none",
-  },
 };
 
 const modalStyles: Record<string, CSSProperties> = {
@@ -1835,28 +1469,6 @@ const modalStyles: Record<string, CSSProperties> = {
     lineHeight: 1.2,
     letterSpacing: "-0.02em",
   },
-
-  // Секция упражнений
-  section: { margin: "0 16px", display: "grid", gap: 10 },
-  sectionHeader: { display: "flex", alignItems: "center", gap: 8 },
-  sectionIcon: { fontSize: 18 },
-  sectionTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b" },
-  exercisesList: { display: "grid", gap: 6, maxHeight: 200, overflowY: "auto" },
-  exRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "8px 10px",
-    borderRadius: 10,
-    background: "#fff",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.04)",
-  },
-  exLeft: { flex: 1, minWidth: 0 },
-  exName: { fontSize: 13.5, fontWeight: 650, color: "#111", lineHeight: 1.15 },
-  exRight: { marginLeft: 8 },
-  exMeta: { fontSize: 12.5, fontWeight: 700, color: "#666", whiteSpace: "nowrap" },
-  emptyState: { padding: "16px 12px", textAlign: "center", fontSize: 13, color: "#999" },
-  moreText: { fontSize: 12, color: "#666", textAlign: "center", fontWeight: 600 },
 
   // Ошибка
   error: {

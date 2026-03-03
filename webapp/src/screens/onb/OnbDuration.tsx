@@ -5,7 +5,7 @@ import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Experience } from "./OnbExperience";
 
-export type OnbDurationData = {
+type OnbDurationData = {
   experience?: Experience;
   schedule?: { daysPerWeek?: number; minutesPerSession?: number };
 };

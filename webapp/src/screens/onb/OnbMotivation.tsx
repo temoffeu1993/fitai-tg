@@ -25,7 +25,7 @@ const GOAL_TEXT: Record<Goal, string> = {
   health_wellness: "Ваша спина скажет вам спасибо",
 };
 
-export type OnbMotivationData = {
+type OnbMotivationData = {
   motivation: {
     goal: Goal;
   };

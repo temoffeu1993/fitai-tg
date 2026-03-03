@@ -21,7 +21,6 @@ interface Props {
 
 export default function OnbAbsExercise({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
-  const [showContent, setShowContent] = useState(false);
   const [breathStep, setBreathStep] = useState<BreathStep>("inhale");
   const [timeLeft, setTimeLeft] = useState(HOLD_SECONDS * 1000);
   const confettiRef = useRef<HTMLDivElement>(null);
@@ -35,16 +34,6 @@ export default function OnbAbsExercise({ onComplete, onBack }: Props) {
     if (root) root.scrollTop = 0;
     document.documentElement.scrollTop = 0;
     window.scrollTo(0, 0);
-  }, []);
-
-  useEffect(() => {
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) {
-      setShowContent(true);
-      return;
-    }
-    const t = window.setTimeout(() => setShowContent(true), 30);
-    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {

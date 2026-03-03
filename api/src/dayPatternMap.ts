@@ -190,7 +190,7 @@ function isCompoundPattern(pattern: Pattern): boolean {
   ].includes(pattern);
 }
 
-function assignRole(pattern: Pattern, isFirst: boolean, isDouble: boolean): SlotRole {
+function assignRole(pattern: Pattern, isFirst: boolean): SlotRole {
   // First compound exercises are typically "main"
   const compoundPatterns: Pattern[] = [
     "squat",
@@ -308,7 +308,7 @@ export function buildDaySlots(args: {
       !!rules.preferredDoubles?.includes(pattern) && (usedBudget <= slotBudget - 2); // ИСПРАВЛЕНО: проверяем достаточно ли места для double
 
     const count = canDouble ? 2 : 1;
-    const role = assignRole(pattern, isFirstCompound, canDouble);
+    const role = assignRole(pattern, isFirstCompound);
 
     slots.push({ pattern, count, role });
     usedPatterns.add(pattern);
@@ -331,7 +331,7 @@ export function buildDaySlots(args: {
     for (const pattern of priorityOptionals) {
       if (usedBudget >= slotBudget) break; // ИСПРАВЛЕНО: usedBudget
 
-      const role = assignRole(pattern, false, false);
+      const role = assignRole(pattern, false);
       slots.push({ pattern, count: 1, role });
       usedPatterns.add(pattern);
       usedBudget += 1; // ИСПРАВЛЕНО: увеличиваем usedBudget

@@ -29,7 +29,6 @@ import {
   canMarkSetDone,
   clampInt,
   defaultRepsFromTarget,
-  estimateSessionDurationMin,
   nextUndoneSetIndex,
   normalizeRepsForPayload,
   parseWeightNumber,
@@ -37,7 +36,6 @@ import {
 } from "@/components/workout-session/utils";
 
 const PLAN_CACHE_KEY = "plan_cache_v2";
-const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
 const LAST_RESULT_KEY = "last_workout_result_v1";
 const REST_PREF_KEY = "workout_rest_enabled_v2";
@@ -48,7 +46,6 @@ type SessionUiState =
   | "lift_blocked"
   | "rest_running"
   | "exercise_completed"
-  | "finish_confirm"
   | "sheet_open";
 
 function cloneItems(items: SessionItem[]): SessionItem[] {
@@ -57,15 +54,6 @@ function cloneItems(items: SessionItem[]): SessionItem[] {
   } catch {
     return JSON.parse(JSON.stringify(items));
   }
-}
-
-function toIsoLocalInput(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d}T${hh}:${mm}`;
 }
 
 function toLocalDateKey(date: Date): string {
@@ -272,8 +260,6 @@ export default function WorkoutSession() {
   const [discardSheet, setDiscardSheet] = useState(false);
   const [discardVisible, setDiscardVisible] = useState(false);
   const [discardEntered, setDiscardEntered] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
   const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
   const blockTimerRef = useRef<number | null>(null);
@@ -576,9 +562,9 @@ export default function WorkoutSession() {
       if (currentSet.done) return prev;
       currentSet.done = true;
       const nextSet = currentItem.sets[setIdx + 1];
-      if (nextSet) {
-        if (nextSet.reps == null && currentSet.reps != null) nextSet.reps = currentSet.reps;
-        if (nextSet.weight == null && currentSet.weight != null) nextSet.weight = currentSet.weight;
+      if (nextSet && !nextSet.done) {
+        if (currentSet.reps != null) nextSet.reps = currentSet.reps;
+        if (currentSet.weight != null) nextSet.weight = currentSet.weight;
       }
       if (!currentItem.skipped) {
         currentItem.done = currentItem.sets.every((entry) => Boolean(entry.done));
@@ -873,7 +859,7 @@ export default function WorkoutSession() {
   };
 
   const completeWorkout = async () => {
-    if (!plan || saving) return;
+    if (!plan) return;
     const durationMin = Math.max(10, Math.round(elapsed / 60));
     const startedAtIso = new Date(Date.now() - durationMin * 60_000).toISOString();
 
@@ -1024,7 +1010,6 @@ export default function WorkoutSession() {
     provisionalResult.clientSessionId = tempHistoryId;
     try { localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(provisionalResult)); } catch { }
 
-    setSaving(false);
     nav("/workout/celebrate", {
       replace: true,
       state: { result: provisionalResult, weekCompleted, sessionsPerWeek },
@@ -1087,11 +1072,6 @@ export default function WorkoutSession() {
   const blockedCurrent = blockedSet?.ei === activeIndex && blockedSet?.si === focusSetIndex;
   const exerciseProgressLabel = `${doneExercises}/${Math.max(1, items.length)}`;
   const isSheetOpen = listOpen || exerciseMenu != null;
-  const canGoNextExercise =
-    Boolean(activeItem) &&
-    activeIndex < items.length - 1 &&
-    activeItem.sets.every((set) => Boolean(set.done)) &&
-    activeItem.effort != null;
   const uiState: SessionUiState = (() => {
     if (restSecLeft != null) return "rest_running";
     if (isSheetOpen) return "sheet_open";
@@ -1144,13 +1124,6 @@ export default function WorkoutSession() {
           />
         </div>
       </main>
-
-      {saveError ? (
-        <div style={styles.saveErrorBanner} role="alert">
-          {saveError}
-          <button type="button" style={styles.saveErrorClose} onClick={() => setSaveError(null)} aria-label="Закрыть">✕</button>
-        </div>
-      ) : null}
 
       <BottomDock
         primaryLabel="Завершить тренировку"
@@ -1389,35 +1362,6 @@ const entryTransitionCss = `
 `;
 
 const styles: Record<string, React.CSSProperties> = {
-  saveErrorBanner: {
-    position: "fixed",
-    bottom: "calc(env(safe-area-inset-bottom, 0px) + 120px)",
-    left: 16,
-    right: 16,
-    zIndex: 50,
-    background: "#ff3b30",
-    color: "#fff",
-    borderRadius: 14,
-    padding: "12px 44px 12px 16px",
-    fontSize: 14,
-    fontWeight: 500,
-    boxShadow: "0 4px 16px rgba(255,59,48,0.35)",
-    display: "flex",
-    alignItems: "center",
-  },
-  saveErrorClose: {
-    position: "absolute",
-    right: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    background: "none",
-    border: "none",
-    color: "#fff",
-    fontSize: 16,
-    cursor: "pointer",
-    padding: 4,
-    lineHeight: 1,
-  },
   page: {
     minHeight: "100vh",
     background: workoutTheme.pageGradient,
@@ -1436,62 +1380,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     display: "grid",
     gap: 10,
-  },
-  /* restAutoRow styles removed — replaced by TechniqueAccordion */
-  infoCard: {
-    padding: 16,
-    borderRadius: 24,
-    border: workoutTheme.cardBorder,
-    background: workoutTheme.cardBg,
-    boxShadow: workoutTheme.cardShadow,
-    display: "grid",
-    gap: 10,
-  },
-  infoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: workoutTheme.textSecondary,
-  },
-  switchBtn: {
-    minHeight: 32,
-    minWidth: 62,
-    borderRadius: 999,
-    border: "none",
-    background: workoutTheme.pillBg,
-    boxShadow: workoutTheme.pillShadow,
-    color: workoutTheme.textSecondary,
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "0 12px",
-    cursor: "pointer",
-  },
-  switchBtnOn: {
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.24)",
-  },
-  nextWrap: {
-    display: "grid",
-    gap: 2,
-  },
-  nextLabel: {
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    fontWeight: 700,
-    color: workoutTheme.textMuted,
-  },
-  nextName: {
-    fontSize: 14,
-    lineHeight: 1.35,
-    color: workoutTheme.textSecondary,
-    fontWeight: 500,
   },
   exitOverlay: {
     position: "fixed",

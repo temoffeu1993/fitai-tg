@@ -20,29 +20,7 @@ import type { Goal, ExperienceLevel, TimeBucket } from "./normalizedSchemes.js";
 import type { Intent, SlotRole } from "./exerciseSelector.js";
 
 // ============================================================================
-// 1. GLOBAL LIMITS (hard caps, never exceed)
-// ============================================================================
-
-export const MAX_RECOVERABLE_VOLUME = {
-  beginner: {
-    perSession: 15,              // Мягкий лимит (для Full Body)
-    perMusclePerWeek: 10,        // ГЛАВНЫЙ ЛИМИТ (Mike Israetel MRV)
-    exercisesPerSession: 6,      // DEPRECATED: use getSessionCaps() instead
-  },
-  intermediate: {
-    perSession: 20,              // Мягкий лимит
-    perMusclePerWeek: 15,        // ГЛАВНЫЙ ЛИМИТ
-    exercisesPerSession: 7,      // DEPRECATED: use getSessionCaps() instead
-  },
-  advanced: {
-    perSession: 25,              // Мягкий лимит (для Bro Split может быть 20+ sets на одну группу)
-    perMusclePerWeek: 20,        // ГЛАВНЫЙ ЛИМИТ
-    exercisesPerSession: 9,      // DEPRECATED: use getSessionCaps() instead
-  },
-} as const;
-
-// ============================================================================
-// 1a. SESSION CAPS: Dynamic limits based on timeBucket + intent
+// 1. SESSION CAPS: Dynamic limits based on timeBucket + intent
 // ============================================================================
 
 /**
@@ -58,7 +36,7 @@ export const MAX_RECOVERABLE_VOLUME = {
  * - 90 hard:   min:9, max:10 → caps must allow 10!
  */
 
-export type SessionCaps = {
+type SessionCaps = {
   minExercises: number;  // Prevent under-utilization
   maxExercises: number;  // Prevent overload (synced with dayPatternMap)
   maxSets: number;       // Total sets cap (adjusts by intent)
@@ -106,7 +84,7 @@ export function getSessionCaps(
 // ============================================================================
 
 // ПРОФЕССИОНАЛЬНАЯ БАЗА: Точно настроенная под реальные тренировки
-export const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> = {
+const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> = {
   main: {
     beginner: 2,
     intermediate: 3,
@@ -138,7 +116,7 @@ export const SLOT_ROLE_SETS: Record<SlotRole, Record<ExperienceLevel, number>> =
 // 3. GOAL VOLUME MULTIPLIERS
 // ============================================================================
 
-export const GOAL_VOLUME_MULTIPLIER: Record<Goal, number> = {
+const GOAL_VOLUME_MULTIPLIER: Record<Goal, number> = {
   lose_weight: 0.85,          // Lower volume, higher reps for metabolic effect
   health_wellness: 0.85,      // Conservative volume
   athletic_body: 1.0,         // Balanced
@@ -151,7 +129,7 @@ export const GOAL_VOLUME_MULTIPLIER: Record<Goal, number> = {
 
 // More days = volume spreads out, less per session
 // Fewer days = more volume per session to hit weekly targets
-export const DAYS_FREQUENCY_MODIFIER: Record<number, number> = {
+const DAYS_FREQUENCY_MODIFIER: Record<number, number> = {
   2: 1.65,   // УВЕЛИЧЕНО: 1.6 → 1.65 (для advanced 2 дня нужно ещё +2 подхода)
   3: 1.1,    // Slightly more
   4: 1.0,    // Optimal balance
@@ -163,7 +141,7 @@ export const DAYS_FREQUENCY_MODIFIER: Record<number, number> = {
 // 5. INTENT MODIFIER (check-in based)
 // ============================================================================
 
-export const INTENT_MODIFIER: Record<Intent, number> = {
+const INTENT_MODIFIER: Record<Intent, number> = {
   light: 0.7,    // Reduce volume by 30%
   normal: 1.0,   // Standard
   hard: 1.15,    // Increase volume by 15% (было 1.1 - не работало из-за округления)
@@ -175,7 +153,7 @@ export const INTENT_MODIFIER: Record<Intent, number> = {
 
 type RepsRange = [number, number];
 
-export const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange; accessory: RepsRange }> = {
+const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange; accessory: RepsRange }> = {
   build_muscle: {
     main: [6, 10],
     secondary: [8, 12],
@@ -202,7 +180,7 @@ export const REPS_BY_GOAL: Record<Goal, { main: RepsRange; secondary: RepsRange;
 // 7. REST TIMES BY GOAL AND ROLE (seconds)
 // ============================================================================
 
-export const REST_BY_GOAL: Record<Goal, { main: number; secondary: number; accessory: number }> = {
+const REST_BY_GOAL: Record<Goal, { main: number; secondary: number; accessory: number }> = {
   build_muscle: {
     main: 120,     // 2 minutes
     secondary: 90,
@@ -331,7 +309,7 @@ export function getRepsRange(args: {
 // ============================================================================
 
 // Новичкам нужно больше времени на восстановление АТФ-КФ системы
-export const REST_MODIFIERS_BY_EXPERIENCE: Record<ExperienceLevel, number> = {
+const REST_MODIFIERS_BY_EXPERIENCE: Record<ExperienceLevel, number> = {
   beginner: 1.2,      // +20% отдыха
   intermediate: 1.0,  // Стандарт
   advanced: 0.9,      // -10% отдыха (быстрее восстанавливаются)
@@ -471,138 +449,3 @@ export function validateWorkoutVolume(args: {
   };
 }
 
-// ============================================================================
-// 12. WEEKLY VOLUME TRACKING: Map detailed muscles to volume groups
-// ============================================================================
-
-// Упрощённые группы для недельного лимита (Mike Israetel MRV)
-export type VolumeGroup = 
-  | "chest"
-  | "back"        // lats + upper_back + lower_back
-  | "shoulders"   // front_delts + side_delts + rear_delts
-  | "arms"        // biceps + triceps
-  | "quads"
-  | "hamstrings"
-  | "glutes"
-  | "calves"
-  | "core";
-
-// Маппинг от детальных MuscleGroup (из Exercise) к VolumeGroup
-export function mapMuscleToVolumeGroup(muscle: string): VolumeGroup | null {
-  const map: Record<string, VolumeGroup> = {
-    chest: "chest",
-    lats: "back",
-    upper_back: "back",
-    lower_back: "back",
-    rear_delts: "shoulders",
-    front_delts: "shoulders",
-    side_delts: "shoulders",
-    triceps: "arms",
-    biceps: "arms",
-    forearms: "arms",
-    quads: "quads",
-    hamstrings: "hamstrings",
-    glutes: "glutes",
-    calves: "calves",
-    core: "core",
-  };
-  return map[muscle] || null;
-}
-
-// ============================================================================
-// 13. VALIDATE WEEKLY VOLUME (главная научная проверка!)
-// ============================================================================
-
-export function validateWeeklyMuscleVolume(args: {
-  muscleVolumes: Map<VolumeGroup, number>; // sets per week per volume group
-  experience: ExperienceLevel;
-}): {
-  valid: boolean;
-  warnings: string[];
-  overloadedMuscles: Array<{ muscle: VolumeGroup; sets: number; limit: number }>;
-} {
-  const { muscleVolumes, experience } = args;
-
-  const maxPerMuscle = MAX_RECOVERABLE_VOLUME[experience].perMusclePerWeek;
-  const warnings: string[] = [];
-  const overloadedMuscles: Array<{ muscle: VolumeGroup; sets: number; limit: number }> = [];
-  let valid = true;
-
-  for (const [muscle, sets] of muscleVolumes) {
-    if (sets > maxPerMuscle) {
-      valid = false;
-      overloadedMuscles.push({ muscle, sets, limit: maxPerMuscle });
-      warnings.push(
-        `⚠️ ${muscle}: ${sets} подходов/нед > ${maxPerMuscle} (лимит для ${experience})`
-      );
-    }
-  }
-
-  return { valid, warnings, overloadedMuscles };
-}
-
-// ============================================================================
-// 14. CALCULATE WEEKLY VOLUME FROM WORKOUTS
-// ============================================================================
-
-export type WorkoutExercise = {
-  primaryMuscles: string[];  // MuscleGroup names from Exercise
-  sets: number;
-};
-
-export type WorkoutDay = {
-  exercises: WorkoutExercise[];
-};
-
-/**
- * Подсчитывает недельный объём по группам мышц из массива тренировок
- * 
- * Логика: Если упражнение тренирует грудь + трицепс (primaryMuscles),
- * то оба получают полный объём sets (как в науке).
- */
-export function calculateWeeklyVolume(workouts: WorkoutDay[]): Map<VolumeGroup, number> {
-  const volumeMap = new Map<VolumeGroup, number>();
-
-  for (const workout of workouts) {
-    for (const exercise of workout.exercises) {
-      for (const muscle of exercise.primaryMuscles) {
-        const volumeGroup = mapMuscleToVolumeGroup(muscle);
-        if (volumeGroup) {
-          const current = volumeMap.get(volumeGroup) || 0;
-          volumeMap.set(volumeGroup, current + exercise.sets);
-        }
-      }
-    }
-  }
-
-  return volumeMap;
-}
-
-// ============================================================================
-// 15. VALIDATE FULL WEEK (комплексная проверка)
-// ============================================================================
-
-export function validateFullWeek(args: {
-  workouts: WorkoutDay[];
-  experience: ExperienceLevel;
-}): {
-  valid: boolean;
-  warnings: string[];
-  weeklyVolume: Map<VolumeGroup, number>;
-  overloadedMuscles: Array<{ muscle: VolumeGroup; sets: number; limit: number }>;
-} {
-  const { workouts, experience } = args;
-
-  // Calculate weekly volume
-  const weeklyVolume = calculateWeeklyVolume(workouts);
-
-  // Validate against MRV limits
-  const validation = validateWeeklyMuscleVolume({ muscleVolumes: weeklyVolume, experience });
-
-  return {
-    valid: validation.valid,
-    warnings: validation.warnings,
-    weeklyVolume,
-    overloadedMuscles: validation.overloadedMuscles,
-  };
-}

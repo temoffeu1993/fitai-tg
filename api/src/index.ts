@@ -7,7 +7,6 @@ import cors from "cors";
 
 import authRouter, { requireAuth } from "./auth.js";
 import { onboarding } from "./onboarding.js";
-// import planRouter from "./plan.js"; // ❌ СТАРАЯ ИИ-СИСТЕМА ОТКЛЮЧЕНА
 import { workout } from "./workout.js";
 import { nutrition } from "./nutrition.js";
 import { schedule } from "./schedule.js";
@@ -15,12 +14,9 @@ import { progress } from "./progress.js";
 import { profile as profileRouter } from "./profile.js";
 import { schemes } from "./schemes.js";
 import { workoutGeneration } from "./workoutGeneration.js"; // 🔥 НОВАЯ детерминированная генерация
-import { workoutTest } from "./workoutTest.js"; // 🔥 НОВОЕ: тестовый эндпоинт
-import { scientificWorkoutTest } from "./scientificWorkoutTest.js"; // 🔥 НАУЧНАЯ система
 import { getSubscriptionStatus } from "./subscription.js";
 import { asyncHandler, errorHandler } from "./middleware/errorHandler.js";
 import { startProgressionJobWorker } from "./progressionJobs.js";
-import { startCoachJobWorker } from "./coachJobs.js";
 import { q } from "./db.js";
 
 const app = express();
@@ -41,7 +37,7 @@ app.use(requireAuth, schemes);
 app.use(
   "/plan",
   requireAuth,
-  (req, res, next) => {
+  (req, _res, next) => {
     console.log("HIT /plan", req.method, req.url);
     next();
   },
@@ -52,8 +48,6 @@ app.use("/api/workout", requireAuth, workoutGeneration); // 🔥 НОВАЯ де
 app.use("/api/nutrition", requireAuth, nutrition);
 app.use("/api", requireAuth, schedule);
 app.use("/api/progress", requireAuth, progress);
-app.use("/api/workout-test", requireAuth, workoutTest); // 🔥 НОВОЕ: тест генерации
-app.use("/api/scientific-test", requireAuth, scientificWorkoutTest); // 🔥 НАУЧНАЯ система
 
 // подписка — публичный статус
 app.get(
@@ -83,9 +77,6 @@ server.on("error", (err) => {
 
 // Background worker: догоняет прогрессию из outbox очереди
 startProgressionJobWorker();
-// Background worker: генерирует "тренерский" фидбек (best-effort)
-// TODO: временно отключено чтобы не тратить токены OpenAI во время разработки
-// startCoachJobWorker();
 
 (async () => {
   try {

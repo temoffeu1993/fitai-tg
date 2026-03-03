@@ -1,11 +1,10 @@
 // webapp/src/screens/onb/OnbPlace.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { fireHapticImpact } from "@/utils/haptics";
 
 export type TrainingPlace = "gym" | "home_no_equipment" | "home_with_gear";
 
-export type OnbPlaceData = {
+type OnbPlaceData = {
   trainingPlace?: { place: TrainingPlace };
 };
 
@@ -23,7 +22,6 @@ const OPTIONS: Array<{ value: TrainingPlace; label: string }> = [
 ];
 
 export default function OnbPlace({ initial, loading, onSubmit, onBack }: Props) {
-  const navigate = useNavigate();
   const [place, setPlace] = useState<TrainingPlace | null>(
     initial?.trainingPlace?.place ?? null
   );

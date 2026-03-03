@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import morobotImg from "@/assets/morobot.webp";
 import dihanieImg from "@/assets/dihanie.webp";
 import healthRobotImg from "@/assets/heals.webp";
-import smotrchasImg from "@/assets/smotrchas.webp";
 import { fireHapticImpact } from "@/utils/haptics";
 
 type Props = {
@@ -167,8 +166,6 @@ const MAX_SECONDS = 120;
 
 export default function OnbCO2Test({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
-  const [showContent, setShowContent] = useState(false);
-  const [seconds, setSeconds] = useState(0);
   const [smoothSeconds, setSmoothSeconds] = useState(0);
   const [resultSeconds, setResultSeconds] = useState(0);
   const [breathStep, setBreathStep] = useState<"inhale" | "exhale" | "final-exhale" | "hold">("inhale");
@@ -190,14 +187,6 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
     document.documentElement.scrollTop = 0;
     window.scrollTo(0, 0);
     return () => { if (root) root.style.overflowY = prevOverflow || ""; };
-  }, []);
-
-  // Reveal content
-  useEffect(() => {
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) { setShowContent(true); return; }
-    const t = window.setTimeout(() => setShowContent(true), 30);
-    return () => window.clearTimeout(t);
   }, []);
 
   // Cleanup
@@ -235,17 +224,14 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
 
   const startHold = () => {
     setPhase("hold");
-    setSeconds(0);
     setSmoothSeconds(0);
     startTimeRef.current = Date.now();
     const tick = () => {
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
       if (elapsed >= MAX_SECONDS) {
-        setSeconds(MAX_SECONDS);
         handleStop(MAX_SECONDS);
         return;
       }
-      setSeconds(elapsed);
       timerRef.current = requestAnimationFrame(tick);
     };
     timerRef.current = requestAnimationFrame(tick);
@@ -310,7 +296,6 @@ export default function OnbCO2Test({ onComplete, onBack }: Props) {
           await new Promise((r) => setTimeout(r, FINAL_EXHALE_MS));
         }
       }
-      if (cancelled) return;
       if (cancelled) return;
       startHold();
     };
@@ -778,49 +763,6 @@ const st: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
 
-  // ── Instruction tiles ──
-  instructionGrid: {
-    display: "grid",
-    gap: 16,
-    marginTop: 6,
-    marginBottom: 6,
-  },
-  instructionRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    gap: 12,
-  },
-  instructionCard: {
-    borderRadius: 18,
-    padding: "16px 14px",
-    minHeight: 104,
-    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    justifyContent: "center",
-  },
-  instructionEmoji: {
-    fontSize: 22,
-    lineHeight: 1,
-  },
-  instructionText: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(15, 23, 42, 0.6)",
-    lineHeight: 1.4,
-  },
-  instructionArrow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   // ── Actions ──
   actions: {
     position: "fixed",
@@ -863,22 +805,6 @@ const st: Record<string, React.CSSProperties> = {
     width: "100vw",
     height: "calc(88px + env(safe-area-inset-bottom, 0px))",
     zIndex: 10,
-  },
-  startBtn: {
-    width: "100%",
-    height: "100%",
-    borderRadius: "22px 22px 0 0",
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 34,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
   },
   breathStage: {
     position: "fixed",
@@ -1014,16 +940,6 @@ const st: Record<string, React.CSSProperties> = {
     marginTop: 10,
   },
 
-  // ── Timer phase ──
-  timerWrap: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 32,
-    minHeight: "70vh",
-  },
   flaskOuter: {
     position: "relative",
     display: "flex",
@@ -1124,10 +1040,6 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 8,
     marginBottom: 16,
-  },
-  resultEmoji: {
-    fontSize: 48,
-    lineHeight: 1,
   },
   resultTime: {
     fontSize: 56,

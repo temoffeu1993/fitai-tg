@@ -8,7 +8,7 @@ export type WorkdayStyle =
   | "on_feet"
   | "heavy_work";
 
-export type OnbWorkdayData = {
+type OnbWorkdayData = {
   lifestyle?: { workStyle: WorkdayStyle };
 };
 

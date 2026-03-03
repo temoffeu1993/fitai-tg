@@ -1,11 +1,10 @@
 // webapp/src/screens/onb/OnbFrequency.tsx
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Experience } from "./OnbExperience";
 
-export type OnbFrequencyData = {
+type OnbFrequencyData = {
   experience?: Experience;
   schedule?: { daysPerWeek?: number; minutesPerSession?: number };
 };
@@ -20,7 +19,6 @@ type Props = {
 const MIN_DAYS = 2;
 const MAX_DAYS = 6;
 export default function OnbFrequency({ initial, loading, onSubmit, onBack }: Props) {
-  const navigate = useNavigate();
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(
     typeof initial?.schedule?.daysPerWeek === "number" ? initial.schedule.daysPerWeek : null
   );

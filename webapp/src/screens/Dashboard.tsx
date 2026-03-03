@@ -9,7 +9,6 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getGamificationSummary } from "@/api/progress";
 import {
   getScheduleOverview,
   reschedulePlannedWorkout,
@@ -18,11 +17,6 @@ import {
   type ScheduleByDate,
 } from "@/api/schedule";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
-import {
-  EMPTY_GAMIFICATION_SUMMARY,
-  buildGamificationSummaryFromCounts,
-  type GamificationSummary,
-} from "@/lib/gamification";
 import { fireHapticImpact } from "@/utils/haptics";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
@@ -61,8 +55,6 @@ const PROGRESS_CTA_BAR_METRICS = [
 
 const HISTORY_KEY = "history_sessions_v1";
 const SCHEDULE_CACHE_KEY = "schedule_cache_v1";
-
-const DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 const DATE_ITEM_W = 64;
 const DATE_COUNT = 37;
@@ -310,20 +302,6 @@ function extractApiErrorCode(err: any): string | null {
   }
 }
 
-function getWeekDays(): Date[] {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = (dayOfWeek + 6) % 7;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - mondayOffset);
-  monday.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
-
 function collectAssignedDateKeys(
   planned: PlannedWorkout[],
   minIsoDate?: string
@@ -338,19 +316,6 @@ function collectAssignedDateKeys(
       set.add(iso);
     });
   return Array.from(set).sort((a, b) => a.localeCompare(b));
-}
-
-function resolvePreferredDateIndex(
-  dsDates: Array<{ date: Date }>,
-  planned: PlannedWorkout[],
-  fallbackIdx: number
-): number {
-  const assigned = collectAssignedDateKeys(planned);
-  if (!assigned.length) return fallbackIdx;
-  const today = toISODate(new Date());
-  const preferredIso = assigned.find((iso) => iso >= today) || assigned[0];
-  const idx = dsDates.findIndex((item) => toISODate(item.date) === preferredIso);
-  return idx >= 0 ? idx : fallbackIdx;
 }
 
 function readHistorySnapshot(): HistorySnapshot {
@@ -381,65 +346,6 @@ function readHistorySnapshot(): HistorySnapshot {
   } catch {
     return { total: 0, lastCompletedAt: null, completedDates: [] };
   }
-}
-
-/**
- * Calculate week streak: consecutive weeks where user completed ALL planned workouts.
- * A week is Mon-Sun. We check backwards from current week.
- */
-function calculateWeekStreak(
-  completedDates: string[],
-  plannedWorkouts: PlannedWorkout[],
-  daysPerWeek: number
-): number {
-  if (daysPerWeek <= 0) return 0;
-
-  const completedSet = new Set(completedDates);
-  const now = new Date();
-
-  // Get Monday of current week
-  const dayOfWeek = now.getDay();
-  const mondayOffset = (dayOfWeek + 6) % 7;
-  const currentMonday = new Date(now);
-  currentMonday.setDate(now.getDate() - mondayOffset);
-  currentMonday.setHours(0, 0, 0, 0);
-
-  let streak = 0;
-  let weekMonday = new Date(currentMonday);
-
-  // Check up to 52 weeks back
-  for (let w = 0; w < 52; w++) {
-    const weekStart = new Date(weekMonday);
-    const weekEnd = new Date(weekMonday);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-
-    // Count completed workouts this week
-    let weekCompleted = 0;
-    for (let d = 0; d < 7; d++) {
-      const checkDate = new Date(weekStart);
-      checkDate.setDate(checkDate.getDate() + d);
-      const iso = toISODate(checkDate);
-      if (completedSet.has(iso)) {
-        weekCompleted++;
-      }
-    }
-
-    // For current week, don't count yet (it's in progress)
-    if (w === 0) {
-      weekMonday.setDate(weekMonday.getDate() - 7);
-      continue;
-    }
-
-    // Check if week was fully completed
-    if (weekCompleted >= daysPerWeek) {
-      streak++;
-      weekMonday.setDate(weekMonday.getDate() - 7);
-    } else {
-      break;
-    }
-  }
-
-  return streak;
 }
 
 // ============================================================================
@@ -517,12 +423,6 @@ export default function Dashboard() {
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(() => {
     return readScheduleCache()?.plannedWorkouts ?? [];
   });
-  const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>(() => {
-    return readScheduleCache()?.scheduleDates ?? {};
-  });
-  const [gamification, setGamification] = useState<GamificationSummary>(
-    EMPTY_GAMIFICATION_SUMMARY
-  );
   const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
   const [dayScheduleModal, setDayScheduleModal] = useState<DayScheduleModalState | null>(null);
@@ -584,7 +484,6 @@ export default function Dashboard() {
   const refreshPlanned = useCallback(async () => {
     if (!onbDone) {
       setPlannedWorkouts([]);
-      setScheduleDates({});
       return;
     }
     try {
@@ -592,11 +491,9 @@ export default function Dashboard() {
       const nextPlanned = Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [];
       const nextDates = normalizeScheduleDates(data?.schedule?.dates);
       setPlannedWorkouts(nextPlanned);
-      setScheduleDates(nextDates);
       writeScheduleCache(nextPlanned, nextDates);
     } catch {
       setPlannedWorkouts([]);
-      setScheduleDates({});
     }
   }, [onbDone]);
 
@@ -661,52 +558,6 @@ export default function Dashboard() {
     };
   }, []);
 
-  const localGamificationFallback = useMemo(() => {
-    const plannedCount = plannedWorkouts.filter((workout) => {
-      if (!workout?.id) return false;
-      if (workout.status === "cancelled") return false;
-      return workout.status === "scheduled" || workout.status === "completed";
-    }).length;
-
-    return buildGamificationSummaryFromCounts({
-      onboardingCompleted: onbDone,
-      plannedWorkouts: plannedCount,
-      completedWorkouts: historyStats.total,
-    });
-  }, [onbDone, plannedWorkouts, historyStats.total]);
-
-  const refreshGamification = useCallback(async () => {
-    if (!onbDone) {
-      setGamification(EMPTY_GAMIFICATION_SUMMARY);
-      return;
-    }
-    try {
-      const summary = await getGamificationSummary();
-      setGamification(summary);
-    } catch {
-      setGamification(localGamificationFallback);
-    }
-  }, [onbDone, localGamificationFallback]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    refreshGamification();
-    window.addEventListener("focus", refreshGamification);
-    window.addEventListener("history_updated" as any, refreshGamification);
-    window.addEventListener("planned_workouts_updated" as any, refreshGamification);
-    window.addEventListener("schedule_updated" as any, refreshGamification);
-    window.addEventListener("plan_completed" as any, refreshGamification);
-    window.addEventListener("onb_complete" as any, refreshGamification);
-    return () => {
-      window.removeEventListener("focus", refreshGamification);
-      window.removeEventListener("history_updated" as any, refreshGamification);
-      window.removeEventListener("planned_workouts_updated" as any, refreshGamification);
-      window.removeEventListener("schedule_updated" as any, refreshGamification);
-      window.removeEventListener("plan_completed" as any, refreshGamification);
-      window.removeEventListener("onb_complete" as any, refreshGamification);
-    };
-  }, [refreshGamification]);
-
   // ---------- Date scroller ----------
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
@@ -718,14 +569,12 @@ export default function Dashboard() {
   const [dayCardIdx, setDayCardIdx] = useState(dsInitialIdx);
   const [dayCardOpacity, setDayCardOpacity] = useState(1);
   const [dayCardOffset, setDayCardOffset] = useState(0);
-  const [dayCardDir, setDayCardDir] = useState<"left" | "right">("right");
   const dsScrollRef = useRef<HTMLDivElement>(null);
   const dsScrollRafRef = useRef<number | null>(null);
   const dsScrollStopTimer = useRef<number | null>(null);
   const dsLastTickRef = useRef<number | null>(null);
   const dsLastSettledRef = useRef<number>(dsInitialIdx);
   const dsSuppressHapticsRef = useRef(true);
-  const dsUserInteractedRef = useRef(false);
   const dayCardTimerRef = useRef<number | null>(null);
   const hasAssignedDatesForDayCard = useMemo(
     () => collectAssignedDateKeys(plannedWorkouts, todayIso).length > 0,
@@ -754,7 +603,6 @@ export default function Dashboard() {
     }
     if (dsSettledIdx === dayCardIdx) return;
     const dir = dsSettledIdx > dayCardIdx ? 1 : -1;
-    setDayCardDir(dir > 0 ? "right" : "left");
     setDayCardOffset(-dir * 12);
     setDayCardOpacity(0);
     if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
@@ -794,7 +642,6 @@ export default function Dashboard() {
       const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
       if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
       if (clamped !== dsLastSettledRef.current) {
-        setDayCardDir(clamped > dsLastSettledRef.current ? "right" : "left");
         dsLastSettledRef.current = clamped;
         setDsSettledIdx(clamped);
       }
@@ -950,7 +797,6 @@ export default function Dashboard() {
     return { totalExercises, minutes };
   }, [selectedPlanned]);
 
-  const weekDays = useMemo(() => getWeekDays(), []);
   const dashboardUserContext = useMemo<UserContext>(() => {
     const summary = readOnboardingSummary();
     const motivation = asRecord(summary?.motivation);
@@ -1030,15 +876,6 @@ export default function Dashboard() {
     return 24;
   }, [totalPlanDays]);
   const weeklyGoalLabel = useMemo(() => formatWorkoutCountRu(totalPlanDays), [totalPlanDays]);
-
-  // Calculate week streak (consecutive weeks with all workouts completed)
-  const weekStreak = useMemo(() => {
-    return calculateWeekStreak(
-      historyStats.completedDates,
-      plannedWorkouts,
-      totalPlanDays
-    );
-  }, [historyStats.completedDates, plannedWorkouts, totalPlanDays]);
 
   const goOnb = () => navigate("/onb/age-sex");
 
@@ -1478,9 +1315,6 @@ export default function Dashboard() {
               ref={dsScrollRef}
               style={s.dsTrack}
               className="date-track"
-              onPointerDown={() => {
-                dsUserInteractedRef.current = true;
-              }}
               onScroll={handleDsScroll}
             >
               {dsDates.map((d, idx) => {
@@ -1493,7 +1327,6 @@ export default function Dashboard() {
                     className="date-item"
                     style={{ ...s.dsItem, scrollSnapAlign: "center" }}
                     onClick={() => {
-                      dsUserInteractedRef.current = true;
                       fireHapticImpact("light");
                       setDsActiveIdx(idx);
                       dsScrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
@@ -2176,35 +2009,6 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow:
       "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
-  dayDistributionWrap: {
-    display: "grid",
-    gap: 10,
-  },
-  dayDistributionLabel: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(15, 23, 42, 0.62)",
-    lineHeight: 1.35,
-  },
-  dayDistributionRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  dayDistributionPit: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-  },
-  dayDistributionPitAssigned: {
-    background: "linear-gradient(180deg, #9ea1a8 0%, #c2c5cc 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(17,24,39,0.32), inset 0 -1px 0 rgba(255,255,255,0.5)",
-  },
   dayBtn: {
     alignSelf: "flex-start",
     display: "inline-flex",
@@ -2219,36 +2023,6 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: 18,
     cursor: "pointer",
-  },
-  dayBtnRow: {
-    marginTop: "auto",
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 10,
-    flexWrap: "wrap",
-  },
-  dayBtnInRow: {
-    alignSelf: "flex-end",
-  },
-  dayBtnSecondary: {
-    alignSelf: "flex-end",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 34,
-    height: 34,
-    padding: 0,
-    borderRadius: 999,
-    border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.6)",
-    fontWeight: 400,
-    fontSize: 14,
-    lineHeight: 1.5,
-    cursor: "pointer",
-    boxShadow: "none",
-    appearance: "none",
-    WebkitTapHighlightColor: "transparent",
   },
   dayBtnIconWrap: {
     width: 34,
@@ -2351,11 +2125,6 @@ const s: Record<string, React.CSSProperties> = {
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow:
       "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-  },
-  goalCompactDotFilled: {
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow:
-      "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
   },
   goalCompactTodoMark: {
     position: "relative",

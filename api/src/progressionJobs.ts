@@ -6,7 +6,7 @@ import { q, withTransaction } from "./db.js";
 import { AppError } from "./middleware/errorHandler.js";
 import { applyProgressionFromSession, type ProgressionSummary } from "./progressionService.js";
 
-export type ProgressionJobStatus = "pending" | "processing" | "done" | "failed";
+type ProgressionJobStatus = "pending" | "processing" | "done" | "failed";
 
 type ProgressionJobRow = {
   id: string;
@@ -149,7 +149,7 @@ export async function processProgressionJob(args: {
   return runJob(job as ProgressionJobRow);
 }
 
-export async function processNextProgressionJob(): Promise<boolean> {
+async function processNextProgressionJob(): Promise<boolean> {
   const job = await claimNextJob().catch((e) => {
     console.warn("[ProgressionJobs] claimNextJob failed:", (e as any)?.message || e);
     return null;
@@ -283,8 +283,6 @@ async function claimNextJob(): Promise<ProgressionJobRow | null> {
 }
 
 async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobStatus; progression: ProgressionSummary | null }> {
-  if (job.status === "failed") return { status: "failed", progression: null };
-
   try {
     progLog("[ProgressionJobs][debug] runJob start", {
       jobId: job.id,

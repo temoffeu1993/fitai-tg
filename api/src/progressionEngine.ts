@@ -19,13 +19,12 @@ import type { Goal, ExperienceLevel } from "./normalizedSchemes.js";
 // TYPES
 // ============================================================================
 
-export type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
+type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max" | null;
 
-export type ProgressionStatus = 
+type ProgressionStatus =
   | "progressing"      // Стабильный прогресс
   | "maintaining"      // Держит уровень
   | "stalling"         // Застой (2-3 неделі)
-  | "regressing"       // Откат
   | "deload_needed";   // Нужен deload
 
 export type ExerciseHistory = {
@@ -48,12 +47,11 @@ export type ExerciseProgressionData = {
   lastProgressDate?: string;   // Дата последнего прогресса
   stallCount: number;          // Сколько тренировок подряд застой
   deloadCount: number;         // Сколько deload'ов было
-  notes?: string[];
 };
 
 export type ProgressionRecommendation = {
   exerciseId: string;
-  action: "increase_weight" | "increase_reps" | "maintain" | "decrease_weight" | "deload" | "rotate_exercise";
+  action: "increase_weight" | "increase_reps" | "maintain" | "decrease_weight" | "deload";
   newWeight?: number;
   newRepsTarget?: [number, number];
   reason: string;
@@ -77,14 +75,13 @@ export type ProgressionRecommendation = {
     equipment?: string | null;
     increment?: number;
   };
-  alternatives?: string[];     // ID альтернативных упражнений для ротации
 };
 
 // ============================================================================
 // CONSTANTS: Weight increments by equipment type
 // ============================================================================
 
-export const WEIGHT_INCREMENT: Record<string, number> = {
+const WEIGHT_INCREMENT: Record<string, number> = {
   barbell: 2.5,       // Штанга: +2.5 кг (самые маленькие блины)
   dumbbell: 1.0,      // Гантели: +1 кг (или следующая гантель +2 кг)
   machine: 5.0,       // Тренажёр: +5 кг (обычно шаг стека)
@@ -167,13 +164,11 @@ export const PROGRESSION_RULES_BY_GOAL: Record<Goal, ProgressionRules> = {
 function analyzePerformance(
   history: ExerciseHistory,
   targetRepsRange: [number, number],
-  rules: ProgressionRules
 ): {
   totalSets: number;
   lowerHits: number;
   upperHits: number;
   lastSetUpper: boolean;
-  averageRpe?: number;
 } {
   const sets = history.sets;
   const [minReps, maxReps] = targetRepsRange;
@@ -181,30 +176,22 @@ function analyzePerformance(
   let totalSets = 0;
   let upperHits = 0;
   let lowerHits = 0;
-  let totalRpe = 0;
-  let rpeCount = 0;
 
   for (const set of sets) {
     if (!set.completed) continue;
     totalSets++;
     if (set.actualReps >= minReps) lowerHits++;
     if (set.actualReps >= maxReps) upperHits++;
-    if (set.rpe) {
-      totalRpe += set.rpe;
-      rpeCount++;
-    }
   }
 
   const last = sets.length > 0 ? sets[sets.length - 1] : undefined;
   const lastSetUpper = Boolean(last && last.completed && last.actualReps >= maxReps);
-  const averageRpe = rpeCount > 0 ? totalRpe / rpeCount : undefined;
 
   return {
     totalSets,
     lowerHits,
     upperHits,
     lastSetUpper,
-    averageRpe,
   };
 }
 
@@ -277,7 +264,7 @@ function determineStatus(
   progressionData: ExerciseProgressionData,
   rules: ProgressionRules
 ): ProgressionStatus {
-  const { stallCount, deloadCount } = progressionData;
+  const { stallCount } = progressionData;
 
   // Check if deload is needed
   if (stallCount >= rules.deloadThreshold) {
@@ -304,10 +291,6 @@ function determineStatus(
 
   if (stallCount >= rules.stallThreshold) {
     return "stalling";
-  }
-
-  if (stallCount > 0) {
-    return "maintaining";
   }
 
   return "maintaining";
@@ -354,7 +337,7 @@ export function calculateProgression(args: {
   // so stored history may keep warmups/ramps without affecting decisions.
   // For weightInverted (assisted) exercises, "working" = lightest sets (most resistance).
   const workoutToAnalyze = deriveWorkingHistory(workoutToAnalyzeFull, weightInverted);
-  const performance = analyzePerformance(workoutToAnalyze, targetRepsRange, rules);
+  const performance = analyzePerformance(workoutToAnalyze, targetRepsRange);
   const [minReps, maxReps] = targetRepsRange;
   const totalWorkingSets = performance.totalSets;
 
@@ -635,10 +618,9 @@ export function shouldRotateExercise(progressionData: ExerciseProgressionData): 
 // HELPER: Get starting weight for new exercise
 // ============================================================================
 
-export function getStartingWeight(args: {
+function getStartingWeight(args: {
   exercise: Exercise;
   experience: ExperienceLevel;
-  goal: Goal;
 }): number {
   const { exercise, experience } = args;
 
@@ -702,11 +684,10 @@ export function initializeProgressionData(args: {
   exerciseId: string;
   exercise: Exercise;
   experience: ExperienceLevel;
-  goal: Goal;
 }): ExerciseProgressionData {
-  const { exerciseId, exercise, experience, goal } = args;
+  const { exerciseId, exercise, experience } = args;
 
-  const startingWeight = getStartingWeight({ exercise, experience, goal });
+  const startingWeight = getStartingWeight({ exercise, experience });
 
   return {
     exerciseId,
@@ -715,7 +696,6 @@ export function initializeProgressionData(args: {
     status: "maintaining",
     stallCount: 0,
     deloadCount: 0,
-    notes: ["Начальный вес установлен консервативно для отработки техники."],
   };
 }
 

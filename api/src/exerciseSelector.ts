@@ -843,12 +843,3 @@ export function selectExercisesForDay(args: {
   return out;
 }
 
-// ============================================================================
-// EXPORT FOR BACKWARD COMPATIBILITY
-// ============================================================================
-
-export {
-  filterExercisesForPattern as filterExercisesForSlot,
-  scoreExerciseAdvanced as scoreExercise,
-  pickExercisesForPattern as pickExercises,
-};

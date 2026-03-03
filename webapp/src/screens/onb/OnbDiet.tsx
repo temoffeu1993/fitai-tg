@@ -7,7 +7,7 @@ export type Budget = "low" | "medium" | "high";
 
 const OPTIONS = ["Лактоза", "Орехи", "Глютен", "Свинина", "Другое", "Нет"] as const;
 
-export type OnbDietData = {
+type OnbDietData = {
   preferences: { dislike: string[] };
   dietPrefs: {
     restrictions: string[];
@@ -23,7 +23,6 @@ type Props = {
   loading?: boolean;
   onSubmit: (patch: OnbDietData) => void;
   onBack?: () => void;
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
 export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
@@ -50,7 +49,6 @@ export default function OnbDiet({ initial, loading, onSubmit, onBack }: Props) {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
-  const otherScrollYRef = useRef(0);
   const bodyOverflowRef = useRef<{
     htmlOverflow: string;
     bodyOverflow: string;
@@ -628,17 +626,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     outline: "none",
     caretColor: "#0f172a",
-  },
-  sheetCheck: {
-    width: "100%",
-    borderRadius: 14,
-    padding: "12px 16px",
-    border: "none",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
   },
   sheetPrimary: {
     width: "100%",

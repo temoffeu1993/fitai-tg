@@ -18,7 +18,6 @@ interface Props {
 
 export default function OnbStressExercise({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
-  const [showContent, setShowContent] = useState(false);
   const [uiState, setUiState] = useState({ label: "Вдох", count: 1 });
   const [showReady, setShowReady] = useState(false);
   const rafRef = useRef<number | null>(null);
@@ -33,16 +32,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
     if (root) root.scrollTop = 0;
     document.documentElement.scrollTop = 0;
     window.scrollTo(0, 0);
-  }, []);
-
-  useEffect(() => {
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) {
-      setShowContent(true);
-      return;
-    }
-    const t = window.setTimeout(() => setShowContent(true), 30);
-    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -71,7 +60,6 @@ export default function OnbStressExercise({ onComplete, onBack }: Props) {
         return;
       }
       const cycleElapsed = elapsed % CYCLE_MS;
-      const progress = (elapsed / CYCLE_MS) % 1;
       const stepIndex = Math.floor(cycleElapsed / SEGMENT_MS);
       const stepProgress = (cycleElapsed % SEGMENT_MS) / SEGMENT_MS;
       const currentCount = Math.floor(stepProgress * 4) + 1;
@@ -485,13 +473,6 @@ const st: Record<string, React.CSSProperties> = {
     fontSize: 22,
     fontWeight: 400,
     letterSpacing: 1,
-    color: "rgba(226, 232, 240, 0.85)",
-  },
-  boxCount: {
-    fontSize: 28,
-    fontWeight: 400,
-    fontVariantNumeric: "tabular-nums",
-    lineHeight: 1,
     color: "rgba(226, 232, 240, 0.85)",
   },
   boxReadyText: {

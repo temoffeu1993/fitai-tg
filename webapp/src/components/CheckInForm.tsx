@@ -980,14 +980,6 @@ const modal: Record<string, React.CSSProperties> = {
     paddingBottom:
       "calc(max(env(safe-area-inset-bottom, 0px), 0px) + clamp(2px, 0.7vh, 6px))",
   },
-  ghostBtn: {
-    borderRadius: 12,
-    padding: "12px 14px",
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
   save: {
     width: "100%",
     maxWidth: 420,

@@ -135,10 +135,6 @@ export type Exercise = {
   weightInverted?: boolean;
 };
 
-function lvRank(lv: Experience) {
-  return lv === "beginner" ? 1 : lv === "intermediate" ? 2 : 3;
-}
-
 export type UserConstraints = {
   experience: Experience;
   equipmentAvailable?: Equipment[];

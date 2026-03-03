@@ -73,76 +73,6 @@ function haptic() {
   } catch { }
 }
 
-function pluralExercises(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "упражнение";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "упражнения";
-  return "упражнений";
-}
-
-function pluralSets(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "подход";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "подхода";
-  return "подходов";
-}
-
-function ordinalWorkout(n: number): string {
-  // Russian ordinal for workout number
-  if (n === 1) return "1-я";
-  if (n === 2) return "2-я";
-  if (n === 3) return "3-я";
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 19) return `${n}-я`;
-  if (mod10 === 1) return `${n}-я`;
-  if (mod10 === 2) return `${n}-я`;
-  if (mod10 === 3) return `${n}-я`;
-  return `${n}-я`;
-}
-
-// ─── Effort mapping ────────────────────────────────────────────────────────────
-
-type EffortTag = "easy" | "working" | "quite_hard" | "hard" | "max";
-
-const EFFORT_LABELS: Record<EffortTag, string> = {
-  easy: "Легко",
-  working: "Рабочая",
-  quite_hard: "Ощутимо",
-  hard: "Тяжело",
-  max: "Максимум",
-};
-
-const EFFORT_NUMERIC: Record<EffortTag, number> = {
-  easy: 1,
-  working: 2,
-  quite_hard: 3,
-  hard: 4,
-  max: 5,
-};
-
-function effortLabel(tag: EffortTag | string | null | undefined): string {
-  if (!tag) return "";
-  return EFFORT_LABELS[tag as EffortTag] || "";
-}
-
-function avgEffortLabel(exercises: any[]): string {
-  const values: number[] = [];
-  for (const ex of exercises) {
-    const e = ex?.effort as EffortTag | undefined;
-    if (e && EFFORT_NUMERIC[e]) values.push(EFFORT_NUMERIC[e]);
-  }
-  if (values.length === 0) return "";
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  if (avg <= 1.5) return "Легко";
-  if (avg <= 2.5) return "Рабочая";
-  if (avg <= 3.5) return "Ощутимо";
-  if (avg <= 4.5) return "Тяжело";
-  return "Максимум";
-}
-
 // ─── Muscle group mapping ──────────────────────────────────────────────────────
 
 // ─── Muscle distribution: simple volume by 1–2 main muscles ─────────────────
@@ -531,8 +461,6 @@ export default function WorkoutResult() {
 function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutResult; contentVisible: boolean; nav: any }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
   const durationMin: number | null = toNumber(result.payload?.durationMin);
-  const totalExercises = payloadExercises.length;
-  const exerciseCount = payloadExercises.filter((ex: any) => ex?.done !== false && ex?.skipped !== true).length;
   const workoutTitle = resolveWorkoutTitle(result.payload);
 
   // Completion %
@@ -580,9 +508,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return () => { window.removeEventListener("workout_saved", reload); window.removeEventListener("storage", onStorage); };
   }, []);
 
-  // Average effort
-  const avgEffort = useMemo(() => avgEffortLabel(payloadExercises), [payloadExercises]);
-
   // Muscle distribution
   const muscleDistribution = useMemo(() => computeMuscleDistribution(payloadExercises), [payloadExercises]);
 
@@ -605,14 +530,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
       return { name: shortName, level, color, hasEffort: level > 0 };
     });
   }, [payloadExercises]);
-  const usedEffortKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const ex of payloadExercises) {
-      if (ex?.effort && EFFORT_LEVEL[ex.effort]) keys.add(ex.effort);
-    }
-    return Array.from(keys).sort((a, b) => EFFORT_LEVEL[a] - EFFORT_LEVEL[b]);
-  }, [payloadExercises]);
-
   // Both IDs needed: clientSessionId (before reconcile) and sessionId (after reconcile).
   const excludeIds = useMemo(() => {
     const ids = new Set<string>();
@@ -737,12 +654,10 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           const avgPercent = avgLevel > 0 ? (avgLevel / 5) * 100 : 0;
 
           let avgLabelStr = "Нет данных";
-          let avgColor = "#94A3B8";
           if (avgLevel > 0) {
             const nearestLevel = Math.round(avgLevel);
             const key = Object.keys(EFFORT_LEVEL).find(k => EFFORT_LEVEL[k] === nearestLevel) || "working";
             avgLabelStr = EFFORT_LABELS[key] || "Нормально";
-            avgColor = EFFORT_COLOR[key] || "#10B981";
           }
 
           return (
@@ -926,9 +841,6 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex", alignItems: "center", gap: 5,
     fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
   },
-  headerSubDot: {
-    fontSize: 14, color: "rgba(30,31,34,0.3)", lineHeight: 1,
-  },
 
   // ── Stat Pill
   statPill: {
@@ -975,9 +887,6 @@ const s: Record<string, CSSProperties> = {
   },
 
   // ── RPE Bar Chart
-  rpeChartWrap: {
-    display: "flex", gap: 6, alignItems: "flex-end", height: 140,
-  },
   progressCtaBarTrack: {
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
@@ -997,18 +906,6 @@ const s: Record<string, CSSProperties> = {
       "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
     transition: "height 600ms ease",
   } as CSSProperties,
-  rpeLegend: {
-    display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14,
-  } as CSSProperties,
-  rpeLegendItem: {
-    display: "flex", alignItems: "center", gap: 5,
-  },
-  rpeLegendDot: {
-    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-  },
-  rpeLegendText: {
-    fontSize: 12.5, fontWeight: 600, color: "rgba(15,23,42,0.55)", lineHeight: 1,
-  },
 
   // ── Exercise Progress
   exDivider: {

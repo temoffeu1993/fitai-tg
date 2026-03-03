@@ -9,7 +9,7 @@
 // Один источник правды для всех решений о тренировке.
 // ============================================================================
 
-import type { CheckInData, PainEntry } from "./workoutDayGenerator.js";
+import type { CheckInData } from "./workoutDayGenerator.js";
 import type { JointFlag } from "./exerciseLibrary.js";
 import type { TimeBucket } from "./normalizedSchemes.js";
 
@@ -99,7 +99,6 @@ export function computeReadiness(args: {
   // L2: 4-6 (умеренная боль, адаптация)
   // L3: 7-10 (сильная боль, ограничения)
   const countL2Plus = Array.from(painByLocation.values()).filter(l => l >= 4).length;
-  const countL3 = Array.from(painByLocation.values()).filter(l => l >= 7).length;
 
   // -------------------------------------------------------------------------
   // 2. CUMULATIVE SEVERITY SCORE (кумулятивная оценка)
@@ -361,9 +360,6 @@ export function computeReadiness(args: {
         return `${name} (${p.level}/10)`;
       })
       .join(", ");
-    
-    const maxPainLoc = checkin.pain.reduce((max, p) => p.level > max.level ? p : max);
-    const maxPainName = painLocationNames[maxPainLoc.location] || maxPainLoc.location;
     
     if (maxPainLevel >= 7) {
       warnings.push(
@@ -627,24 +623,3 @@ function mapPainToBlocks(location: string, level: number): {
 }
 
 // ============================================================================
-// HELPER: Translate pain location to Russian
-// ============================================================================
-
-export function translateLocation(location: string): string {
-  const map: Record<string, string> = {
-    shoulder: "плечо",
-    elbow: "локоть",
-    wrist: "запястье / кисть",
-    neck: "шея",
-    lower_back: "поясница",
-    hip: "тазобедренный сустав",
-    knee: "колено",
-    ankle: "голеностоп / стопа",
-    // Legacy aliases
-    back: "спина",
-    low_back: "поясница",
-    arm: "рука",
-  };
-
-  return map[location.toLowerCase()] || location;
-}

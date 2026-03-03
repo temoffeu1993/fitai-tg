@@ -426,7 +426,7 @@ function formatSetsDelta(diff: WorkoutSummaryDiff | null | undefined): string | 
   return `${diff.beforeSets} → ${diff.afterSets} подходов`;
 }
 
-export function buildCheckInFactPack(args: {
+function buildCheckInFactPack(args: {
   action: WorkoutStartAction;
   changed: boolean;
   changeMeta?: SummaryChangeMeta;
@@ -497,55 +497,7 @@ export function buildCheckInFactPack(args: {
   };
 }
 
-function detectSummaryDirection(text: string): "reduced" | "increased" | "neutral" {
-  const normalized = normalizeSummaryLine(text).toLowerCase();
-  if (!normalized) return "neutral";
-  if (/сократ|уменьш|облегч|легче|подсниз/i.test(normalized)) return "reduced";
-  if (/добав|увелич|больше объ|усилил|нагрузк.*выше/i.test(normalized)) return "increased";
-  return "neutral";
-}
-
-export function isSummaryTextContradiction(
-  whatChanged: string,
-  diff: WorkoutSummaryDiff | null | undefined
-): boolean {
-  if (!diff) return false;
-  const direction = detectSummaryDirection(whatChanged);
-  if (direction === "neutral") return false;
-  const signals = getSummaryDiffSignals(diff);
-  if (direction === "reduced") {
-    return signals.increasedSignificant && !signals.reducedSignificant;
-  }
-  return signals.reducedSignificant && !signals.increasedSignificant;
-}
-
-const summaryTextMetrics = {
-  total: 0,
-  contradictions: 0,
-};
-
-function trackSummaryTextMetric(args: {
-  action: WorkoutStartAction;
-  whatChanged: string;
-  diff: WorkoutSummaryDiff | null | undefined;
-}): boolean {
-  summaryTextMetrics.total += 1;
-  const contradiction = isSummaryTextContradiction(args.whatChanged, args.diff);
-  if (contradiction) {
-    summaryTextMetrics.contradictions += 1;
-    console.warn(
-      `[summary_text_contradiction] action=${args.action} whatChanged="${args.whatChanged}" diff=${JSON.stringify(args.diff)}`
-    );
-  }
-  if (summaryTextMetrics.total % 25 === 0) {
-    console.log(
-      `[summary_text_metric] total=${summaryTextMetrics.total} contradictions=${summaryTextMetrics.contradictions}`
-    );
-  }
-  return contradiction;
-}
-
-export function buildCoachSummaryBlocks(args: {
+function buildCoachSummaryBlocks(args: {
   action: WorkoutStartAction;
   changed: boolean;
   changeMeta?: SummaryChangeMeta;
@@ -785,12 +737,6 @@ export function buildSummaryPayload(args: {
     swapInfo: args.swapInfo,
     diff,
     facts,
-  });
-
-  trackSummaryTextMetric({
-    action: args.action,
-    whatChanged: blocks.whatChanged,
-    diff,
   });
 
   return {

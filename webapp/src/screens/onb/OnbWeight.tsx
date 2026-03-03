@@ -5,7 +5,7 @@ import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Sex } from "./OnbAgeSex";
 
-export type OnbWeightData = {
+type OnbWeightData = {
   profile?: { name: string };
   ageSex: { sex: Sex; age: number };
   body?: { height?: number; weight?: number };

@@ -7,7 +7,7 @@ import type { Budget } from "./OnbDiet";
 
 const OPTIONS = ["Всеядный", "Вегетарианец", "Веган", "Халяль", "Кошер", "Другое"] as const;
 
-export type OnbDietStyleData = {
+type OnbDietStyleData = {
   preferences: { dislike: string[] };
   dietPrefs: {
     restrictions: string[];
@@ -23,7 +23,6 @@ type Props = {
   loading?: boolean;
   onSubmit: (patch: OnbDietStyleData) => void;
   onBack?: () => void;
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
 export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Props) {
@@ -40,7 +39,6 @@ export default function OnbDietStyle({ initial, loading, onSubmit, onBack }: Pro
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [otherFocused, setOtherFocused] = useState(false);
   const hasOtherFocusRef = useRef(false);
-  const otherScrollYRef = useRef(0);
   const bodyOverflowRef = useRef<{
     htmlOverflow: string;
     bodyOverflow: string;
@@ -524,9 +522,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 10,
     width: "100%",
   },
-  inputWrap: {
-    minHeight: 58,
-  },
   tile: {
     borderRadius: 18,
     border: "1px solid var(--tile-border)",
@@ -606,17 +601,6 @@ const s: Record<string, React.CSSProperties> = {
     color: "#0f172a",
     outline: "none",
     caretColor: "#0f172a",
-  },
-  sheetCheck: {
-    width: "100%",
-    borderRadius: 14,
-    padding: "12px 16px",
-    border: "none",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
   },
   sheetPrimary: {
     width: "100%",

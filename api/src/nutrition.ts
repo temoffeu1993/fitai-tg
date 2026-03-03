@@ -549,10 +549,6 @@ type AsyncPlanArgs = {
   timeZone: string;
 };
 
-async function deletePlanById(planId: string): Promise<void> {
-  await q(`DELETE FROM nutrition_plans WHERE id = $1`, [planId]);
-}
-
 async function archivePlanById(planId: string): Promise<void> {
   await q(
     `UPDATE nutrition_plans

@@ -6,7 +6,7 @@ import maleRobotImg from "@/assets/robonew.webp";
 import femaleRobotImg from "@/assets/zhennew.webp";
 
 export type Sex = "male" | "female";
-export type OnbAgeSexData = {
+type OnbAgeSexData = {
   profile: { name: string };
   ageSex: { sex: Sex; age?: number };
   body?: { height?: number; weight?: number };
@@ -17,7 +17,6 @@ type Props = {
   loading?: boolean;
   onSubmit: (patch: OnbAgeSexData) => void;
   onBack?: () => void;
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
 export default function OnbAgeSex({ initial, loading, onSubmit, onBack }: Props) {

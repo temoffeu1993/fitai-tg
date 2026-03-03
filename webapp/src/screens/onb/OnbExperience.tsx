@@ -8,7 +8,7 @@ import { fireHapticImpact } from "@/utils/haptics";
 
 export type Experience = "beginner" | "intermediate" | "advanced";
 
-export type OnbExperienceData = {
+type OnbExperienceData = {
   experience: Experience;
   schedule?: { daysPerWeek: number; minutesPerSession: number };
 };
@@ -18,7 +18,6 @@ type Props = {
   loading?: boolean;
   onSubmit: (patch: OnbExperienceData) => void;
   onBack?: () => void;
-  onTabChange?: (tab: "home" | "workouts" | "nutrition" | "profile") => void;
 };
 
 const OPTIONS: Array<{ value: Experience; label: string }> = [
@@ -233,7 +232,6 @@ export default function OnbExperience({ initial, loading, onSubmit, onBack }: Pr
           .onb-fade-delay-3 { animation: none !important; }
           .onb-leave { animation: none !important; }
           .exp-card { transition: none !important; }
-          .workday-card { transition: none !important; }
           .intro-primary-btn { transition: none !important; }
           .robot-swap { animation: none !important; }
         }

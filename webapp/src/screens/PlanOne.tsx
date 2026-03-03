@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { loadHistory } from "@/lib/history";
 import {
-  createPlannedWorkout,
   getScheduleOverview,
   removePlannedWorkoutExercise,
   reschedulePlannedWorkout,
@@ -11,16 +9,14 @@ import {
   updatePlannedWorkout,
   type PlannedWorkout,
 } from "@/api/schedule";
-import { getMesocycleCurrent, submitCheckIn, type CheckInPayload } from "@/api/plan";
+import { getMesocycleCurrent } from "@/api/plan";
 import { excludeExercise, getExerciseAlternatives, type ExerciseAlternative } from "@/api/exercises";
 import { useWorkoutPlan } from "@/hooks/useWorkoutPlan";
 import { useNutritionGenerationProgress } from "@/hooks/useNutritionGenerationProgress";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
-import { CheckInForm } from "@/components/CheckInForm";
 import DateTimeWheelModal from "@/components/DateTimeWheelModal";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import { readSessionDraft } from "@/lib/activeWorkout";
-import { toSessionPlan } from "@/lib/toSessionPlan";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import { ArrowLeft, Ban, Clock3, Dumbbell, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { workoutTheme } from "@/components/workout-session/theme";
@@ -30,7 +26,6 @@ import zhimImg from "@/assets/zhim.webp";
 import nogiImg from "@/assets/nogi.webp";
 import sredneImg from "@/assets/sredne.webp";
 
-const toDateInput = (d: Date) => toDateKeyLocal(d);
 const defaultScheduleTime = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "18:00" : "09:00";
@@ -187,11 +182,6 @@ export default function PlanOne() {
     refresh,
   } = useWorkoutPlan<any>({ autoFetch: false });
   const sub = useSubscriptionStatus();
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState(() => toDateInput(new Date()));
-  const [scheduleTime, setScheduleTime] = useState(() => defaultScheduleTime());
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
   const [inlineScheduleModal, setInlineScheduleModal] = useState<PlanOneInlineScheduleState | null>(null);
   const [inlineScheduleSaving, setInlineScheduleSaving] = useState(false);
   const [inlineScheduleError, setInlineScheduleError] = useState<string | null>(null);
@@ -208,18 +198,6 @@ export default function PlanOne() {
   const [weekGenerating, setWeekGenerating] = useState(false);
   const [mesoWeek, setMesoWeek] = useState<number | null>(null);
 
-  // collapsible state
-  const [openWarmup, setOpenWarmup] = useState(false);
-  const [openMain, setOpenMain] = useState(false);
-  const [openCooldown, setOpenCooldown] = useState(false);
-
-  // trainer notes popup
-  const [showNotes, setShowNotes] = useState(false);
-  const [regenNotice, setRegenNotice] = useState<string | null>(null);
-  const [regenInlineError, setRegenInlineError] = useState<string | null>(null);
-  const [regenPending, setRegenPending] = useState(false);
-  const [checkInLoading, setCheckInLoading] = useState(false);
-  const [checkInError, setCheckInError] = useState<string | null>(null);
   const [initialPlanRequested, setInitialPlanRequested] = useState(false);
   const [initialWeekRequested, setInitialWeekRequested] = useState(false);
   const [needsCheckIn, setNeedsCheckIn] = useState(false);
@@ -248,36 +226,6 @@ export default function PlanOne() {
     }, 0);
     return Math.max(0, Math.min(100, Math.round((doneSets / totalSets) * 100)));
   }, [activeDraft]);
-
-  const isAdmin = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("profile");
-      const profile = raw ? JSON.parse(raw) : null;
-      const tgId = profile?.id ? String(profile.id) : null; // telegram numeric id
-      const userId = profile?.user_id ? String(profile.user_id) : null; // backend uuid if есть
-      const userUuid = profile?.uuid ? String(profile.uuid) : null;
-      const username = profile?.username ? String(profile.username) : null;
-      const adminEnv = String(import.meta.env.VITE_ADMIN_IDS || "")
-        .split(",")
-        .map((v) => v.trim().toLowerCase())
-        .filter(Boolean);
-      const adminTgEnv = String(import.meta.env.VITE_ADMIN_TG_IDS || "")
-        .split(",")
-        .map((v) => v.trim().toLowerCase())
-        .filter(Boolean);
-      const hardcoded = ["d5d09c2c-f82b-4055-8cfa-77342b3a89f2", "artemryzih"];
-      const override = localStorage.getItem("admin_override") === "1";
-      const identifiers = [tgId, userId, userUuid, username]
-        .filter(Boolean)
-        .map((v) => String(v).toLowerCase());
-      return (
-        override ||
-        identifiers.some((v) => adminEnv.includes(v) || adminTgEnv.includes(v) || hardcoded.includes(v))
-      );
-    } catch {
-      return false;
-    }
-  }, []);
 
   const loadPlanned = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
@@ -400,17 +348,7 @@ export default function PlanOne() {
     () => ["Анализ профиля", "Цели и ограничения", "Подбор упражнений", "Оптимизация нагрузки", "Формирование плана"],
     []
   );
-  const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => toDateKeyLocal(new Date()), []);
-  const heroDateChipRaw = today.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
-  const heroDateChip = heroDateChipRaw.charAt(0).toUpperCase() + heroDateChipRaw.slice(1);
-  const chips = useMemo(() => {
-    if (!plan) return null;
-    const sets = (plan.exercises || []).reduce((a: number, x: any) => a + Number(x.sets || 0), 0);
-    const minutes = Number(plan.duration || 0) || Math.max(25, Math.min(90, Math.round(sets * 3.5)));
-    const kcal = Math.round(minutes * 6);
-    return { sets, minutes, kcal };
-  }, [plan]);
   const { startManual: kickProgress } = useNutritionGenerationProgress(planStatus, {
     steps: steps.length,
     storageKey: "workout_generation_started_at",
@@ -422,7 +360,6 @@ export default function PlanOne() {
   const showLoader = (loading || isProcessing) && initialPlanRequested && !needsCheckIn;
   const showInitialPlannedLoader = plannedLoading && !hasInitialPlannedCache && !plannedFetchedOnce;
   const [paywall, setPaywall] = useState(false);
-  const effectivePlan = needsCheckIn ? null : plan;
 
   // When there are no planned workouts, we immediately show the loader while the auto-generation effect kicks in.
   // This avoids a UI "flash" where the user briefly sees the empty-state button after navigating from dashboard.
@@ -433,49 +370,6 @@ export default function PlanOne() {
     remainingPlanned.length === 0 &&
     !sub.locked &&
     !initialWeekRequested;
-
-  // Формируем понятное название тренировки на русском
-  const planTitle = useMemo(() => {
-    if (!effectivePlan) return "Тренировка дня";
-
-    const label = effectivePlan.dayLabel || "";
-    const focus = effectivePlan.dayFocus || "";
-
-    // Если есть dayLabel, используем его как базу
-    if (label.toLowerCase().includes("push")) {
-      return "Грудь, плечи и трицепс";
-    }
-    if (label.toLowerCase().includes("pull")) {
-      return "Спина и бицепс";
-    }
-    if (label.toLowerCase().includes("leg")) {
-      return "Ноги и Ягодицы";
-    }
-    if (label.toLowerCase().includes("upper")) {
-      return "Верхняя часть тела";
-    }
-    if (label.toLowerCase().includes("lower")) {
-      return "Нижняя часть тела";
-    }
-    if (label.toLowerCase().includes("full body")) {
-      return "Всё тело";
-    }
-
-    // Если в dayLabel есть русское название - используем его
-    if (label && /[а-яА-Я]/.test(label)) {
-      return label;
-    }
-
-    // Иначе пытаемся вытащить из focus
-    if (focus && /[а-яА-Я]/.test(focus)) {
-      // Берем первое предложение до точки/запятой
-      const firstPart = focus.split(/[.,:—]/)[0].trim();
-      if (firstPart.length < 50) return firstPart;
-    }
-
-    // Fallback на старое поведение
-    return effectivePlan.title?.trim() || "Тренировка дня";
-  }, [effectivePlan]);
 
   useEffect(() => {
     if (plan) {
@@ -512,8 +406,6 @@ export default function PlanOne() {
       } catch { }
       setNeedsCheckIn(true);
       setInitialPlanRequested(false);
-      setRegenPending(false);
-      setRegenInlineError(null);
     };
     window.addEventListener("plan_completed", onPlanCompleted as any);
     return () => window.removeEventListener("plan_completed", onPlanCompleted as any);
@@ -527,154 +419,7 @@ export default function PlanOne() {
     return () => window.removeEventListener("onb_updated" as any, onOnbUpdated);
   }, [refresh]);
 
-  // --- новый обработчик регенерации: сброс экрана и запуск генерации ---
-  const handleRegenerate = async () => {
-    try {
-      localStorage.removeItem("current_plan");
-      localStorage.removeItem("session_draft");
-    } catch { }
-    setShowNotes(false);
-    setRegenInlineError(null);
-    setRegenNotice(null);
-
-    if (sub.locked) {
-      setPaywall(true);
-      return;
-    }
-
-    // переводим пользователя обратно к форме чек-ина, чтобы сгенерировать с новыми данными
-    setNeedsCheckIn(true);
-    setInitialPlanRequested(false);
-    setRegenPending(false);
-  };
-
-  const handleCheckInSubmit = async (data: CheckInPayload) => {
-    setCheckInLoading(true);
-    setCheckInError(null);
-    try {
-      await submitCheckIn(data);
-      setInitialPlanRequested(true);
-      setNeedsCheckIn(false); // сразу уходим из формы и ждём новую генерацию
-      kickProgress();
-      setRegenPending(true);
-      await refresh({ force: true });
-    } catch (err: any) {
-      const message =
-        err?.body?.error ||
-        err?.body?.message ||
-        err?.message ||
-        "Не удалось сохранить самочувствие";
-      setCheckInError(String(message));
-    } finally {
-      setRegenPending(false);
-      setCheckInLoading(false);
-    }
-  };
-
-  // REMOVED: handlePreWorkoutCheckInSubmit - now handled in separate CheckIn screen
-
-  const handleScheduleOpen = () => {
-    setScheduleDate(toDateInput(new Date()));
-    setScheduleTime(defaultScheduleTime());
-    setScheduleError(null);
-    setShowScheduleModal(true);
-  };
-
-  const handleScheduleConfirm = async () => {
-    if (!plan) return;
-    if (!scheduleDate || !scheduleTime) {
-      setScheduleError("Укажи дату и время");
-      return;
-    }
-    const when = new Date(`${scheduleDate}T${scheduleTime}`);
-    if (!Number.isFinite(when.getTime())) {
-      setScheduleError("Некорректная дата или время");
-      return;
-    }
-
-    try {
-      setScheduleSaving(true);
-      setScheduleError(null);
-      await createPlannedWorkout({
-        plan,
-        scheduledFor: when.toISOString(),
-        scheduledTime: scheduleTime,
-        date: scheduleDate,
-        time: scheduleTime,
-        utcOffsetMinutes: when.getTimezoneOffset(),
-      });
-      setShowScheduleModal(false);
-      try {
-        window.dispatchEvent(new CustomEvent("schedule_updated"));
-      } catch { }
-      nav("/", { replace: true });
-    } catch (err) {
-      console.error("createPlannedWorkout failed", err);
-      setScheduleError("Не удалось сохранить. Попробуй ещё раз.");
-    } finally {
-      setScheduleSaving(false);
-    }
-  };
-
   // New UI: show all generated workouts (remaining ones) as selectable cards
-  const selectedPlanned = remainingPlanned.find((w) => w.id === selectedPlannedId) || null;
-  const canStart = Boolean(selectedPlanned && selectedPlanned.scheduledFor);
-  const startWorkoutDate = selectedPlanned?.scheduledFor ? toLocalDateInput(selectedPlanned.scheduledFor) : null;
-  const normalizeSchemeTitleRU = (raw: string) => {
-    let s = String(raw || "").trim();
-    if (!s) return "Схема тренировок";
-
-    // remove emojis
-    s = s.replace(/[\u{1F300}-\u{1FAFF}]/gu, "").trim();
-    // remove bracketed qualifiers
-    s = s.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s*\[[^\]]*]\s*/g, " ").trim();
-    // remove trailing qualifiers after dash
-    s = s.replace(/\s*[-—–].*$/g, "").trim();
-    s = s.replace(/\s{2,}/g, " ").trim();
-
-    const v = s.toLowerCase();
-
-    const hasUpper = /(upper|верх)/.test(v);
-    const hasLower = /(lower|низ)/.test(v);
-    const hasFull = /(full\s*body|fullbody|full|всё\s*тело|все\s*тело)/.test(v);
-    const hasPPL = /(ppl|push|pull|legs?|пуш|пул|ног)/.test(v);
-
-    if (hasUpper && hasLower && hasFull) return "Верх/Низ/Всё тело";
-    if (hasUpper && hasLower) return "Верх/Низ";
-    if (hasFull) return "Всё тело";
-    if (hasPPL) return "Пуш/Пул/Ноги";
-    if (hasUpper) return "Верх";
-    if (hasLower) return "Низ";
-
-    // light translation for common english words + cleanup
-    s = s
-      .replace(/full\s*body|fullbody/gi, "Всё тело")
-      .replace(/upper/gi, "Верх")
-      .replace(/lower/gi, "Низ")
-      .replace(/push/gi, "Пуш")
-      .replace(/pull/gi, "Пул")
-      .replace(/legs?/gi, "Ноги");
-
-    s = s
-      .replace(/\s*[|]\s*/g, "/")
-      .replace(/\s*\/\s*/g, "/")
-      .replace(/\s*-\s*/g, "/")
-      .replace(/\s{2,}/g, " ")
-      .replace(/[,:;.!]+$/g, "")
-      .trim();
-
-    if (!s) return "Схема тренировок";
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  };
-
-  const schemeTitle = (() => {
-    const pool = [selectedPlanned, ...remainingPlanned].filter(Boolean) as PlannedWorkout[];
-    for (const w of pool) {
-      const name = String((w.plan as any)?.schemeName || "").trim();
-      if (name) return normalizeSchemeTitleRU(name);
-    }
-    return "Тренировки";
-  })();
   const weekHeaderTitle = formatWeekTitleRu(mesoWeek);
 
   const dayLabelRU = (planLike: any) => {
@@ -705,12 +450,6 @@ export default function PlanOne() {
     return sredneImg;
   };
 
-  const decapitalizeRU = (text: string) => {
-    const s = String(text || "").trim();
-    if (!s) return s;
-    return s.charAt(0).toLowerCase() + s.slice(1);
-  };
-
   const workoutChips = (p: any) => {
     const totalExercises = Number(p?.totalExercises) || (Array.isArray(p?.exercises) ? p.exercises.length : 0);
     const minutes = Number(p?.estimatedDuration) || null;
@@ -727,13 +466,6 @@ export default function PlanOne() {
       cues: String(ex?.tagline || ex?.notes || ex?.cues || "").trim() || undefined,
     }));
 
-  const selectedDayLabel = (() => {
-    if (!selectedPlanned) return null;
-    const p: any = selectedPlanned.plan || {};
-    return dayLabelRU(p);
-  })();
-
-  const startCtaLabel = "🏁 Начать тренировку";
   const replaceTargetDate = (() => {
     const raw = (location.state as any)?.replaceDate;
     if (typeof raw !== "string") return null;
@@ -910,36 +642,6 @@ export default function PlanOne() {
     } finally {
       setWeekGenerating(false);
     }
-  };
-
-  const handleStartSelected = () => {
-    if (!selectedPlanned || !startWorkoutDate) return;
-    const selectedId = selectedPlanned.id;
-    if (activeDraft?.plannedWorkoutId === selectedId) {
-      nav("/workout/session", { state: { plannedWorkoutId: selectedId } });
-      return;
-    }
-    if ((selectedPlanned.plan as any)?.meta?.checkinApplied) {
-      nav("/workout/session", { state: { plan: toSessionPlan(selectedPlanned.plan as any), plannedWorkoutId: selectedId } });
-      return;
-    }
-    nav("/check-in", {
-      state: {
-        workoutDate: startWorkoutDate,
-        plannedWorkoutId: selectedPlanned.id,
-        returnTo: "/plan/one",
-      },
-    });
-  };
-
-  const handleScheduleSelected = () => {
-    const fallback =
-      selectedPlanned ||
-      remainingPlanned[0] ||
-      plannedWorkouts.find((w) => w.status === "scheduled" || w.status === "pending") ||
-      null;
-    if (!fallback) return;
-    openScheduleForWorkout(fallback.id);
   };
 
   const weekWorkouts = (plannedWorkouts || [])
@@ -1346,172 +1048,6 @@ export default function PlanOne() {
       ) : null}
     </div>
   );
-
-  // вычисления для верхнего блока (кнопки и метрики)
-  const workoutNumber = (() => {
-    try { const history = loadHistory(); return history.length + 1; } catch { return 1; }
-  })();
-  const totalExercises = Array.isArray(plan.exercises) ? plan.exercises.length : 0;
-  const regenButtonDisabled = sub.locked || regenPending;
-  const regenButtonLabel = regenPending ? "Готовим план..." : "Сгенерировать заново";
-
-  return (
-    <div style={s.page}>
-      <SoftGlowStyles />
-      <TypingDotsStyles />
-
-      {/* HERO */}
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>{heroDateChip}</span>
-        </div>
-        <div style={s.heroTitle}>{planTitle}</div>
-        <div style={s.heroSubtitle}>Краткое превью перед стартом</div>
-
-        <div style={s.heroCtas}>
-          <button
-            style={s.primaryBtn}
-            onClick={() => {
-              // Navigate to check-in screen
-              nav("/check-in", {
-                state: {
-                  workoutDate: toDateInput(new Date()),
-                  returnTo: "/plan/one",
-                },
-              });
-            }}
-          >
-            🏁 Начать тренировку
-          </button>
-
-          <button
-            type="button"
-            style={s.secondaryBtn}
-            onClick={handleScheduleOpen}
-          >
-            📅 Запланировать
-          </button>
-        </div>
-
-        {/* regenerate button removed by request */}
-      </section>
-
-      {/* Чипы в фирменном стиле под верхним блоком */}
-      {chips && (
-        <section style={s.statsRow}>
-          <ChipStatSquare emoji="🎯" label="Тренировка" value={`#${workoutNumber}`} />
-          <ChipStatSquare emoji="🕒" label="Время" value={`${chips.minutes} мин`} />
-          <ChipStatSquare emoji="💪" label="Упражнения" value={`${totalExercises}`} />
-        </section>
-      )}
-
-      {/* Разминка */}
-      {Array.isArray(plan.warmup) && plan.warmup.length > 0 && (
-        <SectionCard
-          icon="🔥"
-          title="Разминка"
-          hint="Мягкая активация. Подготовь суставы и мышцы к работе, двигайся плавно без рывков."
-          isOpen={openWarmup}
-          onToggle={() => setOpenWarmup((v) => !v)}
-        >
-          <ExercisesList items={plan.warmup} variant="warmup" isOpen={openWarmup} />
-        </SectionCard>
-      )}
-
-      {/* Основная часть */}
-      <SectionCard
-        icon="💪"
-        title="Основная часть"
-        hint={plan.dayFocus || `${plan.dayLabel}: Основной тренировочный блок с прогрессией нагрузки. Следи за техникой выполнения.`}
-        isOpen={openMain}
-        onToggle={() => setOpenMain((v) => !v)}
-      >
-        <ExercisesList items={plan.exercises} variant="main" isOpen={openMain} />
-      </SectionCard>
-
-      {/* Заминка */}
-      {Array.isArray(plan.cooldown) && plan.cooldown.length > 0 && (
-        <SectionCard
-          icon="🧘"
-          title="Заминка"
-          hint="Восстановление после нагрузки. Снизь пульс, растянь основные группы мышц, восстанови дыхание."
-          isOpen={openCooldown}
-          onToggle={() => setOpenCooldown((v) => !v)}
-        >
-          <ExercisesList items={plan.cooldown} variant="cooldown" isOpen={openCooldown} />
-        </SectionCard>
-      )}
-
-      <div style={{ height: 56 }} />
-
-      {showScheduleModal && (
-        <ScheduleModal
-          title={plan.title || "Тренировка"}
-          date={scheduleDate}
-          time={scheduleTime}
-          loading={scheduleSaving}
-          error={scheduleError}
-          onClose={() => setShowScheduleModal(false)}
-          onSubmit={handleScheduleConfirm}
-          onDateChange={(val) => setScheduleDate(val)}
-          onTimeChange={(val) => setScheduleTime(val)}
-        />
-      )}
-
-      {/* Комментарий тренера */}
-      {plan.notes && (
-        <>
-          {/* чат-панель над иконкой */}
-          {showNotes && (
-            <div
-              style={notesStyles.chatPanelWrap}
-            >
-              <div style={notesStyles.chatPanel}>
-                <div style={notesStyles.chatHeader}>
-                  <div style={notesStyles.chatHeaderLeft}>
-                    <div style={notesStyles.robotIconLarge}>🤖</div>
-                    <div style={notesStyles.chatTitle}>Комментарий тренера</div>
-                  </div>
-                  <button
-                    style={notesStyles.closeBtn}
-                    onClick={() => setShowNotes(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div style={notesStyles.chatBody}>{plan.notes}</div>
-              </div>
-            </div>
-          )}
-
-          {/* плавающая кнопка тренера */}
-          <div style={notesStyles.fabWrap} onClick={() => setShowNotes((v) => !v)}>
-            {!showNotes && (
-              <div style={notesStyles.speechBubble}>
-                <div style={notesStyles.speechText}>Комментарий тренера</div>
-                <div style={notesStyles.speechArrow} />
-              </div>
-            )}
-            <div style={notesStyles.fabCircle}>
-              <span style={{ fontSize: 35, lineHeight: 1 }}>🤖</span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {inlineScheduleReplaceConfirm ? (
-        <ScheduleReplaceConfirmModal
-          message={`На эту дату уже стоит тренировка «${inlineScheduleReplaceConfirm.conflictTitle}». Заменить ее на «${inlineScheduleReplaceConfirm.targetTitle}»?`}
-          busy={inlineScheduleSaving}
-          onConfirm={handleInlineScheduleReplaceConfirm}
-          onCancel={() => {
-            if (inlineScheduleSaving) return;
-            setInlineScheduleReplaceConfirm(null);
-          }}
-        />
-      ) : null}
-    </div>
-  );
 }
 
 /* ----------------- Типы и утилиты ----------------- */
@@ -1605,67 +1141,10 @@ function pluralizeTrainings(count: number) {
   return "тренировок";
 }
 
-function djb2(str: string) {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
-  return String(h >>> 0);
-}
-
 function formatReps(r?: number | string | [number, number]) {
   if (r == null || r === "") return "—";
   if (Array.isArray(r)) return r.join("-"); // [4, 6] → "4-6"
   return typeof r === "number" ? String(r) : String(r);
-}
-
-function muscleNameRU(muscle: string): string {
-  if (!muscle || typeof muscle !== 'string') return '';
-  const map: Record<string, string> = {
-    quads: "Квадрицепсы",
-    glutes: "Ягодицы",
-    hamstrings: "Бицепс бедра",
-    calves: "Икры",
-    chest: "Грудь",
-    lats: "Широчайшие",
-    upper_back: "Верх спины",
-    traps: "Трапеции",
-    rear_delts: "Задние дельты",
-    front_delts: "Передние дельты",
-    side_delts: "Средние дельты",
-    triceps: "Трицепс",
-    biceps: "Бицепс",
-    forearms: "Предплечья",
-    core: "Кор",
-    lower_back: "Поясница",
-  };
-  return map[muscle] || muscle;
-}
-
-function equipmentNameRU(equipment: string): string {
-  if (!equipment || typeof equipment !== 'string') return '';
-  const map: Record<string, string> = {
-    barbell: "Штанга",
-    dumbbell: "Гантели",
-    machine: "Тренажер",
-    cable: "Кабель",
-    smith: "Смит",
-    bodyweight: "Свой вес",
-    kettlebell: "Гиря",
-    bands: "Резинки",
-    bench: "Скамья",
-    pullup_bar: "Турник",
-    trx: "TRX",
-    sled: "Сани",
-    cardio_machine: "Кардио",
-    landmine: "Мина",
-  };
-  return map[equipment] || equipment;
-}
-
-function formatSec(s?: number) {
-  if (s == null) return "—";
-  const m = Math.floor((s as number) / 60);
-  const sec = Math.round((s as number) % 60);
-  return m ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}с`;
 }
 
 /* ----------------- Компоненты UI ----------------- */
@@ -1699,453 +1178,6 @@ function WorkoutLoader() {
         </div>
         <div style={loaderSimple.label}>Готовлю тренировки</div>
       </div>
-    </div>
-  );
-}
-
-function ScheduleModal({
-  title,
-  date,
-  time,
-  loading,
-  error,
-  onClose,
-  onSubmit,
-  onDateChange,
-  onTimeChange,
-}: {
-  title: string;
-  date: string;
-  time: string;
-  loading: boolean;
-  error: string | null;
-  onClose: () => void;
-  onSubmit: () => void;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
-}) {
-  return (
-    <div style={modal.wrap} role="dialog" aria-modal="true">
-      <div style={modal.card}>
-        <div style={modal.header}>
-          <div style={modal.title}>{title}</div>
-          <button style={modal.close} onClick={onClose} type="button">
-            ✕
-          </button>
-        </div>
-        <div style={modal.body}>
-          <label style={modal.label}>
-            <span style={modal.labelText}>Дата</span>
-            <input
-              style={modal.input}
-              type="date"
-              value={date}
-              onChange={(e) => onDateChange(e.target.value)}
-            />
-          </label>
-          <label style={modal.label}>
-            <span style={modal.labelText}>Время</span>
-            <input
-              style={modal.input}
-              type="time"
-              value={time}
-              onChange={(e) => onTimeChange(e.target.value)}
-            />
-          </label>
-          {error && <div style={modal.error}>{error}</div>}
-        </div>
-        <div style={modal.footer}>
-          <button
-            style={modal.cancel}
-            onClick={onClose}
-            type="button"
-            disabled={loading}
-          >
-            Отмена
-          </button>
-          <button
-            style={modal.save}
-            onClick={onSubmit}
-            type="button"
-            disabled={loading}
-          >
-            {loading ? "Сохраняю…" : "Сохранить"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Insight({ title, value, hint }: { title: string; value: string; hint?: string }) {
-  return (
-    <div style={s.insightBox}>
-      <div style={s.insightTitle}>{title}</div>
-      <div style={s.insightValue}>{value || "—"}</div>
-      {hint ? <div style={s.insightHint}>{hint}</div> : null}
-    </div>
-  );
-}
-
-function SectionCard({
-  icon,
-  title,
-  hint,
-  children,
-  isOpen,
-  onToggle,
-  chips,
-}: {
-  icon: string;
-  title: string;
-  hint?: string;
-  children: any;
-  isOpen: boolean;
-  onToggle: () => void;
-  chips?: Array<{ emoji: string; text: string }>;
-}) {
-  // Стиль карточки схемы
-  const schemeCardStyle: React.CSSProperties = {
-    position: "relative",
-    padding: 18,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    cursor: "default",
-    transition: "all 0.3s ease",
-    marginBottom: 16,
-  };
-
-  const schemeName: React.CSSProperties = {
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#0f172a",
-    marginTop: 0,
-    marginBottom: 8,
-    lineHeight: 1.2,
-    letterSpacing: "-0.02em",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  };
-
-  const schemeInfoStyle: React.CSSProperties = {
-    display: "flex",
-    gap: 8,
-    marginBottom: 16,
-    flexWrap: "wrap",
-  };
-
-  const infoChipStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#334155",
-    whiteSpace: "nowrap",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  };
-
-  const schemeDescriptionStyle: React.CSSProperties = {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 1.6,
-    marginBottom: 16,
-    fontWeight: 500,
-  };
-
-  const expandBtnStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  };
-
-  return (
-    <section style={s.block}>
-      <div style={schemeCardStyle}>
-        {/* Название */}
-        <div style={schemeName}>
-          <span style={{ fontSize: 24 }}>{icon}</span>
-          <span>{title}</span>
-        </div>
-
-        {/* Чипы с инфо */}
-        {chips && chips.length > 0 && (
-          <div style={schemeInfoStyle}>
-            {chips.map((chip, i) => (
-              <span key={i} style={infoChipStyle}>
-                {chip.emoji} {chip.text}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Описание */}
-        {hint && <div style={schemeDescriptionStyle}>{hint}</div>}
-
-        {/* Кнопка упражнения */}
-        <button type="button" onClick={onToggle} style={expandBtnStyle}>
-          {isOpen ? "Свернуть упражнения ▲" : "Упражнения ▼"}
-        </button>
-
-        {/* Раздел с упражнениями (анимированный) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateRows: isOpen ? "1fr" : "0fr",
-            transition: "grid-template-rows 0.3s ease-out",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ minHeight: 0 }}>{children}</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ExercisesList({
-  items,
-  variant,
-  isOpen,
-}: {
-  items: Array<Exercise | string>;
-  variant: "warmup" | "main" | "cooldown";
-  isOpen: boolean;
-}) {
-  const [expandedTechnique, setExpandedTechnique] = useState<Set<number>>(new Set());
-
-  if (!Array.isArray(items) || items.length === 0 || !isOpen) return null;
-  const isMain = variant === "main";
-
-
-  const toggleTechnique = (index: number) => {
-    setExpandedTechnique(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
-  // Styles for technique section
-  const techBtn: React.CSSProperties = {
-    width: "100%",
-    padding: "10px",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 8,
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  };
-
-  const techDetails: React.CSSProperties = {
-    marginTop: 12,
-    padding: 14,
-    background: "rgba(255,255,255,0.5)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
-    display: "grid",
-    gap: 10,
-  };
-
-  const techBlock: React.CSSProperties = {
-    display: "grid",
-    gap: 6,
-  };
-
-  const techTitle: React.CSSProperties = {
-    fontSize: 13,
-    fontWeight: 800,
-    color: "#0B1220",
-  };
-
-  const techText: React.CSSProperties = {
-    fontSize: 13,
-    color: "#475569",
-    lineHeight: 1.6,
-  };
-
-  const techList: React.CSSProperties = {
-    margin: 0,
-    paddingLeft: 20,
-    fontSize: 13,
-    color: "#475569",
-    lineHeight: 1.6,
-    display: "grid",
-    gap: 4,
-  };
-
-  // Стиль в формате daysList/dayItem из карточек схем
-  const detailsSection: React.CSSProperties = {
-    marginTop: 12,
-    padding: 14,
-    background: "rgba(255,255,255,0.5)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.06)",
-    display: "grid",
-    gap: 10,
-  };
-
-  const dayItem: React.CSSProperties = {
-    padding: 8,
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 8,
-    border: "1px solid rgba(0,0,0,0.06)",
-  };
-
-  const dayLabel: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#0B1220",
-    marginBottom: 2,
-  };
-
-  const dayFocus: React.CSSProperties = {
-    fontSize: 11,
-    color: "#4a5568",
-    lineHeight: 1.3,
-  };
-
-  const benefitsTitle: React.CSSProperties = {
-    fontSize: 13,
-    fontWeight: 800,
-    color: "#0B1220",
-    marginBottom: 6,
-  };
-
-  const benefitsList: React.CSSProperties = {
-    margin: 0,
-    paddingLeft: 18,
-    lineHeight: 1.5,
-  };
-
-  const benefitItem: React.CSSProperties = {
-    fontSize: 12,
-    color: "#1b1b1b",
-    marginBottom: 4,
-  };
-
-  const infoChipStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#334155",
-    whiteSpace: "nowrap",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  };
-
-  // Для warmup/cooldown показываем как список преимуществ БЕЗ заголовка
-  if (variant === "warmup" || variant === "cooldown") {
-    return (
-      <div style={detailsSection}>
-        <ul style={benefitsList}>
-          {items.map((item, i) => {
-            const name = typeof item === "string" ? item : item.name;
-            return (
-              <li key={`${variant}-${i}`} style={benefitItem}>
-                {name}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    );
-  }
-
-  // Для main показываем каждое упражнение отдельным блоком БЕЗ общего контейнера
-  return (
-    <div style={{ marginTop: 6, display: "grid", gap: 8 }}>
-      {items.map((item, i) => {
-        const isString = typeof item === "string";
-        const name = isString ? item : item.name;
-        const cues = isString ? null : item.cues;
-        const sets = !isString ? item.sets : null;
-        const reps = !isString ? item.reps : null;
-        const restSec = !isString ? item.restSec : null;
-
-        return (
-          <div
-            key={`${variant}-${i}-${name ?? "step"}`}
-            style={{
-              ...dayItem,
-              display: "flex",
-              gap: 12,
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-            }}
-          >
-            {/* Левая часть: название и описание */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={dayLabel}>
-                {name || `Упражнение ${i + 1}`}
-              </div>
-              {cues && <div style={dayFocus}>{cues}</div>}
-            </div>
-
-            {/* Правая часть: чипы */}
-            {typeof sets === 'number' && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
-                <span style={infoChipStyle}>
-                  💪 {sets}×{formatReps(reps)}
-                </span>
-                {typeof restSec === 'number' && (
-                  <span style={infoChipStyle}>
-                    ⏱️ {formatSec(restSec)}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -2817,8 +1849,6 @@ const peeCss = `
 /* ----------------- Стиль под Dashboard ----------------- */
 
 const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-const BLOCK_GRADIENT =
-  "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)";
 const loaderSimple = {
   wrap: {
     minHeight: "100vh",
@@ -2839,103 +1869,7 @@ const loaderSimple = {
   } as React.CSSProperties,
 };
 
-/* ----------------- Мелкие элементы ----------------- */
-
-const modal: Record<string, React.CSSProperties> = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,.35)",
-    display: "grid",
-    placeItems: "center",
-    padding: 16,
-    zIndex: 2000,
-    overscrollBehavior: "contain",
-  },
-  card: {
-    width: "min(92vw, 420px)",
-    borderRadius: 18,
-    background: "#fff",
-    boxShadow: "0 22px 60px rgba(0,0,0,.32)",
-    padding: 20,
-    display: "grid",
-    gap: 18,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 800,
-  },
-  close: {
-    border: "none",
-    background: "transparent",
-    fontSize: 20,
-    cursor: "pointer",
-    lineHeight: 1,
-    color: "#555",
-  },
-  body: {
-    display: "grid",
-    gap: 12,
-  },
-  label: {
-    display: "grid",
-    gap: 6,
-  },
-  labelText: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#555",
-  },
-  input: {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,.12)",
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#1b1b1b",
-    fontFamily: "inherit",
-  },
-  error: {
-    background: "rgba(255,102,102,.12)",
-    color: "#d24",
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "8px 10px",
-    borderRadius: 10,
-  },
-  footer: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  cancel: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    background: "rgba(0,0,0,.06)",
-    color: "#333",
-    cursor: "pointer",
-  },
-  save: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 14px",
-    fontWeight: 700,
-    color: "#1b1b1b",
-    background: "linear-gradient(135deg,#ffe680,#ffb36b)",
-    boxShadow: "0 5px 16px rgba(0,0,0,.18)",
-    cursor: "pointer",
-  },
-};
-
 const s: Record<string, React.CSSProperties> = {
-  ...modal,
   menuWrap: {
     padding: "0px 0px 8px",
   },
@@ -3105,7 +2039,6 @@ const s: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  heroKicker: { marginTop: 10, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" },
   pill: {
     background: "rgba(255,255,255,.08)",
     padding: "6px 10px",
@@ -3129,24 +2062,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   heroTitle: { fontSize: 24, fontWeight: 800, marginTop: 6, color: "#fff" },
   heroSubtitle: { opacity: 0.85, marginTop: 4, color: "rgba(255,255,255,.85)" },
-  heroCtas: {
-    marginTop: 18,
-    display: "grid",
-    gap: 12,
-    width: "100%",
-  },
-  loaderBox: {
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,.08)",
-    background: "rgba(255,255,255,.06)",
-    backdropFilter: "blur(6px)",
-  },
-  loaderTitle: { fontWeight: 700, fontSize: 16, color: "#fff", marginBottom: 8 },
-  loaderSteps: { display: "grid", gap: 8 },
-  loaderStep: { display: "flex", alignItems: "center", gap: 10, fontSize: 14 },
-  loaderDot: { width: 12, height: 12, borderRadius: 999, background: "rgba(255,255,255,.2)" },
   primaryBtn: {
     width: "100%",
     borderRadius: 16,
@@ -3161,113 +2076,6 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
-  secondaryBtn: {
-    width: "100%",
-    borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#000",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    border: "none",
-    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
-    cursor: "pointer",
-  },
-
-  heroStartBtn: {
-    marginTop: 22,
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
-    border: "1px solid rgba(255,255,255,.12)",
-    background: "rgba(255,255,255,.08)",
-    color: "#fff",
-    fontWeight: 800,
-    fontSize: 17,
-    cursor: "pointer",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.14)",
-    backdropFilter: "blur(4px)",
-    WebkitBackdropFilter: "blur(4px)",
-    WebkitTapHighlightColor: "transparent",
-    whiteSpace: "nowrap",
-  },
-
-  block: {
-    marginTop: 16,
-    padding: 0,
-    borderRadius: 16,
-    background: "transparent",
-    boxShadow: "none",
-  },
-  statsSection: {
-    marginTop: 12,
-    padding: 0,
-    background: "transparent",
-    boxShadow: "none",
-  },
-
-  linkBtn: {
-    marginTop: 8,
-    width: "100%",
-    border: "none",
-    background: "transparent",
-    color: "#fff",
-    textDecoration: "underline",
-    cursor: "pointer",
-    fontSize: 14,
-    textAlign: "left",
-    padding: 0,
-  },
-
-  statsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(96px, 1fr))",
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 10,
-  },
-  chipSquare: {
-    background: "rgba(255,255,255,0.6)",
-    color: "#000",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    borderRadius: 12,
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    gap: 4,
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-    hyphens: "none",
-  },
-
-  stat: {
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
-    gap: 4,
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-  },
-  statEmoji: { fontSize: 22 },
-  statLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-    lineHeight: 1.2,
-  },
-  statValue: { fontSize: 16, fontWeight: 800 },
-
   blockWhite: {
     marginTop: 16,
     padding: 14,
@@ -3275,18 +2083,6 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     boxShadow: cardShadow,
   },
-  checkInCard: {
-    marginTop: 12,
-    padding: 0,
-    borderRadius: 0,
-    background: "transparent",
-    border: "none",
-    boxShadow: "none",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
-    marginBottom: 72,
-  },
-
   rowBtn: {
     border: "none",
     padding: "12px 14px",
@@ -3298,172 +2094,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 8,
   },
 
-  loadWrap: { marginTop: 10, display: "grid", justifyItems: "center" },
-
-  ghostBtn: {
-    width: "100%",
-    marginTop: 10,
-    padding: "8px 0",
-    border: "none",
-    borderRadius: 14,
-    background: "transparent",
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 400,
-    cursor: "pointer",
-    textAlign: "center",
-  },
-  buttonNote: {
-    fontSize: 13,
-    color: "rgba(255,255,255,.8)",
-    marginTop: 10,
-    fontWeight: 400,
-    opacity: 0.85,
-    textAlign: "left",
-  },
-  inlineError: {
-    fontSize: 13,
-    color: "rgba(255,255,255,.8)",
-    marginTop: 10,
-    fontWeight: 400,
-    opacity: 0.85,
-    textAlign: "left",
-  },
-
-  analysisGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-    gap: 12,
-    padding: "12px 12px 0",
-  },
-  analysisList: {
-    padding: "0 16px 12px",
-    fontSize: 13,
-    color: "#1f2933",
-  },
-  analysisListTitle: {
-    fontWeight: 700,
-    marginBottom: 4,
-  },
-  analysisWarnings: {
-    padding: "0 16px 16px",
-    display: "grid",
-    gap: 4,
-    fontSize: 13,
-    color: "#b45309",
-    background: "rgba(255,196,150,0.2)",
-    borderRadius: "0 0 16px 16px",
-  },
-  insightBox: {
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,.08)",
-    background: "#fff",
-    padding: 12,
-    boxShadow: "0 6px 12px rgba(0,0,0,.05)",
-    minHeight: 80,
-    display: "grid",
-    gap: 4,
-  },
-  insightTitle: {
-    fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    color: "#6b7280",
-    fontWeight: 700,
-  },
-  insightValue: {
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#111",
-  },
-  insightHint: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
 };
-
-function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div style={s.stat}>
-      <div style={s.statEmoji}>{icon}</div>
-      <div style={s.statLabel}>{label}</div>
-      <div style={s.statValue}>{value}</div>
-    </div>
-  );
-}
-
-function ChipStatSquare({
-  emoji,
-  label,
-  value,
-}: {
-  emoji: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div style={s.chipSquare}>
-      <div style={{ fontSize: 22 }}>{emoji}</div>
-      <div
-        style={{
-          fontSize: 12,
-          opacity: 0.7,
-          textAlign: "center",
-          whiteSpace: "normal",
-          lineHeight: 1.2,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 16,
-          fontWeight: 600,
-          textAlign: "center",
-          whiteSpace: "normal",
-          lineHeight: 1.2,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function SkeletonLine({ w = 100 }: { w?: number }) {
-  return (
-    <div
-      style={{
-        height: 10,
-        width: `${w}%`,
-        borderRadius: 6,
-        background:
-          "linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 37%, rgba(0,0,0,0.06) 63%)",
-        backgroundSize: "400% 100%",
-        animation: "shimmer 1.4s ease-in-out infinite",
-        marginTop: 8,
-      }}
-    />
-  );
-}
-
-function Spinner() {
-  return (
-    <svg width="56" height="56" viewBox="0 0 50 50" style={{ display: "block" }}>
-      <circle cx="25" cy="25" r="20" stroke="rgba(255,255,255,.35)" strokeWidth="6" fill="none" />
-      <circle
-        cx="25" cy="25" r="20"
-        stroke="#fff" strokeWidth="6" strokeLinecap="round" fill="none"
-        strokeDasharray="110" strokeDashoffset="80"
-        style={{ transformOrigin: "25px 25px", animation: "spin 1.2s linear infinite" }}
-      />
-      <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
-        @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-      `}</style>
-    </svg>
-  );
-}
 
 function SoftGlowStyles() {
   return (
@@ -3517,175 +2148,6 @@ function TypingDotsStyles() {
     `}</style>
   );
 }
-
-/* ----------------- Единые цвета секций ----------------- */
-const uxColors = {
-  headerBg: "rgba(255,255,255,0.6)",
-  subPill: "rgba(139,92,246,.14)",
-  border: "rgba(139,92,246,.22)",
-  iconBg: "transparent",
-};
-
-/* ----------------- Микро-стили карточек ----------------- */
-const ux: Record<string, any> = {
-  card: {
-    borderRadius: 18,
-    border: "1px solid rgba(0,0,0,.08)",
-    boxShadow: "0 6px 20px rgba(0,0,0,.08)",
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.6)",
-    backdropFilter: "blur(12px)",
-    position: "relative",
-  },
-  cardHeader: {
-    display: "grid",
-    gridTemplateColumns: "24px 1fr",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderBottom: "1px solid rgba(0,0,0,.06)",
-    background: "rgba(255,255,255,0.6)",
-    backdropFilter: "blur(12px)",
-  },
-  iconInline: {
-    width: 24,
-    height: 24,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 18,
-  },
-  cardTitleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    justifyContent: "space-between",
-  },
-  cardTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b", lineHeight: 1.2 },
-  cardHint: { fontSize: 11, color: "#2b2b2b", opacity: 0.85 },
-
-  // новый caret
-  caretWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.4)",
-    boxShadow: "inset 0 0 0 1px rgba(0,0,0,.05)",
-    display: "grid",
-    placeItems: "center",
-    transition: "transform 0.18s ease",
-  },
-  caretInner: {
-    width: 0,
-    height: 0,
-    borderLeft: "5px solid transparent",
-    borderRight: "5px solid transparent",
-    borderTop: "6px solid #4a3a7a",
-  },
-  cardBody: {
-    padding: 12,
-    background: "rgba(255,255,255,0.6)",
-    backdropFilter: "blur(12px)",
-  },
-};
-
-/* ----------------- Строки упражнений (ТОЧНО как карточки схем) ----------------- */
-const row: Record<string, React.CSSProperties> = {
-  wrap: {
-    position: "relative",
-    padding: 18,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    cursor: "default",
-    transition: "all 0.3s ease",
-  },
-  left: {
-    display: "grid",
-    gap: 8,
-    flex: 1,
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#0f172a",
-    marginTop: 0,
-    marginBottom: 8,
-    lineHeight: 1.2,
-    letterSpacing: "-0.02em",
-  },
-  cues: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 1.6,
-    marginBottom: 12,
-    fontWeight: 500,
-  },
-  metrics: {
-    display: "flex",
-    gap: 8,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
-};
-
-/* ----------------- Капсулы метрик ----------------- */
-const caps: Record<string, React.CSSProperties> = {
-  wrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    alignItems: "flex-end",
-  },
-  box: {
-    display: "inline-flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    minWidth: 110,
-    padding: "6px 10px",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(0,0,0,.08)",
-    fontSize: 12.5,
-    lineHeight: 1,
-    fontFeatureSettings: "'tnum' 1, 'lnum' 1",
-    color: "#222",
-    textAlign: "center",
-  },
-  label: {
-    fontSize: 10.5,
-    color: "#555",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  num: {
-    letterSpacing: 0.2,
-    fontWeight: 700,
-    fontSize: 12.5,
-  },
-};
-
-/* ----------------- Старые метрики (если где-то используются) ----------------- */
-const metricLabelStyle: React.CSSProperties = {
-  fontSize: 20,
-  textTransform: "uppercase",
-  letterSpacing: 0.6,
-  color: "#555",
-  fontWeight: 700,
-};
-
-const metricNumStyle: React.CSSProperties = {
-  fontSize: 15,
-  lineHeight: 1.1,
-  fontWeight: 600,
-  letterSpacing: 0.2,
-  fontFamily:
-    "'Inter Tight', 'Roboto Condensed', 'SF Compact', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif",
-};
 
 const pickStyles = `
   @keyframes planFadeUp {
@@ -3864,188 +2326,10 @@ const pick: Record<string, React.CSSProperties> = {
     lineHeight: 1.4,
     color: "rgba(30, 31, 34, 0.7)",
   },
-  programProgressRow: {
-    marginTop: 8,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  },
-  weekHeroCard: {
-    position: "relative",
-    marginTop: 2,
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    boxShadow:
-      "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    padding: "16px 14px",
-    overflow: "hidden",
-  },
-  weekHeroTop: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  weekHeroBody: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    gap: 10,
-  },
-  weekHeroText: {
-    display: "grid",
-    gap: 6,
-    minWidth: 0,
-  },
-  weekHeroCaption: {
-    fontSize: 18,
-    color: "#0f172a",
-    fontWeight: 700,
-    letterSpacing: 0.2,
-  },
-  weekHeroChip: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 22,
-    padding: "0 10px",
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.06)",
-    border: "1px solid rgba(15,23,42,0.08)",
-    color: "rgba(15,23,42,0.72)",
-    fontSize: 12,
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-  },
-  weekHeroTitle: {
-    marginTop: 10,
-    fontSize: 30,
-    lineHeight: 1.07,
-    letterSpacing: -0.5,
-    color: "#0f172a",
-    fontWeight: 800,
-  },
-  weekHeroDate: {
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 1.3,
-    color: "rgba(15,23,42,0.58)",
-    fontWeight: 500,
-  },
-  weekHeroSubtitle: {
-    marginTop: 7,
-    fontSize: 14,
-    lineHeight: 1.4,
-    color: "rgba(15,23,42,0.64)",
-    maxWidth: 460,
-  },
-  weekHeroMascot: {
-    width: 118,
-    maxWidth: 118,
-    height: "auto",
-    objectFit: "contain",
-    transform: "translateX(10px)",
-    userSelect: "none",
-    pointerEvents: "none",
-  },
-  weekProgressRow: {
-    marginTop: 12,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  },
-  weekProgressLabel: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#111827",
-    whiteSpace: "nowrap",
-  },
-  weekProgressPits: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    flexWrap: "wrap",
-  },
-  weekProgressPit: {
-    width: 16,
-    height: 10,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    display: "grid",
-    alignItems: "flex-end",
-    overflow: "hidden",
-  },
-  weekProgressDone: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow:
-      "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
-  },
-  weekHeroActions: {
-    marginTop: 14,
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 10,
-    alignItems: "center",
-  },
-  weekPrimaryBtn: {
-    minHeight: 48,
-    borderRadius: 999,
-    border: "1px solid #1e1f22",
-    background: "#1e1f22",
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: 500,
-    padding: "0 16px",
-    cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-    textAlign: "left",
-  },
-  weekSecondaryBtn: {
-    minHeight: 48,
-    borderRadius: 999,
-    border: "none",
-    background: "transparent",
-    color: "rgba(15, 23, 42, 0.6)",
-    fontSize: 14,
-    fontWeight: 500,
-    padding: "0 4px",
-    cursor: "pointer",
-    boxShadow: "none",
-  },
   weekListWrap: {
     marginTop: 12,
     display: "grid",
     gap: 8,
-  },
-  weekListHeader: {
-    display: "flex",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 10,
-    padding: "2px 2px 0",
-  },
-  weekListTitle: {
-    fontSize: 17,
-    fontWeight: 800,
-    color: "#0f172a",
-    letterSpacing: -0.2,
-  },
-  weekListHint: {
-    fontSize: 13,
-    color: "rgba(15,23,42,0.62)",
-    fontWeight: 500,
   },
   weekListGrid: {
     position: "relative",
@@ -4304,85 +2588,6 @@ const pick: Record<string, React.CSSProperties> = {
     width: 1,
     height: 1,
   },
-  header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 },
-  headerTitle: { fontSize: 15, fontWeight: 900, color: "#0f172a" },
-  headerHint: { fontSize: 13, color: "rgba(0,0,0,0.6)" },
-
-  schemeCard: {
-    position: "relative",
-    padding: 18,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-  },
-  schemeCardSelected: {
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
-    transform: "translateY(-2px)",
-  },
-  recommendedBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    background: "rgba(30,31,34,0.08)",
-    border: "1px solid rgba(30,31,34,0.16)",
-    color: "#1e1f22",
-    padding: "2px 8px",
-    borderRadius: "100px",
-    fontSize: 10,
-    fontWeight: 600,
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    boxShadow: "none",
-    zIndex: 10,
-  },
-  radioCircle: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    width: 24,
-    height: 24,
-    borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.1)",
-    background: "rgba(255,255,255,0.5)",
-    display: "grid",
-    placeItems: "center",
-    transition: "all 0.3s ease",
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: "#0f172a",
-    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-  },
-  schemeName: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#0f172a",
-    marginTop: 0,
-    marginLeft: 36,
-    marginRight: 0,
-    marginBottom: 8,
-    lineHeight: 1.2,
-    letterSpacing: "-0.02em",
-  },
-  schemeInfo: {
-    display: "flex",
-    gap: 8,
-    marginBottom: 16,
-    marginLeft: 36,
-    flexWrap: "nowrap",
-    overflowX: "auto",
-    WebkitOverflowScrolling: "touch",
-  },
   infoChip: {
     background: "transparent",
     border: "none",
@@ -4412,62 +2617,6 @@ const pick: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     lineHeight: 1.5,
   },
-  infoChipSoft: {
-    display: "inline-flex",
-    alignItems: "center",
-    minHeight: 24,
-    padding: "0 9px",
-    borderRadius: 999,
-    background: "rgba(15,23,42,0.07)",
-    border: "1px solid rgba(15,23,42,0.1)",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.72)",
-  },
-  infoChipScheduled: {
-    background: "rgba(255,230,128,.25)",
-    border: "1px solid rgba(255,179,107,.4)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    color: "#334155",
-    fontWeight: 600,
-  },
-  schemeDescription: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 1.6,
-    marginBottom: 16,
-    fontWeight: 500,
-    marginLeft: 4,
-  },
-  actionRow: {
-    width: "100%",
-    marginTop: 8,
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 10,
-  },
-  actionBtn: {
-    width: "100%",
-    padding: "10px",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 10,
-    background: "rgba(255,255,255,0.6)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    textAlign: "center",
-    whiteSpace: "normal",
-    lineHeight: 1.2,
-  },
   detailsSection: {
     marginTop: 2,
     padding: 0,
@@ -4476,140 +2625,5 @@ const pick: Record<string, React.CSSProperties> = {
     border: "none",
     display: "block",
   },
-  detailTitle: {
-    fontSize: 13,
-    fontWeight: 800,
-    color: "#0B1220",
-  },
 };
 
-/* ----------------- Комментарий тренера styles ----------------- */
-const notesStyles: Record<string, React.CSSProperties> = {
-  // плавающий блок, пока план уже сгенерен
-  fabWrap: {
-    position: "fixed",
-    right: 16,
-    bottom: 160,
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 8,
-    cursor: "pointer",
-    zIndex: 9999,
-  },
-
-  // плавающий блок, пока генерим (нет клика, просто показывает typing)
-  fabWrapLoading: {
-    position: "fixed",
-    right: 16,
-    bottom: 160,
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 8,
-    zIndex: 9999,
-  },
-
-  fabCircle: {
-    width: 56, // увеличили
-    height: 56,
-    borderRadius: "50%",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.2)",
-    display: "grid",
-    placeItems: "center",
-    fontWeight: 700,
-    color: "#1b1b1b",
-  },
-
-  speechBubble: {
-    maxWidth: 180,
-    background: "#fff",
-    boxShadow: "0 10px 24px rgba(0,0,0,.15)",
-    borderRadius: 14,
-    padding: "10px 12px",
-    position: "relative",
-    border: "1px solid rgba(0,0,0,.06)",
-  },
-  speechText: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#1b1b1b",
-    lineHeight: 1.3,
-  },
-  speechArrow: {
-    position: "absolute",
-    right: -6,
-    bottom: 10,
-    width: 0,
-    height: 0,
-    borderTop: "6px solid transparent",
-    borderBottom: "6px solid transparent",
-    borderLeft: "6px solid #fff",
-    filter: "drop-shadow(0 2px 2px rgba(0,0,0,.1))",
-  },
-
-  // чат-панель. без затемнения. появляется над иконкой
-  chatPanelWrap: {
-    position: "fixed",
-    right: 16,
-    bottom: 160 + 56 + 12, // подняли выше, чтобы не перекрывать иконку
-    zIndex: 10000,
-    maxWidth: 300,
-    width: "calc(100% - 32px)",
-  },
-  chatPanel: {
-    background: "#fff",
-    borderRadius: 20,
-    boxShadow: "0 24px 64px rgba(0,0,0,.4)",
-    border: "1px solid rgba(0,0,0,.06)",
-    maxHeight: "40vh",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  chatHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    padding: "12px 12px 10px 12px",
-    borderBottom: "1px solid rgba(0,0,0,.06)",
-    background: "linear-gradient(135deg, rgba(114,135,255,.16), rgba(164,94,255,.14))",
-  },
-  chatHeaderLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  robotIconLarge: {
-    fontSize: 20,
-    lineHeight: 1,
-  },
-  chatTitle: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#1b1b1b",
-  },
-  closeBtn: {
-    background: "rgba(0,0,0,0.08)",
-    border: "none",
-    borderRadius: 8,
-    width: 28,
-    height: 28,
-    fontSize: 16,
-    fontWeight: 600,
-    lineHeight: 1,
-    color: "#1b1b1b",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-  },
-  chatBody: {
-    padding: 12,
-    fontSize: 13.5,
-    lineHeight: 1.4,
-    color: "#1b1b1b",
-    whiteSpace: "pre-wrap",
-    overflowY: "auto",
-  },
-};

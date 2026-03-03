@@ -59,7 +59,7 @@ const CARD_COLLAPSED_H = 96;
 const CARD_PADDING = 18;
 const STACK_OFFSET = 70;
 
-export default function OnbMiniExercise({ onSelect, onSkip, onBack }: Props) {
+export default function OnbMiniExercise({ onSelect, onSkip }: Props) {
   const [showContent, setShowContent] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [activeId, setActiveId] = useState<string>(EXERCISES[0]?.id ?? "");
@@ -281,22 +281,6 @@ const st: Record<string, React.CSSProperties> = {
     color: "#1e1f22",
   },
 
-  // Mascot Row
-  mascotRow: {
-    display: "grid",
-    gridTemplateColumns: "auto 1fr",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 8,
-  },
-  mascotImg: {
-    width: 140,
-    height: "auto",
-    objectFit: "contain",
-  },
-  mascotHidden: {
-    opacity: 0,
-  },
   header: {
     display: "grid",
     gap: 8,
@@ -373,12 +357,6 @@ const st: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
-  },
-  cardLeft: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    maxWidth: "100%",
   },
   cardTitle: {
     fontSize: 28,

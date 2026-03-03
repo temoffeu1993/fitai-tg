@@ -9,11 +9,10 @@
 
 import type { Exercise } from "./exerciseLibrary.js";
 import type { Goal, ExperienceLevel } from "./normalizedSchemes.js";
-import type { 
-  ExerciseProgressionData, 
+import type {
+  ExerciseProgressionData,
   ExerciseHistory,
   ProgressionRecommendation,
-  EffortTag as EngineEffortTag,
   ProgressionContext
 } from "./progressionEngine.js";
 
@@ -53,12 +52,12 @@ function progLog(...args: any[]) {
 /**
  * Frontend effort mapping (from WorkoutSession.tsx)
  */
-export type FrontendEffort = "easy" | "working" | "quite_hard" | "hard" | "max";
+type FrontendEffort = "easy" | "working" | "quite_hard" | "hard" | "max";
 
 /**
  * Set data from frontend
  */
-export type FrontendSet = {
+type FrontendSet = {
   reps?: number;
   weight?: number;
   /** True when user explicitly marked this set as done (tapped checkmark). Absent in legacy payloads. */
@@ -68,7 +67,7 @@ export type FrontendSet = {
 /**
  * Exercise data from frontend payload
  */
-export type FrontendExercise = {
+type FrontendExercise = {
   id?: string; // preferred (stable) identifier from exercise library
   name: string;
   pattern?: string;
@@ -83,7 +82,7 @@ export type FrontendExercise = {
 /**
  * Complete session payload from frontend
  */
-export type SessionPayload = {
+type SessionPayload = {
   title: string;
   location?: string;
   durationMin: number;
@@ -477,7 +476,6 @@ export async function applyProgressionFromSession(args: {
         exerciseId: exercise.id,
         exercise,
         experience,
-        goal,
       });
 
       // Prevent concurrent lost updates for this exercise across parallel jobs/sessions.
@@ -761,7 +759,6 @@ export async function getNextWorkoutRecommendations(args: {
           exerciseId: exercise.id,
           exercise,
           experience,
-          goal,
         });
         
         recommendations.set(exercise.id, {
@@ -818,7 +815,6 @@ export async function getNextWorkoutRecommendations(args: {
         decrease_weight: '📉',
         deload: '🛌',
         maintain: '➡️',
-        rotate_exercise: '🔄',
       }[recommendation.action] || '❓';
       
       progLog(`  ${actionEmoji} ${exercise.name}: ${recommendation.action} (${recommendation.newWeight || 'N/A'}кг)`);

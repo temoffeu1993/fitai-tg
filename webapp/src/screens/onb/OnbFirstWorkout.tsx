@@ -24,10 +24,8 @@ const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const DATE_ITEM_W = 64; // px width of each date slot
 const DATE_COUNT = 37;
 const DATE_PAST_DAYS = 7;
-const DATE_VISIBLE = 5;
 const TIME_ITEM_H = 96;
 const TIME_VISIBLE = 1;
-const TIME_FADE_H = 0;
 const TIME_COL_GAP = 14;
 const HOUR_BASE = 24;
 const MIN_BASE = 60;
@@ -1225,8 +1223,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: TIME_COL_GAP,
     padding: "0 8px",
   },
-  timeIndicatorLeft: {},
-  timeIndicatorRight: {},
   timeColonOverlay: {
     position: "absolute",
     left: "50%",
@@ -1248,8 +1244,6 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
   },
-  timeFadeTop: {},
-  timeFadeBottom: {},
   timeList: {
     maxHeight: "100%",
     width: "100%",

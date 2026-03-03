@@ -12,13 +12,13 @@
 // ИСТОЧНИКИ: Mike Israetel (RP), Chad Wesley Smith (Juggernaut), Greg Nuckols
 // ============================================================================
 
-import type { Goal, ExperienceLevel } from "./normalizedSchemes.js";
+import type { Goal } from "./normalizedSchemes.js";
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type MesocyclePhase =
+type MesocyclePhase =
   | "accumulation"    // Недели 1-2: нормальный объём, адаптация
   | "intensification" // Недели 3-4: увеличение нагрузки (+10%)
   | "deload"          // Неделя 5: восстановление (-40% объём)
@@ -39,7 +39,7 @@ export type Mesocycle = {
   notes?: string[];
 };
 
-export type WeekPlan = {
+type WeekPlan = {
   weekNumber: number;
   phase: MesocyclePhase;
   volumeMultiplier: number;    // 1.0 = normal, 0.6 = deload, 1.1 = overreach
@@ -64,7 +64,7 @@ type MesocycleTemplate = {
   }>;
 };
 
-export const MESOCYCLE_TEMPLATES: Record<Goal, MesocycleTemplate> = {
+const MESOCYCLE_TEMPLATES: Record<Goal, MesocycleTemplate> = {
   build_muscle: {
     durationWeeks: 6,
     deloadWeek: 5,
@@ -111,7 +111,7 @@ export const MESOCYCLE_TEMPLATES: Record<Goal, MesocycleTemplate> = {
 // CONSTANTS: DUP patterns by days per week
 // ============================================================================
 
-export const DUP_PATTERNS: Record<number, DUPIntensity[]> = {
+const DUP_PATTERNS: Record<number, DUPIntensity[]> = {
   2: ["heavy", "light"],
   3: ["heavy", "light", "medium"],
   4: ["heavy", "medium", "light", "medium"],
@@ -187,29 +187,6 @@ export function getWeekPlan(args: {
 }
 
 // ============================================================================
-// HELPER: Get today's intensity from DUP pattern
-// ============================================================================
-
-export function getTodayIntensity(args: {
-  weekPlan: WeekPlan;
-  dayOfWeek: number; // 0-6 (0 = Monday)
-  daysPerWeek: number;
-}): DUPIntensity {
-  const { weekPlan, dayOfWeek, daysPerWeek } = args;
-
-  if (!weekPlan.dupPattern) {
-    return "medium";
-  }
-
-  // Map dayOfWeek to training day index
-  // Assuming training days are evenly distributed
-  const trainingDayIndex = Math.floor((dayOfWeek / 7) * daysPerWeek);
-  const index = Math.min(trainingDayIndex, weekPlan.dupPattern.length - 1);
-
-  return weekPlan.dupPattern[index];
-}
-
-// ============================================================================
 // HELPER: Advance mesocycle to next week
 // ============================================================================
 
@@ -240,34 +217,6 @@ export function advanceMesocycle(mesocycle: Mesocycle): Mesocycle {
 }
 
 // ============================================================================
-// HELPER: Check if deload week
-// ============================================================================
-
-export function isDeloadWeek(mesocycle: Mesocycle): boolean {
-  const template = MESOCYCLE_TEMPLATES[mesocycle.goal];
-  return mesocycle.currentWeek === template.deloadWeek;
-}
-
-// ============================================================================
-// HELPER: Get volume adjustment for current week
-// ============================================================================
-
-export function getVolumeAdjustment(args: {
-  mesocycle: Mesocycle;
-  baseVolume: number; // Base sets from volumeEngine
-}): number {
-  const { mesocycle, baseVolume } = args;
-
-  const weekPlan = getWeekPlan({
-    mesocycle,
-    weekNumber: mesocycle.currentWeek,
-    daysPerWeek: 3, // Placeholder, should come from user profile
-  });
-
-  return Math.round(baseVolume * weekPlan.volumeMultiplier);
-}
-
-// ============================================================================
 // HELPER: Should start new mesocycle?
 // ============================================================================
 
@@ -282,40 +231,4 @@ export function shouldStartNewMesocycle(mesocycle: Mesocycle | null): boolean {
   );
 
   return weeksSinceStart > mesocycle.totalWeeks + 2;
-}
-
-// ============================================================================
-// HELPER: Get mesocycle summary for UI
-// ============================================================================
-
-export function getMesocycleSummary(mesocycle: Mesocycle): {
-  currentWeek: string;
-  phase: string;
-  phaseDescription: string;
-  weeksRemaining: number;
-  isDeload: boolean;
-  progressPercentage: number;
-} {
-  const template = MESOCYCLE_TEMPLATES[mesocycle.goal];
-  const weekPlan = getWeekPlan({
-    mesocycle,
-    weekNumber: mesocycle.currentWeek,
-    daysPerWeek: 3,
-  });
-
-  const phaseDescriptions: Record<MesocyclePhase, string> = {
-    accumulation: "Адаптация: нормальная нагрузка",
-    intensification: "Интенсификация: повышенная нагрузка (+10%)",
-    deload: "Восстановление: снижение объёма (-40%)",
-    realization: "Реализация: закрепление прогресса",
-  };
-
-  return {
-    currentWeek: `Неделя ${mesocycle.currentWeek} из ${mesocycle.totalWeeks}`,
-    phase: mesocycle.currentPhase,
-    phaseDescription: phaseDescriptions[mesocycle.currentPhase],
-    weeksRemaining: mesocycle.totalWeeks - mesocycle.currentWeek,
-    isDeload: mesocycle.currentWeek === template.deloadWeek,
-    progressPercentage: Math.round((mesocycle.currentWeek / mesocycle.totalWeeks) * 100),
-  };
 }

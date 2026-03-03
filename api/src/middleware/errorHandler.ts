@@ -25,7 +25,7 @@ export const asyncHandler = (fn: Function) => (req: Request, res: Response, next
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
+export const errorHandler = (err: Error, _req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) {
     return next(err);
   }

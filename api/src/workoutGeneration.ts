@@ -9,12 +9,9 @@ import { q, withTransaction } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { enqueueProgressionJob, processProgressionJob } from "./progressionJobs.js";
 import {
-  // enqueueCoachJob,        // TODO: временно отключено
   getCoachJob,
   getCoachReportBySession,
   getLatestWeeklyCoachReport,
-  // maybeEnqueueWeeklyCoachJob, // TODO: временно отключено
-  // processCoachJob,            // TODO: временно отключено
 } from "./coachJobs.js";
 import { getCoachChatHistoryForUser, sendCoachChatMessage } from "./coachChat.js";
 import { getNextWorkoutRecommendations } from "./progressionService.js";
@@ -55,6 +52,8 @@ import {
 
 export const workoutGeneration = Router();
 const EXERCISE_BY_ID = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
+const PAIN_LOCATIONS = ["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"] as const;
+const PAIN_LOCATIONS_SET: ReadonlySet<string> = new Set(PAIN_LOCATIONS);
 
 function getUid(req: any): string {
   if (req.user?.uid) return req.user.uid;
@@ -339,7 +338,6 @@ workoutGeneration.post(
     }
 
     // Validate pain (structured format)
-    const PAIN_LOCATIONS = ["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"];
     let pain = null;
     if (data.pain) {
       if (!Array.isArray(data.pain)) {
@@ -351,7 +349,7 @@ workoutGeneration.post(
         const location = String(p.location || "").trim();
         const level = Number(p.level);
 
-        if (!PAIN_LOCATIONS.includes(location)) {
+        if (!PAIN_LOCATIONS_SET.has(location)) {
           throw new AppError(`Invalid pain location: ${location}. Must be one of: ${PAIN_LOCATIONS.join(", ")}`, 400);
         }
         if (!Number.isFinite(level) || level < 1 || level > 10) {
@@ -728,7 +726,6 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
   const row = rows[0];
 
   // Parse pain from JSONB to PainEntry[] с валидацией
-  const PAIN_LOCATIONS = new Set(["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"]);
   const painArray: import("./workoutDayGenerator.js").PainEntry[] = [];
 
   if (row.pain) {
@@ -751,7 +748,7 @@ async function getLatestCheckIn(uid: string): Promise<CheckInData | undefined> {
         const lvl = Number(p.level);
 
         // Валидация: только известные локации и корректный level
-        if (!PAIN_LOCATIONS.has(location)) continue;
+        if (!PAIN_LOCATIONS_SET.has(location)) continue;
         if (!Number.isFinite(lvl)) continue;
 
         // Клампинг 1-10
@@ -803,7 +800,6 @@ function mapPayloadToCheckInData(payload: any): CheckInData | undefined {
   const stress: CheckInData["stress"] = mapStress(rawStress);
 
   // Validate pain (same locations as /check-in)
-  const PAIN_LOCATIONS = new Set(["shoulder", "elbow", "wrist", "neck", "lower_back", "hip", "knee", "ankle"]);
   let pain: CheckInData["pain"] | undefined = undefined;
   if (Array.isArray(rawPain)) {
     const validated: import("./workoutDayGenerator.js").PainEntry[] = [];
@@ -811,7 +807,7 @@ function mapPayloadToCheckInData(payload: any): CheckInData | undefined {
       if (!p || typeof p !== "object") continue;
       const location = String((p as any).location || "").trim();
       const levelRaw = Number((p as any).level);
-      if (!PAIN_LOCATIONS.has(location)) continue;
+      if (!PAIN_LOCATIONS_SET.has(location)) continue;
       if (!Number.isFinite(levelRaw)) continue;
       const level = Math.max(1, Math.min(10, Math.round(levelRaw)));
       validated.push({ location, level });
@@ -1317,7 +1313,6 @@ workoutGeneration.post(
         const { generateRecoverySession } = await import("./workoutDayGenerator.js");
         const painAreas = checkin?.pain?.map(p => p.location) || [];
         const recoveryWorkout = generateRecoverySession({
-          userProfile,
           painAreas,
           availableMinutes: readiness.effectiveMinutes ?? 30,
           blockedPatterns: readiness.blockedPatterns,
@@ -2076,13 +2071,6 @@ workoutGeneration.post(
         workoutDate: finishedAt.toISOString().slice(0, 10),
       });
 
-      // TODO: временно отключено — разбор от ИИ после тренировки
-      // const { jobId: cj } = await enqueueCoachJob({
-      //   userId: uid,
-      //   kind: "session",
-      //   sessionId,
-      // });
-
       return { sessionId, jobId, coachJobId: null as any };
     });
 
@@ -2100,23 +2088,6 @@ workoutGeneration.post(
       progression = null;
     }
 
-    // TODO: временно отключено — разбор от ИИ после тренировки
-    // coachJobStatus = coachJobId ? "pending" : null;
-    // if (coachJobId) {
-    //   setTimeout(() => {
-    //     processCoachJob({ jobId: coachJobId })
-    //       .catch((e) => console.error("[save-session] coach job async failed:", (e as any)?.message || e));
-    //   }, 0);
-    // }
-
-    // TODO: временно отключено — недельные итоги от ИИ
-    // try {
-    //   const w = await maybeEnqueueWeeklyCoachJob({ userId: uid, nowIso: finishedAt.toISOString() });
-    //   weeklyCoachJobId = w?.jobId || null;
-    // } catch (e) {
-    //   console.warn("[save-session] weekly coach enqueue failed:", (e as any)?.message || e);
-    //   weeklyCoachJobId = null;
-    // }
 
     if (debugProgression) {
       console.log("[save-session][debug] response", {

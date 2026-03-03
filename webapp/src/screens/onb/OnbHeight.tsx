@@ -5,7 +5,7 @@ import { fireHapticImpact } from "@/utils/haptics";
 
 import type { Sex } from "./OnbAgeSex";
 
-export type OnbHeightData = {
+type OnbHeightData = {
   profile?: { name: string };
   ageSex: { sex: Sex; age: number };
   body?: { height?: number; weight?: number };
@@ -475,10 +475,6 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "center",
     cursor: "pointer",
     gap: 6,
-  },
-  heightItemActive: {
-    color: "#111",
-    fontWeight: 700,
   },
   tickRow: {
     position: "relative",

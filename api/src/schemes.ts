@@ -455,8 +455,8 @@ schemes.get(
 
 schemes.get(
   "/schemes/all",
-  asyncHandler(async (req: any, res: Response) => {
-    res.json({ 
+  asyncHandler(async (_req: any, res: Response) => {
+    res.json({
       schemes: NORMALIZED_SCHEMES.map(s => ({
         ...s,
         dayLabels: s.days,

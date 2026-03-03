@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
@@ -32,9 +32,6 @@ type Props = {
 
 const WHEEL_ITEM_H = 72;
 const WHEEL_VISIBLE = 1;
-const WHEEL_CYCLES = 7;
-const WHEEL_MID = Math.floor(WHEEL_CYCLES / 2);
-const EPS = 0.0001;
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
@@ -235,6 +232,13 @@ export default function SetEditorCard(props: Props) {
   );
 }
 
+/* ─── Touch-based wheel picker ─── */
+const SLOT_COUNT = 7;
+const HALF_SLOTS = 3;
+const W_FRICTION = 0.985;
+const W_SNAP_VEL = 0.04;
+const W_SPRING = 0.22;
+
 function WheelField(props: {
   ariaLabel: string;
   hintLabel?: string | null;
@@ -246,140 +250,261 @@ function WheelField(props: {
   flashSuccess?: boolean;
 }) {
   const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false, flashSuccess = false } = props;
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const stopTimerRef = useRef<number | null>(null);
-  const releaseTimerRef = useRef<number | null>(null);
-  const interactingRef = useRef(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const slotsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const posRef = useRef(0);
+  const velRef = useRef(0);
+  const animRef = useRef<number | null>(null);
+  const lastTickIdxRef = useRef(-1);
+  const lastReportedIdxRef = useRef(-1);
   const suppressHapticsRef = useRef(true);
-  const lastTickRef = useRef<number | null>(null);
 
-  const selectedValue = useMemo(() => {
-    if (!values.length) return 0;
-    return Number.isFinite(Number(value)) ? Number(value) : values[0];
-  }, [value, values]);
+  // Refs for latest props (used inside imperative callbacks)
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+  const formatRef = useRef(formatValue);
+  formatRef.current = formatValue;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const selectedBaseIndex = useMemo(() => {
-    if (!values.length) return 0;
-    const target = selectedValue;
-    let bestIdx = 0;
-    let bestDiff = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < values.length; i += 1) {
-      const diff = Math.abs(values[i] - target);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        bestIdx = i;
-      }
+  const dragRef = useRef({
+    active: false,
+    id: -1,
+    startY: 0,
+    startPos: 0,
+    startTime: 0,
+    samples: [] as { y: number; t: number }[],
+  });
+
+  const findIdx = (v: number | undefined): number => {
+    const arr = valuesRef.current;
+    if (!arr.length || v == null || !Number.isFinite(v)) return 0;
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < arr.length; i++) {
+      const d = Math.abs(arr[i] - v);
+      if (d < bestD) { bestD = d; best = i; }
     }
-    return bestIdx;
-  }, [selectedValue, values]);
-
-  const wheelValues = useMemo(() => {
-    if (!values.length) return [] as number[];
-    return Array.from({ length: values.length * WHEEL_CYCLES }, (_, i) => values[i % values.length]);
-  }, [values]);
-
-  useEffect(() => {
-    const node = listRef.current;
-    if (!node || !values.length) return;
-    if (interactingRef.current) return;
-    const targetIdx = values.length * WHEEL_MID + selectedBaseIndex;
-    const targetTop = targetIdx * WHEEL_ITEM_H;
-    if (Math.abs(node.scrollTop - targetTop) > 1) {
-      node.scrollTo({ top: targetTop, behavior: "auto" });
-    }
-    lastTickRef.current = targetIdx;
-  }, [selectedBaseIndex, values.length]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      suppressHapticsRef.current = false;
-    }, 200);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
-      if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
-      if (releaseTimerRef.current != null) window.clearTimeout(releaseTimerRef.current);
-    };
-  }, []);
-
-  const getScrollState = () => {
-    const node = listRef.current;
-    if (!node || !values.length || !wheelValues.length) return null;
-    const rawIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
-    const clamped = Math.max(0, Math.min(rawIdx, wheelValues.length - 1));
-    const baseIdx = ((clamped % values.length) + values.length) % values.length;
-    const next = values[baseIdx];
-    return { baseIdx, next };
+    return best;
   };
 
-  const handleScroll = () => {
-    if (disabled) return;
-    interactingRef.current = true;
-    if (releaseTimerRef.current != null) {
-      window.clearTimeout(releaseTimerRef.current);
-      releaseTimerRef.current = null;
-    }
+  /* Paint 7 slots using direct DOM updates — no React re-renders */
+  const paint = () => {
+    const pos = posRef.current;
+    const arr = valuesRef.current;
+    const fmt = formatRef.current;
+    const centerIdx = Math.round(pos);
 
-    if (rafRef.current == null) {
-      rafRef.current = window.requestAnimationFrame(() => {
-        rafRef.current = null;
-        const node = listRef.current;
-        const state = getScrollState();
-        if (!node || !state || !values.length || !wheelValues.length) return;
-        const rawIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
-        const clamped = Math.max(0, Math.min(rawIdx, wheelValues.length - 1));
-        if (lastTickRef.current !== clamped) {
-          lastTickRef.current = clamped;
-          if (!suppressHapticsRef.current) fireHapticImpact("light");
-        }
-        if (!state) return;
-        if (Math.abs(selectedValue - state.next) > EPS) onChange(state.next);
-      });
-    }
+    for (let slot = 0; slot < SLOT_COUNT; slot++) {
+      const el = slotsRef.current[slot];
+      if (!el) continue;
+      const offset = slot - HALF_SLOTS;
+      const valIdx = centerIdx + offset;
 
-    if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
-    stopTimerRef.current = window.setTimeout(() => {
-      const node = listRef.current;
-      const state = getScrollState();
-      if (!node || !state || !values.length) return;
-      if (Math.abs(selectedValue - state.next) > EPS) {
-        onChange(state.next);
+      if (valIdx < 0 || valIdx >= arr.length) {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(0px)";
+        el.textContent = "";
+      } else {
+        const y = (valIdx - pos) * WHEEL_ITEM_H;
+        const dist = Math.abs(valIdx - pos);
+        const opacity = Math.max(0, 1 - dist * 0.75);
+        el.style.transform = `translateY(${y}px)`;
+        el.style.opacity = String(opacity);
+        el.textContent = fmt(arr[valIdx]);
       }
-      const targetIdx = values.length * WHEEL_MID + state.baseIdx;
-      node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
+    }
+
+    const snapped = Math.max(0, Math.min(arr.length - 1, centerIdx));
+    if (snapped !== lastTickIdxRef.current) {
+      lastTickIdxRef.current = snapped;
       if (!suppressHapticsRef.current) fireHapticImpact("light");
-      releaseTimerRef.current = window.setTimeout(() => {
-        interactingRef.current = false;
-      }, 150);
-    }, 80);
+    }
   };
 
-  const handleSelect = () => {
-    if (disabled || !values.length) return;
-    const node = listRef.current;
-    if (!node) return;
-    interactingRef.current = true;
-    if (releaseTimerRef.current != null) {
-      window.clearTimeout(releaseTimerRef.current);
-      releaseTimerRef.current = null;
+  const stop = () => {
+    if (animRef.current != null) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
     }
-    const curIdx = Math.round(node.scrollTop / WHEEL_ITEM_H);
-    const curVal = ((curIdx % values.length) + values.length) % values.length;
-    const nextBaseIdx = (selectedBaseIndex + 1) % values.length;
-    let targetIdx = curIdx - curVal + nextBaseIdx;
-    if (nextBaseIdx <= curVal) targetIdx += values.length;
-    const next = values[nextBaseIdx];
-    node.scrollTo({ top: targetIdx * WHEEL_ITEM_H, behavior: "smooth" });
-    if (Math.abs(selectedValue - next) > EPS) onChange(next);
-    if (!suppressHapticsRef.current) fireHapticImpact("light");
-    releaseTimerRef.current = window.setTimeout(() => {
-      interactingRef.current = false;
-    }, 260);
+    velRef.current = 0;
   };
+
+  const snapTo = (target: number) => {
+    const run = () => {
+      const diff = target - posRef.current;
+      if (Math.abs(diff) < 0.003) {
+        posRef.current = target;
+        paint();
+        animRef.current = null;
+        const arr = valuesRef.current;
+        const idx = Math.max(0, Math.min(arr.length - 1, target));
+        if (idx !== lastReportedIdxRef.current) {
+          lastReportedIdxRef.current = idx;
+          onChangeRef.current(arr[idx]);
+        }
+        return;
+      }
+      posRef.current += diff * W_SPRING;
+      paint();
+      animRef.current = requestAnimationFrame(run);
+    };
+    animRef.current = requestAnimationFrame(run);
+  };
+
+  const coast = () => {
+    let lastTs = 0;
+    const run = (ts: number) => {
+      const dtFactor = lastTs ? Math.min((ts - lastTs) / 16, 3) : 1;
+      lastTs = ts;
+
+      velRef.current *= Math.pow(W_FRICTION, dtFactor);
+      posRef.current += velRef.current * dtFactor;
+
+      const maxIdx = valuesRef.current.length - 1;
+      if (posRef.current < 0) { posRef.current = 0; velRef.current = 0; }
+      if (posRef.current > maxIdx) { posRef.current = maxIdx; velRef.current = 0; }
+
+      if (Math.abs(velRef.current) < W_SNAP_VEL) {
+        snapTo(Math.max(0, Math.min(maxIdx, Math.round(posRef.current))));
+        return;
+      }
+
+      paint();
+
+      // Report intermediate value during coast
+      const idx = Math.max(0, Math.min(maxIdx, Math.round(posRef.current)));
+      if (idx !== lastReportedIdxRef.current) {
+        lastReportedIdxRef.current = idx;
+        onChangeRef.current(valuesRef.current[idx]);
+      }
+
+      animRef.current = requestAnimationFrame(run);
+    };
+    animRef.current = requestAnimationFrame(run);
+  };
+
+  const computeVelocity = (): number => {
+    const { samples } = dragRef.current;
+    if (samples.length < 2) return 0;
+    const last = samples[samples.length - 1];
+    const cutoff = last.t - 80;
+    let first = samples.length - 1;
+    for (let i = samples.length - 2; i >= 0; i--) {
+      if (samples[i].t >= cutoff) first = i;
+      else break;
+    }
+    const s0 = samples[first], s1 = last;
+    const dt = s1.t - s0.t;
+    if (dt <= 0) return 0;
+    const dy = s0.y - s1.y; // positive = scrolled upward = value increases
+    const raw = (dy / WHEEL_ITEM_H) / dt * 16;
+    // Amplify fast flicks so large ranges (0-300kg) are reachable in 2-3 flicks
+    return raw * (1 + Math.abs(raw));
+  };
+
+  /* ── Pointer handlers (unified touch + mouse) ── */
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (disabled) return;
+    e.preventDefault();
+    stop();
+    dragRef.current = {
+      active: true,
+      id: e.pointerId,
+      startY: e.clientY,
+      startPos: posRef.current,
+      startTime: Date.now(),
+      samples: [{ y: e.clientY, t: Date.now() }],
+    };
+    containerRef.current?.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d.active || e.pointerId !== d.id) return;
+    e.preventDefault();
+    const dy = d.startY - e.clientY;
+    const maxIdx = valuesRef.current.length - 1;
+    let newPos = d.startPos + dy / WHEEL_ITEM_H;
+    // Rubber-band at edges
+    if (newPos < 0) newPos *= 0.3;
+    else if (newPos > maxIdx) newPos = maxIdx + (newPos - maxIdx) * 0.3;
+    posRef.current = newPos;
+
+    d.samples.push({ y: e.clientY, t: Date.now() });
+    if (d.samples.length > 12) d.samples.shift();
+    paint();
+
+    const idx = Math.max(0, Math.min(maxIdx, Math.round(posRef.current)));
+    if (idx !== lastReportedIdxRef.current) {
+      lastReportedIdxRef.current = idx;
+      onChangeRef.current(valuesRef.current[idx]);
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d.active || e.pointerId !== d.id) return;
+    d.active = false;
+
+    // Clamp back from rubber-band
+    const maxIdx = valuesRef.current.length - 1;
+    posRef.current = Math.max(0, Math.min(maxIdx, posRef.current));
+
+    const vel = computeVelocity();
+    if (Math.abs(vel) > W_SNAP_VEL) {
+      velRef.current = vel;
+      coast();
+    } else {
+      snapTo(Math.round(posRef.current));
+    }
+  };
+
+  /* Mouse wheel (desktop) */
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || disabled) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      stop();
+      const delta = Math.sign(e.deltaY);
+      const maxIdx = valuesRef.current.length - 1;
+      const target = Math.max(0, Math.min(maxIdx, Math.round(posRef.current) + delta));
+      snapTo(target);
+    };
+    node.addEventListener("wheel", handler, { passive: false });
+    return () => node.removeEventListener("wheel", handler);
+  }, [disabled]);
+
+  /* Suppress haptics for first 200ms */
+  useEffect(() => {
+    const t = setTimeout(() => { suppressHapticsRef.current = false; }, 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* Sync from external value changes */
+  useEffect(() => {
+    if (dragRef.current.active || animRef.current != null) return;
+    const idx = findIdx(value);
+    if (Math.abs(idx - posRef.current) > 0.5) {
+      posRef.current = idx;
+      lastTickIdxRef.current = idx;
+      lastReportedIdxRef.current = idx;
+      paint();
+    }
+  }, [value]);
+
+  /* Initial paint */
+  useEffect(() => {
+    const idx = findIdx(value);
+    posRef.current = idx;
+    lastTickIdxRef.current = idx;
+    lastReportedIdxRef.current = idx;
+    paint();
+  }, []);
+
+  /* Cleanup */
+  useEffect(() => () => stop(), []);
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
@@ -392,23 +517,22 @@ function WheelField(props: {
           }}
         />
         <div
-          ref={listRef}
-          style={{ ...s.wheelList, ...(disabled ? s.wheelListDisabled : null) }}
-          onScroll={disabled ? undefined : handleScroll}
+          ref={containerRef}
+          style={{ ...s.wheelContainer, ...(disabled ? s.wheelContainerDisabled : null) }}
+          onPointerDown={disabled ? undefined : onPointerDown}
+          onPointerMove={disabled ? undefined : onPointerMove}
+          onPointerUp={disabled ? undefined : onPointerUp}
+          onPointerCancel={disabled ? undefined : onPointerUp}
           aria-label={ariaLabel}
           role="listbox"
         >
-          {wheelValues.map((entry, idx) => (
-            <button
-              key={`${ariaLabel}-${entry}-${idx}`}
-              type="button"
-              style={{ ...s.wheelItem, ...(Math.abs(entry - selectedValue) <= EPS ? s.wheelItemActive : null) }}
-              onClick={handleSelect}
-              disabled={disabled}
-              aria-selected={Math.abs(entry - selectedValue) <= EPS}
-            >
-              {formatValue(entry)}
-            </button>
+          {Array.from({ length: SLOT_COUNT }, (_, i) => (
+            <div
+              key={i}
+              ref={(el) => { slotsRef.current[i] = el; }}
+              style={s.wheelSlot}
+              aria-hidden
+            />
           ))}
         </div>
       </div>
@@ -501,45 +625,38 @@ const s: Record<string, CSSProperties> = {
   wheelTintOverlayOn: {
     opacity: 1,
   },
-  wheelList: {
+  wheelContainer: {
     position: "relative",
     zIndex: 2,
     height: "100%",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y proximity",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    paddingTop: 0,
-    paddingBottom: 0,
-    touchAction: "pan-y",
-  },
-  wheelListDisabled: {
-    overflowY: "hidden",
+    overflow: "hidden",
     touchAction: "none",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    cursor: "ns-resize",
+  } as CSSProperties,
+  wheelContainerDisabled: {
     pointerEvents: "none",
   },
-  wheelItem: {
+  wheelSlot: {
+    position: "absolute",
+    top: 0,
+    left: 0,
     width: "100%",
     height: WHEEL_ITEM_H,
-    border: "none",
-    background: "transparent",
-    color: workoutTheme.textSecondary,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontSize: 32,
     fontWeight: 700,
-    lineHeight: 1,
-    scrollSnapAlign: "center",
+    color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",
-    cursor: "pointer",
+    pointerEvents: "none",
+    willChange: "transform",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "clip",
-  },
-  wheelItemActive: {
-    color: workoutTheme.textPrimary,
-    fontSize: 32,
-    fontWeight: 700,
+    lineHeight: 1,
   },
   commitBtn: {
     width: "100%",
