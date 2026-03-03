@@ -31,7 +31,7 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 56;
+const WHEEL_ITEM_H = 44;
 const WHEEL_VISIBLE = 3;
 const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* (VISIBLE-1)/2 * H */
 const FLASH_TINT_MS = 520;
@@ -168,10 +168,7 @@ export default function SetEditorCard(props: Props) {
         />
         <span
           aria-hidden
-          style={{
-            ...s.commitCheck,
-            ...(progressPercent >= 50 ? s.commitCheckOnFill : null),
-          }}
+          style={s.commitCheck}
         >
           ✓
         </span>
@@ -347,7 +344,7 @@ function WheelField(props: {
         const dist = Math.abs(rawIdx - pos);
         // Barrel/cylinder effect: items shrink + fade as they move from center
         const opacity = Math.max(0, 1 - dist * 0.55);
-        const scale = Math.max(0.78, 1 - dist * 0.14);
+        const scale = dist < 0.5 ? 1.06 : Math.max(0.78, 1 - dist * 0.14);
         el.style.transform = `translateY(${y}px) scale(${scale})`;
         el.style.opacity = String(opacity);
         el.textContent = fmt(arr[valIdx]);
@@ -703,7 +700,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",
