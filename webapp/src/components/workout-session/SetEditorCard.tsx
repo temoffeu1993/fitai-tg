@@ -45,6 +45,8 @@ const WEIGHT_DUMBBELL = [
   ...Array.from({ length: 16 }, (_, i) => 12.5 + i * 2.5), // 12.5, 15, ..., 50 (2.5kg step)
 ];
 const WEIGHT_MACHINE = Array.from({ length: 40 }, (_, i) => (i + 1) * 5); // 5, 10, 15, ..., 200
+// Fallback: 1kg steps for when equipmentType is unknown (e.g. old cached sessions)
+const WEIGHT_GENERIC = Array.from({ length: 200 }, (_, i) => i + 1); // 1, 2, 3, ..., 200
 
 export default function SetEditorCard(props: Props) {
   const {
@@ -92,7 +94,8 @@ export default function SetEditorCard(props: Props) {
   const needWeight = requiresWeightInput(item);
   const weightValues = item.equipmentType === "dumbbell" ? WEIGHT_DUMBBELL
     : item.equipmentType === "machine" ? WEIGHT_MACHINE
-    : WEIGHT_BARBELL;
+    : item.equipmentType === "barbell" ? WEIGHT_BARBELL
+    : WEIGHT_GENERIC;
   const totalSets = Math.max(1, item.sets.length);
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsHint = "повторы";
