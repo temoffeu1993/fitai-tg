@@ -97,8 +97,10 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
   else if (minutesPerSession < 73) timeBucket = 60;
   else timeBucket = 90;
 
-  // Get sex
+  // Get sex & bodyweight
   const sex = data.ageSex?.sex === "male" ? "male" : data.ageSex?.sex === "female" ? "female" : undefined;
+  const rawBw = Number(data.body?.weight ?? data.height?.weight);
+  const bodyweight = Number.isFinite(rawBw) && rawBw > 20 && rawBw < 300 ? rawBw : undefined;
 
   // Excluded exercises (user preference)
   const excludedRows = await q<{ excluded_exercise_ids: string[] | null }>(
@@ -117,6 +119,7 @@ export async function buildUserProfile(uid: string): Promise<UserProfile> {
     timeBucket,
     location: resolvedLocation,
     sex,
+    bodyweight,
     excludedExerciseIds,
   };
 }

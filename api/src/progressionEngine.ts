@@ -83,9 +83,9 @@ export type ProgressionRecommendation = {
 
 const WEIGHT_INCREMENT: Record<string, number> = {
   barbell: 2.5,       // Штанга: +2.5 кг (самые маленькие блины)
-  dumbbell: 1.0,      // Гантели: +1 кг (или следующая гантель +2 кг)
+  dumbbell: 2.5,       // Гантели: +2.5 кг (стандартный шаг фиксированных гантелей)
   machine: 5.0,       // Тренажёр: +5 кг (обычно шаг стека)
-  cable: 2.5,         // Блоки: +2.5 кг
+  cable: 5.0,          // Блоки: +5 кг (стандартный шаг стека)
   smith: 2.5,         // Смит: +2.5 кг
   bodyweight: 0,      // Собственный вес: только reps
   kettlebell: 4.0,    // Гиря: +4 кг (8 / 12 / 16 / 20 / 24)
@@ -618,62 +618,114 @@ export function shouldRotateExercise(progressionData: ExerciseProgressionData): 
 // HELPER: Get starting weight for new exercise
 // ============================================================================
 
+// Coefficients: Novice 1RM (strengthlevel.com, 80kg male) × 0.50 / 80.
+// Source: strengthlevel.com (150M+ lifts). Novice = 20th percentile, ~6-12 months trained.
+// × 0.50 = conservative starting load for first attempt (NSCA guideline, RPE 5-6).
+// barbell = total bar weight (Olympic 20kg or EZ ~8kg)
+// dumbbell = weight per hand
+// machine = weight on stack / cable
+const BW_COEFFICIENTS: Record<string, { barbell: number; dumbbell: number; machine: number }> = {
+  squat:            { barbell: 0.61, dumbbell: 0.14, machine: 0.96 },
+  hinge:            { barbell: 0.73, dumbbell: 0.17, machine: 0.55 },
+  lunge:            { barbell: 0.34, dumbbell: 0.11, machine: 0.30 },
+  hip_thrust:       { barbell: 0.54, dumbbell: 0.08, machine: 0.55 },
+  horizontal_push:  { barbell: 0.46, dumbbell: 0.18, machine: 0.38 },
+  incline_push:     { barbell: 0.42, dumbbell: 0.19, machine: 0.34 },
+  vertical_push:    { barbell: 0.29, dumbbell: 0.14, machine: 0.31 },
+  horizontal_pull:  { barbell: 0.39, dumbbell: 0.19, machine: 0.40 },
+  vertical_pull:    { barbell: 0.30, dumbbell: 0.08, machine: 0.38 },
+  rear_delts:       { barbell: 0.08, dumbbell: 0.06, machine: 0.18 },
+  delts_iso:        { barbell: 0.08, dumbbell: 0.06, machine: 0.10 },
+  triceps_iso:      { barbell: 0.18, dumbbell: 0.09, machine: 0.23 },
+  biceps_iso:       { barbell: 0.20, dumbbell: 0.09, machine: 0.19 },
+  calves:           { barbell: 0.50, dumbbell: 0.10, machine: 0.49 },
+  core:             { barbell: 0.06, dumbbell: 0.04, machine: 0.28 },
+  carry:            { barbell: 0.30, dumbbell: 0.15, machine: 0.20 },
+};
+
+// Experience multipliers derived from strengthlevel.com Beginner/Novice/Intermediate ratios.
+// Compound exercises scale more linearly; isolation shows steeper progression.
+const EXP_MULTIPLIER_COMPOUND: Record<ExperienceLevel, number> = {
+  beginner: 0.73,    // Beginner/Novice ratio avg (squat 0.73, bench 0.72, dead 0.74)
+  intermediate: 1.0,
+  advanced: 1.32,    // Intermediate/Novice ratio avg (squat 1.33, bench 1.32, dead 1.30)
+};
+const EXP_MULTIPLIER_ISOLATION: Record<ExperienceLevel, number> = {
+  beginner: 0.46,    // Beginner/Novice ratio avg (curl 0.50, raise 0.44, pushdown 0.56)
+  intermediate: 1.0,
+  advanced: 1.70,    // Intermediate/Novice ratio avg (curl 1.71, raise 1.78, pushdown 1.61)
+};
+
 function getStartingWeight(args: {
   exercise: Exercise;
   experience: ExperienceLevel;
+  sex?: "male" | "female";
+  bodyweight?: number;
 }): number {
-  const { exercise, experience } = args;
+  const { exercise, experience, sex, bodyweight } = args;
 
-  // Bodyweight exercises
-  if (exercise.equipment.includes("bodyweight")) {
+  // Bodyweight exercises — no external load
+  if (exercise.equipment.includes("bodyweight") && !exercise.equipment.some(e => e !== "bodyweight")) {
     return 0;
   }
 
-  // Estimate based on experience and exercise type
-  // These are VERY conservative starting weights for safety
-  
-  const baseWeights: Record<string, Record<ExperienceLevel, number>> = {
-    // Compound movements (barbell)
-    barbell_compound: {
-      beginner: 20,      // Empty bar
-      intermediate: 40,
-      advanced: 60,
-    },
-    // Dumbbell compound
-    dumbbell_compound: {
-      beginner: 5,
-      intermediate: 10,
-      advanced: 15,
-    },
-    // Isolation
-    isolation: {
-      beginner: 2.5,
-      intermediate: 5,
-      advanced: 10,
-    },
-    // Machine
-    machine: {
-      beginner: 10,
-      intermediate: 20,
-      advanced: 30,
-    },
-  };
+  // Determine equipment category
+  const hasBarbell = exercise.equipment.includes("barbell");
+  const hasSmith = exercise.equipment.includes("smith");
+  const hasDumbbell = exercise.equipment.includes("dumbbell");
+  const hasMachine = exercise.equipment.includes("machine") || exercise.equipment.includes("cable");
 
-  // Determine category
-  let category = "isolation";
-  if (exercise.kind === "compound") {
-    if (exercise.equipment.includes("barbell")) {
-      category = "barbell_compound";
-    } else if (exercise.equipment.includes("dumbbell")) {
-      category = "dumbbell_compound";
-    } else if (exercise.equipment.includes("machine")) {
-      category = "machine";
+  // Coefficient lookup key: barbell and smith both use plate-based weights,
+  // but smith uses "machine" column (guided motion → typically heavier).
+  const equipKey: "barbell" | "dumbbell" | "machine" =
+    hasBarbell ? "barbell" : hasDumbbell ? "dumbbell" : "machine";
+
+  // If we have bodyweight → use coefficient table
+  if (bodyweight && bodyweight > 0) {
+    const pattern = exercise.patterns?.[0];
+    const coeff = pattern ? BW_COEFFICIENTS[pattern] : null;
+    const baseCoeff = coeff ? coeff[equipKey] : (exercise.kind === "compound" ? 0.20 : 0.06);
+
+    const sexMult = sex === "male" ? 1.0 : sex === "female" ? 0.60 : 0.75;
+    const expMultTable = exercise.kind === "isolation" ? EXP_MULTIPLIER_ISOLATION : EXP_MULTIPLIER_COMPOUND;
+    const expMult = expMultTable[experience] ?? 1.0;
+
+    const raw = bodyweight * baseCoeff * sexMult * expMult;
+
+    // ── Rounding to real equipment steps & enforce minimums ──
+    // Plate-loaded (barbell/smith): round to 5kg for approximate starting weight
+
+    // Barbell (Olympic bar 20kg or EZ-bar ~8kg)
+    if (hasBarbell) {
+      const EZ_PATTERNS = new Set(["triceps_iso", "biceps_iso"]);
+      const minBarbell = EZ_PATTERNS.has(pattern ?? "") ? 8 : 20;
+      return Math.max(minBarbell, Math.round(raw / 5) * 5);
     }
-  } else if (exercise.equipment.includes("machine")) {
-    category = "machine";
+
+    // Smith machine (guided bar ~15kg, same plates as barbell)
+    if (hasSmith) {
+      return Math.max(15, Math.round(raw / 5) * 5);
+    }
+
+    // Dumbbells (fixed set: 1kg steps ≤10kg, 2.5kg steps above)
+    if (hasDumbbell) {
+      const rounded = raw <= 10 ? Math.round(raw) : Math.round(raw / 2.5) * 2.5;
+      return Math.max(2, rounded);
+    }
+
+    // Machine / cable (pin-loaded weight stack: 5kg per plate)
+    return Math.max(5, Math.round(raw / 5) * 5);
   }
 
-  return baseWeights[category]?.[experience] || 5;
+  // Fallback: no bodyweight data — use fixed conservative values
+  const fallback: Record<string, Record<ExperienceLevel, number>> = {
+    barbell:  { beginner: 20, intermediate: 40, advanced: 60 },
+    smith:    { beginner: 15, intermediate: 35, advanced: 55 },
+    dumbbell: { beginner: 4,  intermediate: 8,  advanced: 14 },
+    machine:  { beginner: 10, intermediate: 20, advanced: 30 },
+  };
+  const fbKey = hasBarbell ? "barbell" : hasSmith ? "smith" : hasDumbbell ? "dumbbell" : "machine";
+  return fallback[fbKey]?.[experience] ?? 5;
 }
 
 // ============================================================================
@@ -684,10 +736,12 @@ export function initializeProgressionData(args: {
   exerciseId: string;
   exercise: Exercise;
   experience: ExperienceLevel;
+  sex?: "male" | "female";
+  bodyweight?: number;
 }): ExerciseProgressionData {
-  const { exerciseId, exercise, experience } = args;
+  const { exerciseId, exercise, experience, sex, bodyweight } = args;
 
-  const startingWeight = getStartingWeight({ exercise, experience });
+  const startingWeight = getStartingWeight({ exercise, experience, sex, bodyweight });
 
   return {
     exerciseId,

@@ -275,8 +275,10 @@ export async function applyProgressionFromSession(args: {
   workoutDate: string;
   plannedWorkoutId?: string | null;
   sessionId?: string | null;
+  sex?: "male" | "female";
+  bodyweight?: number;
 }): Promise<ProgressionSummary> {
-  const { userId, payload, goal, experience, workoutDate, plannedWorkoutId, sessionId } = args;
+  const { userId, payload, goal, experience, workoutDate, plannedWorkoutId, sessionId, sex, bodyweight } = args;
   
   console.log(`\n🏋️ [ProgressionService] Processing session for user ${userId.slice(0, 8)}...`);
   console.log(`  Workout date: ${workoutDate}`);
@@ -476,6 +478,8 @@ export async function applyProgressionFromSession(args: {
         exerciseId: exercise.id,
         exercise,
         experience,
+        sex,
+        bodyweight,
       });
 
       // Prevent concurrent lost updates for this exercise across parallel jobs/sessions.
@@ -734,8 +738,10 @@ export async function getNextWorkoutRecommendations(args: {
   exercises: Exercise[];
   goal: Goal;
   experience: ExperienceLevel;
+  sex?: "male" | "female";
+  bodyweight?: number;
 }): Promise<Map<string, ProgressionRecommendation>> {
-  const { userId, exercises, goal, experience } = args;
+  const { userId, exercises, goal, experience, sex, bodyweight } = args;
   
   progLog(`\n📖 [ProgressionService] Getting recommendations for ${exercises.length} exercises...`);
   
@@ -759,6 +765,8 @@ export async function getNextWorkoutRecommendations(args: {
           exerciseId: exercise.id,
           exercise,
           experience,
+          sex,
+          bodyweight,
         });
         
         recommendations.set(exercise.id, {

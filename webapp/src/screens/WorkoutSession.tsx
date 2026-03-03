@@ -150,6 +150,7 @@ function initItemsFromPlan(plan: SessionPlan): SessionItem[] {
       loadType: exercise.loadType,
       requiresWeightInput: exercise.requiresWeightInput,
       weightLabel: normalizeWeightLabel(exercise.weightLabel),
+      equipmentType: exercise.equipmentType || null,
       tagline: exercise.tagline,
       technique: exercise.technique,
       proTip: exercise.proTip,
@@ -198,6 +199,7 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
             : undefined,
         requiresWeightInput: typeof raw.requiresWeightInput === "boolean" ? raw.requiresWeightInput : undefined,
         weightLabel: normalizeWeightLabel(raw.weightLabel),
+        equipmentType: raw.equipmentType === "barbell" || raw.equipmentType === "dumbbell" || raw.equipmentType === "machine" ? raw.equipmentType : null,
         tagline: typeof raw.tagline === "string" ? raw.tagline : undefined,
         technique: raw.technique && typeof raw.technique === "object" ? raw.technique : undefined,
         proTip: typeof raw.proTip === "string" ? raw.proTip : undefined,
@@ -732,6 +734,7 @@ export default function WorkoutSession() {
         current.loadType = alternative.loadType;
         current.requiresWeightInput = alternative.requiresWeightInput;
         current.weightLabel = alternative.weightLabel;
+        current.equipmentType = alternative.equipmentType ?? null;
         current.targetWeight = suggested != null ? String(suggested) : null;
         current.tagline = alternative.tagline;
         current.technique = alternative.technique;
@@ -762,6 +765,7 @@ export default function WorkoutSession() {
         loadType: alternative.loadType,
         requiresWeightInput: alternative.requiresWeightInput,
         weightLabel: alternative.weightLabel,
+        equipmentType: alternative.equipmentType ?? null,
         tagline: alternative.tagline,
         technique: alternative.technique,
         proTip: alternative.proTip,

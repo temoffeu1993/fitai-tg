@@ -12,6 +12,7 @@ export type ExerciseAlternative = {
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  equipmentType?: "barbell" | "dumbbell" | "machine" | null;
   tagline?: string;
   technique?: {
     setup: string;

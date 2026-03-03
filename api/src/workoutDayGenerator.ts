@@ -53,6 +53,7 @@ export type UserProfile = {
   timeBucket: TimeBucket;
   location: Location;
   sex?: "male" | "female";
+  bodyweight?: number; // kg, from onboarding
   constraints?: string[]; // constraint tags from user
   excludedExerciseIds?: string[]; // user-level blacklist
 };
@@ -1145,6 +1146,8 @@ export async function generateWorkoutDay(args: {
         exercises: exercisesForProgression,
         goal: userProfile.goal,
         experience: userProfile.experience,
+        sex: userProfile.sex,
+        bodyweight: userProfile.bodyweight,
       });
       
       console.log(`  [Progression] Got recommendations for ${progressionRecommendations.size} exercises`);

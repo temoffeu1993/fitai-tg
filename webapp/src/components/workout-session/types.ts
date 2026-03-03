@@ -1,3 +1,5 @@
+export type EquipmentType = "barbell" | "dumbbell" | "machine";
+
 export type PlanExercise = {
   exerciseId?: string;
   name: string;
@@ -9,6 +11,7 @@ export type PlanExercise = {
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  equipmentType?: EquipmentType | null;
   tagline?: string;
   technique?: {
     setup: string;
@@ -44,6 +47,7 @@ export type SessionItem = {
   loadType?: "bodyweight" | "external" | "assisted";
   requiresWeightInput?: boolean;
   weightLabel?: string;
+  equipmentType?: EquipmentType | null;
   sets: SetEntry[];
   done?: boolean;
   skipped?: boolean;

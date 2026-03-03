@@ -67,6 +67,7 @@ function inferLoadInfoFromExercise(exercise: any): {
   loadType: "bodyweight" | "external" | "assisted";
   requiresWeightInput: boolean;
   weightLabel: string;
+  equipmentType: "barbell" | "dumbbell" | "machine" | null;
 } {
   const id = String(exercise?.id || "").toLowerCase();
   const name = String(exercise?.name || "").toLowerCase();
@@ -74,7 +75,7 @@ function inferLoadInfoFromExercise(exercise: any): {
   const equipment = Array.isArray(exercise?.equipment) ? exercise.equipment : [];
 
   const isAssisted = id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
-  if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "помощь кг" };
+  if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "помощь кг", equipmentType: "machine" };
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
   const externalHints = [
@@ -98,11 +99,13 @@ function inferLoadInfoFromExercise(exercise: any): {
   const hasBodyweight =
     equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
 
-  if (!hasExternal) return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "" };
+  if (!hasExternal) return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "", equipmentType: null };
 
   const isDumbbell = equipment.includes("dumbbell") || id.includes("dumbbell") || name.includes("гантел") || nameEn.includes("dumbbell");
+  const isBarbell = equipment.includes("barbell") || equipment.includes("smith") || equipment.includes("landmine");
   const weightLabel = isDumbbell ? "кг × 2" : "кг";
-  return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel };
+  const equipmentType: "barbell" | "dumbbell" | "machine" = isDumbbell ? "dumbbell" : isBarbell ? "barbell" : "machine";
+  return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel, equipmentType };
 }
 
 function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
@@ -119,6 +122,7 @@ function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {
       loadType: ex?.loadType ?? inferred.loadType,
       requiresWeightInput: ex?.requiresWeightInput ?? inferred.requiresWeightInput,
       weightLabel: ex?.weightLabel ?? inferred.weightLabel,
+      equipmentType: ex?.equipmentType ?? inferred.equipmentType,
     };
   });
 }
@@ -208,6 +212,8 @@ workoutGeneration.get(
           exercises: libExercises,
           goal: userProfile.goal,
           experience: userProfile.experience,
+          sex: userProfile.sex,
+          bodyweight: userProfile.bodyweight,
         });
         for (const id of uniqueIds) {
           const rec = recs.get(id);
@@ -546,6 +552,7 @@ workoutGeneration.post(
           loadType: (ex as any).loadType,
           requiresWeightInput: (ex as any).requiresWeightInput,
           weightLabel: (ex as any).weightLabel,
+          equipmentType: (ex as any).equipmentType ?? null,
           tagline: (ex.exercise as any).tagline ?? null,
           technique: (ex.exercise as any).technique ?? null,
           proTip: (ex.exercise as any).proTip ?? null,
@@ -632,6 +639,7 @@ workoutGeneration.post(
           loadType: (ex as any).loadType,
           requiresWeightInput: (ex as any).requiresWeightInput,
           weightLabel: (ex as any).weightLabel,
+          equipmentType: (ex as any).equipmentType ?? null,
         })),
         cooldown: todayWorkout.cooldown,
         dayLabel: todayWorkout.dayLabel,
@@ -1653,6 +1661,8 @@ workoutGeneration.post(
                   exercises: libExercises,
                   goal: userProfile.goal,
                   experience: userProfile.experience,
+                  sex: userProfile.sex,
+                  bodyweight: userProfile.bodyweight,
                 });
 
                 exercisesWithWeights = enrichedExercises.map((ex: any) => {
