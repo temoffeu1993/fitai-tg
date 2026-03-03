@@ -31,9 +31,9 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 44;
-const WHEEL_WRAP_H = WHEEL_ITEM_H * 3; /* same tall container as before */
-const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* center slot starts at 1 × H */
+const WHEEL_ITEM_H = 36;
+const WHEEL_WRAP_H = WHEEL_ITEM_H * 3;
+const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H;
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
