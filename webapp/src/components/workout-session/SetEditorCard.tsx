@@ -31,8 +31,9 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 72;
-const WHEEL_VISIBLE = 1;
+const WHEEL_ITEM_H = 56;
+const WHEEL_VISIBLE = 3;
+const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* (VISIBLE-1)/2 * H */
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
@@ -265,9 +266,9 @@ export default function SetEditorCard(props: Props) {
 /* ─── Touch-based wheel picker ─── */
 const SLOT_COUNT = 7;
 const HALF_SLOTS = 3;
-const W_FRICTION = 0.985;
-const W_SNAP_VEL = 0.04;
-const W_SPRING = 0.22;
+const W_FRICTION = 0.98;
+const W_SNAP_VEL = 0.05;
+const W_SPRING = 0.2;
 
 function WheelField(props: {
   ariaLabel: string;
@@ -324,7 +325,7 @@ function WheelField(props: {
     return ((i % len) + len) % len;
   };
 
-  /* Paint 7 slots using direct DOM updates — no React re-renders */
+  /* Paint slots — direct DOM updates, no React re-renders */
   const paint = () => {
     const pos = posRef.current;
     const arr = valuesRef.current;
@@ -340,13 +341,15 @@ function WheelField(props: {
 
       if (!cyclic && (rawIdx < 0 || rawIdx >= arr.length)) {
         el.style.opacity = "0";
-        el.style.transform = "translateY(0px)";
+        el.style.transform = "translateY(0px) scale(0.8)";
         el.textContent = "";
       } else {
-        const y = (rawIdx - pos) * WHEEL_ITEM_H;
+        const y = (rawIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
         const dist = Math.abs(rawIdx - pos);
-        const opacity = Math.max(0, 1 - dist * 0.75);
-        el.style.transform = `translateY(${y}px)`;
+        // Barrel/cylinder effect: items shrink + fade as they move from center
+        const opacity = Math.max(0, 1 - dist * 0.55);
+        const scale = Math.max(0.78, 1 - dist * 0.14);
+        el.style.transform = `translateY(${y}px) scale(${scale})`;
         el.style.opacity = String(opacity);
         el.textContent = fmt(arr[valIdx]);
       }
@@ -439,9 +442,7 @@ function WheelField(props: {
     const dt = s1.t - s0.t;
     if (dt <= 0) return 0;
     const dy = s0.y - s1.y; // positive = scrolled upward = value increases
-    const raw = (dy / WHEEL_ITEM_H) / dt * 16;
-    // Amplify fast flicks so large ranges (0-300kg) are reachable in 2-3 flicks
-    return raw * (1 + Math.abs(raw));
+    return (dy / WHEEL_ITEM_H) / dt * 16;
   };
 
   /* ── Pointer handlers (unified touch + mouse) ── */
@@ -562,6 +563,8 @@ function WheelField(props: {
             ...(flashSuccess ? s.wheelTintOverlayOn : null),
           }}
         />
+        {/* Edge fade — top/bottom dissolve */}
+        <div aria-hidden style={s.wheelEdgeFade} />
         <div
           ref={containerRef}
           style={{ ...s.wheelContainer, ...(disabled ? s.wheelContainerDisabled : null) }}
@@ -671,6 +674,14 @@ const s: Record<string, CSSProperties> = {
   wheelTintOverlayOn: {
     opacity: 1,
   },
+  wheelEdgeFade: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    zIndex: 3,
+    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 28%, transparent 72%, ${workoutTheme.pillBg} 100%)`,
+    borderRadius: 16,
+  },
   wheelContainer: {
     position: "relative",
     zIndex: 2,
@@ -693,7 +704,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",
