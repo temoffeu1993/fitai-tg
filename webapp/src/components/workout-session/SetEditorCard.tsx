@@ -23,6 +23,7 @@ type Props = {
   blocked: boolean;
   restEnabled: boolean;
   embedded?: boolean;
+  transitionKey?: number;
   onChangeReps: (setIdx: number, value: number) => void;
   onChangeWeight: (setIdx: number, value: number) => void;
   onCommitSet: () => boolean;
@@ -30,9 +31,9 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 44;
-const WHEEL_VISIBLE = 5;
-const WHEEL_CENTER_OFFSET = ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_H;
+const WHEEL_ITEM_H = 56;
+const WHEEL_VISIBLE = 3;
+const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* (VISIBLE-1)/2 * H */
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
@@ -44,6 +45,7 @@ export default function SetEditorCard(props: Props) {
     focusSetIndex,
     blocked,
     embedded = false,
+    transitionKey,
     onChangeReps,
     onChangeWeight,
     onCommitSet,
@@ -52,15 +54,28 @@ export default function SetEditorCard(props: Props) {
   const [commitFlash, setCommitFlash] = useState(false);
   const [showSavedLabel, setShowSavedLabel] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [counterPulse, setCounterPulse] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const savedLabelTimerRef = useRef<number | null>(null);
+  const counterPulseTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current);
       if (savedLabelTimerRef.current != null) window.clearTimeout(savedLabelTimerRef.current);
+      if (counterPulseTimerRef.current != null) window.clearTimeout(counterPulseTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (transitionKey == null || transitionKey === 0) return;
+    setCounterPulse(true);
+    if (counterPulseTimerRef.current != null) window.clearTimeout(counterPulseTimerRef.current);
+    counterPulseTimerRef.current = window.setTimeout(() => {
+      setCounterPulse(false);
+      counterPulseTimerRef.current = null;
+    }, 400);
+  }, [transitionKey]);
 
   if (!item) return null;
   const set = item.sets[focusSetIndex];
@@ -160,7 +175,11 @@ export default function SetEditorCard(props: Props) {
           onClick={() => hasDoneSets && setHistoryOpen((v) => !v)}
           aria-expanded={historyOpen}
         >
-          <div style={s.setIndexText} aria-live="polite">
+          <div
+            style={s.setIndexText}
+            aria-live="polite"
+            className={counterPulse ? "ws-set-counter-pulse" : undefined}
+          >
             <span
               aria-hidden={showSavedLabel}
               style={{
@@ -233,10 +252,10 @@ export default function SetEditorCard(props: Props) {
   );
 }
 
-/* ─── Touch-based wheel picker (iOS-style) ─── */
-const SLOT_COUNT = 9;
-const HALF_SLOTS = 4;
-const W_FRICTION = 0.97;
+/* ─── Touch-based wheel picker ─── */
+const SLOT_COUNT = 7;
+const HALF_SLOTS = 3;
+const W_FRICTION = 0.98;
 const W_SNAP_VEL = 0.05;
 const W_SPRING = 0.2;
 
@@ -304,16 +323,16 @@ function WheelField(props: {
 
       if (valIdx < 0 || valIdx >= arr.length) {
         el.style.opacity = "0";
-        el.style.transform = "translateY(0px)";
+        el.style.transform = "translateY(0px) scale(0.8)";
         el.textContent = "";
       } else {
         const y = (valIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
         const dist = Math.abs(valIdx - pos);
-        const isCenter = dist < 0.5;
-        el.style.transform = `translateY(${y}px)`;
-        el.style.opacity = "1";
-        el.style.color = isCenter ? workoutTheme.textPrimary : "rgba(15,23,42,0.35)";
-        el.style.fontWeight = isCenter ? "700" : "500";
+        // Barrel/cylinder effect: items shrink + fade as they move from center
+        const opacity = Math.max(0, 1 - dist * 0.55);
+        const scale = Math.max(0.78, 1 - dist * 0.14);
+        el.style.transform = `translateY(${y}px) scale(${scale})`;
+        el.style.opacity = String(opacity);
         el.textContent = fmt(arr[valIdx]);
       }
     }
@@ -517,9 +536,7 @@ function WheelField(props: {
             ...(flashSuccess ? s.wheelTintOverlayOn : null),
           }}
         />
-        {/* iOS-style center selection band */}
-        <div aria-hidden style={s.wheelCenterBand} />
-        {/* Edge fade mask */}
+        {/* Edge fade — top/bottom dissolve */}
         <div aria-hidden style={s.wheelEdgeFade} />
         <div
           ref={containerRef}
@@ -630,24 +647,12 @@ const s: Record<string, CSSProperties> = {
   wheelTintOverlayOn: {
     opacity: 1,
   },
-  wheelCenterBand: {
-    position: "absolute",
-    top: "50%",
-    left: 4,
-    right: 4,
-    height: WHEEL_ITEM_H,
-    transform: "translateY(-50%)",
-    borderRadius: 10,
-    background: "rgba(120, 120, 128, 0.1)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
   wheelEdgeFade: {
     position: "absolute",
     inset: 0,
     pointerEvents: "none",
     zIndex: 3,
-    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 22%, transparent 78%, ${workoutTheme.pillBg} 100%)`,
+    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 28%, transparent 72%, ${workoutTheme.pillBg} 100%)`,
     borderRadius: 16,
   },
   wheelContainer: {
@@ -672,7 +677,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",

@@ -212,6 +212,41 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
     .filter(Boolean) as SessionItem[];
 }
 
+function SetAnnouncement({ setNumber, announcementKey }: { setNumber: number; announcementKey: number }) {
+  if (announcementKey === 0) return null;
+  return (
+    <div key={announcementKey} style={setAnnounceStyles.overlay}>
+      <div style={setAnnounceStyles.text} className="ws-set-announce-anim">
+        <style>{`
+          .ws-set-announce-anim { animation: wsSetAnnounce 700ms cubic-bezier(0.22,0.61,0.36,1) both; }
+          @media (prefers-reduced-motion: reduce) { .ws-set-announce-anim { animation: none !important; display: none; } }
+        `}</style>
+        Подход {setNumber}
+      </div>
+    </div>
+  );
+}
+
+const setAnnounceStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 55,
+    display: "grid",
+    placeItems: "center",
+    pointerEvents: "none",
+  },
+  text: {
+    fontSize: 52,
+    fontWeight: 800,
+    letterSpacing: -1.5,
+    color: workoutTheme.textPrimary,
+    textAlign: "center",
+    lineHeight: 1,
+    textShadow: "0 4px 16px rgba(15,23,42,0.08), 0 1px 0 rgba(255,255,255,0.9)",
+  },
+};
+
 export default function WorkoutSession() {
   const nav = useNavigate();
   const location = useLocation();
@@ -262,9 +297,12 @@ export default function WorkoutSession() {
   const [discardEntered, setDiscardEntered] = useState(false);
   const [effortPromptIndex, setEffortPromptIndex] = useState<number | null>(null);
   const [pendingAdvanceExercise, setPendingAdvanceExercise] = useState<number | null>(null);
+  const [setAnnouncementKey, setSetAnnouncementKey] = useState(0);
+  const [exerciseTransition, setExerciseTransition] = useState<"none" | "slide-left" | "slide-right">("none");
   const blockTimerRef = useRef<number | null>(null);
   const restStartTimerRef = useRef<number | null>(null);
   const discardingRef = useRef(false);
+  const prevActiveIndexRef = useRef(activeIndex);
 
   useEffect(() => {
     const prevBody = document.body.style.background;
@@ -412,6 +450,17 @@ export default function WorkoutSession() {
     if (!item) return;
     setFocusSetIndex(nextUndoneSetIndex(item));
   }, [activeIndex, items]);
+
+  // Exercise slide animation on activeIndex change
+  useEffect(() => {
+    const prev = prevActiveIndexRef.current;
+    prevActiveIndexRef.current = activeIndex;
+    if (prev === activeIndex) return;
+    const dir = activeIndex > prev ? "slide-left" : "slide-right";
+    setExerciseTransition(dir);
+    const t = window.setTimeout(() => setExerciseTransition("none"), 380);
+    return () => window.clearTimeout(t);
+  }, [activeIndex]);
 
   // Exit sheet animation — open: mount then enter; close: exit then unmount
   useEffect(() => {
@@ -576,6 +625,7 @@ export default function WorkoutSession() {
     if (willCompleteExercise) {
       setEffortPromptIndex(activeIndex);
     } else {
+      setSetAnnouncementKey((k) => k + 1);
       startRest(item.restSec);
       const nextSet = item.sets[setIdx + 1];
       if (nextSet) setFocusSetIndex(setIdx + 1);
@@ -1097,7 +1147,17 @@ export default function WorkoutSession() {
         onOpenList={() => setListOpen(true)}
       />
 
-      <main style={styles.main}>
+      <main
+        key={activeIndex}
+        style={styles.main}
+        className={
+          exerciseTransition === "slide-left"
+            ? "ws-ex-slide-left"
+            : exerciseTransition === "slide-right"
+              ? "ws-ex-slide-right"
+              : undefined
+        }
+      >
         <CurrentExerciseCard
           item={activeItem}
           onOpenMenu={openExerciseMenu}
@@ -1108,6 +1168,7 @@ export default function WorkoutSession() {
             focusSetIndex={focusSetIndex}
             blocked={Boolean(blockedCurrent)}
             restEnabled={restEnabled}
+            transitionKey={setAnnouncementKey}
             onChangeReps={handleRepsChange}
             onChangeWeight={handleWeightChange}
             onCommitSet={commitCurrentSetFromEditor}
@@ -1124,6 +1185,8 @@ export default function WorkoutSession() {
           />
         </div>
       </main>
+
+      <SetAnnouncement setNumber={focusSetIndex + 1} announcementKey={setAnnouncementKey} />
 
       <BottomDock
         primaryLabel="Завершить тренировку"
@@ -1355,9 +1418,41 @@ const entryTransitionCss = `
     radial-gradient(120% 95% at 50% 45%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 38%, rgba(255,255,255,0) 100%);
   animation: wsEntryScrim 420ms ease-out both;
 }
+@keyframes wsSetAnnounce {
+  0% { opacity: 0; transform: scale(0.7); }
+  30% { opacity: 1; transform: scale(1.05); }
+  50% { opacity: 1; transform: scale(0.98); }
+  65% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes wsExSlideInRight {
+  0% { opacity: 0; transform: translateX(40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes wsExSlideInLeft {
+  0% { opacity: 0; transform: translateX(-40px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.ws-ex-slide-left {
+  animation: wsExSlideInRight 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.ws-ex-slide-right {
+  animation: wsExSlideInLeft 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes wsSetCounterPulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.ws-set-counter-pulse {
+  animation: wsSetCounterPulse 400ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
 @media (prefers-reduced-motion: reduce) {
   .ws-entry-in { animation-duration: 120ms !important; }
   .ws-entry-in::before { animation-duration: 120ms !important; }
+  .ws-ex-slide-left,
+  .ws-ex-slide-right,
+  .ws-set-counter-pulse { animation: none !important; }
 }
 `;
 
