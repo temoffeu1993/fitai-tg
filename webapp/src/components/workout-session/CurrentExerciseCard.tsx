@@ -39,16 +39,10 @@ export default function CurrentExerciseCard(props: Props) {
           <h2 style={s.name}>{item.name}</h2>
           {hasGoal && (
             <div style={s.goalRow}>
-              {pickWeight && (
-                <span style={{ ...s.goalChip, color: "rgba(15,23,42,0.45)", fontStyle: "italic" }}>
-                  <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
-                  <span>Подберите вес</span>
-                </span>
-              )}
-              {weight && !pickWeight && (
+              {(pickWeight || weight) && (
                 <span style={s.goalChip}>
                   <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
-                  <span>{weight}</span>
+                  <span>{pickWeight ? "Подберите вес" : weight}</span>
                 </span>
               )}
               {reps && (
