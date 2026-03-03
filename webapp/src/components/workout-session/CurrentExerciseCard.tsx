@@ -2,23 +2,19 @@ import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, Repeat } from "lucide-react";
 
-function buildGoalLabel(item: SessionItem): string | null {
-  const repsRaw = formatRepsLabel(item.targetReps);
+function buildGoalParts(item: SessionItem): { weight: string | null; reps: string | null } {
   const needWeight = requiresWeightInput(item);
   const parsedWeight = parseWeightNumber(item.targetWeight);
   const unit = item.weightLabel || "кг";
-  const weightStr = parsedWeight != null && parsedWeight > 0
+  const weight = needWeight && parsedWeight != null && parsedWeight > 0
     ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} ${unit}`
-    : typeof item.targetWeight === "string" && item.targetWeight.trim()
+    : needWeight && typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : null;
-
-  if (repsRaw && weightStr && needWeight) return `${repsRaw} × ${weightStr}`;
-  if (repsRaw) return repsRaw;
-  if (weightStr && needWeight) return weightStr;
-  return null;
+  const reps = formatRepsLabel(item.targetReps);
+  return { weight, reps };
 }
 
 type Props = {
@@ -31,18 +27,29 @@ export default function CurrentExerciseCard(props: Props) {
   const { item, onOpenMenu, children } = props;
   if (!item) return null;
 
-  const goalLabel = buildGoalLabel(item);
+  const { weight, reps } = buildGoalParts(item);
+  const hasGoal = weight || reps;
 
   return (
     <section style={s.card}>
       <div style={s.topRow}>
         <div style={s.titleBlock}>
           <h2 style={s.name}>{item.name}</h2>
-          {goalLabel && (
-            <p style={s.goal}>
-              <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
-              <span>Цель {goalLabel}</span>
-            </p>
+          {hasGoal && (
+            <div style={s.goalRow}>
+              {weight && (
+                <span style={s.goalChip}>
+                  <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
+                  <span>{weight}</span>
+                </span>
+              )}
+              {reps && (
+                <span style={s.goalChip}>
+                  <Repeat size={14} strokeWidth={2.2} style={s.goalIcon} />
+                  <span>{reps}</span>
+                </span>
+              )}
+            </div>
           )}
         </div>
         <button type="button" aria-label="Меню упражнения" style={s.menuBtn} onClick={onOpenMenu}>
@@ -94,20 +101,25 @@ const s: Record<string, CSSProperties> = {
     wordBreak: "normal",
     hyphens: "auto",
   },
-  goal: {
+  goalRow: {
     margin: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  goalChip: {
     display: "flex",
     alignItems: "center",
     gap: 5,
     fontSize: 16,
     fontWeight: 600,
     lineHeight: 1,
-    color: "rgba(15,23,42,0.7)",
+    color: "rgba(15,23,42,0.62)",
     fontVariantNumeric: "tabular-nums",
   },
   goalIcon: {
     flexShrink: 0,
-    opacity: 0.7,
   },
   menuBtn: {
     border: "none",

@@ -123,17 +123,6 @@ export default function SetEditorCard(props: Props) {
     <section style={{ ...(embedded ? s.embedRoot : s.card) }}>
       <style>{secCss}</style>
       <div style={needWeight ? s.inputsGrid : s.inputsGridSingle}>
-        <WheelField
-          ariaLabel="Повторы"
-          hintLabel={repsHint}
-          values={REPS_VALUES}
-          value={repsDisplayValue}
-          onChange={(value) => onChangeReps(focusSetIndex, value)}
-          formatValue={(value) => String(Math.round(value))}
-          flashSuccess={tintOn}
-          cyclic
-        />
-
         {needWeight && (
           <WheelField
             ariaLabel="Килограммы"
@@ -145,6 +134,17 @@ export default function SetEditorCard(props: Props) {
             flashSuccess={tintOn}
           />
         )}
+
+        <WheelField
+          ariaLabel="Повторы"
+          hintLabel={repsHint}
+          values={REPS_VALUES}
+          value={repsDisplayValue}
+          onChange={(value) => onChangeReps(focusSetIndex, value)}
+          formatValue={(value) => String(Math.round(value))}
+          flashSuccess={tintOn}
+          cyclic
+        />
       </div>
 
       <button

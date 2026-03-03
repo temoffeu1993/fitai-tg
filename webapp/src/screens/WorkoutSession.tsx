@@ -48,6 +48,11 @@ type SessionUiState =
   | "exercise_completed"
   | "sheet_open";
 
+function normalizeWeightLabel(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  return raw.replace(/вес\s*/i, "").replace(/[()]/g, "").trim().toLowerCase() || undefined;
+}
+
 function cloneItems(items: SessionItem[]): SessionItem[] {
   try {
     return structuredClone(items);
@@ -144,7 +149,7 @@ function initItemsFromPlan(plan: SessionPlan): SessionItem[] {
       restSec: exercise.restSec,
       loadType: exercise.loadType,
       requiresWeightInput: exercise.requiresWeightInput,
-      weightLabel: exercise.weightLabel,
+      weightLabel: normalizeWeightLabel(exercise.weightLabel),
       tagline: exercise.tagline,
       technique: exercise.technique,
       proTip: exercise.proTip,
@@ -192,7 +197,7 @@ function sanitizeDraftItems(rawItems: any): SessionItem[] {
             ? raw.loadType
             : undefined,
         requiresWeightInput: typeof raw.requiresWeightInput === "boolean" ? raw.requiresWeightInput : undefined,
-        weightLabel: typeof raw.weightLabel === "string" ? raw.weightLabel : undefined,
+        weightLabel: normalizeWeightLabel(raw.weightLabel),
         tagline: typeof raw.tagline === "string" ? raw.tagline : undefined,
         technique: raw.technique && typeof raw.technique === "object" ? raw.technique : undefined,
         proTip: typeof raw.proTip === "string" ? raw.proTip : undefined,
