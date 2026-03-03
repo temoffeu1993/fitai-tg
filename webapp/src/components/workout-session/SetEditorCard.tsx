@@ -31,7 +31,7 @@ type Props = {
   onFocusSet?: (setIdx: number) => void;
 };
 
-const WHEEL_ITEM_H = 56;
+const WHEEL_ITEM_H = 44;
 const WHEEL_VISIBLE = 3;
 const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* (VISIBLE-1)/2 * H */
 const FLASH_TINT_MS = 520;
@@ -74,7 +74,7 @@ export default function SetEditorCard(props: Props) {
     counterPulseTimerRef.current = window.setTimeout(() => {
       setCounterPulse(false);
       counterPulseTimerRef.current = null;
-    }, 400);
+    }, 620);
   }, [transitionKey]);
 
   if (!item) return null;
@@ -677,7 +677,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 700,
     color: workoutTheme.textPrimary,
     fontVariantNumeric: "tabular-nums",
