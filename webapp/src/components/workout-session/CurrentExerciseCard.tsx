@@ -8,8 +8,9 @@ function buildGoalLabel(item: SessionItem): string | null {
   const repsRaw = formatRepsLabel(item.targetReps);
   const needWeight = requiresWeightInput(item);
   const parsedWeight = parseWeightNumber(item.targetWeight);
+  const unit = item.weightLabel || "кг";
   const weightStr = parsedWeight != null && parsedWeight > 0
-    ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} кг`
+    ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} ${unit}`
     : typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : null;

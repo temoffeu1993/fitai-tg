@@ -151,7 +151,7 @@ function inferLoadInfo(exercise: Exercise): {
   const isAssisted =
     id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
   if (isAssisted) {
-    return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь (кг)" };
+    return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь кг" };
   }
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
@@ -164,10 +164,11 @@ function inferLoadInfo(exercise: Exercise): {
 
   // Some exercises can be done either with BW or added load (e.g. glute bridge).
   // Show weight input, but don't force it for completion if BW is a valid variant.
+  const isDumbbell = equipment.includes("dumbbell") || id.includes("dumbbell") || name.includes("гантел") || nameEn.includes("dumbbell");
   return {
     loadType: "external",
     requiresWeightInput: !hasBodyweight,
-    weightLabel: "Вес (кг)",
+    weightLabel: isDumbbell ? "Кг × 2" : "Кг",
   };
 }
 
