@@ -32,7 +32,8 @@ type Props = {
 };
 
 const WHEEL_ITEM_H = 44;
-const WHEEL_CENTER_OFFSET = 0;
+const WHEEL_WRAP_H = WHEEL_ITEM_H * 3; /* same tall container as before */
+const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* center slot starts at 1 × H */
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
@@ -551,7 +552,6 @@ function WheelField(props: {
 
   return (
     <div style={{ ...s.wheelField, ...(disabled ? s.wheelFieldDisabled : null) }}>
-      <div aria-hidden style={s.wheelChevron}>‹</div>
       <div style={s.wheelWrap}>
         <div
           aria-hidden
@@ -560,6 +560,8 @@ function WheelField(props: {
             ...(flashSuccess ? s.wheelTintOverlayOn : null),
           }}
         />
+        <div aria-hidden style={s.wheelChevronUp}>‹</div>
+        <div aria-hidden style={s.wheelChevronDown}>‹</div>
         <div
           ref={containerRef}
           style={{ ...s.wheelContainer, ...(disabled ? s.wheelContainerDisabled : null) }}
@@ -580,7 +582,6 @@ function WheelField(props: {
           ))}
         </div>
       </div>
-      <div aria-hidden style={{ ...s.wheelChevron, transform: "rotate(180deg)" }}>‹</div>
       {hintLabel ? <div style={s.valueLabel}>{hintLabel}</div> : null}
     </div>
   );
@@ -638,22 +639,47 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "none",
     padding: 0,
     display: "grid",
-    gap: 2,
-    justifyItems: "center",
+    gap: 6,
     minWidth: 0,
   },
   wheelFieldDisabled: {
     opacity: 0.52,
   },
-  wheelChevron: {
-    fontSize: 18,
+  wheelChevronUp: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: WHEEL_ITEM_H,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 20,
     fontWeight: 400,
     lineHeight: 1,
-    color: "rgba(15,23,42,0.15)",
-    textAlign: "center",
+    color: "rgba(15,23,42,0.13)",
     pointerEvents: "none",
     userSelect: "none",
+    zIndex: 3,
     transform: "rotate(90deg)",
+  } as CSSProperties,
+  wheelChevronDown: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: WHEEL_ITEM_H,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 20,
+    fontWeight: 400,
+    lineHeight: 1,
+    color: "rgba(15,23,42,0.13)",
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: 3,
+    transform: "rotate(-90deg)",
   } as CSSProperties,
   valueLabel: {
     textAlign: "center",
@@ -666,7 +692,7 @@ const s: Record<string, CSSProperties> = {
   wheelWrap: {
     position: "relative",
     width: "100%",
-    height: WHEEL_ITEM_H,
+    height: WHEEL_WRAP_H,
     overflow: "hidden",
     borderRadius: 16,
     border: "none",
