@@ -343,8 +343,8 @@ function WheelField(props: {
       } else {
         const y = (rawIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
         const dist = Math.abs(rawIdx - pos);
-        // Barrel/cylinder effect: items shrink + fade as they move from center
-        const opacity = Math.max(0, 1 - dist * 0.55);
+        // Barrel/cylinder effect: center bold, neighbors ghosted
+        const opacity = dist < 0.5 ? 1 : Math.max(0, 0.12 - (dist - 1) * 0.12);
         const scale = dist < 0.5 ? 1.06 : Math.max(0.78, 1 - dist * 0.14);
         el.style.transform = `translateY(${y}px) scale(${scale})`;
         el.style.opacity = String(opacity);
@@ -560,6 +560,8 @@ function WheelField(props: {
             ...(flashSuccess ? s.wheelTintOverlayOn : null),
           }}
         />
+        {/* Center slot highlight */}
+        <div aria-hidden style={s.wheelCenterSlot} />
         {/* Edge fade — top/bottom dissolve */}
         <div aria-hidden style={s.wheelEdgeFade} />
         <div
@@ -676,6 +678,18 @@ const s: Record<string, CSSProperties> = {
   },
   wheelTintOverlayOn: {
     opacity: 1,
+  },
+  wheelCenterSlot: {
+    position: "absolute",
+    left: 4,
+    right: 4,
+    top: WHEEL_ITEM_H,
+    height: WHEEL_ITEM_H,
+    borderRadius: 10,
+    background: "rgba(15,23,42,0.04)",
+    boxShadow: "inset 0 1px 3px rgba(15,23,42,0.1), inset 0 -1px 0 rgba(255,255,255,0.6)",
+    pointerEvents: "none",
+    zIndex: 2,
   },
   wheelEdgeFade: {
     position: "absolute",
