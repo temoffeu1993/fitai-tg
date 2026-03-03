@@ -97,7 +97,9 @@ export default function SetEditorCard(props: Props) {
       ? Math.round(explicitReps)
       : prevReps ?? targetDefaultReps;
 
-  const hasDoneSets = item.sets.some((entry) => entry.done);
+  const doneSets = item.sets.filter((entry) => entry.done).length;
+  const hasDoneSets = doneSets > 0;
+  const progressPercent = (doneSets / totalSets) * 100;
 
   const handleCommit = () => {
     const committed = onCommitSet();
@@ -153,6 +155,13 @@ export default function SetEditorCard(props: Props) {
         <span
           aria-hidden
           style={{
+            ...s.commitProgressFill,
+            width: `${progressPercent}%`,
+          }}
+        />
+        <span
+          aria-hidden
+          style={{
             ...s.commitTintOverlay,
             ...(tintOn ? s.commitTintOverlayOn : null),
           }}
@@ -161,6 +170,7 @@ export default function SetEditorCard(props: Props) {
           aria-hidden
           style={{
             ...s.commitCheck,
+            ...(doneSets > 0 ? s.commitCheckOnFill : null),
             ...(Boolean(set.done) ? s.commitCheckDone : null),
           }}
         >
@@ -721,33 +731,46 @@ const s: Record<string, CSSProperties> = {
     overflow: "hidden",
     cursor: "pointer",
   },
+  commitProgressFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 16,
+    pointerEvents: "none",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    transition: "width 600ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    zIndex: 1,
+  },
   commitTintOverlay: {
     position: "absolute",
     inset: 0,
     borderRadius: 16,
     pointerEvents: "none",
     opacity: 0,
-    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
-    boxShadow:
-      "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
-    transition: `opacity ${FLASH_TINT_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
-    zIndex: 1,
+    zIndex: 2,
   },
   commitTintOverlayOn: {
-    opacity: 1,
+    opacity: 0,
   },
   commitCheck: {
     position: "relative",
-    zIndex: 2,
+    zIndex: 3,
     fontSize: 30,
     fontWeight: 700,
     lineHeight: 1,
-    color: workoutTheme.textPrimary,
+    color: "rgba(15,23,42,0.45)",
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
-    transition: "color 200ms ease",
+    transition: "color 300ms ease, text-shadow 300ms ease",
+  },
+  commitCheckOnFill: {
+    color: "rgba(255,255,255,0.95)",
+    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
   },
   commitCheckDone: {
-    color: workoutTheme.textPrimary,
+    color: "rgba(255,255,255,0.95)",
+    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
   },
   setIndexText: {
     display: "grid",
