@@ -74,7 +74,7 @@ function inferLoadInfoFromExercise(exercise: any): {
   const equipment = Array.isArray(exercise?.equipment) ? exercise.equipment : [];
 
   const isAssisted = id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
-  if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь кг" };
+  if (isAssisted) return { loadType: "assisted", requiresWeightInput: true, weightLabel: "помощь кг" };
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
   const externalHints = [
@@ -101,7 +101,7 @@ function inferLoadInfoFromExercise(exercise: any): {
   if (!hasExternal) return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "" };
 
   const isDumbbell = equipment.includes("dumbbell") || id.includes("dumbbell") || name.includes("гантел") || nameEn.includes("dumbbell");
-  const weightLabel = isDumbbell ? "Кг × 2" : "Кг";
+  const weightLabel = isDumbbell ? "кг × 2" : "кг";
   return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel };
 }
 

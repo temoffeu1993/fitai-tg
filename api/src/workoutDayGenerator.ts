@@ -151,7 +151,7 @@ function inferLoadInfo(exercise: Exercise): {
   const isAssisted =
     id.includes("assisted") || name.includes("гравитрон") || nameEn.includes("assisted");
   if (isAssisted) {
-    return { loadType: "assisted", requiresWeightInput: true, weightLabel: "Помощь кг" };
+    return { loadType: "assisted", requiresWeightInput: true, weightLabel: "помощь кг" };
   }
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
@@ -173,7 +173,7 @@ function inferLoadInfo(exercise: Exercise): {
   return {
     loadType: "external",
     requiresWeightInput: !hasBodyweight,
-    weightLabel: isDumbbell ? "Кг × 2" : "Кг",
+    weightLabel: isDumbbell ? "кг × 2" : "кг",
   };
 }
 
