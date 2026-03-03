@@ -618,29 +618,29 @@ export function shouldRotateExercise(progressionData: ExerciseProgressionData): 
 // HELPER: Get starting weight for new exercise
 // ============================================================================
 
-// Coefficients: Novice 1RM (strengthlevel.com, 80kg male) × 0.50 / 80.
+// Coefficients: Novice 1RM (strengthlevel.com, 80kg male) × 0.60 / 80.
 // Source: strengthlevel.com (150M+ lifts). Novice = 20th percentile, ~6-12 months trained.
-// × 0.50 = conservative starting load for first attempt (NSCA guideline, RPE 5-6).
+// × 0.60 = starting load for ~15 reps with good form (NSCA moderate load guideline).
 // barbell = total bar weight (Olympic 20kg or EZ ~8kg)
 // dumbbell = weight per hand
 // machine = weight on stack / cable
 const BW_COEFFICIENTS: Record<string, { barbell: number; dumbbell: number; machine: number }> = {
-  squat:            { barbell: 0.61, dumbbell: 0.14, machine: 0.96 },
-  hinge:            { barbell: 0.73, dumbbell: 0.17, machine: 0.55 },
-  lunge:            { barbell: 0.34, dumbbell: 0.11, machine: 0.30 },
-  hip_thrust:       { barbell: 0.54, dumbbell: 0.08, machine: 0.55 },
-  horizontal_push:  { barbell: 0.46, dumbbell: 0.18, machine: 0.38 },
-  incline_push:     { barbell: 0.42, dumbbell: 0.19, machine: 0.34 },
-  vertical_push:    { barbell: 0.29, dumbbell: 0.14, machine: 0.31 },
-  horizontal_pull:  { barbell: 0.39, dumbbell: 0.19, machine: 0.40 },
-  vertical_pull:    { barbell: 0.30, dumbbell: 0.08, machine: 0.38 },
-  rear_delts:       { barbell: 0.08, dumbbell: 0.06, machine: 0.18 },
-  delts_iso:        { barbell: 0.08, dumbbell: 0.06, machine: 0.10 },
-  triceps_iso:      { barbell: 0.18, dumbbell: 0.09, machine: 0.23 },
-  biceps_iso:       { barbell: 0.20, dumbbell: 0.09, machine: 0.19 },
-  calves:           { barbell: 0.50, dumbbell: 0.10, machine: 0.49 },
-  core:             { barbell: 0.06, dumbbell: 0.04, machine: 0.28 },
-  carry:            { barbell: 0.30, dumbbell: 0.15, machine: 0.20 },
+  squat:            { barbell: 0.74, dumbbell: 0.17, machine: 1.15 },
+  hinge:            { barbell: 0.87, dumbbell: 0.20, machine: 0.66 },
+  lunge:            { barbell: 0.41, dumbbell: 0.14, machine: 0.36 },
+  hip_thrust:       { barbell: 0.65, dumbbell: 0.10, machine: 0.66 },
+  horizontal_push:  { barbell: 0.56, dumbbell: 0.21, machine: 0.46 },
+  incline_push:     { barbell: 0.50, dumbbell: 0.23, machine: 0.41 },
+  vertical_push:    { barbell: 0.35, dumbbell: 0.17, machine: 0.37 },
+  horizontal_pull:  { barbell: 0.47, dumbbell: 0.23, machine: 0.48 },
+  vertical_pull:    { barbell: 0.36, dumbbell: 0.10, machine: 0.46 },
+  rear_delts:       { barbell: 0.10, dumbbell: 0.07, machine: 0.21 },
+  delts_iso:        { barbell: 0.10, dumbbell: 0.07, machine: 0.12 },
+  triceps_iso:      { barbell: 0.22, dumbbell: 0.11, machine: 0.27 },
+  biceps_iso:       { barbell: 0.24, dumbbell: 0.11, machine: 0.23 },
+  calves:           { barbell: 0.60, dumbbell: 0.12, machine: 0.59 },
+  core:             { barbell: 0.07, dumbbell: 0.05, machine: 0.34 },
+  carry:            { barbell: 0.36, dumbbell: 0.18, machine: 0.24 },
 };
 
 // Experience multipliers derived from strengthlevel.com Beginner/Novice/Intermediate ratios.
