@@ -36,7 +36,7 @@ const WHEEL_VISIBLE = 3;
 const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H; /* (VISIBLE-1)/2 * H */
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
-const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
+const REPS_VALUES = Array.from({ length: 30 }, (_, i) => i + 1);
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round(i * 0.5 * 10) / 10);
 
 export default function SetEditorCard(props: Props) {
@@ -129,6 +129,7 @@ export default function SetEditorCard(props: Props) {
           onChange={(value) => onChangeReps(focusSetIndex, value)}
           formatValue={(value) => String(Math.round(value))}
           flashSuccess={tintOn}
+          cyclic
         />
 
         <WheelField
@@ -268,8 +269,9 @@ function WheelField(props: {
   formatValue: (value: number) => string;
   disabled?: boolean;
   flashSuccess?: boolean;
+  cyclic?: boolean;
 }) {
-  const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false, flashSuccess = false } = props;
+  const { ariaLabel, hintLabel, values, value, onChange, formatValue, disabled = false, flashSuccess = false, cyclic = false } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const slotsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -308,6 +310,11 @@ function WheelField(props: {
     return best;
   };
 
+  const wrapIdx = (i: number) => {
+    const len = valuesRef.current.length;
+    return ((i % len) + len) % len;
+  };
+
   /* Paint slots — direct DOM updates, no React re-renders */
   const paint = () => {
     const pos = posRef.current;
@@ -319,25 +326,27 @@ function WheelField(props: {
       const el = slotsRef.current[slot];
       if (!el) continue;
       const offset = slot - HALF_SLOTS;
-      const valIdx = centerIdx + offset;
+      const rawIdx = centerIdx + offset;
+      const valIdx = cyclic ? wrapIdx(rawIdx) : rawIdx;
 
-      if (valIdx < 0 || valIdx >= arr.length) {
+      if (!cyclic && (rawIdx < 0 || rawIdx >= arr.length)) {
         el.style.opacity = "0";
         el.style.transform = "translateY(0px) scale(0.8)";
         el.textContent = "";
       } else {
-        const y = (valIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
-        const dist = Math.abs(valIdx - pos);
+        const y = (rawIdx - pos) * WHEEL_ITEM_H + WHEEL_CENTER_OFFSET;
+        const dist = Math.abs(rawIdx - pos);
         // Barrel/cylinder effect: items shrink + fade as they move from center
-        const opacity = Math.max(0, 1 - dist * 0.55);
+        const opacity = Math.max(0, 1 - dist * 0.6);
         const scale = Math.max(0.78, 1 - dist * 0.14);
         el.style.transform = `translateY(${y}px) scale(${scale})`;
         el.style.opacity = String(opacity);
+        el.style.fontWeight = dist < 0.5 ? "700" : "400";
         el.textContent = fmt(arr[valIdx]);
       }
     }
 
-    const snapped = Math.max(0, Math.min(arr.length - 1, centerIdx));
+    const snapped = cyclic ? wrapIdx(centerIdx) : Math.max(0, Math.min(arr.length - 1, centerIdx));
     if (snapped !== lastTickIdxRef.current) {
       lastTickIdxRef.current = snapped;
       if (!suppressHapticsRef.current) fireHapticImpact("light");
@@ -356,11 +365,11 @@ function WheelField(props: {
     const run = () => {
       const diff = target - posRef.current;
       if (Math.abs(diff) < 0.003) {
-        posRef.current = target;
+        posRef.current = cyclic ? wrapIdx(target) : target;
         paint();
         animRef.current = null;
         const arr = valuesRef.current;
-        const idx = Math.max(0, Math.min(arr.length - 1, target));
+        const idx = cyclic ? wrapIdx(target) : Math.max(0, Math.min(arr.length - 1, target));
         if (idx !== lastReportedIdxRef.current) {
           lastReportedIdxRef.current = idx;
           onChangeRef.current(arr[idx]);
@@ -384,18 +393,22 @@ function WheelField(props: {
       posRef.current += velRef.current * dtFactor;
 
       const maxIdx = valuesRef.current.length - 1;
-      if (posRef.current < 0) { posRef.current = 0; velRef.current = 0; }
-      if (posRef.current > maxIdx) { posRef.current = maxIdx; velRef.current = 0; }
+      if (!cyclic) {
+        if (posRef.current < 0) { posRef.current = 0; velRef.current = 0; }
+        if (posRef.current > maxIdx) { posRef.current = maxIdx; velRef.current = 0; }
+      }
 
       if (Math.abs(velRef.current) < W_SNAP_VEL) {
-        snapTo(Math.max(0, Math.min(maxIdx, Math.round(posRef.current))));
+        const t = Math.round(posRef.current);
+        snapTo(cyclic ? t : Math.max(0, Math.min(maxIdx, t)));
         return;
       }
 
       paint();
 
       // Report intermediate value during coast
-      const idx = Math.max(0, Math.min(maxIdx, Math.round(posRef.current)));
+      const roundedPos = Math.round(posRef.current);
+      const idx = cyclic ? wrapIdx(roundedPos) : Math.max(0, Math.min(maxIdx, roundedPos));
       if (idx !== lastReportedIdxRef.current) {
         lastReportedIdxRef.current = idx;
         onChangeRef.current(valuesRef.current[idx]);
@@ -446,16 +459,19 @@ function WheelField(props: {
     const dy = d.startY - e.clientY;
     const maxIdx = valuesRef.current.length - 1;
     let newPos = d.startPos + dy / WHEEL_ITEM_H;
-    // Rubber-band at edges
-    if (newPos < 0) newPos *= 0.3;
-    else if (newPos > maxIdx) newPos = maxIdx + (newPos - maxIdx) * 0.3;
+    if (!cyclic) {
+      // Rubber-band at edges
+      if (newPos < 0) newPos *= 0.3;
+      else if (newPos > maxIdx) newPos = maxIdx + (newPos - maxIdx) * 0.3;
+    }
     posRef.current = newPos;
 
     d.samples.push({ y: e.clientY, t: Date.now() });
     if (d.samples.length > 12) d.samples.shift();
     paint();
 
-    const idx = Math.max(0, Math.min(maxIdx, Math.round(posRef.current)));
+    const roundedPos = Math.round(posRef.current);
+    const idx = cyclic ? wrapIdx(roundedPos) : Math.max(0, Math.min(maxIdx, roundedPos));
     if (idx !== lastReportedIdxRef.current) {
       lastReportedIdxRef.current = idx;
       onChangeRef.current(valuesRef.current[idx]);
@@ -467,9 +483,10 @@ function WheelField(props: {
     if (!d.active || e.pointerId !== d.id) return;
     d.active = false;
 
-    // Clamp back from rubber-band
     const maxIdx = valuesRef.current.length - 1;
-    posRef.current = Math.max(0, Math.min(maxIdx, posRef.current));
+    if (!cyclic) {
+      posRef.current = Math.max(0, Math.min(maxIdx, posRef.current));
+    }
 
     const vel = computeVelocity();
     if (Math.abs(vel) > W_SNAP_VEL) {
@@ -489,7 +506,8 @@ function WheelField(props: {
       stop();
       const delta = Math.sign(e.deltaY);
       const maxIdx = valuesRef.current.length - 1;
-      const target = Math.max(0, Math.min(maxIdx, Math.round(posRef.current) + delta));
+      const raw = Math.round(posRef.current) + delta;
+      const target = cyclic ? raw : Math.max(0, Math.min(maxIdx, raw));
       snapTo(target);
     };
     node.addEventListener("wheel", handler, { passive: false });
@@ -601,6 +619,7 @@ const s: Record<string, CSSProperties> = {
     gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
     gap: 12,
     minWidth: 0,
+    padding: "0 10px",
   },
   wheelField: {
     border: "none",
@@ -652,7 +671,7 @@ const s: Record<string, CSSProperties> = {
     inset: 0,
     pointerEvents: "none",
     zIndex: 3,
-    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 28%, transparent 72%, ${workoutTheme.pillBg} 100%)`,
+    background: `linear-gradient(to bottom, ${workoutTheme.pillBg} 0%, transparent 35%, transparent 65%, ${workoutTheme.pillBg} 100%)`,
     borderRadius: 16,
   },
   wheelContainer: {
@@ -723,7 +742,7 @@ const s: Record<string, CSSProperties> = {
     fontSize: 30,
     fontWeight: 700,
     lineHeight: 1,
-    color: "rgba(15,23,42,0.45)",
+    color: workoutTheme.textPrimary,
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
     transition: "color 200ms ease",
   },
