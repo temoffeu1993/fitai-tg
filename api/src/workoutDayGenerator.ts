@@ -155,7 +155,12 @@ function inferLoadInfo(exercise: Exercise): {
   }
 
   const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
-  const hasExternal = equipment.some((eq: string) => loadable.has(eq));
+  const externalHints = [
+    "barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine",
+    "штанг", "гантел", "тренаж", "блок", "кроссовер", "смита", "гир",
+  ];
+  const hintedExternal = externalHints.some((k) => id.includes(k) || name.includes(k) || nameEn.includes(k));
+  const hasExternal = equipment.some((eq: string) => loadable.has(eq)) || hintedExternal;
   const hasBodyweight = equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
 
   if (!hasExternal) {
