@@ -99,7 +99,10 @@ function inferLoadInfoFromExercise(exercise: any): {
     equipment.includes("bodyweight") || equipment.includes("pullup_bar") || equipment.includes("trx");
 
   if (!hasExternal) return { loadType: "bodyweight", requiresWeightInput: false, weightLabel: "" };
-  return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel: "Вес (кг)" };
+
+  const isDumbbell = equipment.includes("dumbbell") || id.includes("dumbbell") || name.includes("гантел") || nameEn.includes("dumbbell");
+  const weightLabel = isDumbbell ? "кг × 2" : "кг";
+  return { loadType: "external", requiresWeightInput: !hasBodyweight, weightLabel };
 }
 
 function enrichLoadInfoForStoredPlanExercises(exercises: any[]): any[] {

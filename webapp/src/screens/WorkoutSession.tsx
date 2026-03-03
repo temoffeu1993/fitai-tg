@@ -712,7 +712,7 @@ export default function WorkoutSession() {
     const fromId = from.id ? String(from.id) : null;
     const toId = String(alternative.exerciseId);
     const suggested = Number.isFinite(Number(alternative.suggestedWeight)) ? Number(alternative.suggestedWeight) : undefined;
-    const performedSets = from.sets.filter((set) => set.done || set.reps != null || set.weight != null).length;
+    const performedSets = from.sets.filter((set) => set.done).length;
     const totalSetsForItem = from.sets.length;
 
     setItems((prev) => {

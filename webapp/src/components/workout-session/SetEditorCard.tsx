@@ -86,7 +86,7 @@ export default function SetEditorCard(props: Props) {
   const totalSets = Math.max(1, item.sets.length);
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsHint = "повторы";
-  const weightHint = needWeight ? "кг" : null;
+  const weightHint = needWeight ? (item.weightLabel || "кг") : null;
   const explicitReps = Number(set.reps);
   const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
   const prevReps =
@@ -122,7 +122,7 @@ export default function SetEditorCard(props: Props) {
   return (
     <section style={{ ...(embedded ? s.embedRoot : s.card) }}>
       <style>{secCss}</style>
-      <div style={s.inputsGrid}>
+      <div style={needWeight ? s.inputsGrid : s.inputsGridSingle}>
         <WheelField
           ariaLabel="Повторы"
           hintLabel={repsHint}
@@ -134,16 +134,17 @@ export default function SetEditorCard(props: Props) {
           cyclic
         />
 
-        <WheelField
-          ariaLabel="Килограммы"
-          hintLabel={needWeight ? weightHint : null}
-          values={WEIGHT_VALUES}
-          value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
-          onChange={(value) => onChangeWeight(focusSetIndex, value)}
-          formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
-          disabled={!needWeight}
-          flashSuccess={tintOn}
-        />
+        {needWeight && (
+          <WheelField
+            ariaLabel="Килограммы"
+            hintLabel={weightHint}
+            values={WEIGHT_VALUES}
+            value={Number.isFinite(Number(set.weight)) ? Number(set.weight) : undefined}
+            onChange={(value) => onChangeWeight(focusSetIndex, value)}
+            formatValue={(value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))}
+            flashSuccess={tintOn}
+          />
+        )}
       </div>
 
       <button
@@ -622,6 +623,12 @@ const s: Record<string, CSSProperties> = {
   inputsGrid: {
     display: "grid",
     gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
+    gap: 12,
+    minWidth: 0,
+  },
+  inputsGridSingle: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
     gap: 12,
     minWidth: 0,
   },
