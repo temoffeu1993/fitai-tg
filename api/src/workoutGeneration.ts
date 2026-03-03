@@ -212,8 +212,6 @@ workoutGeneration.get(
           exercises: libExercises,
           goal: userProfile.goal,
           experience: userProfile.experience,
-          sex: userProfile.sex,
-          bodyweight: userProfile.bodyweight,
         });
         for (const id of uniqueIds) {
           const rec = recs.get(id);
@@ -1661,8 +1659,6 @@ workoutGeneration.post(
                   exercises: libExercises,
                   goal: userProfile.goal,
                   experience: userProfile.experience,
-                  sex: userProfile.sex,
-                  bodyweight: userProfile.bodyweight,
                 });
 
                 exercisesWithWeights = enrichedExercises.map((ex: any) => {

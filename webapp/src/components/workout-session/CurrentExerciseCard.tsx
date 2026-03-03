@@ -4,17 +4,19 @@ import { workoutTheme } from "./theme";
 import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
 import { Dumbbell, Repeat } from "lucide-react";
 
-function buildGoalParts(item: SessionItem): { weight: string | null; reps: string | null } {
+function buildGoalParts(item: SessionItem): { weight: string | null; reps: string | null; pickWeight: boolean } {
   const needWeight = requiresWeightInput(item);
   const parsedWeight = parseWeightNumber(item.targetWeight);
+  const hasWeight = parsedWeight != null && parsedWeight > 0;
   const unit = item.weightLabel || "кг";
-  const weight = needWeight && parsedWeight != null && parsedWeight > 0
+  const weight = needWeight && hasWeight
     ? `${Number.isInteger(parsedWeight) ? parsedWeight : parsedWeight.toFixed(1)} ${unit}`
     : needWeight && typeof item.targetWeight === "string" && item.targetWeight.trim()
       ? item.targetWeight.trim()
       : null;
   const reps = formatRepsLabel(item.targetReps);
-  return { weight, reps };
+  const pickWeight = needWeight && !hasWeight;
+  return { weight, reps, pickWeight };
 }
 
 type Props = {
@@ -27,8 +29,8 @@ export default function CurrentExerciseCard(props: Props) {
   const { item, onOpenMenu, children } = props;
   if (!item) return null;
 
-  const { weight, reps } = buildGoalParts(item);
-  const hasGoal = weight || reps;
+  const { weight, reps, pickWeight } = buildGoalParts(item);
+  const hasGoal = weight || reps || pickWeight;
 
   return (
     <section style={s.card}>
@@ -37,7 +39,13 @@ export default function CurrentExerciseCard(props: Props) {
           <h2 style={s.name}>{item.name}</h2>
           {hasGoal && (
             <div style={s.goalRow}>
-              {weight && (
+              {pickWeight && (
+                <span style={{ ...s.goalChip, color: "rgba(15,23,42,0.45)", fontStyle: "italic" }}>
+                  <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
+                  <span>Подберите вес</span>
+                </span>
+              )}
+              {weight && !pickWeight && (
                 <span style={s.goalChip}>
                   <Dumbbell size={14} strokeWidth={2.2} style={s.goalIcon} />
                   <span>{weight}</span>

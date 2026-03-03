@@ -1146,8 +1146,6 @@ export async function generateWorkoutDay(args: {
         exercises: exercisesForProgression,
         goal: userProfile.goal,
         experience: userProfile.experience,
-        sex: userProfile.sex,
-        bodyweight: userProfile.bodyweight,
       });
       
       console.log(`  [Progression] Got recommendations for ${progressionRecommendations.size} exercises`);

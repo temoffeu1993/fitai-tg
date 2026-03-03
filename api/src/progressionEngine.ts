@@ -617,115 +617,14 @@ export function shouldRotateExercise(progressionData: ExerciseProgressionData): 
 // ============================================================================
 // HELPER: Get starting weight for new exercise
 // ============================================================================
-
-// Coefficients: Novice 1RM (strengthlevel.com, 80kg male) × 0.60 / 80.
-// Source: strengthlevel.com (150M+ lifts). Novice = 20th percentile, ~6-12 months trained.
-// × 0.60 = starting load for ~15 reps with good form (NSCA moderate load guideline).
-// barbell = total bar weight (Olympic 20kg or EZ ~8kg)
-// dumbbell = weight per hand
-// machine = weight on stack / cable
-const BW_COEFFICIENTS: Record<string, { barbell: number; dumbbell: number; machine: number }> = {
-  squat:            { barbell: 0.74, dumbbell: 0.17, machine: 1.15 },
-  hinge:            { barbell: 0.87, dumbbell: 0.20, machine: 0.66 },
-  lunge:            { barbell: 0.41, dumbbell: 0.14, machine: 0.36 },
-  hip_thrust:       { barbell: 0.65, dumbbell: 0.10, machine: 0.66 },
-  horizontal_push:  { barbell: 0.56, dumbbell: 0.21, machine: 0.46 },
-  incline_push:     { barbell: 0.50, dumbbell: 0.23, machine: 0.41 },
-  vertical_push:    { barbell: 0.35, dumbbell: 0.17, machine: 0.37 },
-  horizontal_pull:  { barbell: 0.47, dumbbell: 0.23, machine: 0.48 },
-  vertical_pull:    { barbell: 0.36, dumbbell: 0.10, machine: 0.46 },
-  rear_delts:       { barbell: 0.10, dumbbell: 0.07, machine: 0.21 },
-  delts_iso:        { barbell: 0.10, dumbbell: 0.07, machine: 0.12 },
-  triceps_iso:      { barbell: 0.22, dumbbell: 0.11, machine: 0.27 },
-  biceps_iso:       { barbell: 0.24, dumbbell: 0.11, machine: 0.23 },
-  calves:           { barbell: 0.60, dumbbell: 0.12, machine: 0.59 },
-  core:             { barbell: 0.07, dumbbell: 0.05, machine: 0.34 },
-  carry:            { barbell: 0.36, dumbbell: 0.18, machine: 0.24 },
-};
-
-// Experience multipliers derived from strengthlevel.com Beginner/Novice/Intermediate ratios.
-// Compound exercises scale more linearly; isolation shows steeper progression.
-const EXP_MULTIPLIER_COMPOUND: Record<ExperienceLevel, number> = {
-  beginner: 0.73,    // Beginner/Novice ratio avg (squat 0.73, bench 0.72, dead 0.74)
-  intermediate: 1.0,
-  advanced: 1.32,    // Intermediate/Novice ratio avg (squat 1.33, bench 1.32, dead 1.30)
-};
-const EXP_MULTIPLIER_ISOLATION: Record<ExperienceLevel, number> = {
-  beginner: 0.46,    // Beginner/Novice ratio avg (curl 0.50, raise 0.44, pushdown 0.56)
-  intermediate: 1.0,
-  advanced: 1.70,    // Intermediate/Novice ratio avg (curl 1.71, raise 1.78, pushdown 1.61)
-};
+// No history → return 0 (user picks weight on first attempt).
+// Bodyweight exercises → always 0.
 
 function getStartingWeight(args: {
   exercise: Exercise;
   experience: ExperienceLevel;
-  sex?: "male" | "female";
-  bodyweight?: number;
 }): number {
-  const { exercise, experience, sex, bodyweight } = args;
-
-  // Bodyweight exercises — no external load
-  if (exercise.equipment.includes("bodyweight") && !exercise.equipment.some(e => e !== "bodyweight")) {
-    return 0;
-  }
-
-  // Determine equipment category
-  const hasBarbell = exercise.equipment.includes("barbell");
-  const hasSmith = exercise.equipment.includes("smith");
-  const hasDumbbell = exercise.equipment.includes("dumbbell");
-  const hasMachine = exercise.equipment.includes("machine") || exercise.equipment.includes("cable");
-
-  // Coefficient lookup key: barbell and smith both use plate-based weights,
-  // but smith uses "machine" column (guided motion → typically heavier).
-  const equipKey: "barbell" | "dumbbell" | "machine" =
-    hasBarbell ? "barbell" : hasDumbbell ? "dumbbell" : "machine";
-
-  // If we have bodyweight → use coefficient table
-  if (bodyweight && bodyweight > 0) {
-    const pattern = exercise.patterns?.[0];
-    const coeff = pattern ? BW_COEFFICIENTS[pattern] : null;
-    const baseCoeff = coeff ? coeff[equipKey] : (exercise.kind === "compound" ? 0.20 : 0.06);
-
-    const sexMult = sex === "male" ? 1.0 : sex === "female" ? 0.60 : 0.75;
-    const expMultTable = exercise.kind === "isolation" ? EXP_MULTIPLIER_ISOLATION : EXP_MULTIPLIER_COMPOUND;
-    const expMult = expMultTable[experience] ?? 1.0;
-
-    const raw = bodyweight * baseCoeff * sexMult * expMult;
-
-    // ── Rounding to real equipment steps & enforce minimums ──
-    // Plate-loaded (barbell/smith): round to 5kg for approximate starting weight
-
-    // Barbell (Olympic bar 20kg or EZ-bar ~8kg)
-    if (hasBarbell) {
-      const EZ_PATTERNS = new Set(["triceps_iso", "biceps_iso"]);
-      const minBarbell = EZ_PATTERNS.has(pattern ?? "") ? 8 : 20;
-      return Math.max(minBarbell, Math.round(raw / 5) * 5);
-    }
-
-    // Smith machine (guided bar ~15kg, same plates as barbell)
-    if (hasSmith) {
-      return Math.max(15, Math.round(raw / 5) * 5);
-    }
-
-    // Dumbbells (fixed set: 1kg steps ≤10kg, 2.5kg steps above)
-    if (hasDumbbell) {
-      const rounded = raw <= 10 ? Math.round(raw) : Math.round(raw / 2.5) * 2.5;
-      return Math.max(2, rounded);
-    }
-
-    // Machine / cable (pin-loaded weight stack: 5kg per plate)
-    return Math.max(5, Math.round(raw / 5) * 5);
-  }
-
-  // Fallback: no bodyweight data — use fixed conservative values
-  const fallback: Record<string, Record<ExperienceLevel, number>> = {
-    barbell:  { beginner: 20, intermediate: 40, advanced: 60 },
-    smith:    { beginner: 15, intermediate: 35, advanced: 55 },
-    dumbbell: { beginner: 4,  intermediate: 8,  advanced: 14 },
-    machine:  { beginner: 10, intermediate: 20, advanced: 30 },
-  };
-  const fbKey = hasBarbell ? "barbell" : hasSmith ? "smith" : hasDumbbell ? "dumbbell" : "machine";
-  return fallback[fbKey]?.[experience] ?? 5;
+  return 0;
 }
 
 // ============================================================================
@@ -736,12 +635,10 @@ export function initializeProgressionData(args: {
   exerciseId: string;
   exercise: Exercise;
   experience: ExperienceLevel;
-  sex?: "male" | "female";
-  bodyweight?: number;
 }): ExerciseProgressionData {
-  const { exerciseId, exercise, experience, sex, bodyweight } = args;
+  const { exerciseId, exercise, experience } = args;
 
-  const startingWeight = getStartingWeight({ exercise, experience, sex, bodyweight });
+  const startingWeight = getStartingWeight({ exercise, experience });
 
   return {
     exerciseId,

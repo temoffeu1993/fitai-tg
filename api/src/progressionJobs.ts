@@ -106,7 +106,7 @@ export async function enqueueProgressionJob(args: {
 }
 
 async function getUserGoalExperience(userId: string): Promise<{
-  goal: any; experience: any; sex?: "male" | "female"; bodyweight?: number;
+  goal: any; experience: any;
 }> {
   const [onboardingRow] = await q<{ data: any; summary: any }>(
     `SELECT data, summary FROM onboardings WHERE user_id = $1 LIMIT 1`,
@@ -122,11 +122,7 @@ async function getUserGoalExperience(userId: string): Promise<{
     onboardingRow?.summary?.goals?.primary ||
     "build_muscle";
   const experience = data?.experience || onboardingRow?.summary?.experience || "intermediate";
-  const sex = data?.ageSex?.sex === "male" ? "male" as const
-    : data?.ageSex?.sex === "female" ? "female" as const : undefined;
-  const rawBw = Number(data?.body?.weight);
-  const bodyweight = Number.isFinite(rawBw) && rawBw > 20 && rawBw < 300 ? rawBw : undefined;
-  return { goal, experience, sex, bodyweight };
+  return { goal, experience };
 }
 
 async function getSessionPayload(args: { userId: string; sessionId: string }): Promise<any> {
@@ -300,7 +296,7 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
       workoutDate: normalizeDate(job.workout_date),
     });
     const payload = await getSessionPayload({ userId: job.user_id, sessionId: job.session_id });
-    const { goal, experience, sex, bodyweight } = await getUserGoalExperience(job.user_id);
+    const { goal, experience } = await getUserGoalExperience(job.user_id);
     const workoutDate = normalizeDate(job.workout_date);
 
     // Apply progression atomically (separate transaction from job claim)
@@ -313,8 +309,6 @@ async function runJob(job: ProgressionJobRow): Promise<{ status: ProgressionJobS
         experience,
         workoutDate,
         plannedWorkoutId: job.planned_workout_id,
-        sex,
-        bodyweight,
       })
     );
 
