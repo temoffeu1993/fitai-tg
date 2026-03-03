@@ -170,8 +170,7 @@ export default function SetEditorCard(props: Props) {
           aria-hidden
           style={{
             ...s.commitCheck,
-            ...(doneSets > 0 ? s.commitCheckOnFill : null),
-            ...(Boolean(set.done) ? s.commitCheckDone : null),
+            ...(progressPercent >= 50 ? s.commitCheckOnFill : null),
           }}
         >
           ✓
