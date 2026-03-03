@@ -38,8 +38,8 @@ const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
 
-// Universal weight values: 0.5, 1, 1.5, ..., 300 (0.5kg step)
-const WEIGHT_VALUES = Array.from({ length: 600 }, (_, i) => Math.round((0.5 + i * 0.5) * 10) / 10);
+// Universal weight values: 0, 0.5, 1, 1.5, ..., 300 (0.5kg step)
+const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round((i * 0.5) * 10) / 10);
 
 export default function SetEditorCard(props: Props) {
   const {
