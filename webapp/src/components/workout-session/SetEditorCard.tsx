@@ -38,15 +38,8 @@ const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
 
-// Weight values per equipment type — matching real inventory
-const WEIGHT_BARBELL = Array.from({ length: 586 }, (_, i) => Math.round((7.5 + i * 0.5) * 10) / 10); // 7.5, 8, 8.5, ..., 300
-const WEIGHT_DUMBBELL = [
-  ...Array.from({ length: 10 }, (_, i) => i + 1),       // 1, 2, 3, ..., 10   (1kg step)
-  ...Array.from({ length: 16 }, (_, i) => 12.5 + i * 2.5), // 12.5, 15, ..., 50 (2.5kg step)
-];
-const WEIGHT_MACHINE = Array.from({ length: 40 }, (_, i) => (i + 1) * 5); // 5, 10, 15, ..., 200
-// Fallback: 1kg steps for when equipmentType is unknown (e.g. old cached sessions)
-const WEIGHT_GENERIC = Array.from({ length: 200 }, (_, i) => i + 1); // 1, 2, 3, ..., 200
+// Universal weight values: 0.5, 1, 1.5, ..., 300 (0.5kg step)
+const WEIGHT_VALUES = Array.from({ length: 600 }, (_, i) => Math.round((0.5 + i * 0.5) * 10) / 10);
 
 export default function SetEditorCard(props: Props) {
   const {
@@ -92,10 +85,7 @@ export default function SetEditorCard(props: Props) {
   const exerciseCompleted = item.sets.every((entry) => Boolean(entry.done));
   const tintOn = commitFlash || exerciseCompleted || Boolean(set.done);
   const needWeight = requiresWeightInput(item);
-  const weightValues = item.equipmentType === "dumbbell" ? WEIGHT_DUMBBELL
-    : item.equipmentType === "machine" ? WEIGHT_MACHINE
-    : item.equipmentType === "barbell" ? WEIGHT_BARBELL
-    : WEIGHT_GENERIC;
+  const weightValues = WEIGHT_VALUES;
   const totalSets = Math.max(1, item.sets.length);
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
   const repsHint = "повторы";
