@@ -1179,7 +1179,7 @@ const cal: Record<string, CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
     gap: 6,
-    padding: "18px 14px 0",
+    padding: "6px 14px 0",
   },
   headerCell: {
     textAlign: "center",
