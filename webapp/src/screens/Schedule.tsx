@@ -10,7 +10,7 @@ import {
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import mascotImg from "@/assets/robonew.webp";
-import { Calendar, ChevronLeft, ChevronRight, CircleCheckBig } from "lucide-react";
+import { Calendar, CircleCheckBig } from "lucide-react";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -449,12 +449,12 @@ export default function Schedule() {
         <div style={ux.card}>
           <div style={s.calNav}>
             <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x - 1)}>
-              <ChevronLeft size={18} strokeWidth={2.2} />
+              <span>←</span>
               <span>{prevMonthName}</span>
             </button>
             <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x + 1)}>
               <span>{nextMonthName}</span>
-              <ChevronRight size={18} strokeWidth={2.2} />
+              <span>→</span>
             </button>
           </div>
 
