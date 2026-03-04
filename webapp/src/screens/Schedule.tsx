@@ -10,7 +10,7 @@ import {
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import mascotImg from "@/assets/robonew.webp";
-import { Calendar, CircleCheckBig } from "lucide-react";
+import { CircleCheckBig } from "lucide-react";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -432,10 +432,6 @@ export default function Schedule() {
             <div style={s.avatarTitle}>Календарь тренировок</div>
             <div style={s.avatarSubRow}>
               <span style={s.avatarSubChip}>
-                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                <span style={{ textTransform: "capitalize" }}>{monthLabel}</span>
-              </span>
-              <span style={s.avatarSubChip}>
                 <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
                 <span>{completedInMonth} выполнено</span>
               </span>
@@ -451,6 +447,7 @@ export default function Schedule() {
               <span>←</span>
               <span>{prevMonthName}</span>
             </button>
+            <div style={s.calNavCurrent}>{monthLabel}</div>
             <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x + 1)}>
               <span>{nextMonthName}</span>
               <span>→</span>
@@ -1110,6 +1107,12 @@ const s: Record<string, CSSProperties> = {
     color: "rgba(15,23,42,0.62)",
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
+  } as CSSProperties,
+  calNavCurrent: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#1e1f22",
+    textTransform: "capitalize",
   } as CSSProperties,
 
   // Blocks
