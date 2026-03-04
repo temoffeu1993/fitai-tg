@@ -1228,7 +1228,7 @@ const s: Record<string, CSSProperties> = {
     scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "14px 0",
+    padding: "20px 0",
     paddingLeft: `calc(50% - ${MS_ITEM_W / 2}px)`,
     paddingRight: `calc(50% - ${MS_ITEM_W / 2}px)`,
     position: "relative",
