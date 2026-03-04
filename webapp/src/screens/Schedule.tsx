@@ -1212,7 +1212,7 @@ const s: Record<string, CSSProperties> = {
     left: "50%",
     top: "50%",
     width: MS_ITEM_W + 8,
-    height: "calc(100% - 6px)",
+    height: 36,
     transform: "translate(-50%, -50%)",
     borderRadius: 999,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
