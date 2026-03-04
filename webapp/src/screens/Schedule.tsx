@@ -9,6 +9,7 @@ import {
   ScheduleByDate,
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
+import DateTimeWheelModal from "@/components/DateTimeWheelModal";
 import mascotImg from "@/assets/robonew.webp";
 
 const dayLabelRU = (label: string) => {
@@ -562,7 +563,7 @@ export default function Schedule() {
       <div style={{ height: 80 }} />
 
       {modal && (
-        <PlanPreviewModal
+        <ScheduleBottomSheet
           workout={modal.workout}
           selectedWorkoutId={modal.selectedWorkoutId}
           availableWorkouts={modal.allowScheduledPick ? assignableWorkouts : pendingWorkouts}
@@ -574,11 +575,8 @@ export default function Schedule() {
             setModal(null);
             setReplaceConfirm(null);
           }}
-          onDateChange={(val) =>
-            setModal((prev) => (prev ? { ...prev, date: val } : prev))
-          }
-          onTimeChange={(val) =>
-            setModal((prev) => (prev ? { ...prev, time: val } : prev))
+          onDateTimeChange={(d, t) =>
+            setModal((prev) => (prev ? { ...prev, date: d, time: t } : prev))
           }
           onSelectWorkout={(id) =>
             setModal((prev) => (prev ? { ...prev, selectedWorkoutId: id, error: null } : prev))
@@ -604,9 +602,15 @@ export default function Schedule() {
   );
 }
 
-/* ===================== Модалы ===================== */
+/* ===================== Bottom Sheet ===================== */
 
-function PlanPreviewModal({
+const SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const SHEET_ENTER_MS = 380;
+const SHEET_EXIT_MS = 260;
+const OPEN_TICK_MS = 12;
+
+function ScheduleBottomSheet({
   workout,
   selectedWorkoutId,
   availableWorkouts,
@@ -615,8 +619,7 @@ function PlanPreviewModal({
   saving,
   error,
   onClose,
-  onDateChange,
-  onTimeChange,
+  onDateTimeChange,
   onSelectWorkout,
   onSave,
   onDelete,
@@ -631,225 +634,305 @@ function PlanPreviewModal({
   saving: boolean;
   error: string | null;
   onClose: () => void;
-  onDateChange: (value: string) => void;
-  onTimeChange: (value: string) => void;
+  onDateTimeChange: (date: string, time: string) => void;
   onSelectWorkout: (id: string) => void;
   onSave: () => void;
   onDelete: () => void;
   onStart: () => void;
   onDetails: () => void;
 }) {
-  const [motion, setMotion] = useState<"enter" | "open" | "closing">("enter");
+  const [renderOpen, setRenderOpen] = useState(true);
+  const [entered, setEntered] = useState(false);
+  const enteredRef = useRef(false);
+  const [closing, setClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
+  const [dtPickerOpen, setDtPickerOpen] = useState(false);
+
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
   const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
 
+  const applyEntered = (v: boolean) => {
+    enteredRef.current = v;
+    setEntered(v);
+  };
+
+  // Cleanup timers
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setMotion("open"));
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
+      if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
+    };
+  }, []);
+
+  // Open animation: mount → 12ms tick → entered
+  useEffect(() => {
+    openTimerRef.current = window.setTimeout(() => {
+      applyEntered(true);
+      openTimerRef.current = null;
+    }, OPEN_TICK_MS);
+  }, []);
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   const requestClose = useCallback(() => {
-    if (motion === "closing") return;
-    setMotion("closing");
-    window.setTimeout(() => onClose(), 160);
-  }, [motion, onClose]);
+    if (closing) return;
+    setClosing(true);
+    applyEntered(false);
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+    }, SHEET_EXIT_MS + 20);
+  }, [closing, onClose]);
 
-	  const wrapStyle: CSSProperties = {
-	    ...modalStyles.wrap,
-	    background: "rgba(0,0,0,0)",
-	  };
+  const title = !needsPick
+    ? (() => {
+        const p: any = (workout as any)?.plan || {};
+        const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+        return dayLabelRU(rawLabel);
+      })()
+    : "Запланировать";
 
-  const cardStyle: CSSProperties = {
-    ...modalStyles.card,
-    opacity: motion === "closing" ? 0 : motion === "enter" ? 0 : 1,
-    transform: motion === "enter" ? "translateY(20px) scale(0.98)" : "translateY(0) scale(1)",
-    transition:
-      "opacity 160ms ease, transform 420ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease",
-    willChange: "opacity, transform",
-  };
+  const dateFormatted = new Date(date + "T00:00:00").toLocaleDateString("ru-RU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 
   return (
-    <div
-      style={wrapStyle}
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) requestClose();
-      }}
-    >
-      <div style={cardStyle}>
-	        <style>{`
-	          .schedule-checkin-btn{
-	            border-radius:999px;
-	            padding:0 14px;
-	            height:50px;
-	            width:100%;
-	            border:1px solid #1e1f22;
-	            background:#1e1f22;
-	            color:#fff;
-	            font-weight:500;
-	            font-size:17px;
-	            cursor:pointer;
-	            box-shadow:0 6px 10px rgba(0,0,0,0.24);
-	            -webkit-tap-highlight-color:transparent;
-	            touch-action:manipulation;
-	            user-select:none;
-	            transition:transform 160ms ease, box-shadow 160ms ease, opacity 250ms ease;
-	          }
-	          .schedule-checkin-btn:active:not(:disabled){
-	            transform:translateY(1px) scale(0.99) !important;
-	            box-shadow:0 4px 8px rgba(0,0,0,0.18) !important;
-	          }
-	          .schedule-checkin-btn:disabled{
-	            opacity:0.5;
-	            cursor:not-allowed;
-	          }
-	          .schedule-checkin-btn:focus-visible{
-	            outline:3px solid rgba(15, 23, 42, 0.18);
-	            outline-offset:2px;
-	          }
-	          .schedule-scheme-card:hover{
-	            transform: translateY(-1px);
-	          }
-	        `}</style>
-	        <div style={modalStyles.topRow}>
-	          <button style={modalStyles.closeBtn} onClick={requestClose} type="button" aria-label="Закрыть">
-	            ✕
-	          </button>
-	        </div>
-	        {!needsPick ? (
-	          <div style={modalStyles.scheduledTitle}>
-	            {(() => {
-	              const p: any = (workout as any)?.plan || {};
-	              const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-	              return dayLabelRU(rawLabel);
-	            })()}
-	          </div>
-	        ) : null}
-	        <div style={modalStyles.dtRow}>
-		          <div style={modalStyles.dtChip}>
-	            <div style={modalStyles.dtChipLabel}>Дата</div>
-	            <div style={modalStyles.dtChipValue}>
-	              {new Date(date).toLocaleDateString("ru-RU", {
-	                weekday: "short",
-	                day: "numeric",
-	                month: "short",
-	              })}
-	            </div>
-	            <input
-	              type="date"
-	              value={date}
-	              onChange={(e) => onDateChange(e.target.value)}
-	              style={modalStyles.dtInputOverlay}
-	              aria-label="Выбрать дату"
-	            />
-	          </div>
-	          <div style={modalStyles.dtChip}>
-	            <div style={modalStyles.dtChipLabel}>Время</div>
-	            <div style={modalStyles.dtChipValue}>{time}</div>
-	            <input
-	              type="time"
-	              value={time}
-	              onChange={(e) => onTimeChange(e.target.value)}
-	              style={modalStyles.dtInputOverlay}
-	              aria-label="Выбрать время"
-	            />
-		          </div>
-		        </div>
+    <>
+      {/* Overlay */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2000,
+          background: "rgba(10,16,28,0.52)",
+          opacity: entered && !closing ? 1 : 0,
+          transition: `opacity ${entered ? SHEET_ENTER_MS : SHEET_EXIT_MS}ms ease`,
+        }}
+        onClick={requestClose}
+      />
 
-			        {needsPick ? (
-			          <div style={modalStyles.workoutsList}>
-			            {availableWorkouts.length ? (
-			              availableWorkouts.map((w) => {
-			                const p: any = w.plan || {};
-			                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-			                const label = dayLabelRU(rawLabel);
-			                const selected = w.id === selectedWorkoutId;
-			                return (
-			                  <button
-			                    key={w.id}
-			                    type="button"
-			                    className="schedule-scheme-card"
-			                    style={{
-			                      ...modalStyles.workoutRow,
-			                      ...(selected ? modalStyles.workoutRowSelected : null),
-			                    }}
-			                    onClick={() => onSelectWorkout(w.id)}
-			                  >
-			                    <div style={modalStyles.radioCircle}>
-			                      <div
-			                        style={{
-			                          ...modalStyles.radioDot,
-			                          transform: selected ? "scale(1)" : "scale(0)",
-			                          opacity: selected ? 1 : 0,
-			                        }}
-			                      />
-			                    </div>
-			                    <div style={modalStyles.workoutTitle}>{label}</div>
-			                  </button>
-			                );
-			              })
-			            ) : (
-			              <div style={modalStyles.emptyWorkouts}>
-			                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
-			              </div>
-			            )}
-			          </div>
-			        ) : null}
+      {/* Sheet */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 2001,
+          borderRadius: "24px 24px 0 0",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
+          boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          padding: "0 16px 16px",
+          transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
+          transition: `transform ${entered && !closing ? SHEET_ENTER_MS : SHEET_EXIT_MS}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+          willChange: "transform",
+        }}
+      >
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px" }}>
+          <div
+            style={{
+              width: 46,
+              height: 5,
+              borderRadius: 999,
+              background: "rgba(15,23,42,0.18)",
+            }}
+          />
+        </div>
 
-	        {error && <div style={modalStyles.error}>{error}</div>}
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0 12px" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
+            {title}
+          </div>
+          <button
+            type="button"
+            onClick={requestClose}
+            aria-label="Закрыть"
+            style={{
+              border: "none",
+              background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+              boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+              color: "rgba(15,23,42,0.55)",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+              width: 32,
+              height: 32,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: 999,
+              padding: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
 
-	        {/* Кнопки */}
-	        <div style={modalStyles.actions}>
-	          {canDetails ? (
-	            <button
-	              type="button"
-	              className="schedule-checkin-btn"
-	              style={modalStyles.startBtn}
-	              onClick={onDetails}
-	              disabled={saving}
-	            >
-	              Подробнее
-	            </button>
-	          ) : canStart ? (
-	            <button
-	              type="button"
-	              className="schedule-checkin-btn"
-	              style={modalStyles.startBtn}
-	              onClick={onStart}
-	              disabled={saving || readOnly}
-	            >
-	              🏁 Начать тренировку
-	            </button>
-	          ) : (
-	            <button
-	              type="button"
-	              className="schedule-checkin-btn"
-	              style={modalStyles.startBtn}
-	              onClick={onSave}
-	              disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-	            >
-	              {saving ? "Сохраняем..." : "Сохранить"}
-	            </button>
-	          )}
+        {/* Date/Time chip */}
+        <button
+          type="button"
+          onClick={() => setDtPickerOpen(true)}
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <div style={sh.dtChip}>
+            <div style={sh.dtChipLabel}>Дата</div>
+            <div style={sh.dtChipValue}>{dateFormatted}</div>
+          </div>
+          <div style={sh.dtChip}>
+            <div style={sh.dtChipLabel}>Время</div>
+            <div style={sh.dtChipValue}>{time}</div>
+          </div>
+        </button>
 
-	          {canDelete ? (
-	            <button
-	              type="button"
-	              style={modalStyles.deleteBtn}
-	              onClick={onDelete}
-	              disabled={saving || readOnly}
-	            >
-	              Удалить
-	            </button>
-	          ) : null}
-	        </div>
-	      </div>
-	    </div>
-	  );
+        {/* Workout pick list */}
+        {needsPick ? (
+          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            {availableWorkouts.length ? (
+              availableWorkouts.map((w) => {
+                const p: any = w.plan || {};
+                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                const label = dayLabelRU(rawLabel);
+                const selected = w.id === selectedWorkoutId;
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    style={{
+                      ...sh.workoutRow,
+                      ...(selected ? sh.workoutRowSelected : null),
+                    }}
+                    onClick={() => onSelectWorkout(w.id)}
+                  >
+                    <div style={sh.radioCircle}>
+                      <div
+                        style={{
+                          ...sh.radioDot,
+                          transform: selected ? "scale(1)" : "scale(0)",
+                          opacity: selected ? 1 : 0,
+                        }}
+                      />
+                    </div>
+                    <div style={sh.workoutTitle}>{label}</div>
+                  </button>
+                );
+              })
+            ) : (
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" }}>
+                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Error */}
+        {error && (
+          <div style={sh.error}>{error}</div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+          <style>{`
+            .sched-sheet-btn{
+              border-radius:999px;padding:0 14px;height:50px;width:100%;
+              border:1px solid #1e1f22;background:#1e1f22;color:#fff;
+              font-weight:500;font-size:17px;cursor:pointer;
+              box-shadow:0 6px 10px rgba(0,0,0,0.24);
+              -webkit-tap-highlight-color:transparent;
+              touch-action:manipulation;user-select:none;
+              transition:transform 160ms ease,box-shadow 160ms ease,opacity 250ms ease;
+            }
+            .sched-sheet-btn:active:not(:disabled){
+              transform:translateY(1px) scale(0.99)!important;
+              box-shadow:0 4px 8px rgba(0,0,0,0.18)!important;
+            }
+            .sched-sheet-btn:disabled{opacity:0.5;cursor:not-allowed;}
+          `}</style>
+          {canDetails ? (
+            <button type="button" className="sched-sheet-btn" onClick={onDetails} disabled={saving}>
+              Подробнее
+            </button>
+          ) : canStart ? (
+            <button type="button" className="sched-sheet-btn" onClick={onStart} disabled={saving || readOnly}>
+              Начать тренировку
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="sched-sheet-btn"
+              onClick={onSave}
+              disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
+            >
+              {saving ? "Сохраняем..." : "Сохранить"}
+            </button>
+          )}
+
+          {canDelete ? (
+            <button
+              type="button"
+              style={{
+                border: "none",
+                borderRadius: 999,
+                padding: 12,
+                fontWeight: 500,
+                fontSize: 14,
+                background: "transparent",
+                color: "rgba(15,23,42,0.45)",
+                cursor: "pointer",
+              }}
+              onClick={onDelete}
+              disabled={saving || readOnly}
+            >
+              Удалить
+            </button>
+          ) : null}
+        </div>
+
+        {/* Safe area spacer */}
+        <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
+      </div>
+
+      {/* DateTimeWheelModal */}
+      {dtPickerOpen && (
+        <DateTimeWheelModal
+          initialDate={date}
+          initialTime={time}
+          title="Дата и время"
+          onSave={(d, t) => {
+            onDateTimeChange(d, t);
+            setDtPickerOpen(false);
+          }}
+          onClose={() => setDtPickerOpen(false)}
+        />
+      )}
+    </>
+  );
 }
 
 function Loader() {
@@ -1301,52 +1384,8 @@ const list: Record<string, CSSProperties> = {
   hint: { fontSize: 12, color: "rgba(15,23,42,0.55)" },
 };
 
-const modalStyles: Record<string, CSSProperties> = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    display: "grid",
-    placeItems: "center",
-    zIndex: 2000,
-    padding: 16,
-  },
-
-  card: {
-    width: "min(92vw, 460px)",
-    maxHeight: "72vh",
-    overflowY: "auto",
-    overflowX: "hidden",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(242,242,247,0.94) 100%)",
-    border: "1px solid rgba(255,255,255,0.75)",
-    boxShadow: "0 16px 40px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
-    borderRadius: 24,
-    display: "grid",
-    gap: 12,
-    padding: "14px 16px 16px",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-  },
-
-  topRow: { display: "flex", justifyContent: "flex-end" },
-  closeBtn: {
-    border: "none",
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "rgba(15,23,42,0.55)",
-    cursor: "pointer",
-    fontSize: 16,
-    lineHeight: 1,
-    width: 32,
-    height: 32,
-    display: "grid",
-    placeItems: "center",
-    borderRadius: 999,
-    padding: 0,
-  },
-
-  dtRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+const sh: Record<string, CSSProperties> = {
   dtChip: {
-    position: "relative",
     borderRadius: 18,
     padding: "10px 14px",
     background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
@@ -1355,25 +1394,10 @@ const modalStyles: Record<string, CSSProperties> = {
     display: "grid",
     gap: 4,
     minHeight: 58,
+    textAlign: "left",
   },
   dtChipLabel: { fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.45)", letterSpacing: 0.2 },
   dtChipValue: { fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.1 },
-  dtInputOverlay: {
-    position: "absolute",
-    inset: 0,
-    opacity: 0,
-    width: "100%",
-    height: "100%",
-    cursor: "pointer",
-    border: "none",
-    background: "transparent",
-  },
-
-  workoutsList: {
-    display: "grid",
-    gap: 8,
-    marginTop: 4,
-  },
   workoutRow: {
     position: "relative",
     width: "100%",
@@ -1423,16 +1447,6 @@ const modalStyles: Record<string, CSSProperties> = {
     lineHeight: 1.2,
     letterSpacing: -0.3,
   },
-  emptyWorkouts: { fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" },
-  scheduledTitle: {
-    marginTop: 2,
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#1e1f22",
-    lineHeight: 1.2,
-    letterSpacing: -0.3,
-  },
-
   error: {
     background: "rgba(239,68,68,0.08)",
     color: "#b42318",
@@ -1440,19 +1454,6 @@ const modalStyles: Record<string, CSSProperties> = {
     fontWeight: 600,
     padding: "10px 12px",
     borderRadius: 14,
-  },
-
-  actions: { marginTop: 4, display: "grid", gap: 8 },
-
-  startBtn: {},
-  deleteBtn: {
-    border: "none",
-    borderRadius: 999,
-    padding: "12px",
-    fontWeight: 500,
-    fontSize: 14,
-    background: "transparent",
-    color: "rgba(15,23,42,0.45)",
-    cursor: "pointer",
+    marginTop: 8,
   },
 };
