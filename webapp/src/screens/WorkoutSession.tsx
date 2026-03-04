@@ -728,7 +728,10 @@ export default function WorkoutSession() {
       const next = cloneItems(prev);
       const current = next[activeIndex];
       if (!current) return prev;
-      const defaultReps = defaultRepsFromTarget(current.targetReps);
+      // If switching between time-based and reps-based, drop old targetReps
+      const timeChanged = Boolean(current.isTimeBased) !== Boolean(alternative.isTimeBased);
+      const effectiveTargetReps = timeChanged ? undefined : current.targetReps;
+      const defaultReps = defaultRepsFromTarget(effectiveTargetReps);
 
       if (performedSets <= 0) {
         current.id = toId;
@@ -738,6 +741,7 @@ export default function WorkoutSession() {
         current.weightLabel = alternative.weightLabel;
         current.equipmentType = alternative.equipmentType ?? null;
         current.isTimeBased = alternative.isTimeBased || undefined;
+        if (timeChanged) current.targetReps = undefined;
         current.targetWeight = suggested != null ? String(suggested) : null;
         current.tagline = alternative.tagline;
         current.technique = alternative.technique;
@@ -762,7 +766,7 @@ export default function WorkoutSession() {
         name: alternative.name,
         pattern: current.pattern,
         targetMuscles: current.targetMuscles,
-        targetReps: current.targetReps,
+        targetReps: timeChanged ? undefined : current.targetReps,
         targetWeight: suggested != null ? String(suggested) : null,
         restSec: current.restSec,
         loadType: alternative.loadType,
