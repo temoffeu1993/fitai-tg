@@ -411,8 +411,21 @@ export default function Schedule() {
 
   return (
     <div style={s.page}>
+      <style>{`
+        @keyframes schedFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .sched-fade { animation: schedFadeUp 520ms ease-out both; }
+        .sched-delay-1 { animation-delay: 80ms; }
+        .sched-delay-2 { animation-delay: 160ms; }
+        .sched-delay-3 { animation-delay: 240ms; }
+        @media (prefers-reduced-motion: reduce) {
+          .sched-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
+        }
+      `}</style>
       {/* BLOCK 1: Avatar Header */}
-      <section style={s.avatarHeader}>
+      <section style={s.avatarHeader} className="sched-fade sched-delay-1">
         <div style={s.avatarLeft}>
           <div style={s.avatarCircle}>
             <img src={MASCOT_SRC} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
@@ -424,7 +437,7 @@ export default function Schedule() {
         </div>
       </section>
 
-      <section style={s.block}>
+      <section style={s.block} className="sched-fade sched-delay-2">
         <div style={ux.card}>
           <div style={s.calNav}>
             <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x - 1)}>
@@ -516,7 +529,7 @@ export default function Schedule() {
         </div>
       </section>
 
-      <section style={s.block}>
+      <section style={s.block} className="sched-fade sched-delay-3">
         <div style={ux.card}>
           <div style={ux.cardHeader}>
             <div>
@@ -841,11 +854,27 @@ function PlanPreviewModal({
 
 function Loader() {
   return (
-    <div style={s.page}>
-      <section style={s.glassCard}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Загрузка…</h3>
-        <p style={{ margin: 0, color: "rgba(15,23,42,0.55)", fontSize: 14 }}>Готовим календарь</p>
-      </section>
+    <div style={{ ...s.page, alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        .sched-dots { display: inline-flex; align-items: center; gap: 4px; }
+        .sched-dots .dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #1b1b1b; opacity: 0.3;
+          animation: schedBlink 1.2s infinite;
+        }
+        .sched-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+        .sched-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes schedBlink {
+          0% { opacity: 0.3; transform: translateY(0); }
+          50% { opacity: 1; transform: translateY(-2px); }
+          100% { opacity: 0.3; transform: translateY(0); }
+        }
+      `}</style>
+      <div className="sched-dots">
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
     </div>
   );
 }
