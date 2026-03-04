@@ -9,6 +9,8 @@ import {
   ScheduleByDate,
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
+import mascotImg from "@/assets/robonew.webp";
+import { fireHapticImpact } from "@/utils/haptics";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -36,6 +38,24 @@ const dayCodeShort = (label: string) => {
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const MASCOT_SRC = mascotImg;
+const MONTH_ITEM_W = 80;
+const MONTH_COUNT = 13; // 6 past + current + 6 future
+const MONTH_PAST = 6;
+const MONTH_SHORT_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+type MonthEntry = { date: Date; label: string; year: number; offset: number };
+function buildMonthEntries(count: number, past: number): MonthEntry[] {
+  const today = new Date();
+  const entries: MonthEntry[] = [];
+  for (let i = 0; i < count; i++) {
+    const off = i - past;
+    const d = new Date(today.getFullYear(), today.getMonth() + off, 1);
+    entries.push({ date: d, label: MONTH_SHORT_RU[d.getMonth()], year: d.getFullYear(), offset: off });
+  }
+  return entries;
+}
 const defaultTimeSuggestion = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "18:00" : "09:00";
@@ -80,6 +100,59 @@ export default function Schedule() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
+
+  // ---------- Month scroller ----------
+  const msEntries = useMemo(() => buildMonthEntries(MONTH_COUNT, MONTH_PAST), []);
+  const msCurrentIdx = MONTH_PAST; // index of "today's month"
+  const [msActiveIdx, setMsActiveIdx] = useState(msCurrentIdx);
+  const msScrollRef = useRef<HTMLDivElement>(null);
+  const msScrollRafRef = useRef<number | null>(null);
+  const msScrollStopTimer = useRef<number | null>(null);
+  const msLastTickRef = useRef<number | null>(null);
+  const msSuppressHapticsRef = useRef(true);
+
+  useEffect(() => {
+    msScrollRef.current?.scrollTo({ left: msActiveIdx * MONTH_ITEM_W, behavior: "auto" });
+    msLastTickRef.current = msActiveIdx;
+  }, []); // center on mount
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Sync scroller → monthOffset
+  useEffect(() => {
+    const newOffset = msEntries[msActiveIdx]?.offset ?? 0;
+    if (newOffset !== monthOffset) setMonthOffset(newOffset);
+  }, [msActiveIdx, msEntries]);
+
+  const handleMsScroll = useCallback(() => {
+    if (msScrollRafRef.current == null) {
+      msScrollRafRef.current = window.requestAnimationFrame(() => {
+        msScrollRafRef.current = null;
+        const el = msScrollRef.current;
+        if (!el) return;
+        const idx = Math.round(el.scrollLeft / MONTH_ITEM_W);
+        const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
+        if (msLastTickRef.current !== clamped) {
+          msLastTickRef.current = clamped;
+          if (!msSuppressHapticsRef.current) fireHapticImpact("light");
+        }
+        if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
+      });
+    }
+    if (msScrollStopTimer.current) window.clearTimeout(msScrollStopTimer.current);
+    msScrollStopTimer.current = window.setTimeout(() => {
+      const el = msScrollRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollLeft / MONTH_ITEM_W);
+      const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
+      if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
+      el.scrollTo({ left: clamped * MONTH_ITEM_W, behavior: "smooth" });
+      if (!msSuppressHapticsRef.current) fireHapticImpact("light");
+    }, 80);
+  }, [msEntries.length, msActiveIdx]);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -191,14 +264,24 @@ export default function Schedule() {
   const today = stripTime(new Date());
   const view = addMonths(today, monthOffset);
   const monthLabel = view.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
-  const prevView = addMonths(view, -1);
-const nextView = addMonths(view, 1);
 
-const prevMonthLabel = prevView.toLocaleDateString("ru-RU", { month: "long" });
-const nextMonthLabel = nextView.toLocaleDateString("ru-RU", { month: "long" });
-
-const showPrevYear = prevView.getFullYear() !== view.getFullYear();
-const showNextYear = nextView.getFullYear() !== view.getFullYear();
+  // Per-month stats for scroller
+  const msStats = useMemo(() => {
+    const stats: Record<string, { completed: number; planned: number }> = {};
+    for (const entry of msEntries) {
+      const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
+      stats[key] = { completed: 0, planned: 0 };
+    }
+    for (const w of planned) {
+      if (w.status !== "scheduled" && w.status !== "completed") continue;
+      const d = parseIsoDate(w.scheduledFor);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!stats[key]) continue;
+      if (w.status === "completed") stats[key].completed++;
+      else stats[key].planned++;
+    }
+    return stats;
+  }, [planned, msEntries]);
 
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
@@ -222,23 +305,6 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
           new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
       );
   }, [planned]);
-
-  const sameMonth = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
-
-  const plannedInViewMonth = planned.filter(
-    (w) => w.status === "scheduled" && sameMonth(parseIsoDate(w.scheduledFor), view)
-  ).length;
-
-  const completedInViewMonth = planned.filter(
-    (w) => w.status === "completed" && sameMonth(parseIsoDate(w.scheduledFor), view)
-  ).length;
-
-  const totalTrainingsInViewMonth = plannedInViewMonth + completedInViewMonth;
-  const progressDenominator = totalTrainingsInViewMonth;
-  const progressPct = progressDenominator > 0
-    ? Math.round((completedInViewMonth / progressDenominator) * 100)
-    : 0;
 
   const openDate = (date: Date) => {
     const key = toDateKey(date);
@@ -428,24 +494,67 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
   return (
     <div style={s.page}>
-      <section style={s.headerRow}>
-        <div style={s.headerTitle}>Календарь</div>
+      {/* BLOCK 1: Avatar Header */}
+      <section style={s.avatarHeader}>
+        <div style={s.avatarLeft}>
+          <div style={s.avatarCircle}>
+            <img src={MASCOT_SRC} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
+          </div>
+          <div style={s.avatarText}>
+            <div style={s.avatarTitle}>Календарь</div>
+            <div style={s.avatarSub}>Запланируй тренировку</div>
+          </div>
+        </div>
       </section>
 
-      <section style={s.monthCard}>
-        <button type="button" style={s.monthNavBtn} onClick={() => setMonthOffset(x => x - 1)}>
-          ← {prevMonthLabel}{showPrevYear ? ` ${prevView.getFullYear()}` : ""}
-        </button>
-        <div style={s.monthLabel}>{monthLabel}</div>
-        <button type="button" style={s.monthNavBtn} onClick={() => setMonthOffset(x => x + 1)}>
-          {nextMonthLabel}{showNextYear ? ` ${nextView.getFullYear()}` : ""} →
-        </button>
-      </section>
-
-      <section style={s.statsRow}>
-        <Stat label="План" value={String(totalTrainingsInViewMonth)} />
-        <Stat label="Выполнено" value={String(completedInViewMonth)} />
-        <Stat label="Прогресс" value={`${progressPct}%`} />
+      {/* BLOCK 2: Month Scroller */}
+      <section style={s.msWrap}>
+        <style>{`
+          .month-track::-webkit-scrollbar { display: none; }
+          .month-item {
+            appearance: none; outline: none; border: none; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-x;
+          }
+        `}</style>
+        <div style={s.msCard}>
+          <div style={s.msScroller}>
+            <div style={s.msIndicator} />
+            <div
+              ref={msScrollRef}
+              style={s.msTrack}
+              className="month-track"
+              onScroll={handleMsScroll}
+            >
+              {msEntries.map((entry, idx) => {
+                const active = idx === msActiveIdx;
+                const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
+                const st = msStats[key] || { completed: 0, planned: 0 };
+                const total = st.completed + st.planned;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="month-item"
+                    style={{ ...s.msItem, scrollSnapAlign: "center" }}
+                    onClick={() => {
+                      fireHapticImpact("light");
+                      setMsActiveIdx(idx);
+                      msScrollRef.current?.scrollTo({ left: idx * MONTH_ITEM_W, behavior: "smooth" });
+                    }}
+                  >
+                    <span style={{ ...s.msLabel, ...(active ? s.msLabelActive : undefined) }}>
+                      {entry.label}
+                    </span>
+                    <span style={{ ...s.msRatio, ...(active ? s.msRatioActive : undefined) }}>
+                      {total > 0 ? `${st.completed}/${total}` : "—"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section style={s.block}>
@@ -883,25 +992,6 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry: () => void }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={s.statPill}>
-      <div style={s.statValue}>{value}</div>
-      <div style={s.statLabel}>{label}</div>
-    </div>
-  );
-}
-
-function SoftGlowStyles() {
-  return (
-    <style>{`
-      .soft-glow{background:linear-gradient(135deg,#ffe680,#ffb36b,#ff8a6b);background-size:300% 300%;
-      animation:glowShift 6s ease-in-out infinite,pulseSoft 3s ease-in-out infinite;transition:background .3s}
-      @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-      @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.15) saturate(1.1);transform:scale(1.01)}}
-    `}</style>
-  );
-}
 
 function normalizePlanned(list: PlannedWorkout[] | undefined): PlannedWorkout[] {
   if (!Array.isArray(list)) return [];
@@ -1048,89 +1138,145 @@ const s: Record<string, CSSProperties> = {
     gap: 12,
   },
 
-  // Header
-  headerRow: {
+  // Avatar Header
+  avatarHeader: {
     display: "flex",
     alignItems: "center",
-    marginTop: 4,
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 12,
   },
-  headerTitle: {
-    fontSize: 28,
+  avatarLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    border: "none",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    flex: "0 0 auto",
+    padding: 2,
+  },
+  mascotAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: "center 10%",
+    borderRadius: 999,
+  },
+  avatarText: {
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+  },
+  avatarTitle: {
+    fontSize: 18,
     fontWeight: 700,
     color: "#1e1f22",
     lineHeight: 1.2,
-    letterSpacing: -0.5,
+  },
+  avatarSub: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.7)",
   },
 
-  // Month navigation card
-  monthCard: {
+  // Month Scroller
+  msWrap: {
+    marginBottom: 4,
+  },
+  msCard: {
     borderRadius: 24,
     border: "1px solid rgba(255,255,255,0.75)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-    padding: "14px 18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    position: "relative",
+    overflow: "hidden",
+    alignSelf: "stretch",
+    width: "100%",
+    padding: 0,
   },
-  monthNavBtn: {
-    border: "none",
-    borderRadius: 999,
-    padding: "8px 14px",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.55)",
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    cursor: "pointer",
+  msScroller: {
+    position: "relative",
+    overflow: "visible",
+    width: "100%",
+  },
+  msIndicator: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 84,
+    height: 72,
+    transform: "translate(-50%, -50%)",
+    borderRadius: 22,
+    background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
+    border: "1px solid rgba(255,255,255,0.95)",
+    boxShadow: "0 12px 24px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
+    pointerEvents: "none",
+    zIndex: 1,
+  },
+  msTrack: {
+    overflowX: "auto",
+    overflowY: "hidden",
     whiteSpace: "nowrap",
-    lineHeight: 1.2,
-    textShadow: "0 1px 0 rgba(255,255,255,0.86)",
-  },
-  monthLabel: {
-    fontSize: 17,
-    fontWeight: 700,
-    color: "#1e1f22",
-    textTransform: "capitalize",
-    textAlign: "center",
-    flex: 1,
-    minWidth: 0,
-  },
-
-  // Stats
-  statsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-    gap: 10,
-  },
-  statPill: {
-    padding: "14px 12px",
-    borderRadius: 24,
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    scrollSnapType: "x proximity",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    padding: "14px 0 12px",
+    paddingLeft: `calc(50% - ${MONTH_ITEM_W / 2}px)`,
+    paddingRight: `calc(50% - ${MONTH_ITEM_W / 2}px)`,
+    position: "relative",
+    zIndex: 2,
     display: "flex",
+  } as CSSProperties,
+  msItem: {
+    width: MONTH_ITEM_W,
+    minWidth: MONTH_ITEM_W,
+    display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    textAlign: "center",
-    minHeight: 72,
+    gap: 2,
+    padding: 0,
+    background: "transparent",
+    cursor: "pointer",
+  } as CSSProperties,
+  msLabel: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(17,17,17,0.35)",
+    lineHeight: 1.1,
+    letterSpacing: 0.3,
+    textTransform: "capitalize",
   },
-  statValue: {
+  msLabelActive: {
+    color: "#1e1f22",
     fontWeight: 700,
-    fontSize: 22,
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 1,
+    fontSize: 16,
+  },
+  msRatio: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(17,17,17,0.3)",
+    lineHeight: 1.1,
     fontVariantNumeric: "tabular-nums",
   },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.55)",
-    letterSpacing: 0.2,
+  msRatioActive: {
+    color: "#111",
+    fontWeight: 700,
+    fontSize: 15,
   },
 
   // Blocks
