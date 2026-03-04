@@ -1183,9 +1183,9 @@ const cal: Record<string, CSSProperties> = {
   },
   headerCell: {
     textAlign: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "rgba(15,23,42,0.45)",
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
     lineHeight: 1,
   },
   grid: {
