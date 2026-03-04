@@ -10,7 +10,7 @@ import {
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import mascotImg from "@/assets/robonew.webp";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -419,10 +419,7 @@ export default function Schedule() {
             <img src={MASCOT_SRC} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
           </div>
           <div style={s.avatarText}>
-            <div style={s.avatarTitle}>
-              <Calendar size={18} strokeWidth={2.2} style={{ marginRight: 6, verticalAlign: "-2px" }} />
-              {monthLabel}
-            </div>
+            <div style={s.avatarTitle}>Календарь тренировок</div>
             <div style={s.avatarSub}>Нажмите на дату, чтобы открыть детали</div>
           </div>
         </div>
@@ -435,6 +432,7 @@ export default function Schedule() {
               <ChevronLeft size={18} strokeWidth={2.2} />
               <span>{prevMonthName}</span>
             </button>
+            <div style={s.calNavCurrent}>{monthLabel}</div>
             <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x + 1)}>
               <span>{nextMonthName}</span>
               <ChevronRight size={18} strokeWidth={2.2} />
@@ -1081,10 +1079,16 @@ const s: Record<string, CSSProperties> = {
     border: "none",
     padding: "6px 4px",
     fontSize: 14,
-    fontWeight: 600,
-    color: "rgba(30,31,34,0.7)",
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
+  } as CSSProperties,
+  calNavCurrent: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#1e1f22",
+    textTransform: "capitalize",
   } as CSSProperties,
 
   // Blocks
