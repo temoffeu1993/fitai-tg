@@ -245,7 +245,7 @@ export default function Schedule() {
           msLastTickRef.current = clamped;
           if (!msSuppressHapticsRef.current) fireHapticImpact("light");
         }
-        if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
+        setMsActiveIdx(clamped);
       });
     }
     if (msScrollStopTimer.current) window.clearTimeout(msScrollStopTimer.current);
@@ -254,11 +254,11 @@ export default function Schedule() {
       if (!el) return;
       const idx = Math.round(el.scrollLeft / MS_ITEM_W);
       const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
-      if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
+      setMsActiveIdx(clamped);
       el.scrollTo({ left: clamped * MS_ITEM_W, behavior: "smooth" });
       if (!msSuppressHapticsRef.current) fireHapticImpact("light");
-    }, 80);
-  }, [msEntries.length, msActiveIdx]);
+    }, 120);
+  }, [msEntries.length]);
 
   const monthOffset = msEntries[msActiveIdx]?.offset ?? 0;
   const today = stripTime(new Date());
@@ -539,9 +539,6 @@ export default function Schedule() {
                   >
                     <span style={{ ...s.msMonth, ...(active ? s.msMonthActive : undefined) }}>
                       {m.month}
-                    </span>
-                    <span style={{ ...s.msYear, ...(active ? s.msYearActive : undefined) }}>
-                      {m.year}
                     </span>
                   </button>
                 );
@@ -1193,7 +1190,7 @@ const s: Record<string, CSSProperties> = {
     marginBottom: 4,
   },
   msCard: {
-    borderRadius: 24,
+    borderRadius: 999,
     border: "1px solid rgba(255,255,255,0.75)",
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     backdropFilter: "blur(18px)",
@@ -1214,9 +1211,9 @@ const s: Record<string, CSSProperties> = {
     left: "50%",
     top: "50%",
     width: MS_ITEM_W + 8,
-    height: 52,
+    height: "calc(100% - 6px)",
     transform: "translate(-50%, -50%)",
-    borderRadius: 18,
+    borderRadius: 999,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
     border: "1px solid rgba(255,255,255,0.95)",
     boxShadow: "0 12px 24px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
@@ -1227,10 +1224,10 @@ const s: Record<string, CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
-    scrollSnapType: "x proximity",
+    scrollSnapType: "x mandatory",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "14px 0",
+    padding: "10px 0",
     paddingLeft: `calc(50% - ${MS_ITEM_W / 2}px)`,
     paddingRight: `calc(50% - ${MS_ITEM_W / 2}px)`,
     position: "relative",
@@ -1241,10 +1238,8 @@ const s: Record<string, CSSProperties> = {
     width: MS_ITEM_W,
     minWidth: MS_ITEM_W,
     display: "inline-flex",
-    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
     padding: 0,
     background: "transparent",
     cursor: "pointer",
@@ -1253,22 +1248,12 @@ const s: Record<string, CSSProperties> = {
     fontSize: 15,
     fontWeight: 500,
     color: "rgba(17,17,17,0.3)",
-    lineHeight: 1.2,
+    lineHeight: 1,
     textTransform: "capitalize",
   } as CSSProperties,
   msMonthActive: {
     color: "#1e1f22",
     fontWeight: 700,
-  },
-  msYear: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(17,17,17,0.25)",
-    lineHeight: 1.1,
-  },
-  msYearActive: {
-    color: "rgba(17,17,17,0.5)",
-    fontWeight: 600,
   },
 
   // Blocks
