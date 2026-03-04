@@ -195,7 +195,7 @@ export default function Schedule() {
 
   const today = stripTime(new Date());
   const view = addMonths(today, monthOffset);
-  const monthLabel = view.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const monthLabel = view.toLocaleDateString("ru-RU", { month: "long", year: "numeric" }).replace(/ г\.$/, "");
   const prevMonth = addMonths(view, -1);
   const nextMonth = addMonths(view, 1);
   const prevMonthName = MONTH_FULL_RU[prevMonth.getMonth()];
@@ -438,7 +438,7 @@ export default function Schedule() {
               </span>
               <span style={s.avatarSubChip}>
                 <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                <span>{completedInMonth} тренировок</span>
+                <span>{completedInMonth} выполнено</span>
               </span>
             </div>
           </div>
