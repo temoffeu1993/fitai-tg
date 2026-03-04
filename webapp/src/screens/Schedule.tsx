@@ -245,7 +245,7 @@ export default function Schedule() {
           msLastTickRef.current = clamped;
           if (!msSuppressHapticsRef.current) fireHapticImpact("light");
         }
-        setMsActiveIdx(clamped);
+        if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
       });
     }
     if (msScrollStopTimer.current) window.clearTimeout(msScrollStopTimer.current);
@@ -254,11 +254,11 @@ export default function Schedule() {
       if (!el) return;
       const idx = Math.round(el.scrollLeft / MS_ITEM_W);
       const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
-      setMsActiveIdx(clamped);
+      if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
       el.scrollTo({ left: clamped * MS_ITEM_W, behavior: "smooth" });
       if (!msSuppressHapticsRef.current) fireHapticImpact("light");
-    }, 120);
-  }, [msEntries.length]);
+    }, 80);
+  }, [msEntries.length, msActiveIdx]);
 
   const monthOffset = msEntries[msActiveIdx]?.offset ?? 0;
   const today = stripTime(new Date());
@@ -1224,10 +1224,10 @@ const s: Record<string, CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     whiteSpace: "nowrap",
-    scrollSnapType: "x mandatory",
+    scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "10px 0",
+    padding: "14px 0",
     paddingLeft: `calc(50% - ${MS_ITEM_W / 2}px)`,
     paddingRight: `calc(50% - ${MS_ITEM_W / 2}px)`,
     position: "relative",
@@ -1320,7 +1320,7 @@ const cal: Record<string, CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
     gap: 6,
-    padding: "12px 14px 0",
+    padding: "18px 14px 0",
   },
   headerCell: {
     textAlign: "center",
