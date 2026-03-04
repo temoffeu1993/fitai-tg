@@ -428,51 +428,32 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
 
   return (
     <div style={s.page}>
-      <SoftGlowStyles />
-
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>{monthLabel}</span>
-          <span style={s.credits}>Расписание</span>
-        </div>
-        <div style={s.heroTitle}>Календарь тренировок</div>
-        <div style={s.heroSubtitle}>Запланируй и держи под контролем</div>
-
-        <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(2,1fr)",
-    gap: 8,
-    marginTop: 12,
-  }}
->
-  <button style={s.primaryBtn} onClick={() => setMonthOffset(x => x - 1)}>
-    ← {prevMonthLabel}{showPrevYear ? ` ${prevView.getFullYear()}` : ""}
-  </button>
-  <button style={s.primaryBtn} onClick={() => setMonthOffset(x => x + 1)}>
-    {nextMonthLabel}{showNextYear ? ` ${nextView.getFullYear()}` : ""} →
-  </button>
-</div>
-
+      <section style={s.headerRow}>
+        <div style={s.headerTitle}>Календарь</div>
       </section>
 
-      <section style={{ ...s.block, ...s.statsSection }}>
-        <div style={s.statsRow}>
-          <Stat icon="📅" label="План" value={String(totalTrainingsInViewMonth)} />
-          <Stat icon="✔️" label="Выполнено" value={String(completedInViewMonth)} />
-          <Stat icon="📈" label="Прогресс" value={`${progressPct}%`} />
-        </div>
+      <section style={s.monthCard}>
+        <button type="button" style={s.monthNavBtn} onClick={() => setMonthOffset(x => x - 1)}>
+          ← {prevMonthLabel}{showPrevYear ? ` ${prevView.getFullYear()}` : ""}
+        </button>
+        <div style={s.monthLabel}>{monthLabel}</div>
+        <button type="button" style={s.monthNavBtn} onClick={() => setMonthOffset(x => x + 1)}>
+          {nextMonthLabel}{showNextYear ? ` ${nextView.getFullYear()}` : ""} →
+        </button>
+      </section>
+
+      <section style={s.statsRow}>
+        <Stat label="План" value={String(totalTrainingsInViewMonth)} />
+        <Stat label="Выполнено" value={String(completedInViewMonth)} />
+        <Stat label="Прогресс" value={`${progressPct}%`} />
       </section>
 
       <section style={s.block}>
-        <div style={{ ...ux.card, overflow: "hidden" }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>🗓️</div>
+        <div style={ux.card}>
+          <div style={ux.cardHeader}>
             <div>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>{monthLabel}</div>
-              </div>
-              <div style={ux.cardHint}>Нажми на дату, чтобы открыть детальную карточку</div>
+              <div style={ux.cardTitle}>{monthLabel}</div>
+              <div style={ux.cardHint}>Нажми на дату, чтобы открыть детали</div>
             </div>
           </div>
 
@@ -556,14 +537,11 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
       </section>
 
       <section style={s.block}>
-        <div style={{ ...ux.card, overflow: "hidden" }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>📌</div>
+        <div style={ux.card}>
+          <div style={ux.cardHeader}>
             <div>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>Ближайшие</div>
-              </div>
-              <div style={ux.cardHint}>Запланированные тренировки на ближайшие дни</div>
+              <div style={ux.cardTitle}>Ближайшие</div>
+              <div style={ux.cardHint}>Запланированные тренировки</div>
             </div>
           </div>
           <div style={{ padding: 10, display: "grid", gap: 8 }}>
@@ -578,18 +556,9 @@ const showNextYear = nextView.getFullYear() !== view.getFullYear();
                     <div style={list.title}>{fmtFullDate(item.scheduledFor)}</div>
                     <div style={list.hint}>В {formatTime(item.scheduledFor)}</div>
                   </div>
-                 <button
-  style={{
-    ...s.rowBtn,
-    background: "#000",
-    color: "#fff",
-    boxShadow: "none",
-    border: "1px solid rgba(255,255,255,0.2)",
-  }}
-  onClick={() => openWorkout(item)}
->
-  Открыть
-</button>
+                  <button style={s.rowBtn} onClick={() => openWorkout(item)}>
+                    Открыть
+                  </button>
                 </div>
               ))
             )}
@@ -721,37 +690,36 @@ function PlanPreviewModal({
       <div style={cardStyle}>
 	        <style>{`
 	          .schedule-checkin-btn{
-	            border-radius:16px;
-	            padding:16px 18px;
+	            border-radius:999px;
+	            padding:0 14px;
+	            height:50px;
 	            width:100%;
-	            border:1px solid #0f172a;
-	            background:#0f172a;
+	            border:1px solid #1e1f22;
+	            background:#1e1f22;
 	            color:#fff;
-	            font-weight:800;
+	            font-weight:500;
 	            font-size:17px;
 	            cursor:pointer;
-	            box-shadow:0 8px 16px rgba(0,0,0,0.16);
+	            box-shadow:0 6px 10px rgba(0,0,0,0.24);
 	            -webkit-tap-highlight-color:transparent;
 	            touch-action:manipulation;
 	            user-select:none;
-	            transition:transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+	            transition:transform 160ms ease, box-shadow 160ms ease, opacity 250ms ease;
 	          }
 	          .schedule-checkin-btn:active:not(:disabled){
 	            transform:translateY(1px) scale(0.99) !important;
-	            background-color:#0b1220 !important;
-	            box-shadow:0 6px 12px rgba(0,0,0,0.14) !important;
-	            filter:brightness(0.99) !important;
+	            box-shadow:0 4px 8px rgba(0,0,0,0.18) !important;
 	          }
-	          @media (hover:hover){
-	            .schedule-checkin-btn:hover:not(:disabled){ filter:brightness(1.03); }
+	          .schedule-checkin-btn:disabled{
+	            opacity:0.5;
+	            cursor:not-allowed;
 	          }
 	          .schedule-checkin-btn:focus-visible{
 	            outline:3px solid rgba(15, 23, 42, 0.18);
 	            outline-offset:2px;
 	          }
 	          .schedule-scheme-card:hover{
-	            transform: translateY(-2px);
-	            box-shadow: 0 4px 12px rgba(15,23,42,0.14);
+	            transform: translateY(-1px);
 	          }
 	        `}</style>
 	        <div style={modalStyles.topRow}>
@@ -894,10 +862,9 @@ function PlanPreviewModal({
 function Loader() {
   return (
     <div style={s.page}>
-      <SoftGlowStyles />
-      <section style={s.blockWhite}>
-        <h3 style={{ marginTop: 0 }}>Загрузка…</h3>
-        <p style={{ color: "#555" }}>Готовим календарь</p>
+      <section style={s.glassCard}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Загрузка…</h3>
+        <p style={{ margin: 0, color: "rgba(15,23,42,0.55)", fontSize: 14 }}>Готовим календарь</p>
       </section>
     </div>
   );
@@ -906,9 +873,8 @@ function Loader() {
 function ErrorView({ msg, onRetry }: { msg: string; onRetry: () => void }) {
   return (
     <div style={s.page}>
-      <SoftGlowStyles />
-      <section style={s.blockWhite}>
-        <h3 style={{ marginTop: 0 }}>{msg}</h3>
+      <section style={s.glassCard}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{msg}</h3>
         <button style={s.rowBtn} onClick={onRetry}>
           Обновить
         </button>
@@ -917,12 +883,11 @@ function ErrorView({ msg, onRetry }: { msg: string; onRetry: () => void }) {
   );
 }
 
-function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={s.stat}>
-      <div style={s.statEmoji}>{icon}</div>
-      <div style={s.statLabel}>{label}</div>
+    <div style={s.statPill}>
       <div style={s.statValue}>{value}</div>
+      <div style={s.statLabel}>{label}</div>
     </div>
   );
 }
@@ -1076,245 +1041,261 @@ const s: Record<string, CSSProperties> = {
     margin: "0 auto",
     padding: "16px",
     fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-background:"transparent",
+    background: "transparent",
     minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
   },
-  heroCard: {
-    position: "relative",
-    padding: 22,
-    borderRadius: 28,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#0f172a",
-    color: "#fff",
-    overflow: "hidden",
+
+  // Header
+  headerRow: {
+    display: "flex",
+    alignItems: "center",
+    marginTop: 4,
   },
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pill: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-    textTransform: "capitalize",
-  },
-  credits: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-  },
-  heroTitle: { fontSize: 26, fontWeight: 800, marginTop: 6, color: "#fff" },
-  heroSubtitle: { opacity: 0.9, marginTop: 4, color: "rgba(255,255,255,.85)" },
-  primaryBtn: {
-    border: "none",
-    borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 700,
-    color: "#000",
-    background:
-      "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
+    color: "#1e1f22",
+    lineHeight: 1.2,
+    letterSpacing: -0.5,
+  },
+
+  // Month navigation card
+  monthCard: {
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    padding: "14px 18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  monthNavBtn: {
+    border: "none",
+    borderRadius: 999,
+    padding: "8px 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.55)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    lineHeight: 1.2,
+    textShadow: "0 1px 0 rgba(255,255,255,0.86)",
   },
-  block: {
-    marginTop: 20,
-    padding: 0,
-    borderRadius: 20,
-    background: "transparent",
-    boxShadow: "none",
+  monthLabel: {
+    fontSize: 17,
+    fontWeight: 700,
+    color: "#1e1f22",
+    textTransform: "capitalize",
+    textAlign: "center",
+    flex: 1,
+    minWidth: 0,
   },
-  statsSection: {
-    marginTop: 12,
-    padding: 0,
-    background: "transparent",
-    boxShadow: "none",
-  },
+
+  // Stats
   statsRow: {
     display: "grid",
     gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-    gap: 12,
+    gap: 10,
   },
-  stat: {
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
+  statPill: {
+    padding: "14px 12px",
+    borderRadius: 24,
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 4,
+    textAlign: "center",
+    minHeight: 72,
   },
-  statEmoji: { fontSize: 20, color: "#111" },
-  statLabel: {
-    fontSize: 11,
-    color: "rgba(0,0,0,.75)",
-    letterSpacing: 0.2,
-    textTransform: "none",
-  },
-  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
-  blockWhite: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 20,
-    background: "rgba(255,255,255,0.8)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
-    backdropFilter: "blur(12px)",
-  },
-  rowBtn: {
-    border: "none",
-    padding: "10px 14px",
-    borderRadius: 12,
+  statValue: {
     fontWeight: 700,
+    fontSize: 22,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 1,
+    fontVariantNumeric: "tabular-nums",
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.55)",
+    letterSpacing: 0.2,
+  },
+
+  // Blocks
+  block: {
+    padding: 0,
+    borderRadius: 24,
+    background: "transparent",
+    boxShadow: "none",
+  },
+
+  // Glass card (for loader/error)
+  glassCard: {
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    padding: 20,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+
+  // Row button (dark pill)
+  rowBtn: {
+    border: "1px solid #1e1f22",
+    padding: "0 14px",
+    height: 36,
+    borderRadius: 999,
+    fontWeight: 600,
+    fontSize: 13,
     color: "#fff",
-    background: "linear-gradient(135deg,#6a8dff,#8a64ff)",
+    background: "#1e1f22",
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    lineHeight: 1,
   },
 };
 
-const ux: Record<string, any> = {
+const ux: Record<string, CSSProperties> = {
   card: {
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,.35)",
-    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
-    background: "rgba(255,255,255,0.75)",
-    backdropFilter: "blur(14px)",
+    borderRadius: 24,
+    border: "1px solid rgba(255,255,255,0.75)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     position: "relative",
+    overflow: "hidden",
   },
   cardHeader: {
-    display: "grid",
-    gridTemplateColumns: "24px 1fr",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderBottom: "1px solid rgba(255,255,255,.4)",
-    background: "rgba(255,255,255,0.6)",
-  },
-  iconInline: {
-    width: 24,
-    height: 24,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 18,
-  },
-  cardTitleRow: {
     display: "flex",
-    alignItems: "center",
-    gap: 6,
-    justifyContent: "space-between",
+    flexDirection: "column",
+    gap: 2,
+    padding: "14px 16px",
   },
-  cardTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b", lineHeight: 1.2 },
-  cardHint: { fontSize: 11, color: "#2b2b2b", opacity: 0.85 },
+  cardTitle: { fontSize: 16, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 },
+  cardHint: { fontSize: 12, color: "rgba(15,23,42,0.55)", fontWeight: 400 },
 };
 
 const cal: Record<string, CSSProperties> = {
   headerRow: {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
-    gap: 8,
-    padding: "14px 14px 0",
+    gap: 6,
+    padding: "12px 14px 0",
   },
   headerCell: {
     textAlign: "center",
     fontSize: 12,
-    fontWeight: 700,
-    color: "#4b5563",
-    opacity: 0.85,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.45)",
+    lineHeight: 1,
   },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(7,1fr)",
-    gap: 8,
-    padding: 14,
+    gap: 6,
+    padding: "10px 14px 14px",
   },
   cell: {
-    border: "1px solid rgba(255,255,255,.45)",
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.75)",
-    padding: "8px 8px 30px",
+    border: "1px solid rgba(255,255,255,0.78)",
+    borderRadius: 14,
+    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
+    padding: "7px 7px 28px",
     textAlign: "left",
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
-    gap: 4,
+    gap: 3,
     cursor: "pointer",
-    minHeight: 76,
-    height: 76,
-    boxShadow: "0 12px 28px rgba(0,0,0,.12)",
-    backdropFilter: "blur(12px)",
+    minHeight: 72,
+    height: 72,
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
     overflow: "hidden",
     position: "relative",
   },
-  today: { boxShadow: "0 0 0 2px rgba(114,135,255,.4)" },
+  today: {
+    border: "2px solid #1e1f22",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.12)",
+  },
   planned: {
-    background: "rgba(255,230,128,.25)",
-    borderColor: "rgba(255,179,107,.4)",
+    background: "linear-gradient(180deg, rgba(222,236,208,0.98) 0%, rgba(206,226,188,0.96) 100%)",
+    border: "1px solid rgba(150,190,130,0.5)",
   },
   completed: {
-    background: "rgba(143,227,143,.25)",
-    borderColor: "rgba(72,160,72,.45)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    border: "1px solid rgba(255,255,255,0.78)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.12), inset 0 -1px 0 rgba(255,255,255,0.85)",
   },
-  dateNum: { fontSize: 13, fontWeight: 800, color: "#111" },
+  dateNum: { fontSize: 13, fontWeight: 700, color: "#1e1f22", lineHeight: 1 },
   workoutTag: {
-    fontSize: 11,
-    fontWeight: 400,
-    letterSpacing: 0.2,
-    textTransform: "none",
-    color: "rgba(0,0,0,.75)",
-    marginTop: -2,
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: 0.1,
+    color: "rgba(15,23,42,0.55)",
+    marginTop: -1,
     pointerEvents: "none",
+    lineHeight: 1.1,
   },
   timeText: {
     position: "absolute",
-    left: 8,
-    right: 8,
-    bottom: 6,
+    left: 7,
+    right: 7,
+    bottom: 5,
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
     justifyContent: "center",
-    color: "#1f2933",
+    color: "rgba(15,23,42,0.55)",
     gap: 0,
     textAlign: "left",
     pointerEvents: "none",
   },
   timeTextPlanned: {
-    color: "#8a4d0f",
+    color: "rgba(15,23,42,0.65)",
   },
   timeLineTop: {
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 10,
+    fontWeight: 600,
     lineHeight: 1,
   },
   timeLineBottom: {
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 10,
+    fontWeight: 600,
     lineHeight: 1,
-    marginTop: 2,
+    marginTop: 1,
   },
   checkMark: {
     position: "absolute",
-    right: 8,
-    bottom: 6,
-    fontSize: 12,
+    right: 7,
+    bottom: 5,
+    fontSize: 11,
     fontWeight: 700,
-    color: "#1f6b1f",
+    color: "rgba(15,23,42,0.45)",
   },
   countBadge: {
     justifySelf: "start",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 600,
-    background: "rgba(255,255,255,.9)",
+    background: "rgba(255,255,255,.85)",
     borderRadius: 999,
-    padding: "2px 6px",
-    color: "#374151",
+    padding: "2px 5px",
+    color: "rgba(15,23,42,0.55)",
   },
 };
 
@@ -1323,16 +1304,15 @@ const list: Record<string, CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "8px 10px",
-    borderRadius: 14,
-    background: "rgba(255,255,255,0.75)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.08)",
-    border: "1px solid rgba(255,255,255,.35)",
-    backdropFilter: "blur(10px)",
+    padding: "12px 14px",
+    borderRadius: 18,
+    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
+    border: "1px solid rgba(255,255,255,0.78)",
   },
-  left: { display: "grid", gap: 2 },
-  title: { fontWeight: 700, fontSize: 14 },
-  hint: { fontSize: 12, color: "#666" },
+  left: { display: "grid", gap: 2, minWidth: 0 },
+  title: { fontWeight: 700, fontSize: 14, color: "#1e1f22" },
+  hint: { fontSize: 12, color: "rgba(15,23,42,0.55)" },
 };
 
 const modalStyles: Record<string, CSSProperties> = {
@@ -1345,51 +1325,53 @@ const modalStyles: Record<string, CSSProperties> = {
     padding: 16,
   },
 
-  // Сам блок модала
   card: {
     width: "min(92vw, 460px)",
     maxHeight: "72vh",
     overflowY: "auto",
     overflowX: "hidden",
-    background: "rgba(255,255,255,0.62)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 14px 40px rgba(0,0,0,0.18)",
-    borderRadius: 20,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(242,242,247,0.94) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    boxShadow: "0 16px 40px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
+    borderRadius: 24,
     display: "grid",
-    gap: 10,
-    padding: "12px 14px 14px",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
+    gap: 12,
+    padding: "14px 16px 16px",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
   },
 
   topRow: { display: "flex", justifyContent: "flex-end" },
   closeBtn: {
     border: "none",
-    background: "transparent",
-    color: "#1b1b1b",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "rgba(15,23,42,0.55)",
     cursor: "pointer",
-    fontSize: 18,
+    fontSize: 16,
     lineHeight: 1,
-    padding: 6,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    display: "grid",
+    placeItems: "center",
+    borderRadius: 999,
+    padding: 0,
   },
 
   dtRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
   dtChip: {
     position: "relative",
-    borderRadius: 14,
-    padding: "10px 12px",
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    borderRadius: 18,
+    padding: "10px 14px",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
+    border: "1px solid rgba(255,255,255,0.78)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
     display: "grid",
-    gap: 6,
+    gap: 4,
     minHeight: 58,
   },
-  dtChipLabel: { fontSize: 11, fontWeight: 400, color: "rgba(0,0,0,.75)", letterSpacing: 0.2, textTransform: "none" },
-  dtChipValue: { fontSize: 18, fontWeight: 800, color: "#111", lineHeight: 1.1 },
+  dtChipLabel: { fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.45)", letterSpacing: 0.2 },
+  dtChipValue: { fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.1 },
   dtInputOverlay: {
     position: "absolute",
     inset: 0,
@@ -1404,94 +1386,87 @@ const modalStyles: Record<string, CSSProperties> = {
   workoutsList: {
     display: "grid",
     gap: 8,
-    marginTop: 6,
-    width: "min(100%, 320px)",
-    marginLeft: "auto",
-    marginRight: "auto",
+    marginTop: 4,
   },
   workoutRow: {
     position: "relative",
     width: "100%",
     padding: 14,
-    borderRadius: 16,
-    background: "rgba(255,255,255,0.6)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
+    borderRadius: 18,
+    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
+    border: "1px solid rgba(255,255,255,0.78)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
     cursor: "pointer",
-    transition: "all 0.3s ease",
+    transition: "transform 220ms ease, box-shadow 220ms ease",
     textAlign: "left",
   },
   workoutRowSelected: {
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
-    transform: "translateY(-2px)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 12px rgba(15,23,42,0.1)",
   },
   radioCircle: {
     position: "absolute",
     top: 16,
     left: 16,
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderRadius: "50%",
-    border: "2px solid rgba(0,0,0,0.1)",
-    background: "rgba(255,255,255,0.5)",
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    border: "none",
     display: "grid",
     placeItems: "center",
-    transition: "all 0.3s ease",
+    transition: "all 220ms ease",
   },
   radioDot: {
-    width: 12,
-    height: 12,
+    width: 10,
+    height: 10,
     borderRadius: "50%",
-    background: "#0f172a",
-    transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
+    transition: "all 220ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
   },
   workoutTitle: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#1e1f22",
     marginTop: 0,
-    marginLeft: 36,
+    marginLeft: 34,
     marginRight: 0,
     marginBottom: 0,
     lineHeight: 1.2,
-    letterSpacing: "-0.02em",
+    letterSpacing: -0.3,
   },
-  emptyWorkouts: { fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,.6)", padding: "10px 6px" },
+  emptyWorkouts: { fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" },
   scheduledTitle: {
     marginTop: 2,
     fontSize: 20,
-    fontWeight: 800,
-    color: "#0f172a",
+    fontWeight: 700,
+    color: "#1e1f22",
     lineHeight: 1.2,
-    letterSpacing: "-0.02em",
+    letterSpacing: -0.3,
   },
 
-  // Ошибка
   error: {
-    background: "rgba(255,102,102,.12)",
-    color: "#d32f2f",
-    fontSize: 12,
+    background: "rgba(239,68,68,0.08)",
+    color: "#b42318",
+    fontSize: 13,
     fontWeight: 600,
     padding: "10px 12px",
-    borderRadius: 10,
+    borderRadius: 14,
   },
 
-  // Низ модала — кнопки
-  actions: { marginTop: 6, display: "grid", gap: 8 },
+  actions: { marginTop: 4, display: "grid", gap: 8 },
 
   startBtn: {},
   deleteBtn: {
     border: "none",
-    borderRadius: 14,
+    borderRadius: 999,
     padding: "12px",
-    fontWeight: 400,
+    fontWeight: 500,
     fontSize: 14,
     background: "transparent",
-    color: "#ff6b6b",
+    color: "rgba(15,23,42,0.45)",
     cursor: "pointer",
   },
 };
