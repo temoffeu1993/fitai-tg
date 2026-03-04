@@ -10,7 +10,6 @@ import {
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import mascotImg from "@/assets/robonew.webp";
-import { CircleCheckBig } from "lucide-react";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -203,16 +202,6 @@ export default function Schedule() {
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
-
-  const completedInMonth = useMemo(() => {
-    const y = view.getFullYear();
-    const m = view.getMonth();
-    return planned.filter((w) => {
-      if (w.status !== "completed") return false;
-      const d = new Date(w.scheduledFor);
-      return d.getFullYear() === y && d.getMonth() === m;
-    }).length;
-  }, [planned, view]);
 
   // For picking in the calendar, show only not-yet-scheduled workouts.
   const pendingWorkouts = useMemo(() => planned.filter((w) => w.status === "pending"), [planned]);
@@ -430,12 +419,7 @@ export default function Schedule() {
           </div>
           <div style={s.avatarText}>
             <div style={s.avatarTitle}>Календарь тренировок</div>
-            <div style={s.avatarSubRow}>
-              <span style={s.avatarSubChip}>
-                <CircleCheckBig size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                <span>{completedInMonth} выполнено</span>
-              </span>
-            </div>
+            <div style={s.avatarSub}>Нажми на дату и запланируй</div>
           </div>
         </div>
       </section>
@@ -1071,21 +1055,11 @@ const s: Record<string, CSSProperties> = {
     color: "#1e1f22",
     lineHeight: 1.2,
   },
-  avatarSubRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    marginTop: 3,
-    flexWrap: "wrap",
-  } as CSSProperties,
-  avatarSubChip: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    fontSize: 14,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.62)",
-    lineHeight: 1.45,
+  avatarSub: {
+    fontSize: 15,
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "rgba(30, 31, 34, 0.7)",
   },
 
   // Calendar navigation
