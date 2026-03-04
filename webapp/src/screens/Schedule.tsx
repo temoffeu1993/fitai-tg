@@ -217,20 +217,21 @@ export default function Schedule() {
   // ---------- Month scroller ----------
   const msEntries = useMemo(() => buildMsEntries(MS_COUNT, MS_PAST), []);
   const [msActiveIdx, setMsActiveIdx] = useState(MS_PAST);
-  const msScrollRef = useRef<HTMLDivElement>(null);
+  const msScrollRef = useRef<HTMLDivElement | null>(null);
   const msScrollRafRef = useRef<number | null>(null);
   const msScrollStopTimer = useRef<number | null>(null);
   const msLastTickRef = useRef<number | null>(null);
   const msSuppressHapticsRef = useRef(true);
+  const msDidInitRef = useRef(false);
 
-  useEffect(() => {
-    msScrollRef.current?.scrollTo({ left: msActiveIdx * MS_ITEM_W, behavior: "auto" });
-    msLastTickRef.current = msActiveIdx;
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 200);
-    return () => window.clearTimeout(timer);
+  const msRefCallback = useCallback((el: HTMLDivElement | null) => {
+    msScrollRef.current = el;
+    if (el && !msDidInitRef.current) {
+      msDidInitRef.current = true;
+      el.scrollLeft = MS_PAST * MS_ITEM_W;
+      msLastTickRef.current = MS_PAST;
+      window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 200);
+    }
   }, []);
 
   const handleMsScroll = useCallback(() => {
@@ -518,7 +519,7 @@ export default function Schedule() {
           <div style={s.msScroller}>
             <div style={s.msIndicator} />
             <div
-              ref={msScrollRef}
+              ref={msRefCallback}
               style={s.msTrack}
               className="month-track"
               onScroll={handleMsScroll}
