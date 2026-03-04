@@ -37,6 +37,8 @@ const WHEEL_CENTER_OFFSET = WHEEL_ITEM_H;
 const FLASH_TINT_MS = 520;
 const SAVED_LABEL_MS = 1400;
 const REPS_VALUES = Array.from({ length: 60 }, (_, i) => i + 1);
+// Seconds: 5, 10, 15, ..., 120
+const TIME_SEC_VALUES = Array.from({ length: 24 }, (_, i) => (i + 1) * 5);
 
 // Universal weight values: 0, 0.5, 1, 1.5, ..., 300 (0.5kg step)
 const WEIGHT_VALUES = Array.from({ length: 601 }, (_, i) => Math.round((i * 0.5) * 10) / 10);
@@ -88,7 +90,9 @@ export default function SetEditorCard(props: Props) {
   const weightValues = WEIGHT_VALUES;
   const totalSets = Math.max(1, item.sets.length);
   const displaySet = Math.min(Math.max(0, focusSetIndex), totalSets - 1) + 1;
-  const repsHint = "повторы";
+  const isTime = Boolean(item.isTimeBased);
+  const repsHint = isTime ? "секунды" : "повторы";
+  const repsValues = isTime ? TIME_SEC_VALUES : REPS_VALUES;
   const weightHint = needWeight ? (item.weightLabel || "кг") : null;
   const explicitReps = Number(set.reps);
   const prevRepsRaw = focusSetIndex > 0 ? Number(item.sets[focusSetIndex - 1]?.reps) : Number.NaN;
@@ -139,9 +143,9 @@ export default function SetEditorCard(props: Props) {
         )}
 
         <WheelField
-          ariaLabel="Повторы"
+          ariaLabel={isTime ? "Секунды" : "Повторы"}
           hintLabel={repsHint}
-          values={REPS_VALUES}
+          values={repsValues}
           value={repsDisplayValue}
           onChange={(value) => onChangeReps(focusSetIndex, value)}
           formatValue={(value) => String(Math.round(value))}

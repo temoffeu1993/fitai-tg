@@ -640,6 +640,7 @@ export function generateRecoverySession(args: {
         setupCost: 1 as 1,
         stabilityDemand: 3 as 3,
         kind: "core" as ExerciseKind,
+        isTimeBased: true,
         repRangeDefault: { min: 20, max: 40 },
         restSecDefault: 60,
         cues: ["Тело прямое", "Дыши ровно"],

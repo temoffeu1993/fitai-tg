@@ -12,6 +12,7 @@ export type PlanExercise = {
   requiresWeightInput?: boolean;
   weightLabel?: string;
   equipmentType?: EquipmentType | null;
+  isTimeBased?: boolean;
   tagline?: string;
   technique?: {
     setup: string;
@@ -48,6 +49,7 @@ export type SessionItem = {
   requiresWeightInput?: boolean;
   weightLabel?: string;
   equipmentType?: EquipmentType | null;
+  isTimeBased?: boolean;
   sets: SetEntry[];
   done?: boolean;
   skipped?: boolean;

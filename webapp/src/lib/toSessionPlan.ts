@@ -10,6 +10,7 @@ export type SessionPlanExercise = {
   requiresWeightInput?: boolean;
   weightLabel?: string;
   equipmentType?: "barbell" | "dumbbell" | "machine" | null;
+  isTimeBased?: boolean;
   tagline?: string;
   technique?: {
     setup: string;
@@ -50,6 +51,7 @@ export function toSessionPlan(workout: any): SessionPlan {
       requiresWeightInput: ex?.requiresWeightInput,
       weightLabel: ex?.weightLabel,
       equipmentType: ex?.equipmentType || null,
+      isTimeBased: ex?.isTimeBased || undefined,
       tagline: ex?.tagline || undefined,
       technique: ex?.technique || undefined,
       proTip: ex?.proTip || undefined,

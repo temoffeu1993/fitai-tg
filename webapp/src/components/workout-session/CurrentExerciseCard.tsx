@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { SessionItem } from "./types";
 import { workoutTheme } from "./theme";
 import { formatRepsLabel, parseWeightNumber, requiresWeightInput } from "./utils";
-import { Dumbbell, Repeat } from "lucide-react";
+import { Dumbbell, Repeat, Timer } from "lucide-react";
 
 function buildGoalParts(item: SessionItem): { weight: string | null; reps: string | null; pickWeight: boolean } {
   const needWeight = requiresWeightInput(item);
@@ -30,7 +30,9 @@ export default function CurrentExerciseCard(props: Props) {
   if (!item) return null;
 
   const { weight, reps, pickWeight } = buildGoalParts(item);
-  const hasGoal = weight || reps || pickWeight;
+  const isTime = Boolean(item.isTimeBased);
+  const repsLabel = isTime && reps ? `${reps} сек` : reps;
+  const hasGoal = weight || repsLabel || pickWeight;
 
   return (
     <section style={s.card}>
@@ -45,10 +47,12 @@ export default function CurrentExerciseCard(props: Props) {
                   <span>{pickWeight ? "Подберите вес" : weight}</span>
                 </span>
               )}
-              {reps && (
+              {repsLabel && (
                 <span style={s.goalChip}>
-                  <Repeat size={14} strokeWidth={2.2} style={s.goalIcon} />
-                  <span>{reps}</span>
+                  {isTime
+                    ? <Timer size={14} strokeWidth={2.2} style={s.goalIcon} />
+                    : <Repeat size={14} strokeWidth={2.2} style={s.goalIcon} />}
+                  <span>{repsLabel}</span>
                 </span>
               )}
             </div>

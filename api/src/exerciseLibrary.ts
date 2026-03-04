@@ -102,6 +102,7 @@ export type Exercise = {
   tags?: string[];
 
   kind: ExerciseKind;
+  isTimeBased?: boolean; // true = repRangeDefault means seconds, not reps
   repRangeDefault: { min: number; max: number };
   restSecDefault: number;
 
@@ -2747,6 +2748,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     stabilityDemand: 2,
     tags: ["low_setup", "good_for_circuit", "spine_friendly"],
     kind: "core",
+    isTimeBased: true,
     repRangeDefault: {
       min: 20,
       max: 60,
@@ -2905,6 +2907,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     tags: ["good_for_circuit", "low_setup", "grip"],
     jointFlags: ["neck_sensitive"],
     kind: "carry",
+    isTimeBased: true,
     repRangeDefault: {
       min: 20,
       max: 60,
@@ -2938,6 +2941,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     tags: ["anti_lateral_flexion", "good_for_circuit"],
     jointFlags: ["neck_sensitive"],
     kind: "carry",
+    isTimeBased: true,
     repRangeDefault: {
       min: 20,
       max: 50,
@@ -2972,6 +2976,7 @@ export const EXERCISE_LIBRARY: Exercise[] = [
     tags: ["posture", "good_for_circuit"],
     jointFlags: ["neck_sensitive"],
     kind: "carry",
+    isTimeBased: true,
     repRangeDefault: {
       min: 20,
       max: 50,
