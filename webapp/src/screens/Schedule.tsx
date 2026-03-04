@@ -40,9 +40,10 @@ const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const MASCOT_SRC = mascotImg;
+const MS_ITEM_W = 64;
 const MONTH_COUNT = 13; // 6 past + current + 6 future
 const MONTH_PAST = 6;
-const MONTH_FULL_RU = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+const MONTH_SHORT_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 
 type MonthEntry = { date: Date; label: string; year: number; offset: number };
 function buildMonthEntries(count: number, past: number): MonthEntry[] {
@@ -51,7 +52,7 @@ function buildMonthEntries(count: number, past: number): MonthEntry[] {
   for (let i = 0; i < count; i++) {
     const off = i - past;
     const d = new Date(today.getFullYear(), today.getMonth() + off, 1);
-    entries.push({ date: d, label: MONTH_FULL_RU[d.getMonth()], year: d.getFullYear(), offset: off });
+    entries.push({ date: d, label: MONTH_SHORT_RU[d.getMonth()], year: d.getFullYear(), offset: off });
   }
   return entries;
 }
@@ -104,31 +105,19 @@ export default function Schedule() {
   const msEntries = useMemo(() => buildMonthEntries(MONTH_COUNT, MONTH_PAST), []);
   const msCurrentIdx = MONTH_PAST;
   const [msActiveIdx, setMsActiveIdx] = useState(msCurrentIdx);
-  const [msItemW, setMsItemW] = useState(0);
-  const msCardRef = useRef<HTMLDivElement>(null);
   const msScrollRef = useRef<HTMLDivElement>(null);
   const msScrollRafRef = useRef<number | null>(null);
   const msScrollStopTimer = useRef<number | null>(null);
   const msLastTickRef = useRef<number | null>(null);
   const msSuppressHapticsRef = useRef(true);
 
-  // Measure card → compute item width = 1/3 of card
   useEffect(() => {
-    const card = msCardRef.current;
-    if (!card) return;
-    const w = Math.floor(card.clientWidth / 3);
-    setMsItemW(w);
-  }, []);
-
-  // Center on mount after width is known
-  useEffect(() => {
-    if (msItemW <= 0) return;
-    msScrollRef.current?.scrollTo({ left: msActiveIdx * msItemW, behavior: "auto" });
+    msScrollRef.current?.scrollTo({ left: msActiveIdx * MS_ITEM_W, behavior: "auto" });
     msLastTickRef.current = msActiveIdx;
-  }, [msItemW]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // center on mount
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 300);
+    const timer = window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 200);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -139,13 +128,12 @@ export default function Schedule() {
   }, [msActiveIdx, msEntries]);
 
   const handleMsScroll = useCallback(() => {
-    if (msItemW <= 0) return;
     if (msScrollRafRef.current == null) {
       msScrollRafRef.current = window.requestAnimationFrame(() => {
         msScrollRafRef.current = null;
         const el = msScrollRef.current;
         if (!el) return;
-        const idx = Math.round(el.scrollLeft / msItemW);
+        const idx = Math.round(el.scrollLeft / MS_ITEM_W);
         const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
         if (msLastTickRef.current !== clamped) {
           msLastTickRef.current = clamped;
@@ -158,13 +146,13 @@ export default function Schedule() {
     msScrollStopTimer.current = window.setTimeout(() => {
       const el = msScrollRef.current;
       if (!el) return;
-      const idx = Math.round(el.scrollLeft / msItemW);
+      const idx = Math.round(el.scrollLeft / MS_ITEM_W);
       const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
       if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
-      el.scrollTo({ left: clamped * msItemW, behavior: "smooth" });
+      el.scrollTo({ left: clamped * MS_ITEM_W, behavior: "smooth" });
       if (!msSuppressHapticsRef.current) fireHapticImpact("light");
     }, 80);
-  }, [msEntries.length, msActiveIdx, msItemW]);
+  }, [msEntries.length, msActiveIdx]);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -529,53 +517,42 @@ export default function Schedule() {
             touch-action: pan-x;
           }
         `}</style>
-        <div ref={msCardRef} style={s.msCard}>
-          {msItemW > 0 && (
-            <div style={s.msScroller}>
-              <div style={{ ...s.msIndicator, width: msItemW - 8 }} />
-              <div
-                ref={msScrollRef}
-                style={{
-                  ...s.msTrack,
-                  paddingLeft: `calc(50% - ${msItemW / 2}px)`,
-                  paddingRight: `calc(50% - ${msItemW / 2}px)`,
-                }}
-                className="month-track"
-                onScroll={handleMsScroll}
-              >
-                {msEntries.map((entry, idx) => {
-                  const active = idx === msActiveIdx;
-                  const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
-                  const st = msStats[key] || { completed: 0, planned: 0 };
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="month-item"
-                      style={{
-                        ...s.msItem,
-                        width: msItemW,
-                        minWidth: msItemW,
-                        scrollSnapAlign: "center",
-                      }}
-                      onClick={() => {
-                        fireHapticImpact("light");
-                        setMsActiveIdx(idx);
-                        msScrollRef.current?.scrollTo({ left: idx * msItemW, behavior: "smooth" });
-                      }}
-                    >
-                      <span style={{ ...s.msLabel, ...(active ? s.msLabelActive : undefined) }}>
-                        {entry.label}
-                      </span>
-                      <span style={{ ...s.msCount, ...(active ? s.msCountActive : undefined) }}>
-                        {st.completed}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+        <div style={s.msCard}>
+          <div style={s.msScroller}>
+            <div style={s.msIndicator} />
+            <div
+              ref={msScrollRef}
+              style={s.msTrack}
+              className="month-track"
+              onScroll={handleMsScroll}
+            >
+              {msEntries.map((entry, idx) => {
+                const active = idx === msActiveIdx;
+                const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
+                const st = msStats[key] || { completed: 0, planned: 0 };
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="month-item"
+                    style={{ ...s.msItem, scrollSnapAlign: "center" }}
+                    onClick={() => {
+                      fireHapticImpact("light");
+                      setMsActiveIdx(idx);
+                      msScrollRef.current?.scrollTo({ left: idx * MS_ITEM_W, behavior: "smooth" });
+                    }}
+                  >
+                    <span style={{ ...s.msDow, ...(active ? s.msDowActive : undefined) }}>
+                      {entry.label}
+                    </span>
+                    <span style={{ ...s.msNum, ...(active ? s.msNumActive : undefined) }}>
+                      {st.completed}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
       </section>
 
@@ -1213,7 +1190,7 @@ const s: Record<string, CSSProperties> = {
     color: "rgba(30, 31, 34, 0.7)",
   },
 
-  // Month Scroller
+  // Month Scroller (same tokens as Dashboard date scroller, minus dots)
   msWrap: {
     marginBottom: 4,
   },
@@ -1239,7 +1216,8 @@ const s: Record<string, CSSProperties> = {
     position: "absolute",
     left: "50%",
     top: "50%",
-    height: 72,
+    width: 68,
+    height: 62,
     transform: "translate(-50%, -50%)",
     borderRadius: 22,
     background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
@@ -1255,44 +1233,46 @@ const s: Record<string, CSSProperties> = {
     scrollSnapType: "x proximity",
     WebkitOverflowScrolling: "touch",
     scrollbarWidth: "none",
-    padding: "14px 0 12px",
+    padding: "14px 0 14px",
+    paddingLeft: `calc(50% - ${MS_ITEM_W / 2}px)`,
+    paddingRight: `calc(50% - ${MS_ITEM_W / 2}px)`,
     position: "relative",
     zIndex: 2,
     display: "flex",
   } as CSSProperties,
   msItem: {
+    width: MS_ITEM_W,
+    minWidth: MS_ITEM_W,
     display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 4,
     padding: 0,
     background: "transparent",
     cursor: "pointer",
   } as CSSProperties,
-  msLabel: {
-    fontSize: 14,
+  msDow: {
+    fontSize: 12,
     fontWeight: 500,
     color: "rgba(17,17,17,0.35)",
     lineHeight: 1.1,
-    textTransform: "capitalize",
+    letterSpacing: 0.3,
   },
-  msLabelActive: {
+  msDowActive: {
     color: "#1e1f22",
-    fontWeight: 700,
-    fontSize: 15,
+    fontWeight: 600,
   },
-  msCount: {
-    fontSize: 20,
+  msNum: {
+    fontSize: 24,
     fontWeight: 500,
-    color: "rgba(17,17,17,0.25)",
+    color: "rgba(17,17,17,0.3)",
     lineHeight: 1.1,
-    fontVariantNumeric: "tabular-nums",
   },
-  msCountActive: {
+  msNumActive: {
     color: "#111",
     fontWeight: 700,
-    fontSize: 24,
+    fontSize: 28,
   },
 
   // Blocks
