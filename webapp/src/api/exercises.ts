@@ -13,6 +13,7 @@ export type ExerciseAlternative = {
   requiresWeightInput?: boolean;
   weightLabel?: string;
   equipmentType?: "barbell" | "dumbbell" | "machine" | null;
+  isTimeBased?: boolean;
   tagline?: string;
   technique?: {
     setup: string;

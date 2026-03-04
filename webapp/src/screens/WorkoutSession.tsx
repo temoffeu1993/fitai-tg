@@ -737,6 +737,7 @@ export default function WorkoutSession() {
         current.requiresWeightInput = alternative.requiresWeightInput;
         current.weightLabel = alternative.weightLabel;
         current.equipmentType = alternative.equipmentType ?? null;
+        current.isTimeBased = alternative.isTimeBased || undefined;
         current.targetWeight = suggested != null ? String(suggested) : null;
         current.tagline = alternative.tagline;
         current.technique = alternative.technique;
@@ -768,6 +769,7 @@ export default function WorkoutSession() {
         requiresWeightInput: alternative.requiresWeightInput,
         weightLabel: alternative.weightLabel,
         equipmentType: alternative.equipmentType ?? null,
+        isTimeBased: alternative.isTimeBased || undefined,
         tagline: alternative.tagline,
         technique: alternative.technique,
         proTip: alternative.proTip,
