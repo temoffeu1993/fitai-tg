@@ -10,7 +10,7 @@ import {
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import mascotImg from "@/assets/robonew.webp";
-import { fireHapticImpact } from "@/utils/haptics";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -40,22 +40,7 @@ const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const MASCOT_SRC = mascotImg;
-const MS_ITEM_W = 64;
-const MONTH_COUNT = 13; // 6 past + current + 6 future
-const MONTH_PAST = 6;
-const MONTH_SHORT_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-
-type MonthEntry = { date: Date; label: string; year: number; offset: number };
-function buildMonthEntries(count: number, past: number): MonthEntry[] {
-  const today = new Date();
-  const entries: MonthEntry[] = [];
-  for (let i = 0; i < count; i++) {
-    const off = i - past;
-    const d = new Date(today.getFullYear(), today.getMonth() + off, 1);
-    entries.push({ date: d, label: MONTH_SHORT_RU[d.getMonth()], year: d.getFullYear(), offset: off });
-  }
-  return entries;
-}
+const MONTH_FULL_RU = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
 const defaultTimeSuggestion = () => {
   const hour = new Date().getHours();
   return hour < 12 ? "18:00" : "09:00";
@@ -100,59 +85,6 @@ export default function Schedule() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
-
-  // ---------- Month scroller ----------
-  const msEntries = useMemo(() => buildMonthEntries(MONTH_COUNT, MONTH_PAST), []);
-  const msCurrentIdx = MONTH_PAST;
-  const [msActiveIdx, setMsActiveIdx] = useState(msCurrentIdx);
-  const msScrollRef = useRef<HTMLDivElement>(null);
-  const msScrollRafRef = useRef<number | null>(null);
-  const msScrollStopTimer = useRef<number | null>(null);
-  const msLastTickRef = useRef<number | null>(null);
-  const msSuppressHapticsRef = useRef(true);
-
-  useEffect(() => {
-    msScrollRef.current?.scrollTo({ left: msActiveIdx * MS_ITEM_W, behavior: "auto" });
-    msLastTickRef.current = msActiveIdx;
-  }, []); // center on mount
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { msSuppressHapticsRef.current = false; }, 200);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  // Sync scroller → monthOffset
-  useEffect(() => {
-    const newOffset = msEntries[msActiveIdx]?.offset ?? 0;
-    if (newOffset !== monthOffset) setMonthOffset(newOffset);
-  }, [msActiveIdx, msEntries]);
-
-  const handleMsScroll = useCallback(() => {
-    if (msScrollRafRef.current == null) {
-      msScrollRafRef.current = window.requestAnimationFrame(() => {
-        msScrollRafRef.current = null;
-        const el = msScrollRef.current;
-        if (!el) return;
-        const idx = Math.round(el.scrollLeft / MS_ITEM_W);
-        const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
-        if (msLastTickRef.current !== clamped) {
-          msLastTickRef.current = clamped;
-          if (!msSuppressHapticsRef.current) fireHapticImpact("light");
-        }
-        if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
-      });
-    }
-    if (msScrollStopTimer.current) window.clearTimeout(msScrollStopTimer.current);
-    msScrollStopTimer.current = window.setTimeout(() => {
-      const el = msScrollRef.current;
-      if (!el) return;
-      const idx = Math.round(el.scrollLeft / MS_ITEM_W);
-      const clamped = Math.max(0, Math.min(idx, msEntries.length - 1));
-      if (clamped !== msActiveIdx) setMsActiveIdx(clamped);
-      el.scrollTo({ left: clamped * MS_ITEM_W, behavior: "smooth" });
-      if (!msSuppressHapticsRef.current) fireHapticImpact("light");
-    }, 80);
-  }, [msEntries.length, msActiveIdx]);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -264,24 +196,10 @@ export default function Schedule() {
   const today = stripTime(new Date());
   const view = addMonths(today, monthOffset);
   const monthLabel = view.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
-
-  // Per-month stats for scroller
-  const msStats = useMemo(() => {
-    const stats: Record<string, { completed: number; planned: number }> = {};
-    for (const entry of msEntries) {
-      const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
-      stats[key] = { completed: 0, planned: 0 };
-    }
-    for (const w of planned) {
-      if (w.status !== "scheduled" && w.status !== "completed") continue;
-      const d = parseIsoDate(w.scheduledFor);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (!stats[key]) continue;
-      if (w.status === "completed") stats[key].completed++;
-      else stats[key].planned++;
-    }
-    return stats;
-  }, [planned, msEntries]);
+  const prevMonth = addMonths(view, -1);
+  const nextMonth = addMonths(view, 1);
+  const prevMonthName = MONTH_FULL_RU[prevMonth.getMonth()];
+  const nextMonthName = MONTH_FULL_RU[nextMonth.getMonth()];
 
   const days = useMemo(() => buildMonthGrid(view), [view]);
 
@@ -501,68 +419,26 @@ export default function Schedule() {
             <img src={MASCOT_SRC} alt="Моро" style={s.mascotAvatarImg} loading="eager" decoding="async" draggable={false} />
           </div>
           <div style={s.avatarText}>
-            <div style={s.avatarTitle}>Календарь</div>
-            <div style={s.avatarSub}>Запланируй тренировку</div>
-          </div>
-        </div>
-      </section>
-
-      {/* BLOCK 2: Month Scroller */}
-      <section style={s.msWrap}>
-        <style>{`
-          .month-track::-webkit-scrollbar { display: none; }
-          .month-item {
-            appearance: none; outline: none; border: none; cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: pan-x;
-          }
-        `}</style>
-        <div style={s.msCard}>
-          <div style={s.msScroller}>
-            <div style={s.msIndicator} />
-            <div
-              ref={msScrollRef}
-              style={s.msTrack}
-              className="month-track"
-              onScroll={handleMsScroll}
-            >
-              {msEntries.map((entry, idx) => {
-                const active = idx === msActiveIdx;
-                const key = `${entry.date.getFullYear()}-${entry.date.getMonth()}`;
-                const st = msStats[key] || { completed: 0, planned: 0 };
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className="month-item"
-                    style={{ ...s.msItem, scrollSnapAlign: "center" }}
-                    onClick={() => {
-                      fireHapticImpact("light");
-                      setMsActiveIdx(idx);
-                      msScrollRef.current?.scrollTo({ left: idx * MS_ITEM_W, behavior: "smooth" });
-                    }}
-                  >
-                    <span style={{ ...s.msDow, ...(active ? s.msDowActive : undefined) }}>
-                      {entry.label}
-                    </span>
-                    <span style={{ ...s.msNum, ...(active ? s.msNumActive : undefined) }}>
-                      {st.completed}
-                    </span>
-                  </button>
-                );
-              })}
+            <div style={s.avatarTitle}>
+              <Calendar size={18} strokeWidth={2.2} style={{ marginRight: 6, verticalAlign: "-2px" }} />
+              {monthLabel}
             </div>
+            <div style={s.avatarSub}>Нажмите на дату, чтобы открыть детали</div>
           </div>
         </div>
       </section>
 
       <section style={s.block}>
         <div style={ux.card}>
-          <div style={ux.cardHeader}>
-            <div>
-              <div style={ux.cardTitle}>{monthLabel}</div>
-              <div style={ux.cardHint}>Нажми на дату, чтобы открыть детали</div>
-            </div>
+          <div style={s.calNav}>
+            <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x - 1)}>
+              <ChevronLeft size={18} strokeWidth={2.2} />
+              <span>{prevMonthName}</span>
+            </button>
+            <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x + 1)}>
+              <span>{nextMonthName}</span>
+              <ChevronRight size={18} strokeWidth={2.2} />
+            </button>
           </div>
 
           <div style={cal.headerRow}>
@@ -1190,90 +1066,26 @@ const s: Record<string, CSSProperties> = {
     color: "rgba(30, 31, 34, 0.7)",
   },
 
-  // Month Scroller (same tokens as Dashboard date scroller, minus dots)
-  msWrap: {
-    marginBottom: 4,
-  },
-  msCard: {
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-    position: "relative",
-    overflow: "hidden",
-    alignSelf: "stretch",
-    width: "100%",
-    padding: 0,
-  },
-  msScroller: {
-    position: "relative",
-    overflow: "visible",
-    width: "100%",
-  },
-  msIndicator: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 68,
-    height: 62,
-    transform: "translate(-50%, -50%)",
-    borderRadius: 22,
-    background: "linear-gradient(180deg, #ffffff 0%, #f4f4f7 100%)",
-    border: "1px solid rgba(255,255,255,0.95)",
-    boxShadow: "0 12px 24px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  msTrack: {
-    overflowX: "auto",
-    overflowY: "hidden",
-    whiteSpace: "nowrap",
-    scrollSnapType: "x proximity",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none",
-    padding: "14px 0 14px",
-    paddingLeft: `calc(50% - ${MS_ITEM_W / 2}px)`,
-    paddingRight: `calc(50% - ${MS_ITEM_W / 2}px)`,
-    position: "relative",
-    zIndex: 2,
+  // Calendar navigation (arrows in card header)
+  calNav: {
     display: "flex",
-  } as CSSProperties,
-  msItem: {
-    width: MS_ITEM_W,
-    minWidth: MS_ITEM_W,
-    display: "inline-flex",
-    flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    padding: "12px 16px",
+  },
+  calNavBtn: {
+    display: "inline-flex",
+    alignItems: "center",
     gap: 4,
-    padding: 0,
     background: "transparent",
-    cursor: "pointer",
-  } as CSSProperties,
-  msDow: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: "rgba(17,17,17,0.35)",
-    lineHeight: 1.1,
-    letterSpacing: 0.3,
-  },
-  msDowActive: {
-    color: "#1e1f22",
+    border: "none",
+    padding: "6px 4px",
+    fontSize: 14,
     fontWeight: 600,
-  },
-  msNum: {
-    fontSize: 24,
-    fontWeight: 500,
-    color: "rgba(17,17,17,0.3)",
-    lineHeight: 1.1,
-  },
-  msNumActive: {
-    color: "#111",
-    fontWeight: 700,
-    fontSize: 28,
-  },
+    color: "rgba(30,31,34,0.7)",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  } as CSSProperties,
 
   // Blocks
   block: {
