@@ -43,7 +43,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MASCOT_SRC = mascotImg;
 const MONTH_FULL_RU = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
 
-const MS_ITEM_W = 120;
+const MS_ITEM_W = 82;
 const MS_COUNT = 25; // 12 past + current + 12 future
 const MS_PAST = 12;
 
