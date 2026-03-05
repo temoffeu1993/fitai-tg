@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ClipboardList, CircleCheckBig } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -212,18 +213,34 @@ export default function Schedule() {
     [planned]
   );
 
+  const monthStart = useMemo(() => new Date(view.getFullYear(), view.getMonth(), 1), [view]);
+  const monthEnd = useMemo(() => new Date(view.getFullYear(), view.getMonth() + 1, 0, 23, 59, 59, 999), [view]);
+
   const upcoming = useMemo(() => {
-    const nowTs = Date.now();
     return planned
-      .filter(
-        (w) =>
-          w.status === "scheduled" && new Date(w.scheduledFor).getTime() >= nowTs - 60_000
-      )
+      .filter((w) => {
+        if (w.status !== "scheduled") return false;
+        const t = new Date(w.scheduledFor).getTime();
+        return t >= monthStart.getTime() && t <= monthEnd.getTime();
+      })
       .sort(
         (a, b) =>
           new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
       );
-  }, [planned]);
+  }, [planned, monthStart, monthEnd]);
+
+  const completed = useMemo(() => {
+    return planned
+      .filter((w) => {
+        if (w.status !== "completed") return false;
+        const t = new Date(w.scheduledFor).getTime();
+        return t >= monthStart.getTime() && t <= monthEnd.getTime();
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.scheduledFor).getTime() - new Date(a.scheduledFor).getTime()
+      );
+  }, [planned, monthStart, monthEnd]);
 
   const openDate = (date: Date) => {
     const key = toDateKey(date);
@@ -409,7 +426,7 @@ export default function Schedule() {
   if (loading) return <Loader />;
   if (error) return <ErrorView msg={error} onRetry={handleRetry} />;
 
-  const upcomingPreview = upcoming.slice(0, 6);
+  const upcomingPreview = upcoming;
 
   return (
     <div style={s.page}>
@@ -533,11 +550,9 @@ export default function Schedule() {
 
       <section style={s.block} className="sched-fade sched-delay-3">
         <div style={ux.card}>
-          <div style={ux.cardHeader}>
-            <div>
-              <div style={ux.cardTitle}>Ближайшие</div>
-              <div style={ux.cardHint}>Запланированные тренировки</div>
-            </div>
+          <div style={{ ...ux.cardHeader, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <ClipboardList size={18} strokeWidth={2.5} color="#0f172a" />
+            <div style={ux.cardTitle}>Запланированные</div>
           </div>
           <div style={{ padding: 10, display: "grid", gap: 8 }}>
             {upcomingPreview.length === 0 ? (
@@ -560,6 +575,30 @@ export default function Schedule() {
           </div>
         </div>
       </section>
+
+      {completed.length > 0 && (
+        <section style={s.block} className="sched-fade sched-delay-3">
+          <div style={ux.card}>
+            <div style={{ ...ux.cardHeader, flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
+              <div style={ux.cardTitle}>Выполненные</div>
+            </div>
+            <div style={{ padding: 10, display: "grid", gap: 8 }}>
+              {completed.map((item) => (
+                <div key={item.id} style={list.row}>
+                  <div style={list.left}>
+                    <div style={list.title}>{fmtFullDate(item.scheduledFor)}</div>
+                    <div style={list.hint}>В {formatTime(item.scheduledFor)}</div>
+                  </div>
+                  <button style={s.rowBtn} onClick={() => openWorkout(item)}>
+                    Открыть
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <div style={{ height: 80 }} />
 
@@ -1236,6 +1275,7 @@ const ux: Record<string, CSSProperties> = {
   },
   cardTitle: { fontSize: 16, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 },
   cardHint: { fontSize: 12, color: "rgba(15,23,42,0.55)", fontWeight: 400 },
+  iconInline: { width: 24, height: 24, display: "grid", placeItems: "center", fontSize: 18 },
 };
 
 const cal: Record<string, CSSProperties> = {
