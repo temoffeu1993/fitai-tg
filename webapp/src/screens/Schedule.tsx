@@ -1036,32 +1036,38 @@ function ScheduleBottomSheet({
         ) : replaceConfirm ? (
           <>
             {/* Replace confirm view */}
-            <div style={sh.confirmText}>
-              На эту дату уже стоит тренировка «{replaceConfirm.conflictTitle}».{"\n"}Заменить на «{replaceConfirm.targetTitle}»?
+            <div style={sh.confirmWrap}>
+              <p style={sh.confirmBody}>
+                На эту дату уже стоит тренировка «{replaceConfirm.conflictTitle}». Заменить на «{replaceConfirm.targetTitle}»?
+              </p>
+              <div style={sh.confirmButtonGroup}>
+                <button type="button" style={sh.confirmBtnDanger} onClick={onReplaceConfirm} disabled={saving}>
+                  {saving ? "Сохраняем..." : "Заменить"}
+                </button>
+                <div style={sh.confirmDividerBtn} />
+                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceCancel} disabled={saving}>
+                  Отмена
+                </button>
+              </div>
             </div>
-            <div style={sh.confirmDivider} />
-            <button type="button" style={sh.confirmBtn} onClick={onReplaceCancel} disabled={saving}>
-              Отмена
-            </button>
-            <div style={sh.confirmDivider} />
-            <button type="button" style={{ ...sh.confirmBtn, ...sh.confirmBtnDanger }} onClick={onReplaceConfirm} disabled={saving}>
-              {saving ? "Сохраняем..." : "Заменить"}
-            </button>
           </>
         ) : confirmDelete ? (
           <>
             {/* Confirm delete view */}
-            <div style={sh.confirmText}>
-              Удалить тренировку «{title}»?
+            <div style={sh.confirmWrap}>
+              <p style={sh.confirmBody}>
+                Удалить тренировку «{title}»?
+              </p>
+              <div style={sh.confirmButtonGroup}>
+                <button type="button" style={sh.confirmBtnDanger} onClick={onDelete}>
+                  Удалить
+                </button>
+                <div style={sh.confirmDividerBtn} />
+                <button type="button" style={sh.confirmBtnCancel} onClick={() => { setConfirmDelete(false); goToPage("backward"); }}>
+                  Отмена
+                </button>
+              </div>
             </div>
-            <div style={sh.confirmDivider} />
-            <button type="button" style={sh.confirmBtn} onClick={() => setConfirmDelete(false)}>
-              Отмена
-            </button>
-            <div style={sh.confirmDivider} />
-            <button type="button" style={{ ...sh.confirmBtn, ...sh.confirmBtnDanger }} onClick={onDelete}>
-              Удалить
-            </button>
           </>
         ) : editingWorkout ? (
           <>
@@ -1106,7 +1112,8 @@ function ScheduleBottomSheet({
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
                 <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
               </button>
-              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(editingWorkout.id); setConfirmDelete(true); }}>
+              <div style={sh.confirmDivider} />
+              <button type="button" style={sh.deleteBtnRow} onClick={() => { onSelectWorkout(editingWorkout.id); setConfirmDelete(true); goToPage("forward"); }}>
                 Удалить
               </button>
             </div>
@@ -1975,47 +1982,86 @@ const sh: Record<string, CSSProperties> = {
     background: "rgba(15,23,42,0.06)",
     margin: "12px 0",
   },
-  deleteBtn: {
-    background: "transparent",
-    border: "none",
-    cursor: "pointer",
-    fontSize: 14,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.6)",
-    padding: "8px 16px",
-    borderRadius: 999,
-  },
-  // Confirm delete
-  confirmText: {
-    fontSize: 15,
-    fontWeight: 500,
-    color: "rgba(15,23,42,0.62)",
-    textAlign: "center",
-    padding: "24px 16px 16px",
-    lineHeight: 1.4,
-  },
-  confirmBtn: {
+  deleteBtnRow: {
     width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
     minHeight: 56,
-    padding: "14px 24px",
     background: "transparent",
     border: "none",
-    cursor: "pointer",
+    padding: "14px 24px",
     fontSize: 18,
     fontWeight: 500,
-    color: "#1e1f22",
-    textAlign: "center",
+    textAlign: "left" as const,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    gap: 16,
+    color: "#b42318",
+    opacity: 0.8,
+    WebkitTapHighlightColor: "transparent",
+  },
+  // Confirm views (delete / replace)
+  confirmWrap: {
+    display: "flex",
+    flexDirection: "column" as const,
+    padding: "0px 0px 8px",
+  },
+  confirmBody: {
+    fontSize: 15,
+    color: "rgba(15,23,42,0.55)",
+    lineHeight: 1.45,
+    textAlign: "center" as const,
+    padding: "16px 16px 20px",
+    margin: 0,
+  },
+  confirmButtonGroup: {
+    display: "flex",
+    flexDirection: "column" as const,
+    width: "100%",
   },
   confirmBtnDanger: {
+    width: "100%",
+    minHeight: 56,
+    background: "transparent",
+    border: "none",
+    padding: "14px 24px",
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left" as const,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    justifyContent: "flex-start" as const,
     color: "#b42318",
-    fontWeight: 600,
+    opacity: 0.8,
+    WebkitTapHighlightColor: "transparent",
+  },
+  confirmBtnCancel: {
+    width: "100%",
+    minHeight: 56,
+    background: "transparent",
+    border: "none",
+    padding: "14px 24px",
+    fontSize: 18,
+    fontWeight: 500,
+    textAlign: "left" as const,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    justifyContent: "flex-start" as const,
+    color: "#1e1f22",
+    WebkitTapHighlightColor: "transparent",
   },
   confirmDivider: {
     height: 1,
     background: "rgba(15,23,42,0.06)",
+  },
+  confirmDividerBtn: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 16,
   },
   error: {
     background: "rgba(239,68,68,0.08)",
