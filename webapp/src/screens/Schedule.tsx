@@ -246,8 +246,26 @@ export default function Schedule() {
   const openDate = (date: Date) => {
     const key = toDateKey(date);
     const items = plannedByDate[key] || [];
-    if (items.length > 0) {
-      openWorkout(items[0]);
+    const completedItems = items.filter((w) => w.status === "completed");
+    const scheduledItems = items.filter((w) => w.status === "scheduled");
+    if (completedItems.length > 0 && scheduledItems.length === 0) {
+      // All completed — open first one (readOnly view shows all)
+      openWorkout(completedItems[0]);
+      return;
+    }
+    if (scheduledItems.length > 0) {
+      // Has scheduled — open in list mode (workout=null triggers scheduledWorkouts view)
+      const first = scheduledItems[0];
+      const initialTime = toTimeInput(first.scheduledFor);
+      setModal({
+        workout: null,
+        selectedWorkoutId: null,
+        allowScheduledPick: false,
+        date: key,
+        time: initialTime,
+        saving: false,
+        error: null,
+      });
       return;
     }
     const initialTime = scheduleDates[key]?.time ?? defaultTimeSuggestion();
@@ -285,7 +303,7 @@ export default function Schedule() {
     if (workout?.status === "completed") return;
     const candidatePool = allowScheduledPick ? assignableWorkouts : pendingWorkouts;
     const effectiveWorkout =
-      workout ?? candidatePool.find((w) => w.id === selectedWorkoutId) ?? null;
+      workout ?? candidatePool.find((w) => w.id === selectedWorkoutId) ?? planned.find((w) => w.id === selectedWorkoutId) ?? null;
     if (!effectiveWorkout) {
       setModal((prev) =>
         prev ? { ...prev, error: "Выбери тренировку" } : prev
@@ -392,14 +410,15 @@ export default function Schedule() {
   };
 
   const handleModalStart = () => {
-    if (!modal?.workout) return;
-    if (modal.workout.status !== "scheduled") return;
-    const workoutDate = toDateKey(parseIsoDate(modal.workout.scheduledFor));
+    if (!modal) return;
+    const w = modal.workout ?? planned.find((p) => p.id === modal.selectedWorkoutId) ?? null;
+    if (!w || w.status !== "scheduled") return;
+    const workoutDate = toDateKey(parseIsoDate(w.scheduledFor));
     setModal(null);
     nav("/check-in", {
       state: {
         workoutDate,
-        plannedWorkoutId: modal.workout.id,
+        plannedWorkoutId: w.id,
         returnTo: "/schedule",
       },
     });
@@ -670,6 +689,7 @@ export default function Schedule() {
           onStart={handleModalStart}
           onDetails={handleModalDetails}
           completedWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "completed")}
+          scheduledWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "scheduled")}
         />
       )}
       {replaceConfirm ? (
@@ -721,6 +741,7 @@ function ScheduleBottomSheet({
   onStart,
   onDetails,
   completedWorkouts,
+  scheduledWorkouts,
 }: {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
@@ -737,6 +758,7 @@ function ScheduleBottomSheet({
   onStart: () => void;
   onDetails: (workoutId?: string) => void;
   completedWorkouts: PlannedWorkout[];
+  scheduledWorkouts: PlannedWorkout[];
 }) {
   const [renderOpen, setRenderOpen] = useState(true);
   const [entered, setEntered] = useState(false);
@@ -749,11 +771,14 @@ function ScheduleBottomSheet({
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState("За 1 час");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
   const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
+  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkoutId;
+  const editingScheduled = editingWorkoutId ? scheduledWorkouts.find((w) => w.id === editingWorkoutId) ?? null : null;
 
   const applyEntered = (v: boolean) => {
     enteredRef.current = v;
@@ -911,6 +936,47 @@ function ScheduleBottomSheet({
               })}
             </div>
           </>
+        ) : hasScheduled ? (
+          <>
+            {/* Scheduled workouts list */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0" }}>
+              {scheduledWorkouts.map((w, idx) => {
+                const p: any = w.plan || {};
+                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                const label = dayLabelRU(rawLabel);
+                const wTime = formatTime(w.scheduledFor);
+                return (
+                  <div key={w.id}>
+                    <div style={sh.scheduledRow}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={sh.pickName}>{label}</div>
+                        <div style={sh.scheduledChips}>
+                          <span style={sh.scheduledChip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {wTime}
+                          </span>
+                        </div>
+                      </div>
+                      <button type="button" style={sh.scheduledEditBtn} onClick={() => setEditingWorkoutId(w.id)}>
+                        <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.5)" />
+                      </button>
+                    </div>
+                    {idx < scheduledWorkouts.length - 1 && <div style={sh.pickDivider} />}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Start button */}
+            <div style={sh.actionWrap}>
+              <button type="button" style={sh.primaryBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); onStart(); }}>
+                <span style={sh.primaryBtnLabel}>Начать тренировку</span>
+                <span style={sh.primaryBtnCircle}><ChevronRight size={20} strokeWidth={2.5} /></span>
+              </button>
+              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); setConfirmDelete(true); }}>
+                Удалить
+              </button>
+            </div>
+          </>
         ) : confirmDelete ? (
           <>
             {/* Confirm delete view */}
@@ -925,6 +991,54 @@ function ScheduleBottomSheet({
             <button type="button" style={{ ...sh.confirmBtn, ...sh.confirmBtnDanger }} onClick={onDelete}>
               Удалить
             </button>
+          </>
+        ) : editingScheduled ? (
+          <>
+            {/* Edit scheduled workout */}
+            <DateTimeWheelInline
+              initialDate={date}
+              initialTime={toTimeInput(editingScheduled.scheduledFor)}
+              onChange={onDateTimeChange}
+            />
+
+            <div style={sh.reminderWrap}>
+              <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
+                <span style={sh.reminderLabel}>🔔 Напомнить</span>
+                <span style={sh.reminderValue}>
+                  <span>{reminderValue}</span>
+                  <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
+                </span>
+              </button>
+              {reminderOpen ? (
+                <div style={sh.reminderList}>
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
+                      onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div style={sh.actionWrap}>
+              <button
+                type="button"
+                style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
+                onClick={() => { onSelectWorkout(editingScheduled.id); onSave(); }}
+                disabled={saving}
+              >
+                <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
+                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
+              </button>
+              <button type="button" style={sh.deleteBtn} onClick={() => setEditingWorkoutId(null)}>
+                Назад
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -1591,7 +1705,7 @@ const sh: Record<string, CSSProperties> = {
     overflow: "visible",
     display: "grid",
     gap: 8,
-    marginTop: 6,
+    marginTop: -4,
     marginBottom: 0,
   },
   reminderRow: {
@@ -1708,6 +1822,39 @@ const sh: Record<string, CSSProperties> = {
     color: "#1e1f22",
     fontWeight: 700,
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+  scheduledRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "14px 24px",
+  },
+  scheduledChips: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  scheduledChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
+  },
+  scheduledEditBtn: {
+    width: 36,
+    height: 36,
+    display: "grid",
+    placeItems: "center",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    borderRadius: 999,
+    flexShrink: 0,
   },
   completedArrow: {
     fontSize: 14,

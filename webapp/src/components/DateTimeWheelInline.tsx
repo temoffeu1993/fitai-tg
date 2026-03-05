@@ -266,7 +266,7 @@ const st: Record<string, CSSProperties> = {
     flexDirection: "column",
     gap: 16,
     width: "100%",
-    paddingBottom: 24,
+    paddingBottom: 8,
     flexShrink: 0,
     userSelect: "none",
     WebkitUserSelect: "none",
