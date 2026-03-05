@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -894,8 +894,24 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          <div style={{ width: 32, flexShrink: 0 }} />
-          <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 600, color: "#0f172a", lineHeight: 1.2 }}>
+          {editingScheduled ? (
+            <button
+              type="button"
+              onClick={() => setEditingWorkoutId(null)}
+              aria-label="Назад"
+              style={{
+                width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                border: "none", background: "transparent", borderRadius: 999,
+                color: "rgba(15,23,42,0.62)", cursor: "pointer", padding: 0, flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.2} />
+            </button>
+          ) : (
+            <div style={{ width: 32, flexShrink: 0 }} />
+          )}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 16, fontWeight: 600, color: "#0f172a", lineHeight: 1.2 }}>
+            {readOnly ? <CircleCheckBig size={16} strokeWidth={2.5} /> : (hasScheduled || editingScheduled || needsPick) ? <ClipboardList size={16} strokeWidth={2.5} /> : null}
             {title}
           </div>
           <button
@@ -991,10 +1007,7 @@ function ScheduleBottomSheet({
             <div style={sh.actionWrap}>
               <button type="button" style={sh.primaryBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); onStart(); }}>
                 <span style={sh.primaryBtnLabel}>Начать тренировку</span>
-                <span style={sh.primaryBtnCircle}><ChevronRight size={20} strokeWidth={2.5} /></span>
-              </button>
-              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); setConfirmDelete(true); }}>
-                Удалить
+                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnArrow}>→</span></span>
               </button>
             </div>
           </>
@@ -1056,8 +1069,8 @@ function ScheduleBottomSheet({
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
                 <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
               </button>
-              <button type="button" style={sh.deleteBtn} onClick={() => setEditingWorkoutId(null)}>
-                Назад
+              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(editingScheduled.id); setConfirmDelete(true); }}>
+                Удалить
               </button>
             </div>
           </>
@@ -1105,15 +1118,35 @@ function ScheduleBottomSheet({
                       const rawLabel = String(p.dayLabel || p.title || "Тренировка");
                       const label = dayLabelRU(rawLabel);
                       const selected = w.id === selectedWorkoutId;
+                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                      const estMin = Number(p.estimatedDuration) || null;
                       return (
                         <div key={w.id}>
-                          <button type="button" style={sh.pickRow} onClick={() => onSelectWorkout(w.id)}>
-                            <div style={sh.pickName}>{label}</div>
-                            <div style={selected ? sh.pickChipActive : sh.pickChip}>
-                              {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
+                          {idx > 0 && <div style={sh.sheetDivider} />}
+                          <button type="button" style={sh.pickRowWl} onClick={() => onSelectWorkout(w.id)}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={sh.sheetRowName}>{label}</div>
+                              <div style={sh.sheetRowBottom}>
+                                <div style={sh.sheetRowChips}>
+                                  {exCount > 0 && (
+                                    <span style={sh.sheetRowChip}>
+                                      <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                      {exCount} упр.
+                                    </span>
+                                  )}
+                                  {estMin && (
+                                    <span style={sh.sheetRowChip}>
+                                      <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                      {estMin} мин
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={selected ? sh.pickChipActive : sh.pickChip}>
+                                  {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
+                                </div>
+                              </div>
                             </div>
                           </button>
-                          {idx < availableWorkouts.length - 1 && <div style={sh.pickDivider} />}
                         </div>
                       );
                     })
@@ -1843,6 +1876,23 @@ const sh: Record<string, CSSProperties> = {
     color: "#1e1f22",
     fontWeight: 700,
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+  primaryBtnArrow: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#0f172a",
+    fontWeight: 700,
+  },
+  pickRowWl: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    textAlign: "left",
+    padding: 0,
   },
   scheduledRow: {
     width: "100%",

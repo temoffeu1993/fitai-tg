@@ -212,10 +212,12 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
           <div ref={(el) => { (dateWheel.stripRef as any).current = el; (dateItemsRef as any).current = el; }} style={st.dateStrip}>
             {dates.map((d, idx) => {
               const active = idx === initDateIdx;
+              const isToday = toDateKeyLocal(d.date) === todayIso;
               return (
                 <div key={idx} style={st.dateItem}>
                   <span style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
                   <span style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
+                  {isToday && <span style={st.todayDot} />}
                 </div>
               );
             })}
@@ -313,7 +315,7 @@ const st: Record<string, CSSProperties> = {
     width: DATE_ITEM_W, minWidth: DATE_ITEM_W,
     display: "inline-flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    gap: 2, padding: 0,
+    gap: 2, padding: 0, position: "relative",
   },
   dateDow: {
     fontSize: 12, fontWeight: 500, color: "rgba(30,31,34,0.35)",
@@ -328,6 +330,12 @@ const st: Record<string, CSSProperties> = {
   },
   dateNumActive: {
     fontSize: 26, fontWeight: 700, color: "#111", lineHeight: 1.3,
+  },
+  todayDot: {
+    width: 12, height: 12, borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    position: "absolute" as const, bottom: 2,
   },
   timeWrap: {
     position: "relative", overflow: "hidden", width: "100%", height: TIME_ITEM_H,
