@@ -714,6 +714,8 @@ const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
 const SHEET_ENTER_MS = 380;
 const SHEET_EXIT_MS = 260;
 const OPEN_TICK_MS = 12;
+const CONTENT_ANIM_MS = 280;
+const SPRING_CONTENT = "cubic-bezier(0.36, 0.66, 0.04, 1)";
 
 const REMINDER_OPTIONS = [
   "За 1 час",
@@ -772,6 +774,10 @@ function ScheduleBottomSheet({
   const [reminderValue, setReminderValue] = useState("За 1 час");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
+  const [prevPage, setPrevPage] = useState<string | null>(null);
+  const [pageAnimating, setPageAnimating] = useState(false);
+  const pageTimerRef = useRef<number | null>(null);
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
@@ -791,8 +797,21 @@ function ScheduleBottomSheet({
       if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
       if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
       if (animDoneTimerRef.current != null) window.clearTimeout(animDoneTimerRef.current);
+      if (pageTimerRef.current != null) window.clearTimeout(pageTimerRef.current);
     };
   }, []);
+
+  const goToPage = (direction: "forward" | "backward") => {
+    if (pageTimerRef.current != null) window.clearTimeout(pageTimerRef.current);
+    setPrevPage("snapshot");
+    setSlideDir(direction);
+    setPageAnimating(true);
+    pageTimerRef.current = window.setTimeout(() => {
+      setPrevPage(null);
+      setPageAnimating(false);
+      pageTimerRef.current = null;
+    }, CONTENT_ANIM_MS + 20);
+  };
 
   // Open animation: mount → 12ms tick → entered → animDone (remove transform)
   useEffect(() => {
@@ -835,12 +854,18 @@ function ScheduleBottomSheet({
             const p: any = editingScheduled.plan || {};
             return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
           })()
-        : !needsPick
+        : needsPick && selectedWorkoutId
           ? (() => {
-              const p: any = (workout as any)?.plan || {};
+              const w = availableWorkouts.find((aw) => aw.id === selectedWorkoutId);
+              const p: any = w?.plan || {};
               return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
             })()
-          : "Запланировать";
+          : !needsPick
+            ? (() => {
+                const p: any = (workout as any)?.plan || {};
+                return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
+              })()
+            : "Запланировать";
 
   return createPortal(
     <>
@@ -880,6 +905,13 @@ function ScheduleBottomSheet({
           willChange: animDone ? "auto" : "transform",
         }}
       >
+        <style>{`
+          @keyframes sh-in-right { from { opacity: 0; transform: translate3d(44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+          @keyframes sh-in-left { from { opacity: 0; transform: translate3d(-44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+          @keyframes sh-out-left { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(-44px, 0, 0); } }
+          @keyframes sh-out-right { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(44px, 0, 0); } }
+        `}</style>
+
         {/* Grabber */}
         <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
           <div
@@ -894,10 +926,10 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          {editingScheduled ? (
+          {(editingScheduled || (needsPick && selectedWorkoutId)) ? (
             <button
               type="button"
-              onClick={() => setEditingWorkoutId(null)}
+              onClick={() => { editingScheduled ? setEditingWorkoutId(null) : onSelectWorkout(""); goToPage("backward"); }}
               aria-label="Назад"
               style={{
                 width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -940,6 +972,11 @@ function ScheduleBottomSheet({
           </button>
         </div>
 
+        <div style={{ display: "grid", flex: 1, minHeight: 0, overflow: pageAnimating ? "hidden" : "visible" }}>
+          {pageAnimating && prevPage ? (
+            <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column" as const, animation: `${slideDir === "forward" ? "sh-out-left" : "sh-out-right"} ${CONTENT_ANIM_MS}ms ${SPRING_CONTENT} both`, pointerEvents: "none" as const }} />
+          ) : null}
+          <div style={{ gridArea: "1 / 1", display: "flex", flexDirection: "column" as const, ...(pageAnimating ? { animation: `${slideDir === "forward" ? "sh-in-right" : "sh-in-left"} ${CONTENT_ANIM_MS}ms ${SPRING_CONTENT} both` } : null) }}>
         {readOnly ? (
           <>
             {/* Completed workouts list */}
@@ -994,7 +1031,7 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
-                        <button type="button" style={sh.scheduledEditBtn} onClick={() => setEditingWorkoutId(w.id)}>
+                        <button type="button" style={sh.scheduledEditBtn} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }}>
                           <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
                         </button>
                       </div>
@@ -1067,6 +1104,53 @@ function ScheduleBottomSheet({
               </button>
             </div>
           </>
+        ) : needsPick && selectedWorkoutId ? (
+          <>
+            {/* Scheduling view — scrollers + save */}
+            <DateTimeWheelInline
+              initialDate={date}
+              initialTime={time}
+              onChange={onDateTimeChange}
+            />
+
+            <div style={sh.reminderWrap}>
+              <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
+                <span style={sh.reminderLabel}>🔔 Напомнить</span>
+                <span style={sh.reminderValue}>
+                  <span>{reminderValue}</span>
+                  <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
+                </span>
+              </button>
+              {reminderOpen ? (
+                <div style={sh.reminderList}>
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
+                      onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {error && <div style={sh.error}>{error}</div>}
+
+            <div style={sh.actionWrap}>
+              <button
+                type="button"
+                style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
+                onClick={onSave}
+                disabled={saving}
+              >
+                <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
+                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
+              </button>
+            </div>
+          </>
         ) : (
           <>
             {/* Workout pick list — no scrollers, just list */}
@@ -1079,7 +1163,7 @@ function ScheduleBottomSheet({
                   return (
                     <div key={w.id}>
                       {idx > 0 && <div style={sh.sheetDivider} />}
-                      <div style={sh.sheetRow} onClick={() => onSelectWorkout(w.id)}>
+                      <div style={sh.sheetRow} onClick={() => { onSelectWorkout(w.id); goToPage("forward"); }}>
                         <div style={sh.sheetRowName}>{label}</div>
                         <div style={sh.sheetRowBottom}>
                           <div style={sh.sheetRowChips}>
@@ -1105,10 +1189,12 @@ function ScheduleBottomSheet({
               )}
             </div>
 
-            {/* Error */}
             {error && <div style={sh.error}>{error}</div>}
           </>
         )}
+
+          </div>
+        </div>
 
         {/* Safe area spacer */}
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
