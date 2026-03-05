@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Dumbbell, Clock3, ChevronRight, CirclePercent } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -10,6 +10,8 @@ import {
   PlannedWorkout,
   ScheduleByDate,
 } from "@/api/schedule";
+import { getWorkoutSessionById } from "@/api/plan";
+import { resolveWorkoutTitle } from "@/screens/WorkoutResult";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import DateTimeWheelInline from "@/components/DateTimeWheelInline";
 import mascotImg from "@/assets/robonew.webp";
@@ -87,6 +89,7 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
+  const [sessionCache, setSessionCache] = useState<Record<string, { completionPct: number; durationMin: number | null }>>({});
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -241,6 +244,45 @@ export default function Schedule() {
           new Date(b.scheduledFor).getTime() - new Date(a.scheduledFor).getTime()
       );
   }, [planned, monthStart, monthEnd]);
+
+  // Load session data for completed workouts (completion %, duration)
+  useEffect(() => {
+    const toLoad = completed.filter(
+      (w) => w.resultSessionId && !sessionCache[w.resultSessionId]
+    );
+    if (toLoad.length === 0) return;
+    let active = true;
+    Promise.all(
+      toLoad.map(async (w) => {
+        try {
+          const data = await getWorkoutSessionById(w.resultSessionId!);
+          const payload = data?.session?.payload;
+          if (!payload) return null;
+          let totalSets = 0, doneSets = 0;
+          for (const ex of Array.isArray(payload.exercises) ? payload.exercises : []) {
+            const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
+            totalSets += sets.length;
+            doneSets += sets.filter((st: any) => Boolean(st?.done)).length;
+          }
+          const pct = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 100;
+          const dur: number | null = typeof payload.durationMin === "number" ? payload.durationMin : null;
+          return { id: w.resultSessionId!, pct, dur };
+        } catch {
+          return null;
+        }
+      })
+    ).then((results) => {
+      if (!active) return;
+      const next: Record<string, { completionPct: number; durationMin: number | null }> = {};
+      for (const r of results) {
+        if (r) next[r.id] = { completionPct: r.pct, durationMin: r.dur };
+      }
+      if (Object.keys(next).length > 0) {
+        setSessionCache((prev) => ({ ...prev, ...next }));
+      }
+    });
+    return () => { active = false; };
+  }, [completed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openDate = (date: Date) => {
     const key = toDateKey(date);
@@ -550,27 +592,50 @@ export default function Schedule() {
 
       <section style={s.block} className="sched-fade sched-delay-3">
         <div style={ux.card}>
-          <div style={{ ...ux.cardHeader, flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <div style={wl.header}>
             <ClipboardList size={18} strokeWidth={2.5} color="#0f172a" />
-            <div style={ux.cardTitle}>Запланированные</div>
+            <span style={wl.headerTitle}>Запланированные</span>
           </div>
-          <div style={{ padding: 10, display: "grid", gap: 8 }}>
+          <div style={wl.body}>
             {upcomingPreview.length === 0 ? (
               <div style={ux.cardHint}>
                 Нет запланированных тренировок. Сохрани новую из генератора.
               </div>
             ) : (
-              upcomingPreview.map((item) => (
-                <div key={item.id} style={list.row}>
-                  <div style={list.left}>
-                    <div style={list.title}>{fmtFullDate(item.scheduledFor)}</div>
-                    <div style={list.hint}>В {formatTime(item.scheduledFor)}</div>
+              upcomingPreview.map((item, idx) => {
+                const p: any = item.plan || {};
+                const title = resolveWorkoutTitle(p);
+                const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                const mins = Number(p.estimatedDuration) || null;
+                return (
+                  <div key={item.id}>
+                    {idx > 0 && <div style={wl.divider} />}
+                    <div style={wl.row} onClick={() => openWorkout(item)}>
+                      <div style={wl.top}>
+                        <div style={wl.name}>{title}</div>
+                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} · {formatTime(item.scheduledFor)}</span>
+                      </div>
+                      <div style={wl.bottom}>
+                        <div style={wl.chips}>
+                          {exCount > 0 && (
+                            <span style={wl.chip}>
+                              <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              {exCount} упр.
+                            </span>
+                          )}
+                          {mins != null && (
+                            <span style={wl.chip}>
+                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              ~{mins} мин
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={18} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                      </div>
+                    </div>
                   </div>
-                  <button style={s.rowBtn} onClick={() => openWorkout(item)}>
-                    Открыть
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -579,22 +644,65 @@ export default function Schedule() {
       {completed.length > 0 && (
         <section style={s.block} className="sched-fade sched-delay-3">
           <div style={ux.card}>
-            <div style={{ ...ux.cardHeader, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <div style={wl.header}>
               <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
-              <div style={ux.cardTitle}>Выполненные</div>
+              <span style={wl.headerTitle}>Выполненные</span>
             </div>
-            <div style={{ padding: 10, display: "grid", gap: 8 }}>
-              {completed.map((item) => (
-                <div key={item.id} style={list.row}>
-                  <div style={list.left}>
-                    <div style={list.title}>{fmtFullDate(item.scheduledFor)}</div>
-                    <div style={list.hint}>В {formatTime(item.scheduledFor)}</div>
+            <div style={wl.body}>
+              {completed.map((item, idx) => {
+                const p: any = item.plan || {};
+                const title = resolveWorkoutTitle(p);
+                const sess = item.resultSessionId ? sessionCache[item.resultSessionId] : null;
+                const pct = sess?.completionPct;
+                const mins = sess?.durationMin;
+                // Fallback to plan data if session not loaded yet
+                const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                const planMins = Number(p.estimatedDuration) || null;
+                return (
+                  <div key={item.id}>
+                    {idx > 0 && <div style={wl.divider} />}
+                    <div
+                      style={wl.row}
+                      onClick={() => {
+                        if (item.resultSessionId) {
+                          nav(`/workout/result?sessionId=${encodeURIComponent(item.resultSessionId)}`);
+                        } else {
+                          openWorkout(item);
+                        }
+                      }}
+                    >
+                      <div style={wl.top}>
+                        <div style={wl.name}>{title}</div>
+                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} · {formatTime(item.scheduledFor)}</span>
+                      </div>
+                      <div style={wl.bottom}>
+                        <div style={wl.chips}>
+                          {pct != null ? (
+                            <span style={wl.chip}>
+                              <CirclePercent size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              {pct}%
+                            </span>
+                          ) : (
+                            exCount > 0 && (
+                              <span style={wl.chip}>
+                                <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                {exCount} упр.
+                              </span>
+                            )
+                          )}
+                          {(mins ?? planMins) != null && (
+                            <span style={wl.chip}>
+                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              {mins ?? planMins} мин
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={18} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                      </div>
+                    </div>
                   </div>
-                  <button style={s.rowBtn} onClick={() => openWorkout(item)}>
-                    Открыть
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -1109,6 +1217,11 @@ function fmtFullDate(iso: string) {
   });
 }
 
+function fmtShortDate(iso: string) {
+  const dt = parseIsoDate(iso);
+  return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
 function parseIsoDate(iso: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const [y, m, d] = iso.split("-").map(Number);
@@ -1383,20 +1496,72 @@ const cal: Record<string, CSSProperties> = {
   },
 };
 
-const list: Record<string, CSSProperties> = {
+const wl: Record<string, CSSProperties> = {
+  header: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "18px 18px 0",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.2,
+  },
+  body: {
+    padding: "14px 18px 18px",
+  },
+  divider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    margin: "12px 0",
+  },
   row: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  } as CSSProperties,
+  top: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1e1f22",
+    lineHeight: 1.25,
+  },
+  dateChip: {
+    fontSize: 12,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.55)",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  } as CSSProperties,
+  bottom: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "12px 14px",
-    borderRadius: 18,
-    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
-    border: "1px solid rgba(255,255,255,0.78)",
   },
-  left: { display: "grid", gap: 2, minWidth: 0 },
-  title: { fontWeight: 700, fontSize: 14, color: "#1e1f22" },
-  hint: { fontSize: 12, color: "rgba(15,23,42,0.55)" },
+  chips: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+  } as CSSProperties,
+  chip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
+  },
 };
 
 const sh: Record<string, CSSProperties> = {

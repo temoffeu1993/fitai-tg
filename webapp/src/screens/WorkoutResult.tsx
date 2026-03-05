@@ -286,7 +286,7 @@ function computeExerciseDelta(
 
 // ─── Workout title resolution (matches PlanOne dayLabelRU) ─────────────────────
 
-function resolveWorkoutTitle(payload: any): string {
+export function resolveWorkoutTitle(payload: any): string {
   if (!payload) return "Тренировка";
   const raw = String(
     payload.dayLabel ||
