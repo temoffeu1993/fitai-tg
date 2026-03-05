@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft, Plus } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft, Plus, RefreshCw, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -65,6 +65,8 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
+  const [scheduledOpen, setScheduledOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -529,11 +531,15 @@ export default function Schedule() {
 
       <section style={s.block} className="sched-fade sched-delay-3">
         <div style={ux.card}>
-          <div style={wl.header}>
-            <ClipboardList size={18} strokeWidth={2.5} color="#0f172a" />
-            <span style={wl.headerTitle}>Запланировано</span>
-          </div>
-          <div style={wl.body}>
+          <button type="button" style={wl.headerBtn} onClick={() => setScheduledOpen((v) => !v)}>
+            <div style={wl.headerLeft}>
+              <ClipboardList size={18} strokeWidth={2.5} color="#0f172a" />
+              <span style={wl.headerTitle}>Запланировано</span>
+              <span style={wl.headerCount}>{upcomingPreview.length}</span>
+            </div>
+            <ChevronRight size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: scheduledOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
+          </button>
+          {scheduledOpen && <div style={wl.body}>
             {upcomingPreview.length === 0 ? (
               <div style={ux.cardHint}>
                 Нет запланированных тренировок. Сохрани новую из генератора.
@@ -565,18 +571,22 @@ export default function Schedule() {
                 );
               })
             )}
-          </div>
+          </div>}
         </div>
       </section>
 
       {completed.length > 0 && (
         <section style={s.block} className="sched-fade sched-delay-3">
           <div style={ux.card}>
-            <div style={wl.header}>
-              <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
-              <span style={wl.headerTitle}>Выполнено</span>
-            </div>
-            <div style={wl.body}>
+            <button type="button" style={wl.headerBtn} onClick={() => setCompletedOpen((v) => !v)}>
+              <div style={wl.headerLeft}>
+                <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
+                <span style={wl.headerTitle}>Выполнено</span>
+                <span style={wl.headerCount}>{completed.length}</span>
+              </div>
+              <ChevronRight size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: completedOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
+            </button>
+            {completedOpen && <div style={wl.body}>
               {completed.map((item, idx) => {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
@@ -611,7 +621,7 @@ export default function Schedule() {
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </div>
         </section>
       )}
@@ -1068,16 +1078,19 @@ function ScheduleBottomSheet({
                 {!replaceConfirm.timeConflict && (
                   <>
                     <button type="button" style={sh.confirmBtnCancel} onClick={() => { setSavingMode("add"); onReplaceAdd(); }} disabled={saving}>
+                      <Plus size={18} strokeWidth={2.2} />
                       {saving && savingMode === "add" ? "Сохраняем..." : "Добавить"}
                     </button>
                     <div style={sh.confirmDividerBtn} />
                   </>
                 )}
                 <button type="button" style={sh.confirmBtnCancel} onClick={() => { setSavingMode("replace"); onReplaceConfirm(); }} disabled={saving}>
+                  <RefreshCw size={18} strokeWidth={2.2} />
                   {saving && savingMode === "replace" ? "Сохраняем..." : "Заменить"}
                 </button>
                 <div style={sh.confirmDividerBtn} />
                 <button type="button" style={sh.confirmBtnDanger} onClick={onReplaceCancel} disabled={saving}>
+                  <X size={18} strokeWidth={2.2} />
                   Отмена
                 </button>
               </div>
@@ -1092,10 +1105,12 @@ function ScheduleBottomSheet({
               </p>
               <div style={sh.confirmButtonGroup}>
                 <button type="button" style={sh.confirmBtnDanger} onClick={onDelete}>
+                  <Trash2 size={18} strokeWidth={2.2} />
                   Удалить
                 </button>
                 <div style={sh.confirmDividerBtn} />
                 <button type="button" style={sh.confirmBtnCancel} onClick={() => { setConfirmDelete(false); goToPage("backward"); }}>
+                  <X size={18} strokeWidth={2.2} />
                   Отмена
                 </button>
               </div>
@@ -1195,6 +1210,61 @@ function ScheduleBottomSheet({
               >
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
                 <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
+              </button>
+            </div>
+          </>
+        ) : !needsPick && workout?.status === "scheduled" ? (
+          <>
+            {/* Direct scheduled workout view — scrollers + save/delete */}
+            <DateTimeWheelInline
+              initialDate={date}
+              initialTime={time}
+              onChange={onDateTimeChange}
+            />
+
+            <div style={sh.reminderWrap}>
+              <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
+                <span style={sh.reminderLabel}>🔔 Напомнить</span>
+                <span style={sh.reminderValue}>
+                  <span>{reminderValue}</span>
+                  <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
+                </span>
+              </button>
+              {reminderOpen ? (
+                <div style={sh.reminderList}>
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
+                      onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {error && <div style={sh.error}>{error}</div>}
+
+            <div style={sh.actionWrap}>
+              <button
+                type="button"
+                className="intro-primary-btn ws-primary-btn"
+                style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
+                onClick={() => onSave(workout.id)}
+                disabled={saving}
+              >
+                <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
+                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
+              </button>
+              <button
+                type="button"
+                style={sh.deleteBtnRow}
+                onClick={() => { onSelectWorkout(workout.id); setConfirmDelete(true); goToPage("forward"); }}
+              >
+                Удалить
               </button>
             </div>
           </>
@@ -1673,6 +1743,27 @@ const wl: Record<string, CSSProperties> = {
     gap: 6,
     padding: "18px 18px 0",
   },
+  headerBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    padding: "18px 18px 0",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  },
+  headerLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  headerCount: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "rgba(15,23,42,0.4)",
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 700,
@@ -2051,6 +2142,7 @@ const sh: Record<string, CSSProperties> = {
     flexDirection: "row" as const,
     alignItems: "center",
     justifyContent: "flex-start" as const,
+    gap: 16,
     color: "#b42318",
     opacity: 0.8,
     WebkitTapHighlightColor: "transparent",
@@ -2069,6 +2161,7 @@ const sh: Record<string, CSSProperties> = {
     flexDirection: "row" as const,
     alignItems: "center",
     justifyContent: "flex-start" as const,
+    gap: 16,
     color: "#1e1f22",
     WebkitTapHighlightColor: "transparent",
   },
