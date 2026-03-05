@@ -176,6 +176,7 @@ export default function Schedule() {
   }, [reload]);
 
   const [monthOffset, setMonthOffset] = useState(0);
+  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const today = stripTime(new Date());
   const view = addMonths(today, monthOffset);
   const monthLabel = view.toLocaleDateString("ru-RU", { month: "long", year: "numeric" }).replace(/ г\.$/, "");
@@ -183,6 +184,11 @@ export default function Schedule() {
   const nextMonthName = MONTH_FULL_RU[addMonths(view, 1).getMonth()];
 
   const days = useMemo(() => buildMonthGrid(view), [view]);
+
+  const goMonth = useCallback((dir: -1 | 1) => {
+    setSlideDir(dir === -1 ? "right" : "left");
+    setMonthOffset((x) => x + dir);
+  }, []);
 
   const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
 
@@ -450,8 +456,14 @@ export default function Schedule() {
         .sched-delay-1 { animation-delay: 80ms; }
         .sched-delay-2 { animation-delay: 160ms; }
         .sched-delay-3 { animation-delay: 240ms; }
+        @keyframes calSlideFromLeft { from { opacity:0; transform:translateX(-40px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes calSlideFromRight { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:translateX(0); } }
+        .cal-slide-left { animation: calSlideFromRight 280ms ease-out both; }
+        .cal-slide-right { animation: calSlideFromLeft 280ms ease-out both; }
+        .cal-slide-idle {}
         @media (prefers-reduced-motion: reduce) {
           .sched-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
+          .cal-slide-left, .cal-slide-right { animation: none !important; opacity: 1 !important; transform: none !important; }
         }
       `}</style>
       {/* BLOCK 1: Avatar Header */}
@@ -470,12 +482,12 @@ export default function Schedule() {
       <section style={s.block} className="sched-fade sched-delay-2">
         <div style={ux.card}>
           <div style={s.calNav}>
-            <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x - 1)}>
+            <button type="button" style={s.calNavBtn} onClick={() => goMonth(-1)}>
               <span>←</span>
               <span>{prevMonthName}</span>
             </button>
             <div style={s.calNavCurrent}>{monthLabel}</div>
-            <button type="button" style={s.calNavBtn} onClick={() => setMonthOffset((x) => x + 1)}>
+            <button type="button" style={s.calNavBtn} onClick={() => goMonth(1)}>
               <span>{nextMonthName}</span>
               <span>→</span>
             </button>
@@ -488,7 +500,12 @@ export default function Schedule() {
             ))}
           </div>
 
-          <div style={cal.grid}>
+          <div style={cal.gridWrap}>
+          <div
+            key={monthOffset}
+            className={slideDir === "left" ? "cal-slide-left" : slideDir === "right" ? "cal-slide-right" : "cal-slide-idle"}
+            style={cal.grid}
+          >
             {days.map((day, idx) => {
               if (!day) return <div key={`empty-${idx}`} />;
 	              const key = toDateKey(day);
@@ -525,6 +542,7 @@ export default function Schedule() {
                 </button>
               );
             })}
+          </div>
           </div>
         </div>
       </section>
@@ -1657,6 +1675,9 @@ const cal: Record<string, CSSProperties> = {
     fontWeight: 400,
     color: "rgba(15,23,42,0.62)",
     lineHeight: 1,
+  },
+  gridWrap: {
+    overflow: "hidden",
   },
   grid: {
     display: "grid",
