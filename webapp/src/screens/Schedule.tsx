@@ -921,10 +921,19 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          {(editingWorkout || (needsPick && selectedWorkoutId)) ? (
+          {(!confirmDelete && !replaceConfirm && (editingWorkout || (needsPick && selectedWorkoutId))) ? (
             <button
               type="button"
-              onClick={() => { editingWorkout ? setEditingWorkout(null) : onSelectWorkout(""); goToPage("backward"); }}
+              onClick={() => {
+                if (editingWorkout) {
+                  // Restore date to the workout's original date so hasScheduled shows correctly
+                  onDateTimeChange(toDateInput(editingWorkout.scheduledFor), toTimeInput(editingWorkout.scheduledFor));
+                  setEditingWorkout(null);
+                } else {
+                  onSelectWorkout("");
+                }
+                goToPage("backward");
+              }}
               aria-label="Назад"
               style={{
                 width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -937,9 +946,13 @@ function ScheduleBottomSheet({
           ) : (
             <div style={{ width: 32, flexShrink: 0 }} />
           )}
-          <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
-            {title}
-          </div>
+          {(!confirmDelete && !replaceConfirm) ? (
+            <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
+              {title}
+            </div>
+          ) : (
+            <div style={{ flex: 1 }} />
+          )}
           <button
             type="button"
             onClick={requestClose}
@@ -1105,6 +1118,7 @@ function ScheduleBottomSheet({
             <div style={sh.actionWrap}>
               <button
                 type="button"
+                className="intro-primary-btn ws-primary-btn"
                 style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
                 onClick={() => { onSelectWorkout(editingWorkout.id); onSave(); }}
                 disabled={saving}
@@ -1112,7 +1126,6 @@ function ScheduleBottomSheet({
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
                 <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
               </button>
-              <div style={sh.confirmDivider} />
               <button type="button" style={sh.deleteBtnRow} onClick={() => { onSelectWorkout(editingWorkout.id); setConfirmDelete(true); goToPage("forward"); }}>
                 Удалить
               </button>
@@ -1156,6 +1169,7 @@ function ScheduleBottomSheet({
             <div style={sh.actionWrap}>
               <button
                 type="button"
+                className="intro-primary-btn ws-primary-btn"
                 style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
                 onClick={onSave}
                 disabled={saving}
@@ -1845,7 +1859,7 @@ const sh: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 12,
+    gap: 4,
     padding: "12px 0 4px",
     flexShrink: 0,
   },
@@ -1983,21 +1997,14 @@ const sh: Record<string, CSSProperties> = {
     margin: "12px 0",
   },
   deleteBtnRow: {
-    width: "100%",
-    minHeight: 56,
     background: "transparent",
     border: "none",
-    padding: "14px 24px",
-    fontSize: 18,
-    fontWeight: 500,
-    textAlign: "left" as const,
     cursor: "pointer",
-    display: "flex",
-    flexDirection: "row" as const,
-    alignItems: "center",
-    gap: 16,
-    color: "#b42318",
-    opacity: 0.8,
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.6)",
+    padding: "8px 16px",
+    borderRadius: 999,
     WebkitTapHighlightColor: "transparent",
   },
   // Confirm views (delete / replace)
