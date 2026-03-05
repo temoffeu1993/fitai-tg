@@ -9,7 +9,7 @@ import {
   ScheduleByDate,
 } from "@/api/schedule";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
-import DateTimeWheelModal from "@/components/DateTimeWheelModal";
+import DateTimeWheelInline from "@/components/DateTimeWheelInline";
 import mascotImg from "@/assets/robonew.webp";
 
 const dayLabelRU = (label: string) => {
@@ -647,8 +647,6 @@ function ScheduleBottomSheet({
   const [closing, setClosing] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
-  const [dtPickerOpen, setDtPickerOpen] = useState(false);
-
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
@@ -701,12 +699,6 @@ function ScheduleBottomSheet({
         return dayLabelRU(rawLabel);
       })()
     : "Запланировать";
-
-  const dateFormatted = new Date(date + "T00:00:00").toLocaleDateString("ru-RU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
 
   return (
     <>
@@ -788,31 +780,12 @@ function ScheduleBottomSheet({
           </button>
         </div>
 
-        {/* Date/Time chip */}
-        <button
-          type="button"
-          onClick={() => setDtPickerOpen(true)}
-          style={{
-            width: "100%",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        >
-          <div style={sh.dtChip}>
-            <div style={sh.dtChipLabel}>Дата</div>
-            <div style={sh.dtChipValue}>{dateFormatted}</div>
-          </div>
-          <div style={sh.dtChip}>
-            <div style={sh.dtChipLabel}>Время</div>
-            <div style={sh.dtChipValue}>{time}</div>
-          </div>
-        </button>
+        {/* Date & Time inline wheels */}
+        <DateTimeWheelInline
+          initialDate={date}
+          initialTime={time}
+          onChange={onDateTimeChange}
+        />
 
         {/* Workout pick list */}
         {needsPick ? (
@@ -921,19 +894,6 @@ function ScheduleBottomSheet({
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </div>
 
-      {/* DateTimeWheelModal */}
-      {dtPickerOpen && (
-        <DateTimeWheelModal
-          initialDate={date}
-          initialTime={time}
-          title="Дата и время"
-          onSave={(d, t) => {
-            onDateTimeChange(d, t);
-            setDtPickerOpen(false);
-          }}
-          onClose={() => setDtPickerOpen(false)}
-        />
-      )}
     </>
   );
 }
@@ -1385,19 +1345,6 @@ const list: Record<string, CSSProperties> = {
 };
 
 const sh: Record<string, CSSProperties> = {
-  dtChip: {
-    borderRadius: 18,
-    padding: "10px 14px",
-    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
-    border: "1px solid rgba(255,255,255,0.78)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
-    display: "grid",
-    gap: 4,
-    minHeight: 58,
-    textAlign: "left",
-  },
-  dtChipLabel: { fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.45)", letterSpacing: 0.2 },
-  dtChipValue: { fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.1 },
   workoutRow: {
     position: "relative",
     width: "100%",
