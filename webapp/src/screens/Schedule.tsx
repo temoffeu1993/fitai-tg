@@ -1787,7 +1787,7 @@ const sh: Record<string, CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     gap: 8,
-    padding: "12px 0 4px",
+    padding: "24px 0 4px",
     flexShrink: 0,
   },
   primaryBtn: {
