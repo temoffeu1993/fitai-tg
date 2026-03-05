@@ -1253,27 +1253,15 @@ function ScheduleBottomSheet({
 
 function Loader() {
   return (
-    <div style={{ ...s.page, alignItems: "center", justifyContent: "center" }}>
+    <div style={{ ...s.page, display: "grid", placeItems: "center" }}>
       <style>{`
-        .sched-dots { display: inline-flex; align-items: center; gap: 4px; }
-        .sched-dots .dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #1b1b1b; opacity: 0.3;
-          animation: schedBlink 1.2s infinite;
-        }
-        .sched-dots .dot:nth-child(2) { animation-delay: 0.2s; }
-        .sched-dots .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes schedBlink {
-          0% { opacity: 0.3; transform: translateY(0); }
-          50% { opacity: 1; transform: translateY(-2px); }
-          100% { opacity: 0.3; transform: translateY(0); }
-        }
+        .sched-loader{display:flex;gap:10px;align-items:center;justify-content:center}
+        .sched-loader span{width:10px;height:10px;border-radius:50%;background:#111;animation:schedPulse 1s ease-in-out infinite}
+        .sched-loader span:nth-child(2){animation-delay:.15s}
+        .sched-loader span:nth-child(3){animation-delay:.3s}
+        @keyframes schedPulse{0%,100%{transform:scale(.7);opacity:.35}50%{transform:scale(1);opacity:1}}
       `}</style>
-      <div className="sched-dots">
-        <span className="dot" />
-        <span className="dot" />
-        <span className="dot" />
-      </div>
+      <div className="sched-loader"><span /><span /><span /></div>
     </div>
   );
 }

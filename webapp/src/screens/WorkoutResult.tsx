@@ -338,12 +338,6 @@ export default function WorkoutResult() {
   const [job, setJob] = useState<ProgressionJob>(initial?.progressionJob ?? null);
   const [summary, setSummary] = useState<any | null>(initial?.progression ?? null);
   const [polling, setPolling] = useState(false);
-  const [contentVisible, setContentVisible] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setContentVisible(true), 80);
-    return () => clearTimeout(t);
-  }, []);
 
   useEffect(() => {
     const onSaved = () => {
@@ -438,27 +432,27 @@ export default function WorkoutResult() {
 
   if (!result) {
     return (
-      <div style={page.outer}><div style={page.inner}>
-        <div style={s.glassCard}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a" }}>Результат тренировки</div>
-          <div style={{ fontSize: 15, color: "rgba(15,23,42,0.55)", marginTop: 8 }}>Нет данных о последней тренировке.</div>
-          <button style={{ ...s.primaryBtn, marginTop: 16 }} className="result-primary-btn" onClick={() => nav("/")}>
-            <span style={s.primaryBtnText}>На главную</span>
-            <span style={s.primaryBtnCircle} aria-hidden><span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span></span>
-          </button>
-        </div>
+      <div style={page.outer}><div style={{ ...page.inner, display: "grid", placeItems: "center", minHeight: "60vh" }}>
+        <style>{`
+          .wr-loader{display:flex;gap:10px;align-items:center;justify-content:center}
+          .wr-loader span{width:10px;height:10px;border-radius:50%;background:#111;animation:wrPulse 1s ease-in-out infinite}
+          .wr-loader span:nth-child(2){animation-delay:.15s}
+          .wr-loader span:nth-child(3){animation-delay:.3s}
+          @keyframes wrPulse{0%,100%{transform:scale(.7);opacity:.35}50%{transform:scale(1);opacity:1}}
+        `}</style>
+        <div className="wr-loader"><span /><span /><span /></div>
       </div></div>
     );
   }
 
   return (
-    <ResultContent result={result} contentVisible={contentVisible} nav={nav} />
+    <ResultContent result={result} nav={nav} />
   );
 }
 
 // ─── Result Content ────────────────────────────────────────────────────────────
 
-function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutResult; contentVisible: boolean; nav: any }) {
+function ResultContent({ result, nav }: { result: StoredWorkoutResult; nav: any }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
   const durationMin: number | null = toNumber(result.payload?.durationMin);
   const workoutTitle = resolveWorkoutTitle(result.payload);
@@ -560,11 +554,6 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
     return () => clearTimeout(t);
   }, []);
 
-  const fadeStyle = (delayMs: number): CSSProperties => ({
-    opacity: contentVisible ? 1 : 0,
-    transform: contentVisible ? "translateY(0)" : "translateY(12px)",
-    transition: `opacity 420ms ease ${delayMs}ms, transform 420ms ease ${delayMs}ms`,
-  });
 
   // Date formatting
   const dateStr = new Date(result.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -576,11 +565,18 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         .result-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; }
         .result-secondary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         .result-secondary-btn:active { transform: translateY(1px) !important; color: rgba(17,24,39,0.72) !important; }
+        @keyframes resFadeUp { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: translateY(0); } }
+        .res-fade { animation: resFadeUp 520ms ease-out both; }
+        .res-d0 { animation-delay: 0ms; }
+        .res-d1 { animation-delay: 80ms; }
+        .res-d2 { animation-delay: 160ms; }
+        .res-d3 { animation-delay: 240ms; }
+        .res-d4 { animation-delay: 320ms; }
       `}</style>
       <div style={page.inner}>
 
         {/* ── 1. Header: Avatar + Title ──────────────────────────── */}
-        <div style={{ ...fadeStyle(0) }}>
+        <div className="res-fade res-d0">
           <div style={s.headerRow}>
             <div style={s.headerLeft}>
               <div style={s.avatarCircle}>
@@ -606,7 +602,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
         </div>
 
         {/* ── 2. Stat Pill (dark embossed) ─────────────────────── */}
-        <div style={{ ...s.statPill, ...fadeStyle(60) }}>
+        <div style={s.statPill} className="res-fade res-d1">
           <span style={s.statChip}>
             <CircleCheckBig size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
             <span>{completionPct}%</span>
@@ -625,7 +621,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
         {/* ── 3. Muscle Distribution ────────────────────────────── */}
         {muscleDistribution.length > 0 && (
-          <div style={{ ...s.glassCard, ...fadeStyle(120) }}>
+          <div style={s.glassCard} className="res-fade res-d2">
             <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
               <Flame size={18} strokeWidth={2.5} color="#0f172a" />
               Акцент по мышцам
@@ -661,7 +657,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
           }
 
           return (
-            <div style={{ ...s.glassCard, ...fadeStyle(150), paddingBottom: 24, paddingTop: 18 }}>
+            <div style={{ ...s.glassCard, paddingBottom: 24, paddingTop: 18 }} className="res-fade res-d3">
               <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
                 <Activity size={18} strokeWidth={2.5} color="#0f172a" />
                 Как ощущалась нагрузка
@@ -714,7 +710,7 @@ function ResultContent({ result, contentVisible, nav }: { result: StoredWorkoutR
 
         {/* ── 3.7. Exercise Progress ──────────────────────────── */}
         {exerciseDeltas.length > 0 && (
-          <div style={{ ...s.glassCard, ...fadeStyle(165), paddingBottom: 24, paddingTop: 18 }}>
+          <div style={{ ...s.glassCard, paddingBottom: 24, paddingTop: 18 }} className="res-fade res-d4">
             <div style={{ ...s.muscleTitle, display: "flex", alignItems: "center", gap: 6 }}>
               <TrendingUp size={18} strokeWidth={2.5} color="#0f172a" />
               Прогресс по упражнениям
