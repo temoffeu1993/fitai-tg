@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Dumbbell, Clock3, ChevronRight, CirclePercent } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Dumbbell, Clock3 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -89,7 +89,7 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
-  const [sessionCache, setSessionCache] = useState<Record<string, { completionPct: number; durationMin: number | null }>>({});
+  const [sessionCache, setSessionCache] = useState<Record<string, { doneExercises: number; durationMin: number | null }>>({});
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -258,24 +258,23 @@ export default function Schedule() {
           const data = await getWorkoutSessionById(w.resultSessionId!);
           const payload = data?.session?.payload;
           if (!payload) return null;
-          let totalSets = 0, doneSets = 0;
-          for (const ex of Array.isArray(payload.exercises) ? payload.exercises : []) {
+          const exercises: any[] = Array.isArray(payload.exercises) ? payload.exercises : [];
+          let doneEx = 0;
+          for (const ex of exercises) {
             const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-            totalSets += sets.length;
-            doneSets += sets.filter((st: any) => Boolean(st?.done)).length;
+            if (sets.some((st: any) => Boolean(st?.done))) doneEx++;
           }
-          const pct = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 100;
           const dur: number | null = typeof payload.durationMin === "number" ? payload.durationMin : null;
-          return { id: w.resultSessionId!, pct, dur };
+          return { id: w.resultSessionId!, doneEx, dur };
         } catch {
           return null;
         }
       })
     ).then((results) => {
       if (!active) return;
-      const next: Record<string, { completionPct: number; durationMin: number | null }> = {};
+      const next: Record<string, { doneExercises: number; durationMin: number | null }> = {};
       for (const r of results) {
-        if (r) next[r.id] = { completionPct: r.pct, durationMin: r.dur };
+        if (r) next[r.id] = { doneExercises: r.doneEx, durationMin: r.dur };
       }
       if (Object.keys(next).length > 0) {
         setSessionCache((prev) => ({ ...prev, ...next }));
@@ -613,7 +612,7 @@ export default function Schedule() {
                     <div style={wl.row} onClick={() => openWorkout(item)}>
                       <div style={wl.top}>
                         <div style={wl.name}>{title}</div>
-                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} · {formatTime(item.scheduledFor)}</span>
+                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} {formatTime(item.scheduledFor)}</span>
                       </div>
                       <div style={wl.bottom}>
                         <div style={wl.chips}>
@@ -630,7 +629,7 @@ export default function Schedule() {
                             </span>
                           )}
                         </div>
-                        <ChevronRight size={18} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                        <span style={wl.arrow}>→</span>
                       </div>
                     </div>
                   </div>
@@ -653,10 +652,10 @@ export default function Schedule() {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
                 const sess = item.resultSessionId ? sessionCache[item.resultSessionId] : null;
-                const pct = sess?.completionPct;
+                const doneEx = sess?.doneExercises;
                 const mins = sess?.durationMin;
                 // Fallback to plan data if session not loaded yet
-                const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                const exCount = doneEx ?? (Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0));
                 const planMins = Number(p.estimatedDuration) || null;
                 return (
                   <div key={item.id}>
@@ -673,22 +672,15 @@ export default function Schedule() {
                     >
                       <div style={wl.top}>
                         <div style={wl.name}>{title}</div>
-                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} · {formatTime(item.scheduledFor)}</span>
+                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} {formatTime(item.scheduledFor)}</span>
                       </div>
                       <div style={wl.bottom}>
                         <div style={wl.chips}>
-                          {pct != null ? (
+                          {exCount > 0 && (
                             <span style={wl.chip}>
-                              <CirclePercent size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                              {pct}%
+                              <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              {exCount} упр.
                             </span>
-                          ) : (
-                            exCount > 0 && (
-                              <span style={wl.chip}>
-                                <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                {exCount} упр.
-                              </span>
-                            )
                           )}
                           {(mins ?? planMins) != null && (
                             <span style={wl.chip}>
@@ -697,7 +689,7 @@ export default function Schedule() {
                             </span>
                           )}
                         </div>
-                        <ChevronRight size={18} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                        <span style={wl.arrow}>→</span>
                       </div>
                     </div>
                   </div>
@@ -1562,6 +1554,12 @@ const wl: Record<string, CSSProperties> = {
     color: "rgba(15,23,42,0.62)",
     lineHeight: 1.45,
   },
+  arrow: {
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    flexShrink: 0,
+  } as CSSProperties,
 };
 
 const sh: Record<string, CSSProperties> = {
