@@ -626,7 +626,7 @@ export default function Schedule() {
         </section>
       )}
 
-      <div style={{ height: 80 }} />
+      <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }} />
 
       {modal && (
         <ScheduleBottomSheet
