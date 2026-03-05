@@ -782,7 +782,7 @@ function ScheduleBottomSheet({
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
   const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
-  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkoutId;
+  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkoutId && !selectedWorkoutId;
   const editingScheduled = editingWorkoutId ? scheduledWorkouts.find((w) => w.id === editingWorkoutId) ?? null : null;
 
   const applyEntered = (v: boolean) => {
