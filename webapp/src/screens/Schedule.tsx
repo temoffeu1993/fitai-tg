@@ -1748,7 +1748,7 @@ const wl: Record<string, CSSProperties> = {
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
-    padding: "18px 18px 0",
+    padding: "18px",
     border: "none",
     background: "transparent",
     cursor: "pointer",
