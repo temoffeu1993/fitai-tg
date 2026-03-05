@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft, Plus, RefreshCw, X } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronDown, Trash2, Pencil, ArrowLeft, Plus, RefreshCw, X } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -537,9 +537,10 @@ export default function Schedule() {
               <span style={wl.headerTitle}>Запланировано</span>
               <span style={wl.headerCount}>{upcomingPreview.length}</span>
             </div>
-            <ChevronRight size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: scheduledOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
+            <ChevronDown size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: scheduledOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
           </button>
-          {scheduledOpen && <div style={wl.body}>
+          <div style={{ display: "grid", gridTemplateRows: scheduledOpen ? "1fr" : "0fr", transition: "grid-template-rows 300ms ease" }}>
+          <div style={{ ...wl.body, overflow: "hidden" }}>
             {upcomingPreview.length === 0 ? (
               <div style={ux.cardHint}>
                 Нет запланированных тренировок. Сохрани новую из генератора.
@@ -571,7 +572,8 @@ export default function Schedule() {
                 );
               })
             )}
-          </div>}
+          </div>
+          </div>
         </div>
       </section>
 
@@ -584,9 +586,10 @@ export default function Schedule() {
                 <span style={wl.headerTitle}>Выполнено</span>
                 <span style={wl.headerCount}>{completed.length}</span>
               </div>
-              <ChevronRight size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: completedOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
+              <ChevronDown size={18} strokeWidth={2.2} color="rgba(15,23,42,0.4)" style={{ transform: completedOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 250ms ease" }} />
             </button>
-            {completedOpen && <div style={wl.body}>
+            <div style={{ display: "grid", gridTemplateRows: completedOpen ? "1fr" : "0fr", transition: "grid-template-rows 300ms ease" }}>
+            <div style={{ ...wl.body, overflow: "hidden" }}>
               {completed.map((item, idx) => {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
@@ -621,7 +624,8 @@ export default function Schedule() {
                   </div>
                 );
               })}
-            </div>}
+            </div>
+            </div>
           </div>
         </section>
       )}
