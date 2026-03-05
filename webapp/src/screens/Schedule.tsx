@@ -882,120 +882,139 @@ function ScheduleBottomSheet({
           </button>
         </div>
 
-        {/* Date & Time inline wheels */}
-        <DateTimeWheelInline
-          initialDate={date}
-          initialTime={time}
-          onChange={onDateTimeChange}
-        />
-
-        {/* Reminder */}
-        <div style={sh.reminderWrap}>
-          <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
-            <span style={sh.reminderLabel}>🔔 Напомнить</span>
-            <span style={sh.reminderValue}>
-              <span>{reminderValue}</span>
-              <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
-            </span>
-          </button>
-          {reminderOpen ? (
-            <div style={sh.reminderList}>
-              {REMINDER_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
-                  onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Workout pick list */}
-        {needsPick ? (
+        {confirmDelete ? (
           <>
-            <div style={sh.sectionDivider} />
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
-              {availableWorkouts.length ? (
-                availableWorkouts.map((w, idx) => {
-                  const p: any = w.plan || {};
-                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                  const label = dayLabelRU(rawLabel);
-                  const selected = w.id === selectedWorkoutId;
-                  return (
-                    <div key={w.id}>
-                      <button type="button" style={sh.pickRow} onClick={() => onSelectWorkout(w.id)}>
-                        <div style={sh.pickName}>{label}</div>
-                        <div style={selected ? sh.pickChipActive : sh.pickChip}>
-                          {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
-                        </div>
-                      </button>
-                      {idx < availableWorkouts.length - 1 && <div style={sh.pickDivider} />}
-                    </div>
-                  );
-                })
-              ) : (
-                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 24px" }}>
-                  Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+            {/* Confirm delete view */}
+            <div style={sh.confirmText}>
+              Удалить тренировку «{title}»?
+            </div>
+            <div style={sh.confirmDivider} />
+            <button type="button" style={sh.confirmBtn} onClick={() => setConfirmDelete(false)}>
+              Отмена
+            </button>
+            <div style={sh.confirmDivider} />
+            <button type="button" style={{ ...sh.confirmBtn, ...sh.confirmBtnDanger }} onClick={onDelete}>
+              Удалить
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Date & Time inline wheels */}
+            <DateTimeWheelInline
+              initialDate={date}
+              initialTime={time}
+              onChange={onDateTimeChange}
+            />
+
+            {/* Reminder */}
+            <div style={sh.reminderWrap}>
+              <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
+                <span style={sh.reminderLabel}>🔔 Напомнить</span>
+                <span style={sh.reminderValue}>
+                  <span>{reminderValue}</span>
+                  <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
+                </span>
+              </button>
+              {reminderOpen ? (
+                <div style={sh.reminderList}>
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
+                      onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
                 </div>
+              ) : null}
+            </div>
+
+            {/* Workout pick list */}
+            {needsPick ? (
+              <>
+                <div style={sh.sectionDivider} />
+                <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
+                  {availableWorkouts.length ? (
+                    availableWorkouts.map((w, idx) => {
+                      const p: any = w.plan || {};
+                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                      const label = dayLabelRU(rawLabel);
+                      const selected = w.id === selectedWorkoutId;
+                      return (
+                        <div key={w.id}>
+                          <button type="button" style={sh.pickRow} onClick={() => onSelectWorkout(w.id)}>
+                            <div style={sh.pickName}>{label}</div>
+                            <div style={selected ? sh.pickChipActive : sh.pickChip}>
+                              {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
+                            </div>
+                          </button>
+                          {idx < availableWorkouts.length - 1 && <div style={sh.pickDivider} />}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 24px" }}>
+                      Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
+
+            {/* Error */}
+            {error && <div style={sh.error}>{error}</div>}
+
+            {/* Action buttons */}
+            <div style={{ flexShrink: 0 }}>
+              <div style={sh.sectionDivider} />
+              {canDetails ? (
+                <button type="button" style={sh.actionBtn} onClick={onDetails} disabled={saving}>
+                  <div style={sh.actionIcon}><Info size={22} /></div>
+                  Подробнее
+                </button>
+              ) : canStart ? (
+                <>
+                  <button type="button" style={sh.actionBtn} onClick={onStart} disabled={saving || readOnly}>
+                    <div style={sh.actionIcon}><Play size={22} /></div>
+                    Начать тренировку
+                  </button>
+                  {canDelete && (
+                    <>
+                      <div style={sh.actionDivider} />
+                      <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                        <div style={sh.actionIcon}><Trash2 size={22} /></div>
+                        Удалить
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    style={{ ...sh.actionBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
+                    onClick={onSave}
+                    disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
+                  >
+                    <div style={sh.actionIcon}><Save size={22} /></div>
+                    {saving ? "Сохраняем..." : "Сохранить"}
+                  </button>
+                  {canDelete && (
+                    <>
+                      <div style={sh.actionDivider} />
+                      <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                        <div style={sh.actionIcon}><Trash2 size={22} /></div>
+                        Удалить
+                      </button>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </>
-        ) : null}
-
-        {/* Error */}
-        {error && <div style={sh.error}>{error}</div>}
-
-        {/* Action buttons */}
-        <div style={{ flexShrink: 0 }}>
-          <div style={sh.sectionDivider} />
-          {canDetails ? (
-            <button type="button" style={sh.actionBtn} onClick={onDetails} disabled={saving}>
-              <div style={sh.actionIcon}><Info size={22} /></div>
-              Подробнее
-            </button>
-          ) : canStart ? (
-            <>
-              <button type="button" style={sh.actionBtn} onClick={onStart} disabled={saving || readOnly}>
-                <div style={sh.actionIcon}><Play size={22} /></div>
-                Начать тренировку
-              </button>
-              {canDelete && (
-                <>
-                  <div style={sh.actionDivider} />
-                  <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                    <div style={sh.actionIcon}><Trash2 size={22} /></div>
-                    Удалить
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                style={{ ...sh.actionBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
-                onClick={onSave}
-                disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-              >
-                <div style={sh.actionIcon}><Save size={22} /></div>
-                {saving ? "Сохраняем..." : "Сохранить"}
-              </button>
-              {canDelete && (
-                <>
-                  <div style={sh.actionDivider} />
-                  <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                    <div style={sh.actionIcon}><Trash2 size={22} /></div>
-                    Удалить
-                  </button>
-                </>
-              )}
-            </>
-          )}
-        </div>
+        )}
 
         {/* Safe area spacer */}
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
