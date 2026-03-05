@@ -14,29 +14,6 @@ import { resolveWorkoutTitle } from "@/screens/WorkoutResult";
 import DateTimeWheelInline from "@/components/DateTimeWheelInline";
 import mascotImg from "@/assets/robonew.webp";
 
-const dayLabelRU = (label: string) => {
-  const v = String(label || "").toLowerCase();
-  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "Грудь, плечи и трицепс";
-  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "Спина и бицепс";
-  if (v.includes("leg") || v.includes("ног")) return "Ноги и ягодицы";
-  if (v.includes("upper") || v.includes("верх")) return "Верхняя часть тела";
-  if (v.includes("lower") || v.includes("низ")) return "Нижняя часть тела";
-  if (v.includes("full")) return "Всё тело";
-  if (v.includes("recovery") || v.includes("восстанов")) return "Восстановление";
-  return label || "Тренировка";
-};
-
-const dayCodeShort = (label: string) => {
-  const v = String(label || "").toLowerCase();
-  if (v.includes("push") || v.includes("пуш") || v.includes("жим")) return "жим";
-  if (v.includes("pull") || v.includes("пул") || v.includes("тяг")) return "тяга";
-  if (v.includes("leg") || v.includes("ног")) return "ноги";
-  if (v.includes("upper") || v.includes("верх")) return "верх";
-  if (v.includes("lower") || v.includes("низ")) return "низ";
-  if (v.includes("full")) return "всё";
-  if (v.includes("recovery") || v.includes("восстанов")) return "восст";
-  return "";
-};
 
 const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -324,10 +301,8 @@ export default function Schedule() {
         toDateInput(w.scheduledFor) === date
     );
     if (conflict) {
-      const targetPlan: any = effectiveWorkout.plan || {};
-      const conflictPlan: any = conflict.plan || {};
-      const targetTitle = dayLabelRU(String(targetPlan.dayLabel || targetPlan.title || "Тренировка"));
-      const conflictTitle = dayLabelRU(String(conflictPlan.dayLabel || conflictPlan.title || "Тренировка"));
+      const targetTitle = resolveWorkoutTitle(effectiveWorkout.plan || {});
+      const conflictTitle = resolveWorkoutTitle(conflict.plan || {});
       setReplaceConfirm({
         targetWorkoutId: effectiveWorkout.id,
         targetTitle,
@@ -816,21 +791,11 @@ function ScheduleBottomSheet({
     : hasScheduled
       ? "Запланировано"
       : editingWorkout
-        ? (() => {
-            const p: any = editingWorkout.plan || {};
-            return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
-          })()
+        ? resolveWorkoutTitle(editingWorkout.plan || {})
         : needsPick && selectedWorkoutId
-          ? (() => {
-              const w = availableWorkouts.find((aw) => aw.id === selectedWorkoutId);
-              const p: any = w?.plan || {};
-              return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
-            })()
+          ? resolveWorkoutTitle(availableWorkouts.find((aw) => aw.id === selectedWorkoutId)?.plan || {})
           : !needsPick
-            ? (() => {
-                const p: any = (workout as any)?.plan || {};
-                return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
-              })()
+            ? resolveWorkoutTitle((workout as any)?.plan || {})
             : "Запланировать";
 
   return createPortal(
@@ -1158,8 +1123,7 @@ function ScheduleBottomSheet({
               {availableWorkouts.length ? (
                 availableWorkouts.map((w, idx) => {
                   const p: any = w.plan || {};
-                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                  const label = dayLabelRU(rawLabel);
+                  const label = resolveWorkoutTitle(p);
                   return (
                     <div key={w.id}>
                       {idx > 0 && <div style={sh.sheetDivider} />}
