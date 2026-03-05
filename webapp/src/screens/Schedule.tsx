@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, Save, Play, Info, Trash2 } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -580,7 +580,7 @@ export default function Schedule() {
                             {formatTime(item.scheduledFor)}
                           </span>
                         </div>
-                        <span style={wl.arrow}>→</span>
+                        <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
                       </div>
                     </div>
                   </div>
@@ -934,7 +934,6 @@ function ScheduleBottomSheet({
             {/* Workout pick list */}
             {needsPick ? (
               <>
-                <div style={sh.sectionDivider} />
                 <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
                   {availableWorkouts.length ? (
                     availableWorkouts.map((w, idx) => {
@@ -967,48 +966,39 @@ function ScheduleBottomSheet({
             {error && <div style={sh.error}>{error}</div>}
 
             {/* Action buttons */}
-            <div style={{ flexShrink: 0 }}>
-              <div style={sh.sectionDivider} />
+            <div style={sh.actionWrap}>
               {canDetails ? (
-                <button type="button" style={sh.actionBtn} onClick={onDetails} disabled={saving}>
-                  <div style={sh.actionIcon}><Info size={22} /></div>
-                  Подробнее
+                <button type="button" style={sh.primaryBtn} onClick={onDetails} disabled={saving}>
+                  <span style={sh.primaryBtnLabel}>Результат</span>
+                  <span style={sh.primaryBtnCircle}><CircleCheckBig size={20} strokeWidth={2.2} /></span>
                 </button>
               ) : canStart ? (
                 <>
-                  <button type="button" style={sh.actionBtn} onClick={onStart} disabled={saving || readOnly}>
-                    <div style={sh.actionIcon}><Play size={22} /></div>
-                    Начать тренировку
+                  <button type="button" style={sh.primaryBtn} onClick={onStart} disabled={saving || readOnly}>
+                    <span style={sh.primaryBtnLabel}>Начать тренировку</span>
+                    <span style={sh.primaryBtnCircle}><ChevronRight size={20} strokeWidth={2.5} /></span>
                   </button>
                   {canDelete && (
-                    <>
-                      <div style={sh.actionDivider} />
-                      <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                        <div style={sh.actionIcon}><Trash2 size={22} /></div>
-                        Удалить
-                      </button>
-                    </>
+                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                      Удалить
+                    </button>
                   )}
                 </>
               ) : (
                 <>
                   <button
                     type="button"
-                    style={{ ...sh.actionBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
+                    style={{ ...sh.primaryBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
                     onClick={onSave}
                     disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
                   >
-                    <div style={sh.actionIcon}><Save size={22} /></div>
-                    {saving ? "Сохраняем..." : "Сохранить"}
+                    <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
+                    <span style={sh.primaryBtnCircle}><CircleCheckBig size={20} strokeWidth={2.2} /></span>
                   </button>
                   {canDelete && (
-                    <>
-                      <div style={sh.actionDivider} />
-                      <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                        <div style={sh.actionIcon}><Trash2 size={22} /></div>
-                        Удалить
-                      </button>
-                    </>
+                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                      Удалить
+                    </button>
                   )}
                 </>
               )}
@@ -1547,7 +1537,7 @@ const sh: Record<string, CSSProperties> = {
   pickChip: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "grid",
@@ -1557,7 +1547,7 @@ const sh: Record<string, CSSProperties> = {
   pickChipActive: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 999,
     background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.12), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "grid",
@@ -1646,43 +1636,58 @@ const sh: Record<string, CSSProperties> = {
     background: "rgba(30,31,34,0.06)",
     fontWeight: 600,
   },
-  // Section divider
-  sectionDivider: {
-    height: 1,
-    background: "rgba(15,23,42,0.06)",
-    margin: "8px 0",
-  },
   // Action buttons
-  actionBtn: {
-    width: "100%",
+  actionWrap: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    minHeight: 56,
-    padding: "14px 24px",
-    gap: 16,
-    background: "transparent",
-    border: "none",
+    gap: 12,
+    padding: "12px 0 4px",
+    flexShrink: 0,
+  },
+  primaryBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    height: 56,
+    padding: "0 14px",
+    borderRadius: 999,
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
+    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     cursor: "pointer",
     fontSize: 18,
     fontWeight: 500,
-    color: "#1e1f22",
-    textAlign: "left",
+    whiteSpace: "nowrap",
   },
-  actionBtnDanger: {
-    color: "#b42318",
-    opacity: 0.8,
+  primaryBtnLabel: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1,
+    color: "#fff",
   },
-  actionIcon: {
-    width: 28,
-    height: 28,
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
+  primaryBtnCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -6,
+    color: "#0f172a",
   },
-  actionDivider: {
-    height: 1,
-    background: "rgba(15,23,42,0.06)",
-    marginLeft: 68,
+  deleteBtn: {
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.6)",
+    padding: "8px 16px",
+    borderRadius: 999,
   },
   // Confirm delete
   confirmText: {
