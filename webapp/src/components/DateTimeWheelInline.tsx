@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { fireHapticImpact } from "@/utils/haptics";
+import { useCallback, useMemo, useRef, type CSSProperties } from "react";
+import { useWheel } from "@/hooks/useWheel";
 
 const DAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,17 +20,6 @@ const HOUR_TOTAL = HOUR_COUNT * CYCLE_COPIES;
 const MINUTE_TOTAL = MINUTE_COUNT * CYCLE_COPIES;
 const HOUR_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 const MINUTE_MID_COPY = Math.floor(CYCLE_COPIES / 2);
-
-/* Physics — iOS UIPickerView style
-   Apple uses time-based deceleration (0.998/ms = ~0.967/frame@60fps)
-   and a damped spring for final snap */
-const DECEL_RATE = 0.998;    // per-ms decay (iOS UIScrollView.decelerationRate.normal)
-const VELOCITY_STOP = 0.08;  // px/ms threshold to end inertia
-const SPRING_STIFFNESS = 180;// damped spring for snap
-const SPRING_DAMPING = 22;   // damping ratio
-const SPRING_MASS = 1;       // mass
-const VELOCITY_SAMPLES = 5;
-const TAP_THRESHOLD = 6;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -60,207 +49,6 @@ function buildDates(count: number, off: number): DateItem[] {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i - off);
     return { date: d, dow: DAY_SHORT[d.getDay()], day: d.getDate(), idx: i };
   });
-}
-
-/* ═══════════════════════════════════════════════════════
-   useWheel — touch-based wheel with inertia
-
-   Key: NO React state changes during drag/inertia.
-   Only fires onSettle when animation completes.
-   Haptics fire via ref tracking (no re-render).
-   ═══════════════════════════════════════════════════════ */
-
-interface UseWheelOpts {
-  totalItems: number;
-  itemSize: number;
-  axis: "x" | "y";
-  initialOffset: number;
-  wrap?: { base: number; midCopy: number };
-  onSettle: (index: number) => void; // fires ONLY when snap completes
-  onHighlight?: (index: number) => void; // fires on center index change (DOM updates)
-}
-
-function useWheel({ totalItems, itemSize, axis, initialOffset, wrap, onSettle, onHighlight }: UseWheelOpts) {
-  const stripRef = useRef<HTMLDivElement>(null);
-  const offset = useRef(initialOffset);
-  const velocity = useRef(0);
-  const lastHapticIdx = useRef(Math.round(initialOffset / itemSize));
-  const touchId = useRef<number | null>(null);
-  const touchStartPos = useRef(0);
-  const touchStartOff = useRef(0);
-  const totalDrag = useRef(0);
-  const samples = useRef<{ pos: number; time: number }[]>([]);
-  const inertiaRaf = useRef<number | null>(null);
-  const snapRaf = useRef<number | null>(null);
-  const maxOff = (totalItems - 1) * itemSize;
-
-  const clamp = useCallback((v: number) => Math.max(0, Math.min(v, maxOff)), [maxOff]);
-
-  const apply = useCallback((off: number) => {
-    const el = stripRef.current;
-    if (!el) return;
-    el.style.transform = axis === "y" ? `translateY(${-off}px)` : `translateX(${-off}px)`;
-  }, [axis]);
-
-  // Haptic + highlight — no state change, no re-render
-  const tickHaptic = useCallback((off: number) => {
-    const idx = Math.max(0, Math.min(Math.round(off / itemSize), totalItems - 1));
-    if (idx !== lastHapticIdx.current) {
-      lastHapticIdx.current = idx;
-      fireHapticImpact("light");
-      onHighlight?.(idx);
-    }
-  }, [itemSize, totalItems, onHighlight]);
-
-  const normalize = useCallback(() => {
-    if (!wrap) return;
-    const idx = Math.round(offset.current / itemSize);
-    const val = ((idx % wrap.base) + wrap.base) % wrap.base;
-    const midIdx = wrap.base * wrap.midCopy + val;
-    const newOff = midIdx * itemSize;
-    offset.current = newOff;
-    apply(newOff);
-    lastHapticIdx.current = midIdx;
-  }, [wrap, itemSize, apply]);
-
-  const snapTo = useCallback((target: number, silent = false) => {
-    if (snapRaf.current) cancelAnimationFrame(snapRaf.current);
-    const start = offset.current;
-    const dist = target - start;
-    if (Math.abs(dist) < 0.5) {
-      offset.current = target;
-      apply(target);
-      normalize();
-      if (!silent) onSettle(Math.round(target / itemSize));
-      return;
-    }
-    // Damped spring: x'' = (-k*(x-target) - c*x') / m
-    let pos = start;
-    let vel = velocity.current; // carry residual velocity into spring
-    const tick = () => {
-      const displacement = pos - target;
-      const springForce = -SPRING_STIFFNESS * displacement;
-      const dampingForce = -SPRING_DAMPING * vel;
-      const accel = (springForce + dampingForce) / SPRING_MASS;
-      vel += accel * (1 / 60); // ~16.67ms step
-      pos += vel * (1 / 60);
-      offset.current = pos;
-      apply(pos);
-      tickHaptic(pos);
-      // Settle when close enough and slow enough
-      if (Math.abs(pos - target) < 0.5 && Math.abs(vel) < 0.5) {
-        snapRaf.current = null;
-        offset.current = target;
-        apply(target);
-        normalize();
-        if (!silent) onSettle(Math.round(target / itemSize));
-      } else {
-        snapRaf.current = requestAnimationFrame(tick);
-      }
-    };
-    snapRaf.current = requestAnimationFrame(tick);
-  }, [apply, tickHaptic, normalize, onSettle, itemSize]);
-
-  const runInertia = useCallback(() => {
-    if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current);
-    let lastT = performance.now();
-    const tick = () => {
-      const now = performance.now();
-      const dt = now - lastT;
-      lastT = now;
-      // Time-based deceleration: v *= rate^dt
-      velocity.current *= Math.pow(DECEL_RATE, dt);
-      let next = offset.current + velocity.current * dt;
-      // Boundary clamping with rubber-band kill
-      if (next <= 0) { next = 0; velocity.current = 0; }
-      else if (next >= maxOff) { next = maxOff; velocity.current = 0; }
-      offset.current = next;
-      apply(next);
-      tickHaptic(next);
-      if (Math.abs(velocity.current) > VELOCITY_STOP) {
-        inertiaRaf.current = requestAnimationFrame(tick);
-      } else {
-        inertiaRaf.current = null;
-        const nearIdx = Math.max(0, Math.min(Math.round(next / itemSize), totalItems - 1));
-        snapTo(nearIdx * itemSize);
-      }
-    };
-    inertiaRaf.current = requestAnimationFrame(tick);
-  }, [maxOff, apply, tickHaptic, snapTo, itemSize, totalItems]);
-
-  const stopAll = useCallback(() => {
-    if (inertiaRaf.current) { cancelAnimationFrame(inertiaRaf.current); inertiaRaf.current = null; }
-    if (snapRaf.current) { cancelAnimationFrame(snapRaf.current); snapRaf.current = null; }
-    velocity.current = 0;
-  }, []);
-
-  const scrollToIndex = useCallback((idx: number) => {
-    stopAll();
-    snapTo(idx * itemSize);
-  }, [stopAll, snapTo, itemSize]);
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    stopAll();
-    const t = e.changedTouches[0];
-    touchId.current = t.identifier;
-    const pos = axis === "y" ? t.clientY : t.clientX;
-    touchStartPos.current = pos;
-    touchStartOff.current = offset.current;
-    totalDrag.current = 0;
-    samples.current = [{ pos, time: performance.now() }];
-  }, [axis, stopAll]);
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    const t = Array.from(e.changedTouches).find((tt) => tt.identifier === touchId.current);
-    if (!t) return;
-    const pos = axis === "y" ? t.clientY : t.clientX;
-    const prevPos = samples.current.length > 0 ? samples.current[samples.current.length - 1].pos : pos;
-    totalDrag.current += Math.abs(pos - prevPos);
-    const delta = touchStartPos.current - pos;
-    const next = clamp(touchStartOff.current + delta);
-    offset.current = next;
-    apply(next);
-    tickHaptic(next);
-    const now = performance.now();
-    samples.current.push({ pos, time: now });
-    if (samples.current.length > VELOCITY_SAMPLES) samples.current.shift();
-  }, [axis, clamp, apply, tickHaptic]);
-
-  const onTouchEnd = useCallback((): boolean => {
-    touchId.current = null;
-    const wasTap = totalDrag.current < TAP_THRESHOLD;
-    const nearIdx = Math.max(0, Math.min(Math.round(offset.current / itemSize), totalItems - 1));
-    if (wasTap) {
-      snapTo(nearIdx * itemSize);
-      return true;
-    }
-    const sa = samples.current;
-    if (sa.length < 2) { snapTo(nearIdx * itemSize); return false; }
-    const first = sa[0];
-    const last = sa[sa.length - 1];
-    const dt = last.time - first.time;
-    if (dt < 1) { snapTo(nearIdx * itemSize); return false; }
-    // velocity in px/ms — directly from touch samples
-    const v = (first.pos - last.pos) / dt;
-    velocity.current = v;
-    if (Math.abs(v) < VELOCITY_STOP * 3) {
-      snapTo(nearIdx * itemSize);
-    } else {
-      runInertia();
-    }
-    return false;
-  }, [snapTo, itemSize, totalItems, runInertia]);
-
-  useEffect(() => {
-    offset.current = initialOffset;
-    lastHapticIdx.current = Math.round(initialOffset / itemSize);
-    apply(initialOffset);
-  }, [initialOffset, itemSize, apply]);
-
-  useEffect(() => () => stopAll(), [stopAll]);
-
-  return { stripRef, onTouchStart, onTouchMove, onTouchEnd, scrollToIndex, offset, stopAll };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -300,16 +88,12 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
   const initHourOffset = (HOUR_COUNT * HOUR_MID_COPY + initTime.hh) * TIME_ITEM_H;
   const initMinOffset = (MINUTE_COUNT * MINUTE_MID_COPY + initTime.mm) * TIME_ITEM_H;
 
-  // These refs hold the "settled" values — only updated when snap completes
   const settledDate = useRef(initDateIdx);
   const settledHour = useRef(initTime.hh);
   const settledMin = useRef(initTime.mm);
 
-  // For date visual highlighting — updated via DOM, not React state
-  const [visibleDateIdx, setVisibleDateIdx] = useState(initDateIdx);
   const dateItemsRef = useRef<HTMLDivElement>(null);
 
-  // Update date highlighting via DOM directly during drag (no re-render)
   const lastHighlightIdx = useRef(initDateIdx);
   const highlightDate = useCallback((idx: number) => {
     if (idx === lastHighlightIdx.current) return;
@@ -570,6 +354,6 @@ const st: Record<string, CSSProperties> = {
   timeItem: {
     width: "100%", height: TIME_ITEM_H,
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 88, fontWeight: 800, color: "#1e1f22", lineHeight: 1,
+    fontSize: 92, fontWeight: 900, color: "#1e1f22", lineHeight: 1,
   },
 };
