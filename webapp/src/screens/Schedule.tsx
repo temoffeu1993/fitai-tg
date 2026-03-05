@@ -14,6 +14,10 @@ import { resolveWorkoutTitle } from "@/screens/WorkoutResult";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import DateTimeWheelInline from "@/components/DateTimeWheelInline";
 import mascotImg from "@/assets/robonew.webp";
+import tyagaImg from "@/assets/tyaga.webp";
+import zhimImg from "@/assets/zhim.webp";
+import nogiImg from "@/assets/nogi.webp";
+import sredneImg from "@/assets/sredne.webp";
 
 const dayLabelRU = (label: string) => {
   const v = String(label || "").toLowerCase();
@@ -43,6 +47,26 @@ const isValidTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const MASCOT_SRC = mascotImg;
+
+const STACK_OFFSET = 66;
+const STACK_COLLAPSED_H = 104;
+const STACK_ACTIVE_H = 224;
+
+const dayMascotForLabel = (label: string) => {
+  const v = String(label || "").toLowerCase();
+  if (v.includes("push") || v.includes("пуш") || v.includes("жим") || v.includes("груд")) return zhimImg;
+  if (v.includes("pull") || v.includes("пул") || v.includes("тяг") || v.includes("спин")) return tyagaImg;
+  if (v.includes("leg") || v.includes("ног") || v.includes("ягод")) return nogiImg;
+  return sredneImg;
+};
+
+const formatScheduledDateChip = (iso: string) => {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  const date = dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+  const time = dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${time}`;
+};
 const MONTH_FULL_RU = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
 
 const defaultTimeSuggestion = () => {
@@ -772,6 +796,9 @@ function ScheduleBottomSheet({
   const [reminderValue, setReminderValue] = useState("За 1 час");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCompletedCardId, setSelectedCompletedCardId] = useState<string | null>(null);
+  const [selectedScheduledCardId, setSelectedScheduledCardId] = useState<string | null>(null);
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
@@ -949,73 +976,185 @@ function ScheduleBottomSheet({
 
         {readOnly ? (
           <>
-            {/* Completed workouts list */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
-              {completedWorkouts.map((w, idx) => {
-                const p: any = w.plan || {};
-                const title = resolveWorkoutTitle(p);
+            <style>{`
+              .sh-stack-card { -webkit-tap-highlight-color: transparent; transition: transform 220ms ease, box-shadow 220ms ease; will-change: transform; }
+              .sh-stack-card:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+              .sh-primary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, background-color 160ms ease; }
+              .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
+            `}</style>
+            {/* Completed workouts — stacked cards */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "4px 6px 8px" }}>
+              {(() => {
+                const cards = completedWorkouts;
+                const activeIdx = cards.findIndex((w) => w.id === selectedCompletedCardId);
+                const stackOrder = cards.map((_, i) => i);
+                if (activeIdx >= 0) { stackOrder.splice(stackOrder.indexOf(activeIdx), 1); stackOrder.push(activeIdx); }
+                const stackHeight = cards.length ? (cards.length - 1) * STACK_OFFSET + STACK_ACTIVE_H + 8 : 0;
                 return (
-                  <div key={w.id}>
-                    {idx > 0 && <div style={sh.sheetDivider} />}
-                    <div style={sh.sheetRow} onClick={() => onDetails(w.id)}>
-                      <div style={sh.sheetRowName}>{title}</div>
-                      <div style={sh.sheetRowBottom}>
-                        <div style={sh.sheetRowChips}>
-                          <span style={sh.sheetRowChip}>
-                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {fmtShortDate(w.scheduledFor)}
-                          </span>
-                          <span style={sh.sheetRowChip}>
-                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {formatTime(w.scheduledFor)}
-                          </span>
+                  <div style={{ position: "relative", width: "100%", height: stackHeight }}>
+                    {cards.map((w, index) => {
+                      const p: any = w.plan || {};
+                      const isSelected = w.id === selectedCompletedCardId || (selectedCompletedCardId === null && index === 0);
+                      const stackIndex = stackOrder.indexOf(index);
+                      const top = stackIndex * STACK_OFFSET;
+                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                      const label = dayLabelRU(rawLabel);
+                      const labelLower = String(label).toLowerCase();
+                      const mascotSrc = dayMascotForLabel(label);
+                      const mascotStyle: CSSProperties = labelLower.includes("спина") && labelLower.includes("бицепс")
+                        ? { ...sh.stkMascot, bottom: -6 }
+                        : labelLower.includes("ноги") && labelLower.includes("ягодиц")
+                          ? { ...sh.stkMascot, bottom: -10 }
+                          : sh.stkMascot;
+                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                      const estMin = Number(p.estimatedDuration) || null;
+                      const dateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
+
+                      return (
+                        <div
+                          key={w.id}
+                          className="sh-stack-card"
+                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H }}
+                          onClick={() => setSelectedCompletedCardId(w.id)}
+                        >
+                          {isSelected ? (
+                            <>
+                              <img src={mascotSrc} alt="" style={mascotStyle} loading="lazy" decoding="async" />
+                              {dateChip ? (
+                                <div style={sh.stkDateChipRow}>
+                                  <div style={{ ...sh.stkDateChipBtn, ...sh.stkDateChipScheduled, cursor: "default" }}>
+                                    <span>{dateChip}</span>
+                                  </div>
+                                </div>
+                              ) : null}
+                              <div style={sh.stkTitle}>{label}</div>
+                              <div style={sh.stkMeta}>
+                                <span style={sh.stkInfoChip}>
+                                  <Clock3 size={13} strokeWidth={2.1} style={{ transform: "translateY(0.2px)", flex: "0 0 auto" }} />
+                                  <span>{estMin ? `${estMin} мин` : "—"}</span>
+                                </span>
+                                <span style={sh.stkInfoChip}>
+                                  <Dumbbell size={14} strokeWidth={2.1} />
+                                  <span>{exCount} упражнений</span>
+                                </span>
+                              </div>
+                              <div style={sh.stkActions} onClick={(e) => e.stopPropagation()}>
+                                <button type="button" className="sh-primary-btn" style={sh.stkActionBtn} onClick={() => onDetails(w.id)}>
+                                  <span>Результат</span>
+                                  <span style={sh.stkActionIconWrap}><span style={sh.stkActionArrow}>✓</span></span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={sh.stkCollapsedBody}>
+                              <div style={sh.stkCollapsedTitle}>{label}</div>
+                              <div style={sh.stkDateChipCollapsedRow}>
+                                <div style={{ ...sh.stkDateChipCollapsed, ...sh.stkDateChipScheduled }}>
+                                  <span style={sh.stkDateChipCollapsedText}>{dateChip || "Выполнено"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <span style={sh.sheetRowArrow}>→</span>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
+              })()}
             </div>
           </>
         ) : hasScheduled ? (
           <>
-            {/* Scheduled workouts list */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
-              {scheduledWorkouts.map((w, idx) => {
-                const p: any = w.plan || {};
-                const title = resolveWorkoutTitle(p);
+            <style>{`
+              .sh-stack-card { -webkit-tap-highlight-color: transparent; transition: transform 220ms ease, box-shadow 220ms ease; will-change: transform; }
+              .sh-stack-card:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+              .sh-primary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, background-color 160ms ease; }
+              .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
+            `}</style>
+            {/* Scheduled workouts — stacked cards */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "4px 6px 8px" }}>
+              {(() => {
+                const cards = scheduledWorkouts;
+                const activeIdx = cards.findIndex((w) => w.id === selectedScheduledCardId);
+                const stackOrder = cards.map((_, i) => i);
+                if (activeIdx >= 0) { stackOrder.splice(stackOrder.indexOf(activeIdx), 1); stackOrder.push(activeIdx); }
+                const stackHeight = cards.length ? (cards.length - 1) * STACK_OFFSET + STACK_ACTIVE_H + 8 : 0;
                 return (
-                  <div key={w.id}>
-                    {idx > 0 && <div style={sh.sheetDivider} />}
-                    <div style={sh.sheetRow}>
-                      <div style={sh.sheetRowName}>{title}</div>
-                      <div style={sh.sheetRowBottom}>
-                        <div style={sh.sheetRowChips}>
-                          <span style={sh.sheetRowChip}>
-                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {fmtShortDate(w.scheduledFor)}
-                          </span>
-                          <span style={sh.sheetRowChip}>
-                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {formatTime(w.scheduledFor)}
-                          </span>
+                  <div style={{ position: "relative", width: "100%", height: stackHeight }}>
+                    {cards.map((w, index) => {
+                      const p: any = w.plan || {};
+                      const isSelected = w.id === selectedScheduledCardId || (selectedScheduledCardId === null && index === 0);
+                      const stackIndex = stackOrder.indexOf(index);
+                      const top = stackIndex * STACK_OFFSET;
+                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                      const label = dayLabelRU(rawLabel);
+                      const labelLower = String(label).toLowerCase();
+                      const mascotSrc = dayMascotForLabel(label);
+                      const mascotStyle: CSSProperties = labelLower.includes("спина") && labelLower.includes("бицепс")
+                        ? { ...sh.stkMascot, bottom: -6 }
+                        : labelLower.includes("ноги") && labelLower.includes("ягодиц")
+                          ? { ...sh.stkMascot, bottom: -10 }
+                          : sh.stkMascot;
+                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                      const estMin = Number(p.estimatedDuration) || null;
+                      const dateChip = w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
+
+                      return (
+                        <div
+                          key={w.id}
+                          className="sh-stack-card"
+                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H }}
+                          onClick={() => setSelectedScheduledCardId(w.id)}
+                        >
+                          {isSelected ? (
+                            <>
+                              <img src={mascotSrc} alt="" style={mascotStyle} loading="lazy" decoding="async" />
+                              <div style={sh.stkDateChipRow} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  style={{ ...sh.stkDateChipBtn, ...sh.stkDateChipScheduled }}
+                                  onClick={() => setEditingWorkoutId(w.id)}
+                                >
+                                  <span>{dateChip || "Дата и время"}</span>
+                                </button>
+                                <button type="button" style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center" }} onClick={() => setEditingWorkoutId(w.id)}>
+                                  <Pencil size={14} strokeWidth={2.1} color="rgba(15,23,42,0.6)" />
+                                </button>
+                              </div>
+                              <div style={sh.stkTitle}>{label}</div>
+                              <div style={sh.stkMeta}>
+                                <span style={sh.stkInfoChip}>
+                                  <Clock3 size={13} strokeWidth={2.1} style={{ transform: "translateY(0.2px)", flex: "0 0 auto" }} />
+                                  <span>{estMin ? `${estMin} мин` : "—"}</span>
+                                </span>
+                                <span style={sh.stkInfoChip}>
+                                  <Dumbbell size={14} strokeWidth={2.1} />
+                                  <span>{exCount} упражнений</span>
+                                </span>
+                              </div>
+                              <div style={sh.stkActions} onClick={(e) => e.stopPropagation()}>
+                                <button type="button" className="sh-primary-btn" style={sh.stkActionBtn} onClick={() => { onSelectWorkout(w.id); onStart(); }}>
+                                  <span>Начать</span>
+                                  <span style={sh.stkActionIconWrap}><span style={sh.stkActionArrow}>→</span></span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={sh.stkCollapsedBody}>
+                              <div style={sh.stkCollapsedTitle}>{label}</div>
+                              <div style={sh.stkDateChipCollapsedRow}>
+                                <div style={{ ...sh.stkDateChipCollapsed, ...sh.stkDateChipScheduled }}>
+                                  <span style={sh.stkDateChipCollapsedText}>{dateChip || "Запланировано"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <button type="button" style={sh.scheduledEditBtn} onClick={() => setEditingWorkoutId(w.id)}>
-                          <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
-                        </button>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
-            </div>
-            {/* Start button */}
-            <div style={sh.actionWrap}>
-              <button type="button" style={sh.primaryBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); onStart(); }}>
-                <span style={sh.primaryBtnLabel}>Начать тренировку</span>
-                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnArrow}>→</span></span>
-              </button>
+              })()}
             </div>
           </>
         ) : confirmDelete ? (
@@ -1083,47 +1222,115 @@ function ScheduleBottomSheet({
           </>
         ) : needsPick && !selectedWorkoutId ? (
           <>
-            {/* Workout cards for picking */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "4px 2px 8px", display: "flex", flexDirection: "column", gap: 12 }}>
-              {availableWorkouts.length ? (
-                availableWorkouts.map((w) => {
-                  const p: any = w.plan || {};
-                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                  const label = dayLabelRU(rawLabel);
-                  const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
-                  const estMin = Number(p.estimatedDuration) || null;
-                  return (
-                    <div key={w.id} style={sh.pickCard}>
-                      {/* Date chip */}
-                      <button
-                        type="button"
-                        style={sh.pickCardDateChip}
-                        onClick={() => onSelectWorkout(w.id)}
-                      >
-                        <Calendar size={13} strokeWidth={2.2} />
-                        <span>Выбрать дату и время</span>
-                      </button>
-                      {/* Title */}
-                      <div style={sh.pickCardTitle}>{label}</div>
-                      {/* Info chips */}
-                      <div style={sh.pickCardMeta}>
-                        {estMin ? (
-                          <span style={sh.pickCardChip}>
-                            <Clock3 size={13} strokeWidth={2.1} color="rgba(15,23,42,0.6)" />
-                            <span>{estMin} мин</span>
-                          </span>
-                        ) : null}
-                        {exCount > 0 ? (
-                          <span style={sh.pickCardChip}>
-                            <Dumbbell size={14} strokeWidth={2.1} color="rgba(15,23,42,0.6)" />
-                            <span>{exCount} упражнений</span>
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
+            <style>{`
+              .sh-stack-card { -webkit-tap-highlight-color: transparent; transition: transform 220ms ease, box-shadow 220ms ease; will-change: transform; }
+              .sh-stack-card:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+              .sh-primary-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; transition: transform 160ms ease, background-color 160ms ease; }
+              .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
+            `}</style>
+            {/* Stacked workout cards — Apple Pay style */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "4px 6px 8px" }}>
+              {availableWorkouts.length ? (() => {
+                const activeIdx = availableWorkouts.findIndex((w) => w.id === selectedCardId);
+                const stackOrder = availableWorkouts.map((_, i) => i);
+                if (activeIdx >= 0) {
+                  stackOrder.splice(stackOrder.indexOf(activeIdx), 1);
+                  stackOrder.push(activeIdx);
+                }
+                const stackHeight = availableWorkouts.length
+                  ? (availableWorkouts.length - 1) * STACK_OFFSET + STACK_ACTIVE_H + 8
+                  : 0;
+                return (
+                  <div style={{ position: "relative", width: "100%", height: stackHeight }}>
+                    {availableWorkouts.map((w, index) => {
+                      const p: any = w.plan || {};
+                      const isSelected = w.id === selectedCardId || (selectedCardId === null && index === 0);
+                      const stackIndex = stackOrder.indexOf(index);
+                      const top = stackIndex * STACK_OFFSET;
+                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                      const label = dayLabelRU(rawLabel);
+                      const labelLower = String(label).toLowerCase();
+                      const mascotSrc = dayMascotForLabel(label);
+                      const mascotStyle: CSSProperties = labelLower.includes("спина") && labelLower.includes("бицепс")
+                        ? { ...sh.stkMascot, bottom: -6 }
+                        : labelLower.includes("ноги") && labelLower.includes("ягодиц")
+                          ? { ...sh.stkMascot, bottom: -10 }
+                          : sh.stkMascot;
+                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                      const estMin = Number(p.estimatedDuration) || null;
+                      const isCompleted = w.status === "completed";
+                      const primaryLabel = isCompleted ? "Результат" : "Начать";
+                      const primaryIcon = isCompleted ? "✓" : "→";
+
+                      return (
+                        <div
+                          key={w.id}
+                          className="sh-stack-card"
+                          style={{
+                            ...sh.stkCard,
+                            top,
+                            zIndex: stackIndex + 1,
+                            height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H,
+                          }}
+                          onClick={() => setSelectedCardId(w.id)}
+                        >
+                          {isSelected ? (
+                            <>
+                              <img src={mascotSrc} alt="" style={mascotStyle} loading="lazy" decoding="async" />
+
+                              <div style={sh.stkDateChipRow} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  style={{ ...sh.stkDateChipBtn, ...sh.stkDateChipPending }}
+                                  onClick={() => onSelectWorkout(w.id)}
+                                >
+                                  <span>Дата и время</span>
+                                </button>
+                              </div>
+
+                              <div style={sh.stkTitle}>{label}</div>
+
+                              <div style={sh.stkMeta}>
+                                <span style={sh.stkInfoChip}>
+                                  <Clock3 size={13} strokeWidth={2.1} style={{ transform: "translateY(0.2px)", flex: "0 0 auto" }} />
+                                  <span>{estMin ? `${estMin} мин` : "—"}</span>
+                                </span>
+                                <span style={sh.stkInfoChip}>
+                                  <Dumbbell size={14} strokeWidth={2.1} />
+                                  <span>{exCount} упражнений</span>
+                                </span>
+                              </div>
+
+                              <div style={sh.stkActions} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className="sh-primary-btn"
+                                  style={sh.stkActionBtn}
+                                  onClick={() => isCompleted ? onDetails(w.id) : (() => { onSelectWorkout(w.id); onStart(); })()}
+                                >
+                                  <span>{primaryLabel}</span>
+                                  <span style={sh.stkActionIconWrap}>
+                                    <span style={sh.stkActionArrow}>{primaryIcon}</span>
+                                  </span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={sh.stkCollapsedBody}>
+                              <div style={sh.stkCollapsedTitle}>{label}</div>
+                              <div style={sh.stkDateChipCollapsedRow}>
+                                <div style={{ ...sh.stkDateChipCollapsed, ...sh.stkDateChipPending }}>
+                                  <span style={sh.stkDateChipCollapsedText}>Дата и время</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })() : (
                 <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 16px" }}>
                   Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
                 </div>
@@ -1874,24 +2081,59 @@ const sh: Record<string, CSSProperties> = {
     color: "#0f172a",
     fontWeight: 700,
   },
-  pickCard: {
-    padding: "16px 18px",
+  // Stacked cards (PlanOne-style)
+  stkCard: {
+    position: "absolute" as const,
+    left: 0,
+    right: 0,
+    padding: "20px 18px",
     borderRadius: 24,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     border: "1px solid rgba(255,255,255,0.75)",
     boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
+    transition: "top 320ms ease, height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
+    willChange: "top, height, transform",
+    cursor: "pointer",
+    overflow: "hidden",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: 8,
-    flexShrink: 0,
   },
-  pickCardDateChip: {
-    alignSelf: "flex-start",
+  stkMascot: {
+    position: "absolute" as const,
+    right: -36,
+    bottom: -18,
+    width: 150,
+    height: "auto",
+    opacity: 1,
+    filter: "none",
+    pointerEvents: "none" as const,
+    zIndex: 0,
+    transition: "opacity 220ms ease, transform 220ms ease",
+  },
+  stkTitle: {
+    fontSize: 32,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
+    position: "relative" as const,
+    zIndex: 1,
+  },
+  stkDateChipRow: {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
+    width: "fit-content",
+    position: "relative" as const,
+    zIndex: 1,
+  },
+  stkDateChipBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
     minHeight: 28,
     padding: "0 12px",
     borderRadius: 999,
@@ -1899,31 +2141,138 @@ const sh: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 600,
+    lineHeight: 1,
+    whiteSpace: "nowrap" as const,
+    width: "fit-content",
+    position: "relative" as const,
+    zIndex: 1,
+    transition: "background 180ms ease, box-shadow 180ms ease, color 180ms ease",
+  },
+  stkDateChipPending: {
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     color: "rgba(17,29,46,0.48)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.86), 0 -1px 0 rgba(15,23,42,0.14)",
   },
-  pickCardTitle: {
-    fontSize: 32,
-    fontWeight: 700,
-    color: "#0f172a",
-    lineHeight: 1.1,
-    letterSpacing: -0.5,
+  stkDateChipScheduled: {
+    background: "linear-gradient(180deg, rgba(222,236,208,0.98) 0%, rgba(206,226,188,0.96) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(46,74,29,0.2), inset 0 -1px 0 rgba(255,255,255,0.82)",
+    color: "rgba(26,56,16,0.62)",
+    textShadow: "0 1px 0 rgba(255,255,255,0.88), 0 -1px 0 rgba(35,71,19,0.2)",
   },
-  pickCardMeta: {
+  stkMeta: {
     display: "flex",
-    flexWrap: "wrap",
+    alignItems: "center",
+    color: "rgba(15,23,42,.56)",
     gap: 14,
-    paddingTop: 2,
+    position: "relative" as const,
+    zIndex: 1,
   },
-  pickCardChip: {
+  stkInfoChip: {
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    padding: 0,
+    borderRadius: 0,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15, 23, 42, 0.6)",
+    whiteSpace: "nowrap" as const,
     display: "inline-flex",
     alignItems: "center",
     gap: 7,
-    fontSize: 14,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.6)",
     lineHeight: 1.5,
+  },
+  stkActions: {
+    marginTop: "auto",
+    paddingTop: 12,
+    display: "flex",
+    alignItems: "end",
+    width: "100%",
+    position: "relative" as const,
+    zIndex: 1,
+  },
+  stkActionBtn: {
+    alignSelf: "flex-start",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    height: 50,
+    padding: "0 14px",
+    border: "1px solid #1e1f22",
+    borderRadius: 999,
+    background: "#1e1f22",
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: 500,
+    cursor: "pointer",
+    boxShadow: "none",
+  },
+  stkActionIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  },
+  stkActionArrow: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#0f172a",
+    fontWeight: 700,
+  },
+  stkCollapsedBody: {
+    marginTop: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    width: "100%",
+  },
+  stkCollapsedTitle: {
+    fontSize: 20,
+    lineHeight: 1.12,
+    letterSpacing: -0.3,
+    fontWeight: 700,
+    color: "#0f172a",
+    flex: 1,
+    minWidth: 0,
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  stkDateChipCollapsedRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    width: "fit-content",
+    maxWidth: "100%",
+    flexShrink: 0,
+    position: "relative" as const,
+    zIndex: 1,
+  },
+  stkDateChipCollapsed: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 22,
+    padding: "0 9px",
+    borderRadius: 999,
+    width: "fit-content",
+    maxWidth: "100%",
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1,
+    position: "relative" as const,
+    zIndex: 1,
+  },
+  stkDateChipCollapsedText: {
+    display: "inline-block",
+    whiteSpace: "nowrap" as const,
+    overflow: "visible",
+    textOverflow: "clip",
   },
   scheduledRow: {
     width: "100%",
