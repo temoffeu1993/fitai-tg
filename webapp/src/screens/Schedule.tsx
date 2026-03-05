@@ -926,8 +926,9 @@ function ScheduleBottomSheet({
               type="button"
               onClick={() => {
                 if (editingWorkout) {
-                  // Restore date to the workout's original date so hasScheduled shows correctly
+                  // Restore date and clear selectedWorkoutId so hasScheduled shows correctly
                   onDateTimeChange(toDateInput(editingWorkout.scheduledFor), toTimeInput(editingWorkout.scheduledFor));
+                  onSelectWorkout("");
                   setEditingWorkout(null);
                 } else {
                   onSelectWorkout("");
