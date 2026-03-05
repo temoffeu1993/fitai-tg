@@ -21,12 +21,15 @@ const MINUTE_TOTAL = MINUTE_COUNT * CYCLE_COPIES;
 const HOUR_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 const MINUTE_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 
-/* Physics */
-const DECEL = 0.96;
-const VELOCITY_MIN = 0.3;
-const SNAP_MS = 320;
+/* Physics — iOS UIPickerView style
+   Apple uses time-based deceleration (0.998/ms = ~0.967/frame@60fps)
+   and a damped spring for final snap */
+const DECEL_RATE = 0.998;    // per-ms decay (iOS UIScrollView.decelerationRate.normal)
+const VELOCITY_STOP = 0.08;  // px/ms threshold to end inertia
+const SPRING_STIFFNESS = 180;// damped spring for snap
+const SPRING_DAMPING = 22;   // damping ratio
+const SPRING_MASS = 1;       // mass
 const VELOCITY_SAMPLES = 5;
-const VELOCITY_SCALE = 11;
 const TAP_THRESHOLD = 6;
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
@@ -121,31 +124,36 @@ function useWheel({ totalItems, itemSize, axis, initialOffset, wrap, onSettle }:
   const snapTo = useCallback((target: number, silent = false) => {
     if (snapRaf.current) cancelAnimationFrame(snapRaf.current);
     const start = offset.current;
-    const delta = target - start;
-    if (Math.abs(delta) < 0.5) {
+    const dist = target - start;
+    if (Math.abs(dist) < 0.5) {
       offset.current = target;
       apply(target);
       normalize();
       if (!silent) onSettle(Math.round(target / itemSize));
       return;
     }
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min((now - t0) / SNAP_MS, 1);
-      // ease-in-out: smooth start and end
-      const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-      const cur = start + delta * eased;
-      offset.current = cur;
-      apply(cur);
-      tickHaptic(cur);
-      if (p < 1) {
-        snapRaf.current = requestAnimationFrame(tick);
-      } else {
+    // Damped spring: x'' = (-k*(x-target) - c*x') / m
+    let pos = start;
+    let vel = velocity.current; // carry residual velocity into spring
+    const tick = () => {
+      const displacement = pos - target;
+      const springForce = -SPRING_STIFFNESS * displacement;
+      const dampingForce = -SPRING_DAMPING * vel;
+      const accel = (springForce + dampingForce) / SPRING_MASS;
+      vel += accel * (1 / 60); // ~16.67ms step
+      pos += vel * (1 / 60);
+      offset.current = pos;
+      apply(pos);
+      tickHaptic(pos);
+      // Settle when close enough and slow enough
+      if (Math.abs(pos - target) < 0.5 && Math.abs(vel) < 0.5) {
         snapRaf.current = null;
         offset.current = target;
         apply(target);
         normalize();
         if (!silent) onSettle(Math.round(target / itemSize));
+      } else {
+        snapRaf.current = requestAnimationFrame(tick);
       }
     };
     snapRaf.current = requestAnimationFrame(tick);
@@ -153,15 +161,21 @@ function useWheel({ totalItems, itemSize, axis, initialOffset, wrap, onSettle }:
 
   const runInertia = useCallback(() => {
     if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current);
+    let lastT = performance.now();
     const tick = () => {
-      velocity.current *= DECEL;
-      let next = offset.current + velocity.current;
+      const now = performance.now();
+      const dt = now - lastT;
+      lastT = now;
+      // Time-based deceleration: v *= rate^dt
+      velocity.current *= Math.pow(DECEL_RATE, dt);
+      let next = offset.current + velocity.current * dt;
+      // Boundary clamping with rubber-band kill
       if (next <= 0) { next = 0; velocity.current = 0; }
       else if (next >= maxOff) { next = maxOff; velocity.current = 0; }
       offset.current = next;
       apply(next);
       tickHaptic(next);
-      if (Math.abs(velocity.current) > VELOCITY_MIN) {
+      if (Math.abs(velocity.current) > VELOCITY_STOP) {
         inertiaRaf.current = requestAnimationFrame(tick);
       } else {
         inertiaRaf.current = null;
@@ -225,9 +239,10 @@ function useWheel({ totalItems, itemSize, axis, initialOffset, wrap, onSettle }:
     const last = sa[sa.length - 1];
     const dt = last.time - first.time;
     if (dt < 1) { snapTo(nearIdx * itemSize); return false; }
-    const v = ((first.pos - last.pos) / dt) * VELOCITY_SCALE;
+    // velocity in px/ms — directly from touch samples
+    const v = (first.pos - last.pos) / dt;
     velocity.current = v;
-    if (Math.abs(v) < VELOCITY_MIN * 2) {
+    if (Math.abs(v) < VELOCITY_STOP * 3) {
       snapTo(nearIdx * itemSize);
     } else {
       runInertia();
