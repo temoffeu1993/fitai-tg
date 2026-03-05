@@ -986,8 +986,8 @@ function ScheduleBottomSheet({
                   <div key={w.id}>
                     {idx > 0 && <div style={sh.sheetDivider} />}
                     <div style={sh.sheetRow} onClick={() => onDetails(w.id)}>
-                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                        <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowBottom}>
                         <div style={sh.sheetRowChips}>
                           <span style={sh.sheetRowChip}>
                             <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
@@ -998,8 +998,8 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
+                        <span style={sh.sheetRowArrow}>→</span>
                       </div>
-                      <span style={sh.sheetRowArrow}>→</span>
                     </div>
                   </div>
                 );
@@ -1017,8 +1017,8 @@ function ScheduleBottomSheet({
                   <div key={w.id}>
                     {idx > 0 && <div style={sh.sheetDivider} />}
                     <div style={sh.sheetRow}>
-                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                        <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowBottom}>
                         <div style={sh.sheetRowChips}>
                           <span style={sh.sheetRowChip}>
                             <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
@@ -1029,8 +1029,8 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
+                        <Pencil size={18} strokeWidth={2} color="#1e1f22" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
                       </div>
-                      <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.35)" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
                     </div>
                   </div>
                 );
@@ -1160,8 +1160,8 @@ function ScheduleBottomSheet({
                     <div key={w.id}>
                       {idx > 0 && <div style={sh.sheetDivider} />}
                       <div style={sh.sheetRow} onClick={() => { onSelectWorkout(w.id); goToPage("forward"); }}>
-                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                          <div style={sh.sheetRowName}>{label}</div>
+                        <div style={sh.sheetRowName}>{label}</div>
+                        <div style={sh.sheetRowBottom}>
                           <div style={sh.sheetRowChips}>
                             <span style={sh.sheetRowChip}>
                               <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
@@ -1172,8 +1172,8 @@ function ScheduleBottomSheet({
                               Время
                             </span>
                           </div>
+                          <Pencil size={18} strokeWidth={2} color="#1e1f22" />
                         </div>
-                        <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.35)" />
                       </div>
                     </div>
                   );
@@ -1923,9 +1923,8 @@ const sh: Record<string, CSSProperties> = {
   },
   sheetRow: {
     display: "flex",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    flexDirection: "column",
+    gap: 6,
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
   },
@@ -1955,9 +1954,9 @@ const sh: Record<string, CSSProperties> = {
     lineHeight: 1.45,
   },
   sheetRowArrow: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 500,
-    color: "rgba(15,23,42,0.62)",
+    color: "#1e1f22",
     flexShrink: 0,
   },
   sheetDivider: {
