@@ -432,7 +432,7 @@ export default function WorkoutResult() {
 
   if (!result) {
     return (
-      <div style={page.outer}><div style={{ ...page.inner, display: "grid", placeItems: "center", minHeight: "60vh" }}>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <style>{`
           .wr-loader{display:flex;gap:10px;align-items:center;justify-content:center}
           .wr-loader span{width:10px;height:10px;border-radius:50%;background:#111;animation:wrPulse 1s ease-in-out infinite}
@@ -441,7 +441,7 @@ export default function WorkoutResult() {
           @keyframes wrPulse{0%,100%{transform:scale(.7);opacity:.35}50%{transform:scale(1);opacity:1}}
         `}</style>
         <div className="wr-loader"><span /><span /><span /></div>
-      </div></div>
+      </div>
     );
   }
 
