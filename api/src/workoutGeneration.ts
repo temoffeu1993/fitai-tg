@@ -572,9 +572,13 @@ workoutGeneration.post(
                 status = 'pending',
                 generation_id = $4::uuid,
                 updated_at = now()
-          WHERE user_id = $1
-            AND workout_date = CURRENT_DATE + make_interval(days => $2)
-            AND status = 'pending'
+          WHERE id = (
+            SELECT id FROM planned_workouts
+             WHERE user_id = $1
+               AND workout_date = CURRENT_DATE + make_interval(days => $2)
+               AND status = 'pending'
+             ORDER BY created_at ASC LIMIT 1
+          )
           RETURNING id`,
         [uid, i, workoutData, generationId]
       );
@@ -958,9 +962,13 @@ workoutGeneration.post(
               plan = $2::jsonb,
               status = 'pending',
               updated_at = now()
-        WHERE user_id = $1
-          AND workout_date = CURRENT_DATE
-          AND status = 'pending'
+        WHERE id = (
+          SELECT id FROM planned_workouts
+           WHERE user_id = $1
+             AND workout_date = CURRENT_DATE
+             AND status = 'pending'
+           ORDER BY created_at ASC LIMIT 1
+        )
         RETURNING id`,
       [uid, workoutData]
     );
@@ -1101,9 +1109,13 @@ workoutGeneration.post(
                 status = 'pending',
                 generation_id = $4::uuid,
                 updated_at = now()
-          WHERE user_id = $1
-            AND workout_date = CURRENT_DATE + make_interval(days => $2)
-            AND status = 'pending'
+          WHERE id = (
+            SELECT id FROM planned_workouts
+             WHERE user_id = $1
+               AND workout_date = CURRENT_DATE + make_interval(days => $2)
+               AND status = 'pending'
+             ORDER BY created_at ASC LIMIT 1
+          )
           RETURNING id`,
         [uid, i, workoutData, generationId]
       );
