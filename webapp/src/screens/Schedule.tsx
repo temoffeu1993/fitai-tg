@@ -1030,7 +1030,7 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
-                        <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
+                        <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.35)" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
                       </div>
                     </div>
                   </div>
@@ -1173,7 +1173,7 @@ function ScheduleBottomSheet({
                               Время
                             </span>
                           </div>
-                          <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                          <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.35)" />
                         </div>
                       </div>
                     </div>
@@ -1930,10 +1930,10 @@ const sh: Record<string, CSSProperties> = {
     WebkitTapHighlightColor: "transparent",
   },
   sheetRowName: {
-    fontSize: 15,
-    fontWeight: 600,
+    fontSize: 18,
+    fontWeight: 500,
     color: "#1e1f22",
-    lineHeight: 1.25,
+    lineHeight: 1.3,
   },
   sheetRowBottom: {
     display: "flex",
@@ -1955,8 +1955,8 @@ const sh: Record<string, CSSProperties> = {
     lineHeight: 1.45,
   },
   sheetRowArrow: {
-    fontSize: 14,
-    fontWeight: 400,
+    fontSize: 16,
+    fontWeight: 500,
     color: "rgba(15,23,42,0.62)",
     flexShrink: 0,
   },
