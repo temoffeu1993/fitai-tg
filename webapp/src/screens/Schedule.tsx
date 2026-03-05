@@ -1003,13 +1003,6 @@ function ScheduleBottomSheet({
                 );
               })}
             </div>
-            {/* Start button */}
-            <div style={sh.actionWrap}>
-              <button type="button" style={sh.primaryBtn} onClick={() => { onSelectWorkout(scheduledWorkouts[0].id); onStart(); }}>
-                <span style={sh.primaryBtnLabel}>Начать тренировку</span>
-                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnArrow}>→</span></span>
-              </button>
-            </div>
           </>
         ) : confirmDelete ? (
           <>
@@ -1076,125 +1069,44 @@ function ScheduleBottomSheet({
           </>
         ) : (
           <>
-            {/* Date & Time inline wheels */}
-            <DateTimeWheelInline
-              initialDate={date}
-              initialTime={time}
-              onChange={onDateTimeChange}
-            />
-
-            {/* Reminder */}
-            <div style={sh.reminderWrap}>
-              <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
-                <span style={sh.reminderLabel}>🔔 Напомнить</span>
-                <span style={sh.reminderValue}>
-                  <span>{reminderValue}</span>
-                  <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
-                </span>
-              </button>
-              {reminderOpen ? (
-                <div style={sh.reminderList}>
-                  {REMINDER_OPTIONS.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
-                      onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Workout pick list */}
-            {needsPick ? (
-              <>
-                <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
-                  {availableWorkouts.length ? (
-                    availableWorkouts.map((w, idx) => {
-                      const p: any = w.plan || {};
-                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                      const label = dayLabelRU(rawLabel);
-                      const selected = w.id === selectedWorkoutId;
-                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
-                      const estMin = Number(p.estimatedDuration) || null;
-                      return (
-                        <div key={w.id}>
-                          {idx > 0 && <div style={sh.sheetDivider} />}
-                          <button type="button" style={sh.pickRowWl} onClick={() => onSelectWorkout(w.id)}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={sh.sheetRowName}>{label}</div>
-                              <div style={sh.sheetRowBottom}>
-                                <div style={sh.sheetRowChips}>
-                                  {exCount > 0 && (
-                                    <span style={sh.sheetRowChip}>
-                                      <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                      {exCount} упр.
-                                    </span>
-                                  )}
-                                  {estMin && (
-                                    <span style={sh.sheetRowChip}>
-                                      <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                      {estMin} мин
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={selected ? sh.pickChipActive : sh.pickChip}>
-                                  {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
+            {/* Workout pick list — no scrollers, just list */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
+              {availableWorkouts.length ? (
+                availableWorkouts.map((w, idx) => {
+                  const p: any = w.plan || {};
+                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                  const label = dayLabelRU(rawLabel);
+                  return (
+                    <div key={w.id}>
+                      {idx > 0 && <div style={sh.sheetDivider} />}
+                      <div style={sh.sheetRow} onClick={() => onSelectWorkout(w.id)}>
+                        <div style={sh.sheetRowName}>{label}</div>
+                        <div style={sh.sheetRowBottom}>
+                          <div style={sh.sheetRowChips}>
+                            <span style={sh.sheetRowChip}>
+                              <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              Дата
+                            </span>
+                            <span style={sh.sheetRowChip}>
+                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              Время
+                            </span>
+                          </div>
+                          <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 24px" }}>
-                      Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+                      </div>
                     </div>
-                  )}
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 0" }}>
+                  Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
                 </div>
-              </>
-            ) : null}
+              )}
+            </div>
 
             {/* Error */}
             {error && <div style={sh.error}>{error}</div>}
-
-            {/* Action buttons */}
-            <div style={sh.actionWrap}>
-              {canStart ? (
-                <>
-                  <button type="button" style={sh.primaryBtn} onClick={onStart} disabled={saving || readOnly}>
-                    <span style={sh.primaryBtnLabel}>Начать тренировку</span>
-                    <span style={sh.primaryBtnCircle}><ChevronRight size={20} strokeWidth={2.5} /></span>
-                  </button>
-                  {canDelete && (
-                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                      Удалить
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    style={{ ...sh.primaryBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
-                    onClick={onSave}
-                    disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-                  >
-                    <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
-                    <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
-                  </button>
-                  {canDelete && (
-                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                      Удалить
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
           </>
         )}
 
