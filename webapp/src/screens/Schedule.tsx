@@ -920,7 +920,7 @@ function ScheduleBottomSheet({
         </div>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", padding: `0 8px ${(confirmDelete || replaceConfirm) ? 0 : 8}px`, flexShrink: 0 }}>
           {(!confirmDelete && !replaceConfirm && (editingWorkout || (needsPick && selectedWorkoutId))) ? (
             <button
               type="button"
