@@ -982,7 +982,7 @@ function ScheduleBottomSheet({
               .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
             `}</style>
             {/* Completed workouts — stacked cards */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0 20px" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px 40px" }}>
               {(() => {
                 const cards = completedWorkouts;
                 const activeIdx = cards.findIndex((w) => w.id === selectedCompletedCardId);
@@ -1071,7 +1071,7 @@ function ScheduleBottomSheet({
               .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
             `}</style>
             {/* Scheduled workouts — stacked cards */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0 20px" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px 40px" }}>
               {(() => {
                 const cards = scheduledWorkouts;
                 const activeIdx = cards.findIndex((w) => w.id === selectedScheduledCardId);
@@ -1228,7 +1228,7 @@ function ScheduleBottomSheet({
               .sh-primary-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99) !important; background-color: #1e1f22 !important; }
             `}</style>
             {/* Stacked workout cards — Apple Pay style */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0 20px" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px 40px" }}>
               {availableWorkouts.length ? (() => {
                 const activeIdx = availableWorkouts.findIndex((w) => w.id === selectedCardId);
                 const stackOrder = availableWorkouts.map((_, i) => i);
@@ -2089,7 +2089,7 @@ const sh: Record<string, CSSProperties> = {
     borderRadius: 24,
     background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
     border: "1px solid rgba(255,255,255,0.75)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    boxShadow: "0 4px 16px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
     transition: "top 320ms ease, height 320ms ease, min-height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
