@@ -11,7 +11,6 @@ import {
   ScheduleByDate,
 } from "@/api/schedule";
 import { resolveWorkoutTitle } from "@/screens/WorkoutResult";
-import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import DateTimeWheelInline from "@/components/DateTimeWheelInline";
 import mascotImg from "@/assets/robonew.webp";
 
@@ -689,19 +688,11 @@ export default function Schedule() {
           onDetails={handleModalDetails}
           completedWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "completed")}
           scheduledWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "scheduled")}
+          replaceConfirm={replaceConfirm}
+          onReplaceConfirm={handleReplaceConfirm}
+          onReplaceCancel={() => { if (!modal?.saving) setReplaceConfirm(null); }}
         />
       )}
-      {replaceConfirm ? (
-        <ScheduleReplaceConfirmModal
-          message={`На эту дату уже стоит тренировка «${replaceConfirm.conflictTitle}». Заменить ее на «${replaceConfirm.targetTitle}»?`}
-          busy={Boolean(modal?.saving)}
-          onConfirm={handleReplaceConfirm}
-          onCancel={() => {
-            if (modal?.saving) return;
-            setReplaceConfirm(null);
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -743,6 +734,9 @@ function ScheduleBottomSheet({
   onDetails,
   completedWorkouts,
   scheduledWorkouts,
+  replaceConfirm,
+  onReplaceConfirm,
+  onReplaceCancel,
 }: {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
@@ -760,6 +754,9 @@ function ScheduleBottomSheet({
   onDetails: (workoutId?: string) => void;
   completedWorkouts: PlannedWorkout[];
   scheduledWorkouts: PlannedWorkout[];
+  replaceConfirm: ReplaceConfirmState | null;
+  onReplaceConfirm: () => void;
+  onReplaceCancel: () => void;
 }) {
   const [renderOpen, setRenderOpen] = useState(true);
   const [entered, setEntered] = useState(false);
@@ -1035,6 +1032,21 @@ function ScheduleBottomSheet({
                 );
               })}
             </div>
+          </>
+        ) : replaceConfirm ? (
+          <>
+            {/* Replace confirm view */}
+            <div style={sh.confirmText}>
+              На эту дату уже стоит тренировка «{replaceConfirm.conflictTitle}».{"\n"}Заменить на «{replaceConfirm.targetTitle}»?
+            </div>
+            <div style={sh.confirmDivider} />
+            <button type="button" style={sh.confirmBtn} onClick={onReplaceCancel} disabled={saving}>
+              Отмена
+            </button>
+            <div style={sh.confirmDivider} />
+            <button type="button" style={{ ...sh.confirmBtn, ...sh.confirmBtnDanger }} onClick={onReplaceConfirm} disabled={saving}>
+              {saving ? "Сохраняем..." : "Заменить"}
+            </button>
           </>
         ) : confirmDelete ? (
           <>
