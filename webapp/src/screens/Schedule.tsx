@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Dumbbell, Clock3 } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, Save, Play, Info, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -10,7 +10,6 @@ import {
   PlannedWorkout,
   ScheduleByDate,
 } from "@/api/schedule";
-import { getWorkoutSessionById } from "@/api/plan";
 import { resolveWorkoutTitle } from "@/screens/WorkoutResult";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import DateTimeWheelInline from "@/components/DateTimeWheelInline";
@@ -89,7 +88,6 @@ export default function Schedule() {
   const [scheduleDates, setScheduleDates] = useState<ScheduleByDate>({});
   const [modal, setModal] = useState<ModalState | null>(null);
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
-  const [sessionCache, setSessionCache] = useState<Record<string, { doneExercises: number; durationMin: number | null }>>({});
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
@@ -244,44 +242,6 @@ export default function Schedule() {
           new Date(b.scheduledFor).getTime() - new Date(a.scheduledFor).getTime()
       );
   }, [planned, monthStart, monthEnd]);
-
-  // Load session data for completed workouts (completion %, duration)
-  useEffect(() => {
-    const toLoad = completed.filter(
-      (w) => w.resultSessionId && !sessionCache[w.resultSessionId]
-    );
-    if (toLoad.length === 0) return;
-    let active = true;
-    Promise.all(
-      toLoad.map(async (w) => {
-        try {
-          const data = await getWorkoutSessionById(w.resultSessionId!);
-          const payload = data?.session?.payload;
-          if (!payload) return null;
-          const exercises: any[] = Array.isArray(payload.exercises) ? payload.exercises : [];
-          let doneEx = 0;
-          for (const ex of exercises) {
-            const sets: any[] = Array.isArray(ex?.sets) ? ex.sets : [];
-            if (sets.some((st: any) => Boolean(st?.done))) doneEx++;
-          }
-          const dur: number | null = typeof payload.durationMin === "number" ? payload.durationMin : null;
-          return { id: w.resultSessionId!, doneEx, dur };
-        } catch {
-          return null;
-        }
-      })
-    ).then((results) => {
-      if (!active) return;
-      const next: Record<string, { doneExercises: number; durationMin: number | null }> = {};
-      for (const r of results) {
-        if (r) next[r.id] = { doneExercises: r.doneEx, durationMin: r.dur };
-      }
-      if (Object.keys(next).length > 0) {
-        setSessionCache((prev) => ({ ...prev, ...next }));
-      }
-    });
-    return () => { active = false; };
-  }, [completed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openDate = (date: Date) => {
     const key = toDateKey(date);
@@ -604,30 +564,21 @@ export default function Schedule() {
               upcomingPreview.map((item, idx) => {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
-                const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
-                const mins = Number(p.estimatedDuration) || null;
                 return (
                   <div key={item.id}>
                     {idx > 0 && <div style={wl.divider} />}
                     <div style={wl.row} onClick={() => openWorkout(item)}>
-                      <div style={wl.top}>
-                        <div style={wl.name}>{title}</div>
-                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} {formatTime(item.scheduledFor)}</span>
-                      </div>
+                      <div style={wl.name}>{title}</div>
                       <div style={wl.bottom}>
                         <div style={wl.chips}>
-                          {exCount > 0 && (
-                            <span style={wl.chip}>
-                              <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                              {exCount} упр.
-                            </span>
-                          )}
-                          {mins != null && (
-                            <span style={wl.chip}>
-                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                              ~{mins} мин
-                            </span>
-                          )}
+                          <span style={wl.chip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(item.scheduledFor)}
+                          </span>
+                          <span style={wl.chip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {formatTime(item.scheduledFor)}
+                          </span>
                         </div>
                         <span style={wl.arrow}>→</span>
                       </div>
@@ -651,12 +602,6 @@ export default function Schedule() {
               {completed.map((item, idx) => {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
-                const sess = item.resultSessionId ? sessionCache[item.resultSessionId] : null;
-                const doneEx = sess?.doneExercises;
-                const mins = sess?.durationMin;
-                // Fallback to plan data if session not loaded yet
-                const exCount = doneEx ?? (Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0));
-                const planMins = Number(p.estimatedDuration) || null;
                 return (
                   <div key={item.id}>
                     {idx > 0 && <div style={wl.divider} />}
@@ -670,24 +615,17 @@ export default function Schedule() {
                         }
                       }}
                     >
-                      <div style={wl.top}>
-                        <div style={wl.name}>{title}</div>
-                        <span style={wl.dateChip}>{fmtShortDate(item.scheduledFor)} {formatTime(item.scheduledFor)}</span>
-                      </div>
+                      <div style={wl.name}>{title}</div>
                       <div style={wl.bottom}>
                         <div style={wl.chips}>
-                          {exCount > 0 && (
-                            <span style={wl.chip}>
-                              <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                              {exCount} упр.
-                            </span>
-                          )}
-                          {(mins ?? planMins) != null && (
-                            <span style={wl.chip}>
-                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                              {mins ?? planMins} мин
-                            </span>
-                          )}
+                          <span style={wl.chip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(item.scheduledFor)}
+                          </span>
+                          <span style={wl.chip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {formatTime(item.scheduledFor)}
+                          </span>
                         </div>
                         <span style={wl.arrow}>→</span>
                       </div>
@@ -750,6 +688,16 @@ const SHEET_ENTER_MS = 380;
 const SHEET_EXIT_MS = 260;
 const OPEN_TICK_MS = 12;
 
+const REMINDER_OPTIONS = [
+  "За 1 час",
+  "За 30 минут",
+  "За 15 минут",
+  "За 5 минут",
+  "В момент события",
+  "Не напоминать",
+  "За 1 день",
+];
+
 function ScheduleBottomSheet({
   workout,
   selectedWorkoutId,
@@ -789,6 +737,9 @@ function ScheduleBottomSheet({
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
   const animDoneTimerRef = useRef<number | null>(null);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderValue, setReminderValue] = useState("За 1 час");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
@@ -938,109 +889,112 @@ function ScheduleBottomSheet({
           onChange={onDateTimeChange}
         />
 
+        {/* Reminder */}
+        <div style={sh.reminderWrap}>
+          <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
+            <span style={sh.reminderLabel}>🔔 Напомнить</span>
+            <span style={sh.reminderValue}>
+              <span>{reminderValue}</span>
+              <span style={sh.reminderChevrons}><span>▴</span><span>▾</span></span>
+            </span>
+          </button>
+          {reminderOpen ? (
+            <div style={sh.reminderList}>
+              {REMINDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  style={{ ...sh.reminderOption, ...(opt === reminderValue ? sh.reminderOptionActive : null) }}
+                  onClick={() => { setReminderValue(opt); setReminderOpen(false); }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         {/* Workout pick list */}
         {needsPick ? (
-          <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
-            <div style={{ display: "grid", gap: 8, marginTop: 20 }}>
+          <>
+            <div style={sh.sectionDivider} />
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
               {availableWorkouts.length ? (
-                availableWorkouts.map((w) => {
+                availableWorkouts.map((w, idx) => {
                   const p: any = w.plan || {};
                   const rawLabel = String(p.dayLabel || p.title || "Тренировка");
                   const label = dayLabelRU(rawLabel);
                   const selected = w.id === selectedWorkoutId;
                   return (
-                    <button
-                      key={w.id}
-                      type="button"
-                      style={{
-                        ...sh.workoutRow,
-                        ...(selected ? sh.workoutRowSelected : null),
-                      }}
-                      onClick={() => onSelectWorkout(w.id)}
-                    >
-                      <div style={sh.radioCircle}>
-                        <div
-                          style={{
-                            ...sh.radioDot,
-                            transform: selected ? "scale(1)" : "scale(0)",
-                            opacity: selected ? 1 : 0,
-                          }}
-                        />
-                      </div>
-                      <div style={sh.workoutTitle}>{label}</div>
-                    </button>
+                    <div key={w.id}>
+                      <button type="button" style={sh.pickRow} onClick={() => onSelectWorkout(w.id)}>
+                        <div style={sh.pickName}>{label}</div>
+                        <div style={selected ? sh.pickChipActive : sh.pickChip}>
+                          {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
+                        </div>
+                      </button>
+                      {idx < availableWorkouts.length - 1 && <div style={sh.pickDivider} />}
+                    </div>
                   );
                 })
               ) : (
-                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 24px" }}>
                   Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
                 </div>
               )}
             </div>
-          </div>
+          </>
         ) : null}
 
         {/* Error */}
-        {error && (
-          <div style={sh.error}>{error}</div>
-        )}
+        {error && <div style={sh.error}>{error}</div>}
 
         {/* Action buttons */}
-        <div style={{ marginTop: 16, display: "grid", gap: 8, flexShrink: 0 }}>
-          <style>{`
-            .sched-sheet-btn{
-              border-radius:999px;padding:0 14px;height:50px;width:100%;
-              border:1px solid #1e1f22;background:#1e1f22;color:#fff;
-              font-weight:500;font-size:17px;cursor:pointer;
-              box-shadow:0 6px 10px rgba(0,0,0,0.24);
-              -webkit-tap-highlight-color:transparent;
-              touch-action:manipulation;user-select:none;
-              transition:transform 160ms ease,box-shadow 160ms ease,opacity 250ms ease;
-            }
-            .sched-sheet-btn:active:not(:disabled){
-              transform:translateY(1px) scale(0.99)!important;
-              box-shadow:0 4px 8px rgba(0,0,0,0.18)!important;
-            }
-            .sched-sheet-btn:disabled{opacity:0.5;cursor:not-allowed;}
-          `}</style>
+        <div style={{ flexShrink: 0 }}>
+          <div style={sh.sectionDivider} />
           {canDetails ? (
-            <button type="button" className="sched-sheet-btn" onClick={onDetails} disabled={saving}>
+            <button type="button" style={sh.actionBtn} onClick={onDetails} disabled={saving}>
+              <div style={sh.actionIcon}><Info size={22} /></div>
               Подробнее
             </button>
           ) : canStart ? (
-            <button type="button" className="sched-sheet-btn" onClick={onStart} disabled={saving || readOnly}>
-              Начать тренировку
-            </button>
+            <>
+              <button type="button" style={sh.actionBtn} onClick={onStart} disabled={saving || readOnly}>
+                <div style={sh.actionIcon}><Play size={22} /></div>
+                Начать тренировку
+              </button>
+              {canDelete && (
+                <>
+                  <div style={sh.actionDivider} />
+                  <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                    <div style={sh.actionIcon}><Trash2 size={22} /></div>
+                    Удалить
+                  </button>
+                </>
+              )}
+            </>
           ) : (
-            <button
-              type="button"
-              className="sched-sheet-btn"
-              onClick={onSave}
-              disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-            >
-              {saving ? "Сохраняем..." : "Сохранить"}
-            </button>
+            <>
+              <button
+                type="button"
+                style={{ ...sh.actionBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
+                onClick={onSave}
+                disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
+              >
+                <div style={sh.actionIcon}><Save size={22} /></div>
+                {saving ? "Сохраняем..." : "Сохранить"}
+              </button>
+              {canDelete && (
+                <>
+                  <div style={sh.actionDivider} />
+                  <button type="button" style={{ ...sh.actionBtn, ...sh.actionBtnDanger }} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                    <div style={sh.actionIcon}><Trash2 size={22} /></div>
+                    Удалить
+                  </button>
+                </>
+              )}
+            </>
           )}
-
-          {canDelete ? (
-            <button
-              type="button"
-              style={{
-                border: "none",
-                borderRadius: 999,
-                padding: 12,
-                fontWeight: 500,
-                fontSize: 14,
-                background: "transparent",
-                color: "rgba(15,23,42,0.45)",
-                cursor: "pointer",
-              }}
-              onClick={onDelete}
-              disabled={saving || readOnly}
-            >
-              Удалить
-            </button>
-          ) : null}
         </div>
 
         {/* Safe area spacer */}
@@ -1516,25 +1470,12 @@ const wl: Record<string, CSSProperties> = {
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
   } as CSSProperties,
-  top: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 8,
-  },
   name: {
     fontSize: 15,
     fontWeight: 600,
     color: "#1e1f22",
     lineHeight: 1.25,
   },
-  dateChip: {
-    fontSize: 12,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.55)",
-    whiteSpace: "nowrap",
-    flexShrink: 0,
-  } as CSSProperties,
   bottom: {
     display: "flex",
     justifyContent: "space-between",
@@ -1563,54 +1504,198 @@ const wl: Record<string, CSSProperties> = {
 };
 
 const sh: Record<string, CSSProperties> = {
-  workoutRow: {
-    position: "relative",
+  // Workout pick rows
+  pickRow: {
     width: "100%",
-    padding: 14,
-    borderRadius: 18,
-    background: "linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%)",
-    border: "1px solid rgba(255,255,255,0.78)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.06), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 8px rgba(15,23,42,0.06)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 56,
+    padding: "14px 24px",
+    background: "transparent",
+    border: "none",
     cursor: "pointer",
-    transition: "transform 220ms ease, box-shadow 220ms ease",
     textAlign: "left",
   },
-  workoutRowSelected: {
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85), 0 4px 12px rgba(15,23,42,0.1)",
+  pickName: {
+    fontSize: 18,
+    fontWeight: 500,
+    color: "#1e1f22",
+    lineHeight: 1.3,
+    flex: 1,
+    minWidth: 0,
   },
-  radioCircle: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    width: 22,
-    height: 22,
-    borderRadius: "50%",
+  pickChip: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    border: "none",
     display: "grid",
     placeItems: "center",
-    transition: "all 220ms ease",
+    flexShrink: 0,
   },
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: "50%",
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow: "0 1px 2px rgba(2,6,23,0.42), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
-    transition: "all 220ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+  pickChipActive: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    background: "linear-gradient(180deg, rgba(196,228,178,0.34) 0%, rgba(170,210,146,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.12), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
   },
-  workoutTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#1e1f22",
-    marginTop: 0,
-    marginLeft: 34,
-    marginRight: 0,
+  pickDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 24,
+  },
+  // Reminder
+  reminderWrap: {
+    width: "100%",
+    alignSelf: "stretch",
+    position: "relative",
+    overflow: "visible",
+    display: "grid",
+    gap: 8,
+    marginTop: 6,
     marginBottom: 0,
-    lineHeight: 1.2,
-    letterSpacing: -0.3,
+  },
+  reminderRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    cursor: "pointer",
+    background: "transparent",
+    border: "none",
+    padding: "16px 18px",
+  },
+  reminderLabel: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#1e1f22",
+  },
+  reminderValue: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 18,
+    fontWeight: 500,
+    color: "rgba(30,31,34,0.75)",
+  },
+  reminderChevrons: {
+    display: "grid",
+    fontSize: 12,
+    lineHeight: 0.8,
+    color: "rgba(30,31,34,0.55)",
+    textAlign: "center",
+  },
+  reminderList: {
+    position: "absolute",
+    right: 0,
+    left: "auto",
+    transform: "none",
+    bottom: "calc(100% + 4px)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.65)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,245,250,0.4) 100%)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.35)",
+    overflow: "hidden",
+    zIndex: 7,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    width: "auto",
+    maxWidth: "calc(100vw - 48px)",
+  },
+  reminderOption: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "none",
+    background: "transparent",
+    fontSize: 16,
+    fontWeight: 500,
+    color: "#1e1f22",
+    textAlign: "left",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  reminderOptionActive: {
+    background: "rgba(30,31,34,0.06)",
+    fontWeight: 600,
+  },
+  // Section divider
+  sectionDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    margin: "8px 0",
+  },
+  // Action buttons
+  actionBtn: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    minHeight: 56,
+    padding: "14px 24px",
+    gap: 16,
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 500,
+    color: "#1e1f22",
+    textAlign: "left",
+  },
+  actionBtnDanger: {
+    color: "#b42318",
+    opacity: 0.8,
+  },
+  actionIcon: {
+    width: 28,
+    height: 28,
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  },
+  actionDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginLeft: 68,
+  },
+  // Confirm delete
+  confirmText: {
+    fontSize: 15,
+    fontWeight: 500,
+    color: "rgba(15,23,42,0.62)",
+    textAlign: "center",
+    padding: "24px 16px 16px",
+    lineHeight: 1.4,
+  },
+  confirmBtn: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 56,
+    padding: "14px 24px",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 500,
+    color: "#1e1f22",
+    textAlign: "center",
+  },
+  confirmBtnDanger: {
+    color: "#b42318",
+    fontWeight: 600,
+  },
+  confirmDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
   },
   error: {
     background: "rgba(239,68,68,0.08)",
