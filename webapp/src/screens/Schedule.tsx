@@ -840,7 +840,14 @@ function ScheduleBottomSheet({
               const p: any = (workout as any)?.plan || {};
               return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
             })()
-          : "Запланировать";
+          : selectedWorkoutId
+            ? (() => {
+                const sw = availableWorkouts.find((w) => w.id === selectedWorkoutId);
+                if (!sw) return "Запланировать";
+                const p: any = sw.plan || {};
+                return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
+              })()
+            : "Запланировать";
 
   return createPortal(
     <>
@@ -894,10 +901,10 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          {editingScheduled ? (
+          {(editingScheduled || (needsPick && selectedWorkoutId)) ? (
             <button
               type="button"
-              onClick={() => setEditingWorkoutId(null)}
+              onClick={() => editingScheduled ? setEditingWorkoutId(null) : onSelectWorkout("")}
               aria-label="Назад"
               style={{
                 width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -1074,16 +1081,64 @@ function ScheduleBottomSheet({
               </button>
             </div>
           </>
+        ) : needsPick && !selectedWorkoutId ? (
+          <>
+            {/* Workout cards for picking */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "4px 2px 8px", display: "flex", flexDirection: "column", gap: 12 }}>
+              {availableWorkouts.length ? (
+                availableWorkouts.map((w) => {
+                  const p: any = w.plan || {};
+                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                  const label = dayLabelRU(rawLabel);
+                  const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
+                  const estMin = Number(p.estimatedDuration) || null;
+                  return (
+                    <div key={w.id} style={sh.pickCard}>
+                      {/* Date chip */}
+                      <button
+                        type="button"
+                        style={sh.pickCardDateChip}
+                        onClick={() => onSelectWorkout(w.id)}
+                      >
+                        <Calendar size={13} strokeWidth={2.2} />
+                        <span>Выбрать дату и время</span>
+                      </button>
+                      {/* Title */}
+                      <div style={sh.pickCardTitle}>{label}</div>
+                      {/* Info chips */}
+                      <div style={sh.pickCardMeta}>
+                        {estMin ? (
+                          <span style={sh.pickCardChip}>
+                            <Clock3 size={13} strokeWidth={2.1} color="rgba(15,23,42,0.6)" />
+                            <span>{estMin} мин</span>
+                          </span>
+                        ) : null}
+                        {exCount > 0 ? (
+                          <span style={sh.pickCardChip}>
+                            <Dumbbell size={14} strokeWidth={2.1} color="rgba(15,23,42,0.6)" />
+                            <span>{exCount} упражнений</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 16px" }}>
+                  Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <>
-            {/* Date & Time inline wheels */}
+            {/* Scheduling view (scrollers + save) */}
             <DateTimeWheelInline
               initialDate={date}
               initialTime={time}
               onChange={onDateTimeChange}
             />
 
-            {/* Reminder */}
             <div style={sh.reminderWrap}>
               <button type="button" style={sh.reminderRow} onClick={() => setReminderOpen((v) => !v)}>
                 <span style={sh.reminderLabel}>🔔 Напомнить</span>
@@ -1108,91 +1163,27 @@ function ScheduleBottomSheet({
               ) : null}
             </div>
 
-            {/* Workout pick list */}
-            {needsPick ? (
-              <>
-                <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
-                  {availableWorkouts.length ? (
-                    availableWorkouts.map((w, idx) => {
-                      const p: any = w.plan || {};
-                      const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                      const label = dayLabelRU(rawLabel);
-                      const selected = w.id === selectedWorkoutId;
-                      const exCount = Number(p.totalExercises) || (Array.isArray(p.exercises) ? p.exercises.length : 0);
-                      const estMin = Number(p.estimatedDuration) || null;
-                      return (
-                        <div key={w.id}>
-                          {idx > 0 && <div style={sh.sheetDivider} />}
-                          <button type="button" style={sh.pickRowWl} onClick={() => onSelectWorkout(w.id)}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={sh.sheetRowName}>{label}</div>
-                              <div style={sh.sheetRowBottom}>
-                                <div style={sh.sheetRowChips}>
-                                  {exCount > 0 && (
-                                    <span style={sh.sheetRowChip}>
-                                      <Dumbbell size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                      {exCount} упр.
-                                    </span>
-                                  )}
-                                  {estMin && (
-                                    <span style={sh.sheetRowChip}>
-                                      <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                      {estMin} мин
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={selected ? sh.pickChipActive : sh.pickChip}>
-                                  {selected && <Check size={14} strokeWidth={2.5} color="#0f172a" />}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 24px" }}>
-                      Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : null}
-
-            {/* Error */}
             {error && <div style={sh.error}>{error}</div>}
 
-            {/* Action buttons */}
             <div style={sh.actionWrap}>
-              {canStart ? (
-                <>
-                  <button type="button" style={sh.primaryBtn} onClick={onStart} disabled={saving || readOnly}>
-                    <span style={sh.primaryBtnLabel}>Начать тренировку</span>
-                    <span style={sh.primaryBtnCircle}><ChevronRight size={20} strokeWidth={2.5} /></span>
-                  </button>
-                  {canDelete && (
-                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                      Удалить
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    style={{ ...sh.primaryBtn, opacity: (saving || readOnly || (needsPick && !selectedWorkoutId)) ? 0.5 : 1 }}
-                    onClick={onSave}
-                    disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
-                  >
-                    <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
-                    <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
-                  </button>
-                  {canDelete && (
-                    <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
-                      Удалить
-                    </button>
-                  )}
-                </>
+              <button
+                type="button"
+                style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
+                onClick={onSave}
+                disabled={saving}
+              >
+                <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
+                <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
+              </button>
+              {needsPick && (
+                <button type="button" style={sh.deleteBtn} onClick={() => onSelectWorkout("")}>
+                  Назад
+                </button>
+              )}
+              {canDelete && (
+                <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
+                  Удалить
+                </button>
               )}
             </div>
           </>
@@ -1883,16 +1874,56 @@ const sh: Record<string, CSSProperties> = {
     color: "#0f172a",
     fontWeight: 700,
   },
-  pickRowWl: {
-    width: "100%",
+  pickCard: {
+    padding: "16px 18px",
+    borderRadius: 24,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
     display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    flexShrink: 0,
+  },
+  pickCardDateChip: {
+    alignSelf: "flex-start",
+    display: "inline-flex",
     alignItems: "center",
-    gap: 12,
-    background: "transparent",
+    gap: 6,
+    minHeight: 28,
+    padding: "0 12px",
+    borderRadius: 999,
     border: "none",
     cursor: "pointer",
-    textAlign: "left",
-    padding: 0,
+    fontSize: 13,
+    fontWeight: 600,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    color: "rgba(17,29,46,0.48)",
+  },
+  pickCardTitle: {
+    fontSize: 32,
+    fontWeight: 700,
+    color: "#0f172a",
+    lineHeight: 1.1,
+    letterSpacing: -0.5,
+  },
+  pickCardMeta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 14,
+    paddingTop: 2,
+  },
+  pickCardChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.6)",
+    lineHeight: 1.5,
   },
   scheduledRow: {
     width: "100%",
