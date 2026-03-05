@@ -970,7 +970,7 @@ function ScheduleBottomSheet({
               {canDetails ? (
                 <button type="button" style={sh.primaryBtn} onClick={onDetails} disabled={saving}>
                   <span style={sh.primaryBtnLabel}>Результат</span>
-                  <span style={sh.primaryBtnCircle}><CircleCheckBig size={20} strokeWidth={2.2} /></span>
+                  <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
                 </button>
               ) : canStart ? (
                 <>
@@ -993,7 +993,7 @@ function ScheduleBottomSheet({
                     disabled={saving || readOnly || (needsPick && !selectedWorkoutId)}
                   >
                     <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
-                    <span style={sh.primaryBtnCircle}><CircleCheckBig size={20} strokeWidth={2.2} /></span>
+                    <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
                   </button>
                   {canDelete && (
                     <button type="button" style={sh.deleteBtn} onClick={() => setConfirmDelete(true)} disabled={saving || readOnly}>
@@ -1649,13 +1649,12 @@ const sh: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 12,
-    height: 56,
+    height: 50,
     padding: "0 14px",
     borderRadius: 999,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
     cursor: "pointer",
     fontSize: 18,
     fontWeight: 500,
@@ -1668,16 +1667,23 @@ const sh: Record<string, CSSProperties> = {
     color: "#fff",
   },
   primaryBtnCircle: {
-    width: 40,
-    height: 40,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -6,
+    marginRight: -8,
     color: "#0f172a",
+  },
+  primaryBtnCheck: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#1e1f22",
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
   deleteBtn: {
     background: "transparent",
