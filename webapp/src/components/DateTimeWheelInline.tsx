@@ -24,7 +24,7 @@ const MINUTE_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 /* Physics */
 const DECEL = 0.96;
 const VELOCITY_MIN = 0.3;
-const SNAP_MS = 450;
+const SNAP_MS = 320;
 const VELOCITY_SAMPLES = 5;
 const VELOCITY_SCALE = 11;
 const TAP_THRESHOLD = 6;
