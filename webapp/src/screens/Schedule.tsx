@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   getScheduleOverview,
@@ -700,7 +701,7 @@ function ScheduleBottomSheet({
       })()
     : "Запланировать";
 
-  return (
+  return createPortal(
     <>
       {/* Overlay */}
       <div
@@ -894,7 +895,8 @@ function ScheduleBottomSheet({
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </div>
 
-    </>
+    </>,
+    document.body
   );
 }
 

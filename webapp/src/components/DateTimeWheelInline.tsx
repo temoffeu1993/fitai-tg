@@ -10,9 +10,9 @@ const DATE_PAST_DAYS = 7;
 const DEFAULT_DATE_COUNT = 37;
 const MAX_DATE_COUNT = 365;
 
-const TIME_ITEM_H = 64;
+const TIME_ITEM_H = 80;
 const TIME_VISIBLE = 1;
-const TIME_COL_GAP = 10;
+const TIME_COL_GAP = 12;
 
 const HOUR_BASE = 24;
 const MIN_BASE = 60;
@@ -297,7 +297,11 @@ export default function DateTimeWheelInline({
       </div>
 
       {/* Time wheels */}
-      <div style={st.timeWrap}>
+      <div
+        style={st.timeWrap}
+        onTouchMove={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
         <div style={st.timeColonOverlay}>:</div>
         <div style={st.timeInner}>
           <div style={st.timeColWrap}>
@@ -383,8 +387,9 @@ const st: Record<string, CSSProperties> = {
   root: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 16,
     width: "100%",
+    paddingBottom: 8,
   },
 
   /* ---- Date scroller ---- */
@@ -502,7 +507,7 @@ const st: Record<string, CSSProperties> = {
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -50%)",
-    fontSize: 44,
+    fontSize: 52,
     fontWeight: 800,
     color: "#1e1f22",
     lineHeight: 1,
@@ -536,7 +541,7 @@ const st: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 56,
+    fontSize: 68,
     fontWeight: 800,
     color: "#1e1f22",
     lineHeight: 1,
@@ -549,7 +554,7 @@ const st: Record<string, CSSProperties> = {
   timeItemActive: {
     color: "#1e1f22",
     fontWeight: 900,
-    fontSize: 60,
+    fontSize: 74,
     lineHeight: 1,
   },
 };
