@@ -413,7 +413,7 @@ export default function Schedule() {
 
   const handleModalDelete = async () => {
     if (!modal) return;
-    const workoutId = modal.workout?.id;
+    const workoutId = modal.workout?.id || modal.selectedWorkoutId;
     if (!workoutId) return;
     setModal((prev) => (prev ? { ...prev, saving: true, error: null } : prev));
     try {
