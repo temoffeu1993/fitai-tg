@@ -578,7 +578,7 @@ export default function Schedule() {
         <div style={ux.card}>
           <div style={wl.header}>
             <ClipboardList size={18} strokeWidth={2.5} color="#0f172a" />
-            <span style={wl.headerTitle}>Запланированные</span>
+            <span style={wl.headerTitle}>Запланировано</span>
           </div>
           <div style={wl.body}>
             {upcomingPreview.length === 0 ? (
@@ -621,7 +621,7 @@ export default function Schedule() {
           <div style={ux.card}>
             <div style={wl.header}>
               <CircleCheckBig size={18} strokeWidth={2.5} color="#0f172a" />
-              <span style={wl.headerTitle}>Выполненные</span>
+              <span style={wl.headerTitle}>Выполнено</span>
             </div>
             <div style={wl.body}>
               {completed.map((item, idx) => {
@@ -826,13 +826,21 @@ function ScheduleBottomSheet({
     }, SHEET_EXIT_MS + 20);
   }, [closing, onClose]);
 
-  const title = !needsPick
-    ? (() => {
-        const p: any = (workout as any)?.plan || {};
-        const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-        return dayLabelRU(rawLabel);
-      })()
-    : "Запланировать";
+  const title = readOnly
+    ? "Выполнено"
+    : hasScheduled
+      ? "Запланировано"
+      : editingScheduled
+        ? (() => {
+            const p: any = editingScheduled.plan || {};
+            return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
+          })()
+        : !needsPick
+          ? (() => {
+              const p: any = (workout as any)?.plan || {};
+              return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
+            })()
+          : "Запланировать";
 
   return createPortal(
     <>
@@ -919,18 +927,29 @@ function ScheduleBottomSheet({
         {readOnly ? (
           <>
             {/* Completed workouts list */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
               {completedWorkouts.map((w, idx) => {
                 const p: any = w.plan || {};
-                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                const label = dayLabelRU(rawLabel);
+                const title = resolveWorkoutTitle(p);
                 return (
                   <div key={w.id}>
-                    <button type="button" style={sh.pickRow} onClick={() => onDetails(w.id)}>
-                      <div style={sh.pickName}>{label}</div>
-                      <span style={sh.completedArrow}>→</span>
-                    </button>
-                    {idx < completedWorkouts.length - 1 && <div style={sh.pickDivider} />}
+                    {idx > 0 && <div style={sh.sheetDivider} />}
+                    <div style={sh.sheetRow} onClick={() => onDetails(w.id)}>
+                      <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowBottom}>
+                        <div style={sh.sheetRowChips}>
+                          <span style={sh.sheetRowChip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(w.scheduledFor)}
+                          </span>
+                          <span style={sh.sheetRowChip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {formatTime(w.scheduledFor)}
+                          </span>
+                        </div>
+                        <span style={sh.sheetRowArrow}>→</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -939,29 +958,31 @@ function ScheduleBottomSheet({
         ) : hasScheduled ? (
           <>
             {/* Scheduled workouts list */}
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
               {scheduledWorkouts.map((w, idx) => {
                 const p: any = w.plan || {};
-                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                const label = dayLabelRU(rawLabel);
-                const wTime = formatTime(w.scheduledFor);
+                const title = resolveWorkoutTitle(p);
                 return (
                   <div key={w.id}>
-                    <div style={sh.scheduledRow}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={sh.pickName}>{label}</div>
-                        <div style={sh.scheduledChips}>
-                          <span style={sh.scheduledChip}>
+                    {idx > 0 && <div style={sh.sheetDivider} />}
+                    <div style={sh.sheetRow}>
+                      <div style={sh.sheetRowName}>{title}</div>
+                      <div style={sh.sheetRowBottom}>
+                        <div style={sh.sheetRowChips}>
+                          <span style={sh.sheetRowChip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(w.scheduledFor)}
+                          </span>
+                          <span style={sh.sheetRowChip}>
                             <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {wTime}
+                            {formatTime(w.scheduledFor)}
                           </span>
                         </div>
+                        <button type="button" style={sh.scheduledEditBtn} onClick={() => setEditingWorkoutId(w.id)}>
+                          <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                        </button>
                       </div>
-                      <button type="button" style={sh.scheduledEditBtn} onClick={() => setEditingWorkoutId(w.id)}>
-                        <Pencil size={16} strokeWidth={2} color="rgba(15,23,42,0.5)" />
-                      </button>
                     </div>
-                    {idx < scheduledWorkouts.length - 1 && <div style={sh.pickDivider} />}
                   </div>
                 );
               })}
@@ -1856,11 +1877,48 @@ const sh: Record<string, CSSProperties> = {
     borderRadius: 999,
     flexShrink: 0,
   },
-  completedArrow: {
+  sheetRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  },
+  sheetRowName: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1e1f22",
+    lineHeight: 1.25,
+  },
+  sheetRowBottom: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sheetRowChips: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  sheetRowChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
+  },
+  sheetRowArrow: {
     fontSize: 14,
     fontWeight: 400,
     color: "rgba(15,23,42,0.62)",
     flexShrink: 0,
+  },
+  sheetDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    margin: "12px 0",
   },
   deleteBtn: {
     background: "transparent",
