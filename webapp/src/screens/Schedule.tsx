@@ -941,8 +941,7 @@ function ScheduleBottomSheet({
           ) : (
             <div style={{ width: 32, flexShrink: 0 }} />
           )}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 16, fontWeight: 600, color: "#0f172a", lineHeight: 1.2 }}>
-            {readOnly ? <CircleCheckBig size={16} strokeWidth={2.5} /> : (hasScheduled || editingScheduled || needsPick) ? <ClipboardList size={16} strokeWidth={2.5} /> : null}
+          <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
             {title}
           </div>
           <button
