@@ -1013,7 +1013,7 @@ function ScheduleBottomSheet({
                         <div
                           key={w.id}
                           className="sh-stack-card"
-                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H }}
+                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, ...(isSelected ? { minHeight: STACK_ACTIVE_H } : { height: STACK_COLLAPSED_H }) }}
                           onClick={() => setSelectedCompletedCardId(w.id)}
                         >
                           {isSelected ? (
@@ -1102,7 +1102,7 @@ function ScheduleBottomSheet({
                         <div
                           key={w.id}
                           className="sh-stack-card"
-                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H }}
+                          style={{ ...sh.stkCard, top, zIndex: stackIndex + 1, ...(isSelected ? { minHeight: STACK_ACTIVE_H } : { height: STACK_COLLAPSED_H }) }}
                           onClick={() => setSelectedScheduledCardId(w.id)}
                         >
                           {isSelected ? (
@@ -1269,7 +1269,7 @@ function ScheduleBottomSheet({
                             ...sh.stkCard,
                             top,
                             zIndex: stackIndex + 1,
-                            height: isSelected ? STACK_ACTIVE_H : STACK_COLLAPSED_H,
+                            ...(isSelected ? { minHeight: STACK_ACTIVE_H } : { height: STACK_COLLAPSED_H }),
                           }}
                           onClick={() => setSelectedCardId(w.id)}
                         >
@@ -2092,8 +2092,8 @@ const sh: Record<string, CSSProperties> = {
     boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
     backdropFilter: "blur(18px)",
     WebkitBackdropFilter: "blur(18px)",
-    transition: "top 320ms ease, height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
-    willChange: "top, height, transform",
+    transition: "top 320ms ease, height 320ms ease, min-height 320ms ease, transform 220ms ease, box-shadow 220ms ease",
+    willChange: "top, height, min-height, transform",
     cursor: "pointer",
     overflow: "hidden",
     display: "flex",
