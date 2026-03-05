@@ -380,6 +380,7 @@ schedule.patch(
     const body = req.body ?? {};
     const date = typeof body.date === "string" ? body.date : "";
     const time = typeof body.time === "string" ? body.time : "";
+    const mode: "add" | "replace" = body.mode === "add" ? "add" : "replace";
     const utcOffsetMinutesRaw = body.utcOffsetMinutes;
     const dayUtcOffsetMinutesRaw =
       body.dayUtcOffsetMinutes != null ? body.dayUtcOffsetMinutes : utcOffsetMinutesRaw;
@@ -475,7 +476,7 @@ schedule.patch(
         ...dateConflictRows.map((row) => row.id),
       ]);
       const conflictIds = [...conflictIdSet];
-      if (conflictIds.length > 0) {
+      if (mode === "replace" && conflictIds.length > 0) {
         await q(
           `UPDATE planned_workouts
               SET status = 'pending',
@@ -505,7 +506,7 @@ schedule.patch(
       await upsertScheduleDate(userId, date, time);
       await syncScheduleDatesWithPlannedWorkouts(userId);
 
-      return { updated, conflictIds };
+      return { updated, conflictIds: mode === "replace" ? conflictIds : [] };
     });
 
     const userProfile = await buildUserProfile(userId).catch(() => null);

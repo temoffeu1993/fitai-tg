@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft } from "lucide-react";
+import { ClipboardList, CircleCheckBig, Calendar, Clock3, Check, ChevronRight, Trash2, Pencil, Dumbbell, ArrowLeft, Plus } from "lucide-react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -316,7 +316,7 @@ export default function Schedule() {
     await performModalSave(effectiveWorkout.id, date, time);
   };
 
-  const performModalSave = async (targetWorkoutId: string, date: string, time: string) => {
+  const performModalSave = async (targetWorkoutId: string, date: string, time: string, mode?: "add" | "replace") => {
     const when = parseLocalDateTime(date, time);
     if (!when) {
       setModal((prev) =>
@@ -333,6 +333,7 @@ export default function Schedule() {
         time,
         utcOffsetMinutes,
         dayUtcOffsetMinutes,
+        mode,
       });
       setPlanned((prev) => mergePlanned(prev, updated));
       if (unscheduledIds.length > 0) {
@@ -359,7 +360,12 @@ export default function Schedule() {
 
   const handleReplaceConfirm = async () => {
     if (!replaceConfirm || !modal || modal.saving) return;
-    await performModalSave(replaceConfirm.targetWorkoutId, replaceConfirm.date, replaceConfirm.time);
+    await performModalSave(replaceConfirm.targetWorkoutId, replaceConfirm.date, replaceConfirm.time, "replace");
+  };
+
+  const handleReplaceAdd = async () => {
+    if (!replaceConfirm || !modal || modal.saving) return;
+    await performModalSave(replaceConfirm.targetWorkoutId, replaceConfirm.date, replaceConfirm.time, "add");
   };
 
   const handleModalDelete = async () => {
@@ -636,6 +642,7 @@ export default function Schedule() {
           scheduledWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "scheduled")}
           replaceConfirm={replaceConfirm}
           onReplaceConfirm={handleReplaceConfirm}
+          onReplaceAdd={handleReplaceAdd}
           onReplaceCancel={() => { if (!modal?.saving) setReplaceConfirm(null); }}
         />
       )}
@@ -682,6 +689,7 @@ function ScheduleBottomSheet({
   scheduledWorkouts,
   replaceConfirm,
   onReplaceConfirm,
+  onReplaceAdd,
   onReplaceCancel,
 }: {
   workout: PlannedWorkout | null;
@@ -702,6 +710,7 @@ function ScheduleBottomSheet({
   scheduledWorkouts: PlannedWorkout[];
   replaceConfirm: ReplaceConfirmState | null;
   onReplaceConfirm: () => void;
+  onReplaceAdd: () => void;
   onReplaceCancel: () => void;
 }) {
   const [renderOpen, setRenderOpen] = useState(true);
@@ -716,6 +725,7 @@ function ScheduleBottomSheet({
   const [reminderValue, setReminderValue] = useState("За 1 час");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<PlannedWorkout | null>(null);
+  const [addingWorkout, setAddingWorkout] = useState(false);
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [pageAnimating, setPageAnimating] = useState(false);
@@ -725,7 +735,7 @@ function ScheduleBottomSheet({
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
   const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
-  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkout && !selectedWorkoutId;
+  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkout && !selectedWorkoutId && !addingWorkout;
 
   const applyEntered = (v: boolean) => {
     enteredRef.current = v;
@@ -790,13 +800,15 @@ function ScheduleBottomSheet({
     ? "Выполнено"
     : hasScheduled
       ? "Запланировано"
-      : editingWorkout
-        ? resolveWorkoutTitle(editingWorkout.plan || {})
-        : needsPick && selectedWorkoutId
-          ? resolveWorkoutTitle(availableWorkouts.find((aw) => aw.id === selectedWorkoutId)?.plan || {})
-          : !needsPick
-            ? resolveWorkoutTitle((workout as any)?.plan || {})
-            : "Запланировать";
+      : addingWorkout && !selectedWorkoutId
+        ? "Добавить тренировку"
+        : editingWorkout
+          ? resolveWorkoutTitle(editingWorkout.plan || {})
+          : needsPick && selectedWorkoutId
+            ? resolveWorkoutTitle(availableWorkouts.find((aw) => aw.id === selectedWorkoutId)?.plan || {})
+            : !needsPick
+              ? resolveWorkoutTitle((workout as any)?.plan || {})
+              : "Запланировать";
 
   return createPortal(
     <>
@@ -857,7 +869,7 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: `0 8px ${(confirmDelete || replaceConfirm) ? 0 : 8}px`, flexShrink: 0 }}>
-          {(!confirmDelete && !replaceConfirm && (editingWorkout || (needsPick && selectedWorkoutId))) ? (
+          {(!confirmDelete && !replaceConfirm && (editingWorkout || addingWorkout || (needsPick && selectedWorkoutId))) ? (
             <button
               type="button"
               onClick={() => {
@@ -866,6 +878,9 @@ function ScheduleBottomSheet({
                   onDateTimeChange(toDateInput(editingWorkout.scheduledFor), toTimeInput(editingWorkout.scheduledFor));
                   onSelectWorkout("");
                   setEditingWorkout(null);
+                } else if (addingWorkout) {
+                  setAddingWorkout(false);
+                  onSelectWorkout("");
                 } else {
                   onSelectWorkout("");
                 }
@@ -981,6 +996,58 @@ function ScheduleBottomSheet({
                   </div>
                 );
               })}
+              {/* Add workout button */}
+              {availableWorkouts.length > 0 && (
+                <>
+                  <div style={sh.sheetDivider} />
+                  <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
+                    <button
+                      type="button"
+                      style={sh.addWorkoutBtn}
+                      onClick={() => { setAddingWorkout(true); goToPage("forward"); }}
+                    >
+                      <Plus size={22} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        ) : addingWorkout ? (
+          <>
+            {/* Adding workout to a date with existing scheduled workouts */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
+              {availableWorkouts.length ? (
+                availableWorkouts.map((w, idx) => {
+                  const p: any = w.plan || {};
+                  const label = resolveWorkoutTitle(p);
+                  return (
+                    <div key={w.id}>
+                      {idx > 0 && <div style={sh.sheetDivider} />}
+                      <div style={sh.sheetRow} onClick={() => { onSelectWorkout(w.id); goToPage("forward"); }}>
+                        <div style={sh.sheetRowName}>{label}</div>
+                        <div style={sh.sheetRowBottom}>
+                          <div style={sh.sheetRowChips}>
+                            <span style={sh.sheetRowChip}>
+                              <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              Дата
+                            </span>
+                            <span style={sh.sheetRowChip}>
+                              <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                              Время
+                            </span>
+                          </div>
+                          <Pencil size={18} strokeWidth={2} color="#1e1f22" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 0" }}>
+                  Нет доступных тренировок для добавления.
+                </div>
+              )}
             </div>
           </>
         ) : replaceConfirm ? (
@@ -988,14 +1055,18 @@ function ScheduleBottomSheet({
             {/* Replace confirm view */}
             <div style={sh.confirmWrap}>
               <p style={sh.confirmBody}>
-                На эту дату уже стоит тренировка «{replaceConfirm.conflictTitle}». Заменить на «{replaceConfirm.targetTitle}»?
+                На эту дату уже запланирована тренировка «{replaceConfirm.conflictTitle}». Что сделать с «{replaceConfirm.targetTitle}»?
               </p>
               <div style={sh.confirmButtonGroup}>
-                <button type="button" style={sh.confirmBtnDanger} onClick={onReplaceConfirm} disabled={saving}>
+                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceAdd} disabled={saving}>
+                  {saving ? "Сохраняем..." : "Добавить"}
+                </button>
+                <div style={sh.confirmDividerBtn} />
+                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceConfirm} disabled={saving}>
                   {saving ? "Сохраняем..." : "Заменить"}
                 </button>
                 <div style={sh.confirmDividerBtn} />
-                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceCancel} disabled={saving}>
+                <button type="button" style={sh.confirmBtnDanger} onClick={onReplaceCancel} disabled={saving}>
                   Отмена
                 </button>
               </div>
@@ -1922,6 +1993,19 @@ const sh: Record<string, CSSProperties> = {
     height: 1,
     background: "rgba(15,23,42,0.06)",
     margin: "12px 0",
+  },
+  addWorkoutBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    border: "none",
+    background: "linear-gradient(145deg, #e8e9ec, #d4d5d8)",
+    boxShadow: "4px 4px 10px rgba(0,0,0,0.08), -4px -4px 10px rgba(255,255,255,0.9), inset 1px 1px 2px rgba(255,255,255,0.6)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    color: "#1e1f22",
   },
   deleteBtnRow: {
     background: "transparent",

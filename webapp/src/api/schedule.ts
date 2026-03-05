@@ -85,7 +85,7 @@ export async function updatePlannedWorkout(
 
 export async function reschedulePlannedWorkout(
   id: string,
-  input: { date: string; time: string; utcOffsetMinutes: number; dayUtcOffsetMinutes?: number }
+  input: { date: string; time: string; utcOffsetMinutes: number; dayUtcOffsetMinutes?: number; mode?: "add" | "replace" }
 ): Promise<{ plannedWorkout: PlannedWorkout; unscheduledIds: string[] }> {
   const r = await apiFetch(`/api/planned-workouts/${id}/reschedule`, {
     method: "PATCH",

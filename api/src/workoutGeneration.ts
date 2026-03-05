@@ -565,20 +565,28 @@ workoutGeneration.post(
         warnings: workout.warnings,
       };
 
-      await q(
-        `INSERT INTO planned_workouts
-         (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
-         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)
-         ON CONFLICT (user_id, workout_date)
-         DO UPDATE SET
-           data = $3::jsonb,
-           plan = $3::jsonb,
-           status = 'pending',
-           generation_id = $4::uuid,
-           updated_at = now()`,
+      const updated = await q<{ id: string }>(
+        `UPDATE planned_workouts
+            SET data = $3::jsonb,
+                plan = $3::jsonb,
+                status = 'pending',
+                generation_id = $4::uuid,
+                updated_at = now()
+          WHERE user_id = $1
+            AND workout_date = CURRENT_DATE + make_interval(days => $2)
+            AND status = 'pending'
+          RETURNING id`,
         [uid, i, workoutData, generationId]
       );
+      if (updated.length === 0) {
+        await q(
+          `INSERT INTO planned_workouts
+           (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
+           VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
+                   (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)`,
+          [uid, i, workoutData, generationId]
+        );
+      }
       console.log(`  ✓ Saved day ${i + 1}: ${workout.dayLabel}`);
     }
     console.log(`✅ All workouts saved to planned_workouts (generation ${generationId})`);
@@ -944,18 +952,26 @@ workoutGeneration.post(
       warnings: workout.warnings,
     };
 
-    await q(
-      `INSERT INTO planned_workouts
-       (user_id, workout_date, data, plan, scheduled_for, status)
-       VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')
-       ON CONFLICT (user_id, workout_date)
-       DO UPDATE SET
-         data = $2::jsonb,
-         plan = $2::jsonb,
-         status = 'pending',
-         updated_at = now()`,
+    const updated = await q<{ id: string }>(
+      `UPDATE planned_workouts
+          SET data = $2::jsonb,
+              plan = $2::jsonb,
+              status = 'pending',
+              updated_at = now()
+        WHERE user_id = $1
+          AND workout_date = CURRENT_DATE
+          AND status = 'pending'
+        RETURNING id`,
       [uid, workoutData]
     );
+    if (updated.length === 0) {
+      await q(
+        `INSERT INTO planned_workouts
+         (user_id, workout_date, data, plan, scheduled_for, status)
+         VALUES ($1, CURRENT_DATE, $2::jsonb, $2::jsonb, CURRENT_TIMESTAMP, 'pending')`,
+        [uid, workoutData]
+      );
+    }
 
     res.json({
       ok: true,
@@ -1078,20 +1094,28 @@ workoutGeneration.post(
       };
 
       // Use different dates for each workout
-      await q(
-        `INSERT INTO planned_workouts
-         (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
-         VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
-                 (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)
-         ON CONFLICT (user_id, workout_date)
-         DO UPDATE SET
-           data = $3::jsonb,
-           plan = $3::jsonb,
-           status = 'pending',
-           generation_id = $4::uuid,
-           updated_at = now()`,
+      const updated = await q<{ id: string }>(
+        `UPDATE planned_workouts
+            SET data = $3::jsonb,
+                plan = $3::jsonb,
+                status = 'pending',
+                generation_id = $4::uuid,
+                updated_at = now()
+          WHERE user_id = $1
+            AND workout_date = CURRENT_DATE + make_interval(days => $2)
+            AND status = 'pending'
+          RETURNING id`,
         [uid, i, workoutData, generationId]
       );
+      if (updated.length === 0) {
+        await q(
+          `INSERT INTO planned_workouts
+           (user_id, workout_date, data, plan, scheduled_for, status, generation_id)
+           VALUES ($1, CURRENT_DATE + make_interval(days => $2), $3::jsonb, $3::jsonb,
+                   (CURRENT_DATE + make_interval(days => $2))::timestamp, 'pending', $4::uuid)`,
+          [uid, i, workoutData, generationId]
+        );
+      }
     }
 
     // Cleanup leftover auto-generated workouts not in new plan window
