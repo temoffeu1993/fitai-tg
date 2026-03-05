@@ -757,8 +757,9 @@ function ScheduleBottomSheet({
         </div>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0 12px" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px" }}>
+          <div style={{ width: 32, flexShrink: 0 }} />
+          <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 600, color: "#0f172a", lineHeight: 1.2 }}>
             {title}
           </div>
           <button
@@ -766,22 +767,24 @@ function ScheduleBottomSheet({
             onClick={requestClose}
             aria-label="Закрыть"
             style={{
-              border: "none",
-              background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-              boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-              color: "rgba(15,23,42,0.55)",
-              cursor: "pointer",
-              fontSize: 16,
-              lineHeight: 1,
               width: 32,
               height: 32,
-              display: "grid",
-              placeItems: "center",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              background: "transparent",
               borderRadius: 999,
+              color: "rgba(15,23,42,0.62)",
+              cursor: "pointer",
               padding: 0,
+              flexShrink: 0,
             }}
           >
-            ✕
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
@@ -1297,10 +1300,7 @@ const cal: Record<string, CSSProperties> = {
     overflow: "hidden",
     position: "relative",
   },
-  today: {
-    border: "2px solid #1e1f22",
-    boxShadow: "0 4px 12px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-  },
+  today: {},
   planned: {
     background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
     border: "1px solid rgba(255,255,255,0.78)",
