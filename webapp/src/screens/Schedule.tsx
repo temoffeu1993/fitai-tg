@@ -772,7 +772,7 @@ function ScheduleBottomSheet({
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderValue, setReminderValue] = useState("За 1 час");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [editingWorkout, setEditingWorkout] = useState<PlannedWorkout | null>(null);
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [pageAnimating, setPageAnimating] = useState(false);
@@ -782,8 +782,7 @@ function ScheduleBottomSheet({
   const readOnly = workout?.status === "completed";
   const canStart = workout?.status === "scheduled";
   const canDetails = workout?.status === "completed" && Boolean(workout?.resultSessionId);
-  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkoutId && !selectedWorkoutId;
-  const editingScheduled = editingWorkoutId ? scheduledWorkouts.find((w) => w.id === editingWorkoutId) ?? null : null;
+  const hasScheduled = !workout && scheduledWorkouts.length > 0 && !editingWorkout && !selectedWorkoutId;
 
   const applyEntered = (v: boolean) => {
     enteredRef.current = v;
@@ -848,9 +847,9 @@ function ScheduleBottomSheet({
     ? "Выполнено"
     : hasScheduled
       ? "Запланировано"
-      : editingScheduled
+      : editingWorkout
         ? (() => {
-            const p: any = editingScheduled.plan || {};
+            const p: any = editingWorkout.plan || {};
             return dayLabelRU(String(p.dayLabel || p.title || "Тренировка"));
           })()
         : needsPick && selectedWorkoutId
@@ -925,10 +924,10 @@ function ScheduleBottomSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          {(editingScheduled || (needsPick && selectedWorkoutId)) ? (
+          {(editingWorkout || (needsPick && selectedWorkoutId)) ? (
             <button
               type="button"
-              onClick={() => { editingScheduled ? setEditingWorkoutId(null) : onSelectWorkout(""); goToPage("backward"); }}
+              onClick={() => { editingWorkout ? setEditingWorkout(null) : onSelectWorkout(""); goToPage("backward"); }}
               aria-label="Назад"
               style={{
                 width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -1029,7 +1028,7 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
-                        <Pencil size={18} strokeWidth={2} color="#1e1f22" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
+                        <Pencil size={18} strokeWidth={2} color="#1e1f22" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkout(w); goToPage("forward"); }} />
                       </div>
                     </div>
                   </div>
@@ -1052,12 +1051,12 @@ function ScheduleBottomSheet({
               Удалить
             </button>
           </>
-        ) : editingScheduled ? (
+        ) : editingWorkout ? (
           <>
             {/* Edit scheduled workout */}
             <DateTimeWheelInline
               initialDate={date}
-              initialTime={toTimeInput(editingScheduled.scheduledFor)}
+              initialTime={toTimeInput(editingWorkout.scheduledFor)}
               onChange={onDateTimeChange}
             />
 
@@ -1089,13 +1088,13 @@ function ScheduleBottomSheet({
               <button
                 type="button"
                 style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
-                onClick={() => { onSelectWorkout(editingScheduled.id); onSave(); }}
+                onClick={() => { onSelectWorkout(editingWorkout.id); onSave(); }}
                 disabled={saving}
               >
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
                 <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
               </button>
-              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(editingScheduled.id); setConfirmDelete(true); }}>
+              <button type="button" style={sh.deleteBtn} onClick={() => { onSelectWorkout(editingWorkout.id); setConfirmDelete(true); }}>
                 Удалить
               </button>
             </div>
