@@ -512,32 +512,14 @@ export default function Schedule() {
 	              const completedItem = items.find((w) => w.status === "completed");
 	              const scheduledItem = items.find((w) => w.status === "scheduled");
 	              const primaryPlanned = scheduledItem ?? items[0] ?? null;
-	              const plannedTag = (() => {
-	                const tagItem = scheduledItem ?? completedItem;
-	                if (!tagItem) return "";
-	                const p: any = tagItem.plan || {};
-	                const raw = String(p.dayLabel || p.title || ""); 
-	                return dayCodeShort(raw);
-	              })();
-	              let displayTime = primaryPlanned ? formatTime(primaryPlanned.scheduledFor) : null;
-	              let extraCount = primaryPlanned ? Math.max(items.length - 1, 0) : 0;
 	              const cellState = hasCompleted
 	                ? "completed"
 	                : primaryPlanned
 	                ? "planned"
 	                : "empty";
-	              if (cellState === "completed") {
-	                displayTime = null;
-	                extraCount = 0;
-	              }
-	              const showTime = displayTime && cellState === "planned";
-	              const timeStyle =
-	                cellState === "planned"
-	                  ? { ...cal.timeText, ...cal.timeTextPlanned }
-	                  : null;
-              const [timeHours, timeMinutes] = displayTime ? displayTime.split(":") : ["", ""];
-              const timeTop = timeHours ? `${timeHours}:` : "";
-              const timeBottom = timeMinutes ?? "";
+	              const completedCount = items.filter((w) => w.status === "completed").length;
+	              const scheduledCount = items.filter((w) => w.status === "scheduled").length;
+	              const cellCount = cellState === "completed" ? completedCount : scheduledCount;
               return (
                 <button
                   key={key}
@@ -551,21 +533,9 @@ export default function Schedule() {
 	                  onClick={() => openDate(day)}
 	                >
 	                  <div style={cal.dateNum}>{day.getDate()}</div>
-	                  {(cellState === "planned" || cellState === "completed") && plannedTag ? (
-	                    <div style={cal.workoutTag}>{plannedTag}</div>
-	                  ) : null}
-	                  {showTime && timeStyle && (
-	                    <div style={timeStyle}>
-	                      <span style={cal.timeLineTop}>{timeTop}</span>
-	                      <span style={cal.timeLineBottom}>{timeBottom}</span>
-	                    </div>
-	                  )}
-                  {cellState === "completed" && (
-                    <div style={cal.checkMark}>✓</div>
+                  {cellCount > 0 && (
+                    <div style={cal.cellCount}>{cellCount}</div>
                   )}
-                  {extraCount > 0 ? (
-                    <div style={cal.countBadge}>+{extraCount}</div>
-                  ) : null}
                 </button>
               );
             })}
@@ -1652,22 +1622,13 @@ const cal: Record<string, CSSProperties> = {
     lineHeight: 1,
     marginTop: 1,
   },
-  checkMark: {
+  cellCount: {
     position: "absolute",
     right: 7,
     bottom: 5,
     fontSize: 11,
     fontWeight: 700,
     color: "rgba(15,23,42,0.45)",
-  },
-  countBadge: {
-    justifySelf: "start",
-    fontSize: 9,
-    fontWeight: 600,
-    background: "rgba(255,255,255,.85)",
-    borderRadius: 999,
-    padding: "2px 5px",
-    color: "rgba(15,23,42,0.55)",
   },
 };
 
