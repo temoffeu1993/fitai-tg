@@ -295,13 +295,14 @@ export default function Schedule() {
     });
   };
 
-  const handleModalSave = async () => {
+  const handleModalSave = async (workoutId?: string) => {
     if (!modal) return;
     const { workout, date, time, selectedWorkoutId, allowScheduledPick } = modal;
     if (workout?.status === "completed") return;
     const candidatePool = allowScheduledPick ? assignableWorkouts : pendingWorkouts;
+    const id = workoutId || selectedWorkoutId;
     const effectiveWorkout =
-      workout ?? candidatePool.find((w) => w.id === selectedWorkoutId) ?? planned.find((w) => w.id === selectedWorkoutId) ?? null;
+      workout ?? candidatePool.find((w) => w.id === id) ?? planned.find((w) => w.id === id) ?? null;
     if (!effectiveWorkout) {
       setModal((prev) =>
         prev ? { ...prev, error: "Выбери тренировку" } : prev
@@ -748,7 +749,7 @@ function ScheduleBottomSheet({
   onClose: () => void;
   onDateTimeChange: (date: string, time: string) => void;
   onSelectWorkout: (id: string) => void;
-  onSave: () => void;
+  onSave: (workoutId?: string) => void;
   onDelete: () => void;
   onStart: () => void;
   onDetails: (workoutId?: string) => void;
@@ -1121,7 +1122,7 @@ function ScheduleBottomSheet({
                 type="button"
                 className="intro-primary-btn ws-primary-btn"
                 style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
-                onClick={() => { onSelectWorkout(editingWorkout.id); onSave(); }}
+                onClick={() => onSave(editingWorkout.id)}
                 disabled={saving}
               >
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
@@ -1172,7 +1173,7 @@ function ScheduleBottomSheet({
                 type="button"
                 className="intro-primary-btn ws-primary-btn"
                 style={{ ...sh.primaryBtn, opacity: saving ? 0.5 : 1 }}
-                onClick={onSave}
+                onClick={() => onSave()}
                 disabled={saving}
               >
                 <span style={sh.primaryBtnLabel}>{saving ? "Сохраняем..." : "Сохранить"}</span>
