@@ -356,34 +356,6 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
     onChange(toDateKeyLocal(dt.date), toHHMM(settledHour.current, m));
   }, [dates, onChange]);
 
-  // Time highlight via DOM — active item gets 92/900, others stay 88/800
-  const hourStripRef = useRef<HTMLDivElement>(null);
-  const minStripRef = useRef<HTMLDivElement>(null);
-  const lastHourHighlight = useRef(HOUR_COUNT * HOUR_MID_COPY + initTime.hh);
-  const lastMinHighlight = useRef(MINUTE_COUNT * MINUTE_MID_COPY + initTime.mm);
-
-  const highlightHour = useCallback((idx: number) => {
-    if (idx === lastHourHighlight.current) return;
-    const c = hourStripRef.current;
-    if (!c) return;
-    const prev = c.children[lastHourHighlight.current] as HTMLElement | undefined;
-    const next = c.children[idx] as HTMLElement | undefined;
-    if (prev) { prev.style.fontSize = "88px"; prev.style.fontWeight = "800"; }
-    if (next) { next.style.fontSize = "92px"; next.style.fontWeight = "900"; }
-    lastHourHighlight.current = idx;
-  }, []);
-
-  const highlightMin = useCallback((idx: number) => {
-    if (idx === lastMinHighlight.current) return;
-    const c = minStripRef.current;
-    if (!c) return;
-    const prev = c.children[lastMinHighlight.current] as HTMLElement | undefined;
-    const next = c.children[idx] as HTMLElement | undefined;
-    if (prev) { prev.style.fontSize = "88px"; prev.style.fontWeight = "800"; }
-    if (next) { next.style.fontSize = "92px"; next.style.fontWeight = "900"; }
-    lastMinHighlight.current = idx;
-  }, []);
-
   const dateWheel = useWheel({
     totalItems: dates.length,
     itemSize: DATE_ITEM_W,
@@ -400,7 +372,6 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
     initialOffset: initHourOffset,
     wrap: { base: HOUR_COUNT, midCopy: HOUR_MID_COPY },
     onSettle: onHourSettle,
-    onHighlight: highlightHour,
   });
 
   const minWheel = useWheel({
@@ -410,7 +381,6 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
     initialOffset: initMinOffset,
     wrap: { base: MINUTE_COUNT, midCopy: MINUTE_MID_COPY },
     onSettle: onMinSettle,
-    onHighlight: highlightMin,
   });
 
   // Tap handlers
@@ -479,11 +449,10 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
             onTouchMove={hourWheel.onTouchMove}
             onTouchEnd={handleHourTap}
           >
-            <div ref={(el) => { (hourWheel.stripRef as any).current = el; (hourStripRef as any).current = el; }} style={st.timeStrip}>
-              {hourItems.map((h, i) => {
-                const isInit = i === HOUR_COUNT * HOUR_MID_COPY + initTime.hh;
-                return <div key={i} style={isInit ? st.timeItemActive : st.timeItem}>{String(h).padStart(2, "0")}</div>;
-              })}
+            <div ref={hourWheel.stripRef} style={st.timeStrip}>
+              {hourItems.map((h, i) => (
+                <div key={i} style={st.timeItem}>{String(h).padStart(2, "0")}</div>
+              ))}
             </div>
           </div>
 
@@ -493,11 +462,10 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
             onTouchMove={minWheel.onTouchMove}
             onTouchEnd={handleMinTap}
           >
-            <div ref={(el) => { (minWheel.stripRef as any).current = el; (minStripRef as any).current = el; }} style={st.timeStrip}>
-              {minuteItems.map((m, i) => {
-                const isInit = i === MINUTE_COUNT * MINUTE_MID_COPY + initTime.mm;
-                return <div key={i} style={isInit ? st.timeItemActive : st.timeItem}>{String(m).padStart(2, "0")}</div>;
-              })}
+            <div ref={minWheel.stripRef} style={st.timeStrip}>
+              {minuteItems.map((m, i) => (
+                <div key={i} style={st.timeItem}>{String(m).padStart(2, "0")}</div>
+              ))}
             </div>
           </div>
         </div>
@@ -603,10 +571,5 @@ const st: Record<string, CSSProperties> = {
     width: "100%", height: TIME_ITEM_H,
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 88, fontWeight: 800, color: "#1e1f22", lineHeight: 1,
-  },
-  timeItemActive: {
-    width: "100%", height: TIME_ITEM_H,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 92, fontWeight: 900, color: "#1e1f22", lineHeight: 1,
   },
 };
