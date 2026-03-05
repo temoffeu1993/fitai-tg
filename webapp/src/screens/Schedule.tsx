@@ -1030,9 +1030,7 @@ function ScheduleBottomSheet({
                             {formatTime(w.scheduledFor)}
                           </span>
                         </div>
-                        <button type="button" style={sh.scheduledEditBtn} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }}>
-                          <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
-                        </button>
+                        <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => { setEditingWorkoutId(w.id); goToPage("forward"); }} />
                       </div>
                     </div>
                   </div>
