@@ -293,10 +293,9 @@ export default function Schedule() {
       return;
     }
     const initialTime = scheduleDates[key]?.time ?? defaultTimeSuggestion();
-    const firstPending = pendingWorkouts[0]?.id ?? null;
     setModal({
       workout: null,
-      selectedWorkoutId: firstPending,
+      selectedWorkoutId: null,
       allowScheduledPick: false,
       date: key,
       time: initialTime,
