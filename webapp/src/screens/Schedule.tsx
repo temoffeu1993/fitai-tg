@@ -53,6 +53,7 @@ type ReplaceConfirmState = {
   conflictTitle: string;
   date: string;
   time: string;
+  timeConflict: boolean;
 };
 
 export default function Schedule() {
@@ -303,12 +304,14 @@ export default function Schedule() {
     if (conflict) {
       const targetTitle = resolveWorkoutTitle(effectiveWorkout.plan || {});
       const conflictTitle = resolveWorkoutTitle(conflict.plan || {});
+      const timeConflict = toTimeInput(conflict.scheduledFor) === time;
       setReplaceConfirm({
         targetWorkoutId: effectiveWorkout.id,
         targetTitle,
         conflictTitle,
         date,
         time,
+        timeConflict,
       });
       return;
     }
@@ -726,6 +729,7 @@ function ScheduleBottomSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<PlannedWorkout | null>(null);
   const [addingWorkout, setAddingWorkout] = useState(false);
+  const [savingMode, setSavingMode] = useState<"add" | "replace" | null>(null);
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const [prevPage, setPrevPage] = useState<string | null>(null);
   const [pageAnimating, setPageAnimating] = useState(false);
@@ -1013,7 +1017,7 @@ function ScheduleBottomSheet({
               )}
             </div>
           </>
-        ) : addingWorkout ? (
+        ) : addingWorkout && !selectedWorkoutId ? (
           <>
             {/* Adding workout to a date with existing scheduled workouts */}
             <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 18px" }}>
@@ -1055,15 +1059,22 @@ function ScheduleBottomSheet({
             {/* Replace confirm view */}
             <div style={sh.confirmWrap}>
               <p style={sh.confirmBody}>
-                На эту дату уже запланирована тренировка «{replaceConfirm.conflictTitle}». Что сделать с «{replaceConfirm.targetTitle}»?
+                {replaceConfirm.timeConflict
+                  ? <>На это время уже запланирована тренировка «{replaceConfirm.conflictTitle}». Заменить на «{replaceConfirm.targetTitle}»?</>
+                  : <>На эту дату уже запланирована тренировка «{replaceConfirm.conflictTitle}». Вы хотите добавить «{replaceConfirm.targetTitle}» или заменить?</>
+                }
               </p>
               <div style={sh.confirmButtonGroup}>
-                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceAdd} disabled={saving}>
-                  {saving ? "Сохраняем..." : "Добавить"}
-                </button>
-                <div style={sh.confirmDividerBtn} />
-                <button type="button" style={sh.confirmBtnCancel} onClick={onReplaceConfirm} disabled={saving}>
-                  {saving ? "Сохраняем..." : "Заменить"}
+                {!replaceConfirm.timeConflict && (
+                  <>
+                    <button type="button" style={sh.confirmBtnCancel} onClick={() => { setSavingMode("add"); onReplaceAdd(); }} disabled={saving}>
+                      {saving && savingMode === "add" ? "Сохраняем..." : "Добавить"}
+                    </button>
+                    <div style={sh.confirmDividerBtn} />
+                  </>
+                )}
+                <button type="button" style={sh.confirmBtnCancel} onClick={() => { setSavingMode("replace"); onReplaceConfirm(); }} disabled={saving}>
+                  {saving && savingMode === "replace" ? "Сохраняем..." : "Заменить"}
                 </button>
                 <div style={sh.confirmDividerBtn} />
                 <button type="button" style={sh.confirmBtnDanger} onClick={onReplaceCancel} disabled={saving}>
