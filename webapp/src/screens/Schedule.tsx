@@ -802,7 +802,7 @@ function ScheduleBottomSheet({
         {/* Workout pick list */}
         {needsPick ? (
           <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
-            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            <div style={{ display: "grid", gap: 8, marginTop: 20 }}>
               {availableWorkouts.length ? (
                 availableWorkouts.map((w) => {
                   const p: any = w.plan || {};

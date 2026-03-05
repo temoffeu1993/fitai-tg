@@ -19,12 +19,20 @@ const TIME_COL_GAP = 14;
 const HOUR_COUNT = 24;
 const MINUTE_COUNT = 60;
 
-/* Physics — tuned for natural iOS-like feel */
-const DECEL = 0.97;          // velocity decay per frame (higher = more glide)
-const VELOCITY_MIN = 0.4;    // px/frame threshold to stop inertia
-const SNAP_MS = 300;         // snap-to-item animation duration
-const VELOCITY_SAMPLES = 5;  // recent touch samples for velocity calc
-const VELOCITY_SCALE = 16;   // ms→frame conversion (≈ 1 frame at 60fps)
+/* Cycling: render N copies so user can spin endlessly */
+const CYCLE_COPIES = 7;
+const HOUR_TOTAL = HOUR_COUNT * CYCLE_COPIES;
+const MINUTE_TOTAL = MINUTE_COUNT * CYCLE_COPIES;
+const HOUR_MID_COPY = Math.floor(CYCLE_COPIES / 2);
+const MINUTE_MID_COPY = Math.floor(CYCLE_COPIES / 2);
+
+/* Physics */
+const DECEL = 0.97;
+const VELOCITY_MIN = 0.4;
+const SNAP_MS = 300;
+const VELOCITY_SAMPLES = 5;
+const VELOCITY_SCALE = 16;
+const TAP_THRESHOLD = 6; // px — less than this = tap, not drag
 
 /* ═══════════════════════════════════════════════════════
    Helpers
@@ -52,52 +60,45 @@ function toLocalDate(v: string) {
   dt.setHours(0, 0, 0, 0);
   return dt;
 }
-function buildDates(count: number, offset: number): DateItem[] {
+function buildDates(count: number, off: number): DateItem[] {
   const now = new Date();
   return Array.from({ length: count }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i - offset);
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i - off);
     return { date: d, dow: DAY_SHORT[d.getDay()], day: d.getDate(), idx: i };
   });
 }
 
 /* ═══════════════════════════════════════════════════════
-   useWheel — universal touch-based wheel with inertia
-   Works identically on iOS & Android, inside any DOM context.
+   useWheel — touch-based wheel with inertia + cycling
    ═══════════════════════════════════════════════════════ */
 
-type WheelAxis = "x" | "y";
-
 interface UseWheelOpts {
-  itemCount: number;
-  itemSize: number;       // px per item
-  axis: WheelAxis;
-  initialIndex: number;
-  onIndexChange: (i: number) => void;
-  haptics?: boolean;
+  totalItems: number;     // total rendered items (including copies for cycling)
+  itemSize: number;
+  axis: "x" | "y";
+  initialOffset: number;  // initial offset in px
+  wrap?: {                // cycling config
+    base: number;         // items per cycle (e.g. 24 for hours)
+    midCopy: number;      // which copy is "center"
+  };
+  onOffsetIndex: (index: number) => void;
 }
 
-function useWheel({ itemCount, itemSize, axis, initialIndex, onIndexChange, haptics = true }: UseWheelOpts) {
+function useWheel({ totalItems, itemSize, axis, initialOffset, wrap, onOffsetIndex }: UseWheelOpts) {
   const stripRef = useRef<HTMLDivElement>(null);
-
-  // Current pixel offset (0 = first item centered)
-  const offset = useRef(initialIndex * itemSize);
+  const offset = useRef(initialOffset);
   const velocity = useRef(0);
-  const lastIdx = useRef(initialIndex);
-
-  // Touch tracking
+  const lastIdx = useRef(Math.round(initialOffset / itemSize));
   const touchId = useRef<number | null>(null);
-  const touchStart = useRef(0);       // clientX or clientY
-  const touchOffset = useRef(0);      // offset at touch start
+  const touchStartPos = useRef(0);
+  const touchStartOff = useRef(0);
+  const totalDrag = useRef(0); // track total movement for tap detection
   const samples = useRef<{ pos: number; time: number }[]>([]);
-
-  // Animation refs
   const inertiaRaf = useRef<number | null>(null);
   const snapRaf = useRef<number | null>(null);
+  const maxOff = (totalItems - 1) * itemSize;
 
-  const maxOff = (itemCount - 1) * itemSize;
-
-  const clamp = (v: number) => Math.max(0, Math.min(v, maxOff));
-  const getIdx = (off: number) => Math.max(0, Math.min(Math.round(off / itemSize), itemCount - 1));
+  const clamp = useCallback((v: number) => Math.max(0, Math.min(v, maxOff)), [maxOff]);
 
   const apply = useCallback((off: number) => {
     const el = stripRef.current;
@@ -105,16 +106,29 @@ function useWheel({ itemCount, itemSize, axis, initialIndex, onIndexChange, hapt
     el.style.transform = axis === "y" ? `translateY(${-off}px)` : `translateX(${-off}px)`;
   }, [axis]);
 
-  const emitIndex = useCallback((off: number) => {
-    const idx = getIdx(off);
+  const emitIdx = useCallback((off: number) => {
+    const raw = Math.round(off / itemSize);
+    const idx = Math.max(0, Math.min(raw, totalItems - 1));
     if (idx !== lastIdx.current) {
       lastIdx.current = idx;
-      if (haptics) fireHapticImpact("light");
-      onIndexChange(idx);
+      fireHapticImpact("light");
+      onOffsetIndex(idx);
     }
-  }, [getIdx, haptics, onIndexChange]);
+  }, [itemSize, totalItems, onOffsetIndex]);
 
-  // ── Snap animation (ease-out cubic) ──
+  // Silently normalize offset to middle copy (for cycling)
+  const normalize = useCallback(() => {
+    if (!wrap) return;
+    const cur = offset.current;
+    const idx = Math.round(cur / itemSize);
+    const val = ((idx % wrap.base) + wrap.base) % wrap.base;
+    const midIdx = wrap.base * wrap.midCopy + val;
+    const newOff = midIdx * itemSize;
+    offset.current = newOff;
+    apply(newOff);
+    lastIdx.current = midIdx;
+  }, [wrap, itemSize, apply]);
+
   const snapTo = useCallback((target: number) => {
     if (snapRaf.current) cancelAnimationFrame(snapRaf.current);
     const start = offset.current;
@@ -122,7 +136,8 @@ function useWheel({ itemCount, itemSize, axis, initialIndex, onIndexChange, hapt
     if (Math.abs(delta) < 0.5) {
       offset.current = target;
       apply(target);
-      emitIndex(target);
+      emitIdx(target);
+      normalize();
       return;
     }
     const t0 = performance.now();
@@ -132,53 +147,62 @@ function useWheel({ itemCount, itemSize, axis, initialIndex, onIndexChange, hapt
       const cur = start + delta * eased;
       offset.current = cur;
       apply(cur);
-      emitIndex(cur);
-      if (p < 1) snapRaf.current = requestAnimationFrame(tick);
-      else { snapRaf.current = null; offset.current = target; apply(target); emitIndex(target); }
+      emitIdx(cur);
+      if (p < 1) {
+        snapRaf.current = requestAnimationFrame(tick);
+      } else {
+        snapRaf.current = null;
+        offset.current = target;
+        apply(target);
+        emitIdx(target);
+        normalize();
+      }
     };
     snapRaf.current = requestAnimationFrame(tick);
-  }, [apply, emitIndex]);
+  }, [apply, emitIdx, normalize]);
 
-  // ── Inertia loop ──
   const runInertia = useCallback(() => {
     if (inertiaRaf.current) cancelAnimationFrame(inertiaRaf.current);
     const tick = () => {
       velocity.current *= DECEL;
       let next = offset.current + velocity.current;
-
-      // Clamp + kill velocity at edges
       if (next <= 0) { next = 0; velocity.current = 0; }
       else if (next >= maxOff) { next = maxOff; velocity.current = 0; }
-
       offset.current = next;
       apply(next);
-      emitIndex(next);
-
+      emitIdx(next);
       if (Math.abs(velocity.current) > VELOCITY_MIN) {
         inertiaRaf.current = requestAnimationFrame(tick);
       } else {
         inertiaRaf.current = null;
-        snapTo(getIdx(next) * itemSize);
+        const nearIdx = Math.max(0, Math.min(Math.round(next / itemSize), totalItems - 1));
+        snapTo(nearIdx * itemSize);
       }
     };
     inertiaRaf.current = requestAnimationFrame(tick);
-  }, [maxOff, apply, emitIndex, snapTo, getIdx, itemSize]);
+  }, [maxOff, apply, emitIdx, snapTo, itemSize, totalItems]);
 
-  // ── Stop all animations ──
   const stopAll = useCallback(() => {
     if (inertiaRaf.current) { cancelAnimationFrame(inertiaRaf.current); inertiaRaf.current = null; }
     if (snapRaf.current) { cancelAnimationFrame(snapRaf.current); snapRaf.current = null; }
     velocity.current = 0;
   }, []);
 
-  // ── Touch handlers ──
+  // ── Programmatic smooth scroll to index ──
+  const scrollToIndex = useCallback((idx: number) => {
+    stopAll();
+    snapTo(idx * itemSize);
+  }, [stopAll, snapTo, itemSize]);
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     stopAll();
     const t = e.changedTouches[0];
     touchId.current = t.identifier;
-    touchStart.current = axis === "y" ? t.clientY : t.clientX;
-    touchOffset.current = offset.current;
-    samples.current = [{ pos: touchStart.current, time: performance.now() }];
+    const pos = axis === "y" ? t.clientY : t.clientX;
+    touchStartPos.current = pos;
+    touchStartOff.current = offset.current;
+    totalDrag.current = 0;
+    samples.current = [{ pos, time: performance.now() }];
   }, [axis, stopAll]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
@@ -186,55 +210,64 @@ function useWheel({ itemCount, itemSize, axis, initialIndex, onIndexChange, hapt
     const t = Array.from(e.changedTouches).find((tt) => tt.identifier === touchId.current);
     if (!t) return;
     const pos = axis === "y" ? t.clientY : t.clientX;
-    const delta = touchStart.current - pos; // positive = scroll forward
-    const next = clamp(touchOffset.current + delta);
+    const delta = touchStartPos.current - pos;
+    totalDrag.current += Math.abs(pos - (samples.current.length > 0 ? samples.current[samples.current.length - 1].pos : pos));
+    const next = clamp(touchStartOff.current + delta);
     offset.current = next;
     apply(next);
-    emitIndex(next);
-
-    // Record sample
+    emitIdx(next);
     const now = performance.now();
     samples.current.push({ pos, time: now });
     if (samples.current.length > VELOCITY_SAMPLES) samples.current.shift();
-  }, [axis, clamp, apply, emitIndex]);
+  }, [axis, clamp, apply, emitIdx]);
 
-  const onTouchEnd = useCallback(() => {
+  const onTouchEnd = useCallback((): boolean => {
     touchId.current = null;
-    const s = samples.current;
-    if (s.length < 2) {
-      snapTo(getIdx(offset.current) * itemSize);
-      return;
+    const wasTap = totalDrag.current < TAP_THRESHOLD;
+    if (wasTap) {
+      // Let the component handle tap
+      const nearIdx = Math.max(0, Math.min(Math.round(offset.current / itemSize), totalItems - 1));
+      snapTo(nearIdx * itemSize);
+      return true; // was a tap
     }
-    const first = s[0];
-    const last = s[s.length - 1];
+    const sa = samples.current;
+    if (sa.length < 2) {
+      const nearIdx = Math.max(0, Math.min(Math.round(offset.current / itemSize), totalItems - 1));
+      snapTo(nearIdx * itemSize);
+      return false;
+    }
+    const first = sa[0];
+    const last = sa[sa.length - 1];
     const dt = last.time - first.time;
-    if (dt < 1) { snapTo(getIdx(offset.current) * itemSize); return; }
-    // px/ms → px/frame
+    if (dt < 1) {
+      const nearIdx = Math.max(0, Math.min(Math.round(offset.current / itemSize), totalItems - 1));
+      snapTo(nearIdx * itemSize);
+      return false;
+    }
     const v = ((first.pos - last.pos) / dt) * VELOCITY_SCALE;
     velocity.current = v;
-
     if (Math.abs(v) < VELOCITY_MIN * 2) {
-      snapTo(getIdx(offset.current) * itemSize);
+      const nearIdx = Math.max(0, Math.min(Math.round(offset.current / itemSize), totalItems - 1));
+      snapTo(nearIdx * itemSize);
     } else {
       runInertia();
     }
-  }, [snapTo, getIdx, itemSize, runInertia]);
+    return false;
+  }, [snapTo, itemSize, totalItems, runInertia]);
 
-  // Set initial position (no animation)
   useEffect(() => {
-    offset.current = initialIndex * itemSize;
-    lastIdx.current = initialIndex;
-    apply(initialIndex * itemSize);
-  }, [initialIndex, itemSize, apply]);
+    offset.current = initialOffset;
+    lastIdx.current = Math.round(initialOffset / itemSize);
+    apply(initialOffset);
+  }, [initialOffset, itemSize, apply]);
 
-  // Cleanup
   useEffect(() => () => stopAll(), [stopAll]);
 
-  return { stripRef, onTouchStart, onTouchMove, onTouchEnd };
+  return { stripRef, onTouchStart, onTouchMove, onTouchEnd, scrollToIndex, offset, stopAll };
 }
 
 /* ═══════════════════════════════════════════════════════
-   DateTimeWheelInline — main component
+   DateTimeWheelInline
    ═══════════════════════════════════════════════════════ */
 
 export type DateTimeWheelInlineProps = {
@@ -256,8 +289,10 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
   }, [safeDate, todayIso]);
 
   const dates = useMemo(() => buildDates(dateCount, DATE_PAST_DAYS), [dateCount]);
-  const hours = useMemo(() => Array.from({ length: HOUR_COUNT }, (_, i) => i), []);
-  const minutes = useMemo(() => Array.from({ length: MINUTE_COUNT }, (_, i) => i), []);
+
+  // Cycled arrays for hours/minutes
+  const hourItems = useMemo(() => Array.from({ length: HOUR_TOTAL }, (_, i) => i % HOUR_COUNT), []);
+  const minuteItems = useMemo(() => Array.from({ length: MINUTE_TOTAL }, (_, i) => i % MINUTE_COUNT), []);
 
   const initDateIdx = useMemo(() => {
     const idx = dates.findIndex((d) => toDateKeyLocal(d.date) === safeDate);
@@ -268,17 +303,15 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
 
   const initTime = parseHHMM(initialTime) || { hh: 9, mm: 0 };
 
+  // Initial offsets for cycling wheels — start at middle copy
+  const initHourOffset = (HOUR_COUNT * HOUR_MID_COPY + initTime.hh) * TIME_ITEM_H;
+  const initMinOffset = (MINUTE_COUNT * MINUTE_MID_COPY + initTime.mm) * TIME_ITEM_H;
+
   const [activeDate, setActiveDate] = useState(initDateIdx);
   const [activeHour, setActiveHour] = useState(initTime.hh);
   const [activeMin, setActiveMin] = useState(initTime.mm);
 
-  const suppressRef = useRef(true);
   const latestRef = useRef({ d: activeDate, h: activeHour, m: activeMin });
-
-  useEffect(() => {
-    const t = setTimeout(() => { suppressRef.current = false; }, 200);
-    return () => clearTimeout(t);
-  }, []);
 
   // Fire onChange on value changes
   useEffect(() => {
@@ -290,58 +323,94 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
     onChange(toDateKeyLocal(dt.date), toHHMM(activeHour, activeMin));
   }, [activeDate, activeHour, activeMin, dates, onChange]);
 
-  // ── Date wheel (horizontal) ──
+  // ── Date wheel ──
   const dateWheel = useWheel({
-    itemCount: dates.length,
+    totalItems: dates.length,
     itemSize: DATE_ITEM_W,
     axis: "x",
-    initialIndex: initDateIdx,
-    onIndexChange: useCallback((i: number) => setActiveDate(i), []),
-    haptics: true,
+    initialOffset: initDateIdx * DATE_ITEM_W,
+    onOffsetIndex: useCallback((i: number) => setActiveDate(i), []),
   });
 
-  // ── Hour wheel (vertical) ──
+  // ── Hour wheel (cycled) ──
   const hourWheel = useWheel({
-    itemCount: HOUR_COUNT,
+    totalItems: HOUR_TOTAL,
     itemSize: TIME_ITEM_H,
     axis: "y",
-    initialIndex: initTime.hh,
-    onIndexChange: useCallback((i: number) => setActiveHour(i), []),
-    haptics: true,
+    initialOffset: initHourOffset,
+    wrap: { base: HOUR_COUNT, midCopy: HOUR_MID_COPY },
+    onOffsetIndex: useCallback((raw: number) => {
+      setActiveHour(((raw % HOUR_COUNT) + HOUR_COUNT) % HOUR_COUNT);
+    }, []),
   });
 
-  // ── Minute wheel (vertical) ──
+  // ── Minute wheel (cycled) ──
   const minWheel = useWheel({
-    itemCount: MINUTE_COUNT,
+    totalItems: MINUTE_TOTAL,
     itemSize: TIME_ITEM_H,
     axis: "y",
-    initialIndex: initTime.mm,
-    onIndexChange: useCallback((i: number) => setActiveMin(i), []),
-    haptics: true,
+    initialOffset: initMinOffset,
+    wrap: { base: MINUTE_COUNT, midCopy: MINUTE_MID_COPY },
+    onOffsetIndex: useCallback((raw: number) => {
+      setActiveMin(((raw % MINUTE_COUNT) + MINUTE_COUNT) % MINUTE_COUNT);
+    }, []),
   });
+
+  // ── Tap handlers ──
+  const handleDateTap = useCallback((e: React.TouchEvent) => {
+    const wasTap = dateWheel.onTouchEnd();
+    if (!wasTap) return;
+    // Find which item was tapped based on touch position
+    const touch = e.changedTouches[0];
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const touchX = touch.clientX - rect.left;
+    // Center of viewport = center of current item
+    const centerX = rect.width / 2;
+    const deltaItems = Math.round((touchX - centerX) / DATE_ITEM_W);
+    if (deltaItems === 0) return; // tapped current
+    const curIdx = Math.round(dateWheel.offset.current / DATE_ITEM_W);
+    const newIdx = Math.max(0, Math.min(curIdx + deltaItems, dates.length - 1));
+    dateWheel.scrollToIndex(newIdx);
+  }, [dateWheel, dates.length]);
+
+  const handleHourTap = useCallback((e: React.TouchEvent) => {
+    const wasTap = hourWheel.onTouchEnd();
+    if (!wasTap) return;
+    // Tap on hour → advance by 1
+    const curIdx = Math.round(hourWheel.offset.current / TIME_ITEM_H);
+    hourWheel.scrollToIndex(curIdx + 1);
+  }, [hourWheel]);
+
+  const handleMinTap = useCallback((e: React.TouchEvent) => {
+    const wasTap = minWheel.onTouchEnd();
+    if (!wasTap) return;
+    // Tap on minute → advance by 1
+    const curIdx = Math.round(minWheel.offset.current / TIME_ITEM_H);
+    minWheel.scrollToIndex(curIdx + 1);
+  }, [minWheel]);
 
   return (
-    <div style={s.root}>
+    <div style={st.root}>
       <style>{css}</style>
 
       {/* ── Date scroller ── */}
-      <div style={s.dateScroller}>
-        <div style={s.dateIndicator} />
-        <div style={s.dateFadeL} />
-        <div style={s.dateFadeR} />
+      <div style={st.dateScroller}>
+        <div style={st.dateIndicator} />
+        <div style={st.dateFadeL} />
+        <div style={st.dateFadeR} />
         <div
-          style={s.dateViewport}
+          style={st.dateViewport}
           onTouchStart={dateWheel.onTouchStart}
           onTouchMove={dateWheel.onTouchMove}
-          onTouchEnd={dateWheel.onTouchEnd}
+          onTouchEnd={handleDateTap}
         >
-          <div ref={dateWheel.stripRef} style={s.dateStrip}>
+          <div ref={dateWheel.stripRef} style={st.dateStrip}>
             {dates.map((d, idx) => {
               const active = idx === activeDate;
               return (
-                <div key={idx} style={s.dateItem}>
-                  <span style={{ ...s.dateDow, ...(active ? s.dateDowActive : undefined) }}>{d.dow}</span>
-                  <span style={{ ...s.dateNum, ...(active ? s.dateNumActive : undefined) }}>{d.day}</span>
+                <div key={idx} className="dtwi-date-cell" style={st.dateItem}>
+                  <span className="dtwi-date-dow" style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
+                  <span className="dtwi-date-num" style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
                 </div>
               );
             })}
@@ -350,19 +419,19 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
       </div>
 
       {/* ── Time wheels ── */}
-      <div style={s.timeWrap}>
-        <div style={s.timeColonOverlay}>:</div>
-        <div style={s.timeInner}>
+      <div style={st.timeWrap}>
+        <div style={st.timeColonOverlay}>:</div>
+        <div style={st.timeInner}>
           {/* Hours */}
           <div
-            style={s.timeViewport}
+            style={st.timeViewport}
             onTouchStart={hourWheel.onTouchStart}
             onTouchMove={hourWheel.onTouchMove}
-            onTouchEnd={hourWheel.onTouchEnd}
+            onTouchEnd={handleHourTap}
           >
-            <div ref={hourWheel.stripRef} style={s.timeStrip}>
-              {hours.map((h) => (
-                <div key={h} style={{ ...s.timeItem, ...(h === activeHour ? s.timeItemActive : undefined) }}>
+            <div ref={hourWheel.stripRef} style={st.timeStrip}>
+              {hourItems.map((h, i) => (
+                <div key={i} className="dtwi-time-cell" style={h === activeHour ? st.timeItemActive : st.timeItem}>
                   {String(h).padStart(2, "0")}
                 </div>
               ))}
@@ -371,14 +440,14 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
 
           {/* Minutes */}
           <div
-            style={s.timeViewport}
+            style={st.timeViewport}
             onTouchStart={minWheel.onTouchStart}
             onTouchMove={minWheel.onTouchMove}
-            onTouchEnd={minWheel.onTouchEnd}
+            onTouchEnd={handleMinTap}
           >
-            <div ref={minWheel.stripRef} style={s.timeStrip}>
-              {minutes.map((m) => (
-                <div key={m} style={{ ...s.timeItem, ...(m === activeMin ? s.timeItemActive : undefined) }}>
+            <div ref={minWheel.stripRef} style={st.timeStrip}>
+              {minuteItems.map((m, i) => (
+                <div key={i} className="dtwi-time-cell" style={m === activeMin ? st.timeItemActive : st.timeItem}>
                   {String(m).padStart(2, "0")}
                 </div>
               ))}
@@ -395,16 +464,17 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
    ═══════════════════════════════════════════════════════ */
 
 const css = `
-  .dtwi-no-select {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
+  .dtwi-date-dow, .dtwi-date-num {
+    transition: color 180ms ease, font-size 180ms ease, font-weight 180ms ease;
+  }
+  .dtwi-time-cell {
+    transition: color 180ms ease, font-size 180ms ease, font-weight 180ms ease;
   }
 `;
 
 const FADE_COLOR = "rgba(250,250,252,1)";
 
-const s: Record<string, CSSProperties> = {
+const st: Record<string, CSSProperties> = {
   root: {
     display: "flex",
     flexDirection: "column",
@@ -492,8 +562,11 @@ const s: Record<string, CSSProperties> = {
     letterSpacing: 0.3,
   },
   dateDowActive: {
-    color: "#1e1f22",
+    fontSize: 12,
     fontWeight: 600,
+    color: "#1e1f22",
+    lineHeight: 1,
+    letterSpacing: 0.3,
   },
   dateNum: {
     fontSize: 24,
@@ -502,9 +575,10 @@ const s: Record<string, CSSProperties> = {
     lineHeight: 1.3,
   },
   dateNumActive: {
-    color: "#111",
-    fontWeight: 700,
     fontSize: 26,
+    fontWeight: 700,
+    color: "#111",
+    lineHeight: 1.3,
   },
 
   /* ── Time ── */
@@ -559,11 +633,18 @@ const s: Record<string, CSSProperties> = {
     justifyContent: "center",
     fontSize: 88,
     fontWeight: 800,
-    color: "#1e1f22",
+    color: "rgba(30,31,34,0.25)",
     lineHeight: 1,
   },
   timeItemActive: {
-    fontWeight: 900,
+    width: "100%",
+    height: TIME_ITEM_H,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontSize: 92,
+    fontWeight: 900,
+    color: "#1e1f22",
+    lineHeight: 1,
   },
 };
