@@ -646,8 +646,10 @@ function ScheduleBottomSheet({
   const [entered, setEntered] = useState(false);
   const enteredRef = useRef(false);
   const [closing, setClosing] = useState(false);
+  const [animDone, setAnimDone] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
+  const animDoneTimerRef = useRef<number | null>(null);
   const canDelete = workout?.status === "scheduled";
   const needsPick = !workout;
   const readOnly = workout?.status === "completed";
@@ -664,14 +666,20 @@ function ScheduleBottomSheet({
     return () => {
       if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
       if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
+      if (animDoneTimerRef.current != null) window.clearTimeout(animDoneTimerRef.current);
     };
   }, []);
 
-  // Open animation: mount → 12ms tick → entered
+  // Open animation: mount → 12ms tick → entered → animDone (remove transform)
   useEffect(() => {
     openTimerRef.current = window.setTimeout(() => {
       applyEntered(true);
       openTimerRef.current = null;
+      // After enter animation completes, remove transform/willChange to restore momentum scrolling
+      animDoneTimerRef.current = window.setTimeout(() => {
+        setAnimDone(true);
+        animDoneTimerRef.current = null;
+      }, SHEET_ENTER_MS + 50);
     }, OPEN_TICK_MS);
   }, []);
 
@@ -687,6 +695,7 @@ function ScheduleBottomSheet({
   const requestClose = useCallback(() => {
     if (closing) return;
     setClosing(true);
+    setAnimDone(false);
     applyEntered(false);
     closeTimerRef.current = window.setTimeout(() => {
       onClose();
@@ -730,13 +739,13 @@ function ScheduleBottomSheet({
           background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
           boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
           maxHeight: "85vh",
-          overflow: "hidden",
+          overflow: "visible",
           display: "flex",
           flexDirection: "column" as const,
           padding: "0 16px 16px",
-          transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
-          transition: `transform ${entered && !closing ? SHEET_ENTER_MS : SHEET_EXIT_MS}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
-          willChange: "transform",
+          transform: animDone ? "none" : (entered && !closing ? "translateY(0)" : "translateY(100%)"),
+          transition: animDone ? "none" : `transform ${entered && !closing ? SHEET_ENTER_MS : SHEET_EXIT_MS}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+          willChange: animDone ? "auto" : "transform",
         }}
       >
         {/* Grabber */}

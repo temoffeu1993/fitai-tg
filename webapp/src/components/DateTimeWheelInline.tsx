@@ -10,9 +10,9 @@ const DATE_PAST_DAYS = 7;
 const DEFAULT_DATE_COUNT = 37;
 const MAX_DATE_COUNT = 365;
 
-const TIME_ITEM_H = 80;
+const TIME_ITEM_H = 96;
 const TIME_VISIBLE = 1;
-const TIME_COL_GAP = 12;
+const TIME_COL_GAP = 14;
 
 const HOUR_BASE = 24;
 const MIN_BASE = 60;
@@ -504,7 +504,7 @@ const st: Record<string, CSSProperties> = {
     left: "50%",
     top: "50%",
     transform: "translate(-50%, -50%)",
-    fontSize: 52,
+    fontSize: 64,
     fontWeight: 800,
     color: "#1e1f22",
     lineHeight: 1,
@@ -538,7 +538,7 @@ const st: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 68,
+    fontSize: 88,
     fontWeight: 800,
     color: "#1e1f22",
     lineHeight: 1,
@@ -551,7 +551,7 @@ const st: Record<string, CSSProperties> = {
   timeItemActive: {
     color: "#1e1f22",
     fontWeight: 900,
-    fontSize: 74,
+    fontSize: 92,
     lineHeight: 1,
   },
 };
