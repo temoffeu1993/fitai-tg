@@ -11,15 +11,15 @@ const DEFAULT_DATE_COUNT = 37;
 const MAX_DATE_COUNT = 365;
 
 const TIME_ITEM_H = 96;
-const TIME_VISIBLE = 1;
 const TIME_COL_GAP = 14;
 
 const HOUR_BASE = 24;
 const MIN_BASE = 60;
-const HOUR_CYCLES = 7;
-const MIN_CYCLES = 7;
-const HOUR_MID = Math.floor(HOUR_CYCLES / 2);
-const MIN_MID = Math.floor(MIN_CYCLES / 2);
+
+/* Physics constants for touch-based inertia */
+const FRICTION = 0.95; // velocity multiplier per frame (~60fps)
+const MIN_VELOCITY = 0.3; // px/frame threshold to stop
+const SNAP_DURATION = 280; // ms for final snap animation
 
 type DateItem = { date: Date; dow: string; day: number; idx: number };
 
@@ -65,6 +65,211 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
   });
 }
 
+/* ── Touch-based wheel column ── */
+function useWheelTouch(
+  totalItems: number,
+  itemHeight: number,
+  initialIndex: number,
+  onIndexChange: (index: number) => void,
+  suppressHaptics: React.RefObject<boolean>,
+) {
+  const offsetRef = useRef(initialIndex * itemHeight); // current scroll offset in px
+  const velocityRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const touchStartYRef = useRef(0);
+  const touchStartOffsetRef = useRef(0);
+  const touchTimestampRef = useRef(0);
+  const lastVelocitiesRef = useRef<number[]>([]);
+  const lastIndexRef = useRef(initialIndex);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isAnimatingRef = useRef(false);
+  const snapRafRef = useRef<number | null>(null);
+
+  const maxOffset = (totalItems - 1) * itemHeight;
+
+  const clampOffset = useCallback(
+    (v: number) => Math.max(0, Math.min(v, maxOffset)),
+    [maxOffset],
+  );
+
+  const getIndex = useCallback(
+    (offset: number) => {
+      const idx = Math.round(offset / itemHeight);
+      return Math.max(0, Math.min(idx, totalItems - 1));
+    },
+    [itemHeight, totalItems],
+  );
+
+  // Update visual position via CSS transform (no rerender)
+  const applyTransform = useCallback(
+    (offset: number) => {
+      const el = containerRef.current;
+      if (!el) return;
+      el.style.transform = `translateY(${-offset}px)`;
+    },
+    [],
+  );
+
+  // Check index and fire haptic + callback
+  const checkIndex = useCallback(
+    (offset: number) => {
+      const idx = getIndex(offset);
+      if (idx !== lastIndexRef.current) {
+        lastIndexRef.current = idx;
+        if (!suppressHaptics.current) fireHapticImpact("light");
+        onIndexChange(idx);
+      }
+    },
+    [getIndex, onIndexChange, suppressHaptics],
+  );
+
+  // Smooth snap to nearest item
+  const snapTo = useCallback(
+    (targetOffset: number) => {
+      if (snapRafRef.current) cancelAnimationFrame(snapRafRef.current);
+      isAnimatingRef.current = true;
+      const start = offsetRef.current;
+      const dist = targetOffset - start;
+      const startTime = performance.now();
+
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / SNAP_DURATION, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = start + dist * eased;
+        offsetRef.current = current;
+        applyTransform(current);
+        checkIndex(current);
+
+        if (progress < 1) {
+          snapRafRef.current = requestAnimationFrame(animate);
+        } else {
+          offsetRef.current = targetOffset;
+          applyTransform(targetOffset);
+          checkIndex(targetOffset);
+          isAnimatingRef.current = false;
+          snapRafRef.current = null;
+        }
+      };
+      snapRafRef.current = requestAnimationFrame(animate);
+    },
+    [applyTransform, checkIndex],
+  );
+
+  // Inertia animation loop
+  const startInertia = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    const tick = () => {
+      let v = velocityRef.current;
+      v *= FRICTION;
+      velocityRef.current = v;
+
+      let next = offsetRef.current + v;
+      // Rubber-band at edges
+      if (next < 0) {
+        next = 0;
+        velocityRef.current = 0;
+      } else if (next > maxOffset) {
+        next = maxOffset;
+        velocityRef.current = 0;
+      }
+      offsetRef.current = next;
+      applyTransform(next);
+      checkIndex(next);
+
+      if (Math.abs(velocityRef.current) > MIN_VELOCITY) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+        // Snap to nearest
+        const targetIdx = getIndex(next);
+        const target = targetIdx * itemHeight;
+        snapTo(target);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [maxOffset, applyTransform, checkIndex, getIndex, itemHeight, snapTo]);
+
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      // Stop any running animations
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      if (snapRafRef.current) { cancelAnimationFrame(snapRafRef.current); snapRafRef.current = null; }
+      isAnimatingRef.current = false;
+      velocityRef.current = 0;
+      lastVelocitiesRef.current = [];
+
+      const touch = e.touches[0];
+      touchStartYRef.current = touch.clientY;
+      touchStartOffsetRef.current = offsetRef.current;
+      touchTimestampRef.current = performance.now();
+    },
+    [],
+  );
+
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault(); // prevent parent scroll
+      const touch = e.touches[0];
+      const deltaY = touchStartYRef.current - touch.clientY; // positive = scroll down
+      let newOffset = touchStartOffsetRef.current + deltaY;
+      // Allow slight overscroll for feel, but clamp hard
+      newOffset = clampOffset(newOffset);
+      offsetRef.current = newOffset;
+      applyTransform(newOffset);
+      checkIndex(newOffset);
+
+      // Track velocity (px per ms)
+      const now = performance.now();
+      const dt = now - touchTimestampRef.current;
+      if (dt > 0) {
+        const v = (newOffset - touchStartOffsetRef.current) / dt;
+        lastVelocitiesRef.current.push(v);
+        if (lastVelocitiesRef.current.length > 5) lastVelocitiesRef.current.shift();
+      }
+      // Update start for next delta
+      touchStartYRef.current = touch.clientY;
+      touchStartOffsetRef.current = newOffset;
+      touchTimestampRef.current = now;
+    },
+    [clampOffset, applyTransform, checkIndex],
+  );
+
+  const onTouchEnd = useCallback(() => {
+    const velocities = lastVelocitiesRef.current;
+    if (velocities.length === 0) {
+      // No movement, snap to current
+      const targetIdx = getIndex(offsetRef.current);
+      snapTo(targetIdx * itemHeight);
+      return;
+    }
+    // Average last velocities, convert px/ms → px/frame (16.67ms)
+    const avgVelocity =
+      velocities.reduce((a, b) => a + b, 0) / velocities.length;
+    velocityRef.current = avgVelocity * 16.67; // px per frame
+    startInertia();
+  }, [getIndex, snapTo, itemHeight, startInertia]);
+
+  // Set initial position
+  useEffect(() => {
+    offsetRef.current = initialIndex * itemHeight;
+    lastIndexRef.current = initialIndex;
+    applyTransform(initialIndex * itemHeight);
+  }, [initialIndex, itemHeight, applyTransform]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (snapRafRef.current) cancelAnimationFrame(snapRafRef.current);
+    };
+  }, []);
+
+  return { containerRef, onTouchStart, onTouchMove, onTouchEnd };
+}
+
 export type DateTimeWheelInlineProps = {
   initialDate: string;
   initialTime: string;
@@ -92,14 +297,9 @@ export default function DateTimeWheelInline({
 
   const dates = useMemo(() => buildDates(dateCount, DATE_PAST_DAYS), [dateCount]);
 
-  const hours = useMemo(
-    () => Array.from({ length: HOUR_BASE * HOUR_CYCLES }, (_, i) => i % HOUR_BASE),
-    []
-  );
-  const minutes = useMemo(
-    () => Array.from({ length: MIN_BASE * MIN_CYCLES }, (_, i) => i % MIN_BASE),
-    []
-  );
+  // Flat arrays — no cycling needed with touch-based approach, but keep for wrapping
+  const hourItems = useMemo(() => Array.from({ length: HOUR_BASE }, (_, i) => i), []);
+  const minuteItems = useMemo(() => Array.from({ length: MIN_BASE }, (_, i) => i), []);
 
   const initialIdx = useMemo(() => {
     const idx = dates.findIndex((item) => toDateKeyLocal(item.date) === safeInitialDate);
@@ -115,39 +315,36 @@ export default function DateTimeWheelInline({
   const [activeMinute, setActiveMinute] = useState(initialTimeParsed.mm);
 
   const dateRef = useRef<HTMLDivElement>(null);
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
 
   const dateRafRef = useRef<number | null>(null);
-  const hourRafRef = useRef<number | null>(null);
-  const minuteRafRef = useRef<number | null>(null);
-
   const dateStopTimerRef = useRef<number | null>(null);
-  const hourStopTimerRef = useRef<number | null>(null);
-  const minuteStopTimerRef = useRef<number | null>(null);
-
   const suppressHapticsRef = useRef(true);
   const lastDateTickRef = useRef<number | null>(null);
-  const lastHourTickRef = useRef<number | null>(null);
-  const lastMinuteTickRef = useRef<number | null>(null);
 
   // Track latest values for onChange callback
   const latestRef = useRef({ idx: activeIdx, hh: activeHour, mm: activeMinute });
 
+  // ── Touch-based time wheels ──
+  const hourWheel = useWheelTouch(
+    HOUR_BASE,
+    TIME_ITEM_H,
+    initialTimeParsed.hh,
+    useCallback((idx: number) => setActiveHour(idx), []),
+    suppressHapticsRef,
+  );
+
+  const minuteWheel = useWheelTouch(
+    MIN_BASE,
+    TIME_ITEM_H,
+    initialTimeParsed.mm,
+    useCallback((idx: number) => setActiveMinute(idx), []),
+    suppressHapticsRef,
+  );
+
   useEffect(() => {
     dateRef.current?.scrollTo({ left: initialIdx * DATE_ITEM_W, behavior: "auto" });
-    hourRef.current?.scrollTo({
-      top: (HOUR_BASE * HOUR_MID + initialTimeParsed.hh) * TIME_ITEM_H,
-      behavior: "auto",
-    });
-    minuteRef.current?.scrollTo({
-      top: (MIN_BASE * MIN_MID + initialTimeParsed.mm) * TIME_ITEM_H,
-      behavior: "auto",
-    });
     lastDateTickRef.current = initialIdx;
-    lastHourTickRef.current = HOUR_BASE * HOUR_MID + initialTimeParsed.hh;
-    lastMinuteTickRef.current = MIN_BASE * MIN_MID + initialTimeParsed.mm;
-  }, [initialIdx, initialTimeParsed.hh, initialTimeParsed.mm]);
+  }, [initialIdx]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -193,74 +390,10 @@ export default function DateTimeWheelInline({
     }, 80);
   }, [activeIdx, dates.length]);
 
-  const handleHourScroll = useCallback(() => {
-    if (hourRafRef.current == null) {
-      hourRafRef.current = window.requestAnimationFrame(() => {
-        hourRafRef.current = null;
-        const el = hourRef.current;
-        if (!el) return;
-        const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-        const clamped = Math.max(0, Math.min(idx, hours.length - 1));
-        if (lastHourTickRef.current !== clamped) {
-          lastHourTickRef.current = clamped;
-          if (!suppressHapticsRef.current) fireHapticImpact("light");
-        }
-        const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
-        if (value !== activeHour) setActiveHour(value);
-      });
-    }
-    if (hourStopTimerRef.current) window.clearTimeout(hourStopTimerRef.current);
-    hourStopTimerRef.current = window.setTimeout(() => {
-      const el = hourRef.current;
-      if (!el) return;
-      const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-      const clamped = Math.max(0, Math.min(idx, hours.length - 1));
-      const value = ((clamped % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
-      if (value !== activeHour) setActiveHour(value);
-      const targetIdx = HOUR_BASE * HOUR_MID + value;
-      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      if (!suppressHapticsRef.current) fireHapticImpact("light");
-    }, 80);
-  }, [activeHour, hours.length]);
-
-  const handleMinuteScroll = useCallback(() => {
-    if (minuteRafRef.current == null) {
-      minuteRafRef.current = window.requestAnimationFrame(() => {
-        minuteRafRef.current = null;
-        const el = minuteRef.current;
-        if (!el) return;
-        const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-        const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
-        if (lastMinuteTickRef.current !== clamped) {
-          lastMinuteTickRef.current = clamped;
-          if (!suppressHapticsRef.current) fireHapticImpact("light");
-        }
-        const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
-        if (value !== activeMinute) setActiveMinute(value);
-      });
-    }
-    if (minuteStopTimerRef.current) window.clearTimeout(minuteStopTimerRef.current);
-    minuteStopTimerRef.current = window.setTimeout(() => {
-      const el = minuteRef.current;
-      if (!el) return;
-      const idx = Math.round(el.scrollTop / TIME_ITEM_H);
-      const clamped = Math.max(0, Math.min(idx, minutes.length - 1));
-      const value = ((clamped % MIN_BASE) + MIN_BASE) % MIN_BASE;
-      if (value !== activeMinute) setActiveMinute(value);
-      const targetIdx = MIN_BASE * MIN_MID + value;
-      el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-      if (!suppressHapticsRef.current) fireHapticImpact("light");
-    }, 80);
-  }, [activeMinute, minutes.length]);
-
   useEffect(() => {
     return () => {
       if (dateRafRef.current) window.cancelAnimationFrame(dateRafRef.current);
-      if (hourRafRef.current) window.cancelAnimationFrame(hourRafRef.current);
-      if (minuteRafRef.current) window.cancelAnimationFrame(minuteRafRef.current);
       if (dateStopTimerRef.current) window.clearTimeout(dateStopTimerRef.current);
-      if (hourStopTimerRef.current) window.clearTimeout(hourStopTimerRef.current);
-      if (minuteStopTimerRef.current) window.clearTimeout(minuteStopTimerRef.current);
     };
   }, []);
 
@@ -268,7 +401,7 @@ export default function DateTimeWheelInline({
     <div style={st.root}>
       <style>{css}</style>
 
-      {/* Date scroller */}
+      {/* Date scroller — keeps native scroll (horizontal, no conflict) */}
       <div style={st.dateScroller}>
         <div style={st.dateIndicator} />
         <div style={st.dateFadeL} />
@@ -296,65 +429,51 @@ export default function DateTimeWheelInline({
         </div>
       </div>
 
-      {/* Time wheels */}
+      {/* Time wheels — custom touch-based with inertia */}
       <div style={st.timeWrap}>
         <div style={st.timeColonOverlay}>:</div>
         <div style={st.timeInner}>
-          <div style={st.timeColWrap}>
-            <div ref={hourRef} style={st.timeList} className="dtwi-time-track" onScroll={handleHourScroll}>
-              <div style={{ height: 0 }} />
-              {hours.map((h, idx) => (
-                <button
-                  key={`${h}-${idx}`}
-                  type="button"
-                  className="dtwi-time-item"
-                  style={{ ...st.timeItem, ...(h === activeHour ? st.timeItemActive : undefined) }}
-                  onClick={() => {
-                    const next = (activeHour + 1) % HOUR_BASE;
-                    const el = hourRef.current;
-                    if (!el) return;
-                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
-                    const curVal = ((curIdx % HOUR_BASE) + HOUR_BASE) % HOUR_BASE;
-                    let targetIdx = curIdx - curVal + next;
-                    if (next <= curVal) targetIdx += HOUR_BASE;
-                    setActiveHour(next);
-                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
+          {/* Hours */}
+          <div
+            style={st.timeColWrap}
+            onTouchStart={hourWheel.onTouchStart}
+            onTouchMove={hourWheel.onTouchMove}
+            onTouchEnd={hourWheel.onTouchEnd}
+          >
+            <div ref={hourWheel.containerRef} style={st.timeStrip}>
+              {hourItems.map((h) => (
+                <div
+                  key={h}
+                  style={{
+                    ...st.timeItem,
+                    ...(h === activeHour ? st.timeItemActive : undefined),
                   }}
                 >
                   {String(h).padStart(2, "0")}
-                </button>
+                </div>
               ))}
-              <div style={{ height: 0 }} />
             </div>
           </div>
 
-          <div style={st.timeColWrap}>
-            <div ref={minuteRef} style={st.timeList} className="dtwi-time-track" onScroll={handleMinuteScroll}>
-              <div style={{ height: 0 }} />
-              {minutes.map((m, idx) => (
-                <button
-                  key={`${m}-${idx}`}
-                  type="button"
-                  className="dtwi-time-item"
-                  style={{ ...st.timeItem, ...(m === activeMinute ? st.timeItemActive : undefined) }}
-                  onClick={() => {
-                    const next = (activeMinute + 1) % MIN_BASE;
-                    const el = minuteRef.current;
-                    if (!el) return;
-                    const curIdx = Math.round(el.scrollTop / TIME_ITEM_H);
-                    const curVal = ((curIdx % MIN_BASE) + MIN_BASE) % MIN_BASE;
-                    let targetIdx = curIdx - curVal + next;
-                    if (next <= curVal) targetIdx += MIN_BASE;
-                    setActiveMinute(next);
-                    el.scrollTo({ top: targetIdx * TIME_ITEM_H, behavior: "smooth" });
-                    fireHapticImpact("light");
+          {/* Minutes */}
+          <div
+            style={st.timeColWrap}
+            onTouchStart={minuteWheel.onTouchStart}
+            onTouchMove={minuteWheel.onTouchMove}
+            onTouchEnd={minuteWheel.onTouchEnd}
+          >
+            <div ref={minuteWheel.containerRef} style={st.timeStrip}>
+              {minuteItems.map((m) => (
+                <div
+                  key={m}
+                  style={{
+                    ...st.timeItem,
+                    ...(m === activeMinute ? st.timeItemActive : undefined),
                   }}
                 >
                   {String(m).padStart(2, "0")}
-                </button>
+                </div>
               ))}
-              <div style={{ height: 0 }} />
             </div>
           </div>
         </div>
@@ -365,14 +484,9 @@ export default function DateTimeWheelInline({
 
 const css = `
   .dtwi-date-track::-webkit-scrollbar { display: none; }
-  .dtwi-time-track::-webkit-scrollbar { display: none; }
   .dtwi-date-item {
     appearance: none; outline: none; border: none; cursor: pointer;
     -webkit-tap-highlight-color: transparent; touch-action: pan-x;
-  }
-  .dtwi-time-item {
-    appearance: none; outline: none; border: none; cursor: pointer;
-    -webkit-tap-highlight-color: transparent; touch-action: pan-y;
   }
 `;
 
@@ -486,7 +600,8 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     overflow: "hidden",
     width: "100%",
-    height: TIME_ITEM_H * TIME_VISIBLE,
+    height: TIME_ITEM_H,
+    touchAction: "none", // we handle all touch ourselves
   },
   timeInner: {
     position: "relative",
@@ -516,21 +631,15 @@ const st: Record<string, CSSProperties> = {
     height: "100%",
     overflow: "hidden",
     flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    touchAction: "none",
   },
-  timeList: {
-    maxHeight: "100%",
+  timeStrip: {
+    // This is moved by transform — not native scroll
+    position: "absolute",
+    top: 0,
+    left: 0,
     width: "100%",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollSnapType: "y proximity",
-    scrollbarWidth: "none",
-    WebkitOverflowScrolling: "touch",
-    position: "relative",
-    zIndex: 0,
-    touchAction: "pan-y",
+    willChange: "transform",
   },
   timeItem: {
     width: "100%",
@@ -542,11 +651,8 @@ const st: Record<string, CSSProperties> = {
     fontWeight: 800,
     color: "#1e1f22",
     lineHeight: 1,
-    scrollSnapAlign: "center",
-    background: "transparent",
-    boxShadow: "none",
-    border: "none",
-    padding: 0,
+    userSelect: "none",
+    WebkitUserSelect: "none",
   },
   timeItemActive: {
     color: "#1e1f22",
