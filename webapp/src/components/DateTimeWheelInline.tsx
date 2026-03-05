@@ -27,11 +27,11 @@ const HOUR_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 const MINUTE_MID_COPY = Math.floor(CYCLE_COPIES / 2);
 
 /* Physics */
-const DECEL = 0.97;
-const VELOCITY_MIN = 0.4;
+const DECEL = 0.96;
+const VELOCITY_MIN = 0.3;
 const SNAP_MS = 300;
 const VELOCITY_SAMPLES = 5;
-const VELOCITY_SCALE = 16;
+const VELOCITY_SCALE = 11;
 const TAP_THRESHOLD = 6; // px — less than this = tap, not drag
 
 /* ═══════════════════════════════════════════════════════
@@ -408,9 +408,9 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
             {dates.map((d, idx) => {
               const active = idx === activeDate;
               return (
-                <div key={idx} className="dtwi-date-cell" style={st.dateItem}>
-                  <span className="dtwi-date-dow" style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
-                  <span className="dtwi-date-num" style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
+                <div key={idx} style={st.dateItem}>
+                  <span style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
+                  <span style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
                 </div>
               );
             })}
@@ -431,7 +431,7 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
           >
             <div ref={hourWheel.stripRef} style={st.timeStrip}>
               {hourItems.map((h, i) => (
-                <div key={i} className="dtwi-time-cell" style={h === activeHour ? st.timeItemActive : st.timeItem}>
+                <div key={i} style={st.timeItem}>
                   {String(h).padStart(2, "0")}
                 </div>
               ))}
@@ -447,7 +447,7 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
           >
             <div ref={minWheel.stripRef} style={st.timeStrip}>
               {minuteItems.map((m, i) => (
-                <div key={i} className="dtwi-time-cell" style={m === activeMin ? st.timeItemActive : st.timeItem}>
+                <div key={i} style={st.timeItem}>
                   {String(m).padStart(2, "0")}
                 </div>
               ))}
@@ -463,14 +463,7 @@ export default function DateTimeWheelInline({ initialDate, initialTime, onChange
    Styles
    ═══════════════════════════════════════════════════════ */
 
-const css = `
-  .dtwi-date-dow, .dtwi-date-num {
-    transition: color 180ms ease, font-size 180ms ease, font-weight 180ms ease;
-  }
-  .dtwi-time-cell {
-    transition: color 180ms ease, font-size 180ms ease, font-weight 180ms ease;
-  }
-`;
+const css = ``;
 
 const FADE_COLOR = "rgba(250,250,252,1)";
 
@@ -575,7 +568,7 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1.3,
   },
   dateNumActive: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 700,
     color: "#111",
     lineHeight: 1.3,
@@ -633,17 +626,6 @@ const st: Record<string, CSSProperties> = {
     justifyContent: "center",
     fontSize: 88,
     fontWeight: 800,
-    color: "rgba(30,31,34,0.25)",
-    lineHeight: 1,
-  },
-  timeItemActive: {
-    width: "100%",
-    height: TIME_ITEM_H,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 92,
-    fontWeight: 900,
     color: "#1e1f22",
     lineHeight: 1,
   },
