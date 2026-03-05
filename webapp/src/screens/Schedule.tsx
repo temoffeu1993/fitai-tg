@@ -405,8 +405,14 @@ export default function Schedule() {
     });
   };
 
-  const handleModalDetails = () => {
-    const sessionId = modal?.workout?.resultSessionId ? String(modal.workout.resultSessionId) : null;
+  const handleModalDetails = (workoutId?: string) => {
+    let sessionId: string | null = null;
+    if (workoutId) {
+      const w = planned.find((p) => p.id === workoutId);
+      sessionId = w?.resultSessionId ? String(w.resultSessionId) : null;
+    } else {
+      sessionId = modal?.workout?.resultSessionId ? String(modal.workout.resultSessionId) : null;
+    }
     if (!sessionId) return;
     setModal(null);
     nav(`/workout/result?sessionId=${encodeURIComponent(sessionId)}`);
@@ -663,6 +669,7 @@ export default function Schedule() {
           onDelete={handleModalDelete}
           onStart={handleModalStart}
           onDetails={handleModalDetails}
+          completedWorkouts={(plannedByDate[modal.date] || []).filter((w) => w.status === "completed")}
         />
       )}
       {replaceConfirm ? (
@@ -713,6 +720,7 @@ function ScheduleBottomSheet({
   onDelete,
   onStart,
   onDetails,
+  completedWorkouts,
 }: {
   workout: PlannedWorkout | null;
   selectedWorkoutId: string | null;
@@ -727,7 +735,8 @@ function ScheduleBottomSheet({
   onSave: () => void;
   onDelete: () => void;
   onStart: () => void;
-  onDetails: () => void;
+  onDetails: (workoutId?: string) => void;
+  completedWorkouts: PlannedWorkout[];
 }) {
   const [renderOpen, setRenderOpen] = useState(true);
   const [entered, setEntered] = useState(false);
@@ -882,7 +891,27 @@ function ScheduleBottomSheet({
           </button>
         </div>
 
-        {confirmDelete ? (
+        {readOnly ? (
+          <>
+            {/* Completed workouts list */}
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0, padding: "8px 0" }}>
+              {completedWorkouts.map((w, idx) => {
+                const p: any = w.plan || {};
+                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                const label = dayLabelRU(rawLabel);
+                return (
+                  <div key={w.id}>
+                    <button type="button" style={sh.pickRow} onClick={() => onDetails(w.id)}>
+                      <div style={sh.pickName}>{label}</div>
+                      <span style={sh.completedArrow}>→</span>
+                    </button>
+                    {idx < completedWorkouts.length - 1 && <div style={sh.pickDivider} />}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : confirmDelete ? (
           <>
             {/* Confirm delete view */}
             <div style={sh.confirmText}>
@@ -967,12 +996,7 @@ function ScheduleBottomSheet({
 
             {/* Action buttons */}
             <div style={sh.actionWrap}>
-              {canDetails ? (
-                <button type="button" style={sh.primaryBtn} onClick={onDetails} disabled={saving}>
-                  <span style={sh.primaryBtnLabel}>Результат</span>
-                  <span style={sh.primaryBtnCircle}><span style={sh.primaryBtnCheck}>✓</span></span>
-                </button>
-              ) : canStart ? (
+              {canStart ? (
                 <>
                   <button type="button" style={sh.primaryBtn} onClick={onStart} disabled={saving || readOnly}>
                     <span style={sh.primaryBtnLabel}>Начать тренировку</span>
@@ -1684,6 +1708,12 @@ const sh: Record<string, CSSProperties> = {
     color: "#1e1f22",
     fontWeight: 700,
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+  completedArrow: {
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    flexShrink: 0,
   },
   deleteBtn: {
     background: "transparent",
