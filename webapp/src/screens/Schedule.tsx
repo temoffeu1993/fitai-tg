@@ -730,7 +730,9 @@ function ScheduleBottomSheet({
           background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
           boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
           maxHeight: "85vh",
-          overflowY: "auto",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column" as const,
           padding: "0 16px 16px",
           transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
           transition: `transform ${entered && !closing ? SHEET_ENTER_MS : SHEET_EXIT_MS}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
@@ -738,7 +740,7 @@ function ScheduleBottomSheet({
         }}
       >
         {/* Grabber */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px" }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
           <div
             style={{
               width: 46,
@@ -750,7 +752,7 @@ function ScheduleBottomSheet({
         </div>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px" }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
           <div style={{ width: 32, flexShrink: 0 }} />
           <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 600, color: "#0f172a", lineHeight: 1.2 }}>
             {title}
@@ -790,41 +792,43 @@ function ScheduleBottomSheet({
 
         {/* Workout pick list */}
         {needsPick ? (
-          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-            {availableWorkouts.length ? (
-              availableWorkouts.map((w) => {
-                const p: any = w.plan || {};
-                const rawLabel = String(p.dayLabel || p.title || "Тренировка");
-                const label = dayLabelRU(rawLabel);
-                const selected = w.id === selectedWorkoutId;
-                return (
-                  <button
-                    key={w.id}
-                    type="button"
-                    style={{
-                      ...sh.workoutRow,
-                      ...(selected ? sh.workoutRowSelected : null),
-                    }}
-                    onClick={() => onSelectWorkout(w.id)}
-                  >
-                    <div style={sh.radioCircle}>
-                      <div
-                        style={{
-                          ...sh.radioDot,
-                          transform: selected ? "scale(1)" : "scale(0)",
-                          opacity: selected ? 1 : 0,
-                        }}
-                      />
-                    </div>
-                    <div style={sh.workoutTitle}>{label}</div>
-                  </button>
-                );
-              })
-            ) : (
-              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" }}>
-                Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
-              </div>
-            )}
+          <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
+            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+              {availableWorkouts.length ? (
+                availableWorkouts.map((w) => {
+                  const p: any = w.plan || {};
+                  const rawLabel = String(p.dayLabel || p.title || "Тренировка");
+                  const label = dayLabelRU(rawLabel);
+                  const selected = w.id === selectedWorkoutId;
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      style={{
+                        ...sh.workoutRow,
+                        ...(selected ? sh.workoutRowSelected : null),
+                      }}
+                      onClick={() => onSelectWorkout(w.id)}
+                    >
+                      <div style={sh.radioCircle}>
+                        <div
+                          style={{
+                            ...sh.radioDot,
+                            transform: selected ? "scale(1)" : "scale(0)",
+                            opacity: selected ? 1 : 0,
+                          }}
+                        />
+                      </div>
+                      <div style={sh.workoutTitle}>{label}</div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)", padding: "10px 6px" }}>
+                  Пока нет сгенерированных тренировок. Сначала открой PlanOne и сгенерируй план.
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
 
@@ -834,7 +838,7 @@ function ScheduleBottomSheet({
         )}
 
         {/* Action buttons */}
-        <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+        <div style={{ marginTop: 16, display: "grid", gap: 8, flexShrink: 0 }}>
           <style>{`
             .sched-sheet-btn{
               border-radius:999px;padding:0 14px;height:50px;width:100%;

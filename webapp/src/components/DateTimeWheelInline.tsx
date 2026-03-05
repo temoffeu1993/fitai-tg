@@ -297,11 +297,7 @@ export default function DateTimeWheelInline({
       </div>
 
       {/* Time wheels */}
-      <div
-        style={st.timeWrap}
-        onTouchMove={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
-      >
+      <div style={st.timeWrap}>
         <div style={st.timeColonOverlay}>:</div>
         <div style={st.timeInner}>
           <div style={st.timeColWrap}>
@@ -390,6 +386,7 @@ const st: Record<string, CSSProperties> = {
     gap: 16,
     width: "100%",
     paddingBottom: 8,
+    flexShrink: 0,
   },
 
   /* ---- Date scroller ---- */
