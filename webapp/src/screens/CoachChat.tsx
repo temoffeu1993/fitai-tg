@@ -360,7 +360,7 @@ const st: Record<string, CSSProperties> = {
   row: { display: "flex", marginBottom: 1 },
   bubble: { maxWidth: "80%", padding: "8px 12px", whiteSpace: "pre-wrap" } as CSSProperties,
   aiBubble: { background: "#e9e9eb", color: "#000", borderRadius: "18px 18px 18px 4px" },
-  userBubble: { background: "#007AFF", color: "#fff", borderRadius: "18px 18px 4px 18px" },
+  userBubble: { background: "#1e1f22", color: "rgba(255,255,255,0.96)", borderRadius: "18px 18px 4px 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" },
   bubbleText: { fontSize: 16, lineHeight: 1.35, fontWeight: 400, letterSpacing: -0.1 },
   actionBtn: {
     width: "100%", padding: "8px 10px", borderRadius: 12,
