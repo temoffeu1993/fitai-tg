@@ -8,7 +8,7 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   if (pathname === "/nutrition/today" || pathname.startsWith("/nutrition/today")) {
     return "none";
   }
-  if (pathname === "/" || pathname.startsWith("/dashboard")) return "home";
+  if (pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/workout/result")) return "home";
   if (pathname.startsWith("/schedule")) return "plan";
   if (pathname.startsWith("/coach")) return "coach";
   if (pathname.startsWith("/profile")) return "profile";
@@ -22,7 +22,7 @@ function shouldHideNav(_pathname: string) {
   if (pathname.startsWith("/check-in")) return true;
   if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
-  if (pathname.startsWith("/workout/result")) return true;
+  // navbar is shown on /workout/result
   if (pathname.startsWith("/workout/celebrate")) return true;
   return false;
 }

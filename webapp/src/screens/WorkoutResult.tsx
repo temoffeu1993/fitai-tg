@@ -351,6 +351,11 @@ export default function WorkoutResult() {
     return () => window.removeEventListener("workout_saved", onSaved);
   }, []);
 
+  // Clear stored result when leaving the screen
+  useEffect(() => {
+    return () => { try { localStorage.removeItem(LAST_RESULT_KEY); } catch {} };
+  }, []);
+
   useEffect(() => {
     if (result) return;
     if (!urlSessionId) return;
@@ -770,21 +775,8 @@ function ResultContent({ result, nav }: { result: StoredWorkoutResult; nav: any 
           </div>
         )}
 
-        {/* bottom spacer for sticky button */}
-        <div style={{ height: 90 }} />
-      </div>
-
-      {/* ── 6. Sticky Buttons ───────────────────────────────────── */}
-      <div style={s.stickyWrap}>
-        <div style={s.stickyInner}>
-          <button style={s.primaryBtn} className="intro-primary-btn ws-primary-btn result-primary-btn"
-            onClick={() => { try { localStorage.removeItem(LAST_RESULT_KEY); } catch { } nav("/"); }}>
-            <span style={s.primaryBtnText}>На главную</span>
-            <span style={s.primaryBtnCircle} aria-hidden>
-              <span style={{ fontSize: 20, lineHeight: 1, color: "#0f172a", fontWeight: 700 }}>→</span>
-            </span>
-          </button>
-        </div>
+        {/* bottom spacer for nav bar */}
+        <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }} />
       </div>
     </div>
   );
