@@ -777,7 +777,7 @@ function ResultContent({ result, nav, isFirstView }: { result: StoredWorkoutResu
           </div>
         )}
 
-        <div style={{ height: isFirstView ? 90 : "calc(env(safe-area-inset-bottom, 0px) + 80px)" }} />
+        <div style={{ height: isFirstView ? 90 : "calc(env(safe-area-inset-bottom, 0px) + 24px)" }} />
       </div>
 
       {isFirstView && (
