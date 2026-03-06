@@ -296,7 +296,7 @@ function SheetInner({ onClose }: { onClose: () => void }) {
               disabled={sending || !hasText}
               aria-label="Отправить"
             >
-              <ArrowUp size={18} strokeWidth={2.8} color="rgba(15,23,42,0.55)" />
+              <ArrowUp size={18} strokeWidth={2.8} color="#8b8f97" />
             </button>
           </div>
         </div>
