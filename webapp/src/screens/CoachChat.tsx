@@ -203,9 +203,10 @@ function SheetInner({ onClose }: { onClose: () => void }) {
           willChange: animDone ? "auto" : "transform",
         }}
       >
-        {/* Grab handle */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.18)" }} />
+        {/* Header */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 16px 8px", borderBottom: "0.5px solid rgba(0,0,0,0.08)" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.18)", marginBottom: 8 }} />
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#000", lineHeight: 1.2 }}>Чат с Moro</div>
         </div>
 
         {/* ── Messages ── */}
