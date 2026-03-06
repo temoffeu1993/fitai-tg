@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { getCoachChatHistory, sendCoachChat } from "@/api/plan";
 import { getPlannedWorkouts, replacePlannedWorkoutExercise, type PlannedWorkout } from "@/api/schedule";
 import { useNavigate } from "react-router-dom";
-import { Send } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import mascotImg from "@/assets/robonew.webp";
 
 type Msg = {
@@ -33,7 +33,6 @@ export default function CoachChat() {
   }>({ open: false, action: null, planned: [], loading: false, error: null });
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const pageRef = useRef<HTMLDivElement | null>(null);
 
   // Lock body scroll while chat is mounted
   useEffect(() => {
@@ -44,10 +43,10 @@ export default function CoachChat() {
 
   const suggested = useMemo(
     () => [
-      "Проанализируй мою последнюю тренировку и скажи, что улучшить",
-      "Почему у меня не растёт вес в жиме? Посмотри по истории",
-      "Последние тренировки я устаю сильнее обычного — почему так может быть?",
-      "Как сделать тренировки эффективнее, если у меня только 45–60 минут?",
+      "Проанализируй мою последнюю тренировку",
+      "Почему не растёт вес в жиме?",
+      "Последние тренировки устаю сильнее",
+      "Как уложиться в 45–60 минут?",
     ],
     []
   );
@@ -62,7 +61,7 @@ export default function CoachChat() {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "0px";
-    const next = Math.min(140, Math.max(44, el.scrollHeight));
+    const next = Math.min(140, Math.max(22, el.scrollHeight));
     el.style.height = `${next}px`;
   };
 
@@ -196,43 +195,47 @@ export default function CoachChat() {
     }
   };
 
+  const hasText = text.trim().length > 0;
+
   return (
-    <div ref={pageRef} style={s.page}>
+    <div style={s.page}>
       <style>{`
-        .cc-typing { display:inline-flex; align-items:center; gap:6px; padding:2px }
-        .cc-typing-dot { width:6px; height:6px; border-radius:999px; background:rgba(15,23,42,0.45); animation:ccBounce 1.2s ease-in-out infinite }
-        .cc-typing-dot:nth-child(2){animation-delay:.15s}
-        .cc-typing-dot:nth-child(3){animation-delay:.3s}
-        @keyframes ccBounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
+        .cc-typing{display:inline-flex;align-items:center;gap:5px;padding:2px 0}
+        .cc-dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,0.38);animation:ccPulse 1.4s ease-in-out infinite}
+        .cc-dot:nth-child(2){animation-delay:.2s}
+        .cc-dot:nth-child(3){animation-delay:.4s}
+        @keyframes ccPulse{0%,80%,100%{opacity:.35;transform:scale(.85)}40%{opacity:1;transform:scale(1)}}
       `}</style>
 
-      {/* ── Header ─────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────── */}
       <header style={s.header}>
-        <div style={s.avatarCircle}>
-          <img src={mascotImg} alt="" style={s.avatarImg} />
-        </div>
-        <div style={s.headerText}>
-          <div style={s.headerTitle}>Moro — твой тренер</div>
-          <div style={s.headerSub}>ИИ-ассистент</div>
+        <div style={s.headerInner}>
+          <div style={s.avatarWrap}>
+            <img src={mascotImg} alt="" style={s.avatarImg} />
+          </div>
+          <div style={s.headerName}>Moro</div>
+          <div style={s.headerRole}>ИИ-тренер</div>
         </div>
       </header>
 
-      {/* ── Error ──────────────────────────────────────── */}
+      {/* ── Error ──────────────────────────────────── */}
       {error && <div style={s.errorBanner}>{error}</div>}
 
-      {/* ── Messages ───────────────────────────────────── */}
+      {/* ── Messages ───────────────────────────────── */}
       <section ref={listRef} style={s.messages}>
         {loading ? (
           <div style={s.loadingWrap}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center" }}>
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="cc-typing-dot" style={{ width: 10, height: 10, animationDelay: `${i * 0.15}s` }} />
-              ))}
+            <div className="cc-typing">
+              <span className="cc-dot" /><span className="cc-dot" /><span className="cc-dot" />
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyTitle}>Спроси что важно именно тебе</div>
+          <div style={s.emptyWrap}>
+            <div style={s.emptyAvatar}>
+              <img src={mascotImg} alt="" style={s.emptyAvatarImg} />
+            </div>
+            <div style={s.emptyTitle}>Moro — твой ИИ-тренер</div>
+            <div style={s.emptySub}>Спроси что-нибудь или выбери тему</div>
             <div style={s.chips}>
               {suggested.map((q) => (
                 <button key={q} type="button" style={s.chip} onClick={() => void send(q)} disabled={sending}>
@@ -244,25 +247,20 @@ export default function CoachChat() {
         ) : (
           <>
             {messages.map((m) => (
-              <div key={m.id} style={{ ...s.bubbleRow, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.assistantBubble) }}>
-                  <div style={s.bubbleText}>{m.content}</div>
+              <div key={m.id} style={{ ...s.row, justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{ ...s.bubble, ...(m.role === "user" ? s.userBubble : s.aiBubble) }}>
+                  <span style={s.bubbleText}>{m.content}</span>
                   {m.role === "assistant" &&
                   Array.isArray((m as any)?.meta?.actions) &&
                   (m as any).meta.actions.some((a: any) => a?.type === "replace_exercise") ? (
-                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                    <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
                       {(m as any).meta.actions
                         .filter((a: any) => a?.type === "replace_exercise")
                         .slice(0, 3)
                         .map((a: any, i: number) => (
-                          <button
-                            key={`apply-${m.id}-${i}`}
-                            type="button"
-                            style={s.actionBtn}
-                            onClick={() => void openApplyReplacement(a)}
-                          >
-                            Применить замену: {String(a?.fromName || "").trim() || "упражнение"} →{" "}
-                            {String(a?.toName || "").trim() || "вариант"}
+                          <button key={`apply-${m.id}-${i}`} type="button" style={s.actionBtn}
+                            onClick={() => void openApplyReplacement(a)}>
+                            Применить: {String(a?.fromName || "").trim() || "упражнение"} → {String(a?.toName || "").trim() || "вариант"}
                           </button>
                         ))}
                     </div>
@@ -271,12 +269,10 @@ export default function CoachChat() {
               </div>
             ))}
             {sending && (
-              <div style={{ ...s.bubbleRow, justifyContent: "flex-start" }}>
-                <div style={{ ...s.bubble, ...s.assistantBubble }}>
-                  <div className="cc-typing" aria-label="Тренер печатает">
-                    <span className="cc-typing-dot" />
-                    <span className="cc-typing-dot" />
-                    <span className="cc-typing-dot" />
+              <div style={{ ...s.row, justifyContent: "flex-start" }}>
+                <div style={{ ...s.bubble, ...s.aiBubble, padding: "12px 16px" }}>
+                  <div className="cc-typing">
+                    <span className="cc-dot" /><span className="cc-dot" /><span className="cc-dot" />
                   </div>
                 </div>
               </div>
@@ -285,39 +281,30 @@ export default function CoachChat() {
         )}
       </section>
 
-      {/* ── Apply Replacement Modal ────────────────────── */}
+      {/* ── Modal ──────────────────────────────────── */}
       {applyModal.open && (
         <div style={s.modalOverlay} onClick={closeApplyModal} role="dialog" aria-modal="true">
           <div style={s.modalCard} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1e1f22" }}>Куда применить замену</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 600, fontSize: 17, color: "#000" }}>Куда применить замену</div>
               <button type="button" onClick={closeApplyModal} style={s.modalClose}>✕</button>
             </div>
-
-            {applyModal.error && (
-              <div style={s.modalError}>{applyModal.error}</div>
-            )}
-
+            {applyModal.error && <div style={s.modalError}>{applyModal.error}</div>}
             {applyModal.loading ? (
-              <div style={{ marginTop: 12, fontSize: 13, color: "rgba(15,23,42,0.55)" }}>Загружаю…</div>
+              <div style={{ marginTop: 12, fontSize: 13, color: "#8e8e93" }}>Загружаю…</div>
             ) : applyModal.planned.length === 0 ? (
-              <div style={{ marginTop: 12, fontSize: 13, color: "rgba(15,23,42,0.55)" }}>Нет запланированных тренировок.</div>
+              <div style={{ marginTop: 12, fontSize: 13, color: "#8e8e93" }}>Нет запланированных тренировок.</div>
             ) : (
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+              <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
                 {applyModal.planned.slice(0, 20).map((pw) => {
                   const p: any = pw.plan || {};
                   const title = String(p.dayLabel || p.title || "Тренировка");
                   const when = pw.scheduledFor ? new Date(pw.scheduledFor).toLocaleString("ru-RU") : "";
                   return (
-                    <button
-                      key={pw.id}
-                      type="button"
-                      disabled={applyModal.loading}
-                      style={s.modalWorkoutBtn}
-                      onClick={() => void applyReplacementToPlanned(pw)}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: 14, color: "#1e1f22" }}>{title}</div>
-                      {when && <div style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 3 }}>{when}</div>}
+                    <button key={pw.id} type="button" disabled={applyModal.loading}
+                      style={s.modalItem} onClick={() => void applyReplacementToPlanned(pw)}>
+                      <div style={{ fontWeight: 600, fontSize: 15, color: "#000" }}>{title}</div>
+                      {when && <div style={{ fontSize: 12, color: "#8e8e93", marginTop: 2 }}>{when}</div>}
                     </button>
                   );
                 })}
@@ -327,10 +314,10 @@ export default function CoachChat() {
         </div>
       )}
 
-      {/* ── Composer ───────────────────────────────────── */}
+      {/* ── Composer ───────────────────────────────── */}
       <footer style={s.composer}>
-        <div style={s.composerInner}>
-          <div style={s.inputBox}>
+        <div style={s.composerRow}>
+          <div style={s.inputWrap}>
             <textarea
               ref={inputRef}
               value={text}
@@ -348,17 +335,13 @@ export default function CoachChat() {
             />
           </div>
           <button
-            style={{
-              ...s.sendBtn,
-              opacity: sending || !text.trim() ? 0.45 : 1,
-              cursor: sending || !text.trim() ? "default" : "pointer",
-            }}
+            style={{ ...s.sendBtn, background: hasText && !sending ? "#007AFF" : "rgba(0,0,0,0.08)" }}
             type="button"
             onClick={() => void send()}
-            disabled={sending || !text.trim()}
+            disabled={sending || !hasText}
             aria-label="Отправить"
           >
-            <Send size={18} strokeWidth={2.5} color="#fff" />
+            <ArrowUp size={20} strokeWidth={2.8} color={hasText && !sending ? "#fff" : "rgba(0,0,0,0.25)"} />
           </button>
         </div>
       </footer>
@@ -368,8 +351,6 @@ export default function CoachChat() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const AVATAR_SIZE = 44;
-
 const s: Record<string, CSSProperties> = {
   page: {
     width: "100%",
@@ -377,78 +358,74 @@ const s: Record<string, CSSProperties> = {
     margin: "0 auto",
     height: "calc(100dvh - var(--layout-nav-height, 72px))",
     display: "grid",
-    gridTemplateRows: "auto auto minmax(0, 1fr) auto",
+    gridTemplateRows: "auto auto minmax(0,1fr) auto",
     overflow: "hidden",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    fontFamily: "-apple-system, SF Pro Text, SF Pro Display, system-ui, sans-serif",
   },
 
-  // ── Header
+  // ── Header (iOS-style centered)
   header: {
-    padding: "calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px",
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
+    padding: "8px 16px 8px",
+    borderBottom: "0.5px solid rgba(0,0,0,0.12)",
+    background: "rgba(247,247,247,0.72)",
+    backdropFilter: "blur(20px) saturate(180%)",
+    WebkitBackdropFilter: "blur(20px) saturate(180%)",
   },
-  avatarCircle: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: 999,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+  headerInner: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 2,
+  },
+  avatarWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
     overflow: "hidden",
-    flexShrink: 0,
-    padding: 2,
+    background: "#e5e5ea",
   },
   avatarImg: {
     width: "100%",
     height: "100%",
     objectFit: "cover" as const,
     objectPosition: "center 10%",
-    borderRadius: 999,
   },
-  headerText: {
-    display: "flex",
-    flexDirection: "column",
-    minWidth: 0,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#1e1f22",
-    lineHeight: 1.2,
-  },
-  headerSub: {
+  headerName: {
     fontSize: 13,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.55)",
+    fontWeight: 600,
+    color: "#000",
+    lineHeight: 1.15,
     marginTop: 2,
+  },
+  headerRole: {
+    fontSize: 11,
+    fontWeight: 400,
+    color: "#8e8e93",
+    lineHeight: 1.15,
   },
 
   // ── Error
   errorBanner: {
-    margin: "0 16px 8px",
-    background: "rgba(239,68,68,.10)",
-    border: "1px solid rgba(239,68,68,.2)",
-    color: "#7f1d1d",
-    borderRadius: 16,
-    padding: "10px 14px",
+    margin: "8px 16px 0",
+    background: "#fff2f2",
+    border: "0.5px solid rgba(255,59,48,0.3)",
+    color: "#ff3b30",
+    borderRadius: 12,
+    padding: "8px 12px",
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
   },
 
-  // ── Messages area
+  // ── Messages
   messages: {
     minHeight: 0,
     overflowY: "auto",
     overscrollBehavior: "contain",
     WebkitOverflowScrolling: "touch",
-    padding: "8px 16px 10px",
+    padding: "10px 16px 6px",
     display: "flex",
     flexDirection: "column",
-    gap: 8,
+    gap: 2,
     touchAction: "pan-y",
   },
   loadingWrap: {
@@ -458,108 +435,120 @@ const s: Record<string, CSSProperties> = {
   },
 
   // ── Empty state
-  empty: {
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
-    padding: 18,
-    display: "grid",
-    gap: 12,
+  emptyWrap: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "0 12px",
+  },
+  emptyAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 999,
+    overflow: "hidden",
+    background: "#e5e5ea",
+    marginBottom: 4,
+  },
+  emptyAvatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover" as const,
+    objectPosition: "center 10%",
   },
   emptyTitle: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: "#1e1f22",
+    fontSize: 17,
+    fontWeight: 600,
+    color: "#000",
+    textAlign: "center",
+  },
+  emptySub: {
+    fontSize: 13,
+    color: "#8e8e93",
+    textAlign: "center",
+    marginBottom: 12,
   },
   chips: {
     display: "flex",
     flexWrap: "wrap",
     gap: 8,
+    justifyContent: "center",
   },
   chip: {
-    border: "1px solid rgba(15,23,42,0.12)",
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    color: "#1e1f22",
-    padding: "8px 12px",
-    borderRadius: 999,
-    fontSize: 12.5,
-    fontWeight: 600,
+    border: "0.5px solid rgba(0,0,0,0.12)",
+    background: "rgba(255,255,255,0.85)",
+    color: "#007AFF",
+    padding: "7px 14px",
+    borderRadius: 18,
+    fontSize: 13,
+    fontWeight: 500,
     cursor: "pointer",
-    textAlign: "left",
+    textAlign: "center",
   },
 
   // ── Bubbles
-  bubbleRow: {
+  row: {
     display: "flex",
+    marginBottom: 2,
   },
   bubble: {
-    maxWidth: "86%",
-    borderRadius: 18,
-    padding: "10px 14px",
+    maxWidth: "78%",
+    padding: "8px 12px",
     whiteSpace: "pre-wrap",
   } as CSSProperties,
-  assistantBubble: {
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    color: "#0f172a",
-    border: "1px solid rgba(255,255,255,0.75)",
-    borderTopLeftRadius: 6,
-    boxShadow: "0 4px 12px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+  aiBubble: {
+    background: "#e9e9eb",
+    color: "#000",
+    borderRadius: "18px 18px 18px 4px",
   },
   userBubble: {
-    background: "#1e1f22",
-    color: "rgba(255,255,255,0.96)",
-    border: "1px solid rgba(255,255,255,0.06)",
-    borderTopRightRadius: 6,
-    boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
+    background: "#007AFF",
+    color: "#fff",
+    borderRadius: "18px 18px 4px 18px",
   },
   bubbleText: {
-    fontSize: 14,
-    lineHeight: 1.42,
+    fontSize: 16,
+    lineHeight: 1.35,
     fontWeight: 400,
+    letterSpacing: -0.1,
   },
   actionBtn: {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    boxShadow: "0 2px 6px rgba(15,23,42,0.08)",
-    fontWeight: 700,
+    padding: "8px 10px",
+    borderRadius: 12,
+    border: "0.5px solid rgba(0,0,0,0.12)",
+    background: "rgba(255,255,255,0.85)",
+    fontWeight: 500,
     fontSize: 13,
     cursor: "pointer",
     textAlign: "left",
-    color: "#1e1f22",
+    color: "#007AFF",
   } as CSSProperties,
 
   // ── Composer
   composer: {
-    padding: "10px 16px calc(10px + max(var(--tg-viewport-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(242,242,247,0.88) 100%)",
-    borderTop: "1px solid rgba(255,255,255,0.75)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
+    padding: "6px 10px calc(6px + max(var(--tg-viewport-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)))",
+    background: "rgba(247,247,247,0.72)",
+    borderTop: "0.5px solid rgba(0,0,0,0.12)",
+    backdropFilter: "blur(20px) saturate(180%)",
+    WebkitBackdropFilter: "blur(20px) saturate(180%)",
   },
-  composerInner: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 10,
-    alignItems: "end",
+  composerRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 6,
   },
-  inputBox: {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    boxShadow: "inset 0 1px 3px rgba(15,23,42,0.08), 0 1px 0 rgba(255,255,255,0.9)",
-    padding: "6px 14px",
+  inputWrap: {
+    flex: 1,
+    borderRadius: 20,
+    border: "0.5px solid rgba(0,0,0,0.18)",
+    background: "#fff",
+    padding: "6px 12px",
     display: "flex",
     alignItems: "center",
-    minHeight: 48,
+    minHeight: 36,
   },
   input: {
     width: "100%",
@@ -567,76 +556,72 @@ const s: Record<string, CSSProperties> = {
     outline: "none",
     background: "transparent",
     resize: "none",
-    fontSize: 14,
-    lineHeight: 1.35,
+    fontSize: 16,
+    lineHeight: 1.3,
     fontWeight: 400,
-    color: "#0f172a",
-    caretColor: "#0f172a",
-    height: 44,
+    color: "#000",
+    caretColor: "#007AFF",
+    height: 22,
+    letterSpacing: -0.1,
   } as CSSProperties,
   sendBtn: {
     border: "none",
     borderRadius: 999,
-    width: 44,
-    height: 44,
+    width: 34,
+    height: 34,
     padding: 0,
-    background: "#1e1f22",
-    color: "#fff",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.20)",
     display: "grid",
     placeItems: "center",
-    transition: "opacity 200ms ease",
+    flexShrink: 0,
+    cursor: "pointer",
+    transition: "background 150ms ease",
   },
 
-  // ── Modal
+  // ── Modal (iOS action sheet style)
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.35)",
+    background: "rgba(0,0,0,0.4)",
     display: "flex",
     alignItems: "flex-end",
     justifyContent: "center",
-    padding: 14,
+    padding: "10px",
     zIndex: 70,
   },
   modalCard: {
     width: "min(720px, 100%)",
-    borderRadius: 24,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.9)",
-    padding: 18,
+    borderRadius: 14,
+    background: "#fff",
+    padding: 16,
   },
   modalClose: {
-    border: "1px solid rgba(15,23,42,0.1)",
-    borderRadius: 12,
-    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
-    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
-    padding: "8px 12px",
-    fontWeight: 700,
+    border: "none",
+    borderRadius: 999,
+    background: "rgba(0,0,0,0.06)",
+    width: 30,
+    height: 30,
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 400,
     cursor: "pointer",
-    fontSize: 14,
-    color: "#1e1f22",
+    fontSize: 15,
+    color: "#8e8e93",
   },
   modalError: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 14,
-    background: "rgba(239,68,68,.08)",
-    border: "1px solid rgba(239,68,68,.15)",
-    color: "#7f1d1d",
-    fontWeight: 600,
+    marginTop: 8,
+    padding: "8px 12px",
+    borderRadius: 10,
+    background: "#fff2f2",
+    color: "#ff3b30",
+    fontWeight: 500,
     fontSize: 13,
   },
-  modalWorkoutBtn: {
+  modalItem: {
     width: "100%",
-    padding: "12px 14px",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.75)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
-    boxShadow: "0 4px 12px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+    padding: "12px",
+    borderRadius: 10,
+    border: "none",
+    background: "rgba(0,0,0,0.04)",
     cursor: "pointer",
     textAlign: "left",
   } as CSSProperties,
