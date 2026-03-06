@@ -18,7 +18,7 @@ function resolveNavCurrent(pathname: string): NavCurrent {
 function shouldHideNav(_pathname: string, _search?: string) {
   const pathname = _pathname || "";
   if (pathname.startsWith("/onb")) return true;
-  if (pathname.startsWith("/coach")) return true;
+  // navbar shown on /coach
   if (pathname.startsWith("/check-in")) return true;
   if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
