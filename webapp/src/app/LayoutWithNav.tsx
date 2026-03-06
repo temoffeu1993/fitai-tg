@@ -15,14 +15,14 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   return "none";
 }
 
-function shouldHideNav(_pathname: string) {
+function shouldHideNav(_pathname: string, _search?: string) {
   const pathname = _pathname || "";
   if (pathname.startsWith("/onb")) return true;
   if (pathname.startsWith("/coach")) return true;
   if (pathname.startsWith("/check-in")) return true;
   if (pathname.startsWith("/workout/countdown")) return true;
   if (pathname.startsWith("/workout/session")) return true;
-  // navbar is shown on /workout/result
+  if (pathname.startsWith("/workout/result") && !pathname.includes("sessionId") && !(_search || "").includes("sessionId")) return true;
   if (pathname.startsWith("/workout/celebrate")) return true;
   return false;
 }
@@ -76,7 +76,7 @@ function hasOnbLocal(): boolean {
 }
 
 export default function LayoutWithNav() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const keyboardOffset = useKeyboardOffset();
 
@@ -144,7 +144,7 @@ export default function LayoutWithNav() {
   }, []);
 
   const current = resolveNavCurrent(pathname);
-  const hideNav = shouldHideNav(pathname) || (!onbDone && (pathname === "/" || pathname.startsWith("/dashboard")));
+  const hideNav = shouldHideNav(pathname, search) || (!onbDone && (pathname === "/" || pathname.startsWith("/dashboard")));
   const safeTop =
     typeof window !== "undefined"
       ? Number.parseInt(

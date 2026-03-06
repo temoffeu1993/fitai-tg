@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getProgressionJob, getWorkoutSessionById } from "@/api/plan";
-import { Clock3, Dumbbell, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat, Weight } from "lucide-react";
+import { Clock3, Dumbbell, Activity, Zap, Calendar, CircleCheckBig, Flame, TrendingUp, Repeat, Weight, Check } from "lucide-react";
 import { loadHistory, type HistSession } from "@/lib/history";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import mascotImg from "@/assets/robonew.webp";
@@ -450,14 +450,16 @@ export default function WorkoutResult() {
     );
   }
 
+  const isFirstView = !!fromState && !urlSessionId;
+
   return (
-    <ResultContent result={result} nav={nav} />
+    <ResultContent result={result} nav={nav} isFirstView={isFirstView} />
   );
 }
 
 // ─── Result Content ────────────────────────────────────────────────────────────
 
-function ResultContent({ result, nav }: { result: StoredWorkoutResult; nav: any }) {
+function ResultContent({ result, nav, isFirstView }: { result: StoredWorkoutResult; nav: any; isFirstView: boolean }) {
   const payloadExercises: Array<any> = Array.isArray(result.payload?.exercises) ? result.payload.exercises : [];
   const durationMin: number | null = toNumber(result.payload?.durationMin);
   const workoutTitle = resolveWorkoutTitle(result.payload);
@@ -775,9 +777,22 @@ function ResultContent({ result, nav }: { result: StoredWorkoutResult; nav: any 
           </div>
         )}
 
-        {/* bottom spacer for nav bar */}
-        <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }} />
+        <div style={{ height: isFirstView ? 90 : "calc(env(safe-area-inset-bottom, 0px) + 80px)" }} />
       </div>
+
+      {isFirstView && (
+        <div style={s.stickyWrap}>
+          <div style={s.stickyInner}>
+            <button style={s.primaryBtn} className="intro-primary-btn ws-primary-btn result-primary-btn"
+              onClick={() => { try { localStorage.removeItem(LAST_RESULT_KEY); } catch {} nav("/"); }}>
+              <span style={s.primaryBtnText}>Сохранить</span>
+              <span style={s.primaryBtnCircle} aria-hidden>
+                <Check size={20} strokeWidth={2.5} color="#0f172a" />
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
