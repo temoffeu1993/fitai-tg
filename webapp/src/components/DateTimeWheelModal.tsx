@@ -34,6 +34,13 @@ const REMINDER_OPTIONS = [
   "За 1 день",
 ];
 
+/* ── Bottom sheet animation constants ── */
+const SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const ENTER_MS = 380;
+const EXIT_MS = 260;
+const OPEN_TICK_MS = 12;
+
 export type DateTimeWheelModalProps = {
   title?: string;
   subtitle?: string;
@@ -97,7 +104,142 @@ function buildDates(count: number, offsetDays: number): DateItem[] {
   });
 }
 
-export default function DateTimeWheelModal({
+export default function DateTimeWheelModal(props: DateTimeWheelModalProps) {
+  const [renderOpen, setRenderOpen] = useState(true);
+  const [entered, setEntered] = useState(false);
+  const enteredRef = useRef(false);
+  const [closing, setClosing] = useState(false);
+  const [animDone, setAnimDone] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
+  const animDoneTimerRef = useRef<number | null>(null);
+
+  const applyEntered = (v: boolean) => {
+    enteredRef.current = v;
+    setEntered(v);
+  };
+
+  // Cleanup timers
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current != null) window.clearTimeout(closeTimerRef.current);
+      if (openTimerRef.current != null) window.clearTimeout(openTimerRef.current);
+      if (animDoneTimerRef.current != null) window.clearTimeout(animDoneTimerRef.current);
+    };
+  }, []);
+
+  // Open animation
+  useEffect(() => {
+    openTimerRef.current = window.setTimeout(() => {
+      applyEntered(true);
+      openTimerRef.current = null;
+      animDoneTimerRef.current = window.setTimeout(() => {
+        setAnimDone(true);
+        animDoneTimerRef.current = null;
+      }, ENTER_MS + 50);
+    }, OPEN_TICK_MS);
+  }, []);
+
+  // Lock body scroll
+  useLayoutEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setAnimDone(false);
+    applyEntered(false);
+    closeTimerRef.current = window.setTimeout(() => {
+      props.onClose();
+    }, EXIT_MS + 20);
+  }, [closing, props.onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      {/* Overlay */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2400,
+          background: "rgba(10,16,28,0.52)",
+          opacity: entered && !closing ? 1 : 0,
+          transition: `opacity ${entered ? ENTER_MS : EXIT_MS}ms ease`,
+        }}
+        onClick={requestClose}
+      />
+
+      {/* Sheet */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 2401,
+          borderRadius: "24px 24px 0 0",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
+          boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
+          maxHeight: "85vh",
+          overflow: "visible",
+          display: "flex",
+          flexDirection: "column" as const,
+          padding: "0 16px 16px",
+          transform: animDone ? "none" : (entered && !closing ? "translateY(0)" : "translateY(100%)"),
+          transition: animDone ? "none" : `transform ${entered && !closing ? ENTER_MS : EXIT_MS}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+          willChange: animDone ? "auto" : "transform",
+        }}
+      >
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.18)" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
+          <div style={{ width: 32 }} />
+          <div style={{ flex: 1, fontSize: 16, fontWeight: 600, color: "#1e1f22", textAlign: "center" }}>
+            {props.title || "Дата и время"}
+          </div>
+          <button
+            type="button"
+            onClick={requestClose}
+            disabled={props.saving}
+            aria-label="Закрыть"
+            style={{
+              width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "none", background: "transparent", borderRadius: 999, color: "#6b7280",
+              cursor: "pointer", padding: 0, flexShrink: 0,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ overflowY: "auto", overflowX: "hidden", flex: 1, WebkitOverflowScrolling: "touch" }}>
+          <SheetContent {...props} requestClose={requestClose} />
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
+/* ── Inner content with scrollers, reminder, buttons ── */
+
+function SheetContent({
   initialDate,
   initialTime,
   minDate,
@@ -106,9 +248,9 @@ export default function DateTimeWheelModal({
   saveLabel = "Сохранить",
   deleteLabel = "Удалить",
   onDelete,
-  onClose,
   onSave,
-}: DateTimeWheelModalProps) {
+  requestClose,
+}: DateTimeWheelModalProps & { requestClose: () => void }) {
   const todayIso = useMemo(() => toDateKeyLocal(new Date()), []);
   const effectiveMinDate = minDate && ISO_DATE_RE.test(minDate) ? minDate : todayIso;
   const safeInitialDate =
@@ -148,17 +290,14 @@ export default function DateTimeWheelModal({
   const [reminderWidth, setReminderWidth] = useState<number | null>(null);
   const reminderRef = useRef<HTMLDivElement>(null);
 
-  // Settled values — only updated when snap completes
   const settledDate = useRef(initialIdx);
   const settledHour = useRef(initialTimeParsed.hh);
   const settledMin = useRef(initialTimeParsed.mm);
 
-  // For reading current values in save handler
   const [activeIdx, setActiveIdx] = useState(initialIdx);
   const [activeHour, setActiveHour] = useState(initialTimeParsed.hh);
   const [activeMinute, setActiveMinute] = useState(initialTimeParsed.mm);
 
-  // Date highlight via DOM
   const dateItemsRef = useRef<HTMLDivElement>(null);
   const lastHighlightIdx = useRef(initialIdx);
   const highlightDate = useCallback((idx: number) => {
@@ -227,7 +366,6 @@ export default function DateTimeWheelModal({
     onSettle: onMinSettle,
   });
 
-  // Tap handlers
   const handleDateTap = useCallback((e: React.TouchEvent) => {
     const wasTap = dateWheel.onTouchEnd();
     if (!wasTap) return;
@@ -255,14 +393,6 @@ export default function DateTimeWheelModal({
     const curIdx = Math.round(minWheel.offset.current / TIME_ITEM_H);
     minWheel.scrollToIndex(curIdx + 1);
   }, [minWheel]);
-
-  useLayoutEffect(() => {
-    const prevBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
 
   useEffect(() => {
     if (!reminderOpen) return;
@@ -310,235 +440,154 @@ export default function DateTimeWheelModal({
   nowMinute.setSeconds(0, 0);
   const isPastSelection = disallowPast && (!selectionValid || selectedWhen.getTime() < nowMinute.getTime());
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div style={st.wrap} role="dialog" aria-modal="true">
-      <style>{styles}</style>
-      <div style={st.card} className="dtw-card-enter">
-        <button
-          type="button"
-          style={st.close}
-          className="dtw-close"
-          onClick={onClose}
-          disabled={saving}
-          aria-label="Закрыть"
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Date scroller */}
+      <div style={st.dateScroller}>
+        <div style={st.dateIndicator} />
+        <div style={st.dateFadeL} />
+        <div style={st.dateFadeR} />
+        <div
+          style={st.dateViewport}
+          onTouchStart={dateWheel.onTouchStart}
+          onTouchMove={dateWheel.onTouchMove}
+          onTouchEnd={handleDateTap}
         >
-          ✕
-        </button>
+          <div ref={(el) => { (dateWheel.stripRef as any).current = el; (dateItemsRef as any).current = el; }} style={st.dateStrip}>
+            {dates.map((d, idx) => {
+              const active = idx === initialIdx;
+              return (
+                <div key={idx} style={st.dateItem}>
+                  <span style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
+                  <span style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-        <div style={st.dateScroller}>
-          <div style={st.dateIndicator} />
-          <div style={st.dateFadeL} />
-          <div style={st.dateFadeR} />
+      {/* Time wheels */}
+      <div style={st.timeWrap}>
+        <div style={st.timeColonOverlay}>:</div>
+        <div style={st.timeInner}>
           <div
-            style={st.dateViewport}
-            onTouchStart={dateWheel.onTouchStart}
-            onTouchMove={dateWheel.onTouchMove}
-            onTouchEnd={handleDateTap}
+            style={st.timeViewport}
+            onTouchStart={hourWheel.onTouchStart}
+            onTouchMove={hourWheel.onTouchMove}
+            onTouchEnd={handleHourTap}
           >
-            <div ref={(el) => { (dateWheel.stripRef as any).current = el; (dateItemsRef as any).current = el; }} style={st.dateStrip}>
-              {dates.map((d, idx) => {
-                const active = idx === initialIdx;
-                return (
-                  <div key={idx} style={st.dateItem}>
-                    <span style={active ? st.dateDowActive : st.dateDow}>{d.dow}</span>
-                    <span style={active ? st.dateNumActive : st.dateNum}>{d.day}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div style={st.timeWrap}>
-          <div style={st.timeColonOverlay}>:</div>
-          <div style={st.timeInner}>
-            <div
-              style={st.timeViewport}
-              onTouchStart={hourWheel.onTouchStart}
-              onTouchMove={hourWheel.onTouchMove}
-              onTouchEnd={handleHourTap}
-            >
-              <div ref={hourWheel.stripRef} style={st.timeStrip}>
-                {hourItems.map((h, i) => (
-                  <div key={i} style={st.timeItem}>{String(h).padStart(2, "0")}</div>
-                ))}
-              </div>
-            </div>
-
-            <div
-              style={st.timeViewport}
-              onTouchStart={minWheel.onTouchStart}
-              onTouchMove={minWheel.onTouchMove}
-              onTouchEnd={handleMinTap}
-            >
-              <div ref={minWheel.stripRef} style={st.timeStrip}>
-                {minuteItems.map((m, i) => (
-                  <div key={i} style={st.timeItem}>{String(m).padStart(2, "0")}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div ref={reminderRef} style={st.reminderWrap}>
-          <div style={st.reminderCard}>
-            <button
-              type="button"
-              style={st.reminderRow}
-              onClick={() => {
-                fireHapticImpact("light");
-                setReminderOpen((v) => !v);
-              }}
-            >
-              <span style={st.reminderLabel}>🔔 Напомнить</span>
-              <span style={st.reminderValue}>
-                <span>{reminderValue}</span>
-                <span style={st.reminderChevrons}>
-                  <span>▴</span>
-                  <span>▾</span>
-                </span>
-              </span>
-            </button>
-          </div>
-          {reminderOpen ? (
-            <div
-              style={{
-                ...st.reminderList,
-                ...(reminderWidth ? { width: reminderWidth } : null),
-              }}
-            >
-              {REMINDER_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  style={{
-                    ...st.reminderOption,
-                    ...(opt === reminderValue ? st.reminderOptionActive : null),
-                  }}
-                  onClick={() => {
-                    setReminderValue(opt);
-                    setReminderOpen(false);
-                    fireHapticImpact("light");
-                  }}
-                >
-                  {opt}
-                </button>
+            <div ref={hourWheel.stripRef} style={st.timeStrip}>
+              {hourItems.map((h, i) => (
+                <div key={i} style={st.timeItem}>{String(h).padStart(2, "0")}</div>
               ))}
             </div>
-          ) : null}
-        </div>
+          </div>
 
+          <div
+            style={st.timeViewport}
+            onTouchStart={minWheel.onTouchStart}
+            onTouchMove={minWheel.onTouchMove}
+            onTouchEnd={handleMinTap}
+          >
+            <div ref={minWheel.stripRef} style={st.timeStrip}>
+              {minuteItems.map((m, i) => (
+                <div key={i} style={st.timeItem}>{String(m).padStart(2, "0")}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reminder */}
+      <div ref={reminderRef} style={st.reminderWrap}>
+        <div style={st.reminderCard}>
+          <button
+            type="button"
+            style={st.reminderRow}
+            onClick={() => {
+              fireHapticImpact("light");
+              setReminderOpen((v) => !v);
+            }}
+          >
+            <span style={st.reminderLabel}>🔔 Напомнить</span>
+            <span style={st.reminderValue}>
+              <span>{reminderValue}</span>
+              <span style={st.reminderChevrons}>
+                <span>▴</span>
+                <span>▾</span>
+              </span>
+            </span>
+          </button>
+        </div>
+        {reminderOpen ? (
+          <div
+            style={{
+              ...st.reminderList,
+              ...(reminderWidth ? { width: reminderWidth } : null),
+            }}
+          >
+            {REMINDER_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                style={{
+                  ...st.reminderOption,
+                  ...(opt === reminderValue ? st.reminderOptionActive : null),
+                }}
+                onClick={() => {
+                  setReminderValue(opt);
+                  setReminderOpen(false);
+                  fireHapticImpact("light");
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Save button */}
+      <button
+        type="button"
+        style={{
+          ...st.primaryBtn,
+          ...(saving || isPastSelection ? st.primaryBtnDisabled : null),
+        }}
+        disabled={saving || isPastSelection}
+        onClick={() => {
+          if (saving || isPastSelection) return;
+          onSave(selectedDateIso, selectedTime);
+        }}
+      >
+        {saving ? "Сохраняем..." : saveLabel}
+      </button>
+
+      {/* Delete button */}
+      {onDelete ? (
         <button
           type="button"
           style={{
-            ...st.primaryBtn,
-            ...(saving || isPastSelection ? st.primaryBtnDisabled : null),
+            ...st.deleteBtnText,
+            ...(saving ? st.deleteBtnTextDisabled : null),
           }}
-          className="intro-primary-btn"
-          disabled={saving || isPastSelection}
+          disabled={saving}
           onClick={() => {
-            if (saving || isPastSelection) return;
-            onSave(selectedDateIso, selectedTime);
+            if (saving) return;
+            onDelete();
           }}
         >
-          {saving ? "Сохраняем..." : saveLabel}
+          {deleteLabel}
         </button>
-
-        {onDelete ? (
-          <button
-            type="button"
-            style={{
-              ...st.deleteBtnText,
-              ...(saving ? st.deleteBtnTextDisabled : null),
-            }}
-            disabled={saving}
-            onClick={() => {
-              if (saving) return;
-              onDelete();
-            }}
-          >
-            {deleteLabel}
-          </button>
-        ) : null}
-      </div>
-    </div>,
-    document.body
+      ) : null}
+    </div>
   );
 }
 
-const styles = `
-  @keyframes dtwCardIn {
-    0% { opacity: 0; transform: translateY(14px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-
-  .dtw-card-enter {
-    animation: dtwCardIn 260ms ease-out both;
-  }
-
-  .dtw-close:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dtw-card-enter { animation: none !important; }
-  }
-`;
+const FADE_COLOR = "rgba(250,250,252,1)";
 
 const st: Record<string, CSSProperties> = {
-  wrap: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 2400,
-    background: "rgba(255,255,255,0.01)",
-    backdropFilter: "blur(2px)",
-    WebkitBackdropFilter: "blur(2px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-  },
-
-  card: {
-    width: "100%",
-    maxWidth: 680,
-    minWidth: 280,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.78)",
-    background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,250,0.96) 100%)",
-    backdropFilter: "blur(18px)",
-    WebkitBackdropFilter: "blur(18px)",
-    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
-    position: "relative",
-    overflow: "visible",
-    padding: "16px 14px 20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 18,
-  },
-
-  close: {
-    position: "absolute",
-    right: 10,
-    top: 10,
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    border: "none",
-    background: "transparent",
-    color: "rgba(30,31,34,0.9)",
-    fontSize: 20,
-    fontWeight: 500,
-    lineHeight: 1,
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    padding: 0,
-    zIndex: 6,
-  },
-
   dateScroller: {
     position: "relative",
     overflow: "visible",
@@ -567,7 +616,7 @@ const st: Record<string, CSSProperties> = {
     bottom: 0,
     left: 0,
     width: DATE_ITEM_W * 1.2,
-    background: "linear-gradient(90deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
+    background: `linear-gradient(90deg, ${FADE_COLOR} 0%, rgba(250,250,252,0) 100%)`,
     pointerEvents: "none",
     zIndex: 3,
   },
@@ -577,7 +626,7 @@ const st: Record<string, CSSProperties> = {
     bottom: 0,
     right: 0,
     width: DATE_ITEM_W * 1.2,
-    background: "linear-gradient(270deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%)",
+    background: `linear-gradient(270deg, ${FADE_COLOR} 0%, rgba(250,250,252,0) 100%)`,
     pointerEvents: "none",
     zIndex: 3,
   },
