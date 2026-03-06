@@ -211,7 +211,7 @@ function SheetInner({ onClose }: { onClose: () => void }) {
             <div style={{ flex: 1, fontSize: 16, fontWeight: 600, color: "#1e1f22", textAlign: "center" }}>Чат с Moro</div>
             <button type="button" onClick={requestClose} aria-label="Закрыть" style={{
               width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
-              border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.62)",
+              border: "none", background: "transparent", borderRadius: 999, color: "#6b7280",
               cursor: "pointer", padding: 0, flexShrink: 0,
             }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
