@@ -14,7 +14,7 @@ import WorkoutSession from "./screens/WorkoutSession";
 import WorkoutCountdown from "./screens/WorkoutCountdown";
 import WorkoutResult from "./screens/WorkoutResult";
 import WorkoutCelebrate from "./screens/WorkoutCelebrate";
-import CoachChat from "./screens/CoachChat";
+
 import History from "@/screens/History";
 import NutritionToday from "@/screens/NutritionToday";
 import Schedule from "./screens/Schedule";
@@ -424,7 +424,7 @@ export default function App() {
           <Routes>
 	          <Route element={<LayoutWithNav />}>
 	            <Route path="/" element={<Dashboard />} />
-	            <Route path="/coach" element={<CoachChat />} />
+
 	            <Route path="/plan/one" element={<PlanOne />} />
 	            <Route path="/check-in" element={<CheckIn />} />
             <Route path="/nutrition" element={<Nutrition />} />

@@ -1,7 +1,8 @@
 // webapp/src/app/LayoutWithNav.tsx
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import NavBar, { type NavCurrent, type TabKey } from "@/components/NavBar";
+import CoachChatSheet from "@/screens/CoachChat";
 import bgImg from "@/assets/fon.png";
 
 function resolveNavCurrent(pathname: string): NavCurrent {
@@ -10,7 +11,7 @@ function resolveNavCurrent(pathname: string): NavCurrent {
   }
   if (pathname === "/" || pathname.startsWith("/dashboard")) return "home";
   if (pathname.startsWith("/schedule")) return "plan";
-  if (pathname.startsWith("/coach")) return "coach";
+
   if (pathname.startsWith("/profile")) return "profile";
   return "none";
 }
@@ -82,19 +83,8 @@ export default function LayoutWithNav() {
 
   const [onbDone, setOnbDone] = useState<boolean>(hasOnbLocal());
   const [navHeight, setNavHeight] = useState<number>(72);
-
-  // Фикс: если предыдущий экран был проскроллен, /coach иногда открывается "со сдвигом".
-  // Скроллится не window, а #root (см. styles.css), поэтому сбрасываем именно его ДО отрисовки.
-  useLayoutEffect(() => {
-    if (!pathname.startsWith("/coach")) return;
-    try {
-      const rootEl = document.getElementById("root");
-      if (rootEl) (rootEl as any).scrollTop = 0;
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      window.scrollTo(0, 0);
-    } catch { }
-  }, [pathname]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const closeChat = useCallback(() => setChatOpen(false), []);
 
   useEffect(() => {
     const update = () => {
@@ -156,7 +146,7 @@ export default function LayoutWithNav() {
   const handleChange = (t: TabKey) => {
     if (t === "home") navigate("/");
     if (t === "plan") navigate("/schedule");
-    if (t === "coach") navigate("/coach");
+    if (t === "coach") setChatOpen(true);
     if (t === "profile") navigate("/profile");
   };
 
@@ -185,7 +175,7 @@ export default function LayoutWithNav() {
 
       {!hideNav && (
         <NavBar
-          current={current}
+          current={chatOpen ? "coach" : current}
           onChange={handleChange}
           pushDown={disableKeyboardShift ? 0 : keyboardOffset}
           disabledAll={!onbDone}
@@ -194,6 +184,8 @@ export default function LayoutWithNav() {
           }}
         />
       )}
+
+      <CoachChatSheet open={chatOpen} onClose={closeChat} />
     </div>
   );
 }
