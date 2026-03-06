@@ -204,16 +204,28 @@ function SheetInner({ onClose }: { onClose: () => void }) {
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 16px 10px" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.15)", marginBottom: 10 }} />
+        <div style={{ padding: "10px 16px 10px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.15)" }} />
+          </div>
           <div style={{
-            width: "100%", padding: "12px 16px", borderRadius: 18,
+            display: "flex", alignItems: "center", padding: "10px 10px 10px 16px", borderRadius: 18,
             background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
             border: "1px solid rgba(255,255,255,0.75)",
             boxShadow: "0 4px 12px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
             backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-            textAlign: "center", fontSize: 15, fontWeight: 700, color: "#1e1f22",
-          }}>Чат с Moro</div>
+          }}>
+            <div style={{ flex: 1, fontSize: 15, fontWeight: 700, color: "#1e1f22", textAlign: "center" }}>Чат с Moro</div>
+            <button type="button" onClick={requestClose} aria-label="Закрыть" style={{
+              width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.62)",
+              cursor: "pointer", padding: 0, flexShrink: 0,
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* ── Messages ── */}
