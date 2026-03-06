@@ -204,9 +204,16 @@ function SheetInner({ onClose }: { onClose: () => void }) {
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 16px 8px", borderBottom: "0.5px solid rgba(0,0,0,0.08)" }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.18)", marginBottom: 8 }} />
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#000", lineHeight: 1.2 }}>Чат с Moro</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 16px 10px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(0,0,0,0.15)", marginBottom: 10 }} />
+          <div style={{
+            width: "100%", padding: "12px 16px", borderRadius: 18,
+            background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+            border: "1px solid rgba(255,255,255,0.75)",
+            boxShadow: "0 4px 12px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+            backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+            textAlign: "center", fontSize: 15, fontWeight: 700, color: "#1e1f22",
+          }}>Чат с Moro</div>
         </div>
 
         {/* ── Messages ── */}
@@ -278,13 +285,13 @@ function SheetInner({ onClose }: { onClose: () => void }) {
               />
             </div>
             <button
-              style={{ ...st.sendBtn, background: hasText && !sending ? "#007AFF" : "rgba(0,0,0,0.06)" }}
+              style={{ ...st.sendBtn, opacity: hasText && !sending ? 1 : 0.45 }}
               type="button"
               onClick={() => void send()}
               disabled={sending || !hasText}
               aria-label="Отправить"
             >
-              <ArrowUp size={20} strokeWidth={2.8} color={hasText && !sending ? "#fff" : "rgba(0,0,0,0.2)"} />
+              <ArrowUp size={18} strokeWidth={2.8} color="rgba(15,23,42,0.55)" />
             </button>
           </div>
         </div>
@@ -382,8 +389,11 @@ const st: Record<string, CSSProperties> = {
     fontSize: 16, lineHeight: 1.3, fontWeight: 400, color: "#000", caretColor: "#007AFF", height: 22, letterSpacing: -0.1,
   } as CSSProperties,
   sendBtn: {
-    border: "none", borderRadius: 999, width: 34, height: 34, padding: 0,
-    display: "grid", placeItems: "center", flexShrink: 0, cursor: "pointer", transition: "background 150ms ease",
+    border: "none", borderRadius: 999, width: 36, height: 36, padding: 0,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "grid", placeItems: "center", flexShrink: 0, cursor: "pointer",
+    transition: "opacity 150ms ease",
   },
 
   // Modal
