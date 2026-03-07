@@ -39,6 +39,12 @@ const formatScheduledDateChip = (iso: string) => {
   return `${date} · ${time}`;
 };
 
+const formatDateOnly = (iso: string) => {
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return "";
+  return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+};
+
 const formatWeekTitleRu = (week: number | null) => {
   const n = Number(week);
   if (!Number.isFinite(n) || n <= 1) return "Первая неделя";
@@ -855,12 +861,23 @@ export default function PlanOne() {
               const isUserScheduled = status === "scheduled" || status === "completed";
               const scheduledDateChip = isUserScheduled && w.scheduledFor ? formatScheduledDateChip(w.scheduledFor) : "";
               const hasScheduledDate = Boolean(scheduledDateChip) && !isStaleSchedule;
-              const dateChipLabel = hasScheduledDate ? scheduledDateChip : "Дата и время";
               const canEditSchedule = status !== "completed";
+              const showEditPencil = !isCompletedWorkout;
+
+              // Completed: show both dates if plan date != completion date
+              const completedDateIso = isCompletedWorkout && w.completedAt ? toLocalDateInput(w.completedAt) : "";
+              const sameDay = isCompletedWorkout && completedDateIso && scheduledIso && completedDateIso === scheduledIso;
+              const showTwoDates = isCompletedWorkout && completedDateIso && scheduledIso && !sameDay;
+
+              const dateChipLabel = isCompletedWorkout
+                ? (showTwoDates
+                    ? `Запланировано: ${w.scheduledFor ? formatDateOnly(w.scheduledFor) : ""}`
+                    : `Выполнено: ${w.completedAt ? formatDateOnly(w.completedAt) : (w.scheduledFor ? formatDateOnly(w.scheduledFor) : "")}`)
+                : (hasScheduledDate ? scheduledDateChip : "Дата и время");
+
               const chipToneStyle = isCompletedWorkout
                 ? pick.weekDateChipScheduled
                 : pick.weekDateChipPending;
-              const showEditPencil = !isCompletedWorkout;
 
               return (
                 <div
@@ -907,6 +924,18 @@ export default function PlanOne() {
                           >
                             <Pencil size={14} strokeWidth={2.1} style={pick.weekDateChipEditIcon} />
                           </button>
+                        ) : null}
+                        {showTwoDates && w.completedAt ? (
+                          <span
+                            style={{
+                              ...pick.weekDateChipButton,
+                              ...pick.weekDateChipScheduled,
+                              ...pick.weekDateChipDisabled,
+                              cursor: "default",
+                            }}
+                          >
+                            <span>{`Выполнено: ${formatDateOnly(w.completedAt)}`}</span>
+                          </span>
                         ) : null}
                       </div>
 

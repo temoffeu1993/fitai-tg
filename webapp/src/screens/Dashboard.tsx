@@ -663,15 +663,28 @@ export default function Dashboard() {
   }, [plannedWorkouts, todayIso]);
 
   const completedDatesSet = useMemo(() => {
-    const set = new Set(historyStats.completedDates);
+    // API is the primary source of completed dates
+    const set = new Set<string>();
     plannedWorkouts
       .filter((w) => w && w.status === "completed")
       .forEach((w) => {
         const iso = datePart(w.completedAt) || datePart(w.scheduledFor);
         if (iso) set.add(iso);
       });
+    // localStorage only as fallback for recent (<24h) entries not yet in API
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    for (const rec of (() => {
+      try { const r = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); return Array.isArray(r) ? r : []; } catch { return []; }
+    })()) {
+      const dateValue = rec?.finishedAt || rec?.completedAt || rec?.date;
+      const ts = dateValue ? new Date(dateValue).getTime() : NaN;
+      if (Number.isFinite(ts) && ts >= cutoff) {
+        const iso = toISODate(new Date(ts));
+        if (!set.has(iso)) set.add(iso);
+      }
+    }
     return set;
-  }, [historyStats.completedDates, plannedWorkouts]);
+  }, [plannedWorkouts]);
 
   const getDotState = useCallback(
     (d: Date): "completed" | "scheduled" | null => {

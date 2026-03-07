@@ -497,6 +497,8 @@ schedule.patch(
             SET status = 'scheduled',
                 scheduled_for = $3,
                 workout_date = $4::date,
+                result_session_id = NULL,
+                completed_at = NULL,
                 updated_at = now()
           WHERE user_id = $1 AND id = $2
           RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
@@ -907,7 +909,10 @@ schedule.delete(
 
     const rows = await q<PlannedWorkoutRow>(
       `UPDATE planned_workouts
-          SET status = 'cancelled', updated_at = now()
+          SET status = 'cancelled',
+              result_session_id = NULL,
+              completed_at = NULL,
+              updated_at = now()
         WHERE user_id = $1 AND id = $2
         RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
       [userId, id]
