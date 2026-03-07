@@ -18,6 +18,7 @@ export type PlannedWorkout = {
   plan: any;
   scheduledFor: string;
   status: "scheduled" | "pending" | "completed" | "cancelled";
+  completedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
   resultSessionId?: string | null;

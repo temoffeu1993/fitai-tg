@@ -33,6 +33,7 @@ type PlannedWorkoutRow = {
   workout_date?: string;
   status: string;
   result_session_id: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -128,6 +129,7 @@ const serializePlannedWorkout = (row: PlannedWorkoutRow, timeBucket?: TimeBucket
   scheduledFor: toIsoString(row.scheduled_for),
   status: row.status,
   resultSessionId: row.result_session_id,
+  completedAt: toIsoString(row.completed_at),
   createdAt: toIsoString(row.created_at),
   updatedAt: toIsoString(row.updated_at),
   };
@@ -172,13 +174,13 @@ schedule.get(
 
     const planned = await q<PlannedWorkoutRow>(
       latestGenId
-        ? `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+        ? `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
              FROM planned_workouts
             WHERE user_id = $1
               AND status <> 'cancelled'
               AND generation_id = $2
             ORDER BY scheduled_for ASC`
-        : `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+        : `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
              FROM planned_workouts
             WHERE user_id = $1
               AND status <> 'cancelled'
@@ -237,7 +239,7 @@ schedule.get(
     const userId = await getUserId(req as any);
     const userProfile = await buildUserProfile(userId).catch(() => null);
     const planned = await q<PlannedWorkoutRow>(
-      `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+      `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
          FROM planned_workouts
         WHERE user_id = $1
           AND status <> 'cancelled'
@@ -281,7 +283,7 @@ schedule.post(
               completed_at = NULL,
               updated_at = now()
         WHERE user_id = $1 AND id = $2
-        RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+        RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
       [userId, id]
     );
 
@@ -353,7 +355,7 @@ schedule.post(
     const [row] = await q<PlannedWorkoutRow>(
       `INSERT INTO planned_workouts (user_id, plan, scheduled_for, workout_date)
        VALUES ($1, $2::jsonb, $3, $4::date)
-       RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+       RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
       [userId, JSON.stringify(plan), scheduledFor.toISOString(), workoutDate]
     );
 
@@ -430,7 +432,7 @@ schedule.patch(
       );
 
       const targetRows = await q<PlannedWorkoutRow>(
-        `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, created_at, updated_at
+        `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, completed_at, created_at, updated_at
            FROM planned_workouts
           WHERE user_id = $1 AND id = $2
           LIMIT 1`,
@@ -480,8 +482,10 @@ schedule.patch(
         await q(
           `UPDATE planned_workouts
               SET status = 'pending',
-                  workout_date = NULL,
                   scheduled_for = COALESCE(workout_date::timestamp, scheduled_for),
+                  workout_date = NULL,
+                  result_session_id = NULL,
+                  completed_at = NULL,
                   updated_at = now()
             WHERE user_id = $1 AND id = ANY($2::uuid[])`,
           [userId, conflictIds]
@@ -495,7 +499,7 @@ schedule.patch(
                 workout_date = $4::date,
                 updated_at = now()
           WHERE user_id = $1 AND id = $2
-          RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+          RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
         [userId, id, scheduledFor.toISOString(), date]
       );
       const updated = updatedRows[0];
@@ -528,7 +532,7 @@ schedule.patch(
     }
 
     const existingRows = await q<PlannedWorkoutRow>(
-      `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, created_at, updated_at
+      `SELECT id, plan, scheduled_for, workout_date, status, result_session_id, completed_at, created_at, updated_at
          FROM planned_workouts
         WHERE user_id = $1 AND id = $2
         LIMIT 1`,
@@ -579,6 +583,12 @@ schedule.patch(
       fields.push(`status = $${idx++}`);
       values.push(nextStatus);
 
+      // When moving away from completed, clear result link and completion time
+      if (nextStatus !== "completed") {
+        fields.push(`result_session_id = NULL`);
+        fields.push(`completed_at = NULL`);
+      }
+
       // When unscheduling back to pending, reset scheduled_for to the original generated day
       // (workout_date at 00:00) so it stays visible in PlanOne (which filters by scheduled_for range).
       if (nextStatus === "pending" && !scheduledDate) {
@@ -597,7 +607,7 @@ schedule.patch(
       `UPDATE planned_workouts
           SET ${fields.join(", ")}, updated_at = now()
         WHERE user_id = $${idx++} AND id = $${idx}
-        RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+        RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
       values
     );
 
@@ -645,7 +655,7 @@ schedule.patch(
 
     const updated = await withTransaction(async () => {
       const existingRows = await q<PlannedWorkoutRow>(
-        `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+        `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
            FROM planned_workouts
           WHERE user_id = $1 AND id = $2
           LIMIT 1`,
@@ -718,7 +728,7 @@ schedule.patch(
                base_plan = $3::jsonb,
                updated_at = now()
          WHERE user_id = $1 AND id = $2
-         RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+         RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
         `,
         [userId, id, JSON.stringify(nextPlan)]
       );
@@ -756,7 +766,7 @@ schedule.delete(
 
     const updated = await withTransaction(async () => {
       const existingRows = await q<PlannedWorkoutRow>(
-        `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+        `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
            FROM planned_workouts
           WHERE user_id = $1 AND id = $2
           LIMIT 1`,
@@ -786,7 +796,7 @@ schedule.delete(
                base_plan = $3::jsonb,
                updated_at = now()
          WHERE user_id = $1 AND id = $2
-         RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+         RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
         `,
         [userId, id, JSON.stringify(nextPlan)]
       );
@@ -824,7 +834,7 @@ schedule.patch(
 
     const updated = await withTransaction(async () => {
       const existingRows = await q<PlannedWorkoutRow>(
-        `SELECT id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+        `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
            FROM planned_workouts
           WHERE user_id = $1 AND id = $2
           LIMIT 1`,
@@ -861,7 +871,7 @@ schedule.patch(
                base_plan = $3::jsonb,
                updated_at = now()
          WHERE user_id = $1 AND id = $2
-         RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at
+         RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
         `,
         [userId, id, JSON.stringify(nextPlan)]
       );
@@ -899,7 +909,7 @@ schedule.delete(
       `UPDATE planned_workouts
           SET status = 'cancelled', updated_at = now()
         WHERE user_id = $1 AND id = $2
-        RETURNING id, plan, scheduled_for, status, result_session_id, created_at, updated_at`,
+        RETURNING id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at`,
       [userId, id]
     );
 

@@ -727,8 +727,6 @@ export default function PlanOne() {
     if (workout.status === "completed") {
       if (workout.resultSessionId) {
         nav(`/workout/result?sessionId=${encodeURIComponent(String(workout.resultSessionId))}`);
-      } else {
-        nav("/workout/result");
       }
       return;
     }

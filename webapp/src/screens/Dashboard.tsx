@@ -662,10 +662,16 @@ export default function Dashboard() {
     return set;
   }, [plannedWorkouts, todayIso]);
 
-  const completedDatesSet = useMemo(
-    () => new Set(historyStats.completedDates),
-    [historyStats.completedDates]
-  );
+  const completedDatesSet = useMemo(() => {
+    const set = new Set(historyStats.completedDates);
+    plannedWorkouts
+      .filter((w) => w && w.status === "completed")
+      .forEach((w) => {
+        const iso = datePart(w.completedAt) || datePart(w.scheduledFor);
+        if (iso) set.add(iso);
+      });
+    return set;
+  }, [historyStats.completedDates, plannedWorkouts]);
 
   const getDotState = useCallback(
     (d: Date): "completed" | "scheduled" | null => {
@@ -683,37 +689,49 @@ export default function Dashboard() {
   );
   const selectedISO = useMemo(() => toISODate(selectedDate), [selectedDate]);
 
-  const plannedForSelected = useMemo(() => {
+  // Split workouts for selected day into scheduled and completed lists
+  const scheduledForDay = useMemo(() => {
     return plannedWorkouts
-      .filter((w) => w && w.status !== "cancelled")
+      .filter((w) => w && w.status === "scheduled")
       .filter((w) => {
-        if (w.status !== "scheduled") return true;
         const iso = datePart(w.scheduledFor);
-        return Boolean(iso) && iso >= todayIso;
+        return Boolean(iso) && iso >= todayIso && iso === selectedISO;
       })
-      .filter((w) => datePart(w.scheduledFor) === selectedISO)
       .slice()
       .sort((a, b) => String(a.scheduledFor || "").localeCompare(String(b.scheduledFor || "")));
   }, [plannedWorkouts, selectedISO, todayIso]);
 
-  const completedForSelected = useMemo(
-    () => plannedForSelected.find((w) => w.status === "completed") || null,
-    [plannedForSelected]
-  );
-  const activeForSelected = useMemo(
-    () =>
-      plannedForSelected.find(
-        (w) => w.status === "scheduled"
-      ) || null,
-    [plannedForSelected]
-  );
+  const completedForDay = useMemo(() => {
+    return plannedWorkouts
+      .filter((w) => w && w.status === "completed")
+      .filter((w) => {
+        // Use completedAt for date matching (real completion date), fallback to scheduledFor
+        const completionDate = datePart(w.completedAt) || datePart(w.scheduledFor);
+        return completionDate === selectedISO;
+      })
+      .slice()
+      .sort((a, b) => String(b.completedAt || b.scheduledFor || "").localeCompare(String(a.completedAt || a.scheduledFor || "")));
+  }, [plannedWorkouts, selectedISO]);
+
+  const isPastDay = selectedISO < todayIso;
+
+  // Pick one main card for the day:
+  // today/future: first scheduled, fallback to last completed
+  // past: last completed, fallback to nothing (show weekly)
+  const selectedPlanned = useMemo(() => {
+    if (isPastDay) {
+      return completedForDay[0] || null;
+    }
+    return scheduledForDay[0] || completedForDay[0] || null;
+  }, [isPastDay, scheduledForDay, completedForDay]);
 
   const isSelectedCompleted =
-    completedDatesSet.has(selectedISO) || Boolean(completedForSelected);
-  const isSelectedPlanned = Boolean(activeForSelected);
+    completedDatesSet.has(selectedISO) || completedForDay.length > 0;
+  const isSelectedPlanned = scheduledForDay.length > 0;
 
-  const selectedPlanned =
-    activeForSelected || completedForSelected || plannedForSelected[0] || null;
+  // Extra counts for subtitle
+  const extraScheduled = scheduledForDay.length - (selectedPlanned?.status === "scheduled" ? 1 : 0);
+  const extraCompleted = completedForDay.length - (selectedPlanned?.status === "completed" ? 1 : 0);
   const activeDraft = useMemo(() => readSessionDraft(), []);
   const activeProgress = useMemo(() => {
     const items = Array.isArray(activeDraft?.items) ? activeDraft.items : [];
@@ -999,11 +1017,11 @@ export default function Dashboard() {
   // POST-ONBOARDING: New Dashboard
   // ========================================================================
 
-  const dayState: "weekly" | "completed" | "planned" = isSelectedCompleted
-    ? "completed"
-    : isSelectedPlanned
-      ? "planned"
-      : "weekly";
+  const dayState: "weekly" | "completed" | "planned" = selectedPlanned
+    ? selectedPlanned.status === "completed"
+      ? "completed"
+      : "planned"
+    : "weekly";
   const dayHeaderText =
     dayState === "weekly"
       ? "План на неделю"
@@ -1036,13 +1054,13 @@ export default function Dashboard() {
     typeof activeProgress === "number";
   const dayButtonText =
     dayState === "completed"
-      ? "Результат"
+      ? hasResult ? "Результат" : "Выполнена"
       : dayState === "planned"
         ? dayHasActiveProgress
           ? "Продолжить"
           : "Начать"
         : "Выбрать тренировку";
-  const isResultButton = dayState === "completed";
+  const isResultButton = dayState === "completed" && hasResult;
   const showPlannedStartReplace = dayState === "planned" && Boolean(selectedPlanned?.id);
   const dayDateChipLabel = useMemo(() => {
     if (dayState !== "planned" || selectedPlanned?.status !== "scheduled" || !selectedPlanned?.scheduledFor) return "";
@@ -1216,14 +1234,15 @@ export default function Dashboard() {
     }
   };
 
+  const hasResult = dayState === "completed" && Boolean(selectedPlanned?.resultSessionId);
+
   const handleDayAction = () => {
     if (dayState === "completed") {
       const sessionId = selectedPlanned?.resultSessionId;
       if (sessionId) {
         navigate(`/workout/result?sessionId=${encodeURIComponent(sessionId)}`);
-        return;
       }
-      navigate("/workout/result");
+      // No sessionId → do nothing (button should be hidden/disabled)
       return;
     }
     navigate("/plan/one");
@@ -1460,23 +1479,24 @@ export default function Dashboard() {
           ) : (
             <button
               type="button"
-              style={{ ...s.dayBtn, marginTop: "auto" }}
+              style={{ ...s.dayBtn, marginTop: "auto", ...(dayState === "completed" && !hasResult ? { opacity: 0.6, cursor: "default" } : {}) }}
               className="dash-primary-btn day-cta"
               onClick={handleDayAction}
+              disabled={dayState === "completed" && !hasResult}
             >
               <span>{dayButtonText}</span>
               <span
                 style={
                   dayHasActiveProgress
                     ? { ...s.dayBtnIconWrap, ...s.dayBtnProgressWrap }
-                    : isResultButton
+                    : (isResultButton || (dayState === "completed" && !hasResult))
                       ? { ...s.dayBtnIconWrap, ...s.dayBtnIconWrapDone }
                       : s.dayBtnIconWrap
                 }
               >
                 {dayHasActiveProgress ? (
                   <span style={s.dayBtnProgress}>{activeProgress}%</span>
-                ) : isResultButton ? (
+                ) : (isResultButton || (dayState === "completed" && !hasResult)) ? (
                   <span style={s.dayBtnDoneMark}>✓</span>
                 ) : (
                   <span style={s.dayBtnArrow}>→</span>
@@ -1484,6 +1504,13 @@ export default function Dashboard() {
               </span>
             </button>
           )}
+          {(extraScheduled > 0 || extraCompleted > 0) && dayState !== "weekly" ? (
+            <div style={{ fontSize: 13, color: "rgba(30,31,34,0.5)", textAlign: "center", marginTop: 6 }}>
+              {extraCompleted > 0 ? `Ещё ${extraCompleted} выполнен${extraCompleted === 1 ? "а" : "ы"}` : null}
+              {extraCompleted > 0 && extraScheduled > 0 ? " · " : null}
+              {extraScheduled > 0 ? `Ещё ${extraScheduled} запланирован${extraScheduled === 1 ? "а" : "ы"}` : null}
+            </div>
+          ) : null}
         </div>
       </section>
 

@@ -548,39 +548,36 @@ function SheetContent({
         ) : null}
       </div>
 
-      {/* Save button */}
-      <button
-        type="button"
-        style={{
-          ...st.primaryBtn,
-          ...(saving || isPastSelection ? st.primaryBtnDisabled : null),
-        }}
-        disabled={saving || isPastSelection}
-        onClick={() => {
-          if (saving || isPastSelection) return;
-          onSave(selectedDateIso, selectedTime);
-        }}
-      >
-        {saving ? "Сохраняем..." : saveLabel}
-      </button>
-
-      {/* Delete button */}
-      {onDelete ? (
+      {/* Action buttons */}
+      <div style={st.actionWrap}>
         <button
           type="button"
-          style={{
-            ...st.deleteBtnText,
-            ...(saving ? st.deleteBtnTextDisabled : null),
-          }}
-          disabled={saving}
+          className="intro-primary-btn ws-primary-btn"
+          style={{ ...st.primaryBtn, opacity: (saving || isPastSelection) ? 0.5 : 1 }}
+          disabled={saving || isPastSelection}
           onClick={() => {
-            if (saving) return;
-            onDelete();
+            if (saving || isPastSelection) return;
+            onSave(selectedDateIso, selectedTime);
           }}
         >
-          {deleteLabel}
+          <span style={st.primaryBtnLabel}>{saving ? "Сохраняем..." : saveLabel}</span>
+          <span style={st.primaryBtnCircle}><span style={st.primaryBtnCheck}>✓</span></span>
         </button>
-      ) : null}
+
+        {onDelete ? (
+          <button
+            type="button"
+            style={st.deleteBtnRow}
+            disabled={saving}
+            onClick={() => {
+              if (saving) return;
+              onDelete();
+            }}
+          >
+            {deleteLabel}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -823,41 +820,64 @@ const st: Record<string, CSSProperties> = {
     fontWeight: 600,
   },
 
+  actionWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
+    padding: "24px 0 4px",
+    flexShrink: 0,
+  },
   primaryBtn: {
-    position: "relative",
-    zIndex: 2,
-    width: "100%",
-    borderRadius: 16,
-    padding: "16px 18px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    height: 50,
+    padding: "0 14px",
+    borderRadius: 999,
     border: "1px solid #1e1f22",
     background: "#1e1f22",
     color: "#fff",
+    cursor: "pointer",
     fontSize: 18,
     fontWeight: 500,
-    cursor: "pointer",
-    boxShadow: "0 6px 10px rgba(0,0,0,0.24)",
-    marginTop: 8,
+    whiteSpace: "nowrap",
   },
-  primaryBtnDisabled: {
-    opacity: 0.72,
-    cursor: "default",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.14)",
+  primaryBtnLabel: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1,
+    color: "#fff",
   },
-  deleteBtnText: {
-    border: "none",
+  primaryBtnCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    color: "#0f172a",
+  },
+  primaryBtnCheck: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#1e1f22",
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+  deleteBtnRow: {
     background: "transparent",
-    boxShadow: "none",
-    padding: 0,
-    margin: "2px 0 0",
-    alignSelf: "center",
-    fontSize: 14,
-    fontWeight: 400,
-    lineHeight: 1.5,
-    color: "rgba(220, 38, 38, 0.6)",
+    border: "none",
     cursor: "pointer",
-  },
-  deleteBtnTextDisabled: {
-    opacity: 0.6,
-    cursor: "default",
+    fontSize: 18,
+    fontWeight: 500,
+    color: "#b42318",
+    opacity: 0.8,
+    padding: "8px 16px",
+    borderRadius: 999,
+    WebkitTapHighlightColor: "transparent",
   },
 };
