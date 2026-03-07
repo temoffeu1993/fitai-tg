@@ -264,9 +264,12 @@ function DumbbellIcon({ size = 20 }: { size?: number }) {
   return <Dumbbell size={size} strokeWidth={2.2} aria-hidden />;
 }
 
+/** ISO string → local YYYY-MM-DD (user's timezone, not UTC) */
 function datePart(value?: string | null): string {
   if (!value) return "";
-  return String(value).slice(0, 10);
+  const dt = new Date(value);
+  if (!Number.isFinite(dt.getTime())) return "";
+  return toDateKeyLocal(dt);
 }
 
 function toDateKeyLocal(date: Date): string {
@@ -656,7 +659,7 @@ export default function Dashboard() {
     plannedWorkouts
       .filter((w) => w.status === "scheduled")
       .forEach((w) => {
-        const iso = w.scheduledFor?.slice(0, 10);
+        const iso = datePart(w.scheduledFor);
         if (iso && iso >= todayIso) set.add(iso);
       });
     return set;
