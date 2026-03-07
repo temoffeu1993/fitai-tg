@@ -268,8 +268,9 @@ export default function Schedule() {
   const openWorkout = (workout: PlannedWorkout) => {
     const todayKey = toDateKey(stripTime(new Date()));
     const initialTime = scheduleDates[todayKey]?.time ?? defaultTimeSuggestion();
-    const date = workout.status === "pending" ? todayKey : toDateInput(workout.scheduledFor);
-    const time = workout.status === "pending" ? initialTime : toTimeInput(workout.scheduledFor);
+    const dateSource = workout.status === "completed" ? (workout.completedAt || workout.scheduledFor) : workout.scheduledFor;
+    const date = workout.status === "pending" ? todayKey : toDateInput(dateSource);
+    const time = workout.status === "pending" ? initialTime : toTimeInput(dateSource);
     setModal({
       workout,
       selectedWorkoutId: workout.id,
@@ -996,6 +997,9 @@ function ScheduleBottomSheet({
               {completedWorkouts.map((w, idx) => {
                 const p: any = w.plan || {};
                 const title = resolveWorkoutTitle(p);
+                const planLocal = toDateKeyLocal(parseIsoDate(w.scheduledFor));
+                const factLocal = w.completedAt ? toDateKeyLocal(parseIsoDate(w.completedAt)) : "";
+                const showBothDates = factLocal && planLocal && factLocal !== planLocal;
                 return (
                   <div key={w.id}>
                     {idx > 0 && <div style={sh.sheetDivider} />}
@@ -1003,14 +1007,28 @@ function ScheduleBottomSheet({
                       <div style={sh.sheetRowName}>{title}</div>
                       <div style={sh.sheetRowBottom}>
                         <div style={sh.sheetRowChips}>
-                          <span style={sh.sheetRowChip}>
-                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {fmtShortDate(w.scheduledFor)}
-                          </span>
-                          <span style={sh.sheetRowChip}>
-                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                            {formatTime(w.scheduledFor)}
-                          </span>
+                          {showBothDates ? (
+                            <>
+                              <span style={sh.sheetRowChip}>
+                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                Выполнено: {fmtShortDate(w.completedAt!)}
+                              </span>
+                              <span style={{ ...sh.sheetRowChip, opacity: 0.5 }}>
+                                План: {fmtShortDate(w.scheduledFor)}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={sh.sheetRowChip}>
+                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                {fmtShortDate(w.completedAt || w.scheduledFor)}
+                              </span>
+                              <span style={sh.sheetRowChip}>
+                                <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                                {formatTime(w.completedAt || w.scheduledFor)}
+                              </span>
+                            </>
+                          )}
                         </div>
                         <span style={sh.sheetRowArrow}>→</span>
                       </div>
