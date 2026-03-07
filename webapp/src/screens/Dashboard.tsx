@@ -503,8 +503,7 @@ export default function Dashboard() {
       setCompletedHistory(nextHistory);
       writeScheduleCache(nextPlanned, nextDates, nextHistory);
     } catch {
-      setPlannedWorkouts([]);
-      setCompletedHistory([]);
+      // Keep cached data on error instead of clearing
     }
   }, [onbDone]);
 
