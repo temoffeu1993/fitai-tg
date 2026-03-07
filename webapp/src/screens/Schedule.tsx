@@ -1447,9 +1447,11 @@ function groupByDate(list: PlannedWorkout[]) {
     map[key].push(item);
   });
   Object.values(map).forEach((items) =>
-    items.sort(
-      (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
-    )
+    items.sort((a, b) => {
+      const aDate = a.status === "completed" ? (a.completedAt || a.scheduledFor) : a.scheduledFor;
+      const bDate = b.status === "completed" ? (b.completedAt || b.scheduledFor) : b.scheduledFor;
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    })
   );
   return map;
 }
