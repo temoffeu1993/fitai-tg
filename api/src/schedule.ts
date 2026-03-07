@@ -189,7 +189,27 @@ schedule.get(
       latestGenId ? [userId, latestGenId] : [userId]
     );
 
-    return res.json({ schedule: data, plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, userProfile?.timeBucket)) });
+    // Completed history: all completed workouts for the last 90 days (across all generations)
+    const completedAll = await q<PlannedWorkoutRow>(
+      `SELECT id, plan, scheduled_for, status, result_session_id, completed_at, created_at, updated_at
+         FROM planned_workouts
+        WHERE user_id = $1
+          AND status = 'completed'
+          AND completed_at >= NOW() - INTERVAL '90 days'
+        ORDER BY completed_at DESC`,
+      [userId]
+    );
+
+    // Deduplicate: exclude completed already present in current generation's plannedWorkouts
+    const currentIds = new Set(planned.filter((r) => r.status === "completed").map((r) => r.id));
+    const uniqueHistory = completedAll.filter((r) => !currentIds.has(r.id));
+
+    const tb = userProfile?.timeBucket;
+    return res.json({
+      schedule: data,
+      plannedWorkouts: planned.map((row) => serializePlannedWorkout(row, tb)),
+      completedHistory: uniqueHistory.map((row) => serializePlannedWorkout(row, tb)),
+    });
   })
 );
 

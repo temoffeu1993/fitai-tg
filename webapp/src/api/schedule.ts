@@ -27,6 +27,7 @@ export type PlannedWorkout = {
 export async function getScheduleOverview(): Promise<{
   schedule: WorkoutSchedule;
   plannedWorkouts: PlannedWorkout[];
+  completedHistory: PlannedWorkout[];
 }> {
   const r = await apiFetch("/api/workout-schedule", { credentials: "include" });
   if (!r.ok) throw new Error("failed_to_load_schedule");
@@ -34,6 +35,7 @@ export async function getScheduleOverview(): Promise<{
   return {
     schedule: (data?.schedule ?? {}) as WorkoutSchedule,
     plannedWorkouts: Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [],
+    completedHistory: Array.isArray(data?.completedHistory) ? data.completedHistory : [],
   };
 }
 

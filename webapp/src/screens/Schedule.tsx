@@ -67,12 +67,14 @@ export default function Schedule() {
   const [replaceConfirm, setReplaceConfirm] = useState<ReplaceConfirmState | null>(null);
   const [scheduledOpen, setScheduledOpen] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [completedHistory, setCompletedHistory] = useState<PlannedWorkout[]>([]);
 
   const reload = useCallback(async () => {
     const data = await getScheduleOverview();
     const normalized = normalizePlanned(data.plannedWorkouts);
     setPlanned(normalized);
     setScheduleDates(normalizeScheduleDates(data.schedule?.dates));
+    setCompletedHistory(Array.isArray(data.completedHistory) ? data.completedHistory : []);
     setError(null);
   }, []);
 
@@ -190,7 +192,7 @@ export default function Schedule() {
     setMonthOffset((x) => x + dir);
   }, []);
 
-  const plannedByDate = useMemo(() => groupByDate(planned), [planned]);
+  const plannedByDate = useMemo(() => groupByDate([...planned, ...completedHistory]), [planned, completedHistory]);
 
   // For picking in the calendar, show only not-yet-scheduled workouts.
   const pendingWorkouts = useMemo(() => planned.filter((w) => w.status === "pending"), [planned]);
@@ -216,9 +218,12 @@ export default function Schedule() {
   }, [planned, monthStart, monthEnd]);
 
   const completed = useMemo(() => {
-    return planned
+    const all = [
+      ...planned.filter((w) => w.status === "completed"),
+      ...completedHistory,
+    ];
+    return all
       .filter((w) => {
-        if (w.status !== "completed") return false;
         const t = new Date(w.completedAt || w.scheduledFor).getTime();
         return t >= monthStart.getTime() && t <= monthEnd.getTime();
       })
@@ -226,7 +231,7 @@ export default function Schedule() {
         (a, b) =>
           new Date(b.completedAt || b.scheduledFor).getTime() - new Date(a.completedAt || a.scheduledFor).getTime()
       );
-  }, [planned, monthStart, monthEnd]);
+  }, [planned, completedHistory, monthStart, monthEnd]);
 
   const openDate = (date: Date) => {
     const key = toDateKey(date);

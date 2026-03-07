@@ -216,18 +216,19 @@ function readScheduleCache() {
     const parsed = JSON.parse(raw);
     const planned = Array.isArray(parsed?.plannedWorkouts) ? parsed.plannedWorkouts : [];
     const dates = normalizeScheduleDates(parsed?.scheduleDates);
-    return { plannedWorkouts: planned, scheduleDates: dates };
+    const completedHistory = Array.isArray(parsed?.completedHistory) ? parsed.completedHistory : [];
+    return { plannedWorkouts: planned, scheduleDates: dates, completedHistory };
   } catch {
     return null;
   }
 }
 
-function writeScheduleCache(plannedWorkouts: PlannedWorkout[], scheduleDates: ScheduleByDate) {
+function writeScheduleCache(plannedWorkouts: PlannedWorkout[], scheduleDates: ScheduleByDate, completedHistory: PlannedWorkout[]) {
   try {
     if (typeof window === "undefined") return;
     localStorage.setItem(
       SCHEDULE_CACHE_KEY,
-      JSON.stringify({ plannedWorkouts, scheduleDates, ts: Date.now() })
+      JSON.stringify({ plannedWorkouts, scheduleDates, completedHistory, ts: Date.now() })
     );
   } catch { }
 }
@@ -426,6 +427,9 @@ export default function Dashboard() {
   const [plannedWorkouts, setPlannedWorkouts] = useState<PlannedWorkout[]>(() => {
     return readScheduleCache()?.plannedWorkouts ?? [];
   });
+  const [completedHistory, setCompletedHistory] = useState<PlannedWorkout[]>(() => {
+    return readScheduleCache()?.completedHistory ?? [];
+  });
   const [selectedScheme, setSelectedScheme] = useState<WorkoutScheme | null>(null);
   const [introLeaving, setIntroLeaving] = useState(false);
   const [dayScheduleModal, setDayScheduleModal] = useState<DayScheduleModalState | null>(null);
@@ -487,16 +491,20 @@ export default function Dashboard() {
   const refreshPlanned = useCallback(async () => {
     if (!onbDone) {
       setPlannedWorkouts([]);
+      setCompletedHistory([]);
       return;
     }
     try {
       const data = await getScheduleOverview();
       const nextPlanned = Array.isArray(data?.plannedWorkouts) ? data.plannedWorkouts : [];
       const nextDates = normalizeScheduleDates(data?.schedule?.dates);
+      const nextHistory = Array.isArray(data?.completedHistory) ? data.completedHistory : [];
       setPlannedWorkouts(nextPlanned);
-      writeScheduleCache(nextPlanned, nextDates);
+      setCompletedHistory(nextHistory);
+      writeScheduleCache(nextPlanned, nextDates, nextHistory);
     } catch {
       setPlannedWorkouts([]);
+      setCompletedHistory([]);
     }
   }, [onbDone]);
 
@@ -665,15 +673,18 @@ export default function Dashboard() {
     return set;
   }, [plannedWorkouts, todayIso]);
 
+  const allCompleted = useMemo(() => [
+    ...plannedWorkouts.filter((w) => w && w.status === "completed"),
+    ...completedHistory,
+  ], [plannedWorkouts, completedHistory]);
+
   const completedDatesSet = useMemo(() => {
-    // API is the primary source of completed dates
+    // API is the primary source of completed dates (current generation + history)
     const set = new Set<string>();
-    plannedWorkouts
-      .filter((w) => w && w.status === "completed")
-      .forEach((w) => {
-        const iso = datePart(w.completedAt) || datePart(w.scheduledFor);
-        if (iso) set.add(iso);
-      });
+    allCompleted.forEach((w) => {
+      const iso = datePart(w.completedAt) || datePart(w.scheduledFor);
+      if (iso) set.add(iso);
+    });
     // localStorage only as fallback for recent (<24h) entries not yet in API
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     for (const rec of (() => {
@@ -688,7 +699,7 @@ export default function Dashboard() {
     }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plannedWorkouts, historyStats.lastCompletedAt]);
+  }, [allCompleted, historyStats.lastCompletedAt]);
 
   const getDotState = useCallback(
     (d: Date): "completed" | "scheduled" | null => {
@@ -719,8 +730,7 @@ export default function Dashboard() {
   }, [plannedWorkouts, selectedISO, todayIso]);
 
   const completedForDay = useMemo(() => {
-    return plannedWorkouts
-      .filter((w) => w && w.status === "completed")
+    return allCompleted
       .filter((w) => {
         // Use completedAt for date matching (real completion date), fallback to scheduledFor
         const completionDate = datePart(w.completedAt) || datePart(w.scheduledFor);
@@ -728,7 +738,7 @@ export default function Dashboard() {
       })
       .slice()
       .sort((a, b) => String(b.completedAt || b.scheduledFor || "").localeCompare(String(a.completedAt || a.scheduledFor || "")));
-  }, [plannedWorkouts, selectedISO]);
+  }, [allCompleted, selectedISO]);
 
   const isPastDay = selectedISO < todayIso;
 
