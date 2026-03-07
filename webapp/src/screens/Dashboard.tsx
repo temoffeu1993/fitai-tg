@@ -1520,11 +1520,9 @@ export default function Dashboard() {
               </span>
             </button>
           )}
-          {(extraScheduled > 0 || extraCompleted > 0) && dayState !== "weekly" ? (
+          {extraScheduled > 0 && dayState !== "weekly" ? (
             <div style={{ fontSize: 13, color: "rgba(30,31,34,0.5)", textAlign: "center", marginTop: 6 }}>
-              {extraCompleted > 0 ? `Ещё ${extraCompleted} выполнен${extraCompleted === 1 ? "а" : "ы"}` : null}
-              {extraCompleted > 0 && extraScheduled > 0 ? " · " : null}
-              {extraScheduled > 0 ? `Ещё ${extraScheduled} запланирован${extraScheduled === 1 ? "а" : "ы"}` : null}
+              {`Ещё ${extraScheduled} запланирован${extraScheduled === 1 ? "а" : "ы"}`}
             </div>
           ) : null}
         </div>

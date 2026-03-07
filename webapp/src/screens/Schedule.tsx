@@ -612,9 +612,6 @@ export default function Schedule() {
               {completed.map((item, idx) => {
                 const p: any = item.plan || {};
                 const title = resolveWorkoutTitle(p);
-                const planDateLocal = item.scheduledFor ? toDateKeyLocal(parseIsoDate(item.scheduledFor)) : "";
-                const factDateLocal = item.completedAt ? toDateKeyLocal(parseIsoDate(item.completedAt)) : "";
-                const showFactDate = factDateLocal && planDateLocal && factDateLocal !== planDateLocal;
                 return (
                   <div key={item.id}>
                     {idx > 0 && <div style={wl.divider} />}
@@ -631,28 +628,14 @@ export default function Schedule() {
                       <div style={wl.name}>{title}</div>
                       <div style={wl.bottom}>
                         <div style={wl.chips}>
-                          {showFactDate ? (
-                            <>
-                              <span style={wl.chip}>
-                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                Выполнено: {fmtShortDate(item.completedAt!)}
-                              </span>
-                              <span style={{ ...wl.chip, opacity: 0.5 }}>
-                                План: {fmtShortDate(item.scheduledFor)}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span style={wl.chip}>
-                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                {fmtShortDate(item.completedAt || item.scheduledFor)}
-                              </span>
-                              <span style={wl.chip}>
-                                <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                {formatTime(item.completedAt || item.scheduledFor)}
-                              </span>
-                            </>
-                          )}
+                          <span style={wl.chip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(item.completedAt || item.scheduledFor)}
+                          </span>
+                          <span style={wl.chip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {formatTime(item.completedAt || item.scheduledFor)}
+                          </span>
                         </div>
                         <span style={wl.arrow}>→</span>
                       </div>
@@ -997,9 +980,6 @@ function ScheduleBottomSheet({
               {completedWorkouts.map((w, idx) => {
                 const p: any = w.plan || {};
                 const title = resolveWorkoutTitle(p);
-                const planLocal = toDateKeyLocal(parseIsoDate(w.scheduledFor));
-                const factLocal = w.completedAt ? toDateKeyLocal(parseIsoDate(w.completedAt)) : "";
-                const showBothDates = factLocal && planLocal && factLocal !== planLocal;
                 return (
                   <div key={w.id}>
                     {idx > 0 && <div style={sh.sheetDivider} />}
@@ -1007,28 +987,14 @@ function ScheduleBottomSheet({
                       <div style={sh.sheetRowName}>{title}</div>
                       <div style={sh.sheetRowBottom}>
                         <div style={sh.sheetRowChips}>
-                          {showBothDates ? (
-                            <>
-                              <span style={sh.sheetRowChip}>
-                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                Выполнено: {fmtShortDate(w.completedAt!)}
-                              </span>
-                              <span style={{ ...sh.sheetRowChip, opacity: 0.5 }}>
-                                План: {fmtShortDate(w.scheduledFor)}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span style={sh.sheetRowChip}>
-                                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                {fmtShortDate(w.completedAt || w.scheduledFor)}
-                              </span>
-                              <span style={sh.sheetRowChip}>
-                                <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                                {formatTime(w.completedAt || w.scheduledFor)}
-                              </span>
-                            </>
-                          )}
+                          <span style={sh.sheetRowChip}>
+                            <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {fmtShortDate(w.completedAt || w.scheduledFor)}
+                          </span>
+                          <span style={sh.sheetRowChip}>
+                            <Clock3 size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                            {formatTime(w.completedAt || w.scheduledFor)}
+                          </span>
                         </div>
                         <span style={sh.sheetRowArrow}>→</span>
                       </div>
@@ -1532,9 +1498,6 @@ function fmtShortDate(iso: string) {
   return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
-function toDateKeyLocal(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function parseIsoDate(iso: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
