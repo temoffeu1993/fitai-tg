@@ -1422,7 +1422,9 @@ function mergePlanned(list: PlannedWorkout[], updated: PlannedWorkout) {
 function groupByDate(list: PlannedWorkout[]) {
   const map: Record<string, PlannedWorkout[]> = {};
   list.filter((item) => item.status !== "pending").forEach((item) => {
-    const key = toDateKey(new Date(item.scheduledFor));
+    // Completed: group by completion date (fact). Others: by scheduled date (plan).
+    const dateStr = item.status === "completed" ? (item.completedAt || item.scheduledFor) : item.scheduledFor;
+    const key = toDateKey(new Date(dateStr));
     if (!map[key]) map[key] = [];
     map[key].push(item);
   });
