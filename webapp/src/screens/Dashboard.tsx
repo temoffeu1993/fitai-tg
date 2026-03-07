@@ -1065,6 +1065,7 @@ export default function Dashboard() {
     Boolean(selectedPlanned?.id) &&
     activeDraft?.plannedWorkoutId === selectedPlanned?.id &&
     typeof activeProgress === "number";
+  const hasResult = dayState === "completed" && Boolean(selectedPlanned?.resultSessionId);
   const dayButtonText =
     dayState === "completed"
       ? hasResult ? "Результат" : "Выполнена"
@@ -1246,8 +1247,6 @@ export default function Dashboard() {
       setDayScheduleSaving(false);
     }
   };
-
-  const hasResult = dayState === "completed" && Boolean(selectedPlanned?.resultSessionId);
 
   const handleDayAction = () => {
     if (dayState === "completed") {
