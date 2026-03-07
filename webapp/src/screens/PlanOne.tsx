@@ -854,8 +854,9 @@ export default function PlanOne() {
               const key = w.id;
               const expanded = Boolean(expandedPlannedIds[key]);
               const isCompletedWorkout = status === "completed";
+              const hasResult = isCompletedWorkout && Boolean(w.resultSessionId);
               const hasActiveProgress = activeDraft?.plannedWorkoutId === w.id && typeof activeProgress === "number" && status !== "completed";
-              const primaryActionLabel = isCompletedWorkout ? "Результат" : hasActiveProgress ? "Продолжить" : "Начать";
+              const primaryActionLabel = isCompletedWorkout ? (hasResult ? "Результат" : "Выполнена") : hasActiveProgress ? "Продолжить" : "Начать";
               const scheduledIso = w.scheduledFor ? toLocalDateInput(w.scheduledFor) : "";
               const isStaleSchedule = status !== "completed" && Boolean(scheduledIso) && scheduledIso < todayIso;
               const isUserScheduled = status === "scheduled" || status === "completed";
@@ -869,11 +870,13 @@ export default function PlanOne() {
               const sameDay = isCompletedWorkout && completedDateIso && scheduledIso && completedDateIso === scheduledIso;
               const showTwoDates = isCompletedWorkout && completedDateIso && scheduledIso && !sameDay;
 
+              const completedDateLabel = `Выполнено: ${w.completedAt ? formatDateOnly(w.completedAt) : (w.scheduledFor ? formatDateOnly(w.scheduledFor) : "")}`;
               const dateChipLabel = isCompletedWorkout
                 ? (showTwoDates
                     ? `Запланировано: ${w.scheduledFor ? formatDateOnly(w.scheduledFor) : ""}`
-                    : `Выполнено: ${w.completedAt ? formatDateOnly(w.completedAt) : (w.scheduledFor ? formatDateOnly(w.scheduledFor) : "")}`)
+                    : completedDateLabel)
                 : (hasScheduledDate ? scheduledDateChip : "Дата и время");
+              const collapsedChipLabel = isCompletedWorkout ? completedDateLabel : dateChipLabel;
 
               const chipToneStyle = isCompletedWorkout
                 ? pick.weekDateChipScheduled
@@ -956,8 +959,12 @@ export default function PlanOne() {
                         <button
                           type="button"
                           className="dash-primary-btn day-cta"
-                          style={pick.weekActionPrimary}
+                          style={{
+                            ...pick.weekActionPrimary,
+                            ...(isCompletedWorkout && !hasResult ? { opacity: 0.55, pointerEvents: "none" as const } : null),
+                          }}
                           onClick={() => handleWorkoutPrimary(w)}
+                          disabled={isCompletedWorkout && !hasResult}
                         >
                           <span>{primaryActionLabel}</span>
                           <span
@@ -1008,7 +1015,7 @@ export default function PlanOne() {
                             ...chipToneStyle,
                           }}
                         >
-                          <span style={pick.weekDateChipCollapsedText}>{dateChipLabel}</span>
+                          <span style={pick.weekDateChipCollapsedText}>{collapsedChipLabel}</span>
                         </div>
                       </div>
                     </div>
