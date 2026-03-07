@@ -687,7 +687,8 @@ export default function Dashboard() {
       }
     }
     return set;
-  }, [plannedWorkouts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plannedWorkouts, historyStats.lastCompletedAt]);
 
   const getDotState = useCallback(
     (d: Date): "completed" | "scheduled" | null => {

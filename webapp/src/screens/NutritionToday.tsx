@@ -535,11 +535,13 @@ function parseISODate(s?: string): Date | null {
 }
 
 function deriveTrainingInfo(dates: ScheduleByDate | undefined, plannedWorkouts: PlannedWorkout[] | undefined, todayISO: string): TrainingInfo {
-  const planned = Array.isArray(plannedWorkouts) ? plannedWorkouts.filter(w => datePart(w.scheduledFor) === todayISO && w.status !== "cancelled") : [];
-  const completed = planned.find(w => w.status === "completed");
+  const all = Array.isArray(plannedWorkouts) ? plannedWorkouts.filter(w => w.status !== "cancelled") : [];
+  // Completed: match by completedAt (fact date), fallback to scheduledFor
+  const completed = all.find(w => w.status === "completed" && (datePart(w.completedAt) === todayISO || datePart(w.scheduledFor) === todayISO));
   if (completed) {
-    return { isTraining: true, status: "completed", time: timePart(completed.scheduledFor) };
+    return { isTraining: true, status: "completed", time: timePart(completed.completedAt || completed.scheduledFor) };
   }
+  const planned = all.filter(w => datePart(w.scheduledFor) === todayISO);
   const active = planned.find(w => w.status === "scheduled" || w.status === "planned");
   if (active) {
     return { isTraining: true, status: "planned", time: timePart(active.scheduledFor) };
@@ -633,23 +635,15 @@ function insertMealsByTime(meals: Meal[], snacks: Meal[]): Meal[] {
   return combined;
 }
 
+/** ISO string or Date → local YYYY-MM-DD (user's timezone, not UTC) */
 function datePart(value: string | Date | undefined | null): string | null {
   if (!value) return null;
-  if (value instanceof Date) {
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, "0");
-    const d = String(value.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-  const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (isoMatch) return isoMatch[1];
-  try {
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime())) return null;
-    return datePart(dt);
-  } catch {
-    return null;
-  }
+  const dt = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(dt.getTime())) return null;
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function timePart(value: string | Date | undefined | null): string | null {

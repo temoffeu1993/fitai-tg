@@ -219,12 +219,12 @@ export default function Schedule() {
     return planned
       .filter((w) => {
         if (w.status !== "completed") return false;
-        const t = new Date(w.scheduledFor).getTime();
+        const t = new Date(w.completedAt || w.scheduledFor).getTime();
         return t >= monthStart.getTime() && t <= monthEnd.getTime();
       })
       .sort(
         (a, b) =>
-          new Date(b.scheduledFor).getTime() - new Date(a.scheduledFor).getTime()
+          new Date(b.completedAt || b.scheduledFor).getTime() - new Date(a.completedAt || a.scheduledFor).getTime()
       );
   }, [planned, monthStart, monthEnd]);
 
