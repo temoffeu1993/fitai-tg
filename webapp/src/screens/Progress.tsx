@@ -1,726 +1,674 @@
-// Progress — визуал как на экране «Расписание». Логику не трогаю.
-
-import { useEffect, useMemo, useState, useId, type ReactNode } from "react";
+// Progress — полный редизайн в стиле WorkoutResult
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
-import { getProgressSummary, saveBodyMetric, ProgressSummary } from "@/api/progress";
+import {
+  getProgressSummary, saveBodyMetric, saveMeasurements,
+  readProgressCache, type ProgressSummaryV2, type BodyMeasurement,
+} from "@/api/progress";
 import NavBar from "@/components/NavBar";
+import mascotImg from "@/assets/robonew.webp";
+import morobotImg from "@/assets/morobot.webp";
+import {
+  Flame, Dumbbell, TrendingUp, Target, Trophy, Scale,
+  CalendarDays, BarChart3, Moon, Award, Zap, Brain, Check,
+} from "lucide-react";
 
-type ChartPeriod = "week" | "month" | "quarter" | "year";
+// ─── Shared visual constants (from WorkoutResult) ───────────────────────────
 
-const formatWeekSeries = (value: number | null | undefined) => {
-  if (!Number.isFinite(value ?? NaN) || !value) return "0 нед.";
-  return `${value} нед.`;
+const GROOVE_BG = "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)";
+const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)";
+const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
+const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
+
+const MUSCLE_COLORS: Record<string, string> = {
+  "Грудь": "#3B82F6", "Плечи": "#8B5CF6", "Трицепс": "#EC4899",
+  "Бицепс": "#F59E0B", "Широчайшие": "#10B981", "Верх спины": "#14B8A6",
+  "Квадрицепсы": "#EF4444", "Ягодицы": "#F97316", "Бицепс бедра": "#D946EF",
+  "Икры": "#6366F1", "Пресс": "#0EA5E9", "Поясница": "#64748B", "Предплечья": "#84CC16",
 };
 
-const formatWeekProgress = (done: number, goal: number | null) => {
-  if (!goal || goal <= 0) return "—";
-  return `${Math.min(done, goal)}/${goal}`;
-};
+// ─── Haptic ───────────────────────────────────────────────────────────────────
 
-export default function Progress() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState<ProgressSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<ChartPeriod>("month");
-  const [showWeightModal, setShowWeightModal] = useState(false);
+function fireHaptic(style: "light" | "medium" = "light") {
+  try {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred(style);
+    else if (navigator.vibrate) navigator.vibrate(style === "light" ? 30 : 60);
+  } catch { }
+}
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      const data = await getProgressSummary();
-      setSummary(data);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Не удалось загрузить прогресс");
-    } finally {
-      setLoading(false);
-    }
-  };
+// ─── CSS styles injected once ─────────────────────────────────────────────────
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const chartData = useMemo(() => {
-    if (!summary) return [];
-    const limit =
-      period === "week" ? 7 : period === "month" ? 30 : period === "quarter" ? 90 : 365;
-    return summary.weightSeries.filter((point) => withinDays(point.date, limit));
-  }, [summary, period]);
-
-  const recentWeights = useMemo(() => {
-    if (!summary) return [];
-    return [...summary.weightSeries].slice(-5).reverse();
-  }, [summary]);
-
-  if (loading) {
-    return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <section style={s.heroCard}>
-          <div style={s.heroHeader}>
-            <span style={s.pill}>Прогресс</span>
-            <span style={s.credits}>Загрузка</span>
-          </div>
-          <div style={s.heroTitle}>Обновляем статистику</div>
-          <div style={s.heroSubtitle}>Подготовка данных о твоих достижениях</div>
-        </section>
-      </div>
-    );
-  }
-
-  if (error || !summary) {
-    return (
-      <div style={s.page}>
-        <SoftGlowStyles />
-        <section style={s.blockWhite}>
-          <h3 style={{ marginTop: 0 }}>{error || "Нет данных"}</h3>
-          <button style={s.rowBtn} onClick={load}>
-            Повторить
-          </button>
-        </section>
-      </div>
-    );
-  }
-
-  const stats = summary.stats;
-  const currentWeight = stats.currentWeightKg != null ? Number(stats.currentWeightKg) : null;
-  const activity = summary.activity;
-  const weightDelta = stats.weightDelta30d != null ? Number(stats.weightDelta30d) : null;
-  const weightDeltaText =
-    weightDelta == null
-      ? "—"
-      : weightDelta === 0
-      ? "0 кг"
-      : `${weightDelta > 0 ? "↑" : "↓"} ${Math.abs(weightDelta).toFixed(1)} кг`;
-
-  const workoutsDelta = stats.workoutsDelta30d;
-  const workoutsDeltaText =
-    workoutsDelta === 0 ? "0 за месяц" : `${workoutsDelta > 0 ? "↑" : "↓"} ${Math.abs(workoutsDelta)} за месяц`;
-
-  const caloriesStatusLabel =
-    stats.caloriesStatus === "normal"
-      ? "✓ В норме"
-      : stats.caloriesStatus === "deficit"
-      ? "📉 Дефицит"
-      : stats.caloriesStatus === "surplus"
-      ? "⚠️ Превышение"
-      : "—";
-
+function ProgressStyles() {
   return (
-    <div style={s.page}>
-      <SoftGlowStyles />
+    <style>{`
+      @keyframes resFadeUp {
+        from { transform: translateY(14px); opacity: 0 }
+        to   { transform: translateY(0); opacity: 1 }
+      }
+      @keyframes progPulse {
+        0%,100% { transform: scale(1); opacity: 1 }
+        50% { transform: scale(1.25); opacity: 0.7 }
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% 0 }
+        100% { background-position: 200% 0 }
+      }
+      .res-fade { animation: resFadeUp 380ms cubic-bezier(0.22,1,0.36,1) both }
+      .res-d0 { animation-delay: 0ms }
+      .res-d1 { animation-delay: 80ms }
+      .res-d2 { animation-delay: 160ms }
+      .res-d3 { animation-delay: 220ms }
+      .res-d4 { animation-delay: 280ms }
+      .res-d5 { animation-delay: 340ms }
+      .res-d6 { animation-delay: 400ms }
+      .res-d7 { animation-delay: 460ms }
+      .res-d8 { animation-delay: 520ms }
+      .res-d9 { animation-delay: 580ms }
+      .res-d10 { animation-delay: 640ms }
+      .prog-pulse { animation: progPulse 1.4s ease-in-out infinite }
+      .shimmer-box {
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s ease-in-out infinite;
+        border-radius: 16px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .res-fade, .prog-pulse, .shimmer-box { animation: none }
+      }
+    `}</style>
+  );
+}
 
-      {/* ЧЁРНЫЙ HERO как на «Расписание» */}
-      <section style={s.heroCard}>
-        <div style={s.heroHeader}>
-          <span style={s.pill}>Прогресс</span>
-          <span style={s.credits}>Статистика</span>
-        </div>
-        <div style={{ marginTop: 8, opacity: 0.9, fontSize: 13, color: "rgba(255,255,255,.9)" }}>
-          {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}
-        </div>
-        <div style={s.heroTitle}>Ты на пути к цели!</div>
-        <div style={s.heroSubtitle}>Отслеживай свои достижения и результаты</div>
+// ─── Skeleton loader ──────────────────────────────────────────────────────────
 
-        <button
-          className="soft-glow"
-          style={s.primaryBtn}
-          onClick={() => setShowWeightModal(true)}
-        >
-          + Записать вес
+function SkeletonCard({ height = 120 }: { height?: number }) {
+  return <div className="shimmer-box" style={{ height, marginBottom: 0 }} />;
+}
+
+// ─── Shared card component ────────────────────────────────────────────────────
+
+function GlassCard({ children, style }: { children: React.ReactNode; style?: CSSProperties }) {
+  return <div style={{ ...s.glassCard, ...style }}>{children}</div>;
+}
+
+function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div style={s.sectionTitle}>
+      {icon}
+      <span>{title}</span>
+    </div>
+  );
+}
+
+// ─── Tab switcher ─────────────────────────────────────────────────────────────
+
+function TabSwitcher({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+  return (
+    <div style={s.tabWrap}>
+      {tabs.map((t) => (
+        <button key={t} style={active === t ? s.tabActive : s.tabBtn}
+          onClick={() => { fireHaptic("light"); onChange(t); }}>
+          {t}
         </button>
-      </section>
-
-      {/* ЧИПЫ под героем, фирменный стеклянный стиль */}
-      <section style={{ ...s.block, ...s.statsSection }}>
-        <div style={s.statsRow}>
-          <Stat icon="⏳" label="Дней с приложением" value={`${stats.daysWithApp}`} />
-          <Stat icon="🔥" label="Серия по плану" value={formatWeekSeries(stats.planSeriesCurrent)} />
-          <Stat icon="🥇" label="Рекорд серии" value={formatWeekSeries(stats.planSeriesBest)} />
-        </div>
-        {stats.planWeeklyGoal != null && (
-          <div style={{ marginTop: 6, fontSize: 11, color: "#333", textAlign: "left" }}>
-            Цель на неделю: {stats.planWeeklyGoal} трен.
-          </div>
-        )}
-      </section>
-
-      {/* Стеклянные карточки в фирменном стиле */}
-      <section style={s.block}>
-        <div style={{ ...ux.card }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>📊</div>
-            <div>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>Основные метрики</div>
-              </div>
-              <div style={ux.cardHint}>Текущие показатели и изменения за месяц</div>
-            </div>
-          </div>
-
-          <div style={{ padding: 12 }}>
-            <StatsGrid
-              currentWeight={currentWeight}
-              weightDeltaText={weightDeltaText}
-              weightDelta={weightDelta}
-              workoutsTotal={stats.workoutsTotal}
-              workoutsDeltaText={workoutsDeltaText}
-              caloriesPerDay={stats.caloriesPerDay}
-              caloriesStatusLabel={caloriesStatusLabel}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section style={s.block}>
-        <div style={{ ...ux.card }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>📈</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>Динамика веса</div>
-                <div style={tabs.wrap}>
-                  {periodOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      style={period === opt.value ? tabs.active : tabs.btn}
-                      onClick={() => setPeriod(opt.value)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={ux.cardHint}>Следим за тем, как меняется тело</div>
-            </div>
-          </div>
-
-          <div style={{ padding: 12 }}>
-            {chartData.length < 2 ? (
-              <EmptyState text="Добавь несколько замеров, чтобы увидеть график." />
-            ) : (
-              <WeightChart data={chartData} />
-            )}
-            {recentWeights.length > 0 && <WeightList entries={recentWeights} />}
-          </div>
-        </div>
-      </section>
-
-      <section style={s.block}>
-        <div style={{ ...ux.card }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>🔥</div>
-            <div>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>Активность</div>
-              </div>
-              <div style={ux.cardHint}>
-                Закрашенные дни — проведена тренировка. Серия по плану учитывает твой график.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ padding: 12 }}>
-            <ActivityLegend />
-            <ActivityWeeks weeks={activity.weeks} />
-            <div style={activityStats.wrap}>
-              <ActivityStat label="Серия по плану" value={formatWeekSeries(activity.planSeriesCurrent)} />
-              <ActivityStat label="Эта неделя" value={formatWeekProgress(activity.completedThisWeek, activity.weeklyGoal)} />
-              <ActivityStat
-                label="Выполнено в этом месяце"
-                value={`${activity.completedThisMonth}/${activity.daysInMonth}`}
-              />
-            </div>
-            <div style={activityStats.note}>
-              Дней подряд: {activity.dayStreakCurrent} (рекорд — {activity.dayStreakBest})
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={s.block}>
-        <div style={{ ...ux.card }}>
-          <div style={{ ...ux.cardHeader }}>
-            <div style={ux.iconInline}>🏆</div>
-            <div>
-              <div style={ux.cardTitleRow}>
-                <div style={ux.cardTitle}>Доска достижений</div>
-              </div>
-              <div style={ux.cardHint}>Награды обновляются автоматически по твоим результатам</div>
-            </div>
-          </div>
-
-          <div style={{ padding: 12 }}>
-            {summary.achievements.length === 0 ? (
-              <EmptyState text="Продолжай тренироваться — награды появятся автоматически." />
-            ) : (
-              <AchievementsGrid items={summary.achievements} />
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div style={{ height: 72 }} />
-      <NavBar
-        current="none"
-        onChange={(t) => {
-          if (t === "home") navigate("/");
-          if (t === "plan") navigate("/schedule");
-          if (t === "coach") navigate("/coach");
-          if (t === "profile") navigate("/profile");
-        }}
-      />
-
-      {showWeightModal && (
-        <WeightModal
-          onClose={() => setShowWeightModal(false)}
-          onSave={async (payload) => {
-            try {
-              await saveBodyMetric(payload);
-              setShowWeightModal(false);
-              await load();
-            } catch {
-              alert("Не удалось сохранить замер");
-            }
-          }}
-        />
-      )}
+      ))}
     </div>
   );
 }
 
-function withinDays(dateIso: string, days: number) {
-  const target = new Date(dateIso);
-  const threshold = new Date();
-  threshold.setDate(threshold.getDate() - days);
-  return target >= threshold;
-}
+// ─── Groove bar (horizontal progress) ────────────────────────────────────────
 
-function formatDate(dateIso: string) {
-  const dt = new Date(dateIso);
-  return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-}
-
-const periodOptions: Array<{ value: ChartPeriod; label: string }> = [
-  { value: "week", label: "7д" },
-  { value: "month", label: "30д" },
-  { value: "quarter", label: "90д" },
-  { value: "year", label: "Год" },
-];
-
-function StatsGrid({
-  currentWeight,
-  weightDeltaText,
-  weightDelta,
-  workoutsTotal,
-  workoutsDeltaText,
-  caloriesPerDay,
-  caloriesStatusLabel,
-}: {
-  currentWeight: number | null;
-  weightDeltaText: string;
-  weightDelta: number | null;
-  workoutsTotal: number;
-  workoutsDeltaText: string;
-  caloriesPerDay: number | null;
-  caloriesStatusLabel: string;
-}) {
+function GrooveBar({ percent, height = 8 }: { percent: number; height?: number }) {
   return (
-    <div style={statsGrid.wrap}>
-      <StatCard
-        icon="⚖️"
-        label="Текущий вес"
-        value={currentWeight != null ? `${currentWeight.toFixed(1)} кг` : "—"}
-        hint={weightDeltaText}
-        hintTone={weightDelta == null ? "muted" : weightDelta <= 0 ? "positive" : "negative"}
-      />
-      <StatCard
-        icon="🏋️"
-        label="Тренировки"
-        value={`${workoutsTotal}`}
-        hint={workoutsDeltaText}
-        hintTone={workoutsDeltaText.startsWith("↑") ? "positive" : workoutsDeltaText.startsWith("↓") ? "negative" : "muted"}
-      />
-      <StatCard
-        icon="🔥"
-        label="Калории/день"
-        value={caloriesPerDay ? `${caloriesPerDay} ккал` : "—"}
-        hint={caloriesStatusLabel}
-        hintTone={caloriesStatusLabel.includes("✓") ? "positive" : caloriesStatusLabel.includes("⚠️") ? "negative" : "muted"}
-      />
+    <div style={{ borderRadius: 999, height, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, percent))}%`, background: FILL_BG, boxShadow: FILL_SHADOW, borderRadius: 999, transition: "width 600ms ease" }} />
     </div>
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  hint,
-  hintTone = "muted",
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  hint: string;
-  hintTone?: "positive" | "negative" | "muted";
-}) {
+// ─── Groove box (small metric card) ──────────────────────────────────────────
+
+function GrooveBox({ children, style }: { children: React.ReactNode; style?: CSSProperties }) {
   return (
-    <div style={statsGrid.card}>
-      <div style={statsGrid.icon}>{icon}</div>
-      <div style={statsGrid.label}>{label}</div>
-      <div style={statsGrid.value}>{value}</div>
-      <div
-        style={{
-          ...statsGrid.hint,
-          color: hintTone === "positive" ? "#047857" : hintTone === "negative" ? "#dc2626" : "#64748b",
-        }}
-      >
-        {hint}
+    <div style={{ borderRadius: 20, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 14, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Delta badge ─────────────────────────────────────────────────────────────
+
+function Delta({ value }: { value: number | null }) {
+  if (value == null || value === 0) return null;
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, position: "relative", top: -3, color: value > 0 ? "#16A34A" : "#EF4444" }}>
+      {value > 0 ? "+" : ""}{value}
+    </span>
+  );
+}
+
+// ─── Format helpers ───────────────────────────────────────────────────────────
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+function fmtWeekStart(iso: string) {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
+// ─── 1.1 Header ──────────────────────────────────────────────────────────────
+
+function ProgressHeader({ level, daysWithApp }: { level: number; daysWithApp: number }) {
+  return (
+    <div style={s.headerRow} className="res-fade res-d0">
+      <div style={s.avatarCircle}>
+        <img src={mascotImg} alt="Моро" style={s.avatarImg} />
+      </div>
+      <div>
+        <div style={s.headerTitle}>Твой прогресс</div>
+        <div style={s.headerSub}>Уровень {level} · {daysWithApp} {daysWord(daysWithApp)} с Моро</div>
       </div>
     </div>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return <div style={emptyStyle}>{text}</div>;
+function daysWord(n: number) {
+  const abs = Math.abs(n);
+  if (abs % 10 === 1 && abs % 100 !== 11) return "день";
+  if (abs % 10 >= 2 && abs % 10 <= 4 && (abs % 100 < 10 || abs % 100 >= 20)) return "дня";
+  return "дней";
 }
 
-function WeightList({ entries }: { entries: Array<{ date: string; weight: number }> }) {
+// ─── 1.2 Stat Pill ───────────────────────────────────────────────────────────
+
+function StatPill({ weekStreak, workoutsTotal, tonnageDelta30d }: { weekStreak: number; workoutsTotal: number; tonnageDelta30d: number | null }) {
+  const tonnageText = tonnageDelta30d != null ? `${tonnageDelta30d > 0 ? "+" : ""}${tonnageDelta30d.toLocaleString("ru")} кг` : "— кг";
   return (
-    <div style={weightsList.wrap}>
-      <div style={weightsList.title}>Последние замеры</div>
-      <div style={weightsList.items}>
-        {entries.map((entry) => (
-          <div key={entry.date} style={weightsList.item}>
-            <div style={weightsList.date}>{formatDate(entry.date)}</div>
-            <div style={weightsList.value}>{entry.weight.toFixed(1)} кг</div>
+    <div style={s.statPill} className="res-fade res-d1">
+      <span style={s.statChip}><Flame size={18} color="rgba(255,255,255,0.88)" strokeWidth={2} />{weekStreak} нед. подряд</span>
+      <span style={s.statChipDiv} />
+      <span style={s.statChip}><Dumbbell size={18} color="rgba(255,255,255,0.88)" strokeWidth={2} />{workoutsTotal} трен.</span>
+      <span style={s.statChipDiv} />
+      <span style={s.statChip}><TrendingUp size={18} color="rgba(255,255,255,0.88)" strokeWidth={2} />{tonnageText} за 30д</span>
+    </div>
+  );
+}
+
+// ─── 1.3 AI Insight ──────────────────────────────────────────────────────────
+
+function AiInsight({ text, onCoachClick }: { text: string; onCoachClick?: () => void }) {
+  return (
+    <GlassCard style={{ paddingBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 12, alignItems: "flex-start" }}>
+        <img src={morobotImg} alt="Моро" style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        <div style={s.speechBubble}>
+          <div style={{ fontSize: 15, fontWeight: 400, color: "#1e1f22", lineHeight: 1.5 }}>{text}</div>
+        </div>
+      </div>
+      {onCoachClick && (
+        <button style={s.coachBtn} onClick={onCoachClick}>Спросить Моро →</button>
+      )}
+    </GlassCard>
+  );
+}
+
+// ─── 1.4 Goal Journey ────────────────────────────────────────────────────────
+
+function GoalJourney({ journey }: { journey: ProgressSummaryV2["goalJourney"] }) {
+  const ms = journey.milestones;
+  const currentIdx = ms.findIndex((m) => m.current);
+  const lineWidth = ms.length <= 1 ? 100 : 100 / (ms.length - 1);
+
+  return (
+    <GlassCard>
+      <SectionTitle icon={<Target size={18} color="#0f172a" strokeWidth={2.5} />} title="Путь к цели" />
+      {/* Road */}
+      <div style={{ position: "relative", paddingTop: 8, paddingBottom: 28 }}>
+        {/* Background line */}
+        <div style={{ position: "absolute", top: 22, left: `${lineWidth / 2}%`, right: `${lineWidth / 2}%`, height: 6, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, borderRadius: 999 }} />
+        {/* Fill line up to current */}
+        {currentIdx > 0 && (
+          <div style={{ position: "absolute", top: 22, left: `${lineWidth / 2}%`, width: `calc(${lineWidth * currentIdx}%)`, height: 6, background: FILL_BG, boxShadow: FILL_SHADOW, borderRadius: 999, transition: "width 600ms ease" }} />
+        )}
+        {/* Dots */}
+        <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+          {ms.map((m) => (
+            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+              <div
+                className={m.current ? "prog-pulse" : ""}
+                style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  background: m.completed ? FILL_BG : GROOVE_BG,
+                  boxShadow: m.completed ? FILL_SHADOW : GROOVE_SHADOW,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  zIndex: 1, position: "relative",
+                }}
+              >
+                {m.completed ? (
+                  <Check size={14} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+                ) : m.current ? (
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#3a3b40" }} />
+                ) : (
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(15,23,42,0.2)" }} />
+                )}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 500, color: m.completed ? "#0f172a" : "rgba(15,23,42,0.45)", textAlign: "center", maxWidth: 52, lineHeight: 1.2 }}>
+                {m.emoji} {m.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>{journey.nextGoalText}</div>
+    </GlassCard>
+  );
+}
+
+// ─── 1.5 Muscle Accent ────────────────────────────────────────────────────────
+
+function MuscleAccent({ muscleAccent }: { muscleAccent: ProgressSummaryV2["muscleAccent"] }) {
+  const [period, setPeriod] = useState<"all" | "30d" | "7d">("all");
+  const data = period === "all" ? muscleAccent.all : period === "30d" ? muscleAccent.last30d : muscleAccent.last7d;
+
+  if (muscleAccent.all.length === 0) return null;
+
+  return (
+    <GlassCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <SectionTitle icon={<Flame size={18} color="#0f172a" strokeWidth={2.5} />} title="Акцент по мышцам" />
+        <TabSwitcher tabs={["Всё", "30д", "7д"]} active={period === "all" ? "Всё" : period === "30d" ? "30д" : "7д"}
+          onChange={(t) => setPeriod(t === "Всё" ? "all" : t === "30д" ? "30d" : "7d")} />
+      </div>
+      {data.length === 0 ? (
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", textAlign: "center", padding: "12px 0" }}>Нет данных за период</div>
+      ) : (
+        <>
+          <div style={{ display: "flex", height: 16, borderRadius: 10, overflow: "hidden", width: "100%", background: "#F1F5F9", marginBottom: 12 }}>
+            {data.map((item) => (
+              <div key={item.muscle} style={{ width: `${item.percent}%`, height: "100%", background: MUSCLE_COLORS[item.muscle] || "#94A3B8", transition: "width 600ms ease" }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {data.map((item) => (
+              <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: MUSCLE_COLORS[item.muscle] || "#94A3B8", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>{item.muscle} {item.percent}%</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </GlassCard>
+  );
+}
+
+// ─── 1.6 Personal Records ─────────────────────────────────────────────────────
+
+function PersonalRecords({ records }: { records: ProgressSummaryV2["personalRecords"] }) {
+  if (records.length === 0) return null;
+  return (
+    <GlassCard>
+      <SectionTitle icon={<Trophy size={18} color="#0f172a" strokeWidth={2.5} />} title="Личные рекорды" />
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, marginTop: 2 }}>
+        {records.map((pr) => (
+          <div key={pr.name} style={s.prCard}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1e1f22", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>{pr.name}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 6 }}>
+              <span style={{ fontSize: 28, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>{pr.bestWeight}</span>
+              <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>кг</span>
+              {!pr.isFirst && pr.delta != null && <Delta value={pr.delta} />}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", marginTop: 2 }}>× {pr.bestReps} повт.</div>
+            <div style={{ fontSize: 12, fontWeight: 400, color: "rgba(15,23,42,0.45)", marginTop: 4 }}>
+              {pr.isFirst ? "🏅 Первый результат!" : `~${pr.estimated1RM} кг (1RM)`}
+            </div>
           </div>
         ))}
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
-function ActivityLegend() {
+// ─── 1.7 Body Transformation ──────────────────────────────────────────────────
+
+type WeightPayload = { weight: number; recordedAt: string; notes?: string };
+
+function BodyTransformation({
+  body, onAddWeight, onAddMeasurements,
+}: {
+  body: ProgressSummaryV2["body"];
+  onAddWeight: () => void;
+  onAddMeasurements: () => void;
+}) {
+  const [tab, setTab] = useState<"weight" | "measurements">("weight");
+  const w = body.currentWeight;
+  const delta = body.weightDelta;
+  const bmi = body.bmi;
+  const m = body.measurements.latest;
+  const dm = body.measurements.deltaFromFirst;
+
   return (
-    <div style={legend.wrap}>
-      <LegendItem color="linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)" label="Тренировка выполнена" />
-      <LegendItem color="#e2e8f0" label="День отдыха" />
-    </div>
+    <GlassCard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <SectionTitle icon={<Scale size={18} color="#0f172a" strokeWidth={2.5} />} title="Трансформация" />
+        <TabSwitcher tabs={["Вес", "Замеры"]} active={tab === "weight" ? "Вес" : "Замеры"} onChange={(t) => setTab(t === "Вес" ? "weight" : "measurements")} />
+      </div>
+      {tab === "weight" ? (
+        <WeightTab w={w} delta={delta} bmi={bmi} weightSource={body.weightSource} onAddWeight={onAddWeight} />
+      ) : (
+        <MeasurementsTab m={m} dm={dm} onAddMeasurements={onAddMeasurements} />
+      )}
+    </GlassCard>
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
+function WeightTab({ w, delta, bmi, weightSource, onAddWeight }: {
+  w: number | null; delta: number | null; bmi: number | null; weightSource: "metrics" | "onboarding"; onAddWeight: () => void;
+}) {
+  if (w == null) {
+    return (
+      <div style={{ textAlign: "center", padding: "12px 0" }}>
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.55)" }}>Нет данных о весе</div>
+        <button style={s.ctaBtn} onClick={onAddWeight}>+ Записать вес</button>
+      </div>
+    );
+  }
   return (
-    <div style={legend.item}>
-      <span style={{ ...legend.swatch, background: color }} />
-      <span>{label}</span>
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <span style={{ fontSize: 36, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>{Number(w).toFixed(1)}</span>
+        <span style={{ fontSize: 16, color: "rgba(15,23,42,0.62)" }}>кг</span>
+        {delta != null && <Delta value={delta} />}
+      </div>
+      {weightSource === "onboarding" && (
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", marginTop: 4 }}>Вес из анкеты — запиши актуальный!</div>
+      )}
+      {bmi != null && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "rgba(15,23,42,0.62)" }}>
+          ИМТ: <strong>{bmi}</strong> {bmiLabel(bmi)}
+        </div>
+      )}
+      <button style={{ ...s.ctaBtn, marginTop: 12 }} onClick={onAddWeight}>+ Записать вес</button>
     </div>
   );
 }
 
-function ActivityWeeks({ weeks }: { weeks: ProgressSummary["activity"]["weeks"] }) {
-  if (!weeks || weeks.length === 0) {
-    return <EmptyState text="Еще нет активных дней. Тренируйся и возвращайся!" />;
+function bmiLabel(bmi: number) {
+  if (bmi < 18.5) return "(дефицит)";
+  if (bmi < 25) return "(норма ✓)";
+  if (bmi < 30) return "(избыток)";
+  return "(ожирение)";
+}
+
+function MeasurementsTab({ m, dm, onAddMeasurements }: {
+  m: BodyMeasurement | null;
+  dm: Partial<Omit<BodyMeasurement, "recorded_at" | "notes">> | null;
+  onAddMeasurements: () => void;
+}) {
+  if (!m) {
+    return (
+      <div style={{ textAlign: "center", padding: "12px 0" }}>
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", marginBottom: 8 }}>Запиши обхваты для отслеживания трансформации</div>
+        <button style={s.ctaBtn} onClick={onAddMeasurements}>+ Записать замеры</button>
+      </div>
+    );
+  }
+
+  const fields: Array<{ key: keyof typeof m; label: string }> = [
+    { key: "chest_cm", label: "Грудь" }, { key: "waist_cm", label: "Талия" }, { key: "hips_cm", label: "Бёдра" },
+    { key: "bicep_left_cm", label: "Бицепс Л" }, { key: "bicep_right_cm", label: "Бицепс П" },
+    { key: "neck_cm", label: "Шея" }, { key: "thigh_cm", label: "Бедро" },
+  ];
+  const filled = fields.filter((f) => m[f.key] != null);
+  if (filled.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "12px 0" }}>
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.55)" }}>Нет заполненных замеров</div>
+        <button style={s.ctaBtn} onClick={onAddMeasurements}>+ Добавить замеры</button>
+      </div>
+    );
   }
 
   return (
-    <div style={activityWrap}>
-      {weeks.map((week) => (
-        <div key={week.label} style={activityColumn}>
-          <div style={activityLabel}>{week.label}</div>
-          <div style={activityDaysGrid}>
-            {week.days.map((day) => (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+        {filled.map((f) => {
+          const val = m[f.key] as number;
+          const d = dm ? (dm as any)[f.key] as number | undefined : undefined;
+          return (
+            <div key={f.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(15,23,42,0.06)" }}>
+              <span style={{ fontSize: 13, color: "rgba(15,23,42,0.62)" }}>{f.label}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#1e1f22" }}>
+                {val} см {d != null && d !== 0 ? <Delta value={d} /> : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(15,23,42,0.4)", marginBottom: 8 }}>Замер от {fmtDate(m.recorded_at)}</div>
+      <button style={s.ctaBtn} onClick={onAddMeasurements}>+ Обновить замеры</button>
+    </div>
+  );
+}
+
+// ─── 1.8 Activity Heatmap ─────────────────────────────────────────────────────
+
+function ActivityHeatmap({ activity }: { activity: ProgressSummaryV2["activity"] }) {
+  // Show last 12 weeks (84 days)
+  const today = new Date();
+  const days = activity.days ?? [];
+
+  // Build 12-week grid from oldest to newest
+  const rows: Array<{ date: string; completed: boolean }[]> = [];
+  const dayMap = new Map(days.map((d) => [d.date, d.completed]));
+
+  // Start from the Monday 12 weeks ago
+  const startDate = new Date(today);
+  const dayOfWeek = (startDate.getDay() + 6) % 7; // Mon=0
+  startDate.setDate(startDate.getDate() - dayOfWeek - 77); // 12 weeks = 84 days, start on Monday
+
+  for (let week = 0; week < 12; week++) {
+    const weekDays: { date: string; completed: boolean }[] = [];
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(startDate);
+      dt.setDate(startDate.getDate() + week * 7 + d);
+      const iso = dt.toISOString().slice(0, 10);
+      weekDays.push({ date: iso, completed: dayMap.get(iso) ?? false });
+    }
+    rows.push(weekDays);
+  }
+
+  const dayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const todayIso = today.toISOString().slice(0, 10);
+
+  return (
+    <GlassCard>
+      <SectionTitle icon={<CalendarDays size={18} color="#0f172a" strokeWidth={2.5} />} title="Активность" />
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginTop: 4 }}>
+        {/* Day labels */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }}>
+          {dayLabels.map((d) => (
+            <div key={d} style={{ height: 14, fontSize: 9, color: "rgba(15,23,42,0.4)", display: "flex", alignItems: "center" }}>{d}</div>
+          ))}
+        </div>
+        {/* Weeks */}
+        {rows.map((week, wi) => (
+          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+            {week.map((day) => (
               <div
                 key={day.date}
                 style={{
-                  ...activityDayCell,
-background: day.completed
-  ? "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)"
-  : "#e2e8f0",                }}
-                title={`${formatDate(day.date)} — ${day.completed ? "тренировка" : "отдых"}`}
+                  width: 14, height: 14, borderRadius: 3,
+                  background: day.completed ? FILL_BG : GROOVE_BG,
+                  boxShadow: day.completed ? FILL_SHADOW : GROOVE_SHADOW,
+                  outline: day.date === todayIso ? "2px solid #3B82F6" : "none",
+                  outlineOffset: 1,
+                }}
+                title={day.date}
               />
             ))}
           </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ActivityStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={activityStatCard}>
-      <div style={activityStatLabel}>{label}</div>
-      <div style={activityStatValue}>{value}</div>
-    </div>
-  );
-}
-
-function AchievementsGrid({ items }: { items: ProgressSummary["achievements"] }) {
-  return (
-    <div style={achievementsGrid.wrap}>
-      {items.map((item) => (
-        <div key={item.id} style={achievementsGrid.card}>
-          <div style={achievementsGrid.badge}>
-            <BadgeIcon badge={item.badge} fallback={item.icon} />
+        ))}
+      </div>
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+        {[
+          { label: "Серия", value: `${activity.dayStreakCurrent} дн.` },
+          { label: "Рекорд", value: `${activity.dayStreakBest} дн.` },
+          { label: "Эта неделя", value: activity.weeklyGoal ? `${activity.completedThisWeek}/${activity.weeklyGoal}` : `${activity.completedThisWeek}` },
+          { label: "Месяц", value: `${activity.completedThisMonth}` },
+        ].map(({ label, value }) => (
+          <div key={label} style={s.actStat}>
+            <div style={{ fontSize: 11, color: "rgba(15,23,42,0.55)", fontWeight: 500 }}>{label}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#1e1f22", marginTop: 2 }}>{value}</div>
           </div>
-          <div style={achievementsGrid.body}>
-            <div style={achievementsGrid.title}>{item.title}</div>
-            <div style={achievementsGrid.desc}>{item.description}</div>
-            {item.value ? <div style={achievementsGrid.value}>{item.value}</div> : null}
-            {item.earnedAt ? <div style={achievementsGrid.meta}>{formatDate(item.earnedAt)}</div> : null}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </GlassCard>
   );
 }
 
-type MedalPalette = {
-  ring: string;
-  base: string;
-  core: string;
-  ribbonLeft: string;
-  ribbonRight: string;
-  highlight: string;
-};
+// ─── 1.9 Volume Trend ────────────────────────────────────────────────────────
 
-type ShieldPalette = {
-  top: string;
-  bottom: string;
-  stroke: string;
-  accent: string;
-  text: string;
-};
+function VolumeTrend({ volumeTrend }: { volumeTrend: ProgressSummaryV2["volumeTrend"] }) {
+  const weeks = volumeTrend.weeks.filter((w) => w.tonnage > 0 || w.weekStart >= new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10));
+  if (weeks.length === 0) return null;
 
-const medalPalettes: Record<string, MedalPalette> = {
-  "medal-gold": {
-    ring: "#f59e0b",
-    base: "#facc15",
-    core: "#fef3c7",
-    ribbonLeft: "#3b82f6",
-    ribbonRight: "#2563eb",
-    highlight: "rgba(255,255,255,0.6)",
-  },
-  "medal-silver": {
-    ring: "#64748b",
-    base: "#cbd5f5",
-    core: "#f8fafc",
-    ribbonLeft: "#64748b",
-    ribbonRight: "#475569",
-    highlight: "rgba(255,255,255,0.7)",
-  },
-  "medal-bronze": {
-    ring: "#b45309",
-    base: "#d97706",
-    core: "#fde68a",
-    ribbonLeft: "#92400e",
-    ribbonRight: "#854d0e",
-    highlight: "rgba(255,255,255,0.35)",
-  },
-  "medal-purple": {
-    ring: "#7c3aed",
-    base: "#a855f7",
-    core: "#f5f3ff",
-    ribbonLeft: "#4338ca",
-    ribbonRight: "#4c1d95",
-    highlight: "rgba(255,255,255,0.45)",
-  },
-  "medal-blue": {
-    ring: "#2563eb",
-    base: "#3b82f6",
-    core: "#eff6ff",
-    ribbonLeft: "#1d4ed8",
-    ribbonRight: "#1e3a8a",
-    highlight: "rgba(255,255,255,0.45)",
-  },
-  "medal-green": {
-    ring: "#16a34a",
-    base: "#22c55e",
-    core: "#dcfce7",
-    ribbonLeft: "#15803d",
-    ribbonRight: "#166534",
-    highlight: "rgba(255,255,255,0.45)",
-  },
-  "medal-default": {
-    ring: "#4b5563",
-    base: "#94a3b8",
-    core: "#e2e8f0",
-    ribbonLeft: "#475569",
-    ribbonRight: "#334155",
-    highlight: "rgba(255,255,255,0.4)",
-  },
-};
+  const maxTonnage = Math.max(...weeks.map((w) => w.tonnage), 1);
 
-const volumePalettes: Record<string, ShieldPalette> = {
-  "1": { top: "#6366f1", bottom: "#4f46e5", stroke: "#c7d2fe", accent: "#a5b4fc", text: "#eef2ff" },
-  "10": { top: "#7c3aed", bottom: "#6d28d9", stroke: "#c084fc", accent: "#a855f7", text: "#f3e8ff" },
-  "25": { top: "#9333ea", bottom: "#7e22ce", stroke: "#d8b4fe", accent: "#c084fc", text: "#faf5ff" },
-  "50": { top: "#c026d3", bottom: "#a21caf", stroke: "#f0abfc", accent: "#f5d0fe", text: "#fdf4ff" },
-  "100": { top: "#e11d48", bottom: "#be123c", stroke: "#fbcfe8", accent: "#fda4af", text: "#fff1f2" },
-  default: { top: "#475569", bottom: "#334155", stroke: "#cbd5f5", accent: "#a5b4fc", text: "#e2e8f0" },
-};
-
-const planPalettes: Record<string, ShieldPalette> = {
-  "1": { top: "#10b981", bottom: "#059669", stroke: "#a7f3d0", accent: "#6ee7b7", text: "#ecfdf5" },
-  "4": { top: "#0ea5e9", bottom: "#0284c7", stroke: "#bae6fd", accent: "#7dd3fc", text: "#f0f9ff" },
-  "8": { top: "#2563eb", bottom: "#1d4ed8", stroke: "#bfdbfe", accent: "#93c5fd", text: "#eff6ff" },
-  "12": { top: "#4338ca", bottom: "#312e81", stroke: "#c7d2fe", accent: "#a5b4fc", text: "#ede9fe" },
-  default: { top: "#475569", bottom: "#334155", stroke: "#cbd5f5", accent: "#a5b4fc", text: "#e2e8f0" },
-};
-
-const streakPalettes: Record<string, ShieldPalette> = {
-  "3": { top: "#fb7185", bottom: "#f43f5e", stroke: "#fecdd3", accent: "#fda4af", text: "#fff1f2" },
-  "7": { top: "#f97316", bottom: "#ea580c", stroke: "#fed7aa", accent: "#fdba74", text: "#fff7ed" },
-  "14": { top: "#ef4444", bottom: "#dc2626", stroke: "#fecaca", accent: "#fca5a5", text: "#fff5f5" },
-  default: { top: "#f97316", bottom: "#ea580c", stroke: "#fed7aa", accent: "#fdba74", text: "#fff7ed" },
-};
-
-function BadgeIcon({ badge, fallback }: { badge?: string | null; fallback?: string | null }) {
-  const id = useId();
-
-  if (!badge) {
-    return <span style={achievementsGrid.fallback}>{fallback ?? "★"}</span>;
-  }
-
-  if (badge.startsWith("medal")) {
-    const palette = medalPalettes[badge] ?? medalPalettes["medal-default"];
-    const gradientId = `${id}-medal`;
-    const highlightId = `${id}-medal-highlight`;
-    return (
-      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-hidden="true">
-        <defs>
-          <radialGradient id={gradientId} cx="50%" cy="35%" r="60%">
-            <stop offset="0%" stopColor={palette.core} />
-            <stop offset="70%" stopColor={palette.base} />
-            <stop offset="100%" stopColor={palette.ring} />
-          </radialGradient>
-          <radialGradient id={highlightId} cx="30%" cy="25%" r="50%">
-            <stop offset="0%" stopColor={palette.highlight} />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </radialGradient>
-        </defs>
-        <path d="M18 6 L24 6 L28 18 L20 18 Z" fill={palette.ribbonLeft} />
-        <path d="M32 6 L38 6 L36 18 L28 18 Z" fill={palette.ribbonRight} />
-        <circle cx="28" cy="30" r="18" fill={`url(#${gradientId})`} stroke={palette.ring} strokeWidth="2" />
-        <circle cx="24" cy="24" r="7" fill={`url(#${highlightId})`} opacity="0.6" />
-        <path
-          d="M28 17 L30.8 24 L38 24.8 L32.4 29.2 L34.2 36 L28 32.4 L21.8 36 L23.6 29.2 L18 24.8 L25.2 24 Z"
-          fill={palette.ring}
-          opacity="0.9"
-        />
-      </svg>
-    );
-  }
-
-  if (badge.startsWith("volume")) {
-    const level = badge.split("-")[1] ?? "";
-    const palette = volumePalettes[level] ?? volumePalettes.default;
-    const gradientId = `${id}-volume`;
-    return (
-      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-hidden="true">
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={palette.top} />
-            <stop offset="100%" stopColor={palette.bottom} />
-          </linearGradient>
-        </defs>
-        <path d="M28 4 L46 12 V30 C46 38 39 45 28 50 C17 45 10 38 10 30 V12 Z" fill={`url(#${gradientId})`} stroke={palette.stroke} strokeWidth="2" />
-        <path
-          d="M28 10 L40 15 V30 C40 35 35 40 28 43 C21 40 16 35 16 30 V15 Z"
-          fill={palette.accent}
-          opacity="0.35"
-        />
-        <text
-          x="28"
-          y="31"
-          textAnchor="middle"
-          fontWeight={700}
-          fontSize={level.length > 2 ? 12 : 14}
-          fill={palette.text}
-        >
-          {level}
-        </text>
-      </svg>
-    );
-  }
-
-  if (badge.startsWith("plan")) {
-    const level = badge.split("-")[1] ?? "";
-    const palette = planPalettes[level] ?? planPalettes.default;
-    const gradientId = `${id}-plan`;
-    return (
-      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-hidden="true">
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={palette.top} />
-            <stop offset="100%" stopColor={palette.bottom} />
-          </linearGradient>
-        </defs>
-        <path
-          d="M28 4 L46 12 V30 C46 38 39 45 28 50 C17 45 10 38 10 30 V12 Z"
-          fill={`url(#${gradientId})`}
-          stroke={palette.stroke}
-          strokeWidth="2"
-        />
-        <path
-          d="M20 18 H36 V22 H20 Z"
-          fill={palette.accent}
-          opacity="0.6"
-        />
-        <path
-          d="M20 24 H36 V28 H20 Z"
-          fill={palette.accent}
-          opacity="0.35"
-        />
-        <path
-          d="M22 30 L27 35 L36 24"
-          fill="none"
-          stroke={palette.text}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-
-  if (badge.startsWith("streak")) {
-    const level = badge.split("-")[1] ?? "";
-    const palette = streakPalettes[level] ?? streakPalettes.default;
-    const gradientId = `${id}-streak`;
-    return (
-      <svg width="56" height="56" viewBox="0 0 56 56" role="img" aria-hidden="true">
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={palette.top} />
-            <stop offset="100%" stopColor={palette.bottom} />
-          </linearGradient>
-        </defs>
-        <circle cx="28" cy="28" r="22" fill={`url(#${gradientId})`} stroke={palette.stroke} strokeWidth="2" />
-        <path
-          d="M28 14 C32 20 36 19 36 25 C36 30 32.5 33.5 28 38 C23.5 33.5 20 30 20 25 C20 19 24 20 28 14 Z"
-          fill={palette.accent}
-          opacity="0.7"
-        />
-        <path
-          d="M28 18 C29.8 21 32 21 32 24 C32 26.5 30.5 28 28 30.5 C25.5 28 24 26.5 24 24 C24 21 26.2 21 28 18 Z"
-          fill={palette.text}
-          opacity="0.9"
-        />
-      </svg>
-    );
-  }
-
-  return <span style={achievementsGrid.fallback}>{fallback ?? "★"}</span>;
+  return (
+    <GlassCard>
+      <SectionTitle icon={<BarChart3 size={18} color="#0f172a" strokeWidth={2.5} />} title="Объём нагрузки" />
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100, marginTop: 12, overflowX: "auto" }}>
+        {weeks.map((week) => {
+          const pct = maxTonnage > 0 ? (week.tonnage / maxTonnage) * 100 : 0;
+          const label = fmtWeekStart(week.weekStart);
+          return (
+            <div key={week.weekStart} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 36, flex: 1 }}>
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: 80 }}>
+                <div style={{ borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, position: "relative", width: "100%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                  <div style={{ width: "100%", background: FILL_BG, boxShadow: FILL_SHADOW, borderRadius: 999, height: `${pct}%`, minHeight: pct > 0 ? 4 : 0, transition: "height 600ms ease" }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 9, color: "rgba(15,23,42,0.4)", textAlign: "center", whiteSpace: "nowrap" }}>{label}</div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Average line indicator */}
+      {volumeTrend.avgTonnage != null && (
+        <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "rgba(15,23,42,0.62)" }}>
+            Средний тоннаж: <strong>{volumeTrend.avgTonnage.toLocaleString("ru")} кг</strong>
+          </span>
+          {volumeTrend.trendPercent != null && (
+            <span style={{ fontSize: 13, color: volumeTrend.trendPercent > 0 ? "#16A34A" : volumeTrend.trendPercent < -5 ? "#EF4444" : "rgba(15,23,42,0.62)" }}>
+              {volumeTrend.trendPercent > 0 ? "↑" : volumeTrend.trendPercent < 0 ? "↓" : "→"} {Math.abs(volumeTrend.trendPercent)}%
+            </span>
+          )}
+        </div>
+      )}
+    </GlassCard>
+  );
 }
 
-type WeightPayload = { weight: number; recordedAt: string; notes?: string };
+// ─── 1.10 Recovery Trends ────────────────────────────────────────────────────
+
+function RecoveryTrends({ recovery }: { recovery: ProgressSummaryV2["recovery"] }) {
+  if (!recovery.hasEnoughData) {
+    return (
+      <GlassCard>
+        <SectionTitle icon={<Moon size={18} color="#0f172a" strokeWidth={2.5} />} title="Восстановление" />
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", lineHeight: 1.5, marginTop: 4 }}>
+          Заполняй чек-ин перед тренировкой — Моро проанализирует как сон и стресс влияют на результаты.
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(15,23,42,0.35)", marginTop: 8 }}>
+          {recovery.checkInCount} / 3 чек-инов собрано
+        </div>
+        <GrooveBar percent={(recovery.checkInCount / 3) * 100} height={6} />
+      </GlassCard>
+    );
+  }
+
+  const items = [
+    { icon: <Moon size={18} color="#6366F1" strokeWidth={2} />, value: recovery.avgSleep != null ? `${recovery.avgSleep} ч` : "—", label: "Сон", trend: recovery.sleepTrend },
+    { icon: <Zap size={18} color="#F59E0B" strokeWidth={2} />, value: recovery.avgEnergy ?? "—", label: "Энергия", trend: recovery.energyTrend },
+    { icon: <Brain size={18} color="#EC4899" strokeWidth={2} />, value: recovery.avgStress ?? "—", label: "Стресс", trend: recovery.stressTrend },
+  ];
+
+  const trendIcon = (t: string | null) => t === "improving" ? "↑" : t === "declining" ? "↓" : t === "stable" ? "→" : "";
+  const trendColor = (t: string | null) => t === "improving" ? "#16A34A" : t === "declining" ? "#EF4444" : "rgba(15,23,42,0.4)";
+
+  return (
+    <GlassCard>
+      <SectionTitle icon={<Moon size={18} color="#0f172a" strokeWidth={2.5} />} title="Восстановление" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 4 }}>
+        {items.map((item) => (
+          <GrooveBox key={item.label} style={{ textAlign: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>{item.icon}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22" }}>
+              {item.value}
+              {item.trend && <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3, color: trendColor(item.trend) }}>{trendIcon(item.trend)}</span>}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(15,23,42,0.55)", marginTop: 2 }}>{item.label}</div>
+          </GrooveBox>
+        ))}
+      </div>
+      {recovery.insight && (
+        <div style={{ marginTop: 12, fontSize: 13, color: "rgba(15,23,42,0.62)", lineHeight: 1.5 }}>
+          💡 {recovery.insight}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+// ─── 1.11 Achievements ───────────────────────────────────────────────────────
+
+function AchievementsPreview({ achievements }: { achievements: ProgressSummaryV2["achievements"] }) {
+  const { earned, upcoming } = achievements;
+  return (
+    <GlassCard>
+      <SectionTitle icon={<Award size={18} color="#0f172a" strokeWidth={2.5} />} title="Достижения" />
+      {/* Earned */}
+      {earned.length > 0 && (
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
+          {earned.map((a) => (
+            <div key={a.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 56 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: FILL_BG, boxShadow: FILL_SHADOW, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+                {a.icon}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 500, color: "#1e1f22", textAlign: "center", maxWidth: 56, lineHeight: 1.2 }}>{a.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Upcoming */}
+      {upcoming.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {upcoming.map((u) => (
+            <div key={u.id}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>{u.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#1e1f22" }}>{u.title}</span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>{u.current}/{u.target}</span>
+              </div>
+              <GrooveBar percent={u.percent} height={8} />
+            </div>
+          ))}
+        </div>
+      )}
+      {earned.length === 0 && upcoming.length === 0 && (
+        <div style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", textAlign: "center", padding: "12px 0" }}>Продолжай тренироваться!</div>
+      )}
+    </GlassCard>
+  );
+}
+
+// ─── Weight Modal ─────────────────────────────────────────────────────────────
 
 function WeightModal({ onClose, onSave }: { onClose: () => void; onSave: (payload: WeightPayload) => Promise<void> }) {
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -731,457 +679,380 @@ function WeightModal({ onClose, onSave }: { onClose: () => void; onSave: (payloa
 
   const handleSubmit = async () => {
     const numericWeight = Number(weight.replace(",", "."));
-    if (!Number.isFinite(numericWeight) || numericWeight <= 0) {
-      alert("Введи корректный вес.");
-      return;
-    }
+    if (!Number.isFinite(numericWeight) || numericWeight <= 0) { alert("Введи корректный вес."); return; }
     setSaving(true);
     await onSave({ recordedAt: date, weight: numericWeight, notes: notes.trim() || undefined });
     setSaving(false);
   };
 
   return (
-    <div style={modal.overlay} onClick={(e) => {
-      if (e.target === e.currentTarget) onClose();
-    }}>
-      <div style={modal.card}>
-        <div style={modal.header}>
-          <h3 style={modal.title}>Записать вес</h3>
-          <button style={modal.close} onClick={onClose} aria-label="Закрыть">
-            ✕
-          </button>
+    <div style={s.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={s.modalCard}>
+        <div style={s.modalHeader}>
+          <h3 style={s.modalTitle}>Записать вес</h3>
+          <button style={s.modalClose} onClick={onClose}>✕</button>
         </div>
-        <label style={modal.label}>
-          <span>Дата</span>
-          <input style={modal.input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <label style={s.modalLabel}><span>Дата</span>
+          <input style={s.modalInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <label style={modal.label}>
-          <span>Вес (кг)</span>
-          <input
-            style={modal.input}
-            type="number"
-            step="0.1"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-            placeholder="Например, 80.5"
-          />
+        <label style={s.modalLabel}><span>Вес (кг)</span>
+          <input style={s.modalInput} type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Например, 80.5" />
         </label>
-        <label style={modal.label}>
-          <span>Заметка (опционально)</span>
-          <textarea
-            style={{ ...modal.input, height: 80, resize: "vertical" }}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Как чувствуешь себя сегодня?"
-          />
+        <label style={s.modalLabel}><span>Заметка (опц.)</span>
+          <textarea style={{ ...s.modalInput, height: 72, resize: "vertical" as const }} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
-        <button className="soft-glow" style={modal.saveBtn} onClick={handleSubmit} disabled={saving}>
-          {saving ? "Сохраняем..." : "Сохранить"}
-        </button>
+        <button style={s.modalSaveBtn} onClick={handleSubmit} disabled={saving}>{saving ? "Сохраняем..." : "Сохранить"}</button>
       </div>
     </div>
   );
 }
 
-function WeightChart({ data }: { data: Array<{ date: string; weight: number }> }) {
-  const width = Math.max(520, data.length * 70);
-  const height = 240;
-  const paddingX = 48;
-  const paddingY = 28;
-  const minWeight = Math.min(...data.map((d) => d.weight));
-  const maxWeight = Math.max(...data.map((d) => d.weight));
-  const range = maxWeight - minWeight || 1;
+// ─── Measurements Modal ───────────────────────────────────────────────────────
 
-  const points = data.map((point, idx) => {
-    const x = paddingX + (idx / Math.max(1, data.length - 1)) * (width - paddingX * 2);
-    const y = paddingY + ((maxWeight - point.weight) / range) * (height - paddingY * 2);
-    return { x, y, label: point.weight.toFixed(1), date: formatDate(point.date) };
-  });
+type MeasurementsPayload = {
+  recordedAt: string; chest_cm?: number; waist_cm?: number; hips_cm?: number;
+  bicep_left_cm?: number; bicep_right_cm?: number; neck_cm?: number; thigh_cm?: number; notes?: string;
+};
 
-  const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(" ");
+function MeasurementsModal({ onClose, onSave }: { onClose: () => void; onSave: (p: MeasurementsPayload) => Promise<void> }) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(todayIso);
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fieldDefs = [
+    { key: "chest_cm", label: "Грудь (см)" }, { key: "waist_cm", label: "Талия (см)" },
+    { key: "hips_cm", label: "Бёдра (см)" }, { key: "bicep_left_cm", label: "Бицепс Л (см)" },
+    { key: "bicep_right_cm", label: "Бицепс П (см)" }, { key: "neck_cm", label: "Шея (см)" },
+    { key: "thigh_cm", label: "Бедро (см)" },
+  ];
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    const payload: MeasurementsPayload = { recordedAt: date, notes: notes.trim() || undefined };
+    for (const f of fieldDefs) {
+      const v = Number(fields[f.key]?.replace(",", "."));
+      if (Number.isFinite(v) && v > 0) (payload as any)[f.key] = v;
+    }
+    await onSave(payload);
+    setSaving(false);
+  };
 
   return (
-    <div style={{ width: "100%", overflowX: "auto" }}>
-      <svg width={width} height={height}>
-        <defs>
-          <linearGradient id="chartLine" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366F1" />
-            <stop offset="100%" stopColor="#A855F7" />
-          </linearGradient>
-          <linearGradient id="chartFill" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="rgba(99,102,241,0.35)" />
-            <stop offset="100%" stopColor="rgba(99,102,241,0)" />
-          </linearGradient>
-        </defs>
-
-        <path
-          d={`M${paddingX},${height - paddingY} L${polylinePoints.replace(/ /g, " L")} L${width - paddingX},${height - paddingY} Z`}
-          fill="url(#chartFill)"
-          stroke="none"
-        />
-        <polyline points={polylinePoints} fill="none" stroke="url(#chartLine)" strokeWidth={3} strokeLinecap="round" />
-
-        {points.map((p) => (
-          <g key={`${p.date}-${p.label}`}>
-            <circle cx={p.x} cy={p.y} r={5} fill="#fff" stroke="#6366f1" strokeWidth={3} />
-            <text x={p.x} y={p.y - 12} fill="#312e81" fontSize="10" fontWeight={600} textAnchor="middle">
-              {p.label}
-            </text>
-            <text x={p.x} y={height - 6} fill="#475569" fontSize="11" textAnchor="middle">
-              {p.date}
-            </text>
-          </g>
+    <div style={s.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ ...s.modalCard, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={s.modalHeader}>
+          <h3 style={s.modalTitle}>Замеры тела</h3>
+          <button style={s.modalClose} onClick={onClose}>✕</button>
+        </div>
+        <label style={s.modalLabel}><span>Дата</span>
+          <input style={s.modalInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        {fieldDefs.map((f) => (
+          <label key={f.key} style={s.modalLabel}><span>{f.label}</span>
+            <input style={s.modalInput} type="number" step="0.1" value={fields[f.key] ?? ""} placeholder="—"
+              onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))} />
+          </label>
         ))}
-      </svg>
+        <label style={s.modalLabel}><span>Заметка (опц.)</span>
+          <textarea style={{ ...s.modalInput, height: 60, resize: "vertical" as const }} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </label>
+        <button style={s.modalSaveBtn} onClick={handleSubmit} disabled={saving}>{saving ? "Сохраняем..." : "Сохранить"}</button>
+      </div>
     </div>
   );
 }
 
-function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+export default function Progress() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState<ProgressSummaryV2 | null>(() => readProgressCache());
+  const [loading, setLoading] = useState(summary === null);
+  const [error, setError] = useState<string | null>(null);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showMeasurementsModal, setShowMeasurementsModal] = useState(false);
+
+  useEffect(() => {
+    fireHaptic("light");
+    load();
+  }, []);
+
+  const load = async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    try {
+      const data = await getProgressSummary();
+      setSummary(data);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      if (!summary) setError("Не удалось загрузить прогресс");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !summary) {
+    return (
+      <div style={page.outer}>
+        <ProgressStyles />
+        <div style={page.inner}>
+          <SkeletonCard height={72} />
+          <SkeletonCard height={56} />
+          <SkeletonCard height={110} />
+          <SkeletonCard height={140} />
+          <SkeletonCard height={160} />
+        </div>
+        <NavBar current="none" onChange={(t) => {
+          if (t === "home") navigate("/");
+          if (t === "plan") navigate("/schedule");
+          if (t === "coach") navigate("/coach");
+          if (t === "profile") navigate("/profile");
+        }} />
+      </div>
+    );
+  }
+
+  if (error && !summary) {
+    return (
+      <div style={page.outer}>
+        <ProgressStyles />
+        <div style={page.inner}>
+          <GlassCard><div style={{ textAlign: "center", padding: "24px 0" }}>
+            <div style={{ fontSize: 14, color: "#EF4444", marginBottom: 12 }}>{error}</div>
+            <button style={s.ctaBtn} onClick={() => load(true)}>Повторить</button>
+          </div></GlassCard>
+        </div>
+        <NavBar current="none" onChange={(t) => {
+          if (t === "home") navigate("/");
+          if (t === "plan") navigate("/schedule");
+          if (t === "coach") navigate("/coach");
+          if (t === "profile") navigate("/profile");
+        }} />
+      </div>
+    );
+  }
+
+  if (!summary) return null;
+
   return (
-    <div style={s.stat}>
-      <div style={s.statEmoji}>{icon}</div>
-      <div style={s.statLabel}>{label}</div>
-      <div style={s.statValue}>{value}</div>
+    <div style={page.outer}>
+      <ProgressStyles />
+      <div style={page.inner}>
+        <ProgressHeader level={summary.level ?? 1} daysWithApp={summary.daysWithApp ?? summary.stats?.daysWithApp ?? 1} />
+
+        <StatPill
+          weekStreak={summary.weekStreak ?? summary.stats?.planSeriesCurrent ?? 0}
+          workoutsTotal={summary.workoutsTotal ?? summary.stats?.workoutsTotal ?? 0}
+          tonnageDelta30d={summary.tonnageDelta30d ?? null}
+        />
+
+        {summary.aiInsight && (
+          <div className="res-fade res-d2">
+            <AiInsight text={summary.aiInsight.text} />
+          </div>
+        )}
+
+        {summary.goalJourney && (
+          <div className="res-fade res-d3">
+            <GoalJourney journey={summary.goalJourney} />
+          </div>
+        )}
+
+        {summary.muscleAccent && (
+          <div className="res-fade res-d4">
+            <MuscleAccent muscleAccent={summary.muscleAccent} />
+          </div>
+        )}
+
+        {summary.personalRecords && summary.personalRecords.length > 0 && (
+          <div className="res-fade res-d5">
+            <PersonalRecords records={summary.personalRecords} />
+          </div>
+        )}
+
+        {summary.body && (
+          <div className="res-fade res-d6">
+            <BodyTransformation
+              body={summary.body}
+              onAddWeight={() => setShowWeightModal(true)}
+              onAddMeasurements={() => setShowMeasurementsModal(true)}
+            />
+          </div>
+        )}
+
+        {summary.activity && (
+          <div className="res-fade res-d7">
+            <ActivityHeatmap activity={summary.activity} />
+          </div>
+        )}
+
+        {summary.volumeTrend && (
+          <div className="res-fade res-d8">
+            <VolumeTrend volumeTrend={summary.volumeTrend} />
+          </div>
+        )}
+
+        {summary.recovery && (
+          <div className="res-fade res-d9">
+            <RecoveryTrends recovery={summary.recovery} />
+          </div>
+        )}
+
+        {summary.achievements && (
+          <div className="res-fade res-d10">
+            <AchievementsPreview achievements={
+              // Handle both v1 (array) and v2 (object) formats
+              Array.isArray(summary.achievements)
+                ? { earned: [], upcoming: [] }
+                : summary.achievements as { earned: any[]; upcoming: any[] }
+            } />
+          </div>
+        )}
+
+        <div style={{ height: 88 }} />
+      </div>
+
+      <NavBar current="none" onChange={(t) => {
+        if (t === "home") navigate("/");
+        if (t === "plan") navigate("/schedule");
+        if (t === "coach") navigate("/coach");
+        if (t === "profile") navigate("/profile");
+      }} />
+
+      {showWeightModal && (
+        <WeightModal
+          onClose={() => setShowWeightModal(false)}
+          onSave={async (payload) => {
+            try {
+              await saveBodyMetric(payload);
+              fireHaptic("medium");
+              setShowWeightModal(false);
+              load();
+            } catch { alert("Не удалось сохранить замер"); }
+          }}
+        />
+      )}
+
+      {showMeasurementsModal && (
+        <MeasurementsModal
+          onClose={() => setShowMeasurementsModal(false)}
+          onSave={async (payload) => {
+            try {
+              await saveMeasurements(payload);
+              fireHaptic("medium");
+              setShowMeasurementsModal(false);
+              load();
+            } catch { alert("Не удалось сохранить замеры"); }
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function SoftGlowStyles() {
-  return (
-    <style>{`
-      .soft-glow{
-        background:linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%);
-        background-size:300% 300%;
-        animation:glowShift 6s ease-in-out infinite, pulseSoft 3s ease-in-out infinite;
-        transition:background .3s
-      }
-      @keyframes glowShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-      @keyframes pulseSoft{0%,100%{filter:brightness(1) saturate(1);transform:scale(1)}50%{filter:brightness(1.05) saturate(1.05);transform:scale(1.01)}}
-      @media (prefers-reduced-motion: reduce) { .soft-glow { animation: none } }
-    `}</style>
-  );
-}
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-/* ===================== Визуальные стили под «Расписание» ===================== */
-
-const cardShadow = "0 8px 24px rgba(0,0,0,.08)";
-
-const s: Record<string, React.CSSProperties> = {
-  // 4) Фон экрана — фирменный градиент как на «Расписание»
-  page: {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "16px",
-    fontFamily: "system-ui,-apple-system,'Inter','Roboto',Segoe UI",
-    background: "transparent",
-    minHeight: "100vh",
-  },
-
-  // 1) Верхний блок — чёрный
-  heroCard: {
-    position: "relative",
-    padding: 22,
-    borderRadius: 28,
-    boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-    background: "#0f172a",
-    color: "#fff",
-    overflow: "hidden",
-  },
-  heroHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pill: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-    textTransform: "capitalize",
-  },
-  credits: {
-    background: "rgba(255,255,255,.08)",
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    backdropFilter: "blur(6px)",
-  },
-  heroTitle: { fontSize: 26, fontWeight: 800, marginTop: 6, color: "#fff" },
-  heroSubtitle: { opacity: 0.9, marginTop: 4, color: "rgba(255,255,255,.85)" },
-
-  // 2) Кнопка «Записать вес» — фирменный градиент
-  primaryBtn: {
-    border: "none",
-    borderRadius: 16,
-    padding: "14px 18px",
-    fontSize: 16,
-    fontWeight: 800,
-    color: "#000",
-    background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    boxShadow: "0 12px 30px rgba(0,0,0,.35)",
-    cursor: "pointer",
-    width: "100%",
-    marginTop: 14,
-  },
-
-  // Чипы под героем
-  statsSection: { marginTop: 12, padding: 0, background: "transparent", boxShadow: "none" },
-  statsRow: { display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12 },
-  stat: {
-    background: "rgba(255,255,255,0.6)",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.08)",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    padding: "10px 8px",
-    minHeight: 96,
-    display: "grid",
-    placeItems: "center",
-    textAlign: "center",
-    gap: 4,
-  },
-  statEmoji: { fontSize: 20, color: "#111" },
-  statLabel: { fontSize: 11, color: "rgba(0,0,0,.75)", letterSpacing: 0.2 },
-  statValue: { fontWeight: 800, fontSize: 18, color: "#111" },
-
-  block: { marginTop: 16, padding: 0, borderRadius: 16, background: "transparent", boxShadow: "none" },
-  blockWhite: { marginTop: 16, padding: 14, borderRadius: 16, background: "#fff", boxShadow: cardShadow },
-
-  rowBtn: {
-    border: "none",
-    padding: "12px 14px",
-    borderRadius: 12,
-    fontWeight: 700,
-    color: "#000",
-    background: "linear-gradient(135deg, rgba(236,227,255,.9) 0%, rgba(217,194,240,.9) 45%, rgba(255,216,194,.9) 100%)",
-    cursor: "pointer",
-    marginTop: 8,
-    boxShadow: "0 8px 22px rgba(0,0,0,.18)",
+const page: Record<string, CSSProperties> = {
+  outer: { minHeight: "100vh", width: "100%", padding: "16px 16px 0", fontFamily: "system-ui,-apple-system,Segoe UI,Roboto,sans-serif" },
+  inner: {
+    maxWidth: 720, margin: "0 auto",
+    display: "flex", flexDirection: "column", gap: 14,
+    paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
   },
 };
 
-const ux: Record<string, any> = {
-  // 3) Все карточки — стеклянные, как на «Расписание»
-  card: {
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,.35)",
-    boxShadow: "0 16px 30px rgba(0,0,0,.12)",
-    background: "rgba(255,255,255,0.75)",
-    backdropFilter: "blur(14px)",
-    position: "relative",
-    overflow: "hidden",
+const s: Record<string, CSSProperties> = {
+  // Header
+  headerRow: { display: "flex", alignItems: "center", gap: 12 },
+  avatarCircle: {
+    width: 56, height: 56, borderRadius: 999, flexShrink: 0,
+    background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+    display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2,
   },
-  cardHeader: {
-    display: "grid",
-    gridTemplateColumns: "24px 1fr",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderBottom: "1px solid rgba(255,255,255,.4)",
-    background: "rgba(255,255,255,0.6)",
+  avatarImg: { width: "100%", height: "100%", objectFit: "cover" as const, objectPosition: "center 10%", borderRadius: 999 },
+  headerTitle: { fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 },
+  headerSub: { fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", marginTop: 2 },
+
+  // Stat pill
+  statPill: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    borderRadius: 24, padding: "14px 18px",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
   },
-  iconInline: { width: 24, height: 24, display: "grid", placeItems: "center", fontSize: 18 },
-  cardTitleRow: { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" },
-  cardTitle: { fontSize: 15, fontWeight: 750, color: "#1b1b1b", lineHeight: 1.2 },
-  cardHint: { fontSize: 11, color: "#2b2b2b", opacity: 0.85 },
-};
+  statChip: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.88)" },
+  statChipDiv: { width: 1, height: 18, background: "rgba(255,255,255,0.15)" },
 
-const statsGrid = {
-  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 } as React.CSSProperties,
-  card: {
-    borderRadius: 16,
-    padding: 14,
-    background: "rgba(255,255,255,.75)",
-    backdropFilter: "blur(10px)",
-    border: "1px solid rgba(255,255,255,.35)",
-    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
-    display: "grid",
-    gap: 6,
-    minHeight: 120,
-  } as React.CSSProperties,
-  icon: { fontSize: 20 },
-  label: { marginTop: 2, fontSize: 11, letterSpacing: 0.4, textTransform: "uppercase" as const, color: "#555", fontWeight: 700 },
-  value: { marginTop: 2, fontSize: 20, fontWeight: 800, color: "#0f172a" },
-  hint: { marginTop: 2, fontSize: 12, fontWeight: 700 },
-};
-
-const tabs = {
-  wrap: {
-    display: "flex",
-    gap: 6,
-    background: "rgba(255,255,255,.6)",
-    padding: 4,
-    borderRadius: 999,
-    border: "1px solid rgba(0,0,0,.06)",
-    backdropFilter: "blur(6px)",
+  // Glass card
+  glassCard: {
+    borderRadius: 24, padding: 18,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(242,242,247,0.92) 100%)",
+    border: "1px solid rgba(255,255,255,0.75)",
+    backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 16px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.9)",
   },
-  btn: {
-    border: "none",
-    background: "transparent",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontWeight: 700,
-    fontSize: 11,
-    color: "#475569",
-    cursor: "pointer",
+
+  // Section title
+  sectionTitle: { display: "flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 14 },
+
+  // Tab switcher
+  tabWrap: { display: "flex", gap: 2, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, borderRadius: 999 },
+  tabBtn: { border: "none", background: "transparent", padding: "5px 10px", borderRadius: 999, fontWeight: 600, fontSize: 11, color: "rgba(15,23,42,0.55)", cursor: "pointer" },
+  tabActive: { border: "none", background: FILL_BG, boxShadow: FILL_SHADOW, padding: "5px 10px", borderRadius: 999, fontWeight: 700, fontSize: 11, color: "rgba(255,255,255,0.9)", cursor: "pointer" },
+
+  // Speech bubble
+  speechBubble: {
+    background: "rgba(255,255,255,0.7)", borderRadius: 16,
+    padding: "12px 14px", flex: 1, position: "relative",
+    border: "1px solid rgba(255,255,255,0.6)",
   },
-  active: {
-    border: "none",
-    background: "#000",
-    padding: "6px 10px",
-    borderRadius: 999,
-    fontWeight: 800,
-    fontSize: 11,
-    color: "#fff",
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(99,102,241,0.35)",
+
+  // Coach button
+  coachBtn: {
+    marginTop: 10, marginLeft: 84, border: "none",
+    background: FILL_BG, boxShadow: FILL_SHADOW,
+    color: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "8px 16px",
+    fontSize: 13, fontWeight: 600, cursor: "pointer",
   },
-};
 
-const weightsList = {
-  wrap: {
-    marginTop: 14,
-    background: "rgba(255,255,255,.75)",
-    borderRadius: 14,
-    padding: 12,
-    border: "1px solid rgba(255,255,255,.35)",
-    boxShadow: "0 8px 20px rgba(0,0,0,.10)",
-    backdropFilter: "blur(10px)",
+  // PR card
+  prCard: {
+    minWidth: 150, borderRadius: 20, background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+    padding: "14px 12px", flexShrink: 0,
   },
-  title: { fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 10 },
-  items: { display: "grid", gap: 8 },
-  item: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "#111827" },
-  date: { opacity: 0.75 },
-  value: { fontWeight: 800 },
-};
 
-const legend = {
-  wrap: { display: "flex", alignItems: "center", gap: 14, marginBottom: 12 },
-  item: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" },
-  swatch: { width: 14, height: 14, borderRadius: 4, display: "inline-block" },
-};
-
-const activityWrap: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-  gap: 16,
-  marginBottom: 18,
-};
-
-const activityColumn: React.CSSProperties = { display: "grid", gap: 12 };
-
-const activityLabel: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: "#0f172a" };
-
-const activityDaysGrid: React.CSSProperties = {
-  background: "rgba(255,255,255,.75)",
-  borderRadius: 14,
-  padding: 12,
-  display: "grid",
-  gridTemplateColumns: "repeat(7, 1fr)",
-  gap: 6,
-  border: "1px solid rgba(255,255,255,.35)",
-  boxShadow: "0 8px 20px rgba(0,0,0,.10)",
-  backdropFilter: "blur(10px)",
-};
-
-const activityDayCell: React.CSSProperties = { width: "100%", paddingBottom: "100%", borderRadius: 6 };
-
-const activityStats = {
-  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 },
-  note: { marginTop: 12, fontSize: 12, color: "#64748b" },
-};
-
-const activityStatCard: React.CSSProperties = {
-  background: "rgba(255,255,255,.75)",
-  borderRadius: 14,
-  padding: 12,
-  border: "1px solid rgba(255,255,255,.35)",
-  boxShadow: "0 8px 20px rgba(0,0,0,.10)",
-  backdropFilter: "blur(10px)",
-};
-
-const activityStatLabel: React.CSSProperties = { fontSize: 11, color: "#64748b", fontWeight: 700 };
-
-const activityStatValue: React.CSSProperties = { fontSize: 16, fontWeight: 800, marginTop: 4, color: "#0f172a" };
-
-const achievementsGrid = {
-  wrap: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12 },
-  card: {
-    borderRadius: 16,
-    background: "rgba(255,255,255,.75)",
-    padding: 14,
-    display: "grid",
-    gridTemplateColumns: "64px 1fr",
-    gap: 14,
-    boxShadow: "0 10px 24px rgba(0,0,0,.12)",
-    border: "1px solid rgba(255,255,255,.35)",
-    backdropFilter: "blur(10px)",
+  // CTA button
+  ctaBtn: {
+    border: "none", background: FILL_BG, boxShadow: FILL_SHADOW,
+    color: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "10px 18px",
+    fontSize: 13, fontWeight: 600, cursor: "pointer",
   },
-  badge: {
-    width: 64,
-    height: 64,
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, rgba(226,232,240,.6), rgba(203,213,225,.4))",
-    border: "1px solid rgba(148,163,184,.45)",
-    display: "grid",
-    placeItems: "center",
-  } as React.CSSProperties,
-  body: { display: "grid", gap: 4, alignContent: "start" } as React.CSSProperties,
-  title: { fontSize: 14, fontWeight: 800, color: "#111827" },
-  desc: { fontSize: 12, color: "#475569", lineHeight: 1.4 } as React.CSSProperties,
-  value: { marginTop: 2, fontSize: 13, fontWeight: 800, color: "#1f2937" },
-  meta: { marginTop: 6, fontSize: 11, color: "#94a3b8" },
-  fallback: { fontSize: 28, filter: "drop-shadow(0 2px 4px rgba(99,102,241,0.2))" },
-};
 
-const modal = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15,23,42,0.45)",
-    display: "grid",
-    placeItems: "center",
-    padding: 16,
-    zIndex: 1000,
-  } as React.CSSProperties,
-  card: {
-    width: "min(420px, 100%)",
-    background: "#fff",
-    borderRadius: 20,
-    padding: 22,
-    boxShadow: "0 28px 50px rgba(15,23,42,0.4)",
-    display: "grid",
-    gap: 16,
+  // Activity stat chip
+  actStat: {
+    background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+    borderRadius: 14, padding: "8px 12px", flex: 1, minWidth: 70,
   },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  title: { margin: 0, fontSize: 18, fontWeight: 900, color: "#0f172a" },
-  close: { border: "none", background: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" },
-  label: { display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "#1f2937" } as React.CSSProperties,
-  input: {
-    borderRadius: 14,
-    border: "1px solid rgba(114,135,255,.2)",
-    padding: "12px 14px",
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#0f172a",
-    background: "#f8fafc",
-  } as React.CSSProperties,
-  saveBtn: {
-    border: "none",
-    borderRadius: 14,
-    padding: "12px 14px",
-    fontWeight: 800,
-    cursor: "pointer",
-    background: "linear-gradient(135deg,#6366f1,#a855f7)",
-    color: "#fff",
-    boxShadow: "0 10px 24px rgba(99,102,241,.35)",
-  },
-};
 
-const emptyStyle: React.CSSProperties = {
-  padding: "24px 0",
-  color: "#64748b",
-  fontSize: 13,
-  textAlign: "center",
+  // Modal
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "grid", placeItems: "center", padding: 16, zIndex: 1000 },
+  modalCard: {
+    width: "min(420px, 100%)", background: "#fff", borderRadius: 24, padding: 22,
+    boxShadow: "0 28px 50px rgba(15,23,42,0.4)", display: "grid", gap: 14,
+  },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  modalTitle: { margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" },
+  modalClose: { border: "none", background: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" },
+  modalLabel: { display: "grid", gap: 5, fontSize: 12, fontWeight: 600, color: "#1f2937" },
+  modalInput: {
+    borderRadius: 14, border: "1px solid rgba(114,135,255,.2)", padding: "11px 14px",
+    fontSize: 14, fontWeight: 500, color: "#0f172a", background: "#f8fafc", outline: "none",
+  },
+  modalSaveBtn: {
+    border: "none", borderRadius: 20, padding: "13px 14px", fontWeight: 700, cursor: "pointer",
+    background: FILL_BG, boxShadow: FILL_SHADOW, color: "rgba(255,255,255,0.9)",
+    fontSize: 15,
+  },
 };
