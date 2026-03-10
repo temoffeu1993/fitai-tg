@@ -16,15 +16,43 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Muted palette — blends with glass cards & groove style
-const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "rgba(59,130,246,0.55)",   // Blue
-  "Спина":    "rgba(16,185,129,0.55)",   // Emerald
-  "Ноги":     "rgba(239,68,68,0.55)",    // Red
-  "Ягодицы":  "rgba(249,115,22,0.55)",   // Orange
-  "Плечи":    "rgba(139,92,246,0.55)",   // Purple
-  "Руки":     "rgba(236,72,153,0.55)",   // Pink
-  "Пресс":    "rgba(14,165,233,0.55)",   // Cyan
+// Glass-style palette — matches activity grid fills
+const MUSCLE_FOCUS_STYLES: Record<string, CSSProperties> = {
+  "Грудь": {
+    background: "linear-gradient(180deg, rgba(96,165,250,0.5) 0%, rgba(59,130,246,0.55) 100%)",
+    border: "1px solid rgba(59,130,246,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Спина": {
+    background: "linear-gradient(180deg, rgba(52,211,153,0.5) 0%, rgba(16,185,129,0.55) 100%)",
+    border: "1px solid rgba(16,185,129,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(5,150,105,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Ноги": {
+    background: "linear-gradient(180deg, rgba(252,129,129,0.5) 0%, rgba(239,68,68,0.55) 100%)",
+    border: "1px solid rgba(239,68,68,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(185,28,28,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Ягодицы": {
+    background: "linear-gradient(180deg, rgba(251,146,60,0.5) 0%, rgba(249,115,22,0.55) 100%)",
+    border: "1px solid rgba(249,115,22,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(194,65,12,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Плечи": {
+    background: "linear-gradient(180deg, rgba(167,139,250,0.5) 0%, rgba(139,92,246,0.55) 100%)",
+    border: "1px solid rgba(139,92,246,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(109,40,217,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Руки": {
+    background: "linear-gradient(180deg, rgba(244,114,182,0.5) 0%, rgba(236,72,153,0.55) 100%)",
+    border: "1px solid rgba(236,72,153,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(190,24,93,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  "Пресс": {
+    background: "linear-gradient(180deg, rgba(56,189,248,0.5) 0%, rgba(14,165,233,0.55) 100%)",
+    border: "1px solid rgba(14,165,233,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(2,132,199,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -228,7 +256,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
     weeks.push(col);
   }
 
-  const DAY_LABELS = ["Пн", "", "Ср", "", "Пт", "", "Вс"];
+  const DAY_LABELS = ["пн", "", "ср", "", "пт", "", "вс"];
   const GAP = 3;
 
   return (
@@ -240,19 +268,21 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
       </div>
 
       {/* Grid: day labels left + 12 week columns */}
-      <div style={{ display: "flex", gap: GAP + 2, overflowX: "auto", paddingBottom: 2 }}>
+      <div style={{ display: "flex", gap: GAP }}>
         {/* Day labels column */}
         <div style={{ display: "flex", flexDirection: "column", gap: GAP, flexShrink: 0 }}>
           {DAY_LABELS.map((label, i) => (
             <div key={i} style={{
-              height: 14, width: 20, fontSize: 14, fontWeight: 400,
+              fontSize: 14, fontWeight: 400, aspectRatio: "1",
               color: "rgba(15,23,42,0.62)", lineHeight: "14px", textAlign: "right",
+              display: "flex", alignItems: "center", justifyContent: "flex-end",
+              width: 18,
             }}>{label}</div>
           ))}
         </div>
-        {/* Week columns */}
+        {/* Week columns — flex to fill width */}
         {weeks.map((col, wi) => (
-          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: GAP, flexShrink: 0 }}>
+          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1 }}>
             {col.map((cell) => {
               const isToday = cell.date === todayIso;
               const hasTod = cell.timeOfDay != null;
@@ -261,7 +291,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
                 <div
                   key={cell.date}
                   style={{
-                    width: 14, height: 14, borderRadius: 3,
+                    aspectRatio: "1", borderRadius: 3,
                     background: hasTod ? undefined : GROOVE_BG,
                     boxShadow: isToday
                       ? `${hasTod ? (todStyle.boxShadow as string) : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
@@ -389,9 +419,9 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
               <div style={{
                 height: "100%",
                 width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
-                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
                 borderRadius: 10,
                 transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
+                ...(MUSCLE_FOCUS_STYLES[item.muscle] || { background: "rgba(148,163,184,0.55)" }),
               }} />
             </div>
             <span style={{
