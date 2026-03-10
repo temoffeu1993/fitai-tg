@@ -3,96 +3,13 @@ import { q } from "./db.js";
 import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { loadScheduleData } from "./utils/scheduleStore.js";
 import { buildGamificationSummary } from "./gamification.js";
+import { computeMuscleFocus } from "./progressMuscleFocus.js";
 
 export const progress = Router();
-
-// ─── Muscle distribution helpers (mirrors frontend WorkoutResult logic) ─────────
-
-const PATTERN_PRIMARY_GROUPS: Record<string, string[]> = {
-  horizontal_push: ["Грудь", "Трицепс"],
-  incline_push: ["Грудь", "Плечи"],
-  vertical_push: ["Плечи", "Трицепс"],
-  horizontal_pull: ["Верх спины", "Широчайшие"],
-  vertical_pull: ["Широчайшие", "Бицепс"],
-  squat: ["Квадрицепсы", "Ягодицы"],
-  hinge: ["Бицепс бедра", "Ягодицы"],
-  lunge: ["Квадрицепсы", "Ягодицы"],
-  hip_thrust: ["Ягодицы", "Бицепс бедра"],
-  rear_delts: ["Плечи", "Верх спины"],
-  delts_iso: ["Плечи"],
-  triceps_iso: ["Трицепс"],
-  biceps_iso: ["Бицепс"],
-  calves: ["Икры"],
-  core: ["Пресс"],
-  carry: ["Пресс", "Предплечья"],
-};
-
-const MUSCLE_UI_GROUP: Record<string, string> = {
-  quads: "Квадрицепсы", glutes: "Ягодицы", hamstrings: "Бицепс бедра",
-  calves: "Икры", chest: "Грудь", lats: "Широчайшие", upper_back: "Верх спины",
-  rear_delts: "Плечи", front_delts: "Плечи", side_delts: "Плечи",
-  triceps: "Трицепс", biceps: "Бицепс", forearms: "Предплечья",
-  core: "Пресс", lower_back: "Поясница",
-};
-
-function getExerciseGroups(ex: any): string[] {
-  const patternGroups = PATTERN_PRIMARY_GROUPS[String(ex?.pattern || "")];
-  if (Array.isArray(patternGroups) && patternGroups.length > 0) return patternGroups.slice(0, 2);
-  const targetMuscles: string[] = Array.isArray(ex?.targetMuscles) ? ex.targetMuscles : [];
-  const seen = new Set<string>();
-  const groups: string[] = [];
-  for (const raw of targetMuscles) {
-    const key = typeof raw === "string" ? raw.trim() : "";
-    if (!key) continue;
-    const group = MUSCLE_UI_GROUP[key] || key;
-    if (!group || seen.has(group)) continue;
-    seen.add(group); groups.push(group);
-  }
-  return groups.slice(0, 2);
-}
 
 function toNumberBe(v: unknown): number | null {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
-}
-
-function computeMuscleDistributionBe(
-  sessionPayloads: any[],
-  sinceDate?: Date
-): Array<{ muscle: string; percent: number }> {
-  const counts: Record<string, number> = {};
-  for (const payload of sessionPayloads) {
-    const exercises: any[] = Array.isArray(payload?.exercises) ? payload.exercises : [];
-    for (const ex of exercises) {
-      if (ex?.done === false || ex?.skipped === true) continue;
-      const pat = String(ex?.pattern || "");
-      if (pat.startsWith("conditioning")) continue;
-      const sets: any[] = (Array.isArray(ex?.sets) ? ex.sets : []).filter((s: any) => s?.done !== false);
-      if (sets.length === 0) continue;
-      let weightedVolume = 0, totalReps = 0;
-      for (const set of sets) {
-        const r = toNumberBe(set?.reps) ?? 0;
-        const w = toNumberBe(set?.weight) ?? 0;
-        if (r > 0) totalReps += r;
-        if (w > 0 && r > 0) weightedVolume += w * r;
-      }
-      const volume = weightedVolume > 0 ? weightedVolume : totalReps > 0 ? totalReps : sets.length;
-      const groups = getExerciseGroups(ex);
-      if (groups.length === 0) continue;
-      const weights =
-        groups.length === 1
-          ? [{ muscle: groups[0], weight: 1 }]
-          : [{ muscle: groups[0], weight: 0.7 }, { muscle: groups[1], weight: 0.3 }];
-      for (const { muscle, weight } of weights) {
-        counts[muscle] = (counts[muscle] || 0) + volume * weight;
-      }
-    }
-  }
-  const total = Object.values(counts).reduce((s, v) => s + v, 0);
-  if (!(total > 0)) return [];
-  return Object.entries(counts)
-    .map(([muscle, count]) => ({ muscle, percent: Math.round((count / total) * 100) }))
-    .sort((a, b) => b.percent - a.percent);
 }
 
 function computeSessionTonnage(payload: any): number {
@@ -353,9 +270,9 @@ progress.get(
     const payloads7d = sessions.filter((s) => new Date(s.finished_at) >= ago7).map((s) => s.payload);
 
     const muscleAccent = {
-      all: computeMuscleDistributionBe(allPayloads),
-      last30d: computeMuscleDistributionBe(payloads30d),
-      last7d: computeMuscleDistributionBe(payloads7d),
+      all: computeMuscleFocus(allPayloads),
+      last30d: computeMuscleFocus(payloads30d),
+      last7d: computeMuscleFocus(payloads7d),
     };
 
     // ── Personal records with e1RM ─────────────────────────────────────────
