@@ -6,7 +6,7 @@ import {
   readProgressCache, type ProgressSummaryV2,
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
-import mascotImg from "@/assets/robonew.webp";
+import mascotImg from "@/assets/morobot.webp";
 import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Zap, Dumbbell, CalendarDays } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
@@ -730,7 +730,7 @@ const s: Record<string, CSSProperties> = {
     display: "flex", alignItems: "center", justifyContent: "center",
     overflow: "hidden", flex: "0 0 auto", padding: 2,
   },
-  avatarImg: { width: "100%", height: "100%", objectFit: "cover" as const, objectPosition: "center 10%", borderRadius: 999 },
+  avatarImg: { width: "100%", height: "100%", objectFit: "cover" as const, objectPosition: "center top", borderRadius: 999 },
 
   // Stat pill — идентично WorkoutResult
   statPill: {
