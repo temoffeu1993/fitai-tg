@@ -312,8 +312,8 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <Flame size={17} color="#0f172a" strokeWidth={2.5} />
-            <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
+            <Flame size={18} color="#0f172a" strokeWidth={2.5} />
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
           </div>
           <div style={{ fontSize: 12, color: "rgba(15,23,42,0.5)", lineHeight: 1.4 }}>
             По выполненным рабочим подходам
@@ -353,33 +353,20 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
           <div
             key={item.muscle}
             style={{
-              width: `${item.percent}%`,
-              minWidth: item.percent > 0 ? 6 : 0,
+              width: `${Math.max(item.percent, 2)}%`,
               height: "100%",
               background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
+              transition: "width 600ms ease",
             }}
           />
         ))}
       </div>
 
-      <div style={s.muscleLegendGrid}>
+      <div style={s.muscleLegend}>
         {items.map((item) => (
-          <div key={item.muscle} style={s.muscleLegendChip}>
-            <div
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#1e1f22" }}>
-              {item.muscle}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(15,23,42,0.48)", marginLeft: "auto" }}>
-              {item.percent}%
-            </span>
+          <div key={item.muscle} style={s.legendItem}>
+            <div style={{ ...s.legendDot, background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8" }} />
+            <span style={s.legendText}>{item.muscle} {item.percent}%</span>
           </div>
         ))}
       </div>
@@ -786,12 +773,12 @@ export default function Progress() {
           userGoal={userGoal}
         />
 
-        {summary.activity && (
-          <ActivitySection activity={summary.activity} />
-        )}
-
         {summary.muscleAccent && (
           <MuscleFocusSection muscleAccent={summary.muscleAccent} />
+        )}
+
+        {summary.activity && (
+          <ActivitySection activity={summary.activity} />
         )}
 
         {summary.personalRecords && summary.personalRecords.length > 0 && (
@@ -906,27 +893,34 @@ const s: Record<string, CSSProperties> = {
   },
   muscleTrack: {
     display: "flex",
-    height: 18,
-    borderRadius: 999,
+    height: 16,
+    borderRadius: 10,
     overflow: "hidden",
-    background: GROOVE_BG,
-    boxShadow: GROOVE_SHADOW,
+    width: "100%",
+    background: "#F1F5F9",
   },
-  muscleLegendGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-    marginTop: 14,
+  muscleLegend: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 8,
+    marginTop: 12,
   },
-  muscleLegendChip: {
+  legendItem: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    minWidth: 0,
-    borderRadius: 16,
-    padding: "10px 12px",
-    background: GROOVE_BG,
-    boxShadow: GROOVE_SHADOW,
+    gap: 5,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    flexShrink: 0,
+  },
+  legendText: {
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
   },
 
   // PR card
