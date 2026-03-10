@@ -278,9 +278,9 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
 type MuscleAccentPeriodKey = keyof ProgressSummaryV2["muscleAccent"];
 
 const MUSCLE_PERIOD_OPTIONS: Array<{ key: MuscleAccentPeriodKey; label: string }> = [
-  { key: "last7d", label: "7 д" },
-  { key: "last30d", label: "30 д" },
-  { key: "all", label: "Всё" },
+  { key: "last7d", label: "7" },
+  { key: "last30d", label: "30" },
+  { key: "all", label: "Все" },
 ];
 
 function getPreferredMusclePeriod(muscleAccent: ProgressSummaryV2["muscleAccent"]): MuscleAccentPeriodKey {
@@ -317,64 +317,68 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period chips — pill shape, text like "Твой прогресс" */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {MUSCLE_PERIOD_OPTIONS.map((option) => {
-          const enabled = muscleAccent[option.key]?.length > 0;
-          const active = period === option.key;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              disabled={!enabled}
-              onClick={() => {
-                if (!enabled) return;
-                fireHaptic("light");
-                setPeriod(option.key);
-              }}
-              style={{
-                flex: 1,
-                border: active ? "1px solid rgba(150,190,130,0.4)" : "1px solid rgba(255,255,255,0.78)",
-                borderRadius: 999,
-                padding: "8px 0",
-                fontSize: 13,
-                fontWeight: 400,
-                lineHeight: 1.45,
-                cursor: enabled ? "pointer" : "default",
-                opacity: enabled ? 1 : 0.42,
-                background: active
-                  ? "linear-gradient(180deg, rgba(196,228,178,0.5) 0%, rgba(170,210,146,0.55) 100%)"
-                  : GROOVE_BG,
-                boxShadow: active
-                  ? "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                  : GROOVE_SHADOW,
-                color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
-              }}
-            >
-              {option.label}
-            </button>
-          );
-        })}
+      {/* Period segmented control + "Дни" label */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: 4, borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW }}>
+          {MUSCLE_PERIOD_OPTIONS.map((option) => {
+            const enabled = muscleAccent[option.key]?.length > 0;
+            const active = period === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                disabled={!enabled}
+                onClick={() => {
+                  if (!enabled) return;
+                  fireHaptic("light");
+                  setPeriod(option.key);
+                }}
+                style={{
+                  border: active ? "1px solid rgba(150,190,130,0.4)" : "none",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontSize: 13,
+                  fontWeight: 400,
+                  lineHeight: 1.45,
+                  cursor: enabled ? "pointer" : "default",
+                  opacity: enabled ? 1 : 0.42,
+                  background: active
+                    ? "linear-gradient(180deg, rgba(196,228,178,0.5) 0%, rgba(170,210,146,0.55) 100%)"
+                    : "transparent",
+                  boxShadow: active
+                    ? "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                    : "none",
+                  color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.5)", lineHeight: 1.45 }}>Дни</span>
       </div>
 
-      {/* Ranked horizontal bars */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* RPE-style horizontal bars — text inside */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {items.map((item) => (
-          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", width: 68, flexShrink: 0, lineHeight: 1.45 }}>
-              {item.muscle}
-            </span>
-            <div style={{ flex: 1, height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${Math.round((item.percent / maxPercent) * 100)}%`,
-                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
-                transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
-              }} />
+          <div key={item.muscle} style={{ position: "relative", height: 36, borderRadius: 999, overflow: "hidden", background: GROOVE_BG, boxShadow: "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)" }}>
+            <div style={{
+              position: "absolute", left: 0, top: 0, bottom: 0,
+              width: `${Math.round((item.percent / maxPercent) * 100)}%`,
+              background: FILL_BG,
+              boxShadow: FILL_SHADOW,
+              borderRadius: 999,
+              transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
+            }} />
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.92)", textShadow: "0 1px 3px rgba(0,0,0,0.5)", lineHeight: 1 }}>
+                {item.muscle}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.92)", textShadow: "0 1px 3px rgba(0,0,0,0.5)", lineHeight: 1 }}>
+                {item.percent}%
+              </span>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", width: 36, textAlign: "right", flexShrink: 0, lineHeight: 1.45 }}>
-              {item.percent}%
-            </span>
           </div>
         ))}
       </div>
