@@ -278,8 +278,8 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
 type MuscleAccentPeriodKey = keyof ProgressSummaryV2["muscleAccent"];
 
 const MUSCLE_PERIOD_OPTIONS: Array<{ key: MuscleAccentPeriodKey; label: string }> = [
-  { key: "last7d", label: "7 дней" },
-  { key: "last30d", label: "30 дней" },
+  { key: "last7d", label: "7 д" },
+  { key: "last30d", label: "30 д" },
   { key: "all", label: "Всё" },
 ];
 
@@ -317,7 +317,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period chips — 3 equal, green active / groove inactive */}
+      {/* Period chips — pill shape, text like "Твой прогресс" */}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         {MUSCLE_PERIOD_OPTIONS.map((option) => {
           const enabled = muscleAccent[option.key]?.length > 0;
@@ -335,11 +335,11 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
               style={{
                 flex: 1,
                 border: active ? "1px solid rgba(150,190,130,0.4)" : "1px solid rgba(255,255,255,0.78)",
-                borderRadius: 12,
-                padding: "9px 0",
+                borderRadius: 999,
+                padding: "8px 0",
                 fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1,
+                fontWeight: 400,
+                lineHeight: 1.45,
                 cursor: enabled ? "pointer" : "default",
                 opacity: enabled ? 1 : 0.42,
                 background: active
@@ -348,7 +348,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
                 boxShadow: active
                   ? "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)"
                   : GROOVE_SHADOW,
-                color: active ? "#2a5218" : "rgba(15,23,42,0.52)",
+                color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
               }}
             >
               {option.label}
@@ -360,20 +360,19 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
       {/* Ranked horizontal bars */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {items.map((item) => (
-          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#1e1f22", width: 62, flexShrink: 0 }}>
+          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", width: 68, flexShrink: 0, lineHeight: 1.45 }}>
               {item.muscle}
             </span>
-            <div style={{ flex: 1, height: 10, borderRadius: 999, background: "#F1F5F9", overflow: "hidden" }}>
+            <div style={{ flex: 1, height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
               <div style={{
                 height: "100%",
                 width: `${Math.round((item.percent / maxPercent) * 100)}%`,
-                borderRadius: 999,
                 background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
                 transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
               }} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(15,23,42,0.5)", width: 34, textAlign: "right", flexShrink: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", width: 36, textAlign: "right", flexShrink: 0, lineHeight: 1.45 }}>
               {item.percent}%
             </span>
           </div>
