@@ -16,15 +16,15 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Flat solid colors for muscle focus bars
+// Flat solid colors for muscle focus bars — same Tailwind 400 level as TOD_COLORS
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "#3b82f6", // Blue
-  "Спина":    "#f59e0b", // Amber
-  "Ноги":     "#ef4444", // Red
-  "Ягодицы":  "#f97316", // Orange
-  "Плечи":    "#8b5cf6", // Purple
-  "Руки":     "#ec4899", // Pink
-  "Пресс":    "#0ea5e9", // Cyan
+  "Грудь":    "#60a5fa", // blue-400
+  "Спина":    "#fbbf24", // amber-400
+  "Ноги":     "#f87171", // red-400
+  "Ягодицы":  "#fb923c", // orange-400
+  "Плечи":    "#a78bfa", // violet-400
+  "Руки":     "#f472b6", // pink-400
+  "Пресс":    "#38bdf8", // sky-400
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -179,11 +179,11 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// Flat solid colors for time-of-day activity cells
+// Flat solid colors for time-of-day activity cells — Tailwind 400 level
 const TOD_COLORS: Record<string, string> = {
-  morning: "#93c5fd",   // Light blue
-  afternoon: "#3b82f6", // Blue
-  evening: "#818cf8",   // Indigo
+  morning: "#60a5fa",   // blue-400
+  afternoon: "#818cf8", // indigo-400
+  evening: "#a78bfa",   // violet-400
 };
 
 
