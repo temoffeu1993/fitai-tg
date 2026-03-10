@@ -16,6 +16,16 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
+const MUSCLE_FOCUS_COLORS: Record<string, string> = {
+  "Грудь": "#2563EB",
+  "Спина": "#10B981",
+  "Ноги": "#EF4444",
+  "Ягодицы": "#F97316",
+  "Плечи": "#8B5CF6",
+  "Руки": "#F59E0B",
+  "Пресс": "#06B6D4",
+};
+
 // ─── Russian pluralization ───────────────────────────────────────────────────
 
 function ruForm(n: number, one: string, few: string, many: string) {
@@ -263,7 +273,121 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
   );
 }
 
-// ─── Section 3: Личные рекорды ────────────────────────────────────────────────
+// ─── Section 3: Акцент по мышцам ─────────────────────────────────────────────
+
+type MuscleAccentPeriodKey = keyof ProgressSummaryV2["muscleAccent"];
+
+const MUSCLE_PERIOD_OPTIONS: Array<{ key: MuscleAccentPeriodKey; label: string }> = [
+  { key: "last7d", label: "7 дней" },
+  { key: "last30d", label: "30 дней" },
+  { key: "all", label: "Всё" },
+];
+
+function getPreferredMusclePeriod(muscleAccent: ProgressSummaryV2["muscleAccent"]): MuscleAccentPeriodKey {
+  if (muscleAccent.last7d?.length) return "last7d";
+  if (muscleAccent.last30d?.length) return "last30d";
+  if (muscleAccent.all?.length) return "all";
+  return "last30d";
+}
+
+function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2["muscleAccent"] }) {
+  const preferredPeriod = getPreferredMusclePeriod(muscleAccent);
+  const [period, setPeriod] = useState<MuscleAccentPeriodKey>(preferredPeriod);
+
+  useEffect(() => {
+    if (!muscleAccent[period]?.length) setPeriod(preferredPeriod);
+  }, [muscleAccent, period, preferredPeriod]);
+
+  const hasAnyData =
+    muscleAccent.last7d.length > 0 ||
+    muscleAccent.last30d.length > 0 ||
+    muscleAccent.all.length > 0;
+  if (!hasAnyData) return null;
+
+  const items = muscleAccent[period]?.length > 0 ? muscleAccent[period] : muscleAccent[preferredPeriod];
+  if (!items.length) return null;
+
+  return (
+    <Card className="fade4">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <Flame size={17} color="#0f172a" strokeWidth={2.5} />
+            <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(15,23,42,0.5)", lineHeight: 1.4 }}>
+            По выполненным рабочим подходам
+          </div>
+        </div>
+
+        <div style={s.periodGroup}>
+          {MUSCLE_PERIOD_OPTIONS.map((option) => {
+            const enabled = muscleAccent[option.key]?.length > 0;
+            const active = period === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                disabled={!enabled}
+                onClick={() => {
+                  if (!enabled) return;
+                  fireHaptic("light");
+                  setPeriod(option.key);
+                }}
+                style={{
+                  ...s.periodBtn,
+                  ...(active ? s.periodBtnActive : {}),
+                  opacity: enabled ? 1 : 0.42,
+                  cursor: enabled ? "pointer" : "default",
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={s.muscleTrack}>
+        {items.map((item) => (
+          <div
+            key={item.muscle}
+            style={{
+              width: `${item.percent}%`,
+              minWidth: item.percent > 0 ? 6 : 0,
+              height: "100%",
+              background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={s.muscleLegendGrid}>
+        {items.map((item) => (
+          <div key={item.muscle} style={s.muscleLegendChip}>
+            <div
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#1e1f22" }}>
+              {item.muscle}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(15,23,42,0.48)", marginLeft: "auto" }}>
+              {item.percent}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Section 4: Личные рекорды ────────────────────────────────────────────────
 
 function PersonalRecordsSection({ records }: { records: ProgressSummaryV2["personalRecords"] }) {
   const top = records.slice(0, 4); // max 4 for readability
@@ -306,7 +430,7 @@ function PersonalRecordsSection({ records }: { records: ProgressSummaryV2["perso
   );
 }
 
-// ─── Section 4: Путь к цели ───────────────────────────────────────────────────
+// ─── Section 5: Путь к цели ───────────────────────────────────────────────────
 
 function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourney"] }) {
   // Show at most 5 milestones to avoid crowding
@@ -388,7 +512,7 @@ function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourn
   );
 }
 
-// ─── Section 5: Достижения ────────────────────────────────────────────────────
+// ─── Section 6: Достижения ────────────────────────────────────────────────────
 
 function AchievementsSection({ achievements }: { achievements: ProgressSummaryV2["achievements"] }) {
   const { earned, upcoming } = achievements;
@@ -473,7 +597,7 @@ function WeightSparkline({ series }: { series: Array<{ date: string; weight: num
   );
 }
 
-// ─── Section 6: Трансформация (Weight only) ──────────────────────────────────
+// ─── Section 7: Трансформация (Weight only) ──────────────────────────────────
 
 type WeightPayload = { weight: number; recordedAt: string; notes?: string };
 
@@ -666,6 +790,10 @@ export default function Progress() {
           <ActivitySection activity={summary.activity} />
         )}
 
+        {summary.muscleAccent && (
+          <MuscleFocusSection muscleAccent={summary.muscleAccent} />
+        )}
+
         {summary.personalRecords && summary.personalRecords.length > 0 && (
           <PersonalRecordsSection records={summary.personalRecords} />
         )}
@@ -749,6 +877,56 @@ const s: Record<string, CSSProperties> = {
   actChip: {
     background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
     borderRadius: 14, padding: "9px 12px", flex: 1, minWidth: 60,
+  },
+
+  periodGroup: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: 4,
+    borderRadius: 999,
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
+    flexShrink: 0,
+  },
+  periodBtn: {
+    border: "none",
+    background: "transparent",
+    color: "rgba(15,23,42,0.52)",
+    borderRadius: 999,
+    padding: "7px 10px",
+    fontSize: 11,
+    fontWeight: 700,
+    lineHeight: 1,
+  },
+  periodBtnActive: {
+    background: FILL_BG,
+    boxShadow: FILL_SHADOW,
+    color: "rgba(255,255,255,0.92)",
+  },
+  muscleTrack: {
+    display: "flex",
+    height: 18,
+    borderRadius: 999,
+    overflow: "hidden",
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
+  },
+  muscleLegendGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+    marginTop: 14,
+  },
+  muscleLegendChip: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+    borderRadius: 16,
+    padding: "10px 12px",
+    background: GROOVE_BG,
+    boxShadow: GROOVE_SHADOW,
   },
 
   // PR card
