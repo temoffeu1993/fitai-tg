@@ -17,13 +17,13 @@ const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)"
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "#3B82F6",
-  "Спина":    "#10B981",
-  "Ноги":     "#EF4444",
-  "Ягодицы":  "#F97316",
-  "Плечи":    "#8B5CF6",
-  "Руки":     "#EC4899",
-  "Пресс":    "#0EA5E9",
+  "Грудь":    "#007AFF",
+  "Спина":    "#34C759",
+  "Ноги":     "#FF3B30",
+  "Ягодицы":  "#FF9500",
+  "Плечи":    "#AF52DE",
+  "Руки":     "#FF2D55",
+  "Пресс":    "#5AC8FA",
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -360,7 +360,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         {items.map((item) => (
           <Fragment key={item.muscle}>
             <span style={{
-              fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
               whiteSpace: "nowrap",
             }}>
               {item.muscle}
@@ -375,7 +375,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
               }} />
             </div>
             <span style={{
-              fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
               textAlign: "right", fontVariantNumeric: "tabular-nums",
             }}>
               {item.percent}%
