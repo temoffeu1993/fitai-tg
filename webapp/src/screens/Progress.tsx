@@ -179,12 +179,25 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// Muted palette — blends with groove cells
-const TOD_COLORS: Record<string, string> = {
-  morning:   "rgba(245,158,11,0.52)",   // Amber
-  afternoon: "rgba(59,130,246,0.52)",   // Blue
-  evening:   "rgba(99,102,241,0.52)",   // Indigo
+// Glass-style fills — same technique as Schedule calendar completed dates
+const TOD_STYLES: Record<string, CSSProperties> = {
+  morning: {
+    background: "linear-gradient(180deg, rgba(147,197,253,0.5) 0%, rgba(96,165,250,0.55) 100%)",
+    border: "1px solid rgba(96,165,250,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(37,99,235,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  afternoon: {
+    background: "linear-gradient(180deg, rgba(96,165,250,0.5) 0%, rgba(59,130,246,0.55) 100%)",
+    border: "1px solid rgba(59,130,246,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
+  evening: {
+    background: "linear-gradient(180deg, rgba(165,180,252,0.5) 0%, rgba(129,140,248,0.55) 100%)",
+    border: "1px solid rgba(129,140,248,0.4)",
+    boxShadow: "inset 0 2px 3px rgba(79,70,229,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  },
 };
+
 
 function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
   const today = new Date();
@@ -193,29 +206,29 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
     (activity.days ?? []).map((d) => [d.date, d] as const),
   );
 
-  // Build 5-week grid (rows = weeks, cols = Mon–Sun), current week = last row
+  // Build 12-week grid (cols = weeks, rows = Mon–Sun)
   const todayDow = (today.getDay() + 6) % 7; // 0=Mon
   const gridStart = new Date(today);
-  gridStart.setDate(today.getDate() - todayDow - 28); // 4 full weeks before current Mon
+  gridStart.setDate(today.getDate() - todayDow - 77); // 11 full weeks before current Mon
 
   type Cell = { date: string; timeOfDay: "morning" | "afternoon" | "evening" | null };
-  const rows: Cell[][] = [];
-  for (let w = 0; w < 5; w++) {
-    const row: Cell[] = [];
+  const weeks: Cell[][] = [];
+  for (let w = 0; w < 12; w++) {
+    const col: Cell[] = [];
     for (let d = 0; d < 7; d++) {
       const dt = new Date(gridStart);
       dt.setDate(gridStart.getDate() + w * 7 + d);
       const iso = dt.toISOString().slice(0, 10);
       const entry = dayMap.get(iso);
-      row.push({
+      col.push({
         date: iso,
         timeOfDay: entry?.completed ? (entry.timeOfDay ?? "evening") : null,
       });
     }
-    rows.push(row);
+    weeks.push(col);
   }
 
-  const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const DAY_LABELS = ["Пн", "", "Ср", "", "Пт", "", "Вс"];
   const GAP = 3;
 
   return (
@@ -226,31 +239,35 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
       </div>
 
-      {/* Grid: 5 rows, each row = day label + 5 cells */}
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-        {DAY_LABELS.map((label, dayIdx) => (
-          <div key={dayIdx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{
-              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
-              width: 20, flexShrink: 0, textAlign: "right",
-            }}>
-              {label}
-            </span>
-            {rows.map((row, wi) => {
-              const cell = row[dayIdx];
+      {/* Grid: day labels left + 12 week columns */}
+      <div style={{ display: "flex", gap: GAP + 2, overflowX: "auto", paddingBottom: 2 }}>
+        {/* Day labels column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: GAP, flexShrink: 0 }}>
+          {DAY_LABELS.map((label, i) => (
+            <div key={i} style={{
+              height: 14, width: 20, fontSize: 14, fontWeight: 400,
+              color: "rgba(15,23,42,0.62)", lineHeight: "14px", textAlign: "right",
+            }}>{label}</div>
+          ))}
+        </div>
+        {/* Week columns */}
+        {weeks.map((col, wi) => (
+          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: GAP, flexShrink: 0 }}>
+            {col.map((cell) => {
               const isToday = cell.date === todayIso;
               const hasTod = cell.timeOfDay != null;
-              const bg = hasTod ? TOD_COLORS[cell.timeOfDay!] : GROOVE_BG;
-              const shadow = isToday
-                ? `${hasTod ? "none" : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
-                : hasTod ? "none" : GROOVE_SHADOW;
+              const todStyle = hasTod ? TOD_STYLES[cell.timeOfDay!] : {};
               return (
                 <div
-                  key={wi}
+                  key={cell.date}
                   style={{
-                    flex: 1, aspectRatio: "1", borderRadius: 4,
-                    background: bg, boxShadow: shadow,
+                    width: 14, height: 14, borderRadius: 3,
+                    background: hasTod ? undefined : GROOVE_BG,
+                    boxShadow: isToday
+                      ? `${hasTod ? (todStyle.boxShadow as string) : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
+                      : hasTod ? undefined : GROOVE_SHADOW,
                     transition: "background 300ms",
+                    ...todStyle,
                   }}
                 />
               );
@@ -260,14 +277,14 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
       </div>
 
       {/* Legend below — aligned with grid cells */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12, paddingLeft: 26 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12, paddingLeft: 25 }}>
         {([
           ["morning", "утро"],
           ["afternoon", "день"],
           ["evening", "вечер"],
         ] as const).map(([key, label]) => (
           <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, background: TOD_COLORS[key] }} />
+            <div style={{ width: 10, height: 10, borderRadius: 3, ...TOD_STYLES[key] }} />
             <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>{label}</span>
           </div>
         ))}

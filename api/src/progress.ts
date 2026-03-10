@@ -434,7 +434,7 @@ progress.get(
     }
 
     const activityDays: Array<{ date: string; completed: boolean; timeOfDay: "morning" | "afternoon" | "evening" | null }> = [];
-    for (let i = 34; i >= 0; i--) {
+    for (let i = 83; i >= 0; i--) {
       const day = toISODate(addDays(new Date(), -i));
       activityDays.push({
         date: day,
