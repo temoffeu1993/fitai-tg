@@ -7,8 +7,7 @@ import {
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
 import mascotImg from "@/assets/robonew.webp";
-import morobotImg from "@/assets/morobot.webp";
-import { Flame, Dumbbell, Star, Target, Trophy, Scale, CalendarDays, Award, Check } from "lucide-react";
+import { CircleCheckBig, Clock3, Weight, Flame, Target, Trophy, Scale, CalendarDays, Award, Check } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -108,18 +107,22 @@ function Skel({ h }: { h: number }) {
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-function ProgressHeader({ level, daysWithApp }: { level: number; daysWithApp: number }) {
+function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
   const d = daysWithApp;
-  const dayLabel = d === 1 ? "день" : d % 10 >= 2 && d % 10 <= 4 && (d % 100 < 10 || d % 100 >= 20) ? "дня" : "дней";
   return (
-    <div className="fade0" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div className="fade0" style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={s.avatarCircle}>
         <img src={mascotImg} alt="Моро" style={s.avatarImg} />
       </div>
-      <div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>Твой прогресс</div>
-        <div style={{ fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.55)", marginTop: 2 }}>
-          Уровень {level} · {d} {dayLabel} с Моро
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
+          Твой прогресс
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+          <CalendarDays size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+          <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
+            {d} {ruForm(d, "день", "дня", "дней")} с Моро
+          </span>
         </div>
       </div>
     </div>
@@ -128,48 +131,38 @@ function ProgressHeader({ level, daysWithApp }: { level: number; daysWithApp: nu
 
 // ─── Stat Pill ───────────────────────────────────────────────────────────────
 
-function StatPill({ dayStreak, workoutsTotal, level }: { dayStreak: number; workoutsTotal: number; level: number }) {
-  const streakLabel = dayStreak === 0
-    ? "Начни сегодня!"
-    : `${dayStreak} ${ruForm(dayStreak, "день", "дня", "дней")} подряд`;
-  const workoutsLabel = `${workoutsTotal} ${ruForm(workoutsTotal, "тренировка", "тренировки", "тренировок")}`;
+function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
+  workoutsTotal: number;
+  totalMinutes: number;
+  totalTonnage: number;
+  userGoal: string;
+}) {
+  const showCalories = userGoal === "lose_weight";
+  const calories = Math.round(totalMinutes * 6);
   return (
     <div className="fade1" style={s.statPill}>
-      <span style={s.chip}><Flame size={16} color="rgba(255,255,255,0.88)" strokeWidth={2} />{streakLabel}</span>
-      <span style={s.chipDiv} />
-      <span style={s.chip}><Dumbbell size={16} color="rgba(255,255,255,0.88)" strokeWidth={2} />{workoutsLabel}</span>
-      <span style={s.chipDiv} />
-      <span style={s.chip}><Star size={16} color="rgba(255,255,255,0.88)" strokeWidth={2} />Lv.{level}</span>
+      <span style={s.statChip}>
+        <CircleCheckBig size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+        <span>{workoutsTotal} {ruForm(workoutsTotal, "тренировка", "тренировки", "тренировок")}</span>
+      </span>
+      <span style={s.statChip}>
+        <Clock3 size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+        <span>{totalMinutes > 0 ? `${totalMinutes} мин` : "—"}</span>
+      </span>
+      <span style={s.statChip}>
+        {showCalories
+          ? <Flame size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+          : <Weight size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
+        <span>{showCalories
+          ? (calories > 0 ? `~${calories.toLocaleString("ru-RU")} ккал` : "—")
+          : (totalTonnage > 0 ? `${totalTonnage.toLocaleString("ru-RU")} кг` : "—")}
+        </span>
+      </span>
     </div>
   );
 }
 
-// ─── Section 1: Мoro говорит ─────────────────────────────────────────────────
-
-function MoroInsight({ text, onCoachClick }: { text: string; onCoachClick: () => void }) {
-  return (
-    <Card className="fade2">
-      <div style={{ display: "grid", gridTemplateColumns: "68px 1fr", gap: 12, alignItems: "flex-start" }}>
-        <img
-          src={morobotImg} alt="Моро"
-          style={{ width: 68, height: 68, objectFit: "contain" }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-        <div style={s.bubble}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: "#1e1f22", lineHeight: 1.55 }}>{text}</p>
-        </div>
-      </div>
-      <button
-        style={{ ...s.coachBtn, width: "100%", marginTop: 14, textAlign: "center" as const }}
-        onClick={() => { fireHaptic("light"); onCoachClick(); }}
-      >
-        Поговорить с Моро →
-      </button>
-    </Card>
-  );
-}
-
-// ─── Section 2: Активность ───────────────────────────────────────────────────
+// ─── Section 1: Активность ───────────────────────────────────────────────────
 
 function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
   const today = new Date();
@@ -587,7 +580,6 @@ function useNav() {
 
 export default function Progress() {
   const nav = useNav();
-  const navigate = useNavigate();
   const [summary, setSummary] = useState<ProgressSummaryV2 | null>(() => readProgressCache());
   const [loading, setLoading] = useState(summary === null);
   const [error, setError] = useState<string | null>(null);
@@ -640,10 +632,12 @@ export default function Progress() {
 
   if (!summary) return null;
 
-  const dayStreak = summary.activity?.dayStreakCurrent ?? summary.stats?.dayStreakCurrent ?? 0;
   const workoutsTotal = summary.workoutsTotal ?? summary.stats?.workoutsTotal ?? 0;
   const level = summary.level ?? 1;
   const daysWithApp = summary.daysWithApp ?? summary.stats?.daysWithApp ?? 1;
+  const totalTonnage = summary.totalTonnage ?? 0;
+  const totalMinutes = summary.totalMinutes ?? 0;
+  const userGoal = summary.userGoal ?? "health_wellness";
 
   const achievements = !summary.achievements || Array.isArray(summary.achievements)
     ? { earned: [], upcoming: [] }
@@ -653,16 +647,14 @@ export default function Progress() {
     <div style={p.outer}>
       <ProgressStyles />
       <div style={p.inner}>
-        <ProgressHeader level={level} daysWithApp={daysWithApp} />
+        <ProgressHeader daysWithApp={daysWithApp} />
 
-        <StatPill dayStreak={dayStreak} workoutsTotal={workoutsTotal} level={level} />
-
-        {summary.aiInsight && (
-          <MoroInsight
-            text={summary.aiInsight.text}
-            onCoachClick={() => navigate("/coach")}
-          />
-        )}
+        <StatPill
+          workoutsTotal={workoutsTotal}
+          totalMinutes={totalMinutes}
+          totalTonnage={totalTonnage}
+          userGoal={userGoal}
+        />
 
         {summary.activity && (
           <ActivitySection activity={summary.activity} />
@@ -725,39 +717,26 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 16px 32px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
   },
 
-  // Avatar
+  // Avatar — 56px, идентично WorkoutResult
   avatarCircle: {
-    width: 52, height: 52, borderRadius: 999, flexShrink: 0,
+    width: 56, height: 56, borderRadius: 999, flexShrink: 0,
     background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
     display: "flex", alignItems: "center", justifyContent: "center",
-    overflow: "hidden", padding: 2,
+    overflow: "hidden", flex: "0 0 auto", padding: 2,
   },
-  avatarImg: { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 10%", borderRadius: 999 },
+  avatarImg: { width: "100%", height: "100%", objectFit: "cover" as const, objectPosition: "center 10%", borderRadius: 999 },
 
-  // Stat pill
+  // Stat pill — идентично WorkoutResult
   statPill: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    borderRadius: 22, padding: "13px 16px",
-    background: "linear-gradient(180deg,#3a3b40 0%,#1e1f22 54%,#121316 100%)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.22), inset 0 1px 1px rgba(255,255,255,0.08)",
+    borderRadius: 24, padding: "14px 18px",
+    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
   },
-  chip: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.88)" },
-  chipDiv: { width: 1, height: 16, background: "rgba(255,255,255,0.14)" },
-
-  // Speech bubble
-  bubble: {
-    background: "rgba(255,255,255,0.65)", borderRadius: 14,
-    padding: "11px 13px", border: "1px solid rgba(255,255,255,0.55)",
-    boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
-  },
-
-  // Coach CTA button (inside Moro card)
-  coachBtn: {
-    marginTop: 12, border: "none",
-    background: FILL_BG, boxShadow: FILL_SHADOW,
-    color: "rgba(255,255,255,0.88)", borderRadius: 18, padding: "9px 16px",
-    fontSize: 13, fontWeight: 600, cursor: "pointer", display: "block",
-    width: "fit-content",
+  statChip: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 15, fontWeight: 600, lineHeight: 1.25,
+    color: "rgba(255,255,255,0.88)",
   },
 
   // Activity chips

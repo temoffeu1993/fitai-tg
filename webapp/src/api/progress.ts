@@ -80,6 +80,9 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
   // Stat pill
   weekStreak: number;
   workoutsTotal: number;
+  totalTonnage: number;
+  totalMinutes: number;
+  userGoal: string;
   tonnageDelta30d: number | null;
 
   // AI insight

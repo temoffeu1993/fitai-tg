@@ -586,6 +586,17 @@ progress.get(
     const planWeeklyGoal = weeklyGoalCurrent > 0 ? weeklyGoalCurrent : null;
     const completedThisWeek = completionsByWeek.get(currentWeekKey) ?? 0;
 
+    // ── Total tonnage & total minutes ────────────────────────────────────────
+    const totalTonnage = Math.round(
+      sessions.reduce((sum, s) => sum + computeSessionTonnage(s.payload), 0)
+    );
+    const totalMinutes = Math.round(
+      sessions.reduce((sum, s) => {
+        const min = toNumberBe(s.payload?.durationMin);
+        return sum + (min != null && min > 0 ? min : 0);
+      }, 0)
+    );
+
     // ── Tonnage delta 30d ───────────────────────────────────────────────────
     const tonnageLast30 = sessions
       .filter((s) => new Date(s.finished_at) >= ago30)
@@ -603,10 +614,10 @@ progress.get(
         ? Math.round(tonnageLast30 - tonnagePrev30)
         : null;
 
-    // ── Days with app ────────────────────────────────────────────────────────
+    // ── Days with app (from onboarding date) ─────────────────────────────────
     const [{ days_with_app }] = await q<{ days_with_app: number }>(
       `WITH events(created_at) AS (
-         SELECT created_at FROM workout_sessions WHERE user_id = $1
+         SELECT created_at FROM onboardings WHERE user_id = $1
          UNION ALL SELECT created_at FROM users WHERE id = $1
        )
        SELECT GREATEST(1, DATE_PART('day', NOW() - COALESCE(MIN(created_at), NOW()))::int) AS days_with_app
@@ -756,6 +767,9 @@ progress.get(
       daysWithApp: days_with_app,
       weekStreak: currentPlanSeries,
       workoutsTotal: total_workouts,
+      totalTonnage,
+      totalMinutes,
+      userGoal,
       tonnageDelta30d,
       aiInsight,
       goalJourney,
