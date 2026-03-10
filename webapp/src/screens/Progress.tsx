@@ -278,8 +278,8 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
 type MuscleAccentPeriodKey = keyof ProgressSummaryV2["muscleAccent"];
 
 const MUSCLE_PERIOD_OPTIONS: Array<{ key: MuscleAccentPeriodKey; label: string }> = [
-  { key: "last7d", label: "7" },
-  { key: "last30d", label: "30" },
+  { key: "last7d", label: "7 д" },
+  { key: "last30d", label: "30 д" },
   { key: "all", label: "Все" },
 ];
 
@@ -317,46 +317,42 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period segmented control + "Дни" label */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: 4, borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW }}>
-          {MUSCLE_PERIOD_OPTIONS.map((option) => {
-            const enabled = muscleAccent[option.key]?.length > 0;
-            const active = period === option.key;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                disabled={!enabled}
-                onClick={() => {
-                  if (!enabled) return;
-                  fireHaptic("light");
-                  setPeriod(option.key);
-                }}
-                style={{
-                  border: active ? "1px solid rgba(150,190,130,0.4)" : "none",
-                  borderRadius: 999,
-                  padding: "6px 12px",
-                  fontSize: 13,
-                  fontWeight: 400,
-                  lineHeight: 1.45,
-                  cursor: enabled ? "pointer" : "default",
-                  opacity: enabled ? 1 : 0.42,
-                  background: active
-                    ? "linear-gradient(180deg, rgba(196,228,178,0.5) 0%, rgba(170,210,146,0.55) 100%)"
-                    : "transparent",
-                  boxShadow: active
-                    ? "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                    : "none",
-                  color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
-                }}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <span style={{ fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.5)", lineHeight: 1.45 }}>Дни</span>
+      {/* Period chips */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
+        {MUSCLE_PERIOD_OPTIONS.map((option) => {
+          const enabled = muscleAccent[option.key]?.length > 0;
+          const active = period === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              disabled={!enabled}
+              onClick={() => {
+                if (!enabled) return;
+                fireHaptic("light");
+                setPeriod(option.key);
+              }}
+              style={{
+                border: "none",
+                borderRadius: 999,
+                padding: "6px 13px",
+                fontSize: 13,
+                fontWeight: 700,
+                lineHeight: 1.45,
+                cursor: enabled ? "pointer" : "default",
+                opacity: enabled ? 1 : 0.38,
+                background: active ? "rgba(196,228,178,0.38)" : GROOVE_BG,
+                boxShadow: active
+                  ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                  : GROOVE_SHADOW,
+                color: active ? "#2a5218" : "rgba(15,23,42,0.55)",
+                transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+              }}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* RPE-style horizontal bars — text inside */}
