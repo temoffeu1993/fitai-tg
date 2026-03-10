@@ -586,16 +586,25 @@ progress.get(
     const planWeeklyGoal = weeklyGoalCurrent > 0 ? weeklyGoalCurrent : null;
     const completedThisWeek = completionsByWeek.get(currentWeekKey) ?? 0;
 
-    // ── Total tonnage & total minutes ────────────────────────────────────────
+    // ── Total tonnage (JS over sessions, limit 300) ──────────────────────────
     const totalTonnage = Math.round(
       sessions.reduce((sum, s) => sum + computeSessionTonnage(s.payload), 0)
     );
-    const totalMinutes = Math.round(
-      sessions.reduce((sum, s) => {
-        const min = toNumberBe(s.payload?.durationMin);
-        return sum + (min != null && min > 0 ? min : 0);
-      }, 0)
+
+    // ── Total minutes — SQL over all sessions (no limit) ────────────────────
+    const [{ total_minutes }] = await q<{ total_minutes: number }>(
+      `SELECT COALESCE(
+         SUM(
+           CASE WHEN (payload->>'durationMin')::numeric > 0
+             THEN ROUND((payload->>'durationMin')::numeric)::int
+             ELSE 0 END
+         ), 0
+       )::int AS total_minutes
+       FROM workout_sessions
+       WHERE user_id = $1 AND payload IS NOT NULL`,
+      [userId]
     );
+    const totalMinutes = Number(total_minutes) || 0;
 
     // ── Tonnage delta 30d ───────────────────────────────────────────────────
     const tonnageLast30 = sessions
@@ -614,14 +623,14 @@ progress.get(
         ? Math.round(tonnageLast30 - tonnagePrev30)
         : null;
 
-    // ── Days with app (from onboarding date) ─────────────────────────────────
+    // ── Days with app — from onboarding date, fallback to account creation ───
+    // COALESCE: prefer onboarding created_at, fall back to users.created_at.
+    // Direct timestamp subtraction in PG returns interval in days (no month ambiguity).
     const [{ days_with_app }] = await q<{ days_with_app: number }>(
-      `WITH events(created_at) AS (
-         SELECT created_at FROM onboardings WHERE user_id = $1
-         UNION ALL SELECT created_at FROM users WHERE id = $1
-       )
-       SELECT GREATEST(1, DATE_PART('day', NOW() - COALESCE(MIN(created_at), NOW()))::int) AS days_with_app
-       FROM events`,
+      `SELECT GREATEST(1, DATE_PART('day', NOW() - COALESCE(
+         (SELECT MIN(created_at) FROM onboardings WHERE user_id = $1),
+         (SELECT created_at FROM users WHERE id = $1)
+       ))::int) AS days_with_app`,
       [userId]
     );
 

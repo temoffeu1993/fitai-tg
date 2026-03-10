@@ -632,12 +632,11 @@ export default function Progress() {
 
   if (!summary) return null;
 
-  const workoutsTotal = summary.workoutsTotal ?? summary.stats?.workoutsTotal ?? 0;
-  const level = summary.level ?? 1;
-  const daysWithApp = summary.daysWithApp ?? summary.stats?.daysWithApp ?? 1;
-  const totalTonnage = summary.totalTonnage ?? 0;
-  const totalMinutes = summary.totalMinutes ?? 0;
-  const userGoal = summary.userGoal ?? "health_wellness";
+  const workoutsTotal = summary.workoutsTotal;
+  const daysWithApp = summary.daysWithApp;
+  const totalTonnage = summary.totalTonnage;
+  const totalMinutes = summary.totalMinutes;
+  const userGoal = summary.userGoal;
 
   const achievements = !summary.achievements || Array.isArray(summary.achievements)
     ? { earned: [], upcoming: [] }

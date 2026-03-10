@@ -155,7 +155,7 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
 
 // ─── API functions ────────────────────────────────────────────────────────────
 
-const PROGRESS_CACHE_KEY = "progress_cache_v2";
+const PROGRESS_CACHE_KEY = "progress_cache_v3"; // bumped: added totalTonnage, totalMinutes, userGoal
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 type CacheEntry = { data: ProgressSummaryV2; fetchedAt: number };
