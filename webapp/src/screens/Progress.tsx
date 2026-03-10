@@ -17,13 +17,13 @@ const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)"
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь": "#2563EB",
-  "Спина": "#10B981",
-  "Ноги": "#EF4444",
-  "Ягодицы": "#F97316",
-  "Плечи": "#8B5CF6",
-  "Руки": "#F59E0B",
-  "Пресс": "#06B6D4",
+  "Грудь":    "#3B82F6",
+  "Спина":    "#10B981",
+  "Ноги":     "#EF4444",
+  "Ягодицы":  "#F97316",
+  "Плечи":    "#8B5CF6",
+  "Руки":     "#EC4899",
+  "Пресс":    "#0EA5E9",
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -307,66 +307,75 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
   const items = muscleAccent[period]?.length > 0 ? muscleAccent[period] : muscleAccent[preferredPeriod];
   if (!items.length) return null;
 
+  const maxPercent = items[0]?.percent ?? 1;
+
   return (
-    <Card className="fade4">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <Flame size={18} color="#0f172a" strokeWidth={2.5} />
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
-          </div>
-          <div style={{ fontSize: 12, color: "rgba(15,23,42,0.5)", lineHeight: 1.4 }}>
-            По выполненным рабочим подходам
-          </div>
-        </div>
-
-        <div style={s.periodGroup}>
-          {MUSCLE_PERIOD_OPTIONS.map((option) => {
-            const enabled = muscleAccent[option.key]?.length > 0;
-            const active = period === option.key;
-            return (
-              <button
-                key={option.key}
-                type="button"
-                disabled={!enabled}
-                onClick={() => {
-                  if (!enabled) return;
-                  fireHaptic("light");
-                  setPeriod(option.key);
-                }}
-                style={{
-                  ...s.periodBtn,
-                  ...(active ? s.periodBtnActive : {}),
-                  opacity: enabled ? 1 : 0.42,
-                  cursor: enabled ? "pointer" : "default",
-                }}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+    <Card className="fade2">
+      {/* Title */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <Flame size={18} color="#0f172a" strokeWidth={2.5} />
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      <div style={s.muscleTrack}>
-        {items.map((item) => (
-          <div
-            key={item.muscle}
-            style={{
-              width: `${Math.max(item.percent, 2)}%`,
-              height: "100%",
-              background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
-              transition: "width 600ms ease",
-            }}
-          />
-        ))}
+      {/* Period chips — 3 equal, green active / groove inactive */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {MUSCLE_PERIOD_OPTIONS.map((option) => {
+          const enabled = muscleAccent[option.key]?.length > 0;
+          const active = period === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              disabled={!enabled}
+              onClick={() => {
+                if (!enabled) return;
+                fireHaptic("light");
+                setPeriod(option.key);
+              }}
+              style={{
+                flex: 1,
+                border: active ? "1px solid rgba(150,190,130,0.4)" : "1px solid rgba(255,255,255,0.78)",
+                borderRadius: 12,
+                padding: "9px 0",
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1,
+                cursor: enabled ? "pointer" : "default",
+                opacity: enabled ? 1 : 0.42,
+                background: active
+                  ? "linear-gradient(180deg, rgba(196,228,178,0.5) 0%, rgba(170,210,146,0.55) 100%)"
+                  : GROOVE_BG,
+                boxShadow: active
+                  ? "inset 0 2px 3px rgba(78,122,58,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                  : GROOVE_SHADOW,
+                color: active ? "#2a5218" : "rgba(15,23,42,0.52)",
+              }}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
-      <div style={s.muscleLegend}>
+      {/* Ranked horizontal bars */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {items.map((item) => (
-          <div key={item.muscle} style={s.legendItem}>
-            <div style={{ ...s.legendDot, background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8" }} />
-            <span style={s.legendText}>{item.muscle} {item.percent}%</span>
+          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#1e1f22", width: 62, flexShrink: 0 }}>
+              {item.muscle}
+            </span>
+            <div style={{ flex: 1, height: 10, borderRadius: 999, background: "#F1F5F9", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.round((item.percent / maxPercent) * 100)}%`,
+                borderRadius: 999,
+                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
+                transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
+              }} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(15,23,42,0.5)", width: 34, textAlign: "right", flexShrink: 0 }}>
+              {item.percent}%
+            </span>
           </div>
         ))}
       </div>
@@ -864,63 +873,6 @@ const s: Record<string, CSSProperties> = {
   actChip: {
     background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
     borderRadius: 14, padding: "9px 12px", flex: 1, minWidth: 60,
-  },
-
-  periodGroup: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: 4,
-    borderRadius: 999,
-    background: GROOVE_BG,
-    boxShadow: GROOVE_SHADOW,
-    flexShrink: 0,
-  },
-  periodBtn: {
-    border: "none",
-    background: "transparent",
-    color: "rgba(15,23,42,0.52)",
-    borderRadius: 999,
-    padding: "7px 10px",
-    fontSize: 11,
-    fontWeight: 700,
-    lineHeight: 1,
-  },
-  periodBtnActive: {
-    background: FILL_BG,
-    boxShadow: FILL_SHADOW,
-    color: "rgba(255,255,255,0.92)",
-  },
-  muscleTrack: {
-    display: "flex",
-    height: 16,
-    borderRadius: 10,
-    overflow: "hidden",
-    width: "100%",
-    background: "#F1F5F9",
-  },
-  muscleLegend: {
-    display: "flex",
-    flexWrap: "wrap" as const,
-    gap: 8,
-    marginTop: 12,
-  },
-  legendItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "50%",
-    flexShrink: 0,
-  },
-  legendText: {
-    fontSize: 14,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.62)",
-    lineHeight: 1.45,
   },
 
   // PR card
