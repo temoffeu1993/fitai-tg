@@ -146,6 +146,19 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
     checkInCount: number;
   };
 
+  // Peak readiness
+  peakReadiness: {
+    hasEnoughData: boolean;
+    totalCheckins: number;
+    bestTimeOfDay: "morning" | "afternoon" | "evening" | null;
+    bestScore: number | null;
+    slots: {
+      morning: { count: number; avgScore: number | null };
+      afternoon: { count: number; avgScore: number | null };
+      evening: { count: number; avgScore: number | null };
+    };
+  };
+
   // Achievements v2
   achievements: {
     earned: Array<{ id: string; title: string; icon: string; earnedAt: string; badge?: string }>;

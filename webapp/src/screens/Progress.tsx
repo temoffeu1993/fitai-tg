@@ -276,6 +276,60 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
   );
 }
 
+// ─── Section 2: Инсайт готовности (маскот + бабл) ────────────────────────────
+
+function ReadinessInsightSection({ peakReadiness }: { peakReadiness: ProgressSummaryV2["peakReadiness"] }) {
+  const todLabels2: Record<string, string> = { morning: "по утрам", afternoon: "днём", evening: "по вечерам" };
+
+  let text: string;
+  if (!peakReadiness.hasEnoughData) {
+    text = "Заполняйте чекин перед тренировкой — так я смогу определить, в какое время дня вы в лучшей форме.";
+  } else if (peakReadiness.bestTimeOfDay) {
+    const tod = peakReadiness.bestTimeOfDay;
+    text = `По вашим чекинам, ${todLabels2[tod]} вы приходите на тренировку в лучшем состоянии. Планируйте важные занятия на это время!`;
+  } else {
+    text = "Ваше самочувствие стабильно в любое время дня — тренируйтесь когда удобно!";
+  }
+
+  return (
+    <>
+      <style>{`
+        .readiness-bubble:before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 18px;
+          width: 0;
+          height: 0;
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+          border-right: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+        }
+      `}</style>
+      <div className="fade4" style={{
+        display: "grid", gridTemplateColumns: "auto 1fr",
+        alignItems: "center", gap: 12,
+      }}>
+        <img src={mascotImg} alt="Моро" style={{ width: 100, height: "auto", objectFit: "contain" as const }} />
+        <div className="readiness-bubble" style={{
+          position: "relative",
+          padding: "14px 16px",
+          borderRadius: 16,
+          border: "1px solid rgba(255,255,255,0.6)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+          color: "#0f172a",
+          boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+        }}>
+          <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "#0f172a" }}>{text}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Section 3: Акцент по мышцам ─────────────────────────────────────────────
 
 type MuscleAccentPeriodKey = keyof ProgressSummaryV2["muscleAccent"];
@@ -795,6 +849,10 @@ export default function Progress() {
 
         {summary.activity && (
           <ActivitySection activity={summary.activity} />
+        )}
+
+        {summary.peakReadiness && (
+          <ReadinessInsightSection peakReadiness={summary.peakReadiness} />
         )}
 
         {summary.personalRecords && summary.personalRecords.length > 0 && (

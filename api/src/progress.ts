@@ -405,6 +405,70 @@ progress.get(
       }
     } catch { /* daily_check_ins may not exist */ }
 
+    // ── Peak readiness (check-in × workout time-of-day) ─────────────────────
+    let peakReadiness: any = { hasEnoughData: false, totalCheckins: 0, bestTimeOfDay: null, bestScore: null, slots: { morning: { count: 0, avgScore: null }, afternoon: { count: 0, avgScore: null }, evening: { count: 0, avgScore: null } } };
+    try {
+      const pairs = await q<{ finished_at: string; duration_min: number; energy_level: string | null; stress_level: string | null; sleep_quality: string | null }>(
+        `SELECT ws.finished_at, COALESCE((ws.payload->>'durationMin')::int, 0) AS duration_min,
+                dci.energy_level, dci.stress_level, dci.sleep_quality
+         FROM workout_sessions ws
+         INNER JOIN daily_check_ins dci
+           ON ws.user_id = dci.user_id
+           AND (ws.finished_at AT TIME ZONE 'UTC')::date = (dci.created_at AT TIME ZONE 'UTC')::date
+         WHERE ws.user_id = $1 AND ws.finished_at >= NOW() - INTERVAL '90 days'`,
+        [userId]
+      );
+
+      const energyScore: Record<string, number> = { high: 1, medium: 0.5, low: 0 };
+      const sleepScore: Record<string, number> = { excellent: 1, good: 0.75, fair: 0.4, poor: 0 };
+      const stressScore: Record<string, number> = { low: 1, medium: 0.6, high: 0.25, very_high: 0 };
+
+      const buckets: Record<string, number[]> = { morning: [], afternoon: [], evening: [] };
+      for (const p of pairs) {
+        const finished = new Date(p.finished_at);
+        const startMs = finished.getTime() - (p.duration_min || 0) * 60_000;
+        const startHour = new Date(startMs).getHours();
+        const tod = startHour < 12 ? "morning" : startHour < 17 ? "afternoon" : "evening";
+
+        const e = energyScore[p.energy_level ?? ""] ?? 0.5;
+        const sl = sleepScore[p.sleep_quality ?? ""] ?? 0.4;
+        const st = stressScore[p.stress_level ?? ""] ?? 0.6;
+        const score = ((e + sl + st) / 3) * 10;
+        buckets[tod].push(score);
+      }
+
+      const slots: any = {};
+      for (const tod of ["morning", "afternoon", "evening"] as const) {
+        const arr = buckets[tod];
+        slots[tod] = {
+          count: arr.length,
+          avgScore: arr.length >= 2 ? Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10 : null,
+        };
+      }
+
+      const totalCheckins = pairs.length;
+      let bestTimeOfDay: string | null = null;
+      let bestScore: number | null = null;
+
+      if (totalCheckins >= 5) {
+        const valid = (["morning", "afternoon", "evening"] as const)
+          .filter((t) => slots[t].avgScore != null)
+          .sort((a, b) => slots[b].avgScore - slots[a].avgScore);
+
+        if (valid.length > 0) {
+          const top = valid[0];
+          const second = valid[1];
+          // Only declare a "best" if it's meaningfully better (>= 0.5 pts difference)
+          if (!second || slots[top].avgScore - slots[second].avgScore >= 0.5) {
+            bestTimeOfDay = top;
+            bestScore = slots[top].avgScore;
+          }
+        }
+      }
+
+      peakReadiness = { hasEnoughData: totalCheckins >= 5, totalCheckins, bestTimeOfDay, bestScore, slots };
+    } catch { /* daily_check_ins may not exist */ }
+
     // ── Streaks and activity ────────────────────────────────────────────────
     const sessionDates = sessions.map((s) => toISODate(new Date(s.finished_at)));
     const uniqueSessionDates = Array.from(new Set(sessionDates));
@@ -740,6 +804,7 @@ progress.get(
         trendPercent,
       },
       recovery,
+      peakReadiness,
       achievements: {
         earned,
         upcoming: upcoming.slice(0, 3),
