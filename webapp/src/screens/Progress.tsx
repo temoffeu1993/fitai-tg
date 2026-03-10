@@ -7,7 +7,7 @@ import {
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Dumbbell, CalendarDays } from "lucide-react";
+import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Dumbbell, Zap } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -178,93 +178,105 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
+const TOD_COLORS: Record<string, string> = {
+  morning:   "#FFB74D",
+  afternoon: "#4FC3F7",
+  evening:   "#7C4DFF",
+};
+
 function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
-  const dayMap = new Map((activity.days ?? []).map((d) => [d.date, d.completed]));
+  const dayMap = new Map(
+    (activity.days ?? []).map((d) => [d.date, d] as const),
+  );
 
-  // Build 12-week grid (Mon–Sun columns)
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - 77); // 12 weeks back to Monday
+  // Build 5-week grid (rows = weeks, cols = Mon–Sun), current week = last row
+  const todayDow = (today.getDay() + 6) % 7; // 0=Mon
+  const gridStart = new Date(today);
+  gridStart.setDate(today.getDate() - todayDow - 28); // 4 full weeks before current Mon
 
-  const weeks: { date: string; completed: boolean }[][] = [];
-  for (let w = 0; w < 12; w++) {
-    const col: { date: string; completed: boolean }[] = [];
+  type Cell = { date: string; timeOfDay: "morning" | "afternoon" | "evening" | null };
+  const rows: Cell[][] = [];
+  for (let w = 0; w < 5; w++) {
+    const row: Cell[] = [];
     for (let d = 0; d < 7; d++) {
-      const dt = new Date(monday);
-      dt.setDate(monday.getDate() + w * 7 + d);
+      const dt = new Date(gridStart);
+      dt.setDate(gridStart.getDate() + w * 7 + d);
       const iso = dt.toISOString().slice(0, 10);
-      col.push({ date: iso, completed: dayMap.get(iso) ?? false });
+      const entry = dayMap.get(iso);
+      row.push({
+        date: iso,
+        timeOfDay: entry?.completed ? (entry.timeOfDay ?? "evening") : null,
+      });
     }
-    weeks.push(col);
+    rows.push(row);
   }
 
   const DAY_LABELS = ["Пн", "", "Ср", "", "Пт", "", "Вс"];
-  const streak = activity.dayStreakCurrent;
-  const weekDone = activity.completedThisWeek;
-  const weekGoal = activity.weeklyGoal;
+  const CELL = 14;
+  const GAP = 3;
+  const labelStyle: CSSProperties = {
+    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
+    lineHeight: `${CELL}px`, width: 20, flexShrink: 0, textAlign: "right",
+  };
 
   return (
     <Card className="fade3">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <CalendarDays size={17} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
-        </div>
-        {/* Legend */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: FILL_BG, boxShadow: FILL_SHADOW }} />
-          <span style={{ fontSize: 9, color: "rgba(15,23,42,0.38)", fontWeight: 500 }}>тренировка</span>
-        </div>
+      {/* Title — matches MuscleFocusSection */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <Zap size={18} color="#0f172a" strokeWidth={2.5} />
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
       </div>
 
-      <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2, paddingRight: 4 }}>
-        {/* Day labels */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingTop: 1, flexShrink: 0 }}>
+      {/* Grid: day labels left + 5×7 cells */}
+      <div style={{ display: "flex", gap: 6 }}>
+        {/* Day labels column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: GAP, paddingTop: 0 }}>
           {DAY_LABELS.map((label, i) => (
-            <div key={i} style={{ height: 14, width: 16, fontSize: 9, color: "rgba(15,23,42,0.38)", lineHeight: "14px" }}>{label}</div>
+            <div key={i} style={{ ...labelStyle, height: CELL }}>{label}</div>
           ))}
         </div>
-        {/* Heatmap columns */}
-        {weeks.map((week, wi) => (
-          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 3, flexShrink: 0 }}>
-            {week.map((day) => (
-              <div
-                key={day.date}
-                style={{
-                  width: 14, height: 14, borderRadius: 3,
-                  background: day.completed ? FILL_BG : GROOVE_BG,
-                  boxShadow: day.date === todayIso
-                    ? `${day.completed ? FILL_SHADOW : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
-                    : day.completed ? FILL_SHADOW : GROOVE_SHADOW,
-                  transition: "background 300ms",
-                }}
-              />
-            ))}
-          </div>
-        ))}
+
+        {/* Cells grid */}
+        <div style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1 }}>
+          {rows.map((row, ri) => (
+            <div key={ri} style={{ display: "flex", gap: GAP }}>
+              {row.map((cell) => {
+                const isToday = cell.date === todayIso;
+                const hasTod = cell.timeOfDay != null;
+                const bg = hasTod ? TOD_COLORS[cell.timeOfDay!] : GROOVE_BG;
+                const shadow = isToday
+                  ? `${hasTod ? "none" : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
+                  : hasTod ? "none" : GROOVE_SHADOW;
+                return (
+                  <div
+                    key={cell.date}
+                    style={{
+                      flex: 1, aspectRatio: "1", borderRadius: 4,
+                      background: bg, boxShadow: shadow,
+                      transition: "background 300ms",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Stats row */}
-      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-        <div style={s.actChip}>
-          <div style={{ fontSize: 10, color: "rgba(15,23,42,0.5)", fontWeight: 500 }}>🔥 Серия</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22", marginTop: 1 }}>
-            {streak === 0 ? "—" : `${streak} ${ruForm(streak, "день", "дн.", "дн.")}`}
+      {/* Legend below */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
+        {([
+          ["morning", "утро"],
+          ["afternoon", "день"],
+          ["evening", "вечер"],
+        ] as const).map(([key, label]) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: TOD_COLORS[key] }} />
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>{label}</span>
           </div>
-        </div>
-        <div style={s.actChip}>
-          <div style={{ fontSize: 10, color: "rgba(15,23,42,0.5)", fontWeight: 500 }}>Эта неделя</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22", marginTop: 1 }}>
-            {weekGoal && weekGoal > 0 ? `${weekDone}/${weekGoal}` : weekDone}
-          </div>
-        </div>
-        <div style={s.actChip}>
-          <div style={{ fontSize: 10, color: "rgba(15,23,42,0.5)", fontWeight: 500 }}>Всего</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22", marginTop: 1 }}>
-            {activity.totalAllTime}
-          </div>
-        </div>
+        ))}
       </div>
     </Card>
   );
@@ -868,12 +880,6 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex", alignItems: "center", gap: 5,
     fontSize: 15, fontWeight: 600, lineHeight: 1.25,
     color: "rgba(255,255,255,0.88)",
-  },
-
-  // Activity chips
-  actChip: {
-    background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
-    borderRadius: 14, padding: "9px 12px", flex: 1, minWidth: 60,
   },
 
   // PR card

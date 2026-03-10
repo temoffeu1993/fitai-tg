@@ -20,7 +20,7 @@ export type ProgressSummary = {
   };
   weightSeries: Array<{ date: string; weight: number }>;
   activity: {
-    days: Array<{ date: string; completed: boolean }>;
+    days: Array<{ date: string; completed: boolean; timeOfDay: "morning" | "afternoon" | "evening" | null }>;
     weeks: Array<{ label: string; days: Array<{ date: string; completed: boolean }> }>;
     dayStreakCurrent: number;
     dayStreakBest: number;
@@ -155,7 +155,7 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
 
 // ─── API functions ────────────────────────────────────────────────────────────
 
-const PROGRESS_CACHE_KEY = "progress_cache_v3"; // bumped: added totalTonnage, totalMinutes, userGoal
+const PROGRESS_CACHE_KEY = "progress_cache_v4"; // bumped: muscle accent now uses effective-set focus
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 type CacheEntry = { data: ProgressSummaryV2; fetchedAt: number };

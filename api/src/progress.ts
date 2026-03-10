@@ -418,10 +418,29 @@ progress.get(
     }
 
     const completedSet = new Set(uniqueSessionDates);
-    const activityDays: Array<{ date: string; completed: boolean }> = [];
-    for (let i = 83; i >= 0; i--) {
+
+    // Build map: date → timeOfDay (based on start time = finished_at − durationMin)
+    const timeOfDayMap = new Map<string, "morning" | "afternoon" | "evening">();
+    for (const s of sessions) {
+      const finished = new Date(s.finished_at);
+      const durationMin = Number(s.payload?.durationMin) || 0;
+      const startMs = finished.getTime() - durationMin * 60_000;
+      const startHour = new Date(startMs).getHours();
+      const tod: "morning" | "afternoon" | "evening" =
+        startHour < 12 ? "morning" : startHour < 17 ? "afternoon" : "evening";
+      const iso = toISODate(finished);
+      // Keep earliest session of the day
+      if (!timeOfDayMap.has(iso)) timeOfDayMap.set(iso, tod);
+    }
+
+    const activityDays: Array<{ date: string; completed: boolean; timeOfDay: "morning" | "afternoon" | "evening" | null }> = [];
+    for (let i = 34; i >= 0; i--) {
       const day = toISODate(addDays(new Date(), -i));
-      activityDays.push({ date: day, completed: completedSet.has(day) });
+      activityDays.push({
+        date: day,
+        completed: completedSet.has(day),
+        timeOfDay: timeOfDayMap.get(day) ?? null,
+      });
     }
 
     const weeks: Array<{ label: string; days: Array<{ date: string; completed: boolean }> }> = [];
