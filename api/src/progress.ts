@@ -458,7 +458,7 @@ progress.get(
         if (valid.length > 0) {
           const top = valid[0];
           const second = valid[1];
-          // Only declare a "best" if it's meaningfully better (>= 0.5 pts difference)
+          // Declare best if only one slot has data OR meaningfully better (>= 0.5 pts)
           if (!second || slots[top].avgScore - slots[second].avgScore >= 0.5) {
             bestTimeOfDay = top;
             bestScore = slots[top].avgScore;

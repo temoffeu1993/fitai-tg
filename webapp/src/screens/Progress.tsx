@@ -6,6 +6,7 @@ import {
   readProgressCache, type ProgressSummaryV2,
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
+import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
 import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Dumbbell, Zap } from "lucide-react";
 
@@ -130,7 +131,7 @@ function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
   return (
     <div className="fade0" style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={s.avatarCircle}>
-        <img src={mascotImg} alt="Моро" style={s.avatarImg} />
+        <img src={avatarImg} alt="Моро" style={s.avatarImg} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
@@ -279,16 +280,15 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
 // ─── Section 2: Инсайт готовности (маскот + бабл) ────────────────────────────
 
 function ReadinessInsightSection({ peakReadiness }: { peakReadiness: ProgressSummaryV2["peakReadiness"] }) {
-  const todLabels2: Record<string, string> = { morning: "по утрам", afternoon: "днём", evening: "по вечерам" };
+  const todLabel: Record<string, string> = { morning: "утром", afternoon: "днём", evening: "вечером" };
 
   let text: string;
   if (!peakReadiness.hasEnoughData) {
-    text = "Заполняйте чекин перед тренировкой — так я смогу определить, в какое время дня вы в лучшей форме.";
+    text = "Заполняйте чекин перед тренировкой, так я смогу определить, в какое время дня вы в лучшей форме.";
   } else if (peakReadiness.bestTimeOfDay) {
-    const tod = peakReadiness.bestTimeOfDay;
-    text = `По вашим чекинам, ${todLabels2[tod]} вы приходите на тренировку в лучшем состоянии. Планируйте важные занятия на это время!`;
+    text = `Заметил закономерность — ${todLabel[peakReadiness.bestTimeOfDay]} ваш организм готов к нагрузке больше всего.`;
   } else {
-    text = "Ваше самочувствие стабильно в любое время дня — тренируйтесь когда удобно!";
+    text = "Ваше самочувствие стабильно в любое время дня.";
   }
 
   return (
@@ -297,21 +297,20 @@ function ReadinessInsightSection({ peakReadiness }: { peakReadiness: ProgressSum
         .readiness-bubble:before {
           content: "";
           position: absolute;
-          left: -8px;
+          right: -8px;
           top: 18px;
           width: 0;
           height: 0;
           border-top: 8px solid transparent;
           border-bottom: 8px solid transparent;
-          border-right: 8px solid rgba(255,255,255,0.9);
-          filter: drop-shadow(-1px 0 0 rgba(15, 23, 42, 0.12));
+          border-left: 8px solid rgba(255,255,255,0.9);
+          filter: drop-shadow(1px 0 0 rgba(15, 23, 42, 0.12));
         }
       `}</style>
       <div className="fade4" style={{
-        display: "grid", gridTemplateColumns: "auto 1fr",
+        display: "grid", gridTemplateColumns: "1fr auto",
         alignItems: "center", gap: 12,
       }}>
-        <img src={mascotImg} alt="Моро" style={{ width: 100, height: "auto", objectFit: "contain" as const }} />
         <div className="readiness-bubble" style={{
           position: "relative",
           padding: "14px 16px",
@@ -325,6 +324,7 @@ function ReadinessInsightSection({ peakReadiness }: { peakReadiness: ProgressSum
         }}>
           <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: "#0f172a" }}>{text}</span>
         </div>
+        <img src={mascotImg} alt="Моро" style={{ width: 100, height: "auto", objectFit: "contain" as const }} />
       </div>
     </>
   );
