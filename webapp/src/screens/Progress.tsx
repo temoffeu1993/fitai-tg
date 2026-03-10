@@ -232,7 +232,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         {Array.from({ length: 7 }, (_, dayIdx) => (
           <div key={dayIdx} style={{ display: "flex", gap: GAP, alignItems: "center" }}>
             <div style={{
-              width: 18, flexShrink: 0,
+              width: 18, flexShrink: 0, marginRight: 6,
               fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
               textAlign: "right", lineHeight: 1,
             }}>{DAY_LABELS[dayIdx]}</div>
