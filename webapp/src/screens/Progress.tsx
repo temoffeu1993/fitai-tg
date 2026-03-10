@@ -16,35 +16,35 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Tint palette — matches workout session wheel scroller fill (gradient + inset shadow, no border)
+// iOS Default (dark) palette: mint → teal → cyan → blue → indigo → purple → pink
 const MUSCLE_FOCUS_STYLES: Record<string, CSSProperties> = {
-  "Грудь": {
-    background: "linear-gradient(180deg, rgba(96,165,250,0.34) 0%, rgba(59,130,246,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Пресс": { // Mint (0,218,195)
+    background: "linear-gradient(180deg, rgba(0,218,195,0.34) 0%, rgba(0,218,195,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(0,140,125,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Спина": {
-    background: "linear-gradient(180deg, rgba(251,191,36,0.34) 0%, rgba(245,158,11,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(180,83,9,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Руки": { // Teal (0,210,224)
+    background: "linear-gradient(180deg, rgba(0,210,224,0.34) 0%, rgba(0,210,224,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(0,135,144,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Ноги": {
-    background: "linear-gradient(180deg, rgba(252,129,129,0.34) 0%, rgba(239,68,68,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(185,28,28,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Грудь": { // Cyan (60,211,254)
+    background: "linear-gradient(180deg, rgba(60,211,254,0.34) 0%, rgba(60,211,254,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(0,126,174,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Ягодицы": {
-    background: "linear-gradient(180deg, rgba(251,146,60,0.34) 0%, rgba(249,115,22,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(194,65,12,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Спина": { // Blue (0,145,255)
+    background: "linear-gradient(180deg, rgba(0,145,255,0.34) 0%, rgba(0,145,255,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(0,90,180,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Плечи": {
-    background: "linear-gradient(180deg, rgba(167,139,250,0.34) 0%, rgba(139,92,246,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(109,40,217,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Плечи": { // Indigo (109,124,255)
+    background: "linear-gradient(180deg, rgba(109,124,255,0.34) 0%, rgba(109,124,255,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(60,70,180,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Руки": {
-    background: "linear-gradient(180deg, rgba(244,114,182,0.34) 0%, rgba(236,72,153,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(190,24,93,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Ягодицы": { // Purple (219,52,242)
+    background: "linear-gradient(180deg, rgba(219,52,242,0.34) 0%, rgba(219,52,242,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(140,30,155,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
-  "Пресс": {
-    background: "linear-gradient(180deg, rgba(56,189,248,0.34) 0%, rgba(14,165,233,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(2,132,199,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Ноги": { // Pink (255,55,95)
+    background: "linear-gradient(180deg, rgba(255,55,95,0.34) 0%, rgba(255,55,95,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(180,30,60,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
 };
 
