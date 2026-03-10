@@ -2,7 +2,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getProgressSummary, saveBodyMetric, saveMeasurements,
+  getProgressSummary, saveBodyMetric,
   readProgressCache, type ProgressSummaryV2,
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
@@ -160,7 +160,7 @@ function MoroInsight({ text, onCoachClick }: { text: string; onCoachClick: () =>
         </div>
       </div>
       <button
-        style={s.coachBtn}
+        style={{ ...s.coachBtn, width: "100%", marginTop: 14, textAlign: "center" as const }}
         onClick={() => { fireHaptic("light"); onCoachClick(); }}
       >
         Поговорить с Моро →
@@ -206,9 +206,8 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         </div>
         {/* Legend */}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: GROOVE_BG, boxShadow: GROOVE_SHADOW }} />
           <div style={{ width: 10, height: 10, borderRadius: 2, background: FILL_BG, boxShadow: FILL_SHADOW }} />
-          <span style={{ fontSize: 9, color: "rgba(15,23,42,0.38)", fontWeight: 500 }}>= тренировка</span>
+          <span style={{ fontSize: 9, color: "rgba(15,23,42,0.38)", fontWeight: 500 }}>тренировка</span>
         </div>
       </div>
 
@@ -244,13 +243,13 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         <div style={s.actChip}>
           <div style={{ fontSize: 10, color: "rgba(15,23,42,0.5)", fontWeight: 500 }}>🔥 Серия</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22", marginTop: 1 }}>
-            {streak} {ruForm(streak, "день", "дн.", "дн.")}
+            {streak === 0 ? "—" : `${streak} ${ruForm(streak, "день", "дн.", "дн.")}`}
           </div>
         </div>
         <div style={s.actChip}>
           <div style={{ fontSize: 10, color: "rgba(15,23,42,0.5)", fontWeight: 500 }}>Эта неделя</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#1e1f22", marginTop: 1 }}>
-            {weekGoal ? `${weekDone}/${weekGoal}` : weekDone}
+            {weekGoal && weekGoal > 0 ? `${weekDone}/${weekGoal}` : weekDone}
           </div>
         </div>
         <div style={s.actChip}>
@@ -315,7 +314,6 @@ function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourn
   const n = ms.length;
   if (n === 0) return null;
 
-  const currentIdx = ms.findIndex((m) => m.current);
   const completedCount = ms.filter((m) => m.completed).length;
   const fillPct = n <= 1 ? 0 : (completedCount / (n - 1)) * 100;
 
@@ -360,19 +358,30 @@ function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourn
                     : <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(15,23,42,0.2)" }} />
                 }
               </div>
-              <span style={{
-                fontSize: 11, fontWeight: m.completed ? 600 : 400, lineHeight: 1.25, textAlign: "center",
-                color: m.completed ? "#0f172a" : m.current ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.38)",
-                maxWidth: 60,
-              }}>
-                {m.emoji} {m.label}
-              </span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: m.completed ? 600 : 400, lineHeight: 1.25, textAlign: "center",
+                  color: m.completed ? "#0f172a" : m.current ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.38)",
+                  maxWidth: 60,
+                }}>
+                  {m.emoji} {m.label}
+                </span>
+                {m.value && (
+                  <span style={{ fontSize: 10, color: "rgba(15,23,42,0.38)", textAlign: "center", lineHeight: 1.2 }}>
+                    {m.value}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.62)", marginTop: -8 }}>
+      <div style={{
+        marginTop: -4, padding: "10px 14px", borderRadius: 14,
+        background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+        fontSize: 13, fontWeight: 600, color: "#0f172a", lineHeight: 1.4,
+      }}>
         {journey.nextGoalText}
       </div>
     </Card>
@@ -383,7 +392,25 @@ function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourn
 
 function AchievementsSection({ achievements }: { achievements: ProgressSummaryV2["achievements"] }) {
   const { earned, upcoming } = achievements;
-  if (earned.length === 0 && upcoming.length === 0) return null;
+
+  if (earned.length === 0 && upcoming.length === 0) {
+    return (
+      <Card className="fade6">
+        <SectionTitle icon={<Award size={17} color="#0f172a" strokeWidth={2.5} />} title="Достижения" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "8px 0" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+          }}>🏅</div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>Заработай первый значок</div>
+            <div style={{ fontSize: 12, color: "rgba(15,23,42,0.5)", lineHeight: 1.5 }}>Выполни тренировку,<br />чтобы разблокировать награды</div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="fade6">
@@ -436,16 +463,12 @@ function WeightSparkline({ series }: { series: Array<{ date: string; weight: num
     const y = H - 4 - ((p.weight - minW) / range) * (H - 8);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
+  const ptsArr = pts.split(" ");
+  const lastCoord = ptsArr[ptsArr.length - 1].split(",");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", marginTop: 12, overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke="rgba(15,23,42,0.18)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points={pts} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="0" />
-      {/* Last dot */}
-      {(() => {
-        const ptsArr = pts.split(" ");
-        const last = ptsArr[ptsArr.length - 1].split(",");
-        return <circle cx={parseFloat(last[0])} cy={parseFloat(last[1])} r={3.5} fill="#1e1f22" />;
-      })()}
+      <polyline points={pts} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={parseFloat(lastCoord[0])} cy={parseFloat(lastCoord[1])} r={3.5} fill="#1e1f22" />
     </svg>
   );
 }
@@ -479,8 +502,11 @@ function BodySection({
 
   return (
     <Card className="fade6">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-        <SectionTitle icon={<Scale size={17} color="#0f172a" strokeWidth={2.5} />} title="Твой вес" />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Scale size={17} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Твой вес</span>
+        </div>
         <button style={s.outlineBtn} onClick={() => { fireHaptic("light"); onAddWeight(); }}>+ Записать</button>
       </div>
 
