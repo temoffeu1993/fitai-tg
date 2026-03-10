@@ -16,14 +16,15 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
+// iOS Default (dark) palette
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "#5CB8FF",
-  "Спина":    "#4AD968",
-  "Ноги":     "#FF6165",
-  "Ягодицы":  "#FFA056",
-  "Плечи":    "#EA8DFF",
-  "Руки":     "#FF8AC4",
-  "Пресс":    "#3BDDEC",
+  "Грудь":    "rgb(0,145,255)",     // Blue
+  "Спина":    "rgb(48,209,88)",     // Green
+  "Ноги":     "rgb(255,66,69)",     // Red
+  "Ягодицы":  "rgb(255,146,48)",    // Orange
+  "Плечи":    "rgb(219,52,242)",    // Purple
+  "Руки":     "rgb(255,55,95)",     // Pink
+  "Пресс":    "rgb(0,210,224)",     // Teal
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -178,10 +179,11 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
+// iOS Default (dark) palette
 const TOD_COLORS: Record<string, string> = {
-  morning:   "#FFB74D",
-  afternoon: "#4FC3F7",
-  evening:   "#7C4DFF",
+  morning:   "rgb(255,214,0)",      // Yellow
+  afternoon: "rgb(60,211,254)",     // Cyan
+  evening:   "rgb(109,124,255)",    // Indigo
 };
 
 function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
