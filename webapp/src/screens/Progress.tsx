@@ -16,41 +16,34 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Glass-style palette — matches activity grid fills
+// Tint palette — matches workout session wheel scroller fill (gradient + inset shadow, no border)
 const MUSCLE_FOCUS_STYLES: Record<string, CSSProperties> = {
   "Грудь": {
-    background: "linear-gradient(180deg, rgba(96,165,250,0.5) 0%, rgba(59,130,246,0.55) 100%)",
-    border: "1px solid rgba(59,130,246,0.4)",
+    background: "linear-gradient(180deg, rgba(96,165,250,0.34) 0%, rgba(59,130,246,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Спина": {
-    background: "linear-gradient(180deg, rgba(52,211,153,0.5) 0%, rgba(16,185,129,0.55) 100%)",
-    border: "1px solid rgba(16,185,129,0.4)",
-    boxShadow: "inset 0 2px 3px rgba(5,150,105,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+    background: "linear-gradient(180deg, rgba(251,191,36,0.34) 0%, rgba(245,158,11,0.42) 100%)",
+    boxShadow: "inset 0 2px 3px rgba(180,83,9,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Ноги": {
-    background: "linear-gradient(180deg, rgba(252,129,129,0.5) 0%, rgba(239,68,68,0.55) 100%)",
-    border: "1px solid rgba(239,68,68,0.4)",
+    background: "linear-gradient(180deg, rgba(252,129,129,0.34) 0%, rgba(239,68,68,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(185,28,28,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Ягодицы": {
-    background: "linear-gradient(180deg, rgba(251,146,60,0.5) 0%, rgba(249,115,22,0.55) 100%)",
-    border: "1px solid rgba(249,115,22,0.4)",
+    background: "linear-gradient(180deg, rgba(251,146,60,0.34) 0%, rgba(249,115,22,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(194,65,12,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Плечи": {
-    background: "linear-gradient(180deg, rgba(167,139,250,0.5) 0%, rgba(139,92,246,0.55) 100%)",
-    border: "1px solid rgba(139,92,246,0.4)",
+    background: "linear-gradient(180deg, rgba(167,139,250,0.34) 0%, rgba(139,92,246,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(109,40,217,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Руки": {
-    background: "linear-gradient(180deg, rgba(244,114,182,0.5) 0%, rgba(236,72,153,0.55) 100%)",
-    border: "1px solid rgba(236,72,153,0.4)",
+    background: "linear-gradient(180deg, rgba(244,114,182,0.34) 0%, rgba(236,72,153,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(190,24,93,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   "Пресс": {
-    background: "linear-gradient(180deg, rgba(56,189,248,0.5) 0%, rgba(14,165,233,0.55) 100%)",
-    border: "1px solid rgba(14,165,233,0.4)",
+    background: "linear-gradient(180deg, rgba(56,189,248,0.34) 0%, rgba(14,165,233,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(2,132,199,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
 };
@@ -207,21 +200,18 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// Glass-style fills — same technique as Schedule calendar completed dates
+// Tint fills — matches workout session wheel scroller pattern (gradient + inset shadow, no border)
 const TOD_STYLES: Record<string, CSSProperties> = {
   morning: {
-    background: "linear-gradient(180deg, rgba(147,197,253,0.5) 0%, rgba(96,165,250,0.55) 100%)",
-    border: "1px solid rgba(96,165,250,0.4)",
+    background: "linear-gradient(180deg, rgba(147,197,253,0.34) 0%, rgba(96,165,250,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(37,99,235,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   afternoon: {
-    background: "linear-gradient(180deg, rgba(96,165,250,0.5) 0%, rgba(59,130,246,0.55) 100%)",
-    border: "1px solid rgba(59,130,246,0.4)",
+    background: "linear-gradient(180deg, rgba(96,165,250,0.34) 0%, rgba(59,130,246,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
   evening: {
-    background: "linear-gradient(180deg, rgba(165,180,252,0.5) 0%, rgba(129,140,248,0.55) 100%)",
-    border: "1px solid rgba(129,140,248,0.4)",
+    background: "linear-gradient(180deg, rgba(165,180,252,0.34) 0%, rgba(129,140,248,0.42) 100%)",
     boxShadow: "inset 0 2px 3px rgba(79,70,229,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
   },
 };
@@ -267,23 +257,17 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
       </div>
 
-      {/* Grid: day labels left + 12 week columns */}
-      <div style={{ display: "flex", gap: GAP }}>
-        {/* Day labels column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: GAP, flexShrink: 0 }}>
-          {DAY_LABELS.map((label, i) => (
-            <div key={i} style={{
-              fontSize: 14, fontWeight: 400, aspectRatio: "1",
-              color: "rgba(15,23,42,0.62)", lineHeight: "14px", textAlign: "right",
-              display: "flex", alignItems: "center", justifyContent: "flex-end",
-              width: 18,
-            }}>{label}</div>
-          ))}
-        </div>
-        {/* Week columns — flex to fill width */}
-        {weeks.map((col, wi) => (
-          <div key={wi} style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1 }}>
-            {col.map((cell) => {
+      {/* Grid: 7 rows (Mon–Sun), each row = label + 12 cells */}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        {Array.from({ length: 7 }, (_, dayIdx) => (
+          <div key={dayIdx} style={{ display: "flex", gap: GAP, alignItems: "center" }}>
+            <div style={{
+              width: 18, flexShrink: 0,
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
+              textAlign: "right", lineHeight: 1,
+            }}>{DAY_LABELS[dayIdx]}</div>
+            {weeks.map((col, wi) => {
+              const cell = col[dayIdx];
               const isToday = cell.date === todayIso;
               const hasTod = cell.timeOfDay != null;
               const todStyle = hasTod ? TOD_STYLES[cell.timeOfDay!] : {};
@@ -291,7 +275,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
                 <div
                   key={cell.date}
                   style={{
-                    aspectRatio: "1", borderRadius: 3,
+                    flex: 1, aspectRatio: "1", borderRadius: 3,
                     background: hasTod ? undefined : GROOVE_BG,
                     boxShadow: isToday
                       ? `${hasTod ? (todStyle.boxShadow as string) : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
