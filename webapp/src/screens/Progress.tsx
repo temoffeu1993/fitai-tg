@@ -138,7 +138,7 @@ function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
             {dayLabel(d)}
           </span>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.5)", marginTop: 3, lineHeight: 1.45 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "rgba(30,31,34,0.7)", marginTop: 3, lineHeight: 1.4 }}>
           Твой прогресс
         </div>
       </div>
@@ -337,7 +337,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
                 borderRadius: 999,
                 padding: "5px 12px",
                 fontSize: 13,
-                fontWeight: 400,
+                fontWeight: 600,
                 lineHeight: 1.45,
                 cursor: enabled ? "pointer" : "default",
                 opacity: enabled ? 1 : 0.38,
@@ -345,7 +345,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
                 boxShadow: active
                   ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
                   : "none",
-                color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
+                color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
                 transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
               }}
             >
