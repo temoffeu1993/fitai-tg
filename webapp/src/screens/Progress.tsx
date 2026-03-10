@@ -320,43 +320,57 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period segmented chip */}
-      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18 }}>
-        {MUSCLE_PERIOD_OPTIONS.map((option) => {
-          const enabled = muscleAccent[option.key]?.length > 0;
-          const active = period === option.key;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              disabled={!enabled}
-              onClick={() => {
-                if (!enabled) return;
-                fireHaptic("light");
-                setPeriod(option.key);
-              }}
-              style={{
-                border: "none",
-                borderRadius: 999,
-                padding: "5px 12px",
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.45,
-                cursor: enabled ? "pointer" : "default",
-                opacity: enabled ? 1 : 0.38,
-                background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                boxShadow: active
-                  ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                  : "none",
-                color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-              }}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Period segmented chip with sliding dark indicator */}
+      {(() => {
+        const activeIdx = MUSCLE_PERIOD_OPTIONS.findIndex((o) => o.key === period);
+        const count = MUSCLE_PERIOD_OPTIONS.length;
+        return (
+          <div style={{
+            display: "inline-flex", alignItems: "center", borderRadius: 999,
+            background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18,
+            position: "relative",
+          }}>
+            {/* Sliding dark pill */}
+            <div style={{
+              position: "absolute", top: 3, bottom: 3,
+              width: `calc(${100 / count}% - 0px)`,
+              transform: `translateX(${activeIdx * 100}%)`,
+              borderRadius: 999,
+              background: FILL_BG, boxShadow: FILL_SHADOW,
+              transition: "transform 300ms cubic-bezier(0.22,1,0.36,1)",
+              pointerEvents: "none",
+            }} />
+            {MUSCLE_PERIOD_OPTIONS.map((option) => {
+              const enabled = muscleAccent[option.key]?.length > 0;
+              const active = period === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  disabled={!enabled}
+                  onClick={() => {
+                    if (!enabled) return;
+                    fireHaptic("light");
+                    setPeriod(option.key);
+                  }}
+                  style={{
+                    border: "none", borderRadius: 999, padding: "5px 12px",
+                    fontSize: 13, fontWeight: 600, lineHeight: 1.45,
+                    cursor: enabled ? "pointer" : "default",
+                    opacity: enabled ? 1 : 0.38,
+                    background: "transparent",
+                    color: active ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.62)",
+                    transition: "color 300ms ease",
+                    position: "relative", zIndex: 1,
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Horizontal bar chart */}
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "8px 8px", alignItems: "center" }}>
