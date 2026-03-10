@@ -215,13 +215,8 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
     rows.push(row);
   }
 
-  const DAY_LABELS = ["Пн", "", "Ср", "", "Пт", "", "Вс"];
-  const CELL = 14;
+  const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
   const GAP = 3;
-  const labelStyle: CSSProperties = {
-    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
-    lineHeight: `${CELL}px`, width: 20, flexShrink: 0, textAlign: "right",
-  };
 
   return (
     <Card className="fade3">
@@ -231,44 +226,41 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
       </div>
 
-      {/* Grid: day labels left + 5×7 cells */}
-      <div style={{ display: "flex", gap: 6 }}>
-        {/* Day labels column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: GAP, paddingTop: 0 }}>
-          {DAY_LABELS.map((label, i) => (
-            <div key={i} style={{ ...labelStyle, height: CELL }}>{label}</div>
-          ))}
-        </div>
-
-        {/* Cells grid */}
-        <div style={{ display: "flex", flexDirection: "column", gap: GAP, flex: 1 }}>
-          {rows.map((row, ri) => (
-            <div key={ri} style={{ display: "flex", gap: GAP }}>
-              {row.map((cell) => {
-                const isToday = cell.date === todayIso;
-                const hasTod = cell.timeOfDay != null;
-                const bg = hasTod ? TOD_COLORS[cell.timeOfDay!] : GROOVE_BG;
-                const shadow = isToday
-                  ? `${hasTod ? "none" : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
-                  : hasTod ? "none" : GROOVE_SHADOW;
-                return (
-                  <div
-                    key={cell.date}
-                    style={{
-                      flex: 1, aspectRatio: "1", borderRadius: 4,
-                      background: bg, boxShadow: shadow,
-                      transition: "background 300ms",
-                    }}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+      {/* Grid: 5 rows, each row = day label + 5 cells */}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        {DAY_LABELS.map((label, dayIdx) => (
+          <div key={dayIdx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
+              width: 20, flexShrink: 0, textAlign: "right",
+            }}>
+              {label}
+            </span>
+            {rows.map((row, wi) => {
+              const cell = row[dayIdx];
+              const isToday = cell.date === todayIso;
+              const hasTod = cell.timeOfDay != null;
+              const bg = hasTod ? TOD_COLORS[cell.timeOfDay!] : GROOVE_BG;
+              const shadow = isToday
+                ? `${hasTod ? "none" : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
+                : hasTod ? "none" : GROOVE_SHADOW;
+              return (
+                <div
+                  key={wi}
+                  style={{
+                    flex: 1, aspectRatio: "1", borderRadius: 4,
+                    background: bg, boxShadow: shadow,
+                    transition: "background 300ms",
+                  }}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
 
-      {/* Legend below */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
+      {/* Legend below — aligned with grid cells */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12, paddingLeft: 26 }}>
         {([
           ["morning", "утро"],
           ["afternoon", "день"],
