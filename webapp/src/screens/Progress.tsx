@@ -16,35 +16,35 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Tint palette — matches workout session wheel scroller fill (gradient + inset shadow, no border)
+// Colored fills — same 3-stop gradient structure as FILL_BG but with hue
 const MUSCLE_FOCUS_STYLES: Record<string, CSSProperties> = {
-  "Грудь": {
-    background: "linear-gradient(180deg, rgba(96,165,250,0.34) 0%, rgba(59,130,246,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Грудь": { // Blue
+    background: "linear-gradient(180deg, #5b9cf5 0%, #2563eb 54%, #1d4ed8 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Спина": {
-    background: "linear-gradient(180deg, rgba(251,191,36,0.34) 0%, rgba(245,158,11,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(180,83,9,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Спина": { // Amber
+    background: "linear-gradient(180deg, #fbbf24 0%, #d97706 54%, #b45309 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Ноги": {
-    background: "linear-gradient(180deg, rgba(252,129,129,0.34) 0%, rgba(239,68,68,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(185,28,28,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Ноги": { // Red
+    background: "linear-gradient(180deg, #f87171 0%, #dc2626 54%, #b91c1c 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Ягодицы": {
-    background: "linear-gradient(180deg, rgba(251,146,60,0.34) 0%, rgba(249,115,22,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(194,65,12,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Ягодицы": { // Orange
+    background: "linear-gradient(180deg, #fb923c 0%, #ea580c 54%, #c2410c 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Плечи": {
-    background: "linear-gradient(180deg, rgba(167,139,250,0.34) 0%, rgba(139,92,246,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(109,40,217,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Плечи": { // Purple
+    background: "linear-gradient(180deg, #a78bfa 0%, #7c3aed 54%, #6d28d9 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Руки": {
-    background: "linear-gradient(180deg, rgba(244,114,182,0.34) 0%, rgba(236,72,153,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(190,24,93,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Руки": { // Pink
+    background: "linear-gradient(180deg, #f472b6 0%, #db2777 54%, #be185d 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  "Пресс": {
-    background: "linear-gradient(180deg, rgba(56,189,248,0.34) 0%, rgba(14,165,233,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(2,132,199,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  "Пресс": { // Cyan
+    background: "linear-gradient(180deg, #38bdf8 0%, #0284c7 54%, #0369a1 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
 };
 
@@ -200,19 +200,19 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// Tint fills — matches workout session wheel scroller pattern (gradient + inset shadow, no border)
+// Colored 3-stop gradient fills — same structure as FILL_BG / stat pill
 const TOD_STYLES: Record<string, CSSProperties> = {
-  morning: {
-    background: "linear-gradient(180deg, rgba(147,197,253,0.34) 0%, rgba(96,165,250,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(37,99,235,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  morning: { // Light blue
+    background: "linear-gradient(180deg, #93c5fd 0%, #3b82f6 54%, #2563eb 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  afternoon: {
-    background: "linear-gradient(180deg, rgba(96,165,250,0.34) 0%, rgba(59,130,246,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(29,78,216,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  afternoon: { // Blue
+    background: "linear-gradient(180deg, #60a5fa 0%, #2563eb 54%, #1d4ed8 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
-  evening: {
-    background: "linear-gradient(180deg, rgba(165,180,252,0.34) 0%, rgba(129,140,248,0.42) 100%)",
-    boxShadow: "inset 0 2px 3px rgba(79,70,229,0.12), inset 0 -1px 0 rgba(255,255,255,0.22)",
+  evening: { // Indigo
+    background: "linear-gradient(180deg, #a5b4fc 0%, #6366f1 54%, #4f46e5 100%)",
+    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
   },
 };
 
