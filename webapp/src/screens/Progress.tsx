@@ -355,26 +355,34 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         })}
       </div>
 
-      {/* RPE-style horizontal bars — text inside */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {/* Horizontal bar chart */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((item) => (
-          <div key={item.muscle} style={{ position: "relative", height: 36, borderRadius: 999, overflow: "hidden", background: GROOVE_BG, boxShadow: "inset 0 2px 4px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)" }}>
-            <div style={{
-              position: "absolute", left: 0, top: 0, bottom: 0,
-              width: `${Math.round((item.percent / maxPercent) * 100)}%`,
-              background: FILL_BG,
-              boxShadow: FILL_SHADOW,
-              borderRadius: 999,
-              transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
-            }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.92)", textShadow: "0 1px 3px rgba(0,0,0,0.5)", lineHeight: 1 }}>
-                {item.muscle}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.92)", textShadow: "0 1px 3px rgba(0,0,0,0.5)", lineHeight: 1 }}>
-                {item.percent}%
-              </span>
+          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.3,
+              flexShrink: 0, minWidth: 0, maxWidth: "30%",
+              wordBreak: item.muscle.includes(" ") ? "break-word" : "normal",
+              whiteSpace: item.muscle.includes(" ") ? "normal" : "nowrap",
+            }}>
+              {item.muscle}
+            </span>
+            <div style={{ flex: 1, minWidth: 0, height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.round((item.percent / maxPercent) * 100)}%`,
+                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
+                borderRadius: 10,
+                transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
+              }} />
             </div>
+            <span style={{
+              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1,
+              flexShrink: 0, width: 36, textAlign: "right",
+              fontVariantNumeric: "tabular-nums",
+            }}>
+              {item.percent}%
+            </span>
           </div>
         ))}
       </div>
