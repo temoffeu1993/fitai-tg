@@ -1,5 +1,5 @@
 // Progress — product-ready, beginner-friendly
-import { useEffect, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getProgressSummary, saveBodyMetric,
@@ -317,8 +317,8 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period chips */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
+      {/* Period segmented chip */}
+      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18 }}>
         {MUSCLE_PERIOD_OPTIONS.map((option) => {
           const enabled = muscleAccent[option.key]?.length > 0;
           const active = period === option.key;
@@ -335,17 +335,17 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
               style={{
                 border: "none",
                 borderRadius: 999,
-                padding: "6px 13px",
+                padding: "5px 12px",
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 400,
                 lineHeight: 1.45,
                 cursor: enabled ? "pointer" : "default",
                 opacity: enabled ? 1 : 0.38,
-                background: active ? "rgba(196,228,178,0.38)" : GROOVE_BG,
+                background: active ? "rgba(196,228,178,0.38)" : "transparent",
                 boxShadow: active
                   ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                  : GROOVE_SHADOW,
-                color: active ? "#2a5218" : "rgba(15,23,42,0.55)",
+                  : "none",
+                color: active ? "#2a5218" : "rgba(15,23,42,0.5)",
                 transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
               }}
             >
@@ -356,34 +356,31 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
       </div>
 
       {/* Horizontal bar chart */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "8px 8px", alignItems: "center" }}>
         {items.map((item) => (
-          <div key={item.muscle} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Fragment key={item.muscle}>
             <span style={{
-              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.3,
-              flexShrink: 0, minWidth: 0, maxWidth: "30%",
-              wordBreak: item.muscle.includes(" ") ? "break-word" : "normal",
-              whiteSpace: item.muscle.includes(" ") ? "normal" : "nowrap",
+              fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
+              whiteSpace: "nowrap",
             }}>
               {item.muscle}
             </span>
-            <div style={{ flex: 1, minWidth: 0, height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
+            <div style={{ height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
               <div style={{
                 height: "100%",
-                width: `${Math.round((item.percent / maxPercent) * 100)}%`,
+                width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
                 background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94A3B8",
                 borderRadius: 10,
                 transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
               }} />
             </div>
             <span style={{
-              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1,
-              flexShrink: 0, width: 36, textAlign: "right",
-              fontVariantNumeric: "tabular-nums",
+              fontSize: 15, fontWeight: 600, color: "#1e1f22", lineHeight: 1.25,
+              textAlign: "right", fontVariantNumeric: "tabular-nums",
             }}>
               {item.percent}%
             </span>
-          </div>
+          </Fragment>
         ))}
       </div>
     </Card>
