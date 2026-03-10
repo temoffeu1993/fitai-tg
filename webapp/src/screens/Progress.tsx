@@ -16,15 +16,15 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// iOS Default (dark) palette
+// Muted palette — blends with glass cards & groove style
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "rgb(0,145,255)",     // Blue
-  "Спина":    "rgb(48,209,88)",     // Green
-  "Ноги":     "rgb(255,66,69)",     // Red
-  "Ягодицы":  "rgb(255,146,48)",    // Orange
-  "Плечи":    "rgb(219,52,242)",    // Purple
-  "Руки":     "rgb(255,55,95)",     // Pink
-  "Пресс":    "rgb(0,210,224)",     // Teal
+  "Грудь":    "rgba(59,130,246,0.55)",   // Blue
+  "Спина":    "rgba(16,185,129,0.55)",   // Emerald
+  "Ноги":     "rgba(239,68,68,0.55)",    // Red
+  "Ягодицы":  "rgba(249,115,22,0.55)",   // Orange
+  "Плечи":    "rgba(139,92,246,0.55)",   // Purple
+  "Руки":     "rgba(236,72,153,0.55)",   // Pink
+  "Пресс":    "rgba(14,165,233,0.55)",   // Cyan
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -179,11 +179,11 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// iOS Default (dark) palette
+// Muted palette — blends with groove cells
 const TOD_COLORS: Record<string, string> = {
-  morning:   "rgb(255,214,0)",      // Yellow
-  afternoon: "rgb(60,211,254)",     // Cyan
-  evening:   "rgb(109,124,255)",    // Indigo
+  morning:   "rgba(245,158,11,0.52)",   // Amber
+  afternoon: "rgba(59,130,246,0.52)",   // Blue
+  evening:   "rgba(99,102,241,0.52)",   // Indigo
 };
 
 function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
