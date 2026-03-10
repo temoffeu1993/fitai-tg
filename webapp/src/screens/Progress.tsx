@@ -7,7 +7,7 @@ import {
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
 import mascotImg from "@/assets/robonew.webp";
-import { CircleCheckBig, Clock3, Weight, Flame, Target, Trophy, Scale, CalendarDays, Award, Check } from "lucide-react";
+import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Zap, Dumbbell, CalendarDays } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -107,6 +107,13 @@ function Skel({ h }: { h: number }) {
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
+function dayLabel(d: number): string {
+  if (d === 1) return "Первый день с Моро";
+  if (d === 2) return "Второй день с Моро";
+  if (d === 3) return "Третий день с Моро";
+  return `${d} ${ruForm(d, "день", "дня", "дней")} с Моро`;
+}
+
 function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
   const d = daysWithApp;
   return (
@@ -115,14 +122,14 @@ function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
         <img src={mascotImg} alt="Моро" style={s.avatarImg} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
-          Твой прогресс
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-          <CalendarDays size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-          <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
-            {d} {ruForm(d, "день", "дня", "дней")} с Моро
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Zap size={17} strokeWidth={2.5} color="#1e1f22" fill="#1e1f22" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
+            {dayLabel(d)}
           </span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.5)", marginTop: 3, lineHeight: 1.45 }}>
+          Твой прогресс
         </div>
       </div>
     </div>
@@ -142,8 +149,8 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
   return (
     <div className="fade1" style={s.statPill}>
       <span style={s.statChip}>
-        <CircleCheckBig size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
-        <span>{workoutsTotal} {ruForm(workoutsTotal, "тренировка", "тренировки", "тренировок")}</span>
+        <Dumbbell size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
+        <span>{workoutsTotal}</span>
       </span>
       <span style={s.statChip}>
         <Clock3 size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
