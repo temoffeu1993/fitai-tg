@@ -16,36 +16,15 @@ const GROOVE_SHADOW = "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(
 const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)";
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
-// Colored fills — same 3-stop gradient structure as FILL_BG but with hue
-const MUSCLE_FOCUS_STYLES: Record<string, CSSProperties> = {
-  "Грудь": { // Blue
-    background: "linear-gradient(180deg, #5b9cf5 0%, #2563eb 54%, #1d4ed8 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Спина": { // Amber
-    background: "linear-gradient(180deg, #fbbf24 0%, #d97706 54%, #b45309 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Ноги": { // Red
-    background: "linear-gradient(180deg, #f87171 0%, #dc2626 54%, #b91c1c 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Ягодицы": { // Orange
-    background: "linear-gradient(180deg, #fb923c 0%, #ea580c 54%, #c2410c 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Плечи": { // Purple
-    background: "linear-gradient(180deg, #a78bfa 0%, #7c3aed 54%, #6d28d9 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Руки": { // Pink
-    background: "linear-gradient(180deg, #f472b6 0%, #db2777 54%, #be185d 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  "Пресс": { // Cyan
-    background: "linear-gradient(180deg, #38bdf8 0%, #0284c7 54%, #0369a1 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
+// Flat solid colors for muscle focus bars
+const MUSCLE_FOCUS_COLORS: Record<string, string> = {
+  "Грудь":    "#3b82f6", // Blue
+  "Спина":    "#f59e0b", // Amber
+  "Ноги":     "#ef4444", // Red
+  "Ягодицы":  "#f97316", // Orange
+  "Плечи":    "#8b5cf6", // Purple
+  "Руки":     "#ec4899", // Pink
+  "Пресс":    "#0ea5e9", // Cyan
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -200,20 +179,11 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
 
 // ─── Section 1: Активность ───────────────────────────────────────────────────
 
-// Colored 3-stop gradient fills — same structure as FILL_BG / stat pill
-const TOD_STYLES: Record<string, CSSProperties> = {
-  morning: { // Light blue
-    background: "linear-gradient(180deg, #93c5fd 0%, #3b82f6 54%, #2563eb 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  afternoon: { // Blue
-    background: "linear-gradient(180deg, #60a5fa 0%, #2563eb 54%, #1d4ed8 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
-  evening: { // Indigo
-    background: "linear-gradient(180deg, #a5b4fc 0%, #6366f1 54%, #4f46e5 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(0,0,0,0.35)",
-  },
+// Flat solid colors for time-of-day activity cells
+const TOD_COLORS: Record<string, string> = {
+  morning: "#93c5fd",   // Light blue
+  afternoon: "#3b82f6", // Blue
+  evening: "#818cf8",   // Indigo
 };
 
 
@@ -270,18 +240,17 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
               const cell = col[dayIdx];
               const isToday = cell.date === todayIso;
               const hasTod = cell.timeOfDay != null;
-              const todStyle = hasTod ? TOD_STYLES[cell.timeOfDay!] : {};
+              const color = hasTod ? TOD_COLORS[cell.timeOfDay!] : undefined;
               return (
                 <div
                   key={cell.date}
                   style={{
                     flex: 1, aspectRatio: "1", borderRadius: 3,
-                    background: hasTod ? undefined : GROOVE_BG,
+                    background: color || GROOVE_BG,
                     boxShadow: isToday
-                      ? `${hasTod ? (todStyle.boxShadow as string) : GROOVE_SHADOW}, 0 0 0 2px rgba(59,130,246,0.55)`
+                      ? `${hasTod ? "" : GROOVE_SHADOW + ", "}0 0 0 2px rgba(59,130,246,0.55)`
                       : hasTod ? undefined : GROOVE_SHADOW,
                     transition: "background 300ms",
-                    ...todStyle,
                   }}
                 />
               );
@@ -298,7 +267,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
           ["evening", "вечер"],
         ] as const).map(([key, label]) => (
           <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, ...TOD_STYLES[key] }} />
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: TOD_COLORS[key] }} />
             <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" }}>{label}</span>
           </div>
         ))}
@@ -405,7 +374,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
                 width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
                 borderRadius: 10,
                 transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
-                ...(MUSCLE_FOCUS_STYLES[item.muscle] || { background: "rgba(148,163,184,0.55)" }),
+                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94a3b8",
               }} />
             </div>
             <span style={{
