@@ -7,7 +7,7 @@ import {
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Zap, Dumbbell, CalendarDays } from "lucide-react";
+import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Dumbbell, CalendarDays } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -17,13 +17,13 @@ const FILL_BG = "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)"
 const FILL_SHADOW = "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)";
 
 const MUSCLE_FOCUS_COLORS: Record<string, string> = {
-  "Грудь":    "#007AFF",
-  "Спина":    "#34C759",
-  "Ноги":     "#FF3B30",
-  "Ягодицы":  "#FF9500",
-  "Плечи":    "#AF52DE",
-  "Руки":     "#FF2D55",
-  "Пресс":    "#5AC8FA",
+  "Грудь":    "#5CB8FF",
+  "Спина":    "#4AD968",
+  "Ноги":     "#FF6165",
+  "Ягодицы":  "#FFA056",
+  "Плечи":    "#EA8DFF",
+  "Руки":     "#FF8AC4",
+  "Пресс":    "#3BDDEC",
 };
 
 // ─── Russian pluralization ───────────────────────────────────────────────────
@@ -132,14 +132,11 @@ function ProgressHeader({ daysWithApp }: { daysWithApp: number }) {
         <img src={mascotImg} alt="Моро" style={s.avatarImg} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Zap size={17} strokeWidth={2.5} color="#1e1f22" fill="#1e1f22" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
-            {dayLabel(d)}
-          </span>
-        </div>
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 }}>
+          {dayLabel(d)}
+        </span>
         <div style={{ fontSize: 15, fontWeight: 500, color: "rgba(30,31,34,0.7)", marginTop: 3, lineHeight: 1.4 }}>
-          Твой прогресс
+          Отслеживайте свой прогресс
         </div>
       </div>
     </div>
@@ -365,7 +362,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
             }}>
               {item.muscle}
             </span>
-            <div style={{ height: 16, borderRadius: 10, background: "#F1F5F9", overflow: "hidden" }}>
+            <div style={{ height: 16, borderRadius: 10, background: "transparent", overflow: "hidden" }}>
               <div style={{
                 height: "100%",
                 width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
