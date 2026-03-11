@@ -979,6 +979,7 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "24px 0 4px", flexShrink: 0 }}>
         <button
           type="button"
+          className="intro-primary-btn"
           onClick={handleSave}
           disabled={saving}
           style={{
