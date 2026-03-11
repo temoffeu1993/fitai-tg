@@ -146,6 +146,22 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
     checkInCount: number;
   };
 
+  // Exercise progress (per-exercise charts)
+  exerciseProgress: {
+    exercises: Array<{
+      key: string;
+      name: string;
+      metricKind: "weight" | "reps" | "duration" | "assistance";
+      supports1RM: boolean;
+      sessionCount: number;
+      points: Array<{
+        date: string;
+        value: number;
+        estimated1RM?: number;
+      }>;
+    }>;
+  };
+
   // Peak readiness
   peakReadiness: {
     hasEnoughData: boolean;

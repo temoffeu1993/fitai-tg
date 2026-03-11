@@ -52,9 +52,9 @@ function fireHaptic(style: "light" | "medium" = "light") {
 function ProgressStyles() {
   return (
     <style>{`
-      @keyframes resFadeUp {
-        from { transform: translateY(12px); opacity: 0 }
-        to   { transform: translateY(0); opacity: 1 }
+      @keyframes progFadeUp {
+        0% { opacity: 0; transform: translateY(14px); }
+        100% { opacity: 1; transform: translateY(0); }
       }
       @keyframes milePulse {
         0%,100% { transform: scale(1); box-shadow: ${GROOVE_SHADOW} }
@@ -64,13 +64,13 @@ function ProgressStyles() {
         0%   { background-position: -200% 0 }
         100% { background-position:  200% 0 }
       }
-      .fade0 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 0ms   both }
-      .fade1 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 80ms  both }
-      .fade2 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 150ms both }
-      .fade3 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 220ms both }
-      .fade4 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 290ms both }
-      .fade5 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 360ms both }
-      .fade6 { animation: resFadeUp 360ms cubic-bezier(0.22,1,0.36,1) 430ms both }
+      .fade0 { animation: progFadeUp 520ms ease-out 0ms   both }
+      .fade1 { animation: progFadeUp 520ms ease-out 80ms  both }
+      .fade2 { animation: progFadeUp 520ms ease-out 160ms both }
+      .fade3 { animation: progFadeUp 520ms ease-out 240ms both }
+      .fade4 { animation: progFadeUp 520ms ease-out 320ms both }
+      .fade5 { animation: progFadeUp 520ms ease-out 400ms both }
+      .fade6 { animation: progFadeUp 520ms ease-out 480ms both }
       .mile-pulse { animation: milePulse 1.6s ease-in-out infinite }
       .skel {
         background: linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);
@@ -439,6 +439,243 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
             </span>
           </Fragment>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Section: Прогресс упражнений ─────────────────────────────────────────────
+
+type ExPeriod = "30d" | "90d" | "year";
+const EX_PERIOD_OPTIONS: { key: ExPeriod; label: string; days: number }[] = [
+  { key: "30d", label: "30д", days: 30 },
+  { key: "90d", label: "90д", days: 90 },
+  { key: "year", label: "Год", days: 365 },
+];
+
+const METRIC_UNIT: Record<string, string> = {
+  weight: "кг",
+  reps: "повт",
+  duration: "сек",
+  assistance: "кг",
+};
+
+function ExerciseProgressChart({ points, metric }: {
+  points: Array<{ date: string; value: number; estimated1RM?: number }>;
+  metric: "value" | "1rm";
+}) {
+  // In 1RM mode, only use points that have estimated1RM (no fallback to value)
+  const effective = metric === "1rm" ? points.filter((p) => p.estimated1RM != null) : points;
+  const values = effective.map((p) => metric === "1rm" ? p.estimated1RM! : p.value);
+  if (values.length < 2) return null;
+
+  const W = 300, H = 120;
+  const padX = 6, padY = 10;
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+
+  const coords = values.map((v, i) => ({
+    x: padX + (i / (values.length - 1)) * (W - padX * 2),
+    y: padY + (1 - (v - minV) / range) * (H - padY * 2),
+  }));
+
+  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 120, display: "block", overflow: "visible" }}>
+      <defs>
+        <linearGradient id="exChartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(30,31,34,0.15)" />
+          <stop offset="100%" stopColor="rgba(30,31,34,0)" />
+        </linearGradient>
+      </defs>
+      <polygon points={polygonPts} fill="url(#exChartGrad)" />
+      <polyline points={polyline} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 3} fill={i === coords.length - 1 ? "#1e1f22" : "#3a3b40"} />
+      ))}
+    </svg>
+  );
+}
+
+function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: ProgressSummaryV2["exerciseProgress"] }) {
+  const exercises = exerciseProgress?.exercises;
+  if (!exercises?.length) return null;
+
+  const [selectedKey, setSelectedKey] = useState(exercises[0].key);
+  const [period, setPeriod] = useState<ExPeriod>("90d");
+  const [metric, setMetric] = useState<"value" | "1rm">("value");
+
+  const selected = exercises.find((e) => e.key === selectedKey) || exercises[0];
+
+  // Filter points by period
+  const cutoff = new Date();
+  const periodDays = EX_PERIOD_OPTIONS.find((o) => o.key === period)!.days;
+  cutoff.setDate(cutoff.getDate() - periodDays);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  // Auto-widen period if < 2 points — also update the active chip
+  let effectivePeriod = period;
+  let filteredPoints = selected.points.filter((p) => p.date >= cutoffStr);
+
+  if (filteredPoints.length < 2) {
+    const wider = EX_PERIOD_OPTIONS.find((o) => {
+      const c2 = new Date();
+      c2.setDate(c2.getDate() - o.days);
+      return selected.points.filter((p) => p.date >= c2.toISOString().slice(0, 10)).length >= 2;
+    });
+    if (wider) {
+      effectivePeriod = wider.key;
+      const c2 = new Date();
+      c2.setDate(c2.getDate() - wider.days);
+      filteredPoints = selected.points.filter((p) => p.date >= c2.toISOString().slice(0, 10));
+    } else {
+      effectivePeriod = "year";
+      filteredPoints = selected.points;
+    }
+  }
+
+  // Delta computation — in 1RM mode, only use points with estimated1RM
+  const deltaPoints = metric === "1rm"
+    ? filteredPoints.filter((p) => p.estimated1RM != null)
+    : filteredPoints;
+  const lastVal = deltaPoints.length > 0
+    ? (metric === "1rm" ? deltaPoints[deltaPoints.length - 1].estimated1RM! : deltaPoints[deltaPoints.length - 1].value)
+    : null;
+  const firstVal = deltaPoints.length > 1
+    ? (metric === "1rm" ? deltaPoints[0].estimated1RM! : deltaPoints[0].value)
+    : null;
+
+  let deltaPercent: number | null = null;
+  if (lastVal != null && firstVal != null && firstVal !== 0) {
+    deltaPercent = Math.round(((lastVal - firstVal) / firstVal) * 100);
+  }
+
+  // For assistance: invert color (decrease = good)
+  const isAssistance = selected.metricKind === "assistance";
+  const deltaPositive = deltaPercent != null
+    ? (isAssistance ? deltaPercent < 0 : deltaPercent > 0)
+    : null;
+
+  return (
+    <Card className="fade3">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} />
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Прогресс упражнений</span>
+      </div>
+
+      {/* Period chips */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3 }}>
+          {EX_PERIOD_OPTIONS.map((opt) => {
+            const active = effectivePeriod === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
+                style={{
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 12px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.45,
+                  cursor: "pointer",
+                  background: active ? "rgba(196,228,178,0.38)" : "transparent",
+                  boxShadow: active
+                    ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                    : "none",
+                  color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
+                  transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 1RM toggle */}
+        {selected.supports1RM && (
+          <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3 }}>
+            {(["value", "1rm"] as const).map((m) => {
+              const active = metric === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { fireHaptic("light"); setMetric(m); }}
+                  style={{
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    lineHeight: 1.45,
+                    cursor: "pointer",
+                    background: active ? "rgba(196,228,178,0.38)" : "transparent",
+                    boxShadow: active
+                      ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                      : "none",
+                    color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
+                    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+                  }}
+                >
+                  {m === "value" ? "Вес" : "Расч. макс."}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Chart */}
+      <ExerciseProgressChart points={filteredPoints} metric={metric} />
+
+      {/* Exercise picker + stats */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <select
+          value={selectedKey}
+          onChange={(e) => { setSelectedKey(e.target.value); setMetric("value"); }}
+          style={{
+            flex: 1,
+            appearance: "none",
+            WebkitAppearance: "none",
+            border: "none",
+            borderRadius: 12,
+            padding: "8px 12px",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#0f172a",
+            background: GROOVE_BG,
+            boxShadow: GROOVE_SHADOW,
+            cursor: "pointer",
+            outline: "none",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 10px center",
+            paddingRight: 30,
+          }}
+        >
+          {exercises.map((ex) => (
+            <option key={ex.key} value={ex.key}>{ex.name}</option>
+          ))}
+        </select>
+
+        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+          {lastVal != null && (
+            <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
+              {Number.isInteger(lastVal) ? lastVal : lastVal.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>{METRIC_UNIT[selected.metricKind]}</span>
+            </span>
+          )}
+          {deltaPercent != null && deltaPercent !== 0 && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: deltaPositive ? "#16A34A" : "#EF4444", marginTop: 1 }}>
+              {deltaPercent > 0 ? "+" : ""}{deltaPercent}%
+            </div>
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -845,6 +1082,10 @@ export default function Progress() {
 
         {summary.muscleAccent && (
           <MuscleFocusSection muscleAccent={summary.muscleAccent} />
+        )}
+
+        {summary.exerciseProgress?.exercises?.length > 0 && (
+          <ExerciseProgressSection exerciseProgress={summary.exerciseProgress} />
         )}
 
         {summary.activity && (

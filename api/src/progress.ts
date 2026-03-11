@@ -4,6 +4,166 @@ import { asyncHandler, AppError } from "./middleware/errorHandler.js";
 import { loadScheduleData } from "./utils/scheduleStore.js";
 import { buildGamificationSummary } from "./gamification.js";
 import { computeMuscleFocus } from "./progressMuscleFocus.js";
+import { EXERCISE_LIBRARY, type Exercise } from "./exerciseLibrary.js";
+
+// ── Exercise library helpers ──────────────────────────────────────────────────
+
+const EXERCISE_BY_ID = new Map<string, Exercise>();
+const EXERCISE_NAME_NORM = new Map<string, Exercise>();
+
+function normalizeName(s: string): string {
+  return s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-яa-z0-9]/g, "").trim();
+}
+
+for (const ex of EXERCISE_LIBRARY) {
+  EXERCISE_BY_ID.set(ex.id, ex);
+  EXERCISE_NAME_NORM.set(normalizeName(ex.name), ex);
+  if (ex.aliases) {
+    for (const a of ex.aliases) EXERCISE_NAME_NORM.set(normalizeName(a), ex);
+  }
+}
+
+function resolveExercise(exercisePayload: any): Exercise | null {
+  const id = exercisePayload?.exerciseId || exercisePayload?.id;
+  if (typeof id === "string" && EXERCISE_BY_ID.has(id)) return EXERCISE_BY_ID.get(id)!;
+  const name = exercisePayload?.exerciseName || exercisePayload?.name;
+  if (typeof name === "string") {
+    const norm = normalizeName(name);
+    if (EXERCISE_NAME_NORM.has(norm)) return EXERCISE_NAME_NORM.get(norm)!;
+  }
+  return null;
+}
+
+type MetricKind = "weight" | "reps" | "duration" | "assistance";
+
+function getMetricKind(ex: Exercise): MetricKind {
+  const loadable = new Set(["barbell", "dumbbell", "machine", "cable", "smith", "kettlebell", "landmine"]);
+  const hasLoadable = ex.equipment.some((e) => loadable.has(e));
+  if (hasLoadable && ex.weightInverted) return "assistance";
+  if (hasLoadable) return "weight";
+  if (ex.isTimeBased) return "duration";
+  return "reps";
+}
+
+type ExercisePoint = { date: string; value: number; estimated1RM?: number };
+
+async function computeExerciseProgress(userId: string) {
+  const allSessions = await q<{ id: string; finished_at: string; payload: any }>(
+    `SELECT id, finished_at::text, payload FROM workout_sessions
+     WHERE user_id = $1 AND finished_at >= NOW() - INTERVAL '365 days' AND payload IS NOT NULL
+     ORDER BY finished_at ASC`,
+    [userId]
+  );
+
+  // Map: exerciseKey → { name, metricKind, supports1RM, points[], sessionCount }
+  const exMap = new Map<string, {
+    name: string;
+    metricKind: MetricKind;
+    supports1RM: boolean;
+    sessionCount: number;
+    points: ExercisePoint[];
+  }>();
+
+  for (const session of allSessions) {
+    const exercises: any[] = Array.isArray(session.payload?.exercises) ? session.payload.exercises : [];
+    const sessionDate = session.finished_at.slice(0, 10); // ISO date
+
+    // Track best value per exercise per session
+    const sessionBest = new Map<string, ExercisePoint>();
+
+    for (const exPayload of exercises) {
+      if (exPayload?.done === false || exPayload?.skipped === true) continue;
+
+      const libEx = resolveExercise(exPayload);
+      if (!libEx) continue;
+
+      const metricKind = getMetricKind(libEx);
+      const supports1RM = metricKind === "weight";
+      const sets: any[] = Array.isArray(exPayload?.sets) ? exPayload.sets : [];
+
+      let bestValue: number | null = null;
+      let best1RM: number | null = null;
+
+      for (const set of sets) {
+        if (set?.done === false) continue;
+        const w = typeof set?.weight === "number" ? set.weight : 0;
+        const r = typeof set?.reps === "number" ? set.reps : 0;
+
+        switch (metricKind) {
+          case "weight":
+            if (w > 0 && r > 0 && r <= 30) {
+              if (bestValue === null || w > bestValue) bestValue = w;
+              if (r >= 1 && r <= 12) {
+                const e1rm = w * (1 + r / 30);
+                if (best1RM === null || e1rm > best1RM) best1RM = Math.round(e1rm * 10) / 10;
+              }
+            }
+            break;
+          case "assistance":
+            if (w > 0 && r > 0) {
+              if (bestValue === null || w < bestValue) bestValue = w; // less assistance = better
+            }
+            break;
+          case "reps":
+            if (r > 0) {
+              if (bestValue === null || r > bestValue) bestValue = r;
+            }
+            break;
+          case "duration":
+            if (r > 0) { // reps = seconds for isTimeBased
+              if (bestValue === null || r > bestValue) bestValue = r;
+            }
+            break;
+        }
+      }
+
+      if (bestValue === null) continue;
+
+      const point: ExercisePoint = { date: sessionDate, value: bestValue };
+      if (best1RM != null) point.estimated1RM = best1RM;
+
+      // Keep best per exercise per session (for assistance: lower = better)
+      const existing = sessionBest.get(libEx.id);
+      if (!existing
+        || (metricKind === "assistance" ? bestValue < existing.value : bestValue > existing.value)) {
+        sessionBest.set(libEx.id, point);
+      }
+
+      // Ensure exercise entry exists
+      if (!exMap.has(libEx.id)) {
+        exMap.set(libEx.id, {
+          name: libEx.name,
+          metricKind,
+          supports1RM,
+          sessionCount: 0,
+          points: [],
+        });
+      }
+    }
+
+    // Merge session bests into exMap
+    for (const [exId, point] of sessionBest) {
+      const entry = exMap.get(exId)!;
+      entry.sessionCount++;
+      entry.points.push(point);
+    }
+  }
+
+  // Filter: ≥ 3 data points, sort by sessionCount desc
+  const exercises = Array.from(exMap.entries())
+    .filter(([, v]) => v.points.length >= 3)
+    .sort((a, b) => b[1].sessionCount - a[1].sessionCount)
+    .map(([key, v]) => ({
+      key,
+      name: v.name,
+      metricKind: v.metricKind,
+      supports1RM: v.supports1RM,
+      sessionCount: v.sessionCount,
+      points: v.points,
+    }));
+
+  return { exercises };
+}
 
 export const progress = Router();
 
@@ -739,6 +899,9 @@ progress.get(
       targetDelta
     );
 
+    // ── Exercise progress (per-exercise charts) ────────────────────────────────
+    const exerciseProgress = await computeExerciseProgress(userId);
+
     // ── Final response ────────────────────────────────────────────────────────
     res.json({
       // Legacy fields (keep for backward compat)
@@ -805,6 +968,7 @@ progress.get(
       },
       recovery,
       peakReadiness,
+      exerciseProgress,
       achievements: {
         earned,
         upcoming: upcoming.slice(0, 3),
