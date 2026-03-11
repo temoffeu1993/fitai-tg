@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { resetProfileRemote } from "@/api/profile";
 import { saveOnboarding } from "@/api/onboarding";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
-import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
+import { getExcludedExerciseDetails, includeExercise } from "@/api/exercises";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ClipboardList, Heart, Ban, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
@@ -116,11 +116,9 @@ export default function Profile() {
   const [excluded, setExcluded] = useState<Array<{ exerciseId: string; name: string }>>([]);
   const [excludedLoading, setExcludedLoading] = useState(false);
   const [excludedError, setExcludedError] = useState<string | null>(null);
-  const [searchQ, setSearchQ] = useState("");
-  const [searchRes, setSearchRes] = useState<Array<{ exerciseId: string; name: string }>>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [excludedOpen, setExcludedOpen] = useState(false);
   const [editSheet, setEditSheet] = useState<"hero" | "plan" | "lifestyle" | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   // ─── Data loading ───────────────────────────────────────────────────────
 
@@ -170,25 +168,6 @@ export default function Profile() {
 
   useEffect(() => { void loadExcluded(); }, []);
 
-  const runSearch = async (q: string) => {
-    const t = String(q || "").trim();
-    setSearchQ(q);
-    if (t.length < 2) { setSearchRes([]); return; }
-    setSearchLoading(true);
-    try {
-      const out = await searchExercises({ q: t, limit: 20 });
-      setSearchRes(Array.isArray(out?.items) ? out.items : []);
-    } catch { setSearchRes([]); }
-    finally { setSearchLoading(false); }
-  };
-
-  const addExcluded = async (exerciseId: string) => {
-    try {
-      await excludeExercise({ exerciseId, reason: "profile_blacklist", source: "user" });
-      await loadExcluded();
-    } catch { setExcludedError("Не удалось исключить упражнение."); }
-  };
-
   const removeExcluded = async (exerciseId: string) => {
     try {
       await includeExercise({ exerciseId });
@@ -200,10 +179,6 @@ export default function Profile() {
 
   const handleResetProfile = async () => {
     if (resetting) return;
-    const confirmed = window.confirm(
-      "Сбросить профиль? Мы удалим анкету, расписание, планы тренировок и питания, а также историю."
-    );
-    if (!confirmed) return;
     try {
       setResetting(true);
       setResetError(null);
@@ -393,7 +368,7 @@ export default function Profile() {
           <button
             type="button"
             style={{ ...s.resetBtn, opacity: resetting ? 0.5 : 1 }}
-            onClick={handleResetProfile}
+            onClick={() => setResetConfirmOpen(true)}
             disabled={resetting}
           >
             {resetting ? "Сбрасываю…" : "Сбросить профиль"}
@@ -415,13 +390,16 @@ export default function Profile() {
           excluded={excluded}
           excludedLoading={excludedLoading}
           excludedError={excludedError}
-          searchQ={searchQ}
-          searchRes={searchRes}
-          searchLoading={searchLoading}
-          onSearch={runSearch}
-          onAdd={addExcluded}
           onRemove={removeExcluded}
           onClose={() => setExcludedOpen(false)}
+        />
+      )}
+
+      {resetConfirmOpen && (
+        <ResetConfirmSheet
+          resetting={resetting}
+          onConfirm={handleResetProfile}
+          onClose={() => setResetConfirmOpen(false)}
         />
       )}
     </div>
@@ -439,17 +417,11 @@ const EX_CONTENT_ANIM_MS = 280;
 
 function ExcludedSheet({
   excluded, excludedLoading, excludedError,
-  searchQ, searchRes, searchLoading,
-  onSearch, onAdd, onRemove, onClose,
+  onRemove, onClose,
 }: {
   excluded: Array<{ exerciseId: string; name: string }>;
   excludedLoading: boolean;
   excludedError: string | null;
-  searchQ: string;
-  searchRes: Array<{ exerciseId: string; name: string }>;
-  searchLoading: boolean;
-  onSearch: (q: string) => void;
-  onAdd: (id: string) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
@@ -516,8 +488,6 @@ function ExcludedSheet({
     await onRemove(confirmTarget.exerciseId);
     goBackToList();
   };
-
-  const filtered = searchRes.filter((x) => !excluded.some((e) => e.exerciseId === x.exerciseId)).slice(0, 12);
 
   const headerTitle = confirmTarget ? "Вернуть упражнение" : "Исключённые упражнения";
 
@@ -624,38 +594,10 @@ function ExcludedSheet({
             {!confirmTarget ? (
               /* ── Page 1: List ── */
               <div>
-                {/* Search */}
-                <div style={{ padding: "4px 2px 12px" }}>
-                  <input
-                    value={searchQ}
-                    onChange={(e) => onSearch(e.target.value)}
-                    placeholder="Найти упражнение…"
-                    style={s.searchInput}
-                  />
-                </div>
-
-                {searchLoading && <span style={{ ...s.muted, display: "block", padding: "0 2px 8px" }}>Поиск…</span>}
-
                 {excludedError && (
                   <div style={{ ...s.errorNote, marginBottom: 10 }}>{excludedError}</div>
                 )}
 
-                {/* Search results */}
-                {filtered.map((x, idx) => (
-                  <div key={x.exerciseId}>
-                    {idx > 0 && <div style={exSh.divider} />}
-                    <div style={exSh.row}>
-                      <span style={exSh.name}>{x.name}</span>
-                      <button type="button" style={s.exBtnAdd} onClick={() => void onAdd(x.exerciseId)}>
-                        Исключить
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {filtered.length > 0 && excluded.length > 0 && <div style={{ ...exSh.divider, margin: "6px 0" }} />}
-
-                {/* Excluded list */}
                 {excludedLoading ? (
                   <span style={{ ...s.muted, display: "block", padding: "8px 2px" }}>Загружаю…</span>
                 ) : excluded.length === 0 ? (
@@ -751,6 +693,127 @@ const exSh: Record<string, CSSProperties> = {
     textAlign: "left" as const,
   },
 };
+
+// ─── Reset Confirm Sheet ───────────────────────────────────────────────────────
+
+function ResetConfirmSheet({
+  resetting, onConfirm, onClose,
+}: {
+  resetting: boolean;
+  onConfirm: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [animDone, setAnimDone] = useState(false);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      setEntered(true);
+      const t2 = setTimeout(() => setAnimDone(true), EX_ENTER_MS + 50);
+      return () => clearTimeout(t2);
+    }, 12);
+    return () => clearTimeout(t1);
+  }, []);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const requestClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setAnimDone(false);
+    setEntered(false);
+    setTimeout(onClose, EX_EXIT_MS + 20);
+  };
+
+  return createPortal(
+    <>
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 2000,
+          background: "rgba(10,16,28,0.52)",
+          opacity: entered && !closing ? 1 : 0,
+          transition: `opacity ${entered ? EX_ENTER_MS : EX_EXIT_MS}ms ease`,
+        }}
+        onClick={requestClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2001,
+          borderRadius: "24px 24px 0 0",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
+          boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          padding: "0 16px 16px",
+          transform: animDone ? "none" : (entered && !closing ? "translateY(0)" : "translateY(100%)"),
+          transition: animDone ? "none" : `transform ${entered && !closing ? EX_ENTER_MS : EX_EXIT_MS}ms ${entered && !closing ? EX_SPRING_OPEN : EX_SPRING_CLOSE}`,
+          willChange: animDone ? "auto" : "transform",
+        }}
+      >
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.18)" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
+          <div style={{ width: 32, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" }}>
+            Сбросить профиль
+          </div>
+          <button
+            type="button"
+            onClick={requestClose}
+            aria-label="Закрыть"
+            style={{
+              width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.62)",
+              cursor: "pointer", padding: 0, flexShrink: 0,
+            }}
+          >
+            <X size={18} strokeWidth={2.2} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "20px 8px", display: "flex", flexDirection: "column" as const, gap: 16 }}>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "rgba(15,23,42,0.7)", lineHeight: 1.45, textAlign: "center" }}>
+            Удалим анкету, планы питания и&nbsp;тренировок, расписание и&nbsp;историю. Вернёшься на&nbsp;стартовый экран.
+          </p>
+          <div style={{ display: "grid", gap: 0 }}>
+            <button
+              type="button"
+              style={{ ...exSh.confirmBtn, opacity: resetting ? 0.5 : 1 }}
+              onClick={() => void onConfirm()}
+              disabled={resetting}
+            >
+              {resetting ? "Сбрасываю…" : "Сбросить"}
+            </button>
+            <div style={exSh.divider} />
+            <button
+              type="button"
+              style={exSh.cancelBtn}
+              onClick={requestClose}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
 
 // ─── Styles (consistent with Progress screen) ───────────────────────────────
 
