@@ -479,7 +479,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent?: ProgressSummaryV2
             textAlign: "center", padding: 20,
           }}>
             <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
-              Каждая тренировка — отпечаток на&nbsp;карте вашего тела.<br /><br />Завершите первую тренировку, и&nbsp;мы&nbsp;покажем, какие мышцы получают больше внимания
+              Каждая тренировка — отпечаток на&nbsp;карте вашего тела.<br /><br />Завершите первую тренировку, и&nbsp;я&nbsp;покажу, какие мышцы получают больше внимания
             </span>
           </div>
         </div>
