@@ -36,10 +36,10 @@ function safeNum(x: any, suffix?: string) {
 function goalRus(g?: string) {
   if (!g) return "—";
   const map: Record<string, string> = {
-    lose_weight: "Сбросить вес",
+    lose_weight: "Сбросить лишнее",
     build_muscle: "Набрать мышцы",
-    athletic_body: "Спортивное тело",
-    health_wellness: "Здоровье и самочувствие",
+    athletic_body: "Быть в форме",
+    health_wellness: "Здоровье",
   };
   return map[g] || g;
 }
@@ -48,12 +48,12 @@ function expRus(e: any) {
   const v = typeof e === "string" ? e : e?.level;
   const map: Record<string, string> = {
     beginner: "Новичок",
-    intermediate: "Средний уровень",
-    advanced: "Продвинутый",
+    intermediate: "Любитель",
+    advanced: "Опытный",
     never_trained: "Новичок",
-    long_break: "Новичок (после перерыва)",
-    training_regularly: "Средний уровень",
-    training_experienced: "Продвинутый",
+    long_break: "Новичок",
+    training_regularly: "Любитель",
+    training_experienced: "Опытный",
   };
   return map[String(v || "")] || v || "—";
 }
@@ -61,9 +61,9 @@ function expRus(e: any) {
 function placeRus(p?: string) {
   if (!p) return "—";
   const map: Record<string, string> = {
-    gym: "Тренажёрный зал",
-    home_no_equipment: "Дома, без инвентаря",
-    home_with_gear: "Дома, с инвентарём",
+    gym: "Тренажерный зал",
+    home_no_equipment: "Дом, без инвентаря",
+    home_with_gear: "Дом, с резинками и гантелями",
   };
   return map[p] || p;
 }
@@ -71,10 +71,10 @@ function placeRus(p?: string) {
 function workStyleRus(w?: string) {
   if (!w) return "—";
   const map: Record<string, string> = {
-    sedentary: "Сидячая работа",
-    balanced: "Сидячая + хожу пешком",
+    sedentary: "Мало подвижности",
+    balanced: "Иногда двигаюсь",
     on_feet: "Весь день на ногах",
-    heavy_work: "Тяжёлый физический труд",
+    heavy_work: "Постоянно в движении",
   };
   return map[w] || w;
 }
@@ -515,7 +515,7 @@ const s: Record<string, CSSProperties> = {
     borderBottom: "1px solid rgba(15,23,42,0.06)",
   },
   infoLabel: { fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" },
-  infoValue: { fontSize: 14, fontWeight: 500, color: "#1e1f22", textAlign: "right" as const },
+  infoValue: { fontSize: 15, fontWeight: 600, color: "#1e1f22", textAlign: "right" as const },
 
   // Accordion
   accordionBtn: {
