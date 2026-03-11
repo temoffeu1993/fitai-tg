@@ -622,8 +622,8 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
             display: "flex", alignItems: "center", justifyContent: "center",
             textAlign: "center", padding: 20,
           }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
-              В зале рост незаметен, но цифры не врут. После 3 тренировок с одним упражнением мы покажем, как вы становитесь сильнее
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.55, maxWidth: 260 }}>
+              В зале рост незаметен,<br />но цифры не врут.<br /><br />После 3&nbsp;тренировок с&nbsp;одним упражнением мы&nbsp;покажем, как&nbsp;вы становитесь сильнее
             </span>
           </div>
         </div>
@@ -924,8 +924,8 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
             display: "flex", alignItems: "center", justifyContent: "center",
             textAlign: "center", padding: 20,
           }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
-              Весы, сантиметр и немного терпения. Записывайте вес и замеры — а я построю красивый график вашей трансформации
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.55, maxWidth: 260 }}>
+              Весы, сантиметр<br />и&nbsp;немного терпения.<br /><br />Записывайте вес и&nbsp;замеры&nbsp;— а&nbsp;я&nbsp;построю красивый график вашей&nbsp;трансформации
             </span>
           </div>
         </div>
