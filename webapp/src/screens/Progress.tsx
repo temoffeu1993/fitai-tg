@@ -923,7 +923,7 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
           : opt.unit;
         const dateText = opt.lastDate != null
           ? fmtBodyDate(opt.lastDate)
-          : "—";
+          : "Дата";
         return (
           <Fragment key={opt.key}>
             {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "12px 0" }} />}
@@ -1105,17 +1105,7 @@ function BodyDataSection({ body, onRefresh }: {
     }
   }
 
-  const metaOpt = BODY_METRIC_OPTIONS.find((o) => o.key === selectedMetric)!;
-  const lastVal = filteredPoints.length > 0 ? filteredPoints[filteredPoints.length - 1].value : null;
-  const firstVal = filteredPoints.length > 1 ? filteredPoints[0].value : null;
-  let deltaVal: number | null = null;
-  let deltaPercent: number | null = null;
-  if (lastVal != null && firstVal != null && firstVal !== 0) {
-    deltaVal = Number((lastVal - firstVal).toFixed(1));
-    deltaPercent = Math.round(((lastVal - firstVal) / firstVal) * 100);
-  }
-
-  const chartColor = selectedMetric === "bmi" && lastVal != null ? bmiColorFn(lastVal) : "#1e1f22";
+  const chartColor = "#1e1f22";
 
   const [showSheet, setShowSheet] = useState(false);
 
@@ -1129,19 +1119,7 @@ function BodyDataSection({ body, onRefresh }: {
             {BODY_TITLE_MAP[selectedMetric]}
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {lastVal != null && (
-            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: selectedMetric === "bmi" ? chartColor : "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
-                {fmtVal(lastVal)}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
-              </span>
-              {deltaPercent != null && deltaPercent !== 0 && (
-                <div style={{ fontSize: 12, fontWeight: 700, color: deltaPercent < 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
-                  {deltaVal! > 0 ? "+" : ""}{deltaVal}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
-                </div>
-              )}
-            </div>
-          )}
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => { fireHaptic("light"); setShowSheet(true); }}
