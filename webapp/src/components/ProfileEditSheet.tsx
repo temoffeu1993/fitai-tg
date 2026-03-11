@@ -573,13 +573,14 @@ function SheetInner({
                 </div>
 
                 {/* Save button */}
-                <div style={{ padding: "12px 0 0", flexShrink: 0 }}>
+                <div style={{ padding: "12px 0 0", flexShrink: 0, display: "flex", justifyContent: "center" }}>
                   <button
                     type="button"
                     onClick={handleSave}
                     style={sh.saveBtn}
                   >
-                    Сохранить
+                    <span style={sh.saveBtnLabel}>Сохранить</span>
+                    <span style={sh.saveBtnCircle}><span style={sh.saveBtnCheck}>✓</span></span>
                   </button>
                 </div>
               </div>
@@ -669,16 +670,44 @@ const sh: Record<string, CSSProperties> = {
     pointerEvents: "none" as const,
   },
   saveBtn: {
-    width: "100%",
-    padding: "14px 0",
-    borderRadius: 16,
-    border: "none",
-    background: "linear-gradient(180deg, #3a3b40 0%, #1e1f22 54%, #121316 100%)",
-    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(2,6,23,0.5)",
-    color: "rgba(255,255,255,0.95)",
-    fontSize: 15,
-    fontWeight: 600,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    height: 50,
+    padding: "0 14px",
+    borderRadius: 999,
+    border: "1px solid #1e1f22",
+    background: "#1e1f22",
+    color: "#fff",
     cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 500,
+    whiteSpace: "nowrap" as const,
     fontFamily: "inherit",
+  },
+  saveBtnLabel: {
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1,
+    color: "#fff",
+  },
+  saveBtnCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "linear-gradient(180deg, #e5e7eb 0%, #f3f4f6 100%)",
+    boxShadow: "inset 0 2px 3px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(255,255,255,0.85)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    color: "#0f172a",
+  },
+  saveBtnCheck: {
+    fontSize: 18,
+    lineHeight: 1,
+    color: "#1e1f22",
+    fontWeight: 700,
+    textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
   },
 };
