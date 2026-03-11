@@ -917,131 +917,141 @@ function AchievementsSection({ achievements }: { achievements: ProgressSummaryV2
 
 // ─── Mini sparkline ───────────────────────────────────────────────────────────
 
-function WeightSparkline({ series }: { series: Array<{ date: string; weight: number }> }) {
-  if (series.length < 2) return null;
-  const W = 200, H = 44;
-  const weights = series.map((p) => p.weight);
-  const minW = Math.min(...weights);
-  const maxW = Math.max(...weights);
-  const range = maxW - minW || 1;
-  const pts = series.map((p, i) => {
-    const x = (i / (series.length - 1)) * (W - 4) + 2;
-    const y = H - 4 - ((p.weight - minW) / range) * (H - 8);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const ptsArr = pts.split(" ");
-  const lastCoord = ptsArr[ptsArr.length - 1].split(",");
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", marginTop: 12, overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={parseFloat(lastCoord[0])} cy={parseFloat(lastCoord[1])} r={3.5} fill="#1e1f22" />
-    </svg>
-  );
-}
-
-// ─── Section 7: Трансформация (Weight only) ──────────────────────────────────
+// ─── Section: Вес и ИМТ ──────────────────────────────────────────────────────
 
 type WeightPayload = { weight: number; recordedAt: string; notes?: string };
 
-// ─── Mini sparkline for small cards ──────────────────────────────────────────
+/** Pad a short series with synthetic points so the chart always renders */
+function padSeries(values: number[], minPoints: number = 6): { v: number; real: boolean }[] {
+  if (values.length === 0) return [];
+  if (values.length >= minPoints) return values.map((v) => ({ v, real: true }));
+  // Generate gentle lead-in from slightly lower/higher values
+  const first = values[0];
+  const padCount = minPoints - values.length;
+  const drift = first * 0.03; // 3% variation
+  const padded: { v: number; real: boolean }[] = [];
+  for (let i = padCount; i > 0; i--) {
+    padded.push({ v: Number((first - drift * (i / padCount) * (0.7 + Math.random() * 0.6)).toFixed(1)), real: false });
+  }
+  for (const v of values) padded.push({ v, real: true });
+  return padded;
+}
 
-function MiniSparkline({ values, color = "#1e1f22" }: { values: number[]; color?: string }) {
-  if (values.length < 2) return null;
-  const W = 120, H = 32;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * (W - 4) + 2;
-    const y = H - 4 - ((v - min) / range) * (H - 8);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
+function BodyMetricChart({ series, unit, label, color, gradId }: {
+  series: { v: number; real: boolean }[];
+  unit: string;
+  label?: string;
+  color: string;
+  gradId: string;
+}) {
+  if (series.length === 0) return null;
+  const W = 140, H = 70;
+  const padX = 4, padY = 14;
+  const values = series.map((p) => p.v);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+
+  const coords = values.map((v, i) => ({
+    x: padX + (i / Math.max(values.length - 1, 1)) * (W - padX * 2),
+    y: padY + (1 - (v - minV) / range) * (H - padY * 2),
+  }));
+
+  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
+  const last = coords[coords.length - 1];
+  const lastVal = series[series.length - 1];
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", marginTop: 8 }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.18} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <polygon points={polygonPts} fill={`url(#${gradId})`} />
+      {/* Faded line for synthetic points */}
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.5} />
+      {/* Real points with full opacity line */}
+      {(() => {
+        const realCoords = coords.filter((_, i) => series[i].real);
+        if (realCoords.length < 2) return null;
+        const realPts = realCoords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+        return <polyline points={realPts} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />;
+      })()}
+      {/* Last point dot */}
+      <circle cx={last.x} cy={last.y} r={3.5} fill={color} />
+      {/* Value label at last point */}
+      <text
+        x={last.x}
+        y={last.y - 7}
+        textAnchor="middle"
+        style={{ fontSize: 11, fontWeight: 700, fill: color }}
+      >
+        {Number.isInteger(lastVal.v) ? lastVal.v : lastVal.v.toFixed(1)}{unit}
+      </text>
+      {/* Bottom-left label */}
+      {label && (
+        <text x={2} y={H - 2} style={{ fontSize: 9, fontWeight: 600, fill: "rgba(15,23,42,0.35)" }}>
+          {label}
+        </text>
+      )}
     </svg>
   );
 }
 
-// ─── Weight + BMI side-by-side ───────────────────────────────────────────────
-
-function WeightBmiRow({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
+function WeightBmiSection({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
   const w = body.currentWeight;
-  const bmi = body.bmi;
-  const delta = body.weightDelta;
-  const fromOnboarding = body.weightSource === "onboarding";
   const weightValues = (body.weightSeries ?? []).map((p) => p.weight);
+  // If no series but have current weight, use it as single point
+  const effectiveWeightValues = weightValues.length > 0 ? weightValues : (w != null ? [w] : []);
+  const weightSeries = padSeries(effectiveWeightValues);
+
   const heightM = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
-  const bmiValues = heightM != null ? weightValues.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
+  const bmiValues = heightM != null ? effectiveWeightValues.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
+  const bmiSeries = padSeries(bmiValues);
+  const bmi = body.bmi;
+
+  const bmiColor = bmi != null ? (bmi < 18.5 ? "#3b82f6" : bmi < 25 ? "#16A34A" : bmi < 30 ? "#f59e0b" : "#EF4444") : "#94a3b8";
+  const bmiLabel = bmi != null ? (bmi < 18.5 ? "Недовес" : bmi < 25 ? "Норма" : bmi < 30 ? "Избыток" : "Ожирение") : null;
 
   return (
-    <div className="fade6" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-      {/* Weight card */}
-      <div style={{ ...s.card, position: "relative", padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Scale size={15} color="#0f172a" strokeWidth={2.5} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>Вес</span>
-          </div>
-          <button
-            onClick={() => { fireHaptic("light"); onAddWeight(); }}
-            style={{
-              border: "none", background: "rgba(15,23,42,0.06)", borderRadius: 999,
-              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", fontSize: 18, fontWeight: 500, color: "#0f172a", lineHeight: 1,
-            }}
-          >+</button>
+    <Card className="fade6">
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Scale size={18} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Вес и ИМТ</span>
         </div>
-        {w != null ? (
-          <>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 8 }}>
-              <span style={{ fontSize: 32, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                {Number(w).toFixed(1)}
-              </span>
-              <span style={{ fontSize: 13, color: "rgba(15,23,42,0.45)" }}>кг</span>
-            </div>
-            {delta != null && delta !== 0 && !fromOnboarding && (
-              <span style={{ fontSize: 12, fontWeight: 700, color: delta < 0 ? "#16A34A" : "#EF4444", marginTop: 2, display: "inline-block" }}>
-                {delta > 0 ? "+" : ""}{delta.toFixed(1)} кг
-              </span>
-            )}
-            {fromOnboarding && (
-              <span style={{ fontSize: 11, color: "rgba(15,23,42,0.38)", marginTop: 2, display: "block" }}>из анкеты</span>
-            )}
-            <MiniSparkline values={weightValues} />
-          </>
-        ) : (
-          <p style={{ margin: "10px 0 0", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>
-            Нажмите +, чтобы записать вес
-          </p>
-        )}
+        <button
+          onClick={() => { fireHaptic("light"); onAddWeight(); }}
+          style={{
+            border: "none", background: "none", cursor: "pointer",
+            fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
+          }}
+        >+</button>
       </div>
 
-      {/* BMI card */}
-      <div style={{ ...s.card, padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Weight size={15} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>BMI</span>
-        </div>
-        {bmi != null ? (
-          <>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 8 }}>
-              <span style={{ fontSize: 32, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                {bmi.toFixed(1)}
-              </span>
+      {w == null ? (
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(15,23,42,0.55)", lineHeight: 1.5 }}>
+          Запишите вес — здесь появится график изменений
+        </p>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: heightM ? "1fr 1fr" : "1fr", gap: 8 }}>
+          {/* Weight chart */}
+          <div>
+            <BodyMetricChart series={weightSeries} unit=" кг" color="#1e1f22" gradId="wGrad" />
+          </div>
+          {/* BMI chart */}
+          {heightM && bmiSeries.length > 0 && (
+            <div>
+              <BodyMetricChart series={bmiSeries} unit="" label={bmiLabel ?? undefined} color={bmiColor} gradId="bGrad" />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: bmi < 18.5 ? "#3b82f6" : bmi < 25 ? "#16A34A" : bmi < 30 ? "#f59e0b" : "#EF4444", marginTop: 2, display: "inline-block" }}>
-              {bmi < 18.5 ? "Недовес" : bmi < 25 ? "Норма" : bmi < 30 ? "Избыток" : "Ожирение"}
-            </span>
-            <MiniSparkline values={bmiValues} color={bmi < 25 ? "#16A34A" : "#f59e0b"} />
-          </>
-        ) : (
-          <p style={{ margin: "10px 0 0", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>
-            {body.heightCm == null ? "Укажите рост в анкете" : "Запишите вес для расчёта"}
-          </p>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -1761,7 +1771,7 @@ export default function Progress() {
 
         {summary.body && (
           <>
-            <WeightBmiRow body={summary.body} onAddWeight={() => setShowWeight(true)} />
+            <WeightBmiSection body={summary.body} onAddWeight={() => setShowWeight(true)} />
             <MeasurementsSection body={summary.body} onAddMeasurement={() => setShowMeasurement(true)} />
           </>
         )}
