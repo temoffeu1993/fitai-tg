@@ -628,7 +628,7 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
             display: "flex", alignItems: "center", justifyContent: "center",
             textAlign: "center", padding: 20,
           }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.55, maxWidth: 260 }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
               В зале рост незаметен,<br />но цифры не врут.<br /><br />После 3&nbsp;тренировок с&nbsp;одним упражнением мы&nbsp;покажем, как&nbsp;вы становитесь сильнее
             </span>
           </div>
@@ -1208,7 +1208,7 @@ function BodyDataSection({ body, onRefresh }: {
             display: "flex", alignItems: "center", justifyContent: "center",
             textAlign: "center", padding: 20,
           }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.55, maxWidth: 260 }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
               Весы, сантиметр<br />и&nbsp;немного терпения.<br /><br />Записывайте вес и&nbsp;замеры&nbsp;— а&nbsp;я&nbsp;построю красивый график вашей&nbsp;трансформации
             </span>
           </div>
