@@ -928,70 +928,62 @@ function bmiColorFn(bmi: number): string {
   return "#EF4444";                     // obese — red
 }
 
-/** Generate realistic synthetic points that lead up to realValues.
- *  If realValues has ≥8 points we don't pad at all. */
-function buildSparkline(realValues: number[], total: number = 10): number[] {
+/** Build a beautiful sparkline: synthetic gentle wave leading into real data.
+ *  Uses sine-based harmonics for the synthetic part — smooth and organic. */
+function buildSparkline(realValues: number[], total: number = 12): number[] {
   if (realValues.length === 0) return [];
   if (realValues.length >= total) return realValues.slice(-total);
   const first = realValues[0];
   const padCount = total - realValues.length;
-  // Seeded pseudo-random (deterministic per first value)
-  let seed = Math.round(first * 100);
-  const rand = () => { seed = (seed * 16807 + 0) % 2147483647; return (seed & 0x7fffffff) / 0x7fffffff; };
-  const drift = first * 0.04; // ±4% variation
+  const amp = first * 0.025; // gentle ±2.5% amplitude
+  // Deterministic seed from value
+  const phase = (Math.round(first * 7) % 100) / 100 * Math.PI * 2;
   const synth: number[] = [];
-  let v = first + drift * (rand() - 0.5) * 2;
   for (let i = 0; i < padCount; i++) {
-    synth.push(Number(v.toFixed(1)));
-    // Trend towards first real point
-    const progress = (i + 1) / padCount;
-    const target = first;
-    v = v + (target - v) * progress * 0.4 + drift * (rand() - 0.5) * (1 - progress * 0.6);
+    const t = i / padCount;
+    // Two overlaid sine waves for organic feel, amplitude fading towards the join
+    const fade = 0.4 + 0.6 * (1 - t); // stronger at start, gentle near real data
+    const wave = Math.sin(phase + t * Math.PI * 2.5) * 0.7 + Math.sin(phase * 1.7 + t * Math.PI * 4) * 0.3;
+    synth.push(Number((first + amp * wave * fade).toFixed(1)));
   }
   return [...synth, ...realValues];
 }
 
-/** Smooth SVG path via monotone cubic interpolation (Fritsch-Carlson) */
+/** Catmull-Rom → cubic bezier SVG path — buttery smooth curves */
 function smoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return "";
-  if (pts.length === 2) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)} L${pts[1].x.toFixed(1)},${pts[1].y.toFixed(1)}`;
-
-  const n = pts.length;
-  // Compute slopes
-  const dx: number[] = [], dy: number[] = [], m: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    dx.push(pts[i + 1].x - pts[i].x);
-    dy.push(pts[i + 1].y - pts[i].y);
-    m.push(dy[i] / dx[i]);
-  }
-  // Fritsch-Carlson tangents
-  const tangent: number[] = [m[0]];
-  for (let i = 1; i < n - 1; i++) {
-    if (m[i - 1] * m[i] <= 0) tangent.push(0);
-    else tangent.push(2 / (1 / m[i - 1] + 1 / m[i]));
-  }
-  tangent.push(m[n - 2]);
-
-  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const seg = dx[i] / 3;
-    const cp1x = pts[i].x + seg;
-    const cp1y = pts[i].y + tangent[i] * seg;
-    const cp2x = pts[i + 1].x - seg;
-    const cp2y = pts[i + 1].y - tangent[i + 1] * seg;
-    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${pts[i + 1].x.toFixed(1)},${pts[i + 1].y.toFixed(1)}`;
+  if (pts.length === 2) return `M${f(pts[0].x)},${f(pts[0].y)} L${f(pts[1].x)},${f(pts[1].y)}`;
+  const alpha = 0.5; // centripetal Catmull-Rom
+  let d = `M${f(pts[0].x)},${f(pts[0].y)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(i - 1, 0)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(i + 2, pts.length - 1)];
+    const d1 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const d0 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    const d2 = Math.hypot(p3.x - p2.x, p3.y - p2.y);
+    const b1 = d0 ** alpha, b2 = d1 ** alpha, b3 = d2 ** alpha;
+    const cp1x = p1.x + (b1 > 0 ? (p2.x - p0.x) * b2 / (3 * (b1 + b2)) * d1 / d1 : 0);
+    const cp1y = p1.y + (b1 > 0 ? (p2.y - p0.y) * b2 / (3 * (b1 + b2)) * d1 / d1 : 0);
+    const cp2x = p2.x - (b3 > 0 ? (p3.x - p1.x) * b2 / (3 * (b2 + b3)) * d1 / d1 : 0);
+    const cp2y = p2.y - (b3 > 0 ? (p3.y - p1.y) * b2 / (3 * (b2 + b3)) * d1 / d1 : 0);
+    d += ` C${f(cp1x)},${f(cp1y)} ${f(cp2x)},${f(cp2y)} ${f(p2.x)},${f(p2.y)}`;
   }
   return d;
 }
+function f(n: number) { return n.toFixed(2); }
 
-/** iOS-style sparkline: smooth curve with gradient shadow below, value + unit at bottom-left */
+const SPARK_H = 80; // chart height inside card
+
+/** iOS-style sparkline: silky smooth curve + gradient fill */
 function CardSparkline({ values, color, gradId }: {
   values: number[];
   color: string;
   gradId: string;
 }) {
-  const W = 150, H = 56;
-  const padX = 2, padT = 4, padB = 2;
+  const W = 200, H = SPARK_H;
+  const padX = 0, padT = 6, padB = 4;
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
   const range = maxV - minV || 1;
@@ -1002,21 +994,21 @@ function CardSparkline({ values, color, gradId }: {
   }));
 
   const linePath = smoothPath(coords);
-  // Closed path for gradient fill: line + bottom edge
   const last = coords[coords.length - 1];
   const first = coords[0];
-  const fillPath = linePath + ` L${last.x.toFixed(1)},${H} L${first.x.toFixed(1)},${H} Z`;
+  const fillPath = linePath + ` L${f(last.x)},${H} L${f(first.x)},${H} Z`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "100%", display: "block" }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }} preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.18} />
+          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+          <stop offset="80%" stopColor={color} stopOpacity={0.04} />
           <stop offset="100%" stopColor={color} stopOpacity={0} />
         </linearGradient>
       </defs>
       <path d={fillPath} fill={`url(#${gradId})`} />
-      <path d={linePath} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={linePath} fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -1028,7 +1020,7 @@ function WeightCard({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; on
   const sparkline = buildSparkline(effective);
 
   return (
-    <Card className="fade6" style={{ padding: "14px 14px 0", position: "relative", overflow: "hidden" }}>
+    <Card className="fade6" style={{ padding: "16px 16px 0", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Вес</span>
@@ -1041,18 +1033,17 @@ function WeightCard({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; on
         >+</button>
       </div>
       {w == null ? (
-        <p style={{ margin: "12px 0 14px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
+        <p style={{ margin: "16px 0 18px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
       ) : (
         <>
-          {/* Value bottom-left, chart bottom-right */}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 0, marginTop: 6 }}>
-            <div style={{ flexShrink: 0, paddingBottom: 12, zIndex: 1 }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#0f172a", lineHeight: 1 }}>{fmtVal(w)}</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.4)", marginTop: 2 }}>кг</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0, height: 56, marginLeft: -8 }}>
-              {sparkline.length >= 2 && <CardSparkline values={sparkline} color="#1e1f22" gradId="wGrad" />}
-            </div>
+          {/* Big value */}
+          <div style={{ marginTop: 10 }}>
+            <span style={{ fontSize: 32, fontWeight: 700, color: "#0f172a", lineHeight: 1, letterSpacing: "-0.5px" }}>{fmtVal(w)}</span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(15,23,42,0.38)", marginLeft: 4 }}>кг</span>
+          </div>
+          {/* Chart fills bottom */}
+          <div style={{ marginTop: 8, marginLeft: -16, marginRight: -16 }}>
+            {sparkline.length >= 2 && <CardSparkline values={sparkline} color="#1e1f22" gradId="wGrad" />}
           </div>
         </>
       )}
@@ -1072,21 +1063,21 @@ function BmiCard({ body }: { body: ProgressSummaryV2["body"] }) {
   const sparkline = buildSparkline(bmiValues);
 
   return (
-    <Card className="fade6" style={{ padding: "14px 14px 0", position: "relative", overflow: "hidden" }}>
+    <Card className="fade6" style={{ padding: "16px 16px 0", overflow: "hidden" }}>
       <div>
         <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>ИМТ</span>
       </div>
       {bmiValues.length === 0 || lastBmi == null ? (
-        <p style={{ margin: "12px 0 14px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
+        <p style={{ margin: "16px 0 18px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
       ) : (
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 0, marginTop: 6 }}>
-          <div style={{ flexShrink: 0, paddingBottom: 12, zIndex: 1 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>{fmtVal(lastBmi)}</div>
+        <>
+          <div style={{ marginTop: 10 }}>
+            <span style={{ fontSize: 32, fontWeight: 700, color, lineHeight: 1, letterSpacing: "-0.5px" }}>{fmtVal(lastBmi)}</span>
           </div>
-          <div style={{ flex: 1, minWidth: 0, height: 56, marginLeft: -8 }}>
+          <div style={{ marginTop: 8, marginLeft: -16, marginRight: -16 }}>
             {sparkline.length >= 2 && <CardSparkline values={sparkline} color={color} gradId="bGrad" />}
           </div>
-        </div>
+        </>
       )}
     </Card>
   );
