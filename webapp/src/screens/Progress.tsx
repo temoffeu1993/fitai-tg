@@ -900,15 +900,24 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
 
       {/* Chart — real or mock */}
       {hasData ? (
-        <ExerciseProgressChart
-          points={filteredPoints.length >= 2 ? filteredPoints : allPoints}
-          metric="value"
-          color={chartColor}
-        />
+        <>
+          <ExerciseProgressChart
+            points={filteredPoints.length >= 2 ? filteredPoints : allPoints}
+            metric="value"
+            color={chartColor}
+          />
+          {/* Period chips below chart — only with real data */}
+          <div style={{ marginTop: 12 }}>
+            <PeriodChips options={BODY_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
+          </div>
+        </>
       ) : (
         <div style={{ position: "relative" }}>
           <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
             <ExerciseProgressChart points={MOCK_BODY_POINTS} metric="value" />
+            <div style={{ marginTop: 10 }}>
+              <PeriodChips options={BODY_PERIOD_OPTIONS} active={"all" as BodyPeriod} onChange={() => {}} />
+            </div>
           </div>
           <div style={{
             position: "absolute", inset: 0,
@@ -921,11 +930,6 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
           </div>
         </div>
       )}
-
-      {/* Period chips below chart */}
-      <div style={{ marginTop: 12 }}>
-        <PeriodChips options={BODY_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
-      </div>
 
       {/* Metric picker sheet */}
       {showPicker && (
