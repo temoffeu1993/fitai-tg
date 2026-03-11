@@ -143,15 +143,15 @@ function StatPill({ workoutsTotal, totalMinutes, totalTonnage, userGoal }: {
       </span>
       <span style={s.statChip}>
         <Clock3 size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
-        <span>{totalMinutes > 0 ? `${totalMinutes} мин` : "—"}</span>
+        <span>{totalMinutes > 0 ? `${totalMinutes} мин` : "0 мин"}</span>
       </span>
       <span style={s.statChip}>
         {showCalories
           ? <Flame size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />
           : <Weight size={15} strokeWidth={2.5} color="rgba(255,255,255,0.88)" />}
         <span>{showCalories
-          ? (calories > 0 ? `~${calories.toLocaleString("ru-RU")} ккал` : "—")
-          : (totalTonnage > 0 ? `${totalTonnage.toLocaleString("ru-RU")} кг` : "—")}
+          ? (calories > 0 ? `~${calories.toLocaleString("ru-RU")} ккал` : "0 ккал")
+          : (totalTonnage > 0 ? `${totalTonnage.toLocaleString("ru-RU")} кг` : "0 кг")}
         </span>
       </span>
     </div>
@@ -751,14 +751,29 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
 
   return (
     <Card className="fade3">
-      {/* Header: exercise name | value + swap */}
+      {/* Section title */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Прогресс упражнений</span>
+      </div>
+
+      {/* Period chips + 1RM toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <PeriodChips options={EX_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
+        {selected.supports1RM && (
+          <PeriodChips
+            options={[{ key: "value" as const, label: "Вес" }, { key: "1rm" as const, label: "Расч. макс." }]}
+            active={metric}
+            onChange={setMetric}
+          />
+        )}
+      </div>
+
+      {/* Exercise name + value + swap */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-          <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {selected.name}
-          </span>
-        </div>
+        <span style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.7)", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+          {selected.name}
+        </span>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {lastVal != null && (
             <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -774,18 +789,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
           )}
           <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
-      </div>
-
-      {/* Period chips + 1RM toggle */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <PeriodChips options={EX_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
-        {selected.supports1RM && (
-          <PeriodChips
-            options={[{ key: "value" as const, label: "Вес" }, { key: "1rm" as const, label: "Расч. макс." }]}
-            active={metric}
-            onChange={setMetric}
-          />
-        )}
       </div>
 
       {/* Chart */}
@@ -936,7 +939,10 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
 
   const openInput = (key: BodyMetricKey) => {
     setInputMetric(key);
-    setScrollerVal(key === "weight" ? 75 : 80);
+    // Use last recorded value as default, fallback to sensible defaults
+    const pts = getBodyPoints(body, key);
+    const lastVal = pts.length > 0 ? pts[pts.length - 1].value : null;
+    setScrollerVal(lastVal ?? (key === "weight" ? 75 : 80));
     setPage("input");
     goToPage("forward");
   };
@@ -1234,12 +1240,15 @@ function BodyDataSection({ body, onRefresh }: {
             onClick={() => { fireHaptic("light"); setShowSheet(true); }}
             style={{
               border: "none", cursor: "pointer", padding: 0, lineHeight: 1,
-              width: 34, height: 34, borderRadius: 999, flexShrink: 0,
-              background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+              width: 32, height: 32, borderRadius: 999, flexShrink: 0,
+              background: "transparent",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 700, color: "#0f172a" }}>→</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(15,23,42,0.62)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       </div>

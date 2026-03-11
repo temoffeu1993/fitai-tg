@@ -6,7 +6,7 @@ import { saveOnboarding } from "@/api/onboarding";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { getExcludedExerciseDetails, includeExercise } from "@/api/exercises";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ClipboardList, Heart, Ban, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
+import { ArrowLeft, ClipboardList, Heart, Ban, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity, Trash2 } from "lucide-react";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 
 type Summary = any;
@@ -189,7 +189,7 @@ export default function Profile() {
       setSummary(null);
       window.location.replace("/");
     } catch {
-      setResetError("Не удалось сбросить профиль. Попробуй ещё раз.");
+      setResetError("Не удалось удалить профиль. Попробуй ещё раз.");
     } finally {
       setResetting(false);
     }
@@ -359,7 +359,7 @@ export default function Profile() {
         {/* ── Сброс профиля ── */}
         <Card style={s.resetCard}>
           <div style={s.sectionHeader}>
-            <span style={s.sectionTitle}>Сбросить профиль</span>
+            <span style={s.sectionTitle}>Удалить профиль</span>
           </div>
           <p style={s.resetText}>
             Удалим анкету, планы питания и тренировок, расписание и историю. Вернёшься на стартовый экран.
@@ -371,7 +371,10 @@ export default function Profile() {
             onClick={() => setResetConfirmOpen(true)}
             disabled={resetting}
           >
-            {resetting ? "Сбрасываю…" : "Сбросить профиль"}
+            <span>{resetting ? "Удаляю…" : "Удалить"}</span>
+            <span style={s.resetBtnIconWrap}>
+              <Trash2 size={16} strokeWidth={2.2} color="#b91c1c" />
+            </span>
           </button>
         </Card>
 
@@ -769,7 +772,7 @@ function ResetConfirmSheet({
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
           <div style={{ width: 32, flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" }}>
-            Сбросить профиль
+            Удалить профиль
           </div>
           <button
             type="button"
@@ -787,7 +790,7 @@ function ResetConfirmSheet({
 
         {/* Content */}
         <div style={{ padding: "20px 8px", display: "flex", flexDirection: "column" as const, gap: 16 }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "rgba(15,23,42,0.7)", lineHeight: 1.45, textAlign: "center" }}>
+          <p style={{ margin: 0, fontSize: 15, color: "rgba(15,23,42,0.62)", lineHeight: 1.45, textAlign: "center", padding: "0 16px" }}>
             Удалим анкету, планы питания и&nbsp;тренировок, расписание и&nbsp;историю. Вернёшься на&nbsp;стартовый экран.
           </p>
           <div style={{ display: "grid", gap: 0 }}>
@@ -797,7 +800,7 @@ function ResetConfirmSheet({
               onClick={() => void onConfirm()}
               disabled={resetting}
             >
-              {resetting ? "Сбрасываю…" : "Сбросить"}
+              {resetting ? "Удаляю…" : "Удалить"}
             </button>
             <div style={exSh.divider} />
             <button
@@ -960,10 +963,31 @@ const s: Record<string, CSSProperties> = {
     color: "rgba(15,23,42,0.62)", lineHeight: 1.5,
   },
   resetBtn: {
-    border: "none", borderRadius: 14, padding: "12px 18px",
-    fontSize: 14, fontWeight: 600, cursor: "pointer",
-    background: "rgba(239,68,68,0.12)", color: "#b91c1c",
+    alignSelf: "flex-start",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 12,
+    height: 50,
+    padding: "0 14px",
+    borderRadius: 999,
+    border: "1px solid rgba(239,68,68,0.18)",
+    background: "rgba(239,68,68,0.12)",
+    color: "#b91c1c",
+    fontWeight: 500,
+    fontSize: 18,
+    cursor: "pointer",
     transition: "opacity 0.2s ease",
     marginTop: 4,
+  },
+  resetBtnIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: "rgba(239,68,68,0.10)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -8,
+    boxShadow: "inset 0 2px 3px rgba(185,28,28,0.12), inset 0 -1px 0 rgba(255,255,255,0.6)",
   },
 };

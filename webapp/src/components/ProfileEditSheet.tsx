@@ -156,7 +156,7 @@ function getDisplayValue(summary: any, section: string, field: FieldDef): string
   const val = getFieldValue(summary, section, field.key);
   if (field.type === "multi-select") {
     const arr = Array.isArray(val) ? val : [];
-    return arr.length > 0 ? arr.join(", ") : "—";
+    return arr.length > 0 ? arr.join(", ") : "Нет";
   }
   if (field.type === "number") {
     if (val === "" || val === null || val === undefined) return "—";

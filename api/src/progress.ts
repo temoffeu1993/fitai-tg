@@ -1062,9 +1062,15 @@ progress.post(
         `INSERT INTO body_measurements (user_id, recorded_at, chest_cm, waist_cm, hips_cm, bicep_left_cm, bicep_right_cm, neck_cm, thigh_cm, notes)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (user_id, recorded_at)
-         DO UPDATE SET chest_cm=EXCLUDED.chest_cm, waist_cm=EXCLUDED.waist_cm, hips_cm=EXCLUDED.hips_cm,
-           bicep_left_cm=EXCLUDED.bicep_left_cm, bicep_right_cm=EXCLUDED.bicep_right_cm,
-           neck_cm=EXCLUDED.neck_cm, thigh_cm=EXCLUDED.thigh_cm, notes=EXCLUDED.notes`,
+         DO UPDATE SET
+           chest_cm=COALESCE(EXCLUDED.chest_cm, body_measurements.chest_cm),
+           waist_cm=COALESCE(EXCLUDED.waist_cm, body_measurements.waist_cm),
+           hips_cm=COALESCE(EXCLUDED.hips_cm, body_measurements.hips_cm),
+           bicep_left_cm=COALESCE(EXCLUDED.bicep_left_cm, body_measurements.bicep_left_cm),
+           bicep_right_cm=COALESCE(EXCLUDED.bicep_right_cm, body_measurements.bicep_right_cm),
+           neck_cm=COALESCE(EXCLUDED.neck_cm, body_measurements.neck_cm),
+           thigh_cm=COALESCE(EXCLUDED.thigh_cm, body_measurements.thigh_cm),
+           notes=COALESCE(EXCLUDED.notes, body_measurements.notes)`,
         [userId, iso, num(p.chest_cm), num(p.waist_cm), num(p.hips_cm), num(p.bicep_left_cm), num(p.bicep_right_cm), num(p.neck_cm), num(p.thigh_cm), notes]
       );
     } catch {
