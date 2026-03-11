@@ -115,9 +115,20 @@ export type ProgressSummaryV2 = Omit<ProgressSummary, "achievements"> & {
     weightDelta: number | null;
     weightSeries: Array<{ date: string; weight: number }>;
     bmi: number | null;
+    heightCm: number | null;
     measurements: {
       latest: BodyMeasurement | null;
       deltaFromFirst: Partial<Omit<BodyMeasurement, "recorded_at" | "notes">> | null;
+      series: Array<{
+        date: string;
+        chest_cm: number | null;
+        waist_cm: number | null;
+        hips_cm: number | null;
+        bicep_left_cm: number | null;
+        bicep_right_cm: number | null;
+        neck_cm: number | null;
+        thigh_cm: number | null;
+      }>;
     };
   };
 

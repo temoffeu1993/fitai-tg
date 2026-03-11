@@ -372,20 +372,25 @@ progress.get(
     // Body measurements
     let latestMeasurements: any | null = null;
     let firstMeasurements: any | null = null;
+    let measurementSeries: any[] = [];
     try {
-      const [latestRow] = await q<any>(
-        `SELECT chest_cm, waist_cm, hips_cm, bicep_left_cm, bicep_right_cm, neck_cm, thigh_cm, recorded_at::text, notes FROM body_measurements WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 1`,
+      const allRows = await q<any>(
+        `SELECT chest_cm, waist_cm, hips_cm, bicep_left_cm, bicep_right_cm, neck_cm, thigh_cm, recorded_at::text, notes
+         FROM body_measurements WHERE user_id = $1 ORDER BY recorded_at ASC`,
         [userId]
       );
-      latestMeasurements = latestRow ?? null;
-
-      if (latestMeasurements) {
-        const [firstRow] = await q<any>(
-          `SELECT chest_cm, waist_cm, hips_cm, bicep_left_cm, bicep_right_cm, neck_cm, thigh_cm, recorded_at::text FROM body_measurements WHERE user_id = $1 ORDER BY recorded_at ASC LIMIT 1`,
-          [userId]
-        );
-        firstMeasurements = firstRow ?? null;
-      }
+      measurementSeries = allRows.map((r: any) => ({
+        date: r.recorded_at,
+        chest_cm: toNumberBe(r.chest_cm),
+        waist_cm: toNumberBe(r.waist_cm),
+        hips_cm: toNumberBe(r.hips_cm),
+        bicep_left_cm: toNumberBe(r.bicep_left_cm),
+        bicep_right_cm: toNumberBe(r.bicep_right_cm),
+        neck_cm: toNumberBe(r.neck_cm),
+        thigh_cm: toNumberBe(r.thigh_cm),
+      }));
+      latestMeasurements = allRows.length > 0 ? allRows[allRows.length - 1] : null;
+      firstMeasurements = allRows.length > 1 ? allRows[0] : null;
     } catch { /* table may not exist yet */ }
 
     let deltaFromFirst: any | null = null;
@@ -953,9 +958,11 @@ progress.get(
         weightDelta: weightDelta30d,
         weightSeries,
         bmi,
+        heightCm: onboardingHeight,
         measurements: {
           latest: latestMeasurements,
           deltaFromFirst,
+          series: measurementSeries,
         },
       },
       volumeTrend: {

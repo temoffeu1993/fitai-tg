@@ -1,8 +1,8 @@
 // Progress — product-ready, beginner-friendly
-import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getProgressSummary, saveBodyMetric,
+  getProgressSummary, saveBodyMetric, saveMeasurements,
   readProgressCache, type ProgressSummaryV2,
 } from "@/api/progress";
 import NavBar from "@/components/NavBar";
@@ -943,97 +943,703 @@ function WeightSparkline({ series }: { series: Array<{ date: string; weight: num
 
 type WeightPayload = { weight: number; recordedAt: string; notes?: string };
 
-function BodySection({
-  body, onAddWeight,
-}: {
-  body: ProgressSummaryV2["body"];
-  onAddWeight: () => void;
-}) {
+// ─── Mini sparkline for small cards ──────────────────────────────────────────
+
+function MiniSparkline({ values, color = "#1e1f22" }: { values: number[]; color?: string }) {
+  if (values.length < 2) return null;
+  const W = 120, H = 32;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * (W - 4) + 2;
+    const y = H - 4 - ((v - min) / range) * (H - 8);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", marginTop: 8 }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+    </svg>
+  );
+}
+
+// ─── Weight + BMI side-by-side ───────────────────────────────────────────────
+
+function WeightBmiRow({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
   const w = body.currentWeight;
-
-  if (w == null) {
-    return (
-      <Card className="fade6">
-        <SectionTitle icon={<Scale size={17} color="#0f172a" strokeWidth={2.5} />} title="Твой вес" />
-        <p style={{ margin: "0 0 14px", fontSize: 13, color: "rgba(15,23,42,0.55)", lineHeight: 1.5 }}>
-          Запиши вес сегодня — Моро начнёт отслеживать твой прогресс.
-        </p>
-        <button style={s.darkBtn} onClick={() => { fireHaptic("light"); onAddWeight(); }}>+ Записать вес</button>
-      </Card>
-    );
-  }
-
+  const bmi = body.bmi;
   const delta = body.weightDelta;
   const fromOnboarding = body.weightSource === "onboarding";
+  const weightValues = (body.weightSeries ?? []).map((p) => p.weight);
+  const heightM = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
+  const bmiValues = heightM != null ? weightValues.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
 
   return (
-    <Card className="fade6">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Scale size={17} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Твой вес</span>
+    <div className="fade6" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      {/* Weight card */}
+      <div style={{ ...s.card, position: "relative", padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Scale size={15} color="#0f172a" strokeWidth={2.5} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>Вес</span>
+          </div>
+          <button
+            onClick={() => { fireHaptic("light"); onAddWeight(); }}
+            style={{
+              border: "none", background: "rgba(15,23,42,0.06)", borderRadius: 999,
+              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", fontSize: 18, fontWeight: 500, color: "#0f172a", lineHeight: 1,
+            }}
+          >+</button>
         </div>
-        <button style={s.outlineBtn} onClick={() => { fireHaptic("light"); onAddWeight(); }}>+ Записать</button>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-        <span style={{ fontSize: 38, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-          {Number(w).toFixed(1)}
-        </span>
-        <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>кг</span>
-        {delta != null && delta !== 0 && !fromOnboarding && (
-          <span style={{ fontSize: 13, fontWeight: 700, color: delta < 0 ? "#16A34A" : "#EF4444", position: "relative", top: -6 }}>
-            {delta > 0 ? "+" : ""}{delta.toFixed(1)} кг
-          </span>
+        {w != null ? (
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 8 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                {Number(w).toFixed(1)}
+              </span>
+              <span style={{ fontSize: 13, color: "rgba(15,23,42,0.45)" }}>кг</span>
+            </div>
+            {delta != null && delta !== 0 && !fromOnboarding && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: delta < 0 ? "#16A34A" : "#EF4444", marginTop: 2, display: "inline-block" }}>
+                {delta > 0 ? "+" : ""}{delta.toFixed(1)} кг
+              </span>
+            )}
+            {fromOnboarding && (
+              <span style={{ fontSize: 11, color: "rgba(15,23,42,0.38)", marginTop: 2, display: "block" }}>из анкеты</span>
+            )}
+            <MiniSparkline values={weightValues} />
+          </>
+        ) : (
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>
+            Нажмите +, чтобы записать вес
+          </p>
         )}
       </div>
 
-      {fromOnboarding && (
-        <p style={{ margin: "8px 0 0", fontSize: 12, color: "rgba(15,23,42,0.42)", lineHeight: 1.4 }}>
-          Из анкеты — запиши текущий вес для точного отслеживания
-        </p>
-      )}
+      {/* BMI card */}
+      <div style={{ ...s.card, padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Weight size={15} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>BMI</span>
+        </div>
+        {bmi != null ? (
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 8 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                {bmi.toFixed(1)}
+              </span>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: bmi < 18.5 ? "#3b82f6" : bmi < 25 ? "#16A34A" : bmi < 30 ? "#f59e0b" : "#EF4444", marginTop: 2, display: "inline-block" }}>
+              {bmi < 18.5 ? "Недовес" : bmi < 25 ? "Норма" : bmi < 30 ? "Избыток" : "Ожирение"}
+            </span>
+            <MiniSparkline values={bmiValues} color={bmi < 25 ? "#16A34A" : "#f59e0b"} />
+          </>
+        ) : (
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>
+            {body.heightCm == null ? "Укажите рост в анкете" : "Запишите вес для расчёта"}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
-      <WeightSparkline series={body.weightSeries ?? []} />
+// ─── Measurements section ────────────────────────────────────────────────────
+
+type MeasurementField = "chest_cm" | "waist_cm" | "hips_cm" | "bicep_left_cm" | "bicep_right_cm" | "neck_cm" | "thigh_cm";
+const MEASUREMENT_OPTIONS: { key: MeasurementField; label: string }[] = [
+  { key: "chest_cm", label: "Грудь" },
+  { key: "waist_cm", label: "Талия" },
+  { key: "hips_cm", label: "Бёдра" },
+  { key: "bicep_left_cm", label: "Бицепс Л" },
+  { key: "bicep_right_cm", label: "Бицепс П" },
+  { key: "neck_cm", label: "Шея" },
+  { key: "thigh_cm", label: "Бедро" },
+];
+
+type MeasPeriod = "30d" | "90d" | "year";
+const MEAS_PERIOD_OPTIONS: { key: MeasPeriod; label: string; days: number }[] = [
+  { key: "30d", label: "30д", days: 30 },
+  { key: "90d", label: "90д", days: 90 },
+  { key: "year", label: "Год", days: 365 },
+];
+
+function MeasurementChart({ points }: { points: Array<{ date: string; value: number }> }) {
+  if (points.length < 2) return null;
+  const W = 300, H = 120;
+  const padX = 6, padY = 10;
+  const values = points.map((p) => p.value);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+  const coords = values.map((v, i) => ({
+    x: padX + (i / (values.length - 1)) * (W - padX * 2),
+    y: padY + (1 - (v - minV) / range) * (H - padY * 2),
+  }));
+  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 120, display: "block", overflow: "visible" }}>
+      <defs>
+        <linearGradient id="measChartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(30,31,34,0.15)" />
+          <stop offset="100%" stopColor="rgba(30,31,34,0)" />
+        </linearGradient>
+      </defs>
+      <polygon points={polygonPts} fill="url(#measChartGrad)" />
+      <polyline points={polyline} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 3} fill={i === coords.length - 1 ? "#1e1f22" : "#3a3b40"} />
+      ))}
+    </svg>
+  );
+}
+
+function MeasurementsSection({ body, onAddMeasurement }: {
+  body: ProgressSummaryV2["body"];
+  onAddMeasurement: () => void;
+}) {
+  const series = body.measurements?.series ?? [];
+
+  // Find first field with data
+  const firstFieldWithData = MEASUREMENT_OPTIONS.find((opt) =>
+    series.some((row) => row[opt.key] != null)
+  )?.key ?? "chest_cm";
+
+  const [selectedField, setSelectedField] = useState<MeasurementField>(firstFieldWithData);
+  const [period, setPeriod] = useState<MeasPeriod>("year");
+
+  // Extract points for selected field
+  const allPoints = series
+    .filter((row) => row[selectedField] != null)
+    .map((row) => ({ date: row.date, value: row[selectedField] as number }));
+
+  const cutoff = new Date();
+  const periodDays = MEAS_PERIOD_OPTIONS.find((o) => o.key === period)!.days;
+  cutoff.setDate(cutoff.getDate() - periodDays);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  let effectivePeriod = period;
+  let filteredPoints = allPoints.filter((p) => p.date >= cutoffStr);
+
+  if (filteredPoints.length < 2) {
+    const wider = MEAS_PERIOD_OPTIONS.find((o) => {
+      const c2 = new Date();
+      c2.setDate(c2.getDate() - o.days);
+      return allPoints.filter((p) => p.date >= c2.toISOString().slice(0, 10)).length >= 2;
+    });
+    if (wider) {
+      effectivePeriod = wider.key;
+      const c2 = new Date();
+      c2.setDate(c2.getDate() - wider.days);
+      filteredPoints = allPoints.filter((p) => p.date >= c2.toISOString().slice(0, 10));
+    } else {
+      effectivePeriod = "year";
+      filteredPoints = allPoints;
+    }
+  }
+
+  const lastVal = filteredPoints.length > 0 ? filteredPoints[filteredPoints.length - 1].value : null;
+  const firstVal = filteredPoints.length > 1 ? filteredPoints[0].value : null;
+  let deltaCm: number | null = null;
+  if (lastVal != null && firstVal != null) {
+    deltaCm = Number((lastVal - firstVal).toFixed(1));
+  }
+
+  const hasAnyData = series.length > 0;
+
+  return (
+    <Card className="fade6">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Target size={18} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Объёмы тела</span>
+        </div>
+        <button
+          onClick={() => { fireHaptic("light"); onAddMeasurement(); }}
+          style={{
+            border: "none", background: "rgba(15,23,42,0.06)", borderRadius: 999,
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", fontSize: 20, fontWeight: 500, color: "#0f172a", lineHeight: 1,
+          }}
+        >+</button>
+      </div>
+
+      {!hasAnyData ? (
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(15,23,42,0.55)", lineHeight: 1.5 }}>
+          Записывайте замеры тела — здесь появится график изменений
+        </p>
+      ) : (
+        <>
+          {/* Period chips */}
+          <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
+            {MEAS_PERIOD_OPTIONS.map((opt) => {
+              const active = effectivePeriod === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
+                  style={{
+                    border: "none", borderRadius: 999, padding: "5px 12px",
+                    fontSize: 13, fontWeight: 600, lineHeight: 1.45, cursor: "pointer",
+                    background: active ? "rgba(196,228,178,0.38)" : "transparent",
+                    boxShadow: active ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)" : "none",
+                    color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
+                    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+                  }}
+                >{opt.label}</button>
+              );
+            })}
+          </div>
+
+          {/* Chart */}
+          {filteredPoints.length >= 2 ? (
+            <MeasurementChart points={filteredPoints} />
+          ) : (
+            <p style={{ margin: "0 0 10px", fontSize: 13, color: "rgba(15,23,42,0.45)" }}>
+              Недостаточно данных для графика — нужно минимум 2 замера
+            </p>
+          )}
+
+          {/* Measurement picker + value */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+            <select
+              value={selectedField}
+              onChange={(e) => setSelectedField(e.target.value as MeasurementField)}
+              style={{
+                flex: 1, appearance: "none", WebkitAppearance: "none",
+                border: "none", borderRadius: 12, padding: "8px 12px",
+                fontSize: 14, fontWeight: 600, color: "#0f172a",
+                background: GROOVE_BG, boxShadow: GROOVE_SHADOW, cursor: "pointer", outline: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30,
+              }}
+            >
+              {MEASUREMENT_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
+
+            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              {lastVal != null && (
+                <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
+                  {lastVal} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>см</span>
+                </span>
+              )}
+              {deltaCm != null && deltaCm !== 0 && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: deltaCm > 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
+                  {deltaCm > 0 ? "+" : ""}{deltaCm} см
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
 
-// ─── Weight Modal ─────────────────────────────────────────────────────────────
+// ─── Bottom Sheet wrapper ─────────────────────────────────────────────────────
+
+const SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const SHEET_ENTER = 380;
+const SHEET_EXIT = 260;
+
+function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  useLayoutEffect(() => {
+    document.body.style.overflow = "hidden";
+    const t = setTimeout(() => setEntered(true), 12);
+    return () => { document.body.style.overflow = ""; clearTimeout(t); };
+  }, []);
+
+  const requestClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setEntered(false);
+    setTimeout(onClose, SHEET_EXIT + 20);
+  };
+
+  return (
+    <>
+      <style>{`
+        .prog-sheet-list::-webkit-scrollbar { display: none; }
+      `}</style>
+      {/* Overlay */}
+      <div
+        onClick={requestClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 2400,
+          background: "rgba(10,16,28,0.52)",
+          opacity: entered && !closing ? 1 : 0,
+          transition: `opacity ${entered ? SHEET_ENTER : SHEET_EXIT}ms ease`,
+        }}
+      />
+      {/* Sheet */}
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2401,
+        borderRadius: "24px 24px 0 0",
+        background: "linear-gradient(180deg, #fff 0%, #f5f5fa 100%)",
+        boxShadow: "0 -8px 32px rgba(0,0,0,0.18)",
+        transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
+        transition: `transform ${entered && !closing ? SHEET_ENTER : SHEET_EXIT}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+        maxHeight: "85vh",
+        display: "flex", flexDirection: "column",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}>
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.15)" }} />
+        </div>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 20px 12px" }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{title}</h3>
+          <button style={s.closeBtn} onClick={requestClose}>✕</button>
+        </div>
+        {/* Content */}
+        <div style={{ flex: 1, overflow: "auto", padding: "0 20px 20px" }}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Horizontal weight scroller (adapted from OnbWeight) ─────────────────────
+
+const WT_MIN = 20, WT_MAX = 200, WT_ITEM_W = 12, WT_TICKS = 5;
+
+function WeightScroller({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const stopTimer = useRef<number>(0);
+  const suppressSync = useRef(false);
+  const lastTick = useRef<number | null>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || suppressSync.current) { suppressSync.current = false; return; }
+    const idx = (value - WT_MIN) * WT_TICKS;
+    list.scrollLeft = idx * WT_ITEM_W;
+    lastTick.current = Math.round(idx / WT_TICKS) * WT_TICKS;
+  }, [value]);
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const raw = Math.round(list.scrollLeft / WT_ITEM_W);
+    const major = Math.round(raw / WT_TICKS) * WT_TICKS;
+    if (lastTick.current !== major) { lastTick.current = major; fireHaptic("light"); }
+    clearTimeout(stopTimer.current);
+    stopTimer.current = window.setTimeout(() => {
+      const r = Math.round(list.scrollLeft / WT_ITEM_W);
+      const m = Math.round(r / WT_TICKS) * WT_TICKS;
+      const w = WT_MIN + m / WT_TICKS;
+      if (w >= WT_MIN && w <= WT_MAX) { suppressSync.current = true; onChange(w); }
+    }, 80);
+  };
+
+  const ticks = Array.from({ length: (WT_MAX - WT_MIN) * WT_TICKS + 1 }, (_, i) => ({
+    index: i, value: WT_MIN + i / WT_TICKS, isMajor: i % WT_TICKS === 0,
+  }));
+
+  const trackW = WT_ITEM_W * WT_TICKS * 5;
+
+  return (
+    <div style={{
+      position: "relative", overflow: "hidden", borderRadius: 18, alignSelf: "center",
+      width: trackW,
+      border: "1px solid rgba(255,255,255,0.6)",
+      background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+      backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+      boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    }}>
+      {/* Indicator triangle */}
+      <div style={{
+        position: "absolute", left: "50%", top: 8, transform: "translateX(-50%)", pointerEvents: "none",
+        width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+        borderTop: "8px solid rgba(15,23,42,0.35)",
+      }} />
+      {/* Fades */}
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: WT_ITEM_W * WT_TICKS, background: "linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: WT_ITEM_W * WT_TICKS, background: "linear-gradient(270deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)", pointerEvents: "none", zIndex: 1 }} />
+      {/* Scrollable list */}
+      <div
+        ref={listRef}
+        className="prog-sheet-list"
+        onScroll={handleScroll}
+        style={{
+          overflowX: "auto", overflowY: "hidden", whiteSpace: "nowrap",
+          scrollSnapType: "x proximity", WebkitOverflowScrolling: "touch",
+          padding: "16px 0 20px",
+          paddingLeft: `calc(50% - ${WT_ITEM_W / 2}px)`,
+          paddingRight: `calc(50% - ${WT_ITEM_W / 2}px)`,
+          scrollbarWidth: "none",
+        }}
+      >
+        {ticks.map((t) => (
+          <button
+            key={t.index} type="button"
+            style={{
+              width: WT_ITEM_W, background: "transparent", display: "inline-flex",
+              flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
+              gap: 14, border: "none", cursor: "pointer", padding: 0,
+              scrollSnapAlign: t.isMajor ? "center" : "none",
+            }}
+            onClick={() => {
+              const m = Math.round(t.index / WT_TICKS) * WT_TICKS;
+              const w = WT_MIN + m / WT_TICKS;
+              if (w >= WT_MIN && w <= WT_MAX) { suppressSync.current = true; onChange(w); listRef.current?.scrollTo({ left: m * WT_ITEM_W, behavior: "smooth" }); }
+            }}
+          >
+            <div style={{
+              fontSize: t.isMajor ? (value === t.value ? 22 : 18) : 0, height: 22,
+              color: value === t.value ? "#111" : "rgba(15,23,42,0.45)",
+              fontWeight: value === t.value ? 700 : 500,
+            }}>
+              {t.isMajor ? t.value : ""}
+            </div>
+            <div style={{ width: "100%", height: 18, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+              <span style={{
+                width: 2, borderRadius: 999,
+                height: t.isMajor ? 22 : 12,
+                background: value === t.value ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.35)",
+              }} />
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Vertical cm scroller (adapted from OnbHeight) ───────────────────────────
+
+const CM_MIN = 20, CM_MAX = 200, CM_ITEM_H = 12, CM_TICKS = 5;
+const CM_EDGE = CM_ITEM_H * CM_TICKS * 2 - CM_ITEM_H / 2;
+
+function CmScroller({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const stopTimer = useRef<number>(0);
+  const suppressSync = useRef(false);
+  const lastTop = useRef(0);
+  const lastTick = useRef<number | null>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || suppressSync.current) { suppressSync.current = false; return; }
+    const idx = (value - CM_MIN) * CM_TICKS;
+    list.scrollTop = idx * CM_ITEM_H;
+    lastTick.current = Math.round(idx / CM_TICKS) * CM_TICKS;
+  }, [value]);
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    lastTop.current = list.scrollTop;
+    const raw = Math.round(list.scrollTop / CM_ITEM_H);
+    const major = Math.round(raw / CM_TICKS) * CM_TICKS;
+    if (lastTick.current !== major) { lastTick.current = major; fireHaptic("light"); }
+    clearTimeout(stopTimer.current);
+    const checkStop = () => {
+      const cur = list.scrollTop;
+      if (Math.abs(cur - lastTop.current) > 0.5) { lastTop.current = cur; stopTimer.current = window.setTimeout(checkStop, 80); return; }
+      const r = Math.round(cur / CM_ITEM_H);
+      const m = Math.round(r / CM_TICKS) * CM_TICKS;
+      const v = CM_MIN + m / CM_TICKS;
+      if (v >= CM_MIN && v <= CM_MAX) { suppressSync.current = true; onChange(v); }
+    };
+    stopTimer.current = window.setTimeout(checkStop, 80);
+  };
+
+  const ticks = Array.from({ length: (CM_MAX - CM_MIN) * CM_TICKS + 1 }, (_, i) => ({
+    index: i, value: CM_MIN + i / CM_TICKS, isMajor: i % CM_TICKS === 0,
+  }));
+
+  return (
+    <div style={{
+      position: "relative", overflow: "hidden", borderRadius: 18, alignSelf: "center",
+      width: "min(140px, 36vw)", height: CM_ITEM_H * CM_TICKS * 4,
+      border: "1px solid rgba(255,255,255,0.6)",
+      background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+      backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+      boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    }}>
+      {/* Indicator arrow */}
+      <div style={{
+        position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)", pointerEvents: "none",
+        width: 0, height: 0, borderTop: "6px solid transparent", borderBottom: "6px solid transparent",
+        borderLeft: "8px solid rgba(15,23,42,0.35)",
+      }} />
+      {/* Fades */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: CM_ITEM_H * CM_TICKS * 2, background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: CM_ITEM_H * CM_TICKS * 2, background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)", pointerEvents: "none", zIndex: 1 }} />
+      {/* Scrollable list */}
+      <div
+        ref={listRef}
+        className="prog-sheet-list"
+        onScroll={handleScroll}
+        style={{
+          maxHeight: "100%", overflowY: "auto", overflowX: "hidden",
+          scrollSnapType: "y proximity", scrollbarWidth: "none",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        <div style={{ height: CM_EDGE }} />
+        {ticks.map((t) => (
+          <button
+            key={t.index} type="button"
+            style={{
+              border: "none", background: "transparent", height: CM_ITEM_H,
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", gap: 6,
+              scrollSnapAlign: t.isMajor ? "center" : "none",
+            }}
+            onClick={() => {
+              const m = Math.round(t.index / CM_TICKS) * CM_TICKS;
+              const v = CM_MIN + m / CM_TICKS;
+              if (v >= CM_MIN && v <= CM_MAX) { suppressSync.current = true; onChange(v); listRef.current?.scrollTo({ top: m * CM_ITEM_H, behavior: "smooth" }); }
+            }}
+          >
+            <div style={{
+              minWidth: 36, textAlign: "right",
+              fontSize: value === t.value ? 22 : (t.isMajor ? 18 : 0),
+              color: value === t.value ? "#111" : (t.isMajor ? "rgba(15,23,42,0.45)" : "transparent"),
+              fontWeight: value === t.value ? 700 : 500,
+            }}>
+              {t.isMajor ? t.value : ""}
+            </div>
+            <div style={{ width: 36, height: 12, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+              <span style={{
+                height: 2, borderRadius: 999,
+                width: t.isMajor ? 22 : 12,
+                background: value === t.value ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.35)",
+              }} />
+            </div>
+          </button>
+        ))}
+        <div style={{ height: CM_EDGE }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Weight Bottom Sheet ─────────────────────────────────────────────────────
 
 function WeightModal({ onClose, onSave }: { onClose: () => void; onSave: (p: WeightPayload) => Promise<void> }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [weight, setWeight] = useState("");
+  const [weight, setWeight] = useState(75);
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    const num = Number(weight.replace(",", "."));
-    if (!Number.isFinite(num) || num <= 0) { alert("Введи корректный вес"); return; }
     setSaving(true);
-    await onSave({ recordedAt: date, weight: num });
+    await onSave({ recordedAt: new Date().toISOString().slice(0, 10), weight });
     setSaving(false);
   };
 
   return (
-    <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={s.modalCard}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Записать вес</h3>
-          <button style={s.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <label style={s.field}>
-          <span style={s.fieldLabel}>Дата</span>
-          <input style={s.input} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        <label style={s.field}>
-          <span style={s.fieldLabel}>Вес (кг)</span>
-          <input style={s.input} type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Например, 78.5" />
-        </label>
-        <button style={s.saveBtn} onClick={submit} disabled={saving}>
-          {saving ? "Сохраняем..." : "Сохранить"}
-        </button>
+    <BottomSheet title="Записать вес" onClose={onClose}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16 }}>
+        <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{weight}</span>
+        <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>кг</span>
       </div>
-    </div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+        <WeightScroller value={weight} onChange={setWeight} />
+      </div>
+      <button style={s.saveBtn} onClick={submit} disabled={saving}>
+        {saving ? "Сохраняем..." : "Сохранить"}
+      </button>
+    </BottomSheet>
+  );
+}
+
+// ─── Measurement Bottom Sheet ────────────────────────────────────────────────
+
+type MeasurementPayload = {
+  recordedAt: string;
+  chest_cm?: number;
+  waist_cm?: number;
+  hips_cm?: number;
+  bicep_left_cm?: number;
+  bicep_right_cm?: number;
+  neck_cm?: number;
+  thigh_cm?: number;
+};
+
+const MEAS_FIELDS: { key: keyof Omit<MeasurementPayload, "recordedAt">; label: string }[] = [
+  { key: "chest_cm", label: "Грудь" },
+  { key: "waist_cm", label: "Талия" },
+  { key: "hips_cm", label: "Бёдра" },
+  { key: "bicep_left_cm", label: "Бицепс Л" },
+  { key: "bicep_right_cm", label: "Бицепс П" },
+  { key: "neck_cm", label: "Шея" },
+  { key: "thigh_cm", label: "Бедро" },
+];
+
+function MeasurementModal({ onClose, onSave }: { onClose: () => void; onSave: (p: MeasurementPayload) => Promise<void> }) {
+  const [activeField, setActiveField] = useState<keyof Omit<MeasurementPayload, "recordedAt">>("chest_cm");
+  const [values, setValues] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
+
+  const currentVal = values[activeField] ?? 80;
+
+  const submit = async () => {
+    if (Object.keys(values).length === 0) { alert("Выберите хотя бы один замер"); return; }
+    setSaving(true);
+    const payload: MeasurementPayload = { recordedAt: new Date().toISOString().slice(0, 10), ...values };
+    await onSave(payload);
+    setSaving(false);
+  };
+
+  return (
+    <BottomSheet title="Записать замеры" onClose={onClose}>
+      {/* Field chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+        {MEAS_FIELDS.map((f) => {
+          const active = activeField === f.key;
+          const hasValue = values[f.key] != null;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => { fireHaptic("light"); setActiveField(f.key); }}
+              style={{
+                border: "none", borderRadius: 999,
+                padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: active ? "rgba(196,228,178,0.38)" : hasValue ? "rgba(15,23,42,0.06)" : GROOVE_BG,
+                boxShadow: active ? "inset 0 2px 3px rgba(78,122,58,0.08)" : hasValue ? "none" : GROOVE_SHADOW,
+                color: active ? "#2a5218" : hasValue ? "#0f172a" : "rgba(15,23,42,0.55)",
+                transition: "all 200ms ease",
+              }}
+            >
+              {f.label}{hasValue ? ` ${values[f.key]}` : ""}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Value display */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16 }}>
+        <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{currentVal}</span>
+        <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>см</span>
+      </div>
+
+      {/* Scroller */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+        <CmScroller
+          value={currentVal}
+          onChange={(v) => setValues((prev) => ({ ...prev, [activeField]: v }))}
+        />
+      </div>
+
+      <button style={s.saveBtn} onClick={submit} disabled={saving}>
+        {saving ? "Сохраняем..." : `Сохранить (${Object.keys(values).length})`}
+      </button>
+    </BottomSheet>
   );
 }
 
@@ -1057,6 +1663,7 @@ export default function Progress() {
   const [loading, setLoading] = useState(summary === null);
   const [error, setError] = useState<string | null>(null);
   const [showWeight, setShowWeight] = useState(false);
+  const [showMeasurement, setShowMeasurement] = useState(false);
 
   useEffect(() => {
     fireHaptic("light");
@@ -1153,7 +1760,10 @@ export default function Progress() {
         <AchievementsSection achievements={achievements} />
 
         {summary.body && (
-          <BodySection body={summary.body} onAddWeight={() => setShowWeight(true)} />
+          <>
+            <WeightBmiRow body={summary.body} onAddWeight={() => setShowWeight(true)} />
+            <MeasurementsSection body={summary.body} onAddMeasurement={() => setShowMeasurement(true)} />
+          </>
         )}
 
         <div style={{ height: 88 }} />
@@ -1168,6 +1778,18 @@ export default function Progress() {
             await saveBodyMetric(payload);
             fireHaptic("medium");
             setShowWeight(false);
+            void load();
+          }}
+        />
+      )}
+
+      {showMeasurement && (
+        <MeasurementModal
+          onClose={() => setShowMeasurement(false)}
+          onSave={async (payload) => {
+            await saveMeasurements(payload);
+            fireHaptic("medium");
+            setShowMeasurement(false);
             void load();
           }}
         />
