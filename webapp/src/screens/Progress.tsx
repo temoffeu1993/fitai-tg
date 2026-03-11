@@ -9,7 +9,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Calendar, Plus, ChevronLeft, Scale, Ruler } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Calendar, Plus, ArrowLeft, Scale, Ruler } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -977,9 +977,32 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
         )}
       </div>
       {/* Save button */}
-      <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
-        {saving ? "Сохраняем..." : "Сохранить"}
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "24px 0 4px", flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 12,
+            height: 50, padding: "0 14px", borderRadius: 999,
+            border: "1px solid #1e1f22", background: "#1e1f22", color: "#fff",
+            cursor: "pointer", fontSize: 18, fontWeight: 500, whiteSpace: "nowrap",
+            opacity: saving ? 0.5 : 1,
+          }}
+        >
+          <span style={{ fontSize: 18, fontWeight: 500, lineHeight: 1, color: "#fff" }}>
+            {saving ? "Сохраняем..." : "Сохранить"}
+          </span>
+          <span style={{
+            width: 34, height: 34, borderRadius: 999,
+            background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            marginRight: -8, color: "#0f172a",
+          }}>
+            <span style={{ fontSize: 18, lineHeight: 1, color: "#1e1f22", fontWeight: 700, textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)" }}>✓</span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 
@@ -1021,10 +1044,23 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
           {page === "input" ? (
-            <button type="button" onClick={goBack} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
-              <ChevronLeft size={20} strokeWidth={2.2} color="#0f172a" />
-              <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{inputOpt.label}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Назад"
+                style={{
+                  width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  border: "none", background: "transparent", borderRadius: 999,
+                  color: "rgba(15,23,42,0.62)", cursor: "pointer", padding: 0, flexShrink: 0,
+                }}
+              >
+                <ArrowLeft size={18} strokeWidth={2.2} />
+              </button>
+              <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
+                {inputOpt.label}
+              </div>
+            </>
           ) : (
             <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
               Моя форма
