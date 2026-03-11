@@ -269,7 +269,7 @@ function ActivitySection({ activity }: { activity?: ProgressSummaryV2["activity"
             textAlign: "center", padding: 20,
           }}>
             <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
-              84&nbsp;клетки — 12&nbsp;недель вашего ритма.<br /><br />Завершите первую тренировку, и&nbsp;сетка начнёт заполняться цветом
+              Здесь будет видно, как&nbsp;часто и&nbsp;в&nbsp;какое время дня вы&nbsp;тренируетесь.<br /><br />Завершите первую тренировку, и&nbsp;картина начнёт проявляться
             </span>
           </div>
         </div>
@@ -479,7 +479,7 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent?: ProgressSummaryV2
             textAlign: "center", padding: 20,
           }}>
             <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
-              Каждая тренировка — мазок на&nbsp;карте вашего тела.<br /><br />Завершите первую тренировку, и&nbsp;мы&nbsp;покажем, какие мышцы получают больше внимания
+              Каждая тренировка — отпечаток на&nbsp;карте вашего тела.<br /><br />Завершите первую тренировку, и&nbsp;мы&nbsp;покажем, какие мышцы получают больше внимания
             </span>
           </div>
         </div>
