@@ -947,11 +947,18 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
                     {dateText}
                   </span>
                 </div>
-                <Plus
-                  size={18} strokeWidth={2} color="#1e1f22"
-                  style={{ cursor: "pointer", flexShrink: 0 }}
+                <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); fireHaptic("light"); openInput(opt.key); }}
-                />
+                  style={{
+                    border: "none", background: "none", cursor: "pointer",
+                    padding: 10, margin: -10, flexShrink: 0,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <Plus size={18} strokeWidth={2} color="#1e1f22" />
+                </button>
               </div>
             </div>
           </Fragment>
