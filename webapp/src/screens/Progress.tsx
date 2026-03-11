@@ -925,7 +925,7 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
             textAlign: "center", padding: 20,
           }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
-              Запишите данные — здесь появится график изменений
+              Весы, сантиметр и немного терпения. Записывайте вес и замеры — а я построю красивый график вашей трансформации
             </span>
           </div>
         </div>
