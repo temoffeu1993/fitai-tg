@@ -1798,7 +1798,7 @@ export default function Progress() {
           />
         )}
 
-        <div style={{ height: "calc(64px + env(safe-area-inset-bottom, 0px))" }} />
+        <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }} />
       </div>
 
       <NavBar current="none" onChange={nav} />
