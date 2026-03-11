@@ -1,12 +1,12 @@
 // webapp/src/screens/Profile.tsx — v2
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resetProfileRemote } from "@/api/profile";
 import { saveOnboarding } from "@/api/onboarding";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
 import { createPortal } from "react-dom";
-import { ClipboardList, Heart, Search, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
+import { ArrowLeft, ClipboardList, Heart, Ban, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 
 type Summary = any;
@@ -371,7 +371,7 @@ export default function Profile() {
             style={s.excludedHeaderBtn}
           >
             <div style={s.sectionHeader}>
-              <Search size={18} color="#0f172a" strokeWidth={2.5} />
+              <Ban size={18} color="#0f172a" strokeWidth={2.5} />
               <span style={s.sectionTitle}>Исключённые упражнения</span>
             </div>
             <span style={s.excludedArrow}>→</span>
@@ -432,8 +432,10 @@ export default function Profile() {
 
 const EX_SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
 const EX_SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const EX_SPRING_CONTENT = "cubic-bezier(0.36, 0.66, 0.04, 1)";
 const EX_ENTER_MS = 380;
 const EX_EXIT_MS = 260;
+const EX_CONTENT_ANIM_MS = 280;
 
 function ExcludedSheet({
   excluded, excludedLoading, excludedError,
@@ -454,6 +456,11 @@ function ExcludedSheet({
   const [entered, setEntered] = useState(false);
   const [closing, setClosing] = useState(false);
   const [animDone, setAnimDone] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<{ exerciseId: string; name: string } | null>(null);
+  const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
+  const [prevPage, setPrevPage] = useState<string | null>(null);
+  const [pageAnimating, setPageAnimating] = useState(false);
+  const pageTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const t1 = setTimeout(() => {
@@ -470,6 +477,22 @@ function ExcludedSheet({
     return () => { document.body.style.overflow = prev; };
   }, []);
 
+  useEffect(() => {
+    return () => { if (pageTimerRef.current != null) window.clearTimeout(pageTimerRef.current); };
+  }, []);
+
+  const goToPage = (direction: "forward" | "backward") => {
+    if (pageTimerRef.current != null) window.clearTimeout(pageTimerRef.current);
+    setPrevPage("snapshot");
+    setSlideDir(direction);
+    setPageAnimating(true);
+    pageTimerRef.current = window.setTimeout(() => {
+      setPrevPage(null);
+      setPageAnimating(false);
+      pageTimerRef.current = null;
+    }, EX_CONTENT_ANIM_MS + 20);
+  };
+
   const requestClose = () => {
     if (closing) return;
     setClosing(true);
@@ -478,7 +501,25 @@ function ExcludedSheet({
     setTimeout(onClose, EX_EXIT_MS + 20);
   };
 
+  const openConfirm = (ex: { exerciseId: string; name: string }) => {
+    setConfirmTarget(ex);
+    goToPage("forward");
+  };
+
+  const goBackToList = () => {
+    setConfirmTarget(null);
+    goToPage("backward");
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!confirmTarget) return;
+    await onRemove(confirmTarget.exerciseId);
+    goBackToList();
+  };
+
   const filtered = searchRes.filter((x) => !excluded.some((e) => e.exerciseId === x.exerciseId)).slice(0, 12);
+
+  const headerTitle = confirmTarget ? "Вернуть упражнение" : "Исключённые упражнения";
 
   return createPortal(
     <>
@@ -500,7 +541,8 @@ function ExcludedSheet({
           background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
           boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
           maxHeight: "85vh",
-          overflow: "hidden",
+          overflowY: "auto",
+          overflowX: "hidden",
           display: "flex",
           flexDirection: "column",
           padding: "0 16px 16px",
@@ -509,6 +551,13 @@ function ExcludedSheet({
           willChange: animDone ? "auto" : "transform",
         }}
       >
+        <style>{`
+          @keyframes exsh-in-right { from { opacity: 0; transform: translate3d(44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+          @keyframes exsh-in-left { from { opacity: 0; transform: translate3d(-44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+          @keyframes exsh-out-left { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(-44px, 0, 0); } }
+          @keyframes exsh-out-right { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(44px, 0, 0); } }
+        `}</style>
+
         {/* Grabber */}
         <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
           <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.18)" }} />
@@ -516,9 +565,24 @@ function ExcludedSheet({
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
-          <div style={{ width: 32, flexShrink: 0 }} />
+          {confirmTarget ? (
+            <button
+              type="button"
+              onClick={goBackToList}
+              aria-label="Назад"
+              style={{
+                width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.62)",
+                cursor: "pointer", padding: 0, flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.2} />
+            </button>
+          ) : (
+            <div style={{ width: 32, flexShrink: 0 }} />
+          )}
           <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" }}>
-            Исключённые упражнения
+            {headerTitle}
           </div>
           <button
             type="button"
@@ -534,59 +598,115 @@ function ExcludedSheet({
           </button>
         </div>
 
-        {/* Content */}
-        <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0 }}>
-          {/* Search */}
-          <div style={{ padding: "4px 2px 12px" }}>
-            <input
-              value={searchQ}
-              onChange={(e) => onSearch(e.target.value)}
-              placeholder="Найти упражнение…"
-              style={s.searchInput}
+        {/* Content with page animations */}
+        <div style={{ display: "grid", flex: 1, minHeight: 0 }}>
+          {pageAnimating && prevPage ? (
+            <div
+              style={{
+                gridArea: "1 / 1",
+                display: "flex",
+                flexDirection: "column" as const,
+                animation: `${slideDir === "forward" ? "exsh-out-left" : "exsh-out-right"} ${EX_CONTENT_ANIM_MS}ms ${EX_SPRING_CONTENT} both`,
+                pointerEvents: "none" as const,
+              }}
             />
-          </div>
+          ) : null}
+          <div
+            style={{
+              gridArea: "1 / 1",
+              display: "flex",
+              flexDirection: "column" as const,
+              ...(pageAnimating
+                ? { animation: `${slideDir === "forward" ? "exsh-in-right" : "exsh-in-left"} ${EX_CONTENT_ANIM_MS}ms ${EX_SPRING_CONTENT} both` }
+                : null),
+            }}
+          >
+            {!confirmTarget ? (
+              /* ── Page 1: List ── */
+              <div>
+                {/* Search */}
+                <div style={{ padding: "4px 2px 12px" }}>
+                  <input
+                    value={searchQ}
+                    onChange={(e) => onSearch(e.target.value)}
+                    placeholder="Найти упражнение…"
+                    style={s.searchInput}
+                  />
+                </div>
 
-          {searchLoading && <span style={{ ...s.muted, display: "block", padding: "0 2px 8px" }}>Поиск…</span>}
+                {searchLoading && <span style={{ ...s.muted, display: "block", padding: "0 2px 8px" }}>Поиск…</span>}
 
-          {excludedError && (
-            <div style={{ ...s.errorNote, marginBottom: 10 }}>{excludedError}</div>
-          )}
+                {excludedError && (
+                  <div style={{ ...s.errorNote, marginBottom: 10 }}>{excludedError}</div>
+                )}
 
-          {/* Search results */}
-          {filtered.map((x, idx) => (
-            <div key={x.exerciseId}>
-              {idx > 0 && <div style={exSh.divider} />}
-              <div style={exSh.row}>
-                <span style={exSh.name}>{x.name}</span>
-                <button type="button" style={s.exBtnAdd} onClick={() => void onAdd(x.exerciseId)}>
-                  Исключить
-                </button>
+                {/* Search results */}
+                {filtered.map((x, idx) => (
+                  <div key={x.exerciseId}>
+                    {idx > 0 && <div style={exSh.divider} />}
+                    <div style={exSh.row}>
+                      <span style={exSh.name}>{x.name}</span>
+                      <button type="button" style={s.exBtnAdd} onClick={() => void onAdd(x.exerciseId)}>
+                        Исключить
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {filtered.length > 0 && excluded.length > 0 && <div style={{ ...exSh.divider, margin: "6px 0" }} />}
+
+                {/* Excluded list */}
+                {excludedLoading ? (
+                  <span style={{ ...s.muted, display: "block", padding: "8px 2px" }}>Загружаю…</span>
+                ) : excluded.length === 0 ? (
+                  <div style={exSh.row}>
+                    <span style={{ ...exSh.name, color: "rgba(15,23,42,0.45)" }}>Пока пусто</span>
+                  </div>
+                ) : (
+                  excluded.slice(0, 80).map((x, idx) => (
+                    <div key={x.exerciseId}>
+                      {idx > 0 && <div style={exSh.divider} />}
+                      <div style={exSh.row}>
+                        <span style={exSh.name}>{x.name}</span>
+                        <button
+                          type="button"
+                          aria-label="Убрать из исключённых"
+                          style={exSh.removeXBtn}
+                          onClick={() => openConfirm(x)}
+                        >
+                          <X size={16} strokeWidth={2.2} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            </div>
-          ))}
-
-          {filtered.length > 0 && excluded.length > 0 && <div style={{ ...exSh.divider, margin: "6px 0" }} />}
-
-          {/* Excluded list */}
-          {excludedLoading ? (
-            <span style={{ ...s.muted, display: "block", padding: "8px 2px" }}>Загружаю…</span>
-          ) : excluded.length === 0 ? (
-            <div style={exSh.row}>
-              <span style={{ ...exSh.name, color: "rgba(15,23,42,0.45)" }}>Пока пусто</span>
-            </div>
-          ) : (
-            excluded.slice(0, 80).map((x, idx) => (
-              <div key={x.exerciseId}>
-                {idx > 0 && <div style={exSh.divider} />}
-                <div style={exSh.row}>
-                  <span style={exSh.name}>{x.name}</span>
-                  <button type="button" style={s.exBtnRemove} onClick={() => void onRemove(x.exerciseId)}>
+            ) : (
+              /* ── Page 2: Confirm removal ── */
+              <div style={{ padding: "20px 8px", display: "flex", flexDirection: "column" as const, gap: 16 }}>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "rgba(15,23,42,0.7)", lineHeight: 1.45, textAlign: "center" }}>
+                  «{confirmTarget.name}» снова будет предлагаться в&nbsp;тренировках
+                </p>
+                <div style={{ display: "grid", gap: 0 }}>
+                  <button
+                    type="button"
+                    style={exSh.confirmBtn}
+                    onClick={() => void handleConfirmRemove()}
+                  >
                     Вернуть
+                  </button>
+                  <div style={exSh.divider} />
+                  <button
+                    type="button"
+                    style={exSh.cancelBtn}
+                    onClick={goBackToList}
+                  >
+                    Отмена
                   </button>
                 </div>
               </div>
-            ))
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>,
@@ -614,6 +734,21 @@ const exSh: Record<string, CSSProperties> = {
     height: 1,
     background: "rgba(15,23,42,0.06)",
     marginRight: -18,
+  },
+  removeXBtn: {
+    width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+    border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.45)",
+    cursor: "pointer", padding: 0, flexShrink: 0,
+  },
+  confirmBtn: {
+    padding: "14px 18px", border: "none", background: "transparent",
+    fontSize: 18, fontWeight: 500, color: "#b91c1c", cursor: "pointer",
+    textAlign: "left" as const,
+  },
+  cancelBtn: {
+    padding: "14px 18px", border: "none", background: "transparent",
+    fontSize: 18, fontWeight: 500, color: "#1e1f22", cursor: "pointer",
+    textAlign: "left" as const,
   },
 };
 

@@ -748,7 +748,7 @@ function SheetInner({
           >
             {!activeField ? (
               /* ── Page 1: Field list ── */
-              <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flexShrink: 1, minHeight: 0 }}>
+              <div>
                 {fields.map((field, idx) => (
                   <div key={field.key}>
                     {idx > 0 && <div style={sh.divider} />}
@@ -770,17 +770,12 @@ function SheetInner({
             ) : (
               /* ── Page 2: Edit field ── */
               <div style={{ display: "flex", flexDirection: "column" as const, flex: 1, minHeight: 0 }}>
-                <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0 }}>
+                <div>
                   {activeField.type === "number" ? (
-                    <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: "10px 0" }}>
-                      {/* Value label */}
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                        <span style={{ fontSize: 30, fontWeight: 700, color: "#111" }}>{editValue ?? "—"}</span>
-                        {activeField.suffix && (
-                          <span style={{ fontSize: 16, color: "rgba(15,23,42,0.7)" }}>{activeField.suffix}</span>
-                        )}
-                      </div>
-                      {/* Scroller */}
+                    <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: "10px 0 24px" }}>
+                      {activeField.suffix && (
+                        <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(15,23,42,0.55)" }}>{activeField.suffix}</span>
+                      )}
                       {activeField.key === "age" && (
                         <AgeScroller value={editValue} onChange={setEditValue} />
                       )}
