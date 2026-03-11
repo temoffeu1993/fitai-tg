@@ -305,7 +305,7 @@ export default function Profile() {
           </span>
           <span style={{ ...s.statChip, color: bmiColor }}>
             <Activity size={15} strokeWidth={2.2} color={bmiColor} />
-            {bmi ? `${bmi.toFixed(1)} ИМТ` : "—"}
+            {bmi ? `${bmi.toFixed(1)} имт` : "—"}
           </span>
         </div>
 
