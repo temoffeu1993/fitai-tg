@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Target, Trophy, Scale, Award, Check, Dumbbell, Zap } from "lucide-react";
+import { Clock3, Weight, Flame, Target, Trophy, Award, Check, Dumbbell, Zap } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -915,52 +915,55 @@ function AchievementsSection({ achievements }: { achievements: ProgressSummaryV2
   );
 }
 
-// ─── Mini sparkline ───────────────────────────────────────────────────────────
-
-// ─── Section: Вес и ИМТ ──────────────────────────────────────────────────────
+// ─── Section: Вес & ИМТ (two separate cards) ─────────────────────────────────
 
 type WeightPayload = { weight: number; recordedAt: string; notes?: string };
 
-/** Pad a short series with synthetic points so the chart always renders */
-function padSeries(values: number[], minPoints: number = 6): { v: number; real: boolean }[] {
-  if (values.length === 0) return [];
-  if (values.length >= minPoints) return values.map((v) => ({ v, real: true }));
-  // Generate gentle lead-in from slightly lower/higher values
-  const first = values[0];
-  const padCount = minPoints - values.length;
-  const drift = first * 0.03; // 3% variation
-  const padded: { v: number; real: boolean }[] = [];
-  for (let i = padCount; i > 0; i--) {
-    padded.push({ v: Number((first - drift * (i / padCount) * (0.7 + Math.random() * 0.6)).toFixed(1)), real: false });
-  }
-  for (const v of values) padded.push({ v, real: true });
-  return padded;
-}
-
-function BodyMetricChart({ series, unit, label, color, gradId }: {
-  series: { v: number; real: boolean }[];
-  unit: string;
-  label?: string;
+/** Tiny chart: real points only. Single point → dot with dissolving gradient. */
+function MetricMiniChart({ values, color, unit, gradId }: {
+  values: number[];
   color: string;
+  unit: string;
   gradId: string;
 }) {
-  if (series.length === 0) return null;
-  const W = 140, H = 70;
-  const padX = 4, padY = 14;
-  const values = series.map((p) => p.v);
+  if (values.length === 0) return null;
+  const W = 140, H = 64;
+  const padX = 8, padY = 16;
+
+  if (values.length === 1) {
+    // Single point: centred dot + value + dissolving gradient below
+    const cx = W / 2, cy = padY + 4;
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
+        <defs>
+          <radialGradient id={gradId} cx="50%" cy="0%" r="100%" fx="50%" fy="0%">
+            <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </radialGradient>
+        </defs>
+        {/* Dissolving gradient below the point */}
+        <ellipse cx={cx} cy={cy + 6} rx={42} ry={H - cy - 4} fill={`url(#${gradId})`} />
+        <circle cx={cx} cy={cy} r={4} fill={color} />
+        <text x={cx} y={cy - 8} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700, fill: color }}>
+          {fmtVal(values[0])}{unit}
+        </text>
+      </svg>
+    );
+  }
+
+  // Multi-point: line chart with gradient fill
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
   const range = maxV - minV || 1;
 
   const coords = values.map((v, i) => ({
-    x: padX + (i / Math.max(values.length - 1, 1)) * (W - padX * 2),
+    x: padX + (i / (values.length - 1)) * (W - padX * 2),
     y: padY + (1 - (v - minV) / range) * (H - padY * 2),
   }));
 
   const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
   const last = coords[coords.length - 1];
-  const lastVal = series[series.length - 1];
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
@@ -971,59 +974,35 @@ function BodyMetricChart({ series, unit, label, color, gradId }: {
         </linearGradient>
       </defs>
       <polygon points={polygonPts} fill={`url(#${gradId})`} />
-      {/* Faded line for synthetic points */}
-      <polyline points={polyline} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.5} />
-      {/* Real points with full opacity line */}
-      {(() => {
-        const realCoords = coords.filter((_, i) => series[i].real);
-        if (realCoords.length < 2) return null;
-        const realPts = realCoords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-        return <polyline points={realPts} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />;
-      })()}
-      {/* Last point dot */}
-      <circle cx={last.x} cy={last.y} r={3.5} fill={color} />
-      {/* Value label at last point */}
-      <text
-        x={last.x}
-        y={last.y - 7}
-        textAnchor="middle"
-        style={{ fontSize: 11, fontWeight: 700, fill: color }}
-      >
-        {Number.isInteger(lastVal.v) ? lastVal.v : lastVal.v.toFixed(1)}{unit}
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => (
+        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 2.5} fill={color} />
+      ))}
+      <text x={last.x} y={last.y - 8} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700, fill: color }}>
+        {fmtVal(values[values.length - 1])}{unit}
       </text>
-      {/* Bottom-left label */}
-      {label && (
-        <text x={2} y={H - 2} style={{ fontSize: 9, fontWeight: 600, fill: "rgba(15,23,42,0.35)" }}>
-          {label}
-        </text>
-      )}
     </svg>
   );
 }
 
-function WeightBmiSection({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
+function fmtVal(v: number) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+
+function bmiColor(bmi: number): string {
+  if (bmi < 18.5) return "#3b82f6";   // underweight — blue
+  if (bmi < 25) return "#16A34A";      // normal — green
+  if (bmi < 30) return "#f59e0b";      // overweight — amber
+  return "#EF4444";                     // obese — red
+}
+
+function WeightCard({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
   const w = body.currentWeight;
   const weightValues = (body.weightSeries ?? []).map((p) => p.weight);
-  // If no series but have current weight, use it as single point
-  const effectiveWeightValues = weightValues.length > 0 ? weightValues : (w != null ? [w] : []);
-  const weightSeries = padSeries(effectiveWeightValues);
-
-  const heightM = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
-  const bmiValues = heightM != null ? effectiveWeightValues.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
-  const bmiSeries = padSeries(bmiValues);
-  const bmi = body.bmi;
-
-  const bmiColor = bmi != null ? (bmi < 18.5 ? "#3b82f6" : bmi < 25 ? "#16A34A" : bmi < 30 ? "#f59e0b" : "#EF4444") : "#94a3b8";
-  const bmiLabel = bmi != null ? (bmi < 18.5 ? "Недовес" : bmi < 25 ? "Норма" : bmi < 30 ? "Избыток" : "Ожирение") : null;
+  const effective = weightValues.length > 0 ? weightValues : (w != null ? [w] : []);
 
   return (
-    <Card className="fade6">
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Scale size={18} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Вес и ИМТ</span>
-        </div>
+    <Card className="fade6" style={{ padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Вес</span>
         <button
           onClick={() => { fireHaptic("light"); onAddWeight(); }}
           style={{
@@ -1032,24 +1011,34 @@ function WeightBmiSection({ body, onAddWeight }: { body: ProgressSummaryV2["body
           }}
         >+</button>
       </div>
-
-      {w == null ? (
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(15,23,42,0.55)", lineHeight: 1.5 }}>
-          Запишите вес — здесь появится график изменений
-        </p>
+      {effective.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: heightM ? "1fr 1fr" : "1fr", gap: 8 }}>
-          {/* Weight chart */}
-          <div>
-            <BodyMetricChart series={weightSeries} unit=" кг" color="#1e1f22" gradId="wGrad" />
-          </div>
-          {/* BMI chart */}
-          {heightM && bmiSeries.length > 0 && (
-            <div>
-              <BodyMetricChart series={bmiSeries} unit="" label={bmiLabel ?? undefined} color={bmiColor} gradId="bGrad" />
-            </div>
-          )}
-        </div>
+        <MetricMiniChart values={effective} color="#1e1f22" unit=" кг" gradId="wGrad" />
+      )}
+    </Card>
+  );
+}
+
+function BmiCard({ body }: { body: ProgressSummaryV2["body"] }) {
+  const heightM = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
+  const weightValues = (body.weightSeries ?? []).map((p) => p.weight);
+  const w = body.currentWeight;
+  const effective = weightValues.length > 0 ? weightValues : (w != null ? [w] : []);
+
+  const bmiValues = heightM != null ? effective.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
+  const lastBmi = bmiValues.length > 0 ? bmiValues[bmiValues.length - 1] : null;
+  const color = lastBmi != null ? bmiColor(lastBmi) : "#94a3b8";
+
+  return (
+    <Card className="fade6" style={{ padding: 14 }}>
+      <div style={{ marginBottom: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>ИМТ</span>
+      </div>
+      {bmiValues.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
+      ) : (
+        <MetricMiniChart values={bmiValues} color={color} unit="" gradId="bGrad" />
       )}
     </Card>
   );
@@ -1771,7 +1760,10 @@ export default function Progress() {
 
         {summary.body && (
           <>
-            <WeightBmiSection body={summary.body} onAddWeight={() => setShowWeight(true)} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <WeightCard body={summary.body} onAddWeight={() => setShowWeight(true)} />
+              <BmiCard body={summary.body} />
+            </div>
             <MeasurementsSection body={summary.body} onAddMeasurement={() => setShowMeasurement(true)} />
           </>
         )}
