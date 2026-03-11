@@ -424,7 +424,7 @@ export default function Schedule() {
   const handleModalDetails = (workoutId?: string) => {
     let sessionId: string | null = null;
     if (workoutId) {
-      const w = planned.find((p) => p.id === workoutId);
+      const w = planned.find((p) => p.id === workoutId) || completedHistory.find((p) => p.id === workoutId);
       sessionId = w?.resultSessionId ? String(w.resultSessionId) : null;
     } else {
       sessionId = modal?.workout?.resultSessionId ? String(modal.workout.resultSessionId) : null;
