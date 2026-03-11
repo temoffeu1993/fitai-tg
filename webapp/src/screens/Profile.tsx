@@ -407,7 +407,7 @@ export default function Profile() {
           </button>
         </Card>
 
-        <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }} />
+        <div style={{ height: 8 }} />
       </div>
     </div>
   );
