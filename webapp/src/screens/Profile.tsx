@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { resetProfileRemote } from "@/api/profile";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
-import { User, Dumbbell, UtensilsCrossed, Search, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Dumbbell, UtensilsCrossed, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale } from "lucide-react";
 
 type Summary = any;
 
@@ -233,6 +233,14 @@ export default function Profile() {
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
   const dietStyles: string[] = onb?.dietPrefs?.styles || [];
 
+  const bmiValue = useMemo(() => {
+    const h = Number(height);
+    const w = Number(weight);
+    if (!h || !w || h < 100) return "—";
+    const bmi = w / ((h / 100) ** 2);
+    return `${bmi.toFixed(1)} ИМТ`;
+  }, [height, weight]);
+
   const initials = useMemo(() => {
     const parts = String(name).trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return "?";
@@ -245,45 +253,53 @@ export default function Profile() {
     <div style={s.outer}>
       <div style={s.inner}>
 
-        {/* ── Hero: User card (dark pill style like StatPill) ── */}
-        <div style={s.hero}>
-          <div style={s.heroLeft}>
-            <div style={s.avatarWrap}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={name} style={s.avatarImg} loading="lazy" referrerPolicy="no-referrer" />
-              ) : (
-                <span style={s.avatarText}>{initials}</span>
-              )}
-            </div>
-            <div>
-              <div style={s.heroName}>{name}</div>
-              <div style={s.heroMeta}>
-                {safeNum(age)} лет • {sexRus(sex)}
-              </div>
+        {/* ── Hero: Avatar + Name + Chips (like WorkoutResult) ── */}
+        <div style={s.headerRow}>
+          <div style={s.avatarCircle}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={name} style={s.avatarImg} loading="lazy" referrerPolicy="no-referrer" />
+            ) : (
+              <span style={s.avatarText}>{initials}</span>
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={s.headerTitle}>{name}</div>
+            <div style={s.headerSubRow}>
+              <span style={s.headerSubChip}>
+                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                {safeNum(age)} лет
+              </span>
+              <span style={s.headerSubChip}>
+                <UserRound size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                {sexRus(sex)}
+              </span>
+              <button
+                type="button"
+                aria-label="Редактировать"
+                onClick={() => navigate("/onb/age-sex#age-sex")}
+                style={s.editBtn}
+              >
+                <Pencil size={14} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Редактировать"
-            onClick={() => navigate("/onb/age-sex#age-sex")}
-            style={s.editBtn}
-          >
-            <Pencil size={16} strokeWidth={2.2} color="rgba(255,255,255,0.7)" />
-          </button>
         </div>
 
-        {/* ── Обо мне ── */}
-        <Card>
-          <div style={s.sectionHeader}>
-            <User size={18} color="#0f172a" strokeWidth={2.5} />
-            <span style={s.sectionTitle}>Обо мне</span>
-          </div>
-          <div style={s.infoGrid}>
-            <InfoRow label="Рост" value={safeNum(height, "см")} />
-            <InfoRow label="Вес" value={safeNum(weight, "кг")} />
-            {workStyle && <InfoRow label="Образ жизни" value={workStyleRus(workStyle)} />}
-          </div>
-        </Card>
+        {/* ── Stat pill: Height, Weight, BMI (like WorkoutResult) ── */}
+        <div style={s.statPill}>
+          <span style={s.statChip}>
+            <Ruler size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
+            {safeNum(height, "см")}
+          </span>
+          <span style={s.statChip}>
+            <Scale size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
+            {safeNum(weight, "кг")}
+          </span>
+          <span style={s.statChip}>
+            <UserRound size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
+            {bmiValue}
+          </span>
+        </div>
 
         {/* ── Тренировки ── */}
         <Card>
@@ -297,6 +313,7 @@ export default function Profile() {
             <InfoRow label="Частота" value={safeNum(perWeek, "раз/нед")} />
             <InfoRow label="Длительность" value={safeNum(minutes, "мин")} />
             <InfoRow label="Место" value={placeRus(place)} />
+            {workStyle && <InfoRow label="Образ жизни" value={workStyleRus(workStyle)} />}
           </div>
         </Card>
 
@@ -434,33 +451,48 @@ const s: Record<string, CSSProperties> = {
     boxShadow: "0 16px 32px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
   },
 
-  // Hero — dark pill like StatPill
-  hero: {
+  // Hero — like WorkoutResult header
+  headerRow: {
+    display: "flex", alignItems: "center", gap: 12,
+    marginTop: 8, marginBottom: 0,
+  },
+  avatarCircle: {
+    width: 56, height: 56, borderRadius: 999, flexShrink: 0,
+    background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    overflow: "hidden", padding: 2,
+  },
+  avatarImg: {
+    width: "100%", height: "100%", objectFit: "cover" as const,
+    objectPosition: "center top", borderRadius: 999,
+  },
+  avatarText: { fontSize: 18, fontWeight: 700, color: "rgba(15,23,42,0.55)" },
+  headerTitle: { fontSize: 18, fontWeight: 700, color: "#1e1f22", lineHeight: 1.2 },
+  headerSubRow: {
+    display: "flex", alignItems: "center", gap: 16,
+    marginTop: 3, flexWrap: "wrap" as const,
+  },
+  headerSubChip: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
+  },
+  editBtn: {
+    border: "none", background: "none", cursor: "pointer",
+    padding: 4, marginLeft: "auto",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+  },
+
+  // Stat pill — dark, like WorkoutResult
+  statPill: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     borderRadius: 24, padding: "14px 18px",
     background: FILL_BG,
     boxShadow: "0 16px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.08)",
   },
-  heroLeft: { display: "flex", alignItems: "center", gap: 14 },
-  avatarWrap: {
-    width: 48, height: 48, borderRadius: 999, flexShrink: 0,
-    background: "rgba(255,255,255,0.12)",
-    boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.18)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    overflow: "hidden",
-  },
-  avatarImg: {
-    width: 48, height: 48, borderRadius: 999, objectFit: "cover" as const,
-    display: "block",
-  },
-  avatarText: { fontSize: 16, fontWeight: 700, color: "rgba(255,255,255,0.85)" },
-  heroName: { fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1.2 },
-  heroMeta: { fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.6)", marginTop: 2 },
-  editBtn: {
-    border: "none", background: "rgba(255,255,255,0.08)", cursor: "pointer",
-    width: 34, height: 34, borderRadius: 999,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
+  statChip: {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 15, fontWeight: 600, lineHeight: 1.25,
+    color: "rgba(255,255,255,0.88)",
   },
 
   // Section header — same as Progress section titles
