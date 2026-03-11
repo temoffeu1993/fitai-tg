@@ -704,11 +704,8 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
         </div>
       </div>
 
-      {/* Chart */}
-      <ExerciseProgressChart points={filteredPoints} metric={metric} />
-
-      {/* Period chips + 1RM toggle BELOW chart */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+      {/* Period chips + 1RM toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <PeriodChips options={EX_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
         {selected.supports1RM && (
           <PeriodChips
@@ -718,6 +715,9 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
           />
         )}
       </div>
+
+      {/* Chart */}
+      <ExerciseProgressChart points={filteredPoints} metric={metric} />
 
       {/* Exercise picker sheet */}
       {showPicker && (
@@ -898,26 +898,28 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
         </div>
       </div>
 
+      {/* Period chips */}
+      {hasData ? (
+        <div style={{ marginBottom: 14 }}>
+          <PeriodChips options={BODY_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
+        </div>
+      ) : (
+        <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none", marginBottom: 14 }}>
+          <PeriodChips options={BODY_PERIOD_OPTIONS} active={"all" as BodyPeriod} onChange={() => {}} />
+        </div>
+      )}
+
       {/* Chart — real or mock */}
       {hasData ? (
-        <>
-          <ExerciseProgressChart
-            points={filteredPoints.length >= 2 ? filteredPoints : allPoints}
-            metric="value"
-            color={chartColor}
-          />
-          {/* Period chips below chart — only with real data */}
-          <div style={{ marginTop: 12 }}>
-            <PeriodChips options={BODY_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
-          </div>
-        </>
+        <ExerciseProgressChart
+          points={filteredPoints.length >= 2 ? filteredPoints : allPoints}
+          metric="value"
+          color={chartColor}
+        />
       ) : (
         <div style={{ position: "relative" }}>
           <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
             <ExerciseProgressChart points={MOCK_BODY_POINTS} metric="value" />
-            <div style={{ marginTop: 10 }}>
-              <PeriodChips options={BODY_PERIOD_OPTIONS} active={"all" as BodyPeriod} onChange={() => {}} />
-            </div>
           </div>
           <div style={{
             position: "absolute", inset: 0,
