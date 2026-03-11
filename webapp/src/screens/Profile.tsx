@@ -274,11 +274,11 @@ export default function Profile() {
             <div style={s.headerTitle}>{name}</div>
             <div style={s.headerSubRow}>
               <span style={s.headerSubChip}>
-                <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                <Calendar size={15} strokeWidth={2.2} color="rgba(30,31,34,0.7)" />
                 {safeNum(age)} лет
               </span>
               <span style={s.headerSubChip}>
-                <UserRound size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                <UserRound size={15} strokeWidth={2.2} color="rgba(30,31,34,0.7)" />
                 {sexRus(sex)}
               </span>
               <button
@@ -287,7 +287,7 @@ export default function Profile() {
                 onClick={() => navigate("/onb/age-sex#age-sex")}
                 style={s.editBtn}
               >
-                <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
+                <Pencil size={18} strokeWidth={2} color="#1e1f22" />
               </button>
             </div>
           </div>
@@ -482,7 +482,7 @@ const s: Record<string, CSSProperties> = {
   },
   headerSubChip: {
     display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
+    fontSize: 15, fontWeight: 500, color: "rgba(30,31,34,0.7)", lineHeight: 1.4,
   },
   editBtn: {
     border: "none", background: "none", cursor: "pointer",
