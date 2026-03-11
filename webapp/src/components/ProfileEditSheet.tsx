@@ -673,7 +673,8 @@ function SheetInner({
           background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
           boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
           maxHeight: "85vh",
-          overflow: "hidden",
+          overflowY: "auto",
+          overflowX: "hidden",
           display: "flex",
           flexDirection: "column" as const,
           padding: "0 16px 16px",
@@ -723,7 +724,7 @@ function SheetInner({
         </div>
 
         {/* Content with page animations */}
-        <div style={{ display: "grid", flex: 1, minHeight: 0, overflow: pageAnimating ? "hidden" : "visible" }}>
+        <div style={{ display: "grid", flex: 1, minHeight: 0 }}>
           {pageAnimating && prevPage ? (
             <div
               style={{

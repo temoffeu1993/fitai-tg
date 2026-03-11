@@ -5,7 +5,8 @@ import { resetProfileRemote } from "@/api/profile";
 import { saveOnboarding } from "@/api/onboarding";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
-import { ClipboardList, Heart, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ClipboardList, Heart, Search, X, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
 import ProfileEditSheet from "@/components/ProfileEditSheet";
 
 type Summary = any;
@@ -366,70 +367,18 @@ export default function Profile() {
         <Card>
           <button
             type="button"
-            onClick={() => setExcludedOpen((v) => !v)}
-            style={s.accordionBtn}
+            onClick={() => setExcludedOpen(true)}
+            style={s.excludedHeaderBtn}
           >
             <div style={s.sectionHeader}>
               <Search size={18} color="#0f172a" strokeWidth={2.5} />
               <span style={s.sectionTitle}>Исключённые упражнения</span>
             </div>
-            {excludedOpen
-              ? <ChevronUp size={18} color="rgba(15,23,42,0.5)" strokeWidth={2.5} />
-              : <ChevronDown size={18} color="rgba(15,23,42,0.5)" strokeWidth={2.5} />
-            }
+            <span style={s.excludedArrow}>→</span>
           </button>
           <span style={s.accordionSub}>
             Упражнения, которые не будут предлагаться в&nbsp;тренировках
           </span>
-
-          {excludedOpen && (
-            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-              {excludedError && (
-                <div style={s.errorNote}>{excludedError}</div>
-              )}
-
-              <input
-                value={searchQ}
-                onChange={(e) => void runSearch(e.target.value)}
-                placeholder="Найти упражнение…"
-                style={s.searchInput}
-              />
-              {searchLoading && <span style={s.muted}>Поиск…</span>}
-
-              {searchRes.filter((x) => !excluded.some((e) => e.exerciseId === x.exerciseId)).slice(0, 12).map((x) => (
-                <div key={x.exerciseId} style={s.exRow}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.exName}>{x.name}</div>
-                  </div>
-                  <button type="button" style={s.exBtnAdd} onClick={() => void addExcluded(x.exerciseId)}>
-                    Исключить
-                  </button>
-                </div>
-              ))}
-
-              {(excluded.length > 0 || !excludedLoading) && (
-                <div style={{ display: "grid", gap: 8 }}>
-                  <span style={s.subLabel}>Сейчас исключены</span>
-                  {excludedLoading ? (
-                    <span style={s.muted}>Загружаю…</span>
-                  ) : excluded.length === 0 ? (
-                    <span style={s.muted}>Пока пусто</span>
-                  ) : (
-                    excluded.slice(0, 80).map((x) => (
-                      <div key={x.exerciseId} style={s.exRow}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={s.exName}>{x.name}</div>
-                        </div>
-                        <button type="button" style={s.exBtnRemove} onClick={() => void removeExcluded(x.exerciseId)}>
-                          Вернуть
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </Card>
 
         {/* ── Сброс профиля ── */}
@@ -460,9 +409,213 @@ export default function Profile() {
         onSave={(updated) => { void handleEditSave(updated); }}
         onClose={() => setEditSheet(null)}
       />
+
+      {excludedOpen && (
+        <ExcludedSheet
+          excluded={excluded}
+          excludedLoading={excludedLoading}
+          excludedError={excludedError}
+          searchQ={searchQ}
+          searchRes={searchRes}
+          searchLoading={searchLoading}
+          onSearch={runSearch}
+          onAdd={addExcluded}
+          onRemove={removeExcluded}
+          onClose={() => setExcludedOpen(false)}
+        />
+      )}
     </div>
   );
 }
+
+// ─── Excluded Exercises Sheet ─────────────────────────────────────────────────
+
+const EX_SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
+const EX_SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
+const EX_ENTER_MS = 380;
+const EX_EXIT_MS = 260;
+
+function ExcludedSheet({
+  excluded, excludedLoading, excludedError,
+  searchQ, searchRes, searchLoading,
+  onSearch, onAdd, onRemove, onClose,
+}: {
+  excluded: Array<{ exerciseId: string; name: string }>;
+  excludedLoading: boolean;
+  excludedError: string | null;
+  searchQ: string;
+  searchRes: Array<{ exerciseId: string; name: string }>;
+  searchLoading: boolean;
+  onSearch: (q: string) => void;
+  onAdd: (id: string) => Promise<void>;
+  onRemove: (id: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [animDone, setAnimDone] = useState(false);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      setEntered(true);
+      const t2 = setTimeout(() => setAnimDone(true), EX_ENTER_MS + 50);
+      return () => clearTimeout(t2);
+    }, 12);
+    return () => clearTimeout(t1);
+  }, []);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const requestClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setAnimDone(false);
+    setEntered(false);
+    setTimeout(onClose, EX_EXIT_MS + 20);
+  };
+
+  const filtered = searchRes.filter((x) => !excluded.some((e) => e.exerciseId === x.exerciseId)).slice(0, 12);
+
+  return createPortal(
+    <>
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 2000,
+          background: "rgba(10,16,28,0.52)",
+          opacity: entered && !closing ? 1 : 0,
+          transition: `opacity ${entered ? EX_ENTER_MS : EX_EXIT_MS}ms ease`,
+        }}
+        onClick={requestClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2001,
+          borderRadius: "24px 24px 0 0",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
+          boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
+          maxHeight: "85vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          padding: "0 16px 16px",
+          transform: animDone ? "none" : (entered && !closing ? "translateY(0)" : "translateY(100%)"),
+          transition: animDone ? "none" : `transform ${entered && !closing ? EX_ENTER_MS : EX_EXIT_MS}ms ${entered && !closing ? EX_SPRING_OPEN : EX_SPRING_CLOSE}`,
+          willChange: animDone ? "auto" : "transform",
+        }}
+      >
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.18)" }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
+          <div style={{ width: 32, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" }}>
+            Исключённые упражнения
+          </div>
+          <button
+            type="button"
+            onClick={requestClose}
+            aria-label="Закрыть"
+            style={{
+              width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "none", background: "transparent", borderRadius: 999, color: "rgba(15,23,42,0.62)",
+              cursor: "pointer", padding: 0, flexShrink: 0,
+            }}
+          >
+            <X size={18} strokeWidth={2.2} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0 }}>
+          {/* Search */}
+          <div style={{ padding: "4px 2px 12px" }}>
+            <input
+              value={searchQ}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder="Найти упражнение…"
+              style={s.searchInput}
+            />
+          </div>
+
+          {searchLoading && <span style={{ ...s.muted, display: "block", padding: "0 2px 8px" }}>Поиск…</span>}
+
+          {excludedError && (
+            <div style={{ ...s.errorNote, marginBottom: 10 }}>{excludedError}</div>
+          )}
+
+          {/* Search results */}
+          {filtered.map((x, idx) => (
+            <div key={x.exerciseId}>
+              {idx > 0 && <div style={exSh.divider} />}
+              <div style={exSh.row}>
+                <span style={exSh.name}>{x.name}</span>
+                <button type="button" style={s.exBtnAdd} onClick={() => void onAdd(x.exerciseId)}>
+                  Исключить
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {filtered.length > 0 && excluded.length > 0 && <div style={{ ...exSh.divider, margin: "6px 0" }} />}
+
+          {/* Excluded list */}
+          {excludedLoading ? (
+            <span style={{ ...s.muted, display: "block", padding: "8px 2px" }}>Загружаю…</span>
+          ) : excluded.length === 0 ? (
+            <div style={exSh.row}>
+              <span style={{ ...exSh.name, color: "rgba(15,23,42,0.45)" }}>Пока пусто</span>
+            </div>
+          ) : (
+            excluded.slice(0, 80).map((x, idx) => (
+              <div key={x.exerciseId}>
+                {idx > 0 && <div style={exSh.divider} />}
+                <div style={exSh.row}>
+                  <span style={exSh.name}>{x.name}</span>
+                  <button type="button" style={s.exBtnRemove} onClick={() => void onRemove(x.exerciseId)}>
+                    Вернуть
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+const exSh: Record<string, CSSProperties> = {
+  row: {
+    padding: "14px 18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: 500,
+    color: "#1e1f22",
+    lineHeight: 1.3,
+    flex: 1,
+    minWidth: 0,
+  },
+  divider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginRight: -18,
+  },
+};
 
 // ─── Styles (consistent with Progress screen) ───────────────────────────────
 
@@ -547,11 +700,14 @@ const s: Record<string, CSSProperties> = {
   infoLabel: { fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" },
   infoValue: { fontSize: 15, fontWeight: 600, color: "#1e1f22", textAlign: "right" as const },
 
-  // Accordion
-  accordionBtn: {
+  // Excluded exercises header
+  excludedHeaderBtn: {
     width: "100%", border: "none", background: "none", cursor: "pointer",
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: 0, marginBottom: 0,
+  },
+  excludedArrow: {
+    fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1,
   },
   accordionSub: {
     fontSize: 13, fontWeight: 400, color: "rgba(15,23,42,0.5)", lineHeight: 1.4,
