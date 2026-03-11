@@ -957,7 +957,7 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
                     padding: 6, flexShrink: 0, WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <Plus size={20} strokeWidth={2} color="#1e1f22" />
+                  <Plus size={18} strokeWidth={2} color="#1e1f22" />
                 </button>
               )}
             </div>
@@ -1022,20 +1022,36 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
         transition: `transform ${entered && !closing ? SHEET_ENTER : SHEET_EXIT}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
       }}>
         {/* Grabber */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
-          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.15)" }} />
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 6px", flexShrink: 0 }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.18)" }} />
         </div>
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 4px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "0 8px 8px", flexShrink: 0 }}>
           {page === "input" ? (
-            <button type="button" onClick={goBack} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+            <button type="button" onClick={goBack} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
               <ChevronLeft size={20} strokeWidth={2.2} color="#0f172a" />
               <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{inputOpt.label}</span>
             </button>
           ) : (
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Моя форма</h3>
+            <div style={{ flex: 1, fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.25, textAlign: "center" as const }}>
+              Моя форма
+            </div>
           )}
-          <button style={s.closeBtn} onClick={requestClose}>✕</button>
+          <button
+            type="button"
+            onClick={requestClose}
+            aria-label="Закрыть"
+            style={{
+              width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "none", background: "transparent", borderRadius: 999,
+              color: "rgba(15,23,42,0.62)", cursor: "pointer", padding: 0, flexShrink: 0,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         {/* Animated page container */}
         <div style={{ flex: 1, minHeight: 0, overflow: pageAnimating ? "hidden" : "visible", display: "grid" }}>
@@ -1048,7 +1064,8 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
           ) : null}
           <div style={{
             gridArea: "1 / 1", display: "flex", flexDirection: "column",
-            overflowY: "auto",
+            overflowY: "auto", WebkitOverflowScrolling: "touch",
+            padding: "8px 18px",
             ...(pageAnimating ? { animation: `${slideDir === "forward" ? "bd-in-right" : "bd-in-left"} ${BD_CONTENT_ANIM_MS}ms ${BD_SPRING_CONTENT} both` } : {}),
           }}>
             {currentContent}
