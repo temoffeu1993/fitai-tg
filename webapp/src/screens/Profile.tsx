@@ -1,11 +1,12 @@
 // webapp/src/screens/Profile.tsx — v2
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { resetProfileRemote } from "@/api/profile";
+import { saveOnboarding } from "@/api/onboarding";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
-import { Dumbbell, UtensilsCrossed, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
+import { ClipboardList, Heart, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
+import ProfileEditSheet from "@/components/ProfileEditSheet";
 
 type Summary = any;
 
@@ -68,7 +69,7 @@ function placeRus(p?: string) {
   return map[p] || p;
 }
 
-function workStyleRus(w?: string) {
+function activityRus(w?: string) {
   if (!w) return "—";
   const map: Record<string, string> = {
     sedentary: "Мало подвижности",
@@ -118,7 +119,7 @@ export default function Profile() {
   const [searchRes, setSearchRes] = useState<Array<{ exerciseId: string; name: string }>>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [excludedOpen, setExcludedOpen] = useState(false);
-  const navigate = useNavigate();
+  const [editSheet, setEditSheet] = useState<"hero" | "plan" | "lifestyle" | null>(null);
 
   // ─── Data loading ───────────────────────────────────────────────────────
 
@@ -218,6 +219,18 @@ export default function Profile() {
     }
   };
 
+  // ─── Edit sheet save handler ────────────────────────────────────────────
+
+  const handleEditSave = async (updatedSummary: any) => {
+    try {
+      localStorage.setItem("onb_summary", JSON.stringify(updatedSummary));
+      setSummary(updatedSummary);
+      await saveOnboarding(updatedSummary);
+    } catch {
+      // localStorage is already updated; API failure is non-blocking
+    }
+  };
+
   // ─── Derived data ───────────────────────────────────────────────────────
 
   const onb = summary || {};
@@ -234,6 +247,7 @@ export default function Profile() {
   const place = onb?.trainingPlace?.place || onb?.environment?.location;
   const goal = onb?.motivation?.goal || onb?.goals?.primary;
   const workStyle = onb?.lifestyle?.workStyle;
+
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
   const dietStyles: string[] = onb?.dietPrefs?.styles || [];
 
@@ -287,7 +301,7 @@ export default function Profile() {
               <button
                 type="button"
                 aria-label="Редактировать"
-                onClick={() => navigate("/onb/age-sex#age-sex")}
+                onClick={() => setEditSheet("hero")}
                 style={s.editBtn}
               >
                 <Pencil size={18} strokeWidth={2} color="#1e1f22" />
@@ -315,30 +329,36 @@ export default function Profile() {
         {/* ── Тренировки ── */}
         <Card>
           <div style={s.sectionHeader}>
-            <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} />
-            <span style={s.sectionTitle}>Тренировки</span>
+            <ClipboardList size={18} color="#0f172a" strokeWidth={2.5} />
+            <span style={s.sectionTitle}>Мой план</span>
+            <button type="button" aria-label="Редактировать" onClick={() => setEditSheet("plan")} style={s.editBtn}>
+              <Pencil size={18} strokeWidth={2} color="#1e1f22" />
+            </button>
           </div>
           <div style={s.infoGrid}>
             <InfoRow label="Цель" value={goalRus(goal)} />
             <InfoRow label="Опыт" value={expRus(experience)} />
             <InfoRow label="Частота" value={safeNum(perWeek, "раз/нед")} />
             <InfoRow label="Длительность" value={safeNum(minutes, "мин")} />
-            <InfoRow label="Место" value={placeRus(place)} isLast={!workStyle} />
-            {workStyle && <InfoRow label="Образ жизни" value={workStyleRus(workStyle)} isLast />}
+            <InfoRow label="Место" value={placeRus(place)} isLast />
           </div>
         </Card>
 
-        {/* ── Питание ── */}
+        {/* ── Образ жизни ── */}
         <Card>
           <div style={s.sectionHeader}>
-            <UtensilsCrossed size={18} color="#0f172a" strokeWidth={2.5} />
-            <span style={s.sectionTitle}>Питание</span>
+            <Heart size={18} color="#0f172a" strokeWidth={2.5} />
+            <span style={s.sectionTitle}>Образ жизни</span>
+            <button type="button" aria-label="Редактировать" onClick={() => setEditSheet("lifestyle")} style={s.editBtn}>
+              <Pencil size={18} strokeWidth={2} color="#1e1f22" />
+            </button>
           </div>
           <div style={s.infoGrid}>
             {dietStyles.length > 0 && (
-              <InfoRow label="Стиль" value={dietStyles.join(", ")} />
+              <InfoRow label="Стиль питания" value={dietStyles.join(", ")} />
             )}
-            <InfoRow label="Ограничения" value={dietRestr.length > 0 ? dietRestr.join(", ") : "Нет"} isLast />
+            <InfoRow label="Ограничения" value={dietRestr.length > 0 ? dietRestr.join(", ") : "Нет"} />
+            <InfoRow label="Активность" value={activityRus(workStyle)} isLast />
           </div>
         </Card>
 
@@ -433,6 +453,13 @@ export default function Profile() {
 
         <div style={{ height: 8 }} />
       </div>
+
+      <ProfileEditSheet
+        section={editSheet}
+        summary={summary}
+        onSave={(updated) => { void handleEditSave(updated); }}
+        onClose={() => setEditSheet(null)}
+      />
     </div>
   );
 }
