@@ -963,9 +963,8 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
   // ── Input page content ──
   const inputContent = (
     <div>
-      {/* Value display */}
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16, marginTop: 8 }}>
-        <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{scrollerVal}</span>
+      {/* Unit label */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16, marginTop: 8 }}>
         <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>{inputUnit}</span>
       </div>
       {/* Scroller */}
