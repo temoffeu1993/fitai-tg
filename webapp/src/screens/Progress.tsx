@@ -9,7 +9,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Calendar, Plus, ChevronLeft } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Calendar, Plus, ChevronLeft, Scale, Ruler } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -759,16 +759,14 @@ type MeasurementField = "chest_cm" | "waist_cm" | "hips_cm" | "bicep_left_cm" | 
 
 type BodyMetricKey = "weight" | "bmi" | MeasurementField;
 
-const BODY_METRIC_OPTIONS: { key: BodyMetricKey; label: string; unit: string }[] = [
-  { key: "weight", label: "Вес", unit: "кг" },
-  { key: "bmi", label: "ИМТ", unit: "" },
-  { key: "chest_cm", label: "Грудь", unit: "см" },
-  { key: "waist_cm", label: "Талия", unit: "см" },
-  { key: "hips_cm", label: "Бёдра", unit: "см" },
-  { key: "bicep_left_cm", label: "Бицепс Л", unit: "см" },
-  { key: "bicep_right_cm", label: "Бицепс П", unit: "см" },
-  { key: "neck_cm", label: "Шея", unit: "см" },
-  { key: "thigh_cm", label: "Бедро", unit: "см" },
+const BODY_METRIC_OPTIONS: { key: BodyMetricKey; label: string; unit: string; chipLabel: string }[] = [
+  { key: "weight", label: "Вес", unit: "кг", chipLabel: "Вес" },
+  { key: "bmi", label: "ИМТ", unit: "", chipLabel: "" },
+  { key: "chest_cm", label: "Грудь", unit: "см", chipLabel: "Объем" },
+  { key: "waist_cm", label: "Талия", unit: "см", chipLabel: "Объем" },
+  { key: "hips_cm", label: "Бёдра", unit: "см", chipLabel: "Объем" },
+  { key: "bicep_left_cm", label: "Бицепс", unit: "см", chipLabel: "Объем" },
+  { key: "neck_cm", label: "Шея", unit: "см", chipLabel: "Объем" },
 ];
 
 type BodyPeriod = "30d" | "90d" | "all";
@@ -810,7 +808,7 @@ function getBodyPoints(
 const BODY_TITLE_MAP: Record<BodyMetricKey, string> = {
   weight: "Мой вес", bmi: "Мой ИМТ",
   chest_cm: "Грудь", waist_cm: "Талия", hips_cm: "Бёдра",
-  bicep_left_cm: "Бицепс Л", bicep_right_cm: "Бицепс П",
+  bicep_left_cm: "Бицепс", bicep_right_cm: "Бицепс П",
   neck_cm: "Шея", thigh_cm: "Бедро",
 };
 
@@ -918,9 +916,10 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
   const listContent = (
     <div>
       {metricInfo.map((opt, idx) => {
+        const isWeight = opt.key === "weight";
         const valText = opt.lastVal != null
           ? `${fmtVal(opt.lastVal)} ${opt.unit}`
-          : opt.unit;
+          : opt.chipLabel;
         const dateText = opt.lastDate != null
           ? fmtBodyDate(opt.lastDate)
           : "Дата";
@@ -937,7 +936,10 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
-                    <Weight size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                    {isWeight
+                      ? <Scale size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                      : <Ruler size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                    }
                     {valText}
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
