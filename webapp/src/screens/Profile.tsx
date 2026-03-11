@@ -1,4 +1,4 @@
-// webapp/src/screens/Profile.tsx
+// webapp/src/screens/Profile.tsx — v2
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
