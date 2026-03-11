@@ -1,5 +1,6 @@
 // Progress — product-ready, beginner-friendly
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   getProgressSummary, saveBodyMetric, saveMeasurements,
@@ -991,7 +992,7 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
 
   const currentContent = page === "list" ? listContent : inputContent;
 
-  return (
+  return createPortal(
     <>
       <style>{`
         .bd-sheet-list::-webkit-scrollbar { display: none; }
@@ -1054,7 +1055,8 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
