@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Check } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Calendar, Plus, ChevronLeft } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -813,118 +813,248 @@ const BODY_TITLE_MAP: Record<BodyMetricKey, string> = {
   neck_cm: "Шея", thigh_cm: "Бедро",
 };
 
-// ─── Unified BodyData sheet (scroller + metric list) ─────────────────────────
+// ─── Unified BodyData sheet (calendar-style two-page) ────────────────────────
 
-function BodyDataSheet({ activeMetric, onSelectMetric, onClose, onRefresh }: {
+const BD_CONTENT_ANIM_MS = 280;
+const BD_SPRING_CONTENT = "cubic-bezier(0.36, 0.66, 0.04, 1)";
+
+function fmtBodyDate(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+}
+
+function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh }: {
+  body: ProgressSummaryV2["body"];
   activeMetric: BodyMetricKey;
   onSelectMetric: (key: BodyMetricKey) => void;
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const isBmi = activeMetric === "bmi";
-  const isWeight = activeMetric === "weight";
-  const isCm = !isBmi && !isWeight;
+  // Page state
+  const [page, setPage] = useState<"list" | "input">("list");
+  const [inputMetric, setInputMetric] = useState<BodyMetricKey>("weight");
+  const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
+  const [pageAnimating, setPageAnimating] = useState(false);
+  const prevPageSnap = useRef<"snapshot" | null>(null);
+  const pageTimer = useRef<number | null>(null);
 
-  const defaultVal = isWeight ? 75 : isCm ? 80 : 0;
-  const [scrollerVal, setScrollerVal] = useState(defaultVal);
+  // Sheet open/close
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  // Scroller
+  const [scrollerVal, setScrollerVal] = useState(75);
   const [saving, setSaving] = useState(false);
 
-  // Reset scroller value when metric changes
-  const prevMetric = useRef(activeMetric);
-  if (prevMetric.current !== activeMetric) {
-    prevMetric.current = activeMetric;
-    if (activeMetric === "weight") setScrollerVal(75);
-    else if (activeMetric !== "bmi") setScrollerVal(80);
-  }
+  useLayoutEffect(() => {
+    document.body.style.overflow = "hidden";
+    const t = setTimeout(() => setEntered(true), 12);
+    return () => { document.body.style.overflow = ""; clearTimeout(t); };
+  }, []);
+
+  const requestClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setEntered(false);
+    setTimeout(onClose, SHEET_EXIT + 20);
+  };
+
+  const goToPage = (dir: "forward" | "backward") => {
+    if (pageTimer.current != null) clearTimeout(pageTimer.current);
+    prevPageSnap.current = "snapshot";
+    setSlideDir(dir);
+    setPageAnimating(true);
+    pageTimer.current = window.setTimeout(() => {
+      prevPageSnap.current = null;
+      setPageAnimating(false);
+      pageTimer.current = null;
+    }, BD_CONTENT_ANIM_MS + 20);
+  };
+
+  const openInput = (key: BodyMetricKey) => {
+    setInputMetric(key);
+    setScrollerVal(key === "weight" ? 75 : 80);
+    setPage("input");
+    goToPage("forward");
+  };
+
+  const goBack = () => {
+    setPage("list");
+    goToPage("backward");
+  };
 
   const handleSave = async () => {
-    if (isBmi || saving) return;
+    if (saving) return;
     setSaving(true);
     try {
       const today = new Date().toISOString().slice(0, 10);
-      if (isWeight) {
+      if (inputMetric === "weight") {
         await saveBodyMetric({ recordedAt: today, weight: scrollerVal });
       } else {
-        await saveMeasurements({ recordedAt: today, [activeMetric]: scrollerVal });
+        await saveMeasurements({ recordedAt: today, [inputMetric]: scrollerVal });
       }
       fireHaptic("medium");
       onRefresh();
-      onClose();
+      requestClose();
     } finally {
       setSaving(false);
     }
   };
 
-  const unit = isWeight ? "кг" : isCm ? "см" : "";
+  // Build last-value map for chips
+  const metricInfo = BODY_METRIC_OPTIONS.map((opt) => {
+    const pts = getBodyPoints(body, opt.key);
+    const last = pts.length > 0 ? pts[pts.length - 1] : null;
+    return { ...opt, lastVal: last?.value ?? null, lastDate: last?.date ?? null };
+  });
 
-  return (
-    <BottomSheet
-      title={BODY_TITLE_MAP[activeMetric]}
-      onClose={onClose}
-      headerRight={
-        !isBmi ? (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              border: "none", background: "none", cursor: "pointer", padding: 4,
-              opacity: saving ? 0.4 : 1,
-            }}
-          >
-            <Check size={22} color="#16A34A" strokeWidth={2.8} />
-          </button>
-        ) : undefined
-      }
-    >
-      {/* Value display + scroller */}
-      {!isBmi && (
-        <>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16 }}>
-            <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{scrollerVal}</span>
-            <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>{unit}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-            {isWeight ? (
-              <WeightScroller value={scrollerVal} onChange={setScrollerVal} />
-            ) : (
-              <CmScroller value={scrollerVal} onChange={setScrollerVal} />
-            )}
-          </div>
-        </>
-      )}
+  const inputOpt = BODY_METRIC_OPTIONS.find((o) => o.key === inputMetric)!;
+  const inputUnit = inputMetric === "weight" ? "кг" : "см";
 
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(15,23,42,0.08)", margin: isBmi ? "0 0 4px" : "4px 0" }} />
-
-      {/* Metric list */}
-      <div style={{ padding: "0" }}>
-        {BODY_METRIC_OPTIONS.map((opt, idx) => {
-          const isActive = opt.key === activeMetric;
-          return (
-            <Fragment key={opt.key}>
-              {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)" }} />}
+  // ── List page content ──
+  const listContent = (
+    <div>
+      {metricInfo.map((opt, idx) => {
+        const isBmi = opt.key === "bmi";
+        return (
+          <Fragment key={opt.key}>
+            {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "12px 0" }} />}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Left: name + chips — tappable to switch graph */}
               <button
                 type="button"
-                onClick={() => { fireHaptic("light"); onSelectMetric(opt.key); }}
+                onClick={() => { fireHaptic("light"); onSelectMetric(opt.key); requestClose(); }}
                 style={{
-                  display: "flex", alignItems: "center", width: "100%",
-                  padding: "13px 4px", border: "none", cursor: "pointer", textAlign: "left",
-                  background: isActive ? "rgba(196,228,178,0.28)" : "none",
-                  borderRadius: isActive ? 10 : 0,
+                  flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6,
+                  border: "none", background: "none", cursor: "pointer", textAlign: "left",
+                  padding: "4px 0", WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <span style={{
-                  fontSize: 16, fontWeight: isActive ? 700 : 500, lineHeight: 1.3,
-                  color: isActive ? "#2a5218" : "#1e1f22",
-                }}>
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>
                   {opt.label}
                 </span>
+                {opt.lastVal != null && opt.lastDate != null && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
+                      <Weight size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                      {fmtVal(opt.lastVal)}{opt.unit ? ` ${opt.unit}` : ""}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
+                      <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                      {fmtBodyDate(opt.lastDate)}
+                    </span>
+                  </div>
+                )}
               </button>
-            </Fragment>
-          );
-        })}
+              {/* Right: "+" button (not for BMI) */}
+              {!isBmi && (
+                <button
+                  type="button"
+                  onClick={() => { fireHaptic("light"); openInput(opt.key); }}
+                  style={{
+                    border: "none", background: "none", cursor: "pointer",
+                    padding: 6, flexShrink: 0, WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <Plus size={20} strokeWidth={2} color="#1e1f22" />
+                </button>
+              )}
+            </div>
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+
+  // ── Input page content ──
+  const inputContent = (
+    <div>
+      {/* Value display */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16, marginTop: 8 }}>
+        <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{scrollerVal}</span>
+        <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>{inputUnit}</span>
       </div>
-    </BottomSheet>
+      {/* Scroller */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+        {inputMetric === "weight" ? (
+          <WeightScroller value={scrollerVal} onChange={setScrollerVal} />
+        ) : (
+          <CmScroller value={scrollerVal} onChange={setScrollerVal} />
+        )}
+      </div>
+      {/* Save button */}
+      <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
+        {saving ? "Сохраняем..." : "Сохранить"}
+      </button>
+    </div>
+  );
+
+  const currentContent = page === "list" ? listContent : inputContent;
+
+  return (
+    <>
+      <style>{`
+        .bd-sheet-list::-webkit-scrollbar { display: none; }
+        @keyframes bd-in-right { from { opacity: 0; transform: translate3d(44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+        @keyframes bd-in-left { from { opacity: 0; transform: translate3d(-44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+        @keyframes bd-out-left { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(-44px, 0, 0); } }
+        @keyframes bd-out-right { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(44px, 0, 0); } }
+      `}</style>
+      {/* Overlay */}
+      <div onClick={requestClose} style={{
+        position: "fixed", inset: 0, zIndex: 2400,
+        background: "rgba(10,16,28,0.52)",
+        opacity: entered && !closing ? 1 : 0,
+        transition: `opacity ${entered ? SHEET_ENTER : SHEET_EXIT}ms ease`,
+      }} />
+      {/* Sheet */}
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2401,
+        borderRadius: "24px 24px 0 0",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
+        boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
+        maxHeight: "85vh",
+        display: "flex", flexDirection: "column",
+        padding: "0 16px 16px",
+        paddingBottom: "env(safe-area-inset-bottom, 16px)",
+        transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
+        transition: `transform ${entered && !closing ? SHEET_ENTER : SHEET_EXIT}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+      }}>
+        {/* Grabber */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.15)" }} />
+        </div>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 4px 12px" }}>
+          {page === "input" ? (
+            <button type="button" onClick={goBack} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+              <ChevronLeft size={20} strokeWidth={2.2} color="#0f172a" />
+              <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{inputOpt.label}</span>
+            </button>
+          ) : (
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Моя форма</h3>
+          )}
+          <button style={s.closeBtn} onClick={requestClose}>✕</button>
+        </div>
+        {/* Animated page container */}
+        <div style={{ flex: 1, minHeight: 0, overflow: pageAnimating ? "hidden" : "visible", display: "grid" }}>
+          {pageAnimating && prevPageSnap.current ? (
+            <div style={{
+              gridArea: "1 / 1", display: "flex", flexDirection: "column",
+              animation: `${slideDir === "forward" ? "bd-out-left" : "bd-out-right"} ${BD_CONTENT_ANIM_MS}ms ${BD_SPRING_CONTENT} both`,
+              pointerEvents: "none",
+            }} />
+          ) : null}
+          <div style={{
+            gridArea: "1 / 1", display: "flex", flexDirection: "column",
+            overflowY: "auto",
+            ...(pageAnimating ? { animation: `${slideDir === "forward" ? "bd-in-right" : "bd-in-left"} ${BD_CONTENT_ANIM_MS}ms ${BD_SPRING_CONTENT} both` } : {}),
+          }}>
+            {currentContent}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1055,6 +1185,7 @@ function BodyDataSection({ body, onRefresh }: {
       {/* Unified body data sheet */}
       {showSheet && (
         <BodyDataSheet
+          body={body}
           activeMetric={selectedMetric}
           onSelectMetric={(key) => { setSelectedMetric(key); setPeriod("all"); }}
           onClose={() => setShowSheet(false)}
@@ -1072,7 +1203,7 @@ const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
 const SHEET_ENTER = 380;
 const SHEET_EXIT = 260;
 
-function BottomSheet({ title, onClose, children, headerRight }: { title: string; onClose: () => void; children: React.ReactNode; headerRight?: React.ReactNode }) {
+function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const [entered, setEntered] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -1123,10 +1254,7 @@ function BottomSheet({ title, onClose, children, headerRight }: { title: string;
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 20px 12px" }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{title}</h3>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {headerRight}
-            <button style={s.closeBtn} onClick={requestClose}>✕</button>
-          </div>
+          <button style={s.closeBtn} onClick={requestClose}>✕</button>
         </div>
         {/* Content */}
         <div style={{ flex: 1, overflow: "auto", padding: "0 20px 20px" }}>
