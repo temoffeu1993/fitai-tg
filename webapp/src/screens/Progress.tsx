@@ -556,9 +556,14 @@ function SwapBtn({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={() => { fireHaptic("light"); onClick(); }}
-      style={{ border: "none", background: "none", cursor: "pointer", padding: "2px", lineHeight: 1, display: "flex" }}
+      style={{
+        border: "none", cursor: "pointer", padding: 0, lineHeight: 1,
+        width: 34, height: 34, borderRadius: 999, flexShrink: 0,
+        background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
     >
-      <RefreshCw size={16} color="rgba(15,23,42,0.45)" strokeWidth={2.5} />
+      <RefreshCw size={16} color="#0f172a" strokeWidth={2.5} />
     </button>
   );
 }
@@ -681,26 +686,28 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
 
   return (
     <Card className="fade3">
-      {/* Header: exercise name + swap + value */}
+      {/* Header: exercise name | value + swap */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
           <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
           <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {selected.name}
           </span>
-          <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
-        <div style={{ textAlign: "right", whiteSpace: "nowrap", flexShrink: 0, marginLeft: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {lastVal != null && (
-            <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
-              {Number.isInteger(lastVal) ? lastVal : lastVal.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>{METRIC_UNIT[selected.metricKind]}</span>
-            </span>
-          )}
-          {deltaPercent != null && deltaPercent !== 0 && (
-            <div style={{ fontSize: 12, fontWeight: 700, color: deltaPositive ? "#16A34A" : "#EF4444", marginTop: 1 }}>
-              {deltaPercent > 0 ? "+" : ""}{deltaPercent}%
+            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
+                {Number.isInteger(lastVal) ? lastVal : lastVal.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>{METRIC_UNIT[selected.metricKind]}</span>
+              </span>
+              {deltaPercent != null && deltaPercent !== 0 && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: deltaPositive ? "#16A34A" : "#EF4444", marginTop: 1 }}>
+                  {deltaPercent > 0 ? "+" : ""}{deltaPercent}%
+                </div>
+              )}
             </div>
           )}
+          <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
       </div>
 
@@ -868,14 +875,13 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
     <Card className="fade6">
       {/* Header: dynamic title + swap + plus */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Activity size={18} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+          <Activity size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {BODY_TITLE_MAP[selectedMetric]}
           </span>
-          <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {lastVal != null && (
             <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: selectedMetric === "bmi" ? chartColor : "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
@@ -888,6 +894,7 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
               )}
             </div>
           )}
+          <SwapBtn onClick={() => setShowPicker(true)} />
           <button
             onClick={onPlusClick}
             style={{
