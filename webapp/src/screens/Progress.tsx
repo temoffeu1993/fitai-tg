@@ -540,8 +540,8 @@ function SelectSheet<T extends string>({ title, options, onSelect, onClose }: {
                   cursor: "pointer", textAlign: "left",
                 }}
               >
-                <span style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>{opt.label}</span>
-                {opt.sub && <span style={{ fontSize: 13, color: "rgba(15,23,42,0.5)" }}>{opt.sub}</span>}
+                <span style={{ fontSize: 18, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>{opt.label}</span>
+                {opt.sub && <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>{opt.sub}</span>}
               </button>
             </Fragment>
           ))}
