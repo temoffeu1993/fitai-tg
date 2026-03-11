@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap, Activity } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -491,33 +491,132 @@ const MOCK_EXERCISE_POINTS = [
   { date: "2026-03-05", value: 55 },
 ];
 
+/** Reusable bottom sheet list picker */
+function SelectSheet<T extends string>({ title, options, onSelect, onClose }: {
+  title: string;
+  options: Array<{ key: T; label: string; sub?: string }>;
+  onSelect: (key: T) => void;
+  onClose: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setEntered(true), 10); return () => clearTimeout(t); }, []);
+  const requestClose = () => { setClosing(true); setTimeout(onClose, SHEET_EXIT); };
+  return (
+    <>
+      <div onClick={requestClose} style={{
+        position: "fixed", inset: 0, zIndex: 2400,
+        background: "rgba(10,16,28,0.52)",
+        opacity: entered && !closing ? 1 : 0,
+        transition: `opacity ${entered ? SHEET_ENTER : SHEET_EXIT}ms ease`,
+      }} />
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 2401,
+        borderRadius: "24px 24px 0 0",
+        background: "linear-gradient(180deg, #fff 0%, #f5f5fa 100%)",
+        boxShadow: "0 -8px 32px rgba(0,0,0,0.18)",
+        transform: entered && !closing ? "translateY(0)" : "translateY(100%)",
+        transition: `transform ${entered && !closing ? SHEET_ENTER : SHEET_EXIT}ms ${entered && !closing ? SPRING_OPEN : SPRING_CLOSE}`,
+        maxHeight: "70vh", display: "flex", flexDirection: "column",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+          <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(15,23,42,0.15)" }} />
+        </div>
+        <div style={{ padding: "4px 20px 8px" }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{title}</h3>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 16px" }}>
+          {options.map((opt, idx) => (
+            <Fragment key={opt.key}>
+              {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "0" }} />}
+              <button
+                type="button"
+                onClick={() => { fireHaptic("light"); onSelect(opt.key); requestClose(); }}
+                style={{
+                  display: "flex", flexDirection: "column", gap: 2, width: "100%",
+                  padding: "14px 0", border: "none", background: "none",
+                  cursor: "pointer", textAlign: "left",
+                }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>{opt.label}</span>
+                {opt.sub && <span style={{ fontSize: 13, color: "rgba(15,23,42,0.5)" }}>{opt.sub}</span>}
+              </button>
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Swap button (icon only, no background) */
+function SwapBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => { fireHaptic("light"); onClick(); }}
+      style={{ border: "none", background: "none", cursor: "pointer", padding: "2px", lineHeight: 1, display: "flex" }}
+    >
+      <RefreshCw size={16} color="rgba(15,23,42,0.45)" strokeWidth={2.5} />
+    </button>
+  );
+}
+
+/** Period chip row (reused by both sections) */
+function PeriodChips<T extends string>({ options, active, onChange }: {
+  options: Array<{ key: T; label: string }>;
+  active: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3 }}>
+      {options.map((opt) => {
+        const isActive = active === opt.key;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => { fireHaptic("light"); onChange(opt.key); }}
+            style={{
+              border: "none", borderRadius: 999, padding: "5px 12px",
+              fontSize: 13, fontWeight: 600, lineHeight: 1.45, cursor: "pointer",
+              background: isActive ? "rgba(196,228,178,0.38)" : "transparent",
+              boxShadow: isActive ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)" : "none",
+              color: isActive ? "#2a5218" : "rgba(15,23,42,0.62)",
+              transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+            }}
+          >{opt.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: ProgressSummaryV2["exerciseProgress"] }) {
   const exercises = exerciseProgress?.exercises;
   const hasData = exercises && exercises.length > 0;
 
+  const [selectedKey, setSelectedKey] = useState(hasData ? exercises[0].key : "");
+  const [period, setPeriod] = useState<ExPeriod>("90d");
+  const [metric, setMetric] = useState<"value" | "1rm">("value");
+  const [showPicker, setShowPicker] = useState(false);
+
   if (!hasData) {
     return (
       <Card className="fade3">
+        {/* Title always visible */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} />
           <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Прогресс упражнений</span>
         </div>
         <div style={{ position: "relative" }}>
-          {/* Blurred mock chart */}
           <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
-              {EX_PERIOD_OPTIONS.map((opt) => (
-                <span key={opt.key} style={{ borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.62)", background: opt.key === "90d" ? "rgba(196,228,178,0.38)" : "transparent" }}>
-                  {opt.label}
-                </span>
-              ))}
-            </div>
             <ExerciseProgressChart points={MOCK_EXERCISE_POINTS} metric="value" />
-            <div style={{ marginTop: 14, borderRadius: 12, padding: "8px 12px", background: GROOVE_BG, boxShadow: GROOVE_SHADOW, fontSize: 14, fontWeight: 600, color: "#0f172a", display: "inline-block" }}>
-              Жим лёжа со штангой
+            <div style={{ marginTop: 10 }}>
+              <PeriodChips options={EX_PERIOD_OPTIONS} active={"90d" as ExPeriod} onChange={() => {}} />
             </div>
           </div>
-          {/* Overlay text */}
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -532,10 +631,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
     );
   }
 
-  const [selectedKey, setSelectedKey] = useState(exercises[0].key);
-  const [period, setPeriod] = useState<ExPeriod>("90d");
-  const [metric, setMetric] = useState<"value" | "1rm">("value");
-
   const selected = exercises.find((e) => e.key === selectedKey) || exercises[0];
 
   // Filter points by period
@@ -544,7 +639,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
   cutoff.setDate(cutoff.getDate() - periodDays);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-  // Auto-widen period if < 2 points — also update the active chip
   let effectivePeriod = period;
   let filteredPoints = selected.points.filter((p) => p.date >= cutoffStr);
 
@@ -565,7 +659,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
     }
   }
 
-  // Delta computation — in 1RM mode, only use points with estimated1RM
   const deltaPoints = metric === "1rm"
     ? filteredPoints.filter((p) => p.estimated1RM != null)
     : filteredPoints;
@@ -581,7 +674,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
     deltaPercent = Math.round(((lastVal - firstVal) / firstVal) * 100);
   }
 
-  // For assistance: invert color (decrease = good)
   const isAssistance = selected.metricKind === "assistance";
   const deltaPositive = deltaPercent != null
     ? (isAssistance ? deltaPercent < 0 : deltaPercent > 0)
@@ -589,111 +681,16 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
 
   return (
     <Card className="fade3">
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} />
-        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Прогресс упражнений</span>
-      </div>
-
-      {/* Period chips */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3 }}>
-          {EX_PERIOD_OPTIONS.map((opt) => {
-            const active = effectivePeriod === opt.key;
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
-                style={{
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 12px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  lineHeight: 1.45,
-                  cursor: "pointer",
-                  background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                  boxShadow: active
-                    ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                    : "none",
-                  color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                  transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+      {/* Header: exercise name + swap + value */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {selected.name}
+          </span>
+          <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
-
-        {/* 1RM toggle */}
-        {selected.supports1RM && (
-          <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3 }}>
-            {(["value", "1rm"] as const).map((m) => {
-              const active = metric === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => { fireHaptic("light"); setMetric(m); }}
-                  style={{
-                    border: "none",
-                    borderRadius: 999,
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    lineHeight: 1.45,
-                    cursor: "pointer",
-                    background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                    boxShadow: active
-                      ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                      : "none",
-                    color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-                  }}
-                >
-                  {m === "value" ? "Вес" : "Расч. макс."}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Chart */}
-      <ExerciseProgressChart points={filteredPoints} metric={metric} />
-
-      {/* Exercise picker + stats */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
-        <select
-          value={selectedKey}
-          onChange={(e) => { setSelectedKey(e.target.value); setMetric("value"); }}
-          style={{
-            flex: 1,
-            appearance: "none",
-            WebkitAppearance: "none",
-            border: "none",
-            borderRadius: 12,
-            padding: "8px 12px",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#0f172a",
-            background: GROOVE_BG,
-            boxShadow: GROOVE_SHADOW,
-            cursor: "pointer",
-            outline: "none",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 10px center",
-            paddingRight: 30,
-          }}
-        >
-          {exercises.map((ex) => (
-            <option key={ex.key} value={ex.key}>{ex.name}</option>
-          ))}
-        </select>
-
-        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+        <div style={{ textAlign: "right", whiteSpace: "nowrap", flexShrink: 0, marginLeft: 8 }}>
           {lastVal != null && (
             <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
               {Number.isInteger(lastVal) ? lastVal : lastVal.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>{METRIC_UNIT[selected.metricKind]}</span>
@@ -706,6 +703,31 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
           )}
         </div>
       </div>
+
+      {/* Chart */}
+      <ExerciseProgressChart points={filteredPoints} metric={metric} />
+
+      {/* Period chips + 1RM toggle BELOW chart */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+        <PeriodChips options={EX_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
+        {selected.supports1RM && (
+          <PeriodChips
+            options={[{ key: "value" as const, label: "Вес" }, { key: "1rm" as const, label: "Расч. макс." }]}
+            active={metric}
+            onChange={setMetric}
+          />
+        )}
+      </div>
+
+      {/* Exercise picker sheet */}
+      {showPicker && (
+        <SelectSheet
+          title="Выберите упражнение"
+          options={exercises.map((ex) => ({ key: ex.key, label: ex.name, sub: `${ex.sessionCount} тренировок` }))}
+          onSelect={(key) => { setSelectedKey(key); setMetric("value"); }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </Card>
   );
 }
@@ -777,6 +799,13 @@ function getBodyPoints(
     .map((row) => ({ date: row.date, value: row[metric] as number }));
 }
 
+const BODY_TITLE_MAP: Record<BodyMetricKey, string> = {
+  weight: "Мой вес", bmi: "Мой ИМТ",
+  chest_cm: "Грудь", waist_cm: "Талия", hips_cm: "Бёдра",
+  bicep_left_cm: "Бицепс Л", bicep_right_cm: "Бицепс П",
+  neck_cm: "Шея", thigh_cm: "Бедро",
+};
+
 function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
   body: ProgressSummaryV2["body"];
   onAddWeight: () => void;
@@ -784,6 +813,7 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
 }) {
   const [selectedMetric, setSelectedMetric] = useState<BodyMetricKey>("weight");
   const [period, setPeriod] = useState<BodyPeriod>("all");
+  const [showPicker, setShowPicker] = useState(false);
 
   const allPoints = getBodyPoints(body, selectedMetric);
   const hasData = allPoints.length >= 2;
@@ -797,7 +827,6 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
   let effectivePeriod = period;
   let filteredPoints = period === "all" ? allPoints : allPoints.filter((p) => p.date >= cutoffStr);
 
-  // Auto-widen if < 2 points
   if (filteredPoints.length < 2 && allPoints.length >= 2) {
     const wider = BODY_PERIOD_OPTIONS.find((o) => {
       if (o.key === "all") return true;
@@ -816,7 +845,6 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
     }
   }
 
-  // Stats
   const metaOpt = BODY_METRIC_OPTIONS.find((o) => o.key === selectedMetric)!;
   const lastVal = filteredPoints.length > 0 ? filteredPoints[filteredPoints.length - 1].value : null;
   const firstVal = filteredPoints.length > 1 ? filteredPoints[0].value : null;
@@ -827,10 +855,8 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
     deltaPercent = Math.round(((lastVal - firstVal) / firstVal) * 100);
   }
 
-  // BMI color
   const chartColor = selectedMetric === "bmi" && lastVal != null ? bmiColorFn(lastVal) : "#1e1f22";
 
-  // "+" opens weight modal for weight/bmi, measurement modal for body measurements
   const isMeasurement = selectedMetric !== "weight" && selectedMetric !== "bmi";
   const onPlusClick = () => {
     fireHaptic("light");
@@ -840,41 +866,36 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
 
   return (
     <Card className="fade6">
-      {/* Header */}
+      {/* Header: dynamic title + swap + plus */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Activity size={18} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Моя форма</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
+            {BODY_TITLE_MAP[selectedMetric]}
+          </span>
+          <SwapBtn onClick={() => setShowPicker(true)} />
         </div>
-        <button
-          onClick={onPlusClick}
-          style={{
-            border: "none", background: "none", cursor: "pointer",
-            fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
-          }}
-        >+</button>
-      </div>
-
-      {/* Period chips */}
-      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
-        {BODY_PERIOD_OPTIONS.map((opt) => {
-          const active = effectivePeriod === opt.key;
-          return (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
-              style={{
-                border: "none", borderRadius: 999, padding: "5px 12px",
-                fontSize: 13, fontWeight: 600, lineHeight: 1.45, cursor: "pointer",
-                background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                boxShadow: active ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)" : "none",
-                color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-              }}
-            >{opt.label}</button>
-          );
-        })}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {lastVal != null && (
+            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: selectedMetric === "bmi" ? chartColor : "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
+                {fmtVal(lastVal)}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
+              </span>
+              {deltaPercent != null && deltaPercent !== 0 && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: deltaPercent < 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
+                  {deltaVal! > 0 ? "+" : ""}{deltaVal}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            onClick={onPlusClick}
+            style={{
+              border: "none", background: "none", cursor: "pointer",
+              fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
+            }}
+          >+</button>
+        </div>
       </div>
 
       {/* Chart — real or mock */}
@@ -901,38 +922,20 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
         </div>
       )}
 
-      {/* Metric picker + value */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
-        <select
-          value={selectedMetric}
-          onChange={(e) => { setSelectedMetric(e.target.value as BodyMetricKey); setPeriod("all"); }}
-          style={{
-            flex: 1, appearance: "none", WebkitAppearance: "none",
-            border: "none", borderRadius: 12, padding: "8px 12px",
-            fontSize: 14, fontWeight: 600, color: "#0f172a",
-            background: GROOVE_BG, boxShadow: GROOVE_SHADOW, cursor: "pointer", outline: "none",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-            backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30,
-          }}
-        >
-          {BODY_METRIC_OPTIONS.map((opt) => (
-            <option key={opt.key} value={opt.key}>{opt.label}</option>
-          ))}
-        </select>
-
-        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-          {lastVal != null && (
-            <span style={{ fontSize: 18, fontWeight: 800, color: selectedMetric === "bmi" ? chartColor : "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
-              {fmtVal(lastVal)}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
-            </span>
-          )}
-          {deltaPercent != null && deltaPercent !== 0 && (
-            <div style={{ fontSize: 12, fontWeight: 700, color: deltaPercent < 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
-              {deltaVal! > 0 ? "+" : ""}{deltaVal}{metaOpt.unit ? ` ${metaOpt.unit}` : ""} ({deltaPercent > 0 ? "+" : ""}{deltaPercent}%)
-            </div>
-          )}
-        </div>
+      {/* Period chips below chart */}
+      <div style={{ marginTop: 12 }}>
+        <PeriodChips options={BODY_PERIOD_OPTIONS} active={effectivePeriod} onChange={setPeriod} />
       </div>
+
+      {/* Metric picker sheet */}
+      {showPicker && (
+        <SelectSheet
+          title="Что показать"
+          options={BODY_METRIC_OPTIONS.map((o) => ({ key: o.key, label: o.label }))}
+          onSelect={(key) => { setSelectedMetric(key); setPeriod("all"); }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </Card>
   );
 }
