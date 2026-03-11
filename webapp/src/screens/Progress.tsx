@@ -902,12 +902,14 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
     }
   };
 
-  // Build last-value map for chips
-  const metricInfo = BODY_METRIC_OPTIONS.map((opt) => {
-    const pts = getBodyPoints(body, opt.key);
-    const last = pts.length > 0 ? pts[pts.length - 1] : null;
-    return { ...opt, lastVal: last?.value ?? null, lastDate: last?.date ?? null };
-  });
+  // Build last-value map for chips (exclude BMI)
+  const metricInfo = BODY_METRIC_OPTIONS
+    .filter((o) => o.key !== "bmi")
+    .map((opt) => {
+      const pts = getBodyPoints(body, opt.key);
+      const last = pts.length > 0 ? pts[pts.length - 1] : null;
+      return { ...opt, lastVal: last?.value ?? null, lastDate: last?.date ?? null };
+    });
 
   const inputOpt = BODY_METRIC_OPTIONS.find((o) => o.key === inputMetric)!;
   const inputUnit = inputMetric === "weight" ? "кг" : "см";
@@ -916,50 +918,39 @@ function BodyDataSheet({ body, activeMetric, onSelectMetric, onClose, onRefresh 
   const listContent = (
     <div>
       {metricInfo.map((opt, idx) => {
-        const isBmi = opt.key === "bmi";
+        const valText = opt.lastVal != null
+          ? `${fmtVal(opt.lastVal)} ${opt.unit}`
+          : opt.unit;
+        const dateText = opt.lastDate != null
+          ? fmtBodyDate(opt.lastDate)
+          : "—";
         return (
           <Fragment key={opt.key}>
             {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)", margin: "12px 0" }} />}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Left: name + chips — tappable to switch graph */}
-              <button
-                type="button"
-                onClick={() => { fireHaptic("light"); onSelectMetric(opt.key); requestClose(); }}
-                style={{
-                  flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6,
-                  border: "none", background: "none", cursor: "pointer", textAlign: "left",
-                  padding: "4px 0", WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <span style={{ fontSize: 18, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>
-                  {opt.label}
-                </span>
-                {opt.lastVal != null && opt.lastDate != null && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
-                      <Weight size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                      {fmtVal(opt.lastVal)}{opt.unit ? ` ${opt.unit}` : ""}
-                    </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
-                      <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
-                      {fmtBodyDate(opt.lastDate)}
-                    </span>
-                  </div>
-                )}
-              </button>
-              {/* Right: "+" button (not for BMI) */}
-              {!isBmi && (
-                <button
-                  type="button"
-                  onClick={() => { fireHaptic("light"); openInput(opt.key); }}
-                  style={{
-                    border: "none", background: "none", cursor: "pointer",
-                    padding: 6, flexShrink: 0, WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <Plus size={18} strokeWidth={2} color="#1e1f22" />
-                </button>
-              )}
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: 6, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+              onClick={() => { fireHaptic("light"); onSelectMetric(opt.key); requestClose(); }}
+            >
+              <span style={{ fontSize: 18, fontWeight: 500, color: "#1e1f22", lineHeight: 1.3 }}>
+                {opt.label}
+              </span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
+                    <Weight size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                    {valText}
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45 }}>
+                    <Calendar size={14} strokeWidth={2.2} color="rgba(15,23,42,0.62)" />
+                    {dateText}
+                  </span>
+                </div>
+                <Plus
+                  size={18} strokeWidth={2} color="#1e1f22"
+                  style={{ cursor: "pointer", flexShrink: 0 }}
+                  onClick={(e) => { e.stopPropagation(); fireHaptic("light"); openInput(opt.key); }}
+                />
+              </div>
             </div>
           </Fragment>
         );
