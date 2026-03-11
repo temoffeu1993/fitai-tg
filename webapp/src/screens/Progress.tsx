@@ -523,7 +523,7 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
         </div>
         <div style={{ position: "relative" }}>
           {/* Blurred mock chart */}
-          <div style={{ filter: "blur(6px)", opacity: 0.45, pointerEvents: "none" }}>
+          <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
             <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
               {EX_PERIOD_OPTIONS.map((opt) => (
                 <span key={opt.key} style={{ borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.62)", background: opt.key === "90d" ? "rgba(196,228,178,0.38)" : "transparent" }}>
@@ -543,7 +543,7 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
             textAlign: "center", padding: 20,
           }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
-              Здесь появится график прогресса, когда вы выполните упражнение 3+ раз
+              В зале рост незаметен, но цифры не врут. После 3 тренировок с одним упражнением мы покажем, как вы становитесь сильнее
             </span>
           </div>
         </div>
