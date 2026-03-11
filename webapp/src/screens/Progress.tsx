@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -843,8 +843,8 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Weight size={18} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Тело</span>
+          <Activity size={18} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Моя форма</span>
         </div>
         <button
           onClick={onPlusClick}
