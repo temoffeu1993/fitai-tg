@@ -168,11 +168,11 @@ const TOD_COLORS: Record<string, string> = {
 };
 
 
-function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"] }) {
+function ActivitySection({ activity }: { activity?: ProgressSummaryV2["activity"] }) {
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
   const dayMap = new Map(
-    (activity.days ?? []).map((d) => [d.date, d] as const),
+    (activity?.days ?? []).map((d) => [d.date, d] as const),
   );
 
   // Build 12-week grid (cols = weeks, rows = Mon–Sun)
@@ -197,18 +197,13 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
     weeks.push(col);
   }
 
+  const hasAnyActivity = weeks.some((col) => col.some((c) => c.timeOfDay != null));
+
   const DAY_LABELS = ["пн", "", "ср", "", "пт", "", "вс"];
   const GAP = 3;
 
-  return (
-    <Card className="fade3">
-      {/* Title — matches MuscleFocusSection */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <Zap size={18} color="#0f172a" strokeWidth={2.5} />
-        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
-      </div>
-
-      {/* Grid: 7 rows (Mon–Sun), each row = label + 12 cells */}
+  const gridContent = (
+    <>
       <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
         {Array.from({ length: 7 }, (_, dayIdx) => (
           <div key={dayIdx} style={{ display: "flex", gap: GAP, alignItems: "center" }}>
@@ -217,7 +212,7 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
               fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)",
               textAlign: "right", lineHeight: 1,
             }}>{DAY_LABELS[dayIdx]}</div>
-            {weeks.map((col, wi) => {
+            {weeks.map((col) => {
               const cell = col[dayIdx];
               const isToday = cell.date === todayIso;
               const hasTod = cell.timeOfDay != null;
@@ -253,6 +248,32 @@ function ActivitySection({ activity }: { activity: ProgressSummaryV2["activity"]
           </div>
         ))}
       </div>
+    </>
+  );
+
+  return (
+    <Card className="fade3">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <Zap size={18} color="#0f172a" strokeWidth={2.5} />
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Активность</span>
+      </div>
+
+      {hasAnyActivity ? gridContent : (
+        <div style={{ position: "relative" }}>
+          <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
+            {gridContent}
+          </div>
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", padding: 20,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
+              84&nbsp;клетки — 12&nbsp;недель вашего ритма.<br /><br />Завершите первую тренировку, и&nbsp;сетка начнёт заполняться цветом
+            </span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -327,24 +348,65 @@ function getPreferredMusclePeriod(muscleAccent: ProgressSummaryV2["muscleAccent"
   return "last30d";
 }
 
-function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2["muscleAccent"] }) {
-  const preferredPeriod = getPreferredMusclePeriod(muscleAccent);
+const MOCK_MUSCLE_ITEMS = [
+  { muscle: "Грудь", percent: 28 },
+  { muscle: "Спина", percent: 24 },
+  { muscle: "Плечи", percent: 18 },
+  { muscle: "Ноги", percent: 16 },
+  { muscle: "Руки", percent: 14 },
+];
+
+function MuscleFocusBarChart({ items }: { items: readonly { muscle: string; percent: number }[] }) {
+  const maxPercent = items[0]?.percent ?? 1;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "8px 8px", alignItems: "center" }}>
+      {items.map((item) => (
+        <Fragment key={item.muscle}>
+          <span style={{
+            fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
+            whiteSpace: "nowrap",
+          }}>
+            {item.muscle}
+          </span>
+          <div style={{ height: 16, borderRadius: 10, background: "transparent", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
+              borderRadius: 10,
+              transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
+              background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94a3b8",
+            }} />
+          </div>
+          <span style={{
+            fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
+            textAlign: "right", fontVariantNumeric: "tabular-nums",
+          }}>
+            {item.percent}%
+          </span>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function MuscleFocusSection({ muscleAccent }: { muscleAccent?: ProgressSummaryV2["muscleAccent"] }) {
+  const empty: ProgressSummaryV2["muscleAccent"] = { last7d: [], last30d: [], all: [] };
+  const ma = muscleAccent ?? empty;
+  const preferredPeriod = getPreferredMusclePeriod(ma);
   const [period, setPeriod] = useState<MuscleAccentPeriodKey>(preferredPeriod);
 
   useEffect(() => {
-    if (!muscleAccent[period]?.length) setPeriod(preferredPeriod);
-  }, [muscleAccent, period, preferredPeriod]);
+    if (!ma[period]?.length) setPeriod(preferredPeriod);
+  }, [ma, period, preferredPeriod]);
 
   const hasAnyData =
-    muscleAccent.last7d.length > 0 ||
-    muscleAccent.last30d.length > 0 ||
-    muscleAccent.all.length > 0;
-  if (!hasAnyData) return null;
+    ma.last7d.length > 0 ||
+    ma.last30d.length > 0 ||
+    ma.all.length > 0;
 
-  const items = muscleAccent[period]?.length > 0 ? muscleAccent[period] : muscleAccent[preferredPeriod];
-  if (!items.length) return null;
-
-  const maxPercent = items[0]?.percent ?? 1;
+  const items = hasAnyData
+    ? (ma[period]?.length > 0 ? ma[period] : ma[preferredPeriod])
+    : [];
 
   return (
     <Card className="fade2">
@@ -354,72 +416,74 @@ function MuscleFocusSection({ muscleAccent }: { muscleAccent: ProgressSummaryV2[
         <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Акцент по мышцам</span>
       </div>
 
-      {/* Period segmented chip */}
-      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18 }}>
-        {MUSCLE_PERIOD_OPTIONS.map((option) => {
-          const enabled = muscleAccent[option.key]?.length > 0;
-          const active = period === option.key;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              disabled={!enabled}
-              onClick={() => {
-                if (!enabled) return;
-                fireHaptic("light");
-                setPeriod(option.key);
-              }}
-              style={{
-                border: "none",
-                borderRadius: 999,
-                padding: "5px 12px",
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.45,
-                cursor: enabled ? "pointer" : "default",
-                opacity: enabled ? 1 : 0.38,
-                background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                boxShadow: active
-                  ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
-                  : "none",
-                color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-              }}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
+      {hasAnyData ? (
+        <>
+          {/* Period segmented chip */}
+          <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18 }}>
+            {MUSCLE_PERIOD_OPTIONS.map((option) => {
+              const enabled = ma[option.key]?.length > 0;
+              const active = period === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  disabled={!enabled}
+                  onClick={() => {
+                    if (!enabled) return;
+                    fireHaptic("light");
+                    setPeriod(option.key);
+                  }}
+                  style={{
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "5px 12px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    lineHeight: 1.45,
+                    cursor: enabled ? "pointer" : "default",
+                    opacity: enabled ? 1 : 0.38,
+                    background: active ? "rgba(196,228,178,0.38)" : "transparent",
+                    boxShadow: active
+                      ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)"
+                      : "none",
+                    color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
+                    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Horizontal bar chart */}
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "8px 8px", alignItems: "center" }}>
-        {items.map((item) => (
-          <Fragment key={item.muscle}>
-            <span style={{
-              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
-              whiteSpace: "nowrap",
-            }}>
-              {item.muscle}
-            </span>
-            <div style={{ height: 16, borderRadius: 10, background: "transparent", overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${Math.max(8, Math.round((item.percent / maxPercent) * 100))}%`,
-                borderRadius: 10,
-                transition: "width 600ms cubic-bezier(0.22,1,0.36,1)",
-                background: MUSCLE_FOCUS_COLORS[item.muscle] || "#94a3b8",
-              }} />
+          <MuscleFocusBarChart items={items} />
+        </>
+      ) : (
+        <div style={{ position: "relative" }}>
+          <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 18 }}>
+              {MUSCLE_PERIOD_OPTIONS.map((option) => (
+                <button key={option.key} type="button" style={{
+                  border: "none", borderRadius: 999, padding: "5px 12px",
+                  fontSize: 13, fontWeight: 600, lineHeight: 1.45,
+                  background: option.key === "all" ? "rgba(196,228,178,0.38)" : "transparent",
+                  color: option.key === "all" ? "#2a5218" : "rgba(15,23,42,0.62)",
+                }}>{option.label}</button>
+              ))}
             </div>
-            <span style={{
-              fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.45,
-              textAlign: "right", fontVariantNumeric: "tabular-nums",
-            }}>
-              {item.percent}%
+            <MuscleFocusBarChart items={MOCK_MUSCLE_ITEMS} />
+          </div>
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", padding: 20,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)", lineHeight: 1.55, maxWidth: 260 }}>
+              Каждая тренировка — мазок на&nbsp;карте вашего тела.<br /><br />Завершите первую тренировку, и&nbsp;мы&nbsp;покажем, какие мышцы получают больше внимания
             </span>
-          </Fragment>
-        ))}
-      </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -1717,15 +1781,11 @@ export default function Progress() {
           userGoal={userGoal}
         />
 
-        {summary.muscleAccent && (
-          <MuscleFocusSection muscleAccent={summary.muscleAccent} />
-        )}
+        <MuscleFocusSection muscleAccent={summary.muscleAccent} />
 
         <ExerciseProgressSection exerciseProgress={summary.exerciseProgress} />
 
-        {summary.activity && (
-          <ActivitySection activity={summary.activity} />
-        )}
+        <ActivitySection activity={summary.activity} />
 
         {summary.peakReadiness && (
           <ReadinessInsightSection peakReadiness={summary.peakReadiness} />
