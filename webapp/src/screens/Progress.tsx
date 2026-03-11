@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Target, Trophy, Award, Check, Dumbbell, Zap } from "lucide-react";
+import { Clock3, Weight, Flame, Target, Dumbbell, Zap } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -91,27 +91,6 @@ function Card({ children, style, className }: { children: React.ReactNode; style
   return <div className={className} style={{ ...s.card, ...style }}>{children}</div>;
 }
 
-function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-      {icon}
-      <span style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>{title}</span>
-    </div>
-  );
-}
-
-function GrooveBar({ percent, height = 8, style }: { percent: number; height?: number; style?: CSSProperties }) {
-  return (
-    <div style={{ borderRadius: 999, height, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, overflow: "hidden", ...style }}>
-      <div style={{
-        height: "100%",
-        width: `${Math.min(100, Math.max(0, percent))}%`,
-        background: FILL_BG, boxShadow: FILL_SHADOW,
-        borderRadius: 999, transition: "width 700ms cubic-bezier(0.22,1,0.36,1)",
-      }} />
-    </div>
-  );
-}
 
 function Skel({ h }: { h: number }) {
   return <div className="skel" style={{ height: h }} />;
@@ -730,190 +709,6 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
 }
 
 // ─── Section 4: Личные рекорды ────────────────────────────────────────────────
-
-function PersonalRecordsSection({ records }: { records: ProgressSummaryV2["personalRecords"] }) {
-  const top = records.slice(0, 4); // max 4 for readability
-  if (top.length === 0) return null;
-
-  return (
-    <Card className="fade4">
-      <SectionTitle icon={<Trophy size={17} color="#0f172a" strokeWidth={2.5} />} title="Личные рекорды" />
-      <div style={{ position: "relative" }}>
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2, paddingRight: 16 }}>
-          {top.map((pr) => (
-            <div key={pr.name} style={s.prCard}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.45)", marginBottom: 4 }}>
-                🏋️ Лучший результат
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#1e1f22", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 136, marginBottom: 8 }}>
-                {pr.name}
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
-                <span style={{ fontSize: 30, fontWeight: 900, color: "#1e1f22", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{pr.bestWeight}</span>
-                <span style={{ fontSize: 14, color: "rgba(15,23,42,0.55)" }}>кг</span>
-                {!pr.isFirst && pr.delta != null && pr.delta !== 0 && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: pr.delta > 0 ? "#16A34A" : "#EF4444", position: "relative", top: -4 }}>
-                    {pr.delta > 0 ? "+" : ""}{pr.delta}
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: "rgba(15,23,42,0.45)", marginTop: 4 }}>
-                {pr.isFirst ? "🏅 Первый результат!" : `× ${pr.bestReps} ${ruForm(pr.bestReps, "повторение", "повторения", "повторений")}`}
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* Right fade hint */}
-        {top.length > 2 && (
-          <div style={{ position: "absolute", right: 0, top: 0, bottom: 2, width: 28, background: "linear-gradient(to left, rgba(242,242,247,0.92), transparent)", pointerEvents: "none", borderRadius: "0 20px 20px 0" }} />
-        )}
-      </div>
-    </Card>
-  );
-}
-
-// ─── Section 5: Путь к цели ───────────────────────────────────────────────────
-
-function GoalJourneySection({ journey }: { journey: ProgressSummaryV2["goalJourney"] }) {
-  // Show at most 5 milestones to avoid crowding
-  const ms = journey.milestones.slice(0, 5);
-  const n = ms.length;
-  if (n === 0) return null;
-
-  const completedCount = ms.filter((m) => m.completed).length;
-  const fillPct = n <= 1 ? 0 : (completedCount / (n - 1)) * 100;
-
-  return (
-    <Card className="fade5">
-      <SectionTitle icon={<Target size={17} color="#0f172a" strokeWidth={2.5} />} title="Путь к цели" />
-
-      <div style={{ position: "relative", paddingBottom: 32 }}>
-        {/* Track */}
-        <div style={{
-          position: "absolute", top: 18, left: `${100 / (n * 2)}%`, right: `${100 / (n * 2)}%`,
-          height: 6, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, borderRadius: 999,
-        }} />
-        {/* Fill */}
-        {fillPct > 0 && (
-          <div style={{
-            position: "absolute", top: 18,
-            left: `${100 / (n * 2)}%`,
-            width: `calc(${fillPct}% * ${(n - 1) / n})`,
-            height: 6, background: FILL_BG, boxShadow: FILL_SHADOW, borderRadius: 999,
-            transition: "width 700ms cubic-bezier(0.22,1,0.36,1)",
-          }} />
-        )}
-
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          {ms.map((m, i) => (
-            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, gap: 6 }}>
-              <div
-                className={m.current ? "mile-pulse" : ""}
-                style={{
-                  width: 36, height: 36, borderRadius: "50%", position: "relative", zIndex: 1,
-                  background: m.completed ? FILL_BG : GROOVE_BG,
-                  boxShadow: m.completed ? FILL_SHADOW : GROOVE_SHADOW,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "background 400ms",
-                }}
-              >
-                {m.completed
-                  ? <Check size={16} color="rgba(255,255,255,0.92)" strokeWidth={2.5} />
-                  : m.current
-                    ? <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#3a3b40" }} />
-                    : <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(15,23,42,0.2)" }} />
-                }
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                <span style={{
-                  fontSize: 11, fontWeight: m.completed ? 600 : 400, lineHeight: 1.25, textAlign: "center",
-                  color: m.completed ? "#0f172a" : m.current ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.38)",
-                  maxWidth: 60,
-                }}>
-                  {m.emoji} {m.label}
-                </span>
-                {m.value && (
-                  <span style={{ fontSize: 10, color: "rgba(15,23,42,0.38)", textAlign: "center", lineHeight: 1.2 }}>
-                    {m.value}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{
-        marginTop: -4, padding: "10px 14px", borderRadius: 14,
-        background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
-        fontSize: 13, fontWeight: 600, color: "#0f172a", lineHeight: 1.4,
-      }}>
-        {journey.nextGoalText}
-      </div>
-    </Card>
-  );
-}
-
-// ─── Section 6: Достижения ────────────────────────────────────────────────────
-
-function AchievementsSection({ achievements }: { achievements: ProgressSummaryV2["achievements"] }) {
-  const { earned, upcoming } = achievements;
-
-  if (earned.length === 0 && upcoming.length === 0) {
-    return (
-      <Card className="fade6">
-        <SectionTitle icon={<Award size={17} color="#0f172a" strokeWidth={2.5} />} title="Достижения" />
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "8px 0" }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: "50%",
-            background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
-          }}>🏅</div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>Заработай первый значок</div>
-            <div style={{ fontSize: 12, color: "rgba(15,23,42,0.5)", lineHeight: 1.5 }}>Выполни тренировку,<br />чтобы разблокировать награды</div>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="fade6">
-      <SectionTitle icon={<Award size={17} color="#0f172a" strokeWidth={2.5} />} title="Достижения" />
-
-      {earned.length > 0 && (
-        <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 4, marginBottom: upcoming.length > 0 ? 18 : 0 }}>
-          {earned.map((a) => (
-            <div key={a.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0, minWidth: 52 }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: "50%",
-                background: FILL_BG, boxShadow: FILL_SHADOW,
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
-              }}>
-                {a.icon}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 500, color: "#1e1f22", textAlign: "center", maxWidth: 54, lineHeight: 1.25 }}>{a.title}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {upcoming.slice(0, 2).map((u) => (
-        <div key={u.id} style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ fontSize: 16 }}>{u.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#1e1f22" }}>{u.title}</span>
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.5)" }}>{u.current}/{u.target}</span>
-          </div>
-          <GrooveBar percent={u.percent} height={8} />
-        </div>
-      ))}
-    </Card>
-  );
-}
 
 // ─── Section: Вес & ИМТ (two separate cards) ─────────────────────────────────
 
@@ -1756,9 +1551,6 @@ export default function Progress() {
   const totalMinutes = summary.totalMinutes;
   const userGoal = summary.userGoal;
 
-  const achievements = !summary.achievements || Array.isArray(summary.achievements)
-    ? { earned: [], upcoming: [] }
-    : summary.achievements as { earned: any[]; upcoming: any[] };
 
   return (
     <div style={p.outer}>
@@ -1786,16 +1578,6 @@ export default function Progress() {
         {summary.peakReadiness && (
           <ReadinessInsightSection peakReadiness={summary.peakReadiness} />
         )}
-
-        {summary.personalRecords && summary.personalRecords.length > 0 && (
-          <PersonalRecordsSection records={summary.personalRecords} />
-        )}
-
-        {summary.goalJourney && (
-          <GoalJourneySection journey={summary.goalJourney} />
-        )}
-
-        <AchievementsSection achievements={achievements} />
 
         {summary.body && (
           <>
@@ -1882,12 +1664,6 @@ const s: Record<string, CSSProperties> = {
     display: "inline-flex", alignItems: "center", gap: 5,
     fontSize: 15, fontWeight: 600, lineHeight: 1.25,
     color: "rgba(255,255,255,0.88)",
-  },
-
-  // PR card
-  prCard: {
-    minWidth: 148, borderRadius: 20, background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
-    padding: "13px 12px", flexShrink: 0,
   },
 
   // Buttons
