@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap, Activity, RefreshCw, Check } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -813,14 +813,127 @@ const BODY_TITLE_MAP: Record<BodyMetricKey, string> = {
   neck_cm: "Шея", thigh_cm: "Бедро",
 };
 
-function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
+// ─── Unified BodyData sheet (scroller + metric list) ─────────────────────────
+
+function BodyDataSheet({ activeMetric, onSelectMetric, onClose, onRefresh }: {
+  activeMetric: BodyMetricKey;
+  onSelectMetric: (key: BodyMetricKey) => void;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const isBmi = activeMetric === "bmi";
+  const isWeight = activeMetric === "weight";
+  const isCm = !isBmi && !isWeight;
+
+  const defaultVal = isWeight ? 75 : isCm ? 80 : 0;
+  const [scrollerVal, setScrollerVal] = useState(defaultVal);
+  const [saving, setSaving] = useState(false);
+
+  // Reset scroller value when metric changes
+  const prevMetric = useRef(activeMetric);
+  if (prevMetric.current !== activeMetric) {
+    prevMetric.current = activeMetric;
+    if (activeMetric === "weight") setScrollerVal(75);
+    else if (activeMetric !== "bmi") setScrollerVal(80);
+  }
+
+  const handleSave = async () => {
+    if (isBmi || saving) return;
+    setSaving(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (isWeight) {
+        await saveBodyMetric({ recordedAt: today, weight: scrollerVal });
+      } else {
+        await saveMeasurements({ recordedAt: today, [activeMetric]: scrollerVal });
+      }
+      fireHaptic("medium");
+      onRefresh();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unit = isWeight ? "кг" : isCm ? "см" : "";
+
+  return (
+    <BottomSheet
+      title={BODY_TITLE_MAP[activeMetric]}
+      onClose={onClose}
+      headerRight={
+        !isBmi ? (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              border: "none", background: "none", cursor: "pointer", padding: 4,
+              opacity: saving ? 0.4 : 1,
+            }}
+          >
+            <Check size={22} color="#16A34A" strokeWidth={2.8} />
+          </button>
+        ) : undefined
+      }
+    >
+      {/* Value display + scroller */}
+      {!isBmi && (
+        <>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6, marginBottom: 16 }}>
+            <span style={{ fontSize: 36, fontWeight: 800, color: "#1e1f22" }}>{scrollerVal}</span>
+            <span style={{ fontSize: 16, color: "rgba(15,23,42,0.55)" }}>{unit}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+            {isWeight ? (
+              <WeightScroller value={scrollerVal} onChange={setScrollerVal} />
+            ) : (
+              <CmScroller value={scrollerVal} onChange={setScrollerVal} />
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Divider */}
+      <div style={{ height: 1, background: "rgba(15,23,42,0.08)", margin: isBmi ? "0 0 4px" : "4px 0" }} />
+
+      {/* Metric list */}
+      <div style={{ padding: "0" }}>
+        {BODY_METRIC_OPTIONS.map((opt, idx) => {
+          const isActive = opt.key === activeMetric;
+          return (
+            <Fragment key={opt.key}>
+              {idx > 0 && <div style={{ height: 1, background: "rgba(15,23,42,0.06)" }} />}
+              <button
+                type="button"
+                onClick={() => { fireHaptic("light"); onSelectMetric(opt.key); }}
+                style={{
+                  display: "flex", alignItems: "center", width: "100%",
+                  padding: "13px 4px", border: "none", cursor: "pointer", textAlign: "left",
+                  background: isActive ? "rgba(196,228,178,0.28)" : "none",
+                  borderRadius: isActive ? 10 : 0,
+                }}
+              >
+                <span style={{
+                  fontSize: 16, fontWeight: isActive ? 700 : 500, lineHeight: 1.3,
+                  color: isActive ? "#2a5218" : "#1e1f22",
+                }}>
+                  {opt.label}
+                </span>
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
+    </BottomSheet>
+  );
+}
+
+function BodyDataSection({ body, onRefresh }: {
   body: ProgressSummaryV2["body"];
-  onAddWeight: () => void;
-  onAddMeasurement: () => void;
+  onRefresh: () => void;
 }) {
   const [selectedMetric, setSelectedMetric] = useState<BodyMetricKey>("weight");
   const [period, setPeriod] = useState<BodyPeriod>("all");
-  const [showPicker, setShowPicker] = useState(false);
 
   const allPoints = getBodyPoints(body, selectedMetric);
   const hasData = allPoints.length >= 2;
@@ -864,16 +977,11 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
 
   const chartColor = selectedMetric === "bmi" && lastVal != null ? bmiColorFn(lastVal) : "#1e1f22";
 
-  const isMeasurement = selectedMetric !== "weight" && selectedMetric !== "bmi";
-  const onPlusClick = () => {
-    fireHaptic("light");
-    if (isMeasurement) onAddMeasurement();
-    else onAddWeight();
-  };
+  const [showSheet, setShowSheet] = useState(false);
 
   return (
     <Card className="fade6">
-      {/* Header: dynamic title + swap + plus */}
+      {/* Header: dynamic title + groove arrow */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
           <Activity size={18} color="#0f172a" strokeWidth={2.5} style={{ flexShrink: 0 }} />
@@ -894,14 +1002,18 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
               )}
             </div>
           )}
-          <SwapBtn onClick={() => setShowPicker(true)} />
           <button
-            onClick={onPlusClick}
+            type="button"
+            onClick={() => { fireHaptic("light"); setShowSheet(true); }}
             style={{
-              border: "none", background: "none", cursor: "pointer",
-              fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
+              border: "none", cursor: "pointer", padding: 0, lineHeight: 1,
+              width: 34, height: 34, borderRadius: 999, flexShrink: 0,
+              background: GROOVE_BG, boxShadow: GROOVE_SHADOW,
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}
-          >+</button>
+          >
+            <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 700, color: "#0f172a" }}>→</span>
+          </button>
         </div>
       </div>
 
@@ -940,13 +1052,13 @@ function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
         </div>
       )}
 
-      {/* Metric picker sheet */}
-      {showPicker && (
-        <SelectSheet
-          title="Что показать"
-          options={BODY_METRIC_OPTIONS.map((o) => ({ key: o.key, label: o.label }))}
-          onSelect={(key) => { setSelectedMetric(key); setPeriod("all"); }}
-          onClose={() => setShowPicker(false)}
+      {/* Unified body data sheet */}
+      {showSheet && (
+        <BodyDataSheet
+          activeMetric={selectedMetric}
+          onSelectMetric={(key) => { setSelectedMetric(key); setPeriod("all"); }}
+          onClose={() => setShowSheet(false)}
+          onRefresh={onRefresh}
         />
       )}
     </Card>
@@ -960,7 +1072,7 @@ const SPRING_CLOSE = "cubic-bezier(0.55, 0, 1, 0.45)";
 const SHEET_ENTER = 380;
 const SHEET_EXIT = 260;
 
-function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function BottomSheet({ title, onClose, children, headerRight }: { title: string; onClose: () => void; children: React.ReactNode; headerRight?: React.ReactNode }) {
   const [entered, setEntered] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -1011,7 +1123,10 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 20px 12px" }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{title}</h3>
-          <button style={s.closeBtn} onClick={requestClose}>✕</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {headerRight}
+            <button style={s.closeBtn} onClick={requestClose}>✕</button>
+          </div>
         </div>
         {/* Content */}
         <div style={{ flex: 1, overflow: "auto", padding: "0 20px 20px" }}>
@@ -1373,8 +1488,6 @@ export default function Progress() {
   const [summary, setSummary] = useState<ProgressSummaryV2 | null>(() => readProgressCache());
   const [loading, setLoading] = useState(summary === null);
   const [error, setError] = useState<string | null>(null);
-  const [showWeight, setShowWeight] = useState(false);
-  const [showMeasurement, setShowMeasurement] = useState(false);
 
   useEffect(() => {
     fireHaptic("light");
@@ -1460,8 +1573,7 @@ export default function Progress() {
         {summary.body && (
           <BodyDataSection
             body={summary.body}
-            onAddWeight={() => setShowWeight(true)}
-            onAddMeasurement={() => setShowMeasurement(true)}
+            onRefresh={() => void load()}
           />
         )}
 
@@ -1469,30 +1581,6 @@ export default function Progress() {
       </div>
 
       <NavBar current="none" onChange={nav} />
-
-      {showWeight && (
-        <WeightModal
-          onClose={() => setShowWeight(false)}
-          onSave={async (payload) => {
-            await saveBodyMetric(payload);
-            fireHaptic("medium");
-            setShowWeight(false);
-            void load();
-          }}
-        />
-      )}
-
-      {showMeasurement && (
-        <MeasurementModal
-          onClose={() => setShowMeasurement(false)}
-          onSave={async (payload) => {
-            await saveMeasurements(payload);
-            fireHaptic("medium");
-            setShowMeasurement(false);
-            void load();
-          }}
-        />
-      )}
     </div>
   );
 }
