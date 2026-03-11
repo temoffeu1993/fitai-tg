@@ -1813,6 +1813,7 @@ const wl: Record<string, CSSProperties> = {
     height: 1,
     background: "rgba(15,23,42,0.06)",
     margin: "12px 0",
+    marginRight: -18,
   },
   row: {
     display: "flex",
@@ -2119,6 +2120,7 @@ const sh: Record<string, CSSProperties> = {
     height: 1,
     background: "rgba(15,23,42,0.06)",
     margin: "12px 0",
+    marginRight: -18,
   },
   addWorkoutBtn: {
     width: 44,

@@ -91,12 +91,15 @@ function Card({ children, style }: { children: React.ReactNode; style?: CSSPrope
   return <div style={{ ...s.card, ...style }}>{children}</div>;
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoRow({ label, value, isLast }: { label: string; value: React.ReactNode; isLast?: boolean }) {
   return (
-    <div style={s.infoRow}>
-      <span style={s.infoLabel}>{label}</span>
-      <span style={s.infoValue}>{typeof value === "string" || typeof value === "number" ? value : value}</span>
-    </div>
+    <>
+      <div style={s.infoRow}>
+        <span style={s.infoLabel}>{label}</span>
+        <span style={s.infoValue}>{typeof value === "string" || typeof value === "number" ? value : value}</span>
+      </div>
+      {!isLast && <div style={s.infoDivider} />}
+    </>
   );
 }
 
@@ -320,28 +323,24 @@ export default function Profile() {
             <InfoRow label="Опыт" value={expRus(experience)} />
             <InfoRow label="Частота" value={safeNum(perWeek, "раз/нед")} />
             <InfoRow label="Длительность" value={safeNum(minutes, "мин")} />
-            <InfoRow label="Место" value={placeRus(place)} />
-            {workStyle && <InfoRow label="Образ жизни" value={workStyleRus(workStyle)} />}
+            <InfoRow label="Место" value={placeRus(place)} isLast={!workStyle} />
+            {workStyle && <InfoRow label="Образ жизни" value={workStyleRus(workStyle)} isLast />}
           </div>
         </Card>
 
         {/* ── Питание ── */}
-        {(dietStyles.length > 0 || dietRestr.length > 0) && (
-          <Card>
-            <div style={s.sectionHeader}>
-              <UtensilsCrossed size={18} color="#0f172a" strokeWidth={2.5} />
-              <span style={s.sectionTitle}>Питание</span>
-            </div>
-            <div style={s.infoGrid}>
-              {dietStyles.length > 0 && (
-                <InfoRow label="Стиль" value={dietStyles.join(", ")} />
-              )}
-              {dietRestr.length > 0 && (
-                <InfoRow label="Ограничения" value={dietRestr.join(", ")} />
-              )}
-            </div>
-          </Card>
-        )}
+        <Card>
+          <div style={s.sectionHeader}>
+            <UtensilsCrossed size={18} color="#0f172a" strokeWidth={2.5} />
+            <span style={s.sectionTitle}>Питание</span>
+          </div>
+          <div style={s.infoGrid}>
+            {dietStyles.length > 0 && (
+              <InfoRow label="Стиль" value={dietStyles.join(", ")} />
+            )}
+            <InfoRow label="Ограничения" value={dietRestr.length > 0 ? dietRestr.join(", ") : "Нет"} isLast />
+          </div>
+        </Card>
 
         {/* ── Исключённые упражнения ── */}
         <Card>
@@ -512,7 +511,11 @@ const s: Record<string, CSSProperties> = {
   infoRow: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "10px 0",
-    borderBottom: "1px solid rgba(15,23,42,0.06)",
+  },
+  infoDivider: {
+    height: 1,
+    background: "rgba(15,23,42,0.06)",
+    marginRight: -18,
   },
   infoLabel: { fontSize: 14, fontWeight: 400, color: "rgba(15,23,42,0.62)" },
   infoValue: { fontSize: 15, fontWeight: 600, color: "#1e1f22", textAlign: "right" as const },
