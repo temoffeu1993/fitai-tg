@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { resetProfileRemote } from "@/api/profile";
 import { NUTRITION_CACHE_KEY } from "@/hooks/useNutritionPlan";
 import { excludeExercise, getExcludedExerciseDetails, includeExercise, searchExercises } from "@/api/exercises";
-import { Dumbbell, UtensilsCrossed, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale } from "lucide-react";
+import { Dumbbell, UtensilsCrossed, Search, ChevronDown, ChevronUp, Pencil, Calendar, UserRound, Ruler, Scale, Activity } from "lucide-react";
 
 type Summary = any;
 
@@ -219,7 +219,8 @@ export default function Profile() {
 
   const onb = summary || {};
   const avatarUrl = tgProfile?.photo_url;
-  const name = onb?.profile?.name || onb?.name || tgProfile?.first_name || "—";
+  const rawName = onb?.profile?.name || onb?.name;
+  const name = (rawName && rawName !== "Спортсмен") ? rawName : tgProfile?.first_name || rawName || "—";
   const sex = onb?.ageSex?.sex || onb?.sex;
   const age = onb?.ageSex?.age ?? onb?.age;
   const height = onb?.body?.height ?? onb?.height;
@@ -233,13 +234,20 @@ export default function Profile() {
   const dietRestr: string[] = onb?.dietPrefs?.restrictions || [];
   const dietStyles: string[] = onb?.dietPrefs?.styles || [];
 
-  const bmiValue = useMemo(() => {
+  const bmi = useMemo(() => {
     const h = Number(height);
     const w = Number(weight);
-    if (!h || !w || h < 100) return "—";
-    const bmi = w / ((h / 100) ** 2);
-    return `${bmi.toFixed(1)} ИМТ`;
+    if (!h || !w || h < 100) return null;
+    return w / ((h / 100) ** 2);
   }, [height, weight]);
+
+  const bmiColor = useMemo(() => {
+    if (!bmi) return "rgba(255,255,255,0.88)";
+    if (bmi < 18.5) return "#60a5fa";  // underweight — blue
+    if (bmi < 25) return "#4ade80";    // normal — green
+    if (bmi < 30) return "#fbbf24";    // overweight — amber
+    return "#f87171";                   // obese — red
+  }, [bmi]);
 
   const initials = useMemo(() => {
     const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -279,7 +287,7 @@ export default function Profile() {
                 onClick={() => navigate("/onb/age-sex#age-sex")}
                 style={s.editBtn}
               >
-                <Pencil size={14} strokeWidth={2.2} color="rgba(15,23,42,0.45)" />
+                <Pencil size={14} strokeWidth={2} color="rgba(15,23,42,0.35)" />
               </button>
             </div>
           </div>
@@ -295,9 +303,9 @@ export default function Profile() {
             <Scale size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
             {safeNum(weight, "кг")}
           </span>
-          <span style={s.statChip}>
-            <UserRound size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
-            {bmiValue}
+          <span style={{ ...s.statChip, color: bmiColor }}>
+            <Activity size={15} strokeWidth={2.2} color={bmiColor} />
+            {bmi ? `${bmi.toFixed(1)} ИМТ` : "—"}
           </span>
         </div>
 
@@ -438,7 +446,7 @@ const s: Record<string, CSSProperties> = {
     fontFamily: "system-ui,-apple-system,Segoe UI,Roboto,sans-serif",
   },
   inner: {
-    maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12,
+    maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14,
     paddingTop: "calc(env(safe-area-inset-top,0px) + 6px)",
   },
 
@@ -454,7 +462,7 @@ const s: Record<string, CSSProperties> = {
   // Hero — like WorkoutResult header
   headerRow: {
     display: "flex", alignItems: "center", gap: 12,
-    marginTop: 8, marginBottom: 0,
+    marginTop: 8, marginBottom: 12,
   },
   avatarCircle: {
     width: 56, height: 56, borderRadius: 999, flexShrink: 0,
