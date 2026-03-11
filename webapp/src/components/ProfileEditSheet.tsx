@@ -507,9 +507,11 @@ function SheetInner({
                     >
                       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 4 }}>
                         <span style={sh.rowLabel}>{field.label}</span>
-                        <span style={sh.rowValue}>{getDisplayValue(summary, section, field)}</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={sh.rowValue}>{getDisplayValue(summary, section, field)}</span>
+                          <Pencil size={18} strokeWidth={2} color="#1e1f22" style={{ flexShrink: 0 }} />
+                        </div>
                       </div>
-                      <Pencil size={18} strokeWidth={2} color="#1e1f22" />
                     </div>
                   </div>
                 ))}
@@ -615,14 +617,16 @@ const sh: Record<string, CSSProperties> = {
     gap: 12,
   },
   rowLabel: {
-    fontSize: 15,
-    fontWeight: 600,
+    fontSize: 18,
+    fontWeight: 500,
     color: "#1e1f22",
+    lineHeight: 1.3,
   },
   rowValue: {
     fontSize: 14,
     fontWeight: 400,
     color: "rgba(15,23,42,0.62)",
+    lineHeight: 1.45,
   },
   divider: {
     height: 1,
