@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Check, Pencil, X } from "lucide-react";
+import { fireHapticImpact } from "@/utils/haptics";
 
 // ─── Animation constants (same as Schedule.tsx) ─────────────────────────────
 const SPRING_OPEN = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -230,6 +231,253 @@ function setFieldValue(summary: any, section: string, fieldKey: string, value: a
   return s;
 }
 
+// ─── Scroller constants ─────────────────────────────────────────────────────
+
+const AGE_MIN = 14, AGE_MAX = 99, AGE_ITEM_H = 56;
+const WT_MIN = 30, WT_MAX = 300, WT_ITEM_W = 12, WT_TICKS = 5;
+const HT_MIN = 100, HT_MAX = 250, HT_ITEM_H = 12, HT_TICKS = 5;
+const HT_EDGE = HT_ITEM_H * HT_TICKS * 2 - HT_ITEM_H / 2;
+
+// ─── Age Scroller ───────────────────────────────────────────────────────────
+
+function AgeScroller({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const stopTimer = useRef<number>(0);
+  const lastTick = useRef<number | null>(null);
+  const suppressSync = useRef(false);
+  const suppressHaptics = useRef(true);
+
+  const ages = Array.from({ length: AGE_MAX - AGE_MIN + 1 }, (_, i) => AGE_MIN + i);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => { suppressHaptics.current = false; }, 200);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || suppressSync.current) { suppressSync.current = false; return; }
+    const index = value - AGE_MIN;
+    list.scrollTop = index * AGE_ITEM_H;
+    lastTick.current = index;
+  }, [value]);
+
+  const maybeHaptic = () => { if (!suppressHaptics.current) fireHapticImpact("light"); };
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const liveIndex = Math.round(list.scrollTop / AGE_ITEM_H);
+    if (lastTick.current !== liveIndex) { lastTick.current = liveIndex; maybeHaptic(); }
+    clearTimeout(stopTimer.current);
+    stopTimer.current = window.setTimeout(() => {
+      const index = Math.round(list.scrollTop / AGE_ITEM_H);
+      const nextAge = AGE_MIN + index;
+      if (nextAge >= AGE_MIN && nextAge <= AGE_MAX) {
+        suppressSync.current = true;
+        onChange(nextAge);
+      }
+    }, 60);
+  };
+
+  return (
+    <div style={scr.ageWrap}>
+      <div style={scr.ageIndicator} />
+      <div style={scr.ageFadeTop} />
+      <div style={scr.ageFadeBottom} />
+      <div ref={listRef} style={scr.ageList} className="profile-scroller-list" onScroll={handleScroll}>
+        <div style={{ height: AGE_ITEM_H * 2 }} />
+        {ages.map((v) => (
+          <button
+            key={v} type="button"
+            style={{ ...scr.ageItem, ...(value === v ? scr.ageItemActive : {}) }}
+            onClick={() => { suppressSync.current = true; onChange(v); maybeHaptic(); }}
+          >
+            {v}
+          </button>
+        ))}
+        <div style={{ height: AGE_ITEM_H * 2 }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Weight Scroller ────────────────────────────────────────────────────────
+
+function ProfileWeightScroller({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const stopTimer = useRef<number>(0);
+  const suppressSync = useRef(false);
+  const lastTick = useRef<number | null>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || suppressSync.current) { suppressSync.current = false; return; }
+    const idx = (value - WT_MIN) * WT_TICKS;
+    list.scrollLeft = idx * WT_ITEM_W;
+    lastTick.current = Math.round(idx / WT_TICKS) * WT_TICKS;
+  }, [value]);
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const raw = Math.round(list.scrollLeft / WT_ITEM_W);
+    const major = Math.round(raw / WT_TICKS) * WT_TICKS;
+    if (lastTick.current !== major) { lastTick.current = major; fireHapticImpact("light"); }
+    clearTimeout(stopTimer.current);
+    stopTimer.current = window.setTimeout(() => {
+      const r = Math.round(list.scrollLeft / WT_ITEM_W);
+      const m = Math.round(r / WT_TICKS) * WT_TICKS;
+      const w = WT_MIN + m / WT_TICKS;
+      if (w >= WT_MIN && w <= WT_MAX) { suppressSync.current = true; onChange(w); }
+    }, 80);
+  };
+
+  const ticks = Array.from({ length: (WT_MAX - WT_MIN) * WT_TICKS + 1 }, (_, i) => ({
+    index: i, value: WT_MIN + i / WT_TICKS, isMajor: i % WT_TICKS === 0,
+  }));
+
+  const trackW = WT_ITEM_W * WT_TICKS * 5;
+
+  return (
+    <div style={{ ...scr.trackWrap, width: trackW }}>
+      <div style={scr.trackIndicator} />
+      <div style={{ ...scr.trackFade, left: 0, background: "linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)" }} />
+      <div style={{ ...scr.trackFade, right: 0, background: "linear-gradient(270deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0) 100%)" }} />
+      <div
+        ref={listRef}
+        className="profile-scroller-list"
+        onScroll={handleScroll}
+        style={{
+          overflowX: "auto", overflowY: "hidden", whiteSpace: "nowrap" as const,
+          scrollSnapType: "x proximity", WebkitOverflowScrolling: "touch",
+          padding: "16px 0 20px",
+          paddingLeft: `calc(50% - ${WT_ITEM_W / 2}px)`,
+          paddingRight: `calc(50% - ${WT_ITEM_W / 2}px)`,
+          scrollbarWidth: "none" as const,
+        }}
+      >
+        {ticks.map((t) => (
+          <button
+            key={t.index} type="button"
+            style={{
+              width: WT_ITEM_W, background: "transparent", display: "inline-flex",
+              flexDirection: "column" as const, alignItems: "center", justifyContent: "flex-end",
+              gap: 14, border: "none", cursor: "pointer", padding: 0,
+              scrollSnapAlign: t.isMajor ? "center" : "none",
+            }}
+            onClick={() => {
+              const m = Math.round(t.index / WT_TICKS) * WT_TICKS;
+              const w = WT_MIN + m / WT_TICKS;
+              if (w >= WT_MIN && w <= WT_MAX) { suppressSync.current = true; onChange(w); listRef.current?.scrollTo({ left: m * WT_ITEM_W, behavior: "smooth" }); }
+            }}
+          >
+            <div style={{
+              fontSize: t.isMajor ? (value === t.value ? 22 : 18) : 0, height: 22,
+              color: value === t.value ? "#111" : "rgba(15,23,42,0.45)",
+              fontWeight: value === t.value ? 700 : 500,
+            }}>
+              {t.isMajor ? t.value : ""}
+            </div>
+            <div style={{ width: "100%", height: 18, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+              <span style={{
+                width: 2, borderRadius: 999,
+                height: t.isMajor ? 22 : 12,
+                background: value === t.value ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.35)",
+              }} />
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Height (cm) Scroller ───────────────────────────────────────────────────
+
+function HeightScroller({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const stopTimer = useRef<number>(0);
+  const suppressSync = useRef(false);
+  const lastTop = useRef(0);
+  const lastTick = useRef<number | null>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || suppressSync.current) { suppressSync.current = false; return; }
+    const idx = (value - HT_MIN) * HT_TICKS;
+    list.scrollTop = idx * HT_ITEM_H;
+    lastTick.current = Math.round(idx / HT_TICKS) * HT_TICKS;
+  }, [value]);
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    lastTop.current = list.scrollTop;
+    const raw = Math.round(list.scrollTop / HT_ITEM_H);
+    const major = Math.round(raw / HT_TICKS) * HT_TICKS;
+    if (lastTick.current !== major) { lastTick.current = major; fireHapticImpact("light"); }
+    clearTimeout(stopTimer.current);
+    const checkStop = () => {
+      const cur = list.scrollTop;
+      if (Math.abs(cur - lastTop.current) > 0.5) { lastTop.current = cur; stopTimer.current = window.setTimeout(checkStop, 80); return; }
+      const r = Math.round(cur / HT_ITEM_H);
+      const m = Math.round(r / HT_TICKS) * HT_TICKS;
+      const v = HT_MIN + m / HT_TICKS;
+      if (v >= HT_MIN && v <= HT_MAX) { suppressSync.current = true; onChange(v); }
+    };
+    stopTimer.current = window.setTimeout(checkStop, 80);
+  };
+
+  const ticks = Array.from({ length: (HT_MAX - HT_MIN) * HT_TICKS + 1 }, (_, i) => ({
+    index: i, value: HT_MIN + i / HT_TICKS, isMajor: i % HT_TICKS === 0,
+  }));
+
+  return (
+    <div style={scr.heightWrap}>
+      <div style={scr.heightIndicator} />
+      <div style={scr.heightFadeTop} />
+      <div style={scr.heightFadeBottom} />
+      <div ref={listRef} className="profile-scroller-list" onScroll={handleScroll} style={scr.heightList}>
+        <div style={{ height: HT_EDGE }} />
+        {ticks.map((t) => (
+          <button
+            key={t.index} type="button"
+            style={{
+              border: "none", background: "transparent", height: HT_ITEM_H,
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", gap: 6,
+              scrollSnapAlign: t.isMajor ? "center" : "none",
+            }}
+            onClick={() => {
+              const m = Math.round(t.index / HT_TICKS) * HT_TICKS;
+              const v = HT_MIN + m / HT_TICKS;
+              if (v >= HT_MIN && v <= HT_MAX) { suppressSync.current = true; onChange(v); listRef.current?.scrollTo({ top: m * HT_ITEM_H, behavior: "smooth" }); }
+            }}
+          >
+            <div style={{
+              minWidth: 36, textAlign: "right" as const,
+              fontSize: value === t.value ? 22 : (t.isMajor ? 18 : 0),
+              color: value === t.value ? "#111" : (t.isMajor ? "rgba(15,23,42,0.45)" : "transparent"),
+              fontWeight: value === t.value ? 700 : 500,
+            }}>
+              {t.isMajor ? t.value : ""}
+            </div>
+            <div style={{ width: 36, height: 12, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+              <span style={{
+                height: 2, borderRadius: 999,
+                width: t.isMajor ? 22 : 12,
+                background: value === t.value ? "rgba(15,23,42,0.75)" : "rgba(15,23,42,0.35)",
+              }} />
+            </div>
+          </button>
+        ))}
+        <div style={{ height: HT_EDGE }} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export type ProfileEditSheetProps = {
@@ -335,7 +583,10 @@ function SheetInner({
   const openField = (field: FieldDef) => {
     const currentVal = getFieldValue(summary, section, field.key);
     if (field.type === "number") {
-      setEditValue(currentVal === "" || currentVal === null || currentVal === undefined ? "" : String(currentVal));
+      // Set as number for scrollers; fallback to sensible default
+      const n = Number(currentVal);
+      const defaults: Record<string, number> = { age: 30, weight: 75, height: 175 };
+      setEditValue(Number.isFinite(n) && n > 0 ? n : (defaults[field.key] ?? field.min ?? 0));
     } else if (field.type === "multi-select") {
       setEditValue(Array.isArray(currentVal) ? [...currentVal] : []);
     } else {
@@ -355,9 +606,7 @@ function SheetInner({
     if (!activeField) return;
     let val = editValue;
     if (activeField.type === "number") {
-      const n = Number(val);
-      if (!Number.isFinite(n)) return;
-      val = n;
+      if (!Number.isFinite(val)) return;
     }
     const updated = setFieldValue(summary, section, activeField.key, val);
     onSave(updated);
@@ -424,7 +673,7 @@ function SheetInner({
           background: "linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(242,242,247,0.95) 100%)",
           boxShadow: "0 -8px 32px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.9)",
           maxHeight: "85vh",
-          overflow: "visible",
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column" as const,
           padding: "0 16px 16px",
@@ -438,6 +687,7 @@ function SheetInner({
           @keyframes sh-in-left { from { opacity: 0; transform: translate3d(-44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
           @keyframes sh-out-left { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(-44px, 0, 0); } }
           @keyframes sh-out-right { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(44px, 0, 0); } }
+          .profile-scroller-list::-webkit-scrollbar { display: none; }
         `}</style>
 
         {/* Grabber */}
@@ -521,23 +771,24 @@ function SheetInner({
               <div style={{ display: "flex", flexDirection: "column" as const, flex: 1, minHeight: 0 }}>
                 <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0 }}>
                   {activeField.type === "number" ? (
-                    <div style={{ padding: "14px 18px" }}>
-                      <div style={{ position: "relative" as const }}>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={activeField.min}
-                          max={activeField.max}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder={activeField.label}
-                          autoFocus
-                          style={sh.numberInput}
-                        />
+                    <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: "10px 0" }}>
+                      {/* Value label */}
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                        <span style={{ fontSize: 30, fontWeight: 700, color: "#111" }}>{editValue ?? "—"}</span>
                         {activeField.suffix && (
-                          <span style={sh.inputSuffix}>{activeField.suffix}</span>
+                          <span style={{ fontSize: 16, color: "rgba(15,23,42,0.7)" }}>{activeField.suffix}</span>
                         )}
                       </div>
+                      {/* Scroller */}
+                      {activeField.key === "age" && (
+                        <AgeScroller value={editValue} onChange={setEditValue} />
+                      )}
+                      {activeField.key === "weight" && (
+                        <ProfileWeightScroller value={editValue} onChange={setEditValue} />
+                      )}
+                      {activeField.key === "height" && (
+                        <HeightScroller value={editValue} onChange={setEditValue} />
+                      )}
                     </div>
                   ) : activeField.type === "multi-select" ? (
                     activeField.options?.map((opt, idx) => (
@@ -642,32 +893,10 @@ const sh: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
   optionText: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: 500,
     color: "#1e1f22",
-  },
-  numberInput: {
-    width: "100%",
-    padding: "14px 18px",
-    borderRadius: 16,
-    border: "1px solid rgba(15,23,42,0.10)",
-    background: "rgba(255,255,255,0.6)",
-    fontSize: 16,
-    fontWeight: 500,
-    color: "#1e1f22",
-    outline: "none",
-    fontFamily: "inherit",
-    boxSizing: "border-box" as const,
-  },
-  inputSuffix: {
-    position: "absolute" as const,
-    right: 18,
-    top: "50%",
-    transform: "translateY(-50%)",
-    fontSize: 14,
-    fontWeight: 400,
-    color: "rgba(15,23,42,0.45)",
-    pointerEvents: "none" as const,
+    lineHeight: 1.3,
   },
   saveBtn: {
     display: "inline-flex",
@@ -709,5 +938,165 @@ const sh: Record<string, CSSProperties> = {
     color: "#1e1f22",
     fontWeight: 700,
     textShadow: "0 1px 0 rgba(255,255,255,0.82), 0 -1px 0 rgba(15,23,42,0.15)",
+  },
+};
+
+// ─── Scroller styles ─────────────────────────────────────────────────────────
+
+const scr: Record<string, CSSProperties> = {
+  // Age scroller
+  ageWrap: {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+    position: "relative",
+    overflow: "hidden",
+    width: "min(100px, 30vw)",
+    height: AGE_ITEM_H * 5,
+    alignSelf: "center",
+  },
+  ageList: {
+    position: "relative",
+    zIndex: 2,
+    maxHeight: "100%",
+    overflowY: "auto",
+    scrollSnapType: "y proximity",
+    scrollbarWidth: "none" as const,
+    WebkitOverflowScrolling: "touch",
+  },
+  ageIndicator: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: AGE_ITEM_H + 24,
+    height: AGE_ITEM_H + 12,
+    transform: "translate(-50%, -50%)",
+    borderRadius: 16,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.35) 100%)",
+    border: "1px solid rgba(255,255,255,0.85)",
+    boxShadow: "0 12px 26px rgba(0,0,0,0.12), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    pointerEvents: "none" as const,
+    zIndex: 1,
+  },
+  ageFadeTop: {
+    position: "absolute",
+    left: 0, right: 0, top: 0,
+    height: AGE_ITEM_H * 2,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none" as const,
+    zIndex: 3,
+  },
+  ageFadeBottom: {
+    position: "absolute",
+    left: 0, right: 0, bottom: 0,
+    height: AGE_ITEM_H * 2,
+    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none" as const,
+    zIndex: 3,
+  },
+  ageItem: {
+    border: "none",
+    background: "transparent",
+    color: "rgba(15, 23, 42, 0.5)",
+    fontSize: 24,
+    fontWeight: 500,
+    height: AGE_ITEM_H,
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center" as const,
+    scrollSnapAlign: "center",
+    cursor: "pointer",
+  },
+  ageItemActive: {
+    color: "#111",
+    fontWeight: 700,
+  },
+
+  // Weight scroller (horizontal)
+  trackWrap: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 18,
+    alignSelf: "center",
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+  },
+  trackIndicator: {
+    position: "absolute",
+    left: "50%",
+    top: 8,
+    transform: "translateX(-50%)",
+    pointerEvents: "none" as const,
+    width: 0, height: 0,
+    borderLeft: "6px solid transparent",
+    borderRight: "6px solid transparent",
+    borderTop: "8px solid rgba(15,23,42,0.35)",
+  },
+  trackFade: {
+    position: "absolute",
+    top: 0, bottom: 0,
+    width: WT_ITEM_W * WT_TICKS,
+    pointerEvents: "none" as const,
+    zIndex: 1,
+  },
+
+  // Height scroller (vertical)
+  heightWrap: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 18,
+    alignSelf: "center",
+    width: "min(140px, 36vw)",
+    height: HT_ITEM_H * HT_TICKS * 4,
+    border: "1px solid rgba(255,255,255,0.6)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,245,250,0.7) 100%)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.85)",
+  },
+  heightList: {
+    maxHeight: "100%",
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollSnapType: "y proximity",
+    scrollbarWidth: "none" as const,
+    WebkitOverflowScrolling: "touch",
+  },
+  heightIndicator: {
+    position: "absolute",
+    top: "50%",
+    left: 12,
+    transform: "translateY(-50%)",
+    pointerEvents: "none" as const,
+    width: 0, height: 0,
+    borderTop: "6px solid transparent",
+    borderBottom: "6px solid transparent",
+    borderLeft: "8px solid rgba(15,23,42,0.35)",
+  },
+  heightFadeTop: {
+    position: "absolute",
+    left: 0, right: 0, top: 0,
+    height: HT_ITEM_H * HT_TICKS * 2,
+    background: "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none" as const,
+    zIndex: 1,
+  },
+  heightFadeBottom: {
+    position: "absolute",
+    left: 0, right: 0, bottom: 0,
+    height: HT_ITEM_H * HT_TICKS * 2,
+    background: "linear-gradient(0deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)",
+    pointerEvents: "none" as const,
+    zIndex: 1,
   },
 };

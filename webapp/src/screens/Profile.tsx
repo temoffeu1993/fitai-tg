@@ -302,7 +302,7 @@ export default function Profile() {
                 type="button"
                 aria-label="Редактировать"
                 onClick={() => setEditSheet("hero")}
-                style={s.editBtn}
+                style={{ ...s.editBtn, marginRight: 18 }}
               >
                 <Pencil size={18} strokeWidth={2} color="#1e1f22" />
               </button>
