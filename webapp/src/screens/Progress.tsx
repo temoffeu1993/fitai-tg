@@ -499,9 +499,57 @@ function ExerciseProgressChart({ points, metric }: {
   );
 }
 
+const MOCK_EXERCISE_POINTS = [
+  { date: "2025-12-01", value: 40 },
+  { date: "2025-12-15", value: 42.5 },
+  { date: "2026-01-02", value: 45 },
+  { date: "2026-01-14", value: 45 },
+  { date: "2026-01-28", value: 47.5 },
+  { date: "2026-02-08", value: 50 },
+  { date: "2026-02-22", value: 52.5 },
+  { date: "2026-03-05", value: 55 },
+];
+
 function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: ProgressSummaryV2["exerciseProgress"] }) {
   const exercises = exerciseProgress?.exercises;
-  if (!exercises?.length) return null;
+  const hasData = exercises && exercises.length > 0;
+
+  if (!hasData) {
+    return (
+      <Card className="fade3">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <Dumbbell size={18} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Прогресс упражнений</span>
+        </div>
+        <div style={{ position: "relative" }}>
+          {/* Blurred mock chart */}
+          <div style={{ filter: "blur(6px)", opacity: 0.45, pointerEvents: "none" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
+              {EX_PERIOD_OPTIONS.map((opt) => (
+                <span key={opt.key} style={{ borderRadius: 999, padding: "5px 12px", fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.62)", background: opt.key === "90d" ? "rgba(196,228,178,0.38)" : "transparent" }}>
+                  {opt.label}
+                </span>
+              ))}
+            </div>
+            <ExerciseProgressChart points={MOCK_EXERCISE_POINTS} metric="value" />
+            <div style={{ marginTop: 14, borderRadius: 12, padding: "8px 12px", background: GROOVE_BG, boxShadow: GROOVE_SHADOW, fontSize: 14, fontWeight: 600, color: "#0f172a", display: "inline-block" }}>
+              Жим лёжа со штангой
+            </div>
+          </div>
+          {/* Overlay text */}
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", padding: 20,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
+              Здесь появится график прогресса, когда вы выполните упражнение 3+ раз
+            </span>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   const [selectedKey, setSelectedKey] = useState(exercises[0].key);
   const [period, setPeriod] = useState<ExPeriod>("90d");
@@ -1084,9 +1132,7 @@ export default function Progress() {
           <MuscleFocusSection muscleAccent={summary.muscleAccent} />
         )}
 
-        {summary.exerciseProgress?.exercises?.length > 0 && (
-          <ExerciseProgressSection exerciseProgress={summary.exerciseProgress} />
-        )}
+        <ExerciseProgressSection exerciseProgress={summary.exerciseProgress} />
 
         {summary.activity && (
           <ActivitySection activity={summary.activity} />
