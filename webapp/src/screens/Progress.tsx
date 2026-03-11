@@ -8,7 +8,7 @@ import {
 import NavBar from "@/components/NavBar";
 import avatarImg from "@/assets/robonew.webp";
 import mascotImg from "@/assets/morobot.webp";
-import { Clock3, Weight, Flame, Target, Dumbbell, Zap } from "lucide-react";
+import { Clock3, Weight, Flame, Dumbbell, Zap } from "lucide-react";
 
 // ─── Visual constants (WorkoutResult-consistent) ────────────────────────────
 
@@ -439,9 +439,10 @@ const METRIC_UNIT: Record<string, string> = {
   assistance: "кг",
 };
 
-function ExerciseProgressChart({ points, metric }: {
+function ExerciseProgressChart({ points, metric, color = "#1e1f22" }: {
   points: Array<{ date: string; value: number; estimated1RM?: number }>;
   metric: "value" | "1rm";
+  color?: string;
 }) {
   // In 1RM mode, only use points that have estimated1RM (no fallback to value)
   const effective = metric === "1rm" ? points.filter((p) => p.estimated1RM != null) : points;
@@ -459,20 +460,21 @@ function ExerciseProgressChart({ points, metric }: {
     y: padY + (1 - (v - minV) / range) * (H - padY * 2),
   }));
 
+  const gradId = `exChartGrad_${color.replace(/[^a-zA-Z0-9]/g, "")}`;
   const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 120, display: "block", overflow: "visible" }}>
       <defs>
-        <linearGradient id="exChartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(30,31,34,0.15)" />
-          <stop offset="100%" stopColor="rgba(30,31,34,0)" />
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
         </linearGradient>
       </defs>
-      <polygon points={polygonPts} fill="url(#exChartGrad)" />
-      <polyline points={polyline} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <polygon points={polygonPts} fill={`url(#${gradId})`} />
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       {coords.map((c, i) => (
-        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 3} fill={i === coords.length - 1 ? "#1e1f22" : "#3a3b40"} />
+        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 3} fill={color} opacity={i === coords.length - 1 ? 1 : 0.7} />
       ))}
     </svg>
   );
@@ -710,367 +712,227 @@ function ExerciseProgressSection({ exerciseProgress }: { exerciseProgress: Progr
 
 // ─── Section 4: Личные рекорды ────────────────────────────────────────────────
 
-// ─── Section: Вес & ИМТ (two separate cards) ─────────────────────────────────
+// ─── Section: Тело (unified Weight + BMI + Measurements) ─────────────────────
 
 type WeightPayload = { weight: number; recordedAt: string; notes?: string };
 
 function fmtVal(v: number) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
 
 function bmiColorFn(bmi: number): string {
-  if (bmi < 18.5) return "#3b82f6";   // underweight — blue
-  if (bmi < 25) return "#16A34A";      // normal — green
-  if (bmi < 30) return "#f59e0b";      // overweight — amber
-  return "#EF4444";                     // obese — red
+  if (bmi < 18.5) return "#3b82f6";
+  if (bmi < 25) return "#16A34A";
+  if (bmi < 30) return "#f59e0b";
+  return "#EF4444";
 }
-
-/** Build a beautiful sparkline: synthetic gentle wave leading into real data.
- *  Uses sine-based harmonics for the synthetic part — smooth and organic. */
-function buildSparkline(realValues: number[], total: number = 12): number[] {
-  if (realValues.length === 0) return [];
-  if (realValues.length >= total) return realValues.slice(-total);
-  const first = realValues[0];
-  const padCount = total - realValues.length;
-  const amp = first * 0.025; // gentle ±2.5% amplitude
-  // Deterministic seed from value
-  const phase = (Math.round(first * 7) % 100) / 100 * Math.PI * 2;
-  const synth: number[] = [];
-  for (let i = 0; i < padCount; i++) {
-    const t = i / padCount;
-    // Two overlaid sine waves for organic feel, amplitude fading towards the join
-    const fade = 0.4 + 0.6 * (1 - t); // stronger at start, gentle near real data
-    const wave = Math.sin(phase + t * Math.PI * 2.5) * 0.7 + Math.sin(phase * 1.7 + t * Math.PI * 4) * 0.3;
-    synth.push(Number((first + amp * wave * fade).toFixed(1)));
-  }
-  return [...synth, ...realValues];
-}
-
-/** Catmull-Rom → cubic bezier SVG path — buttery smooth curves */
-function smoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length < 2) return "";
-  if (pts.length === 2) return `M${f(pts[0].x)},${f(pts[0].y)} L${f(pts[1].x)},${f(pts[1].y)}`;
-  const alpha = 0.5; // centripetal Catmull-Rom
-  let d = `M${f(pts[0].x)},${f(pts[0].y)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(i - 1, 0)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(i + 2, pts.length - 1)];
-    const d1 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const d0 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-    const d2 = Math.hypot(p3.x - p2.x, p3.y - p2.y);
-    const b1 = d0 ** alpha, b2 = d1 ** alpha, b3 = d2 ** alpha;
-    const cp1x = p1.x + (b1 > 0 ? (p2.x - p0.x) * b2 / (3 * (b1 + b2)) * d1 / d1 : 0);
-    const cp1y = p1.y + (b1 > 0 ? (p2.y - p0.y) * b2 / (3 * (b1 + b2)) * d1 / d1 : 0);
-    const cp2x = p2.x - (b3 > 0 ? (p3.x - p1.x) * b2 / (3 * (b2 + b3)) * d1 / d1 : 0);
-    const cp2y = p2.y - (b3 > 0 ? (p3.y - p1.y) * b2 / (3 * (b2 + b3)) * d1 / d1 : 0);
-    d += ` C${f(cp1x)},${f(cp1y)} ${f(cp2x)},${f(cp2y)} ${f(p2.x)},${f(p2.y)}`;
-  }
-  return d;
-}
-function f(n: number) { return n.toFixed(2); }
-
-const SPARK_H = 80; // chart height inside card
-
-/** iOS-style sparkline: silky smooth curve + gradient fill */
-function CardSparkline({ values, color, gradId }: {
-  values: number[];
-  color: string;
-  gradId: string;
-}) {
-  const W = 200, H = SPARK_H;
-  const padX = 0, padT = 6, padB = 4;
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const range = maxV - minV || 1;
-
-  const coords = values.map((v, i) => ({
-    x: padX + (i / (values.length - 1)) * (W - padX * 2),
-    y: padT + (1 - (v - minV) / range) * (H - padT - padB),
-  }));
-
-  const linePath = smoothPath(coords);
-  const last = coords[coords.length - 1];
-  const first = coords[0];
-  const fillPath = linePath + ` L${f(last.x)},${H} L${f(first.x)},${H} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }} preserveAspectRatio="xMidYMid meet">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
-          <stop offset="80%" stopColor={color} stopOpacity={0.04} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <path d={fillPath} fill={`url(#${gradId})`} />
-      <path d={linePath} fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function WeightCard({ body, onAddWeight }: { body: ProgressSummaryV2["body"]; onAddWeight: () => void }) {
-  const w = body.currentWeight;
-  const realValues = (body.weightSeries ?? []).map((p) => p.weight);
-  const effective = realValues.length > 0 ? realValues : (w != null ? [w] : []);
-  const sparkline = buildSparkline(effective);
-
-  return (
-    <Card className="fade6" style={{ padding: "16px 16px 0", overflow: "hidden" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Вес</span>
-        <button
-          onClick={() => { fireHaptic("light"); onAddWeight(); }}
-          style={{
-            border: "none", background: "none", cursor: "pointer",
-            fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
-          }}
-        >+</button>
-      </div>
-      {w == null ? (
-        <p style={{ margin: "16px 0 18px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
-      ) : (
-        <>
-          {/* Big value */}
-          <div style={{ marginTop: 10 }}>
-            <span style={{ fontSize: 32, fontWeight: 700, color: "#0f172a", lineHeight: 1, letterSpacing: "-0.5px" }}>{fmtVal(w)}</span>
-            <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(15,23,42,0.38)", marginLeft: 4 }}>кг</span>
-          </div>
-          {/* Chart fills bottom */}
-          <div style={{ marginTop: 8, marginLeft: -16, marginRight: -16 }}>
-            {sparkline.length >= 2 && <CardSparkline values={sparkline} color="#1e1f22" gradId="wGrad" />}
-          </div>
-        </>
-      )}
-    </Card>
-  );
-}
-
-function BmiCard({ body }: { body: ProgressSummaryV2["body"] }) {
-  const heightM = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
-  const realValues = (body.weightSeries ?? []).map((p) => p.weight);
-  const w = body.currentWeight;
-  const effective = realValues.length > 0 ? realValues : (w != null ? [w] : []);
-
-  const bmiValues = heightM != null ? effective.map((wt) => Number((wt / (heightM * heightM)).toFixed(1))) : [];
-  const lastBmi = bmiValues.length > 0 ? bmiValues[bmiValues.length - 1] : null;
-  const color = lastBmi != null ? bmiColorFn(lastBmi) : "#94a3b8";
-  const sparkline = buildSparkline(bmiValues);
-
-  return (
-    <Card className="fade6" style={{ padding: "16px 16px 0", overflow: "hidden" }}>
-      <div>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>ИМТ</span>
-      </div>
-      {bmiValues.length === 0 || lastBmi == null ? (
-        <p style={{ margin: "16px 0 18px", fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.4 }}>Нет данных</p>
-      ) : (
-        <>
-          <div style={{ marginTop: 10 }}>
-            <span style={{ fontSize: 32, fontWeight: 700, color, lineHeight: 1, letterSpacing: "-0.5px" }}>{fmtVal(lastBmi)}</span>
-          </div>
-          <div style={{ marginTop: 8, marginLeft: -16, marginRight: -16 }}>
-            {sparkline.length >= 2 && <CardSparkline values={sparkline} color={color} gradId="bGrad" />}
-          </div>
-        </>
-      )}
-    </Card>
-  );
-}
-
-// ─── Measurements section ────────────────────────────────────────────────────
 
 type MeasurementField = "chest_cm" | "waist_cm" | "hips_cm" | "bicep_left_cm" | "bicep_right_cm" | "neck_cm" | "thigh_cm";
-const MEASUREMENT_OPTIONS: { key: MeasurementField; label: string }[] = [
-  { key: "chest_cm", label: "Грудь" },
-  { key: "waist_cm", label: "Талия" },
-  { key: "hips_cm", label: "Бёдра" },
-  { key: "bicep_left_cm", label: "Бицепс Л" },
-  { key: "bicep_right_cm", label: "Бицепс П" },
-  { key: "neck_cm", label: "Шея" },
-  { key: "thigh_cm", label: "Бедро" },
+
+type BodyMetricKey = "weight" | "bmi" | MeasurementField;
+
+const BODY_METRIC_OPTIONS: { key: BodyMetricKey; label: string; unit: string }[] = [
+  { key: "weight", label: "Вес", unit: "кг" },
+  { key: "bmi", label: "ИМТ", unit: "" },
+  { key: "chest_cm", label: "Грудь", unit: "см" },
+  { key: "waist_cm", label: "Талия", unit: "см" },
+  { key: "hips_cm", label: "Бёдра", unit: "см" },
+  { key: "bicep_left_cm", label: "Бицепс Л", unit: "см" },
+  { key: "bicep_right_cm", label: "Бицепс П", unit: "см" },
+  { key: "neck_cm", label: "Шея", unit: "см" },
+  { key: "thigh_cm", label: "Бедро", unit: "см" },
 ];
 
-type MeasPeriod = "30d" | "90d" | "year";
-const MEAS_PERIOD_OPTIONS: { key: MeasPeriod; label: string; days: number }[] = [
+type BodyPeriod = "30d" | "90d" | "all";
+const BODY_PERIOD_OPTIONS: { key: BodyPeriod; label: string; days: number }[] = [
   { key: "30d", label: "30д", days: 30 },
   { key: "90d", label: "90д", days: 90 },
-  { key: "year", label: "Год", days: 365 },
+  { key: "all", label: "Все", days: 99999 },
 ];
 
-function MeasurementChart({ points }: { points: Array<{ date: string; value: number }> }) {
-  if (points.length < 2) return null;
-  const W = 300, H = 120;
-  const padX = 6, padY = 10;
-  const values = points.map((p) => p.value);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const range = maxV - minV || 1;
-  const coords = values.map((v, i) => ({
-    x: padX + (i / (values.length - 1)) * (W - padX * 2),
-    y: padY + (1 - (v - minV) / range) * (H - padY * 2),
-  }));
-  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
-  const polygonPts = polyline + ` ${coords[coords.length - 1].x.toFixed(1)},${H} ${coords[0].x.toFixed(1)},${H}`;
+const MOCK_BODY_POINTS: Array<{ date: string; value: number }> = [
+  { date: "2025-12-01", value: 82 }, { date: "2025-12-15", value: 81.5 },
+  { date: "2026-01-02", value: 80.8 }, { date: "2026-01-14", value: 80.2 },
+  { date: "2026-01-28", value: 79.5 }, { date: "2026-02-08", value: 79 },
+  { date: "2026-02-22", value: 78.3 }, { date: "2026-03-05", value: 77.8 },
+];
 
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 120, display: "block", overflow: "visible" }}>
-      <defs>
-        <linearGradient id="measChartGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(30,31,34,0.15)" />
-          <stop offset="100%" stopColor="rgba(30,31,34,0)" />
-        </linearGradient>
-      </defs>
-      <polygon points={polygonPts} fill="url(#measChartGrad)" />
-      <polyline points={polyline} fill="none" stroke="#1e1f22" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      {coords.map((c, i) => (
-        <circle key={i} cx={c.x} cy={c.y} r={i === coords.length - 1 ? 4 : 3} fill={i === coords.length - 1 ? "#1e1f22" : "#3a3b40"} />
-      ))}
-    </svg>
-  );
+/** Extract dated points for any body metric */
+function getBodyPoints(
+  body: ProgressSummaryV2["body"],
+  metric: BodyMetricKey,
+): Array<{ date: string; value: number }> {
+  if (metric === "weight") {
+    const ws = body.weightSeries ?? [];
+    return ws.map((p) => ({ date: p.date, value: p.weight }));
+  }
+  if (metric === "bmi") {
+    const hm = body.heightCm != null && body.heightCm > 0 ? body.heightCm / 100 : null;
+    if (!hm) return [];
+    const ws = body.weightSeries ?? [];
+    return ws.map((p) => ({ date: p.date, value: Number((p.weight / (hm * hm)).toFixed(1)) }));
+  }
+  // Measurement field
+  const series = body.measurements?.series ?? [];
+  return series
+    .filter((row) => row[metric] != null)
+    .map((row) => ({ date: row.date, value: row[metric] as number }));
 }
 
-function MeasurementsSection({ body, onAddMeasurement }: {
+function BodyDataSection({ body, onAddWeight, onAddMeasurement }: {
   body: ProgressSummaryV2["body"];
+  onAddWeight: () => void;
   onAddMeasurement: () => void;
 }) {
-  const series = body.measurements?.series ?? [];
+  const [selectedMetric, setSelectedMetric] = useState<BodyMetricKey>("weight");
+  const [period, setPeriod] = useState<BodyPeriod>("all");
 
-  // Find first field with data
-  const firstFieldWithData = MEASUREMENT_OPTIONS.find((opt) =>
-    series.some((row) => row[opt.key] != null)
-  )?.key ?? "chest_cm";
+  const allPoints = getBodyPoints(body, selectedMetric);
+  const hasData = allPoints.length >= 2;
 
-  const [selectedField, setSelectedField] = useState<MeasurementField>(firstFieldWithData);
-  const [period, setPeriod] = useState<MeasPeriod>("year");
-
-  // Extract points for selected field
-  const allPoints = series
-    .filter((row) => row[selectedField] != null)
-    .map((row) => ({ date: row.date, value: row[selectedField] as number }));
-
+  // Filter by period
   const cutoff = new Date();
-  const periodDays = MEAS_PERIOD_OPTIONS.find((o) => o.key === period)!.days;
+  const periodDays = BODY_PERIOD_OPTIONS.find((o) => o.key === period)!.days;
   cutoff.setDate(cutoff.getDate() - periodDays);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
   let effectivePeriod = period;
-  let filteredPoints = allPoints.filter((p) => p.date >= cutoffStr);
+  let filteredPoints = period === "all" ? allPoints : allPoints.filter((p) => p.date >= cutoffStr);
 
-  if (filteredPoints.length < 2) {
-    const wider = MEAS_PERIOD_OPTIONS.find((o) => {
+  // Auto-widen if < 2 points
+  if (filteredPoints.length < 2 && allPoints.length >= 2) {
+    const wider = BODY_PERIOD_OPTIONS.find((o) => {
+      if (o.key === "all") return true;
       const c2 = new Date();
       c2.setDate(c2.getDate() - o.days);
       return allPoints.filter((p) => p.date >= c2.toISOString().slice(0, 10)).length >= 2;
     });
     if (wider) {
       effectivePeriod = wider.key;
-      const c2 = new Date();
-      c2.setDate(c2.getDate() - wider.days);
-      filteredPoints = allPoints.filter((p) => p.date >= c2.toISOString().slice(0, 10));
-    } else {
-      effectivePeriod = "year";
-      filteredPoints = allPoints;
+      if (wider.key === "all") filteredPoints = allPoints;
+      else {
+        const c2 = new Date();
+        c2.setDate(c2.getDate() - wider.days);
+        filteredPoints = allPoints.filter((p) => p.date >= c2.toISOString().slice(0, 10));
+      }
     }
   }
 
+  // Stats
+  const metaOpt = BODY_METRIC_OPTIONS.find((o) => o.key === selectedMetric)!;
   const lastVal = filteredPoints.length > 0 ? filteredPoints[filteredPoints.length - 1].value : null;
   const firstVal = filteredPoints.length > 1 ? filteredPoints[0].value : null;
-  let deltaCm: number | null = null;
-  if (lastVal != null && firstVal != null) {
-    deltaCm = Number((lastVal - firstVal).toFixed(1));
+  let deltaVal: number | null = null;
+  let deltaPercent: number | null = null;
+  if (lastVal != null && firstVal != null && firstVal !== 0) {
+    deltaVal = Number((lastVal - firstVal).toFixed(1));
+    deltaPercent = Math.round(((lastVal - firstVal) / firstVal) * 100);
   }
 
-  const hasAnyData = series.length > 0;
+  // BMI color
+  const chartColor = selectedMetric === "bmi" && lastVal != null ? bmiColorFn(lastVal) : "#1e1f22";
+
+  // "+" opens weight modal for weight/bmi, measurement modal for body measurements
+  const isMeasurement = selectedMetric !== "weight" && selectedMetric !== "bmi";
+  const onPlusClick = () => {
+    fireHaptic("light");
+    if (isMeasurement) onAddMeasurement();
+    else onAddWeight();
+  };
 
   return (
     <Card className="fade6">
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Target size={18} color="#0f172a" strokeWidth={2.5} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Объёмы тела</span>
+          <Weight size={18} color="#0f172a" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>Тело</span>
         </div>
         <button
-          onClick={() => { fireHaptic("light"); onAddMeasurement(); }}
+          onClick={onPlusClick}
           style={{
-            border: "none", background: "rgba(15,23,42,0.06)", borderRadius: 999,
-            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", fontSize: 20, fontWeight: 500, color: "#0f172a", lineHeight: 1,
+            border: "none", background: "none", cursor: "pointer",
+            fontSize: 22, fontWeight: 400, color: "rgba(15,23,42,0.45)", padding: "0 2px", lineHeight: 1,
           }}
         >+</button>
       </div>
 
-      {!hasAnyData ? (
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(15,23,42,0.55)", lineHeight: 1.5 }}>
-          Записывайте замеры тела — здесь появится график изменений
-        </p>
-      ) : (
-        <>
-          {/* Period chips */}
-          <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
-            {MEAS_PERIOD_OPTIONS.map((opt) => {
-              const active = effectivePeriod === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
-                  style={{
-                    border: "none", borderRadius: 999, padding: "5px 12px",
-                    fontSize: 13, fontWeight: 600, lineHeight: 1.45, cursor: "pointer",
-                    background: active ? "rgba(196,228,178,0.38)" : "transparent",
-                    boxShadow: active ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)" : "none",
-                    color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
-                    transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
-                  }}
-                >{opt.label}</button>
-              );
-            })}
-          </div>
-
-          {/* Chart */}
-          {filteredPoints.length >= 2 ? (
-            <MeasurementChart points={filteredPoints} />
-          ) : (
-            <p style={{ margin: "0 0 10px", fontSize: 13, color: "rgba(15,23,42,0.45)" }}>
-              Недостаточно данных для графика — нужно минимум 2 замера
-            </p>
-          )}
-
-          {/* Measurement picker + value */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
-            <select
-              value={selectedField}
-              onChange={(e) => setSelectedField(e.target.value as MeasurementField)}
+      {/* Period chips */}
+      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 999, background: GROOVE_BG, boxShadow: GROOVE_SHADOW, padding: 3, marginBottom: 14 }}>
+        {BODY_PERIOD_OPTIONS.map((opt) => {
+          const active = effectivePeriod === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => { fireHaptic("light"); setPeriod(opt.key); }}
               style={{
-                flex: 1, appearance: "none", WebkitAppearance: "none",
-                border: "none", borderRadius: 12, padding: "8px 12px",
-                fontSize: 14, fontWeight: 600, color: "#0f172a",
-                background: GROOVE_BG, boxShadow: GROOVE_SHADOW, cursor: "pointer", outline: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30,
+                border: "none", borderRadius: 999, padding: "5px 12px",
+                fontSize: 13, fontWeight: 600, lineHeight: 1.45, cursor: "pointer",
+                background: active ? "rgba(196,228,178,0.38)" : "transparent",
+                boxShadow: active ? "inset 0 2px 3px rgba(78,122,58,0.08), inset 0 -1px 0 rgba(255,255,255,0.22)" : "none",
+                color: active ? "#2a5218" : "rgba(15,23,42,0.62)",
+                transition: "background 200ms ease, box-shadow 200ms ease, color 200ms ease",
               }}
-            >
-              {MEASUREMENT_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>{opt.label}</option>
-              ))}
-            </select>
+            >{opt.label}</button>
+          );
+        })}
+      </div>
 
-            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-              {lastVal != null && (
-                <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
-                  {lastVal} <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.55)" }}>см</span>
-                </span>
-              )}
-              {deltaCm != null && deltaCm !== 0 && (
-                <div style={{ fontSize: 12, fontWeight: 700, color: deltaCm > 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
-                  {deltaCm > 0 ? "+" : ""}{deltaCm} см
-                </div>
-              )}
-            </div>
+      {/* Chart — real or mock */}
+      {hasData ? (
+        <ExerciseProgressChart
+          points={filteredPoints.length >= 2 ? filteredPoints : allPoints}
+          metric="value"
+          color={chartColor}
+        />
+      ) : (
+        <div style={{ position: "relative" }}>
+          <div style={{ filter: "blur(3px)", opacity: 0.55, pointerEvents: "none" }}>
+            <ExerciseProgressChart points={MOCK_BODY_POINTS} metric="value" />
           </div>
-        </>
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", padding: 20,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.72)", lineHeight: 1.45 }}>
+              Запишите данные — здесь появится график изменений
+            </span>
+          </div>
+        </div>
       )}
+
+      {/* Metric picker + value */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <select
+          value={selectedMetric}
+          onChange={(e) => { setSelectedMetric(e.target.value as BodyMetricKey); setPeriod("all"); }}
+          style={{
+            flex: 1, appearance: "none", WebkitAppearance: "none",
+            border: "none", borderRadius: 12, padding: "8px 12px",
+            fontSize: 14, fontWeight: 600, color: "#0f172a",
+            background: GROOVE_BG, boxShadow: GROOVE_SHADOW, cursor: "pointer", outline: "none",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30,
+          }}
+        >
+          {BODY_METRIC_OPTIONS.map((opt) => (
+            <option key={opt.key} value={opt.key}>{opt.label}</option>
+          ))}
+        </select>
+
+        <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+          {lastVal != null && (
+            <span style={{ fontSize: 18, fontWeight: 800, color: selectedMetric === "bmi" ? chartColor : "#1e1f22", fontVariantNumeric: "tabular-nums" }}>
+              {fmtVal(lastVal)}{metaOpt.unit ? ` ${metaOpt.unit}` : ""}
+            </span>
+          )}
+          {deltaPercent != null && deltaPercent !== 0 && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: deltaPercent < 0 ? "#16A34A" : "#EF4444", marginTop: 1 }}>
+              {deltaVal! > 0 ? "+" : ""}{deltaVal}{metaOpt.unit ? ` ${metaOpt.unit}` : ""} ({deltaPercent > 0 ? "+" : ""}{deltaPercent}%)
+            </div>
+          )}
+        </div>
+      </div>
     </Card>
   );
 }
@@ -1580,13 +1442,11 @@ export default function Progress() {
         )}
 
         {summary.body && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <WeightCard body={summary.body} onAddWeight={() => setShowWeight(true)} />
-              <BmiCard body={summary.body} />
-            </div>
-            <MeasurementsSection body={summary.body} onAddMeasurement={() => setShowMeasurement(true)} />
-          </>
+          <BodyDataSection
+            body={summary.body}
+            onAddWeight={() => setShowWeight(true)}
+            onAddMeasurement={() => setShowMeasurement(true)}
+          />
         )}
 
         <div style={{ height: 88 }} />
