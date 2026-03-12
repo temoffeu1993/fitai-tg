@@ -272,7 +272,7 @@ export default function Profile() {
         <div style={s.headerRow} className="prof-fade prof-d1">
           <div style={s.avatarCircle}>
             {avatarUrl ? (
-              <img src={avatarUrl} alt={name} style={s.avatarImg} loading="lazy" referrerPolicy="no-referrer" />
+              <img src={avatarUrl} alt={name} style={s.avatarImg} referrerPolicy="no-referrer" />
             ) : (
               <span style={s.avatarText}>{initials}</span>
             )}

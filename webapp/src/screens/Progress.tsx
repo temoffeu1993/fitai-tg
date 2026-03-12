@@ -1245,10 +1245,7 @@ function BodyDataSection({ body, onRefresh }: {
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(15,23,42,0.62)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <Plus size={18} strokeWidth={2} color="#1e1f22" />
           </button>
         </div>
       </div>

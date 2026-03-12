@@ -65,10 +65,12 @@ const syncViewportHeight = () => {
 };
 
 // сохраняем профиль пользователя (включая photo_url) из initData сразу при старте
+let avatarUrlToPreload: string | undefined;
 try {
   const tgUser = tg?.initDataUnsafe?.user;
   if (tgUser) {
     localStorage.setItem("profile", JSON.stringify(tgUser));
+    avatarUrlToPreload = tgUser.photo_url;
   }
 } catch (err) {
   console.warn("initData profile parse error", err);
@@ -167,7 +169,9 @@ function AuthErrorScreen({ message }: { message: string }) {
 }
 
 async function renderAppShell(markLabel: string) {
-  await Promise.all([...CRITICAL_IMAGES.map(preloadImage), preloadScheduleCache()]);
+  const imageList = [...CRITICAL_IMAGES];
+  if (avatarUrlToPreload) imageList.push(avatarUrlToPreload);
+  await Promise.all([...imageList.map(preloadImage), preloadScheduleCache()]);
   timeMark("boot:critical-images-ready");
   root.render(
     <>

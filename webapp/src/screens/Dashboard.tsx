@@ -17,7 +17,6 @@ import {
   type ScheduleByDate,
 } from "@/api/schedule";
 import { getSelectedScheme, type WorkoutScheme } from "@/api/schemes";
-import { fireHapticImpact } from "@/utils/haptics";
 import ScheduleReplaceConfirmModal from "@/components/ScheduleReplaceConfirmModal";
 import { resolveDayCopy } from "@/utils/dayLabelCopy";
 import {
@@ -31,6 +30,7 @@ import {
 import { readSessionDraft } from "@/lib/activeWorkout";
 import { Clock3, Dumbbell, Pencil } from "lucide-react";
 import DateTimeWheelModal from "@/components/DateTimeWheelModal";
+import { useWheel } from "@/hooks/useWheel";
 
 import robotImg from "../assets/morobot.png";
 import tyagaImg from "@/assets/tyaga.webp";
@@ -568,7 +568,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  // ---------- Date scroller ----------
+  // ---------- Date scroller (useWheel — iOS-style physics) ----------
   const dsDates = useMemo(() => buildDsDates(DATE_COUNT, DATE_PAST_DAYS), []);
   const dsTodayIdx = useMemo(() => dsDates.findIndex((d) => d.isToday), [dsDates]);
   const dsFallbackIdx = dsTodayIdx >= 0 ? dsTodayIdx : DATE_PAST_DAYS;
@@ -579,22 +579,30 @@ export default function Dashboard() {
   const [dayCardIdx, setDayCardIdx] = useState(dsInitialIdx);
   const [dayCardOpacity, setDayCardOpacity] = useState(1);
   const [dayCardOffset, setDayCardOffset] = useState(0);
-  const dsScrollRef = useRef<HTMLDivElement>(null);
-  const dsScrollRafRef = useRef<number | null>(null);
-  const dsScrollStopTimer = useRef<number | null>(null);
-  const dsLastTickRef = useRef<number | null>(null);
-  const dsLastSettledRef = useRef<number>(dsInitialIdx);
-  const dsSuppressHapticsRef = useRef(true);
   const dayCardTimerRef = useRef<number | null>(null);
+  const dsSuppressHapticsRef = useRef(true);
   const hasAssignedDatesForDayCard = useMemo(
     () => collectAssignedDateKeys(plannedWorkouts, todayIso).length > 0,
     [plannedWorkouts, todayIso]
   );
 
-  useEffect(() => {
-    dsScrollRef.current?.scrollTo({ left: dsActiveIdx * DATE_ITEM_W, behavior: "auto" });
-    dsLastTickRef.current = dsActiveIdx;
-  }, []); // center on mount
+  const dsHighlight = useCallback((idx: number) => {
+    setDsActiveIdx(idx);
+  }, []);
+
+  const dsSettle = useCallback((idx: number) => {
+    setDsActiveIdx(idx);
+    setDsSettledIdx(idx);
+  }, []);
+
+  const dsWheel = useWheel({
+    totalItems: dsDates.length,
+    itemSize: DATE_ITEM_W,
+    axis: "x",
+    initialOffset: dsInitialIdx * DATE_ITEM_W,
+    onSettle: dsSettle,
+    onHighlight: dsHighlight,
+  });
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -602,6 +610,20 @@ export default function Dashboard() {
     }, 200);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const handleDsTap = useCallback((e: React.TouchEvent) => {
+    const wasTap = dsWheel.onTouchEnd();
+    if (!wasTap) return;
+    const touch = e.changedTouches[0];
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const touchX = touch.clientX - rect.left;
+    const centerX = rect.width / 2;
+    const deltaItems = Math.round((touchX - centerX) / DATE_ITEM_W);
+    if (deltaItems === 0) return;
+    const curIdx = Math.round(dsWheel.offset.current / DATE_ITEM_W);
+    const newIdx = Math.max(0, Math.min(curIdx + deltaItems, dsDates.length - 1));
+    dsWheel.scrollToIndex(newIdx);
+  }, [dsWheel, dsDates.length]);
 
   useEffect(() => {
     if (!hasAssignedDatesForDayCard) {
@@ -628,37 +650,6 @@ export default function Dashboard() {
       if (dayCardTimerRef.current) window.clearTimeout(dayCardTimerRef.current);
     };
   }, [dsSettledIdx, dayCardIdx, dayCardOpacity, dayCardOffset, hasAssignedDatesForDayCard]);
-
-  const handleDsScroll = useCallback(() => {
-    if (dsScrollRafRef.current == null) {
-      dsScrollRafRef.current = window.requestAnimationFrame(() => {
-        dsScrollRafRef.current = null;
-        const el = dsScrollRef.current;
-        if (!el) return;
-        const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
-        const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
-        if (dsLastTickRef.current !== clamped) {
-          dsLastTickRef.current = clamped;
-          if (!dsSuppressHapticsRef.current) fireHapticImpact("light");
-        }
-        if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
-      });
-    }
-    if (dsScrollStopTimer.current) window.clearTimeout(dsScrollStopTimer.current);
-    dsScrollStopTimer.current = window.setTimeout(() => {
-      const el = dsScrollRef.current;
-      if (!el) return;
-      const idx = Math.round(el.scrollLeft / DATE_ITEM_W);
-      const clamped = Math.max(0, Math.min(idx, dsDates.length - 1));
-      if (clamped !== dsActiveIdx) setDsActiveIdx(clamped);
-      if (clamped !== dsLastSettledRef.current) {
-        dsLastSettledRef.current = clamped;
-        setDsSettledIdx(clamped);
-      }
-      el.scrollTo({ left: clamped * DATE_ITEM_W, behavior: "smooth" });
-      if (!dsSuppressHapticsRef.current) fireHapticImpact("light");
-    }, 80);
-  }, [dsDates.length, dsActiveIdx]);
 
   // Computed values
   const plannedDatesSet = useMemo(() => {
@@ -1344,60 +1335,46 @@ export default function Dashboard() {
 
       {/* BLOCK 2: Scrollable Date Picker */}
       <section style={s.dsWrap} className="dash-fade dash-delay-2">
-        <style>{`
-          .date-track::-webkit-scrollbar { display: none; }
-          .date-item {
-            appearance: none; outline: none; border: none; cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: pan-x;
-          }
-        `}</style>
         <div style={s.dsCard}>
           <div style={s.dsScroller}>
             <div style={s.dsIndicator} />
             <div
-              ref={dsScrollRef}
-              style={s.dsTrack}
-              className="date-track"
-              onScroll={handleDsScroll}
+              style={s.dsViewport}
+              onTouchStart={dsWheel.onTouchStart}
+              onTouchMove={dsWheel.onTouchMove}
+              onTouchEnd={handleDsTap}
             >
-              {dsDates.map((d, idx) => {
-                const active = idx === dsActiveIdx;
-                const dot = getDotState(d.date);
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className="date-item"
-                    style={{ ...s.dsItem, scrollSnapAlign: "center" }}
-                    onClick={() => {
-                      fireHapticImpact("light");
-                      setDsActiveIdx(idx);
-                      dsScrollRef.current?.scrollTo({ left: idx * DATE_ITEM_W, behavior: "smooth" });
-                    }}
-                  >
-                    <span style={{ ...s.dsDow, ...(active ? s.dsDowActive : undefined) }}>
-                      {d.dow}
-                    </span>
-                    <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
-                      {d.day}
-                    </span>
-                    <span style={s.dsDotWrap}>
-                      <span
-                        style={{
-                          ...s.dsDotPit,
-                        }}
-                      >
-                        {dot === "scheduled" ? (
-                          <span style={s.dsDotSphereScheduled} />
-                        ) : dot === "completed" ? (
-                          <span style={s.dsDotSphereCompleted} />
-                        ) : null}
+              <div
+                ref={dsWheel.stripRef as any}
+                style={s.dsStrip}
+              >
+                {dsDates.map((d, idx) => {
+                  const active = idx === dsActiveIdx;
+                  const dot = getDotState(d.date);
+                  return (
+                    <div
+                      key={idx}
+                      style={s.dsItem}
+                    >
+                      <span style={{ ...s.dsDow, ...(active ? s.dsDowActive : undefined) }}>
+                        {d.dow}
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
+                      <span style={{ ...s.dsNum, ...(active ? s.dsNumActive : undefined) }}>
+                        {d.day}
+                      </span>
+                      <span style={s.dsDotWrap}>
+                        <span style={s.dsDotPit}>
+                          {dot === "scheduled" ? (
+                            <span style={s.dsDotSphereScheduled} />
+                          ) : dot === "completed" ? (
+                            <span style={s.dsDotSphereCompleted} />
+                          ) : null}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -1821,19 +1798,18 @@ const s: Record<string, React.CSSProperties> = {
     pointerEvents: "none",
     zIndex: 1,
   },
-  dsTrack: {
-    overflowX: "auto",
-    overflowY: "hidden",
-    whiteSpace: "nowrap",
-    scrollSnapType: "x proximity",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none",
-    padding: "16px 0 14px",
-    paddingLeft: `calc(50% - ${DATE_ITEM_W / 2}px)`,
-    paddingRight: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+  dsViewport: {
+    overflow: "hidden",
     position: "relative",
     zIndex: 2,
+    padding: "16px 0 14px",
+    touchAction: "none",
+  } as React.CSSProperties,
+  dsStrip: {
     display: "flex",
+    paddingLeft: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+    paddingRight: `calc(50% - ${DATE_ITEM_W / 2}px)`,
+    willChange: "transform",
   } as React.CSSProperties,
   dsItem: {
     width: DATE_ITEM_W,
