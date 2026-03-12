@@ -6,7 +6,20 @@ module.exports = {
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts','js','json'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: 'tsconfig.json' }],
+    '^.+\\.tsx?$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        target: 'ES2020',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        isolatedModules: true,
+        strict: true,
+        skipLibCheck: true,
+        resolveJsonModule: true,
+      },
+    }],
   },
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {

@@ -445,6 +445,33 @@ async function applyExerciseChangesMigration() {
   }
 }
 
+/**
+ * Ensures user_session_counters table and workout_sessions.session_number column exist.
+ * Required for sequential session numbering (save-session flow).
+ */
+async function applySessionCountersMigration() {
+  try {
+    console.log("\n🔧 Checking session counters migration...");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_session_counters (
+        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        session_count INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE workout_sessions
+      ADD COLUMN IF NOT EXISTS session_number INTEGER;
+    `);
+
+    console.log("✅ session counters schema ensured\n");
+  } catch (error: any) {
+    console.error("❌ session counters migration failed:", error.message);
+    throw error;
+  }
+}
+
 // Применяем миграции при старте
 (async () => {
   try {
@@ -455,6 +482,7 @@ async function applyExerciseChangesMigration() {
     await applyExerciseChangesMigration();
     await applyCoachJobsMigration();
     await applyCoachChatMigration();
+    await applySessionCountersMigration();
   } catch (error) {
     console.error("Migration error:", error);
     // Не падаем, продолжаем работу

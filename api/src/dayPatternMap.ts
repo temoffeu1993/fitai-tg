@@ -12,7 +12,7 @@
 // ============================================================================
 
 import type { Pattern } from "./exerciseLibrary.js";
-import type { SlotRole } from "./exerciseSelector.js";
+import { type SlotRole, getPatternRole } from "./patternRoles.js";
 
 export type Intent = "light" | "normal" | "hard";
 export type TimeBucket = 45 | 60 | 90;
@@ -191,54 +191,20 @@ function isCompoundPattern(pattern: Pattern): boolean {
 }
 
 function assignRole(pattern: Pattern, isFirst: boolean): SlotRole {
-  // First compound exercises are typically "main"
-  const compoundPatterns: Pattern[] = [
-    "squat",
-    "hinge",
-    "horizontal_push",
-    "incline_push",
-    "vertical_push", // ИСПРАВЛЕНО: добавлен (был в isCompoundPattern, но не здесь)
-    "horizontal_pull",
-    "vertical_pull",
-  ];
+  const base = getPatternRole(pattern);
 
-  const isolationPatterns: Pattern[] = [
-    "triceps_iso",
-    "biceps_iso",
-    "delts_iso",
-    "rear_delts",
-    "calves",
-  ];
-
-  // ИСПРАВЛЕНО: core отдельно (не conditioning), conditioning = кардио
-  if (pattern === "core") {
-    return "accessory"; // Кор - это вспомогательное, не кардио
+  // Context-dependent adjustments for compound movements
+  if (base === "main") {
+    // First compound in the day stays main; subsequent demote to secondary
+    return isFirst ? "main" : "secondary";
   }
 
-  const conditioningPatterns: Pattern[] = [
-    "carry",
-    "conditioning_low_impact",
-    "conditioning_intervals",
-  ];
-
-  if (compoundPatterns.includes(pattern)) {
-    if (isFirst) return "main";
-    return "secondary";
+  // lunge/hip_thrust are "secondary" by default; demote to accessory when not first
+  if ((pattern === "lunge" || pattern === "hip_thrust") && !isFirst) {
+    return "accessory";
   }
 
-  if (isolationPatterns.includes(pattern)) {
-    return "accessory"; // ИСПРАВЛЕНО: убран бессмысленный isDouble
-  }
-
-  if (pattern === "lunge" || pattern === "hip_thrust") {
-    return isFirst ? "secondary" : "accessory";
-  }
-
-  if (conditioningPatterns.includes(pattern)) {
-    return "conditioning";
-  }
-
-  return "secondary";
+  return base;
 }
 
 // ============================================================================
@@ -282,12 +248,18 @@ export function buildDaySlots(args: {
 
   // Fine-tune based on exact minutes if provided
   if (typeof availableMinutes === "number" && Number.isFinite(availableMinutes)) {
-    if (timeBucket === 45 && availableMinutes < 40) slotBudget = range.min;
-    if (timeBucket === 45 && availableMinutes > 50) slotBudget = range.max;
-    if (timeBucket === 60 && availableMinutes < 50) slotBudget = range.min;
-    if (timeBucket === 60 && availableMinutes > 70) slotBudget = range.max;
-    if (timeBucket === 90 && availableMinutes < 75) slotBudget = range.min;
-    if (timeBucket === 90 && availableMinutes > 95) slotBudget = range.max;
+    if (availableMinutes < 35) {
+      // Very short sessions: protect required patterns but reduce to minimum
+      const minRequired = (rules.required ?? []).filter(p => !blocked.has(p)).length;
+      slotBudget = Math.max(minRequired, range.min - 1);
+    } else {
+      if (timeBucket === 45 && availableMinutes < 40) slotBudget = range.min;
+      if (timeBucket === 45 && availableMinutes > 50) slotBudget = range.max;
+      if (timeBucket === 60 && availableMinutes < 50) slotBudget = range.min;
+      if (timeBucket === 60 && availableMinutes > 70) slotBudget = range.max;
+      if (timeBucket === 90 && availableMinutes < 75) slotBudget = range.min;
+      if (timeBucket === 90 && availableMinutes > 95) slotBudget = range.max;
+    }
   }
 
   const slots: Slot[] = [];

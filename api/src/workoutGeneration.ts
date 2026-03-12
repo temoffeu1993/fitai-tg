@@ -2088,7 +2088,8 @@ workoutGeneration.post(
       if (plannedWorkoutId) {
         await q(
           `UPDATE planned_workouts
-	              SET status = 'completed',
+	              SET base_plan = COALESCE(base_plan, plan),
+	                  status = 'completed',
 	                  result_session_id = $3,
 	                  completed_at = $4,
 	                  plan = $5::jsonb,

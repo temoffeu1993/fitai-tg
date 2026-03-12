@@ -915,12 +915,16 @@ export async function generateWorkoutDay(args: {
   dupIntensity?: DUPIntensity; // НОВОЕ: DUP интенсивность
   weekPlanData?: any; // НОВОЕ: план недели
 }): Promise<GeneratedWorkoutDay> {
-  const { scheme, dayIndex, userProfile, readiness, history, dupIntensity, weekPlanData } = args;
+  const { scheme, dayIndex, userProfile, readiness, history, dupIntensity: rawDupIntensity, weekPlanData } = args;
+
+  // Deload guard: suppress DUP during deload weeks (deload has its own volume/intensity rules)
+  const dupIntensity: DUPIntensity | undefined =
+    weekPlanData?.isDeloadWeek ? undefined : rawDupIntensity;
 
   console.log("\n🏋️ [WORKOUT GENERATOR] ==============================");
   console.log(`  User: ${userProfile.experience} | ${userProfile.goal} | ${userProfile.daysPerWeek}d/w`);
   console.log(`  Scheme: ${scheme.id} | Day ${dayIndex}: ${scheme.days[dayIndex]?.label || 'N/A'}`);
-  
+
   // Mesocycle & DUP info
   if (weekPlanData) {
     const weekType = weekPlanData.isDeloadWeek ? 'DELOAD' : 'NORMAL';
@@ -1053,6 +1057,7 @@ export async function generateWorkoutDay(args: {
     templateRulesId: dayBlueprint.templateRulesId ?? dayBlueprint.label,
     timeBucket: effectiveTimeBucket, // ИСПРАВЛЕНО: используем из readiness
     intent,
+    availableMinutes: readiness.effectiveMinutes ?? undefined, // реальные минуты для fine-tuning слотов
     experience: userProfile.experience, // влияет на slot budget (advanced = больше слотов)
     blockedPatterns: readiness.blockedPatterns, // фильтруем паттерны, заблокированные из-за боли
   });
@@ -1192,19 +1197,23 @@ export async function generateWorkoutDay(args: {
       sets = Math.max(1, Math.round(sets * weekPlanData.volumeMultiplier));
     }
 
-    // НОВОЕ: Применить DUP reps ranges ТОЛЬКО для main/secondary И ТОЛЬКО для athletic_body
-    // Для build_muscle НЕ ТРОГАЕМ диапазоны - остаются гипертрофийные 6-10, 8-12
+    // DUP: shift reps, sets, rest for ALL goals (heavy/medium/light days)
     if (dupIntensity && (role === "main" || role === "secondary")) {
-      // DUP применяется только для athletic_body
-      if (userProfile.goal === "athletic_body") {
-        const dupReps: Record<DUPIntensity, [number, number]> = {
-          heavy: [4, 6],     // Силовой день
-          medium: [6, 10],   // Средний день  
-          light: [10, 15],   // Лёгкий день (пампинг)
-        };
-        repsRange = dupReps[dupIntensity];
-      }
-      // Для build_muscle, lose_weight, health_wellness - DUP НЕ применяется
+      const DUP_REPS: Record<Goal, Record<DUPIntensity, [number, number]>> = {
+        build_muscle:    { heavy: [4, 6],   medium: [6, 10],  light: [10, 15] },
+        lose_weight:     { heavy: [10, 12], medium: [12, 15], light: [15, 20] },
+        athletic_body:   { heavy: [4, 6],   medium: [6, 10],  light: [10, 15] },
+        health_wellness: { heavy: [8, 10],  medium: [10, 15], light: [12, 18] },
+      };
+      repsRange = DUP_REPS[userProfile.goal][dupIntensity];
+
+      // Sets multiplier: heavy keeps volume, light slightly less (lighter load = less fatigue)
+      const DUP_SETS_MULT: Record<DUPIntensity, number> = { heavy: 1.0, medium: 1.0, light: 0.85 };
+      sets = Math.max(1, Math.round(sets * DUP_SETS_MULT[dupIntensity]));
+
+      // Rest multiplier: heavy needs more rest, light needs less
+      const DUP_REST_MULT: Record<DUPIntensity, number> = { heavy: 1.2, medium: 1.0, light: 0.8 };
+      restSec = Math.round(restSec * DUP_REST_MULT[dupIntensity]);
     }
 
     // НОВОЕ: Get progression recommendation for this exercise
@@ -1567,5 +1576,128 @@ export async function generateWeekPlan(args: {
     });
   }
 
+  // Post-generation weekly volume validation (only reduces, never increases)
+  validateAndAdjustWeek(weekPlan, userProfile.experience, userProfile.timeBucket);
+
   return weekPlan;
+}
+
+// ============================================================================
+// WEEKLY VOLUME VALIDATOR — post-generation safety net
+// ============================================================================
+
+// MRV per muscle group per experience level (sets/week, Israetel/Schoenfeld)
+const WEEKLY_MRV: Record<ExperienceLevel, number> = {
+  beginner: 18,
+  intermediate: 22,
+  advanced: 30,
+};
+
+// Role priority for trimming (trim conditioning first, main last)
+const ROLE_TRIM_PRIORITY: Record<SlotRole, number> = {
+  conditioning: 0,
+  pump: 1,
+  accessory: 2,
+  secondary: 3,
+  main: 4,
+};
+
+/**
+ * Scans generated week for muscles exceeding MRV.
+ * Single-pass per EXERCISE (not per muscle) to avoid double-trimming compounds.
+ * ONLY reduces, never increases. Mutates weekPlan in place.
+ * Recalculates estimatedDuration and updates changeMeta/notes for modified days.
+ */
+function validateAndAdjustWeek(
+  weekPlan: GeneratedWorkoutDay[],
+  experience: ExperienceLevel,
+  timeBucket: TimeBucket,
+): void {
+  const mrv = WEEKLY_MRV[experience];
+
+  // 1. Count weekly volume per primary muscle group
+  const muscleVolume: Record<string, number> = {};
+  for (const day of weekPlan) {
+    for (const ex of day.exercises) {
+      for (const m of ex.exercise.primaryMuscles) {
+        muscleVolume[m] = (muscleVolume[m] || 0) + ex.sets;
+      }
+    }
+  }
+
+  // 2. Find muscles over MRV
+  const overMuscles = Object.entries(muscleVolume).filter(([, v]) => v > mrv);
+  if (overMuscles.length === 0) return;
+
+  // 3. Build unique exercise references across the whole week
+  //    Key: "dayIdx:exIdx" to avoid processing same exercise twice
+  type ExRef = { dayIdx: number; exIdx: number; role: SlotRole; muscles: string[] };
+  const allExRefs: ExRef[] = [];
+  for (let d = 0; d < weekPlan.length; d++) {
+    for (let e = 0; e < weekPlan[d].exercises.length; e++) {
+      const ex = weekPlan[d].exercises[e];
+      // Only include exercises that touch at least one over-MRV muscle
+      const relevantMuscles = ex.exercise.primaryMuscles.filter(m => muscleVolume[m] > mrv);
+      if (relevantMuscles.length > 0) {
+        allExRefs.push({ dayIdx: d, exIdx: e, role: ex.role, muscles: relevantMuscles });
+      }
+    }
+  }
+
+  // Sort by trim priority ascending (trim lowest-priority exercises first)
+  allExRefs.sort((a, b) => ROLE_TRIM_PRIORITY[a.role] - ROLE_TRIM_PRIORITY[b.role]);
+
+  // 4. Single pass: trim exercises, updating ALL affected muscle volumes at once
+  const modifiedDays = new Set<number>();
+  for (const ref of allExRefs) {
+    // Calculate max trim needed across all this exercise's over-MRV muscles
+    const overAmounts = ref.muscles
+      .map(m => muscleVolume[m] - mrv)
+      .filter(v => v > 0);
+    if (overAmounts.length === 0) continue;
+
+    const ex = weekPlan[ref.dayIdx].exercises[ref.exIdx];
+    const minSets = minSetsForRole(ref.role, undefined, weekPlan[ref.dayIdx].intent);
+    const maxTrimForExercise = Math.max(0, ex.sets - minSets);
+    const needed = Math.min(...overAmounts); // trim by smallest excess (conservative)
+    const actualTrim = Math.min(maxTrimForExercise, needed);
+
+    if (actualTrim > 0) {
+      ex.sets -= actualTrim;
+      weekPlan[ref.dayIdx].totalSets -= actualTrim;
+      modifiedDays.add(ref.dayIdx);
+
+      // Update ALL muscle volumes this exercise touches (not just over-MRV ones)
+      for (const m of ex.exercise.primaryMuscles) {
+        muscleVolume[m] -= actualTrim;
+      }
+    }
+  }
+
+  // 5. Recalculate estimatedDuration and update changeMeta/notes for modified days only
+  if (modifiedDays.size > 0) {
+    const { warmupMin, cooldownMin } = estimateWarmupCooldownMinutes(timeBucket);
+
+    for (const d of modifiedDays) {
+      const day = weekPlan[d];
+      day.estimatedDuration = warmupMin + estimateMainMinutesFromGeneratedExercises(day.exercises) + cooldownMin;
+
+      if (day.changeMeta) {
+        day.changeMeta.volumeAdjusted = true;
+      } else {
+        day.changeMeta = { volumeAdjusted: true };
+      }
+
+      const note = `Объём скорректирован (недельный MRV ${mrv} сетов/группа)`;
+      if (!day.changeNotes) day.changeNotes = [];
+      if (!day.changeNotes.includes(note)) day.changeNotes.push(note);
+    }
+  }
+
+  // 6. Warn about muscles still over MRV (after best-effort trimming)
+  for (const [muscle, vol] of Object.entries(muscleVolume)) {
+    if (vol > mrv) {
+      console.warn(`⚠️ ${muscle}: ${vol} sets/week still exceeds MRV ${mrv} after trimming`);
+    }
+  }
 }

@@ -33,62 +33,9 @@ export type Goal =
 export type Intent = "light" | "normal" | "hard";
 export type TimeBucket = 45 | 60 | 90;
 
-export type SlotRole = "main" | "secondary" | "accessory" | "pump" | "conditioning";
-
-// ============================================================================
-// PROFESSIONAL PATTERN → ROLE MAPPING
-// ============================================================================
-
-/**
- * Определяет правильную роль для паттерна (используется для required patterns)
- * Тренерская логика: compound → main, isolation → secondary/accessory, core → accessory
- */
-function getDefaultRoleForPattern(pattern: Pattern): SlotRole {
-  // COMPOUND MOVEMENTS → MAIN (базовые многосуставные)
-  if ([
-    "squat",
-    "hinge",
-    "lunge",
-    "hip_thrust",
-    "horizontal_push",
-    "incline_push",
-    "vertical_push",
-    "horizontal_pull",
-    "vertical_pull",
-  ].includes(pattern)) {
-    return "main";
-  }
-
-  // ISOLATION → SECONDARY (изоляция крупных мышц)
-  if ([
-    "rear_delts",
-    "delts_iso",
-  ].includes(pattern)) {
-    return "secondary";
-  }
-
-  // SMALL ISOLATION → ACCESSORY (мелкие мышцы, кор)
-  if ([
-    "triceps_iso",
-    "biceps_iso",
-    "calves",
-    "core",      // ← КРИТИЧНО! Кор = accessory
-    "carry",
-  ].includes(pattern)) {
-    return "accessory";
-  }
-
-  // CONDITIONING
-  if ([
-    "conditioning_low_impact",
-    "conditioning_intervals",
-  ].includes(pattern)) {
-    return "conditioning";
-  }
-
-  // Default fallback
-  return "secondary";
-}
+// Re-export SlotRole + getPatternRole from the single source of truth
+export { type SlotRole, getPatternRole } from "./patternRoles.js";
+import { type SlotRole, getPatternRole } from "./patternRoles.js";
 
 // ============================================================================
 
@@ -127,6 +74,32 @@ function lvRank(lv: Experience): number {
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
+}
+
+// Deterministic PRNG (mulberry32) for reproducible tests
+function mulberry32(seed: number): () => number {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Module-level RNG: set via setSelectionSeed(), reset via clearSelectionSeed()
+let _rng: (() => number) | null = null;
+
+export function setSelectionSeed(seed: number): void {
+  _rng = mulberry32(seed);
+}
+
+export function clearSelectionSeed(): void {
+  _rng = null;
+}
+
+function selectionRandom(): number {
+  return _rng ? _rng() : Math.random();
 }
 
 function hasAnyTag(ex: Exercise, tags: string[]): boolean {
@@ -653,7 +626,7 @@ function pickExercisesFromPool(
     // Weights: keep positive, emphasize better ones
     const weights = window.map(w => Math.max(1, Math.round(w.score + 20)));
     const sum = weights.reduce((a, b) => a + b, 0);
-    let r = Math.floor(Math.random() * sum);
+    let r = Math.floor(selectionRandom() * sum);
 
     let idx = 0;
     for (let i = 0; i < window.length; i++) {
@@ -782,7 +755,7 @@ export function selectExercisesForDay(args: {
 
   for (const rp of required) {
     // ✅ PROFESSIONAL: Определяем правильную роль для паттерна
-    const properRole = getDefaultRoleForPattern(rp);
+    const properRole = getPatternRole(rp);
     
     const picked = pickExercisesForPattern({
       pattern: rp,

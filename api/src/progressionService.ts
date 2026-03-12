@@ -292,7 +292,7 @@ export async function applyProgressionFromSession(args: {
   if (plannedWorkoutId) {
     try {
       const rows = await q<{ plan: any }>(
-        `SELECT plan FROM planned_workouts WHERE id = $1::uuid AND user_id = $2::uuid LIMIT 1`,
+        `SELECT COALESCE(base_plan, plan) AS plan FROM planned_workouts WHERE id = $1::uuid AND user_id = $2::uuid LIMIT 1`,
         [plannedWorkoutId, userId]
       );
       const plan = rows[0]?.plan;
