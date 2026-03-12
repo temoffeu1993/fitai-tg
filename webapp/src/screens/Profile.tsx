@@ -89,8 +89,8 @@ function sexRus(s?: string) {
 
 // ─── Card component (same as Progress) ─────────────────────────────────────
 
-function Card({ children, style }: { children: React.ReactNode; style?: CSSProperties }) {
-  return <div style={{ ...s.card, ...style }}>{children}</div>;
+function Card({ children, style, className }: { children: React.ReactNode; style?: CSSProperties; className?: string }) {
+  return <div style={{ ...s.card, ...style }} className={className}>{children}</div>;
 }
 
 function InfoRow({ label, value, isLast }: { label: string; value: React.ReactNode; isLast?: boolean }) {
@@ -252,10 +252,24 @@ export default function Profile() {
 
   return (
     <div style={s.outer}>
+      <style>{`
+        @keyframes profFadeUp {
+          0% { opacity: 0; transform: translateY(14px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .prof-fade { animation: profFadeUp 520ms ease-out both; }
+        .prof-d1 { animation-delay: 80ms; }
+        .prof-d2 { animation-delay: 160ms; }
+        .prof-d3 { animation-delay: 240ms; }
+        .prof-d4 { animation-delay: 320ms; }
+        @media (prefers-reduced-motion: reduce) {
+          .prof-fade { animation: none !important; opacity: 1 !important; transform: none !important; }
+        }
+      `}</style>
       <div style={s.inner}>
 
         {/* ── Hero: Avatar + Name + Chips (like WorkoutResult) ── */}
-        <div style={s.headerRow}>
+        <div style={s.headerRow} className="prof-fade prof-d1">
           <div style={s.avatarCircle}>
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} style={s.avatarImg} loading="lazy" referrerPolicy="no-referrer" />
@@ -287,7 +301,7 @@ export default function Profile() {
         </div>
 
         {/* ── Stat pill: Height, Weight, BMI (like WorkoutResult) ── */}
-        <div style={s.statPill}>
+        <div style={s.statPill} className="prof-fade prof-d1">
           <span style={s.statChip}>
             <Ruler size={15} strokeWidth={2.2} color="rgba(255,255,255,0.88)" />
             {safeNum(height, "см")}
@@ -303,7 +317,7 @@ export default function Profile() {
         </div>
 
         {/* ── Тренировки ── */}
-        <Card>
+        <Card className="prof-fade prof-d2">
           <div style={s.sectionHeader}>
             <ClipboardList size={18} color="#0f172a" strokeWidth={2.5} />
             <span style={s.sectionTitle}>Мой план</span>
@@ -321,7 +335,7 @@ export default function Profile() {
         </Card>
 
         {/* ── Образ жизни ── */}
-        <Card>
+        <Card className="prof-fade prof-d3">
           <div style={s.sectionHeader}>
             <Heart size={18} color="#0f172a" strokeWidth={2.5} />
             <span style={s.sectionTitle}>Образ жизни</span>
@@ -339,7 +353,7 @@ export default function Profile() {
         </Card>
 
         {/* ── Исключённые упражнения ── */}
-        <Card>
+        <Card className="prof-fade prof-d3">
           <button
             type="button"
             onClick={() => setExcludedOpen(true)}
@@ -356,8 +370,8 @@ export default function Profile() {
           </span>
         </Card>
 
-        {/* ── Сброс профиля ── */}
-        <Card style={s.resetCard}>
+        {/* ── Удаление профиля ── */}
+        <Card style={s.resetCard} className="prof-fade prof-d4">
           <div style={s.sectionHeader}>
             <span style={s.sectionTitle}>Удалить профиль</span>
           </div>
