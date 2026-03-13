@@ -25,6 +25,7 @@ import {
 import { EXERCISE_LIBRARY } from "./exerciseLibrary.js";
 import {
   NORMALIZED_SCHEMES,
+  type NormalizedWorkoutScheme,
 } from "./normalizedSchemes.js";
 import { buildUserProfile } from "./userProfile.js";
 import { getExerciseAlternatives } from "./exerciseAlternatives.js";
@@ -33,6 +34,7 @@ import {
   createMesocycle,
   shouldStartNewMesocycle,
   advanceMesocycle,
+  type Mesocycle,
 } from "./mesocycleEngine.js";
 import {
   getMesocycle,
@@ -49,6 +51,20 @@ import {
   type SummarySeverity,
   type WorkoutStartAction,
 } from "./checkinSummary.js";
+import {
+  buildWeekContext,
+  buildReadinessConstraints,
+  buildSplitContext,
+  buildCalibrationContext,
+  buildDayPrescription,
+  buildPeriodizationLabels,
+  classifyLoadBucket,
+  type ExerciseExposureSummary,
+} from "./periodization/index.js";
+import { getExerciseExposureSummaries } from "./periodization/calibrationDb.js";
+import type { DayPrescription } from "./periodization/periodizationTypes.js";
+import type { Readiness } from "./readiness.js";
+import type { UserProfile } from "./workoutDayGenerator.js";
 
 export const workoutGeneration = Router();
 const EXERCISE_BY_ID = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e] as const));
@@ -62,6 +78,126 @@ function getUid(req: any): string {
 
 const isUUID = (s: unknown) =>
   typeof s === "string" && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+
+// ============================================================================
+// PERIODIZATION HELPERS — builds DayPrescription from available context
+// ============================================================================
+
+/**
+ * Build a full DayPrescription by chaining all periodization layers:
+ *   Calibration → WeekContext → SplitContext → ReadinessConstraints → DayPrescription
+ *
+ * Gracefully degrades: if no mesocycle/readiness, uses neutral defaults.
+ */
+async function buildDayPrescriptionForWorkout(args: {
+  userId: string;
+  dayIndex: number;
+  scheme: NormalizedWorkoutScheme;
+  userProfile: UserProfile;
+  readiness: Readiness;
+  mesocycle: Mesocycle | null;
+}): Promise<DayPrescription> {
+  const { userId, dayIndex, scheme, userProfile, readiness, mesocycle } = args;
+
+  // Layer 0: Calibration
+  // We don't know exact exercises yet (they're selected later in generator),
+  // so we build calibration for ALL exercises in the scheme's day patterns.
+  // The per-exercise override in workoutDayGenerator handles the actual check.
+  const dayBlueprint = scheme.days[dayIndex];
+  const dayPatterns: string[] = [];
+  if (dayBlueprint) {
+    for (const slot of (dayBlueprint as any).slots ?? []) {
+      if (slot.pattern) dayPatterns.push(slot.pattern);
+    }
+  }
+
+  // Get exercise IDs from recent history for calibration check
+  const summaries = userId
+    ? await getExerciseExposureSummaries(userId, [])  // empty → will be enriched per-exercise in generator
+    : [];
+
+  const calibration = buildCalibrationContext({
+    exerciseSummaries: summaries,
+    plannedExerciseIds: [],  // Not known yet; per-exercise override handles this
+    plannedPatterns: dayPatterns,
+    experience: userProfile.experience,
+    goal: userProfile.goal,
+  });
+
+  // Layer 1: WeekContext
+  const weekNumber = mesocycle?.currentWeek ?? 1;
+  const week = buildWeekContext({
+    mesocycle,
+    weekNumber,
+    daysPerWeek: scheme.daysPerWeek,
+    goal: userProfile.goal,
+  });
+
+  // Layer 2: SplitContext
+  const dayLabels = scheme.days.map((d) => d.label);
+  const split = buildSplitContext({
+    schemeId: scheme.id,
+    splitType: scheme.splitType,
+    dayLabels,
+    daysPerWeek: scheme.daysPerWeek,
+    experience: userProfile.experience,
+    weekContext: week,
+  });
+
+  // Layer 3: ReadinessConstraints
+  const readinessConstraints = buildReadinessConstraints({
+    readiness,
+    defaultMinutes: userProfile.timeBucket,
+  });
+
+  // Layer 4: DayPrescription
+  const prescription = buildDayPrescription({
+    dayIndex,
+    goal: userProfile.goal,
+    experience: userProfile.experience,
+    calibration,
+    week,
+    split,
+    readiness: readinessConstraints,
+  });
+
+  console.log(
+    `  [Periodization] Day ${dayIndex}: style=${prescription.dayStyle}, ` +
+    `dup=${prescription.dupIntensity ?? "off"}, ` +
+    `mainReps=[${prescription.repProfile.main}], ` +
+    `reason="${prescription.dayStyleReason}"`,
+  );
+
+  return prescription;
+}
+
+/**
+ * Serialize DayPrescription summary for storage in planned_workouts.
+ * Strips Maps and functions — only JSON-safe primitives.
+ * Used for backward-compat detection + UI labels.
+ */
+function serializePrescriptionSummary(rx: DayPrescription | undefined) {
+  if (!rx) return undefined;
+  const summary = {
+    dayStyle: rx.dayStyle,
+    dayStyleReason: rx.dayStyleReason,
+    dupIntensity: rx.dupIntensity,
+    fatigueTarget: rx.fatigueTarget,
+    repProfile: rx.repProfile,
+    setProfile: rx.setProfile,
+    restProfile: rx.restProfile,
+    weekMode: rx.week.weekMode,
+    weekNumber: rx.week.weekNumber,
+    isDeloadWeek: rx.week.isDeloadWeek,
+    splitFamily: rx.split.splitFamily,
+    periodizationScope: rx.split.periodizationScope,
+    allowedAggressiveness: rx.readiness.allowedAggressiveness,
+    globalCalibrationMode: rx.calibration.globalCalibrationMode,
+  };
+  // Attach user-facing labels
+  const labels = buildPeriodizationLabels(summary);
+  return { ...summary, labels };
+}
 
 function inferLoadInfoFromExercise(exercise: any): {
   loadType: "bodyweight" | "external" | "assisted";
@@ -911,12 +1047,24 @@ workoutGeneration.post(
       fallbackTimeBucket: userProfile.timeBucket,
     });
 
+    // Build DayPrescription (periodization pipeline)
+    const mesocycle = await getMesocycle(uid);
+    const dayPrescription = await buildDayPrescriptionForWorkout({
+      userId: uid,
+      dayIndex,
+      scheme,
+      userProfile,
+      readiness,
+      mesocycle,
+    });
+
     const workout = await generateWorkoutDay({
       scheme,
       dayIndex,
       userProfile,
       readiness,
       history,
+      dayPrescription,
     });
 
     console.log(`✅ Generated workout: ${workout.totalExercises} exercises, ${workout.totalSets} sets`);
@@ -954,6 +1102,7 @@ workoutGeneration.post(
       estimatedDuration: workout.estimatedDuration,
       adaptationNotes: workout.adaptationNotes,
       warnings: workout.warnings,
+      periodization: serializePrescriptionSummary(dayPrescription),
     };
 
     const updated = await q<{ id: string }>(
@@ -1598,6 +1747,16 @@ workoutGeneration.post(
             });
           }
 
+          // Build DayPrescription (periodization pipeline)
+          const keepDayPrescription = await buildDayPrescriptionForWorkout({
+            userId: uid,
+            dayIndex: originalDayIndex,
+            scheme,
+            userProfile,
+            readiness,
+            mesocycle,
+          });
+
           const adaptedWorkout = await generateWorkoutDay({
             scheme,
             dayIndex: originalDayIndex,
@@ -1606,6 +1765,7 @@ workoutGeneration.post(
             history,
             dupIntensity: weekPlanData?.dupPattern?.[originalDayIndex],
             weekPlanData,
+            dayPrescription: keepDayPrescription,
           });
 
           const combinedNotes = mergeUniqueNotes(decision.notes || [], adaptedWorkout.adaptationNotes || []);
@@ -1659,6 +1819,7 @@ workoutGeneration.post(
               corePolicyAdjusted: Boolean(hasCoreExercisesWhenOptional),
             },
             warnings: readinessWarnings.length > 0 ? readinessWarnings : undefined,
+            periodization: serializePrescriptionSummary(keepDayPrescription),
             meta: {
               adaptedAt: new Date().toISOString(),
               originalDayIndex,
@@ -1702,11 +1863,34 @@ workoutGeneration.post(
               const libExercises = uniqueIds.map((id) => libById.get(id)).filter(Boolean) as any[];
 
               if (libExercises.length > 0) {
+                // Build loadBuckets from stored plan reps for bucket-aware progression
+                const loadBuckets = new Map<string, import("./periodization/periodizationTypes.js").LoadBucket>();
+                for (const ex of enrichedExercises) {
+                  const id = ex?.exerciseId || ex?.id || ex?.exercise?.id;
+                  const reps = ex?.reps ?? ex?.repsRange;
+                  if (typeof id === "string" && reps) {
+                    // reps can be "6-10", [6,10], or a number
+                    let range: [number, number] | null = null;
+                    if (Array.isArray(reps) && reps.length >= 2) {
+                      range = [Number(reps[0]), Number(reps[1])];
+                    } else if (typeof reps === "string") {
+                      const m = reps.match(/(\d+)\s*[-–]\s*(\d+)/);
+                      if (m) range = [Number(m[1]), Number(m[2])];
+                    } else if (typeof reps === "number") {
+                      range = [Math.max(1, reps - 2), reps + 2];
+                    }
+                    if (range && Number.isFinite(range[0]) && Number.isFinite(range[1])) {
+                      loadBuckets.set(id, classifyLoadBucket(range));
+                    }
+                  }
+                }
+
                 const recs = await getNextWorkoutRecommendations({
                   userId: uid,
                   exercises: libExercises,
                   goal: userProfile.goal,
                   experience: userProfile.experience,
+                  loadBuckets: loadBuckets.size > 0 ? loadBuckets : undefined,
                 });
 
                 exercisesWithWeights = enrichedExercises.map((ex: any) => {
@@ -1789,6 +1973,16 @@ workoutGeneration.post(
           });
         }
 
+        // Build DayPrescription (periodization pipeline)
+        const swapDayPrescription = await buildDayPrescriptionForWorkout({
+          userId: uid,
+          dayIndex: finalDayIndex,
+          scheme,
+          userProfile,
+          readiness,
+          mesocycle,
+        });
+
         const adaptedWorkout = await generateWorkoutDay({
           scheme,
           dayIndex: finalDayIndex,
@@ -1797,6 +1991,7 @@ workoutGeneration.post(
           history,
           dupIntensity: weekPlanData?.dupPattern?.[finalDayIndex],
           weekPlanData,
+          dayPrescription: swapDayPrescription,
         });
 
         const adaptedChangeNotes: string[] = mergeUniqueNotes(
@@ -1849,6 +2044,7 @@ workoutGeneration.post(
             corePolicyAdjusted: false,
           },
           warnings: mergeUniqueNotes(adaptedWorkout.warnings || [], readiness.warnings || []),
+          periodization: serializePrescriptionSummary(swapDayPrescription),
           // НОВОЕ: метаданные адаптации
           meta: {
             adaptedAt: new Date().toISOString(),

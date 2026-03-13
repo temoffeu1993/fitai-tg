@@ -34,6 +34,17 @@ import {
   type Mesocycle,
   type DUPIntensity,
 } from "./mesocycleEngine.js";
+import type { DayPrescription } from "./periodization/periodizationTypes.js";
+import { isExerciseCalibrated } from "./periodization/calibration.js";
+import {
+  buildWeekContext,
+  buildReadinessConstraints,
+  buildSplitContext,
+  buildCalibrationContext,
+  buildDayPrescription,
+  applyReadinessAdaptation,
+  buildLoadContext,
+} from "./periodization/index.js";
 import { computeReadiness, normalizeBlockedPatterns, type Intent, type Readiness } from "./readiness.js";
 import {
   estimateMainMinutesFromGeneratedExercises,
@@ -914,8 +925,9 @@ export async function generateWorkoutDay(args: {
   history?: WorkoutHistory;
   dupIntensity?: DUPIntensity; // НОВОЕ: DUP интенсивность
   weekPlanData?: any; // НОВОЕ: план недели
+  dayPrescription?: DayPrescription; // NEW: periodization architecture central object
 }): Promise<GeneratedWorkoutDay> {
-  const { scheme, dayIndex, userProfile, readiness, history, dupIntensity: rawDupIntensity, weekPlanData } = args;
+  const { scheme, dayIndex, userProfile, readiness, history, dupIntensity: rawDupIntensity, weekPlanData, dayPrescription } = args;
 
   // Deload guard: suppress DUP during deload weeks (deload has its own volume/intensity rules)
   const dupIntensity: DUPIntensity | undefined =
@@ -1138,22 +1150,106 @@ export async function generateWorkoutDay(args: {
   }
 
   // -------------------------------------------------------------------------
-  // STEP 2.5: НОВОЕ - Get progression recommendations
+  // STEP 2.45: RESOLVED CALIBRATION — rebuild DayPrescription with real exercise data
+  // The initial dayPrescription was built BEFORE exercises were selected,
+  // so its CalibrationContext has empty data → all exercises appear uncalibrated.
+  // Now we know the actual exercises, so we can resolve calibration properly.
+  // -------------------------------------------------------------------------
+  if (dayPrescription && userProfile.userId) {
+    try {
+      const { getExerciseExposureSummaries } = await import("./periodization/calibrationDb.js");
+      const { buildCalibrationContext, buildDayPrescription: buildDayRx } = await import("./periodization/index.js");
+
+      // Collect exercise IDs and patterns
+      const allExerciseIds = selectedExercises.map(s => s.ex.id);
+      const allPatterns = [...new Set(selectedExercises.flatMap(s => s.ex.patterns?.map(String) ?? []))];
+      const mainSecondaryIds = selectedExercises
+        .filter(s => s.role === "main" || s.role === "secondary")
+        .map(s => s.ex.id);
+
+      // Fetch real exposure data from DB
+      const exerciseSummaries = await getExerciseExposureSummaries(userProfile.userId, allExerciseIds);
+
+      // Build resolved calibration:
+      //   plannedExerciseIds = ALL → per-exercise map covers everything
+      //   globalLogicExerciseIds = main/secondary only → globalCalibrationMode
+      const resolvedCalibration = buildCalibrationContext({
+        exerciseSummaries,
+        plannedExerciseIds: allExerciseIds,
+        globalLogicExerciseIds: mainSecondaryIds,
+        plannedPatterns: allPatterns,
+        experience: userProfile.experience,
+        goal: userProfile.goal,
+      });
+
+      // Full rebuild: produces consistent dayStyle, repProfile, setProfile,
+      // restProfile, fatigueTarget, dupIntensity, allowDUPForMainSecondary.
+      const resolvedPrescription = buildDayRx({
+        dayIndex,
+        goal: userProfile.goal,
+        experience: userProfile.experience,
+        calibration: resolvedCalibration,
+        week: dayPrescription.week,
+        split: dayPrescription.split,
+        readiness: dayPrescription.readiness,
+      });
+
+      // Mutate in-place so downstream (STEP 2.5, STEP 3, serialization) sees resolved data
+      Object.assign(dayPrescription, resolvedPrescription);
+
+      console.log(`  [Calibration] Resolved: globalCalibrationMode=${resolvedCalibration.globalCalibrationMode}, ` +
+        `dayStyle=${resolvedPrescription.dayStyle}, dupIntensity=${resolvedPrescription.dupIntensity}`);
+    } catch (err) {
+      console.warn(`  [Calibration] Failed to resolve calibration:`, err);
+      // Continue with draft calibration
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 2.5: Get progression recommendations
   // -------------------------------------------------------------------------
   let progressionRecommendations = new Map<string, ProgressionRecommendation>();
-  
+
   if (userProfile.userId) {
     try {
       const { getNextWorkoutRecommendations } = await import("./progressionService.js");
+      const { classifyLoadBucket } = await import("./periodization/loadPrescription.js");
       const exercisesForProgression = selectedExercises.map(s => s.ex);
-      
+
+      // Build per-exercise loadBucket map from DayPrescription rep profiles.
+      // After STEP 2.45, dayPrescription.calibration is resolved and
+      // repProfile is consistent with the actual calibration state.
+      let loadBuckets: Map<string, import("./periodization/periodizationTypes.js").LoadBucket> | undefined;
+      if (dayPrescription) {
+        const { isExerciseCalibrated: isCalib } = await import("./periodization/index.js");
+        loadBuckets = new Map();
+        for (const { ex, role } of selectedExercises) {
+          const calibrated = isCalib(dayPrescription.calibration, ex.id, ex.patterns?.[0] ?? "");
+          let reps: [number, number];
+          if (!calibrated && (role === "main" || role === "secondary")) {
+            // Uncalibrated: will get safe mid-range override in STEP 3
+            const floor = dayPrescription.calibration.safeRepFloor;
+            reps = [floor, floor + 4];
+          } else {
+            const rx = dayPrescription.repProfile;
+            reps = role === "main" ? rx.main
+              : role === "secondary" ? rx.secondary
+              : role === "pump" ? rx.pump
+              : role === "conditioning" ? rx.conditioning
+              : rx.accessory;
+          }
+          loadBuckets.set(ex.id, classifyLoadBucket(reps));
+        }
+      }
+
       progressionRecommendations = await getNextWorkoutRecommendations({
         userId: userProfile.userId,
         exercises: exercisesForProgression,
         goal: userProfile.goal,
         experience: userProfile.experience,
+        loadBuckets,
       });
-      
+
       console.log(`  [Progression] Got recommendations for ${progressionRecommendations.size} exercises`);
     } catch (err) {
       console.warn(`  [Progression] Failed to get recommendations:`, err);
@@ -1192,13 +1288,48 @@ export async function generateWorkoutDay(args: {
       intent,
     });
 
-    // НОВОЕ: Применить volumeMultiplier из мезоцикла
-    if (weekPlanData?.volumeMultiplier) {
+    // Apply volumeMultiplier from mesocycle (skip if DayPrescription handles it)
+    if (!dayPrescription && weekPlanData?.volumeMultiplier) {
       sets = Math.max(1, Math.round(sets * weekPlanData.volumeMultiplier));
     }
 
-    // DUP: shift reps, sets, rest for ALL goals (heavy/medium/light days)
-    if (dupIntensity && (role === "main" || role === "secondary")) {
+    // ── DUP / DayPrescription: shift reps, sets, rest ──
+    if (dayPrescription) {
+      // NEW PATH: Use DayPrescription (per-role rep profiles, calibration-aware)
+      const rx = dayPrescription.repProfile;
+      const sx = dayPrescription.setProfile;
+      const restx = dayPrescription.restProfile;
+
+      // Check if this specific exercise is calibrated
+      const exerciseCalibrated = isExerciseCalibrated(
+        dayPrescription.calibration,
+        ex.id,
+        ex.patterns?.[0] ?? "",
+      );
+
+      if (!exerciseCalibrated && (role === "main" || role === "secondary")) {
+        // Uncalibrated exercise: safe mid-range override regardless of DUP
+        const floor = dayPrescription.calibration.safeRepFloor;
+        repsRange = [floor, floor + 4]; // e.g. [8, 12] for beginner, [6, 10] for intermediate
+      } else if (role === "main") {
+        repsRange = rx.main;
+      } else if (role === "secondary") {
+        repsRange = rx.secondary;
+      } else if (role === "pump") {
+        repsRange = rx.pump;
+      } else if (role === "conditioning") {
+        repsRange = rx.conditioning;
+      } else {
+        repsRange = rx.accessory;
+      }
+
+      // Apply set/rest multipliers from prescription
+      const setMult = sx[role] ?? 1.0;
+      const restMult = restx[role] ?? 1.0;
+      sets = Math.max(1, Math.round(sets * setMult));
+      restSec = Math.round(restSec * restMult);
+    } else if (dupIntensity && (role === "main" || role === "secondary")) {
+      // LEGACY PATH: old DUP overwrite (kept for backward compatibility)
       const DUP_REPS: Record<Goal, Record<DUPIntensity, [number, number]>> = {
         build_muscle:    { heavy: [4, 6],   medium: [6, 10],  light: [10, 15] },
         lose_weight:     { heavy: [10, 12], medium: [12, 15], light: [15, 20] },
@@ -1207,11 +1338,9 @@ export async function generateWorkoutDay(args: {
       };
       repsRange = DUP_REPS[userProfile.goal][dupIntensity];
 
-      // Sets multiplier: heavy keeps volume, light slightly less (lighter load = less fatigue)
       const DUP_SETS_MULT: Record<DUPIntensity, number> = { heavy: 1.0, medium: 1.0, light: 0.85 };
       sets = Math.max(1, Math.round(sets * DUP_SETS_MULT[dupIntensity]));
 
-      // Rest multiplier: heavy needs more rest, light needs less
       const DUP_REST_MULT: Record<DUPIntensity, number> = { heavy: 1.2, medium: 1.0, light: 0.8 };
       restSec = Math.round(restSec * DUP_REST_MULT[dupIntensity]);
     }
@@ -1220,26 +1349,45 @@ export async function generateWorkoutDay(args: {
     const recommendation = progressionRecommendations.get(ex.id);
     let suggestedWeight: number | undefined;
     let progressionNote: string | undefined;
-    
-	    if (recommendation) {
-	      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
-	        const rawWeight = recommendation.newWeight;
-	        const { loadType } = inferLoadInfo(ex);
-	        suggestedWeight = adjustWeightForIntent(rawWeight, intent, loadType);
-	      }
 
-        const emojiByAction: Record<ProgressionRecommendation["action"], string> = {
-          increase_weight: "💪",
-          increase_reps: "💪",
-          deload: "🛌",
-          decrease_weight: "📉",
-          maintain: "➡️",
-        };
+    if (recommendation) {
+      if (recommendation.newWeight !== undefined && recommendation.newWeight > 0) {
+        const rawWeight = recommendation.newWeight;
+        const { loadType } = inferLoadInfo(ex);
 
-        const emoji = emojiByAction[recommendation.action];
+        if (dayPrescription) {
+          // NEW PATH: Load Prescription with rep-bucket-aware weight scaling
+          const exerciseCalibrated = isExerciseCalibrated(
+            dayPrescription.calibration, ex.id, ex.patterns?.[0] ?? "",
+          );
+          const loadCtx = buildLoadContext({
+            repsRange,
+            trackedWeight: rawWeight,
+            isCalibrating: !exerciseCalibrated,
+            progressionAction: recommendation.action,
+            progressionReason: recommendation.reason,
+          });
+          suggestedWeight = loadCtx.suggestedWeightToday
+            ? adjustWeightForIntent(loadCtx.suggestedWeightToday, intent, loadType)
+            : undefined;
+        } else {
+          // LEGACY PATH
+          suggestedWeight = adjustWeightForIntent(rawWeight, intent, loadType);
+        }
+      }
 
-	      progressionNote = (emoji ? `${emoji} ` : "") + String(recommendation.reason || "").trim();
-	    }
+      const emojiByAction: Record<ProgressionRecommendation["action"], string> = {
+        increase_weight: "💪",
+        increase_reps: "💪",
+        deload: "🛌",
+        decrease_weight: "📉",
+        maintain: "➡️",
+      };
+
+      const emoji = emojiByAction[recommendation.action];
+
+      progressionNote = (emoji ? `${emoji} ` : "") + String(recommendation.reason || "").trim();
+    }
 
 	    return {
 	      ...inferLoadInfo(ex),
@@ -1256,9 +1404,51 @@ export async function generateWorkoutDay(args: {
   });
 
   // -------------------------------------------------------------------------
+  // STEP 3.5: Post-assignment readiness adaptation (per-exercise)
+  // Only runs when DayPrescription is available (new path).
+  // Adjusts sets/rest/weight for exercises near pain zones.
+  // -------------------------------------------------------------------------
+  if (dayPrescription) {
+    const exercisesToAdapt = exercises.map((ex) => ({
+      exerciseId: ex.exercise.id,
+      exerciseName: ex.exercise.name,
+      role: ex.role as "main" | "secondary" | "accessory" | "pump" | "conditioning",
+      sets: ex.sets,
+      repsRange: ex.repsRange,
+      restSec: ex.restSec,
+      suggestedWeight: ex.suggestedWeight,
+      jointFlags: (ex.exercise as any).jointFlags ?? [],
+      patterns: ex.exercise.patterns?.map(String) ?? [],
+    }));
+
+    const adaptationResult = applyReadinessAdaptation({
+      exercises: exercisesToAdapt,
+      readiness: dayPrescription.readiness,
+    });
+
+    if (adaptationResult.anyAdaptation) {
+      // Apply adapted values back to exercises
+      for (let i = 0; i < exercises.length; i++) {
+        const adapted = adaptationResult.exercises[i];
+        if (adapted.adaptationApplied) {
+          exercises[i].sets = adapted.sets;
+          exercises[i].repsRange = adapted.repsRange;
+          exercises[i].restSec = adapted.restSec;
+          if (exercises[i].suggestedWeight && adapted.weightMultiplier < 1.0) {
+            exercises[i].suggestedWeight = Math.round(
+              exercises[i].suggestedWeight! * adapted.weightMultiplier * 2
+            ) / 2; // Round to 0.5kg
+          }
+        }
+      }
+      console.log(`  [Readiness Adaptation] ${adaptationResult.adaptationNotes.length} exercises adapted, ${adaptationResult.totalSetsReduced} sets reduced`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // STEP 4: NEW - Coverage-aware fitSession (заменяет старую логику урезания)
   // -------------------------------------------------------------------------
-  
+
   console.log(`  Selected ${exercises.length} exercises, ${exercises.reduce((s, e) => s + e.sets, 0)} sets total`);
   
   // Get session caps from Volume Engine (day-category-aware)
@@ -1538,15 +1728,32 @@ export async function generateWeekPlan(args: {
   }
 
   const weekPlan: GeneratedWorkoutDay[] = [];
-  
+
   // НОВОЕ: Собираем все использованные упражнения за неделю
   // чтобы избежать дублей между днями
   const usedExerciseIds: string[] = [];
-  
+
+  // Build periodization context once for the week
+  const weekContext = buildWeekContext({
+    mesocycle: mesocycle ?? null,
+    weekNumber: mesocycle?.currentWeek ?? 1,
+    daysPerWeek: scheme.daysPerWeek,
+    goal: userProfile.goal,
+  });
+  const dayLabels = scheme.days.map((d) => d.label);
+  const splitContext = buildSplitContext({
+    schemeId: scheme.id,
+    splitType: scheme.splitType,
+    dayLabels,
+    daysPerWeek: scheme.daysPerWeek,
+    experience: userProfile.experience,
+    weekContext,
+  });
+
   for (let dayIndex = 0; dayIndex < scheme.daysPerWeek; dayIndex++) {
     // НОВОЕ: Получить DUP интенсивность для этого дня
     const dupIntensity = weekPlanData?.dupPattern?.[dayIndex];
-    
+
     // НОВОЕ: Передаем историю с учётом упражнений из предыдущих дней недели
     const historyWithWeekExclusions = history ? {
       ...history,
@@ -1554,11 +1761,33 @@ export async function generateWeekPlan(args: {
     } : {
       recentExerciseIds: usedExerciseIds,
     };
-    
+
     // Создаём readiness для каждого дня (без чек-ина при week generation)
     const readiness = computeReadiness({
       checkin: undefined,
       fallbackTimeBucket: userProfile.timeBucket,
+    });
+
+    // Build DayPrescription for this day
+    const readinessConstraints = buildReadinessConstraints({
+      readiness,
+      defaultMinutes: userProfile.timeBucket,
+    });
+    const calibration = buildCalibrationContext({
+      exerciseSummaries: [],
+      plannedExerciseIds: [],
+      plannedPatterns: [],
+      experience: userProfile.experience,
+      goal: userProfile.goal,
+    });
+    const dayPrescription = buildDayPrescription({
+      dayIndex,
+      goal: userProfile.goal,
+      experience: userProfile.experience,
+      calibration,
+      week: weekContext,
+      split: splitContext,
+      readiness: readinessConstraints,
     });
 
     const dayPlan = await generateWorkoutDay({
@@ -1569,6 +1798,7 @@ export async function generateWeekPlan(args: {
       history: historyWithWeekExclusions, // ИЗМЕНЕНО: передаём обновлённую историю
       dupIntensity,
       weekPlanData,
+      dayPrescription,
     });
 
     weekPlan.push(dayPlan);

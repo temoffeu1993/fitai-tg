@@ -30,13 +30,17 @@ export function buildWeekContext(args: {
   const { mesocycle, weekNumber, daysPerWeek, goal } = args;
 
   // No active mesocycle → neutral defaults
+  // NOTE: periodizationMode is "full_dup" even without mesocycle.
+  // Mesocycle controls week-to-week progression (deload, volume ramp).
+  // DUP (within-week variation) is governed by SplitPolicy, not mesocycle.
+  // SplitPolicy will further refine or disable DUP based on split type.
   if (!mesocycle) {
     return {
       weekNumber: 1,
       weekMode: "normal",
       weeklyVolumeMultiplier: 1.0,
       isDeloadWeek: false,
-      periodizationMode: "off",
+      periodizationMode: "full_dup",
       intensityBias: "medium",
     };
   }

@@ -171,6 +171,11 @@ export function buildDayPrescription(args: {
     dupIntensity = null;
   }
 
+  // Readiness can suppress DUP (recovery / light readiness)
+  if (readiness.recoveryRequired || readiness.allowedAggressiveness === "light") {
+    dupIntensity = null;
+  }
+
   // ── Determine day style ──
   const { dayStyle, reason: dayStyleReason } = determineDayStyle({
     dupIntensity,

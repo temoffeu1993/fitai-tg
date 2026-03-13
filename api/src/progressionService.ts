@@ -32,6 +32,9 @@ import {
   lockProgressionRow,
 } from "./progressionDb.js";
 
+import { classifyLoadBucket } from "./periodization/loadPrescription.js";
+import type { LoadBucket } from "./periodization/periodizationTypes.js";
+
 import { q } from "./db.js";
 
 function isProgressionDebug(): boolean {
@@ -478,14 +481,15 @@ export async function applyProgressionFromSession(args: {
         experience,
       });
 
-      // Prevent concurrent lost updates for this exercise across parallel jobs/sessions.
-      await lockProgressionRow({ userId, exerciseId: exercise.id, initialWeight: init.currentWeight });
-
-      const progressionData = (await getProgressionData(exercise.id, userId)) ?? init;
-      
-      // Parse target reps range
+      // Parse target reps range & determine load bucket for this exercise
       const targetRepsRange = parseRepsRange(exerciseData.reps);
-      progLog(`  [ProgressionService][debug] targetRepsRange=${targetRepsRange[0]}-${targetRepsRange[1]}`);
+      const loadBucket: LoadBucket = classifyLoadBucket(targetRepsRange);
+      progLog(`  [ProgressionService][debug] targetRepsRange=${targetRepsRange[0]}-${targetRepsRange[1]} loadBucket=${loadBucket}`);
+
+      // Prevent concurrent lost updates for this exercise+bucket across parallel jobs/sessions.
+      await lockProgressionRow({ userId, exerciseId: exercise.id, initialWeight: init.currentWeight, loadBucket });
+
+      const progressionData = (await getProgressionData(exercise.id, userId, loadBucket)) ?? init;
       
       // Map frontend effort to RPE
       const avgRpe = mapEffortToRPE(exerciseData.effort);
@@ -666,9 +670,9 @@ export async function applyProgressionFromSession(args: {
         }
       );
       
-      // Save to database
-      progLog(`  [ProgressionService][debug] saving progression/history to DB...`);
-      await saveProgressionData(updatedData, userId);
+      // Save to database (bucket-aware)
+      progLog(`  [ProgressionService][debug] saving progression/history to DB (bucket=${loadBucket})...`);
+      await saveProgressionData(updatedData, userId, loadBucket);
       await saveWorkoutHistory(fullHistory, userId, { sessionId });
       progLog(
         `  [ProgressionService][debug] saved ✅`,
@@ -734,24 +738,27 @@ export async function getNextWorkoutRecommendations(args: {
   exercises: Exercise[];
   goal: Goal;
   experience: ExperienceLevel;
+  /** Optional per-exercise load bucket. If provided, queries the bucket-specific progression line. */
+  loadBuckets?: Map<string, LoadBucket>;
 }): Promise<Map<string, ProgressionRecommendation>> {
-  const { userId, exercises, goal, experience } = args;
-  
+  const { userId, exercises, goal, experience, loadBuckets } = args;
+
   progLog(`\n📖 [ProgressionService] Getting recommendations for ${exercises.length} exercises...`);
-  
+
   // Validate inputs
   if (!userId) {
     console.warn('  ⚠️  No userId provided, skipping progression recommendations');
     return new Map();
   }
-  
+
   const recommendations = new Map<string, ProgressionRecommendation>();
   let newExercises = 0;
   let withHistory = 0;
-  
+
   for (const exercise of exercises) {
     try {
-      const progressionData = await getProgressionData(exercise.id, userId);
+      const bucket = loadBuckets?.get(exercise.id);
+      const progressionData = await getProgressionData(exercise.id, userId, bucket);
       
       if (!progressionData) {
         // No history: use starting weight

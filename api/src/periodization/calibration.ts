@@ -56,19 +56,27 @@ export interface ExerciseExposureSummary {
  *   In the current system, this comes from exercise_progression + exercise_history tables.
  *   On first workout (no history), pass an empty array.
  *
- * @param plannedExerciseIds - IDs of exercises planned for today's workout.
- *   Used to check which exercises need calibration.
+ * @param plannedExerciseIds - IDs of ALL exercises planned for today's workout.
+ *   Used to build the per-exercise calibration map (covers every exercise).
+ *
+ * @param globalLogicExerciseIds - (Optional) IDs of main/secondary exercises only.
+ *   Used for globalCalibrationMode and periodizationAllowed.
+ *   If not provided, falls back to plannedExerciseIds.
+ *   Reason: one calibrated accessory (biceps curl) should NOT keep
+ *   globalCalibrationMode = false when all main/secondary are new.
  *
  * @param experience - User's experience level.
  */
 export function buildCalibrationContext(args: {
   exerciseSummaries: ExerciseExposureSummary[];
   plannedExerciseIds: string[];
+  globalLogicExerciseIds?: string[];
   plannedPatterns: string[];
   experience: ExperienceLevel;
   goal: Goal;
 }): CalibrationContext {
   const { exerciseSummaries, plannedExerciseIds, plannedPatterns, experience, goal } = args;
+  const globalIds = args.globalLogicExerciseIds ?? plannedExerciseIds;
 
   // Build lookup maps
   const summaryByExercise = new Map<string, ExerciseExposureSummary>();
@@ -81,7 +89,7 @@ export function buildCalibrationContext(args: {
     summaryByPattern.set(s.pattern, existing);
   }
 
-  // ── Per-exercise calibration ──
+  // ── Per-exercise calibration (ALL exercises) ──
   const calibrationByExercise = new Map<string, boolean>();
   let uncalibratedCount = 0;
 
@@ -106,21 +114,27 @@ export function buildCalibrationContext(args: {
     calibrationByPattern.set(pattern, !patternCalibrated);
   }
 
-  // ── Global calibration mode ──
-  // Global = ALL main exercises lack history (very first workouts)
-  const globalCalibrationMode = plannedExerciseIds.length > 0 &&
-    uncalibratedCount === plannedExerciseIds.length;
+  // ── Global calibration mode (main/secondary only) ──
+  // Global = ALL main/secondary exercises lack history (very first workouts).
+  // Uses globalIds (main/secondary) so accessories don't affect this decision.
+  let globalUncalibratedCount = 0;
+  for (const exId of globalIds) {
+    if (calibrationByExercise.get(exId) !== false) globalUncalibratedCount++;
+  }
+  const globalCalibrationMode = globalIds.length > 0 &&
+    globalUncalibratedCount === globalIds.length;
 
   // ── Periodization allowed? ──
   // Periodization is allowed even if some exercises are uncalibrated.
   // Those exercises get per-exercise override; the rest can use DUP.
-  // Only block periodization globally if EVERYTHING is uncalibrated.
+  // Only block periodization globally if ALL main/secondary are uncalibrated.
   const periodizationAllowed = !globalCalibrationMode;
 
   // ── Safe rep floor ──
   const safeRepFloor = SAFE_REP_FLOOR[experience];
 
-  // ── Starter load mode ──
+  // ── Starter load mode (ALL exercises) ──
+  // Uses uncalibratedCount from the full loop — if ANY exercise is new, starter mode.
   const starterLoadMode = globalCalibrationMode
     ? "starter"
     : uncalibratedCount > 0

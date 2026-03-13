@@ -1,8 +1,16 @@
 // progressionDb.ts
 // БД функции для прогрессии
+//
+// PK: (user_id, exercise_id, load_bucket)
+// load_bucket = 'low_rep' | 'moderate_rep' | 'high_rep' | 'calibration'
+// Каждый bucket — независимая линия прогрессии для одного упражнения.
 
 import { q } from "./db.js";
 import type { ExerciseProgressionData, ExerciseHistory } from "./progressionEngine.js";
+import type { LoadBucket } from "./periodization/periodizationTypes.js";
+
+/** Default bucket when caller doesn't specify (backward compat) */
+const DEFAULT_BUCKET: LoadBucket = "moderate_rep";
 
 function normalizeWorkoutDate(value: any): string {
   if (typeof value === "string") return value;
@@ -19,21 +27,25 @@ function normalizeWorkoutDate(value: any): string {
 
 export async function getProgressionData(
   exerciseId: string,
-  userId: string
+  userId: string,
+  loadBucket?: LoadBucket,
 ): Promise<ExerciseProgressionData | null> {
+  const bucket = loadBucket ?? DEFAULT_BUCKET;
   const rows = await q<any>(
-    `SELECT * FROM exercise_progression 
-     WHERE user_id = $1 AND exercise_id = $2`,
-    [userId, exerciseId]
+    `SELECT * FROM exercise_progression
+     WHERE user_id = $1 AND exercise_id = $2 AND load_bucket = $3`,
+    [userId, exerciseId, bucket]
   );
 
   if (!rows.length) return null;
 
   const row = rows[0];
 
+  // History is shared across all buckets (raw set data).
+  // The engine derives working sets from the full history.
   const historyRows = await q<any>(
-    `SELECT * FROM exercise_history 
-     WHERE user_id = $1 AND exercise_id = $2 
+    `SELECT * FROM exercise_history
+     WHERE user_id = $1 AND exercise_id = $2
      ORDER BY workout_date DESC, created_at DESC NULLS LAST, session_id DESC NULLS LAST
      LIMIT 48`,
     [userId, exerciseId]
@@ -60,23 +72,26 @@ export async function getProgressionData(
 
 export async function saveProgressionData(
   data: ExerciseProgressionData,
-  userId: string
+  userId: string,
+  loadBucket?: LoadBucket,
 ): Promise<void> {
+  const bucket = loadBucket ?? DEFAULT_BUCKET;
   await q(
-    `INSERT INTO exercise_progression 
-      (user_id, exercise_id, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-     ON CONFLICT (user_id, exercise_id) 
+    `INSERT INTO exercise_progression
+      (user_id, exercise_id, load_bucket, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+     ON CONFLICT (user_id, exercise_id, load_bucket)
      DO UPDATE SET
-       current_weight = $3,
-       status = $4,
-       stall_count = $5,
-       deload_count = $6,
-       last_progress_date = $7,
+       current_weight = $4,
+       status = $5,
+       stall_count = $6,
+       deload_count = $7,
+       last_progress_date = $8,
        updated_at = NOW()`,
     [
       userId,
       data.exerciseId,
+      bucket,
       data.currentWeight,
       data.status,
       data.stallCount,
@@ -105,22 +120,24 @@ export async function lockProgressionRow(args: {
   userId: string;
   exerciseId: string;
   initialWeight: number;
+  loadBucket?: LoadBucket;
 }): Promise<void> {
   const { userId, exerciseId, initialWeight } = args;
+  const bucket = args.loadBucket ?? DEFAULT_BUCKET;
   // Ensure a row exists, then lock it to prevent concurrent lost updates across jobs.
   await q(
     `INSERT INTO exercise_progression
-      (user_id, exercise_id, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
-     VALUES ($1, $2, $3, 'maintaining', 0, 0, NULL, NOW())
-     ON CONFLICT (user_id, exercise_id) DO NOTHING`,
-    [userId, exerciseId, initialWeight]
+      (user_id, exercise_id, load_bucket, current_weight, status, stall_count, deload_count, last_progress_date, updated_at)
+     VALUES ($1, $2, $3, $4, 'maintaining', 0, 0, NULL, NOW())
+     ON CONFLICT (user_id, exercise_id, load_bucket) DO NOTHING`,
+    [userId, exerciseId, bucket, initialWeight]
   );
 
   await q(
     `SELECT 1
        FROM exercise_progression
-      WHERE user_id = $1 AND exercise_id = $2
+      WHERE user_id = $1 AND exercise_id = $2 AND load_bucket = $3
       FOR UPDATE`,
-    [userId, exerciseId]
+    [userId, exerciseId, bucket]
   );
 }
