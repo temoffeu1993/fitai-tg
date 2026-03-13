@@ -752,8 +752,10 @@ describe("Level 2: Scientific Accuracy", () => {
             record(persona.name, "session_time", day.dayLabel, "pass",
               `${est}min estimated vs ${avail}min available (+${Math.round(overPct)}%)`);
           } else {
+            const exCount = (day.exercises || []).length;
+            const setsCount = day.totalSets || 0;
             record(persona.name, "session_time", day.dayLabel, "fail",
-              `${est}min estimated vs ${avail}min available (+${Math.round(overPct)}%) — exceeds +20% tolerance`);
+              `${est}min estimated vs ${avail}min available (+${Math.round(overPct)}%) [${exCount} exercises, ${setsCount} sets] — exceeds +20% tolerance`);
           }
         }
       }

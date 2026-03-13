@@ -15,7 +15,7 @@
 import type { Exercise, JointFlag, Equipment as LibraryEquipment, Experience, ExerciseKind, Pattern, MuscleGroup } from "./exerciseLibrary.js";
 import type { NormalizedWorkoutScheme, Goal, ExperienceLevel, Location, TimeBucket } from "./normalizedSchemes.js";
 import type { ProgressionRecommendation } from "./progressionEngine.js";
-import { buildDaySlots } from "./dayPatternMap.js";
+import { buildDaySlots, getDayCategory } from "./dayPatternMap.js";
 import {
   selectExercisesForDay,
   type UserConstraints,
@@ -1261,11 +1261,13 @@ export async function generateWorkoutDay(args: {
   
   console.log(`  Selected ${exercises.length} exercises, ${exercises.reduce((s, e) => s + e.sets, 0)} sets total`);
   
-  // Get session caps from Volume Engine
+  // Get session caps from Volume Engine (day-category-aware)
+  const dayCategory = getDayCategory(dayBlueprint.templateRulesId ?? dayBlueprint.label);
   const sessionCaps = getSessionCaps(
     userProfile.experience,
     effectiveTimeBucket as TimeBucket,
-    intent
+    intent,
+    dayCategory
   );
   
   console.log(`  Session caps: ${sessionCaps.minExercises}-${sessionCaps.maxExercises} exercises, max ${sessionCaps.maxSets} sets`);
@@ -1303,6 +1305,7 @@ export async function generateWorkoutDay(args: {
     experience: userProfile.experience,
     timeBucket: effectiveTimeBucket as TimeBucket,
     intent,
+    dayCategory,
   });
   
   if (!finalValidation.valid) {

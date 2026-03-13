@@ -220,7 +220,7 @@ export function computeReadiness(args: {
   // Базовый intent из severity
   if (severity === "critical" || severity === "high") {
     intent = "light";
-  } else if (severity === "low" && severityScore <= -2) {
+  } else if (severity === "low" && severityScore <= -3) {
     intent = "hard";
   } else {
     intent = "normal";

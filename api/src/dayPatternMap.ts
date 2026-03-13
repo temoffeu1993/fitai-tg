@@ -30,26 +30,40 @@ export type DayPatternRules = {
 };
 
 // ============================================================================
-// SLOT RANGES BY TIME BUCKET AND INTENT
+// DAY CATEGORY: broad_coverage (Full Body) vs focused_split (PPL/Upper-Lower/Bro)
 // ============================================================================
 
-// Total exercise slots available based on time and readiness
-const SLOT_RANGE: Record<TimeBucket, Record<Intent, { min: number; max: number }>> = {
-  45: {
-    light: { min: 4, max: 5 },
-    normal: { min: 5, max: 6 },
-    hard: { min: 6, max: 7 },
-  },
-  60: {
-    light: { min: 5, max: 6 },
-    normal: { min: 6, max: 7 },
-    hard: { min: 7, max: 8 },
-  },
-  90: {
-    light: { min: 6, max: 7 },
-    normal: { min: 7, max: 9 },
-    hard: { min: 9, max: 10 },
-  },
+export type DayCategory = "broad_coverage" | "focused_split";
+
+const BROAD_COVERAGE_IDS = new Set([
+  "Full Body A", "Full Body B", "Full Body C",
+]);
+
+/** Classify a templateRulesId as broad_coverage or focused_split */
+export function getDayCategory(templateRulesId: string): DayCategory {
+  return BROAD_COVERAGE_IDS.has(templateRulesId) ? "broad_coverage" : "focused_split";
+}
+
+// ============================================================================
+// SLOT RANGES BY TIME BUCKET AND INTENT (split by day category)
+// ============================================================================
+
+// Evidence-based calibration:
+// - Broad (Full Body): Nippard FB = 8-10 exercises, NSCA = 8-10
+// - Focused (PPL/UL): Nippard PPL = 5-6, PHUL = 5-6 per split day 50-60min
+
+type SlotRangeTable = Record<TimeBucket, Record<Intent, { min: number; max: number }>>;
+
+const SLOT_RANGE_BROAD: SlotRangeTable = {
+  45: { light: { min: 4, max: 5 }, normal: { min: 5, max: 6 }, hard: { min: 6, max: 7 } },
+  60: { light: { min: 5, max: 6 }, normal: { min: 6, max: 7 }, hard: { min: 7, max: 8 } },
+  90: { light: { min: 6, max: 7 }, normal: { min: 7, max: 9 }, hard: { min: 9, max: 10 } },
+};
+
+const SLOT_RANGE_FOCUSED: SlotRangeTable = {
+  45: { light: { min: 3, max: 4 }, normal: { min: 4, max: 5 }, hard: { min: 5, max: 6 } },
+  60: { light: { min: 4, max: 5 }, normal: { min: 5, max: 6 }, hard: { min: 6, max: 7 } },
+  90: { light: { min: 5, max: 6 }, normal: { min: 6, max: 7 }, hard: { min: 7, max: 8 } },
 };
 
 // ============================================================================
@@ -227,9 +241,10 @@ export function buildDaySlots(args: {
     throw new Error(`Unknown templateRulesId: ${templateRulesId}`);
   }
 
-  // Determine total slot budget
-  // NEW: для advanced берём ближе к max, для beginner - ближе к min
-  const range = SLOT_RANGE[timeBucket][intent];
+  // Determine total slot budget using day-category-aware SLOT_RANGE
+  const dayCategory = getDayCategory(templateRulesId);
+  const slotTable = dayCategory === "broad_coverage" ? SLOT_RANGE_BROAD : SLOT_RANGE_FOCUSED;
+  const range = slotTable[timeBucket][intent];
   let slotBudget: number;
   
   if (experience === "advanced") {
@@ -360,21 +375,17 @@ export function buildDaySlots(args: {
       usedBudget += 1;
     }
 
-    // Достигаем budget через дубликаты (round-robin через preferredDoubles → остальные compound)
-    if (usedBudget < slotBudget && usedPatterns.size > 0) {
-      // Приоритет: preferredDoubles данного дня → compound паттерны дня → isolation паттерны дня
-      // Все фильтруются через blocked (нельзя дублировать заблокированный паттерн)
+    // Достигаем budget через дубликаты (round-robin)
+    // CRITICAL: для focused_split НЕ форсируем дубликаты — split days не нуждаются в раздувании
+    if (usedBudget < slotBudget && usedPatterns.size > 0 && dayCategory === "broad_coverage") {
+      // Приоритет: preferredDoubles данного дня → compound паттерны дня
       const doublesPool: Pattern[] = [
         ...(rules.preferredDoubles || []).filter(p => usedPatterns.has(p) && !blocked.has(p)),
         ...Array.from(usedPatterns).filter(p =>
           isCompoundPattern(p) && !(rules.preferredDoubles || []).includes(p) && !blocked.has(p)
         ),
-        ...Array.from(usedPatterns).filter(p =>
-          !isCompoundPattern(p) && p !== "core" && p !== "calves" && p !== "carry" && !blocked.has(p)
-        ),
       ];
 
-      // Round-robin: каждая итерация берёт следующий паттерн из пула
       let roundIdx = 0;
       while (usedBudget < slotBudget && doublesPool.length > 0) {
         const pattern = doublesPool[roundIdx % doublesPool.length];

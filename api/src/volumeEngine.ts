@@ -18,6 +18,7 @@
 
 import type { Goal, ExperienceLevel, TimeBucket } from "./normalizedSchemes.js";
 import type { Intent, SlotRole } from "./exerciseSelector.js";
+import type { DayCategory } from "./dayPatternMap.js";
 
 // ============================================================================
 // 1. SESSION CAPS: Dynamic limits based on timeBucket + intent
@@ -45,25 +46,26 @@ type SessionCaps = {
 export function getSessionCaps(
   experience: ExperienceLevel,
   timeBucket: TimeBucket,
-  intent: Intent
+  intent: Intent,
+  dayCategory?: DayCategory
 ): SessionCaps {
-  // Base caps by experience × timeBucket
+  // Base caps by experience × timeBucket (broad_coverage / Full Body values)
   // CRITICAL: maxExercises MUST be >= dayPatternMap SLOT_RANGE max for this timeBucket!
   const baseCaps: Record<ExperienceLevel, Record<TimeBucket, { min: number; max: number; sets: number }>> = {
     beginner: {
-      45: { min: 4, max: 6, sets: 16 },  // ПОВЫШЕНО: 14 → 16 (Nippard: ~16 sets/day для beginner короткая)
-      60: { min: 5, max: 7, sets: 20 },  // ПОВЫШЕНО: 16 → 20 (Nippard FB 3d: 20 sets/day)
-      90: { min: 6, max: 9, sets: 22 },  // ПОВЫШЕНО: 18 → 22 (beginner 90min может больше)
+      45: { min: 4, max: 6, sets: 16 },
+      60: { min: 5, max: 7, sets: 20 },
+      90: { min: 6, max: 9, sets: 22 },
     },
     intermediate: {
       45: { min: 5, max: 7, sets: 18 },
-      60: { min: 6, max: 8, sets: 24 },  // ПОВЫШЕНО: 21 → 24 (верхняя граница научного стандарта)
-      90: { min: 7, max: 10, sets: 27 }, // ПОВЫШЕНО: 24 → 27 (для DUP heavy days)
+      60: { min: 6, max: 8, sets: 24 },
+      90: { min: 7, max: 10, sets: 27 },
     },
     advanced: {
       45: { min: 6, max: 8, sets: 20 },
-      60: { min: 7, max: 9, sets: 26 },  // ПОВЫШЕНО: 24 → 26 (верхняя граница для advanced)
-      90: { min: 8, max: 11, sets: 30 }, // ПОВЫШЕНО: 28 → 30 (advanced может больше)
+      60: { min: 7, max: 9, sets: 26 },
+      90: { min: 8, max: 11, sets: 30 },
     },
   };
 
@@ -72,10 +74,13 @@ export function getSessionCaps(
   // Intent modifies SETS, not exercises count (more/less volume, not variety)
   const intentSetsMod = intent === "light" ? -4 : intent === "hard" ? +2 : 0;
 
+  // Focused split days need fewer exercises and sets (split targets fewer muscle groups)
+  const isFocused = dayCategory === "focused_split";
+
   return {
-    minExercises: base.min,
-    maxExercises: base.max,
-    maxSets: Math.max(10, base.sets + intentSetsMod), // Never below 10 sets
+    minExercises: Math.max(3, base.min - (isFocused ? 1 : 0)),
+    maxExercises: base.max - (isFocused ? 1 : 0),
+    maxSets: Math.max(10, base.sets + intentSetsMod - (isFocused ? 2 : 0)),
   };
 }
 
@@ -398,6 +403,7 @@ export function validateWorkoutVolume(args: {
   experience: ExperienceLevel;
   timeBucket: TimeBucket;
   intent: Intent;
+  dayCategory?: DayCategory;
 }): {
   valid: boolean;
   overMaxSets: boolean;
@@ -406,9 +412,9 @@ export function validateWorkoutVolume(args: {
   warnings: string[];
   caps: SessionCaps;
 } {
-  const { totalSets, totalExercises, experience, timeBucket, intent } = args;
+  const { totalSets, totalExercises, experience, timeBucket, intent, dayCategory } = args;
 
-  const caps = getSessionCaps(experience, timeBucket, intent);
+  const caps = getSessionCaps(experience, timeBucket, intent, dayCategory);
   const warnings: string[] = [];
 
   const overMaxSets = totalSets > caps.maxSets;
